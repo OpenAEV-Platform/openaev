@@ -1,19 +1,40 @@
-import { buttonClasses, type ThemeOptions } from '@mui/material';
+import { buttonClasses, lighten, type ThemeOptions } from '@mui/material';
 
 import LogoCollapsed from '../static/images/logo_light.png';
 import LogoText from '../static/images/logo_text_light.png';
 import { hexToRGB } from '../utils/Colors';
 import { fileUri } from '../utils/Environment';
+import { FDS } from './fds-tokens.generated';
 import { FONT_FAMILY_CODE, type LabelColor, LabelColorDict } from './Theme';
 
-const EE_COLOR = '#0c7e69';
+// fds-migration/TOKEN-MAPPING.md § C — aligned on OpenCTI's already-validated reference value
+// (tonic-primary), not on OpenAEV's own prior literal. See report for full rationale.
+// Single lookup on purpose: secondary, EE, gradient.main and xtmhub.main are deliberately unified
+// on this one token (TOKEN-MAPPING.md § 3.3), so a future key rename only needs one update.
+const EE_COLOR = FDS.colors.light['--color-filigran-tonic-primary'];
 
-export const THEME_LIGHT_DEFAULT_BACKGROUND = '#f8f8f8';
-const THEME_LIGHT_DEFAULT_PRIMARY = '#001bda';
-const THEME_LIGHT_DEFAULT_SECONDARY = '#0c7e69';
-const THEME_LIGHT_DEFAULT_ACCENT = '#dfdfdf';
-const THEME_LIGHT_DEFAULT_PAPER = '#ffffff';
+export const THEME_LIGHT_DEFAULT_BACKGROUND = FDS.colors.light['--bg-elevation-default-layer-0'];
+// fds-migration/TOKEN-MAPPING.md § ISO OpenCTI — body/html gradient end-stop (was entirely unwired: no
+// gradient existed on OpenAEV's body/html before this, ISO'd on OpenCTI's proven two-stop pattern).
+const THEME_LIGHT_DEFAULT_BODY_END_GRADIENT = FDS.colors.light['--bg-elevation-default-layer-0-gradient'];
+// fds-migration/TOKEN-MAPPING.md § 1 (post lib#32 rename) — raw palette-ramp tokens (--darkblue-*) are
+// mode-invariant and now live under FDS.scalars, not FDS.colors.{dark,light} (post-#32 bridge reshape).
+const THEME_LIGHT_DEFAULT_PRIMARY = FDS.scalars['--darkblue-600'];
+const THEME_LIGHT_DEFAULT_SECONDARY = EE_COLOR;
+const THEME_LIGHT_DEFAULT_ACCENT = FDS.colors.light['--bg-elevation-default-layer-3'];
+const THEME_LIGHT_DEFAULT_PAPER = FDS.colors.light['--bg-elevation-default-layer-1'];
+// NAV intentionally left as a raw literal — see TOKEN-MAPPING.md "7th item" flag (Sandy hasn't signed
+// off on this specific, visibly-notable white -> #f2f2f3 shift yet).
 const THEME_LIGHT_DEFAULT_NAV = '#ffffff';
+
+// Same derivation as OpenCTI's ThemeLight.ts: a custom (DB-overridden) background still gets a live
+// gradient end-stop via lighten(), since no field lets an admin author that end-stop directly today.
+const getAppBodyGradientEndColor = (background: string | null): string => {
+  if (background && background !== THEME_LIGHT_DEFAULT_BACKGROUND) {
+    return lighten(background, 0.05);
+  }
+  return THEME_LIGHT_DEFAULT_BODY_END_GRADIENT;
+};
 
 const ThemeLight = (
   logo: string | null = null,
@@ -52,7 +73,7 @@ const ThemeLight = (
     warning: { main: '#ed6c02' },
     primary: { main: primary || THEME_LIGHT_DEFAULT_PRIMARY },
     secondary: { main: secondary || THEME_LIGHT_DEFAULT_SECONDARY },
-    gradient: { main: '#00f1bd' },
+    gradient: { main: EE_COLOR },
     border: {
       lightBackground: hexToRGB('#000000', 0.15),
       primary: hexToRGB(primary || THEME_LIGHT_DEFAULT_PRIMARY, 0.3),
@@ -89,7 +110,7 @@ const ThemeLight = (
       lightBackground: hexToRGB(EE_COLOR, 0.08),
       contrastText: '#ffffff',
     },
-    xtmhub: { main: '#00f1bd' },
+    xtmhub: { main: EE_COLOR },
     widgets: {
       securityDomains: {
         colors: {
@@ -106,10 +127,15 @@ const ThemeLight = (
       default: background || THEME_LIGHT_DEFAULT_BACKGROUND,
       paper: paper || THEME_LIGHT_DEFAULT_PAPER,
       nav: nav || THEME_LIGHT_DEFAULT_NAV,
+      // NOT wired: no FDS token match on either side (see TOKEN-MAPPING.md "Tokens à créer dans
+      // Figma" — cross-product gap with OpenCTI, both still hardcoded here).
       accent: accent || '#d3eaff',
       shadow: 'rgba(0, 0, 0, .15)',
       code: accent || THEME_LIGHT_DEFAULT_ACCENT,
       paperInCard: '#f7f7f7',
+      // fds-migration/TOKEN-MAPPING.md § D — was declared in Theme.ts but never assigned (resolved to
+      // undefined at runtime); DragAndDropImportDialog.tsx already consumes it.
+      secondary: FDS.colors.light['--bg-elevation-highlight-layer-0'],
     },
   },
   typography: {
@@ -222,10 +248,16 @@ const ThemeLight = (
         html: {
           scrollbarColor: `${accent || THEME_LIGHT_DEFAULT_ACCENT} ${paper || THEME_LIGHT_DEFAULT_PAPER}`,
           scrollbarWidth: 'thin',
+          // fds-migration/TOKEN-MAPPING.md § ISO OpenCTI — two-stop body/html gradient (was a flat fill).
+          background: `linear-gradient(100deg, ${background || THEME_LIGHT_DEFAULT_BACKGROUND} 0%, ${getAppBodyGradientEndColor(background)} 100%)`,
+          backgroundAttachment: 'fixed',
+          backgroundColor: background || THEME_LIGHT_DEFAULT_BACKGROUND,
         },
         body: {
           'scrollbarColor': `${accent || THEME_LIGHT_DEFAULT_ACCENT} ${paper || THEME_LIGHT_DEFAULT_PAPER}`,
           'scrollbarWidth': 'thin',
+          'background': `linear-gradient(100deg, ${background || THEME_LIGHT_DEFAULT_BACKGROUND} 0%, ${getAppBodyGradientEndColor(background)} 100%)`,
+          'backgroundAttachment': 'fixed',
           'html': { WebkitFontSmoothing: 'auto' },
           'a': { color: primary || THEME_LIGHT_DEFAULT_PRIMARY },
           'input:-webkit-autofill': {

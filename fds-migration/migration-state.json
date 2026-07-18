@@ -1,0 +1,81 @@
+{
+  "__generated": "Skeleton scaffolded once by pnpm generate:fds-migration --product openaev --write-to-product (filigran-design-system repo) — created only if missing, never overwritten on re-run. Fields below are then maintained by agents during the pilot (wiredFiles/forbiddenPatterns as theme files are wired, migratedZones/lastReconciled during the reconciliation loop).",
+  "product": "openaev",
+  "frontDir": "openaev-front",
+  "generatedBridgeFiles": [
+    "src/components/fds-tokens.generated.ts"
+  ],
+  "wiredFiles": [
+    {
+      "file": "openaev-front/src/components/ThemeDark.ts",
+      "mustImport": "fds-tokens.generated"
+    },
+    {
+      "file": "openaev-front/src/components/ThemeLight.ts",
+      "mustImport": "fds-tokens.generated"
+    }
+  ],
+  "forbiddenPatterns": [
+    {
+      "file": "openaev-front/src/components/ThemeDark.ts",
+      "pattern": "00f1bd",
+      "reason": "Old drifted literal (1-2 hex digits off --color-filigran-tonic-primary). Was EE_COLOR/secondary/gradient.main/xtmhub.main. Its presence means the §B recalibration (TOKEN-MAPPING.md) was reverted."
+    },
+    {
+      "file": "openaev-front/src/components/ThemeDark.ts",
+      "pattern": "0f1e38",
+      "reason": "Old hand-copied accent value (pre-FDS, pre-OpenCTI-alignment). Its presence means the §C alignment was reverted."
+    },
+    {
+      "file": "openaev-front/src/components/ThemeDark.ts",
+      "pattern": "09101e",
+      "reason": "Old hand-copied paper value (pre-FDS, pre-OpenCTI-alignment)."
+    },
+    {
+      "file": "openaev-front/src/components/ThemeDark.ts",
+      "pattern": "070d19",
+      "reason": "Old hand-copied background/nav value (pre-FDS, pre-OpenCTI-alignment)."
+    },
+    {
+      "file": "openaev-front/src/components/ThemeLight.ts",
+      "pattern": "001bda",
+      "reason": "Old typo'd primary value (a instead of b before --darkblue-600, FDS.scalars post lib#32). Explicitly NOT --color-filigran-brand-primary (#0015a8) -- see TOKEN-MAPPING.md, that would be a real visual change reserved for a future design decision."
+    },
+    {
+      "file": "openaev-front/src/components/ThemeLight.ts",
+      "pattern": "0c7e69",
+      "reason": "Old hand-copied secondary/EE_COLOR value (pre-FDS, pre-OpenCTI-alignment)."
+    },
+    {
+      "file": "openaev-front/src/components/ThemeLight.ts",
+      "pattern": "dfdfdf",
+      "reason": "Old hand-copied accent value (pre-FDS, pre-OpenCTI-alignment)."
+    },
+    {
+      "file": "openaev-front/src/components/ThemeLight.ts",
+      "pattern": "f8f8f8",
+      "reason": "Old hand-copied background value (pre-FDS, pre-OpenCTI-alignment)."
+    }
+  ],
+  "migratedZones": [
+    "palette.primary",
+    "palette.secondary / EE_COLOR / palette.gradient.main / palette.xtmhub.main (unified on --color-filigran-tonic-primary both modes -- xtmhub.main has a live consumer, GradientButton.tsx, same 'end-gradient' pattern flagged by the OpenCTI pilot)",
+    "palette.background.default (dark background.nav rides along for free, same constant)",
+    "palette.background.paper (+ paperInCard dark, code dark via THEME_*_ACCENT)",
+    "palette.background.accent (dark) / background.code (both modes) via THEME_*_ACCENT -- NOT the same as the standalone light background.accent literal, see notMigrated",
+    "palette.background.secondary (newly wired -- was declared in Theme.ts but never assigned before this lot)",
+    "MuiCssBaseline html/body background (newly wired two-stop gradient, ISO OpenCTI's getAppBodyGradientEndColor pattern -- OpenAEV previously had zero gradient, flat fill only; found during Sandy's Phase 5 review)"
+  ],
+  "notMigrated": [
+    "palette.background.accent (light, standalone '#d3eaff' literal, ItemCopy.tsx/AttackPatternBox.tsx) -- no FDS token match on either OpenCTI or OpenAEV side, genuine cross-product gap, see TOKEN-MAPPING.md §3.5 and the Figma backlog",
+    "palette.severity.* (7 levels) -- explicit design decision deferred to Sandy+Thibault; a portable 5/7-level mapping already validated by the OpenCTI pilot is documented (not applied) in TOKEN-MAPPING.md §4",
+    "THEME_LIGHT_DEFAULT_NAV -- FDS token identified (--bg-elevation-heading-layer-0, #f2f2f3) but deliberately NOT applied pending explicit sign-off (the '7th item', a real visible white -> pale-gray delta not in Sandy's originally arbitrated list) -- see TOKEN-MAPPING.md §1",
+    "palette.designSystem (full DesignSystemPalette type, Theme.ts) -- dead code (0 consumers), explicitly left unresurrected per Sandy's arbitration (option 2); see TOKEN-MAPPING.md §5 and PR #5204/#5523 history",
+    "palette.background.gradient.{start,end} / palette.leftBar.* -- dead code, 0 consumers, left as-is",
+    "borderRadius / typography / spacing -- out of scope for this color-only lot (borderRadius: 4 already numerically matches --radius-sm, not wired symbolically)"
+  ],
+  "knownCaveats": [
+    "Unlike OpenCTI, OpenAEV's DB-backed theme override (Setting entity, no dedicated Theme table, no built_in flag) has every platform_light_theme/platform_dark_theme field null in this environment (verified via GET /api/settings/public) -- so these FDS values are immediately live with no separate DB row update required. Re-verify this assumption if a real deployment has ever had an admin populate a custom theme through Settings -> Themes."
+  ],
+  "lastReconciled": null
+}

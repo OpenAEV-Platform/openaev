@@ -38,3 +38,6 @@ openaev-dev/telemetry-output/
 
 ### macOS ###
 .DS_Store
+
+### FDS token migration (local validation artifacts, never committed) ###
+.fds-validation-artifacts/
