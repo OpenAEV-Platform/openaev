@@ -1,6 +1,7 @@
 import { PersonOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router';
 
 import PaginatedList from '../../../../../components/common/list/PaginatedList';
 import PaginationComponentV2 from '../../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -9,6 +10,7 @@ import SortHeadersComponentV2 from '../../../../../components/common/queryable/s
 import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
+import { USER_BASE_URL } from '../../../../../constants/BaseUrls';
 import { type UserOutput } from '../../../../../utils/api-types';
 import { Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -25,6 +27,7 @@ import UserPopover from './UserPopover';
 
 const TenantUsersTab = () => {
   const { t } = useFormatter();
+  const navigate = useNavigate();
 
   const {
     users,
@@ -34,6 +37,7 @@ const TenantUsersTab = () => {
     addUser,
     editUser,
     removeUser,
+    changeUserPassword,
   } = useTenantUsers();
 
   const {
@@ -78,9 +82,10 @@ const TenantUsersTab = () => {
                 secondaryAction={user => (
                   <UserPopover
                     user={user}
-                    actions={['Update', 'Delete']}
+                    actions={['Update', 'Update password', 'Delete']}
                     onSubmitUpdate={data => editUser(user.user_id, data)}
                     onSubmitDelete={() => removeUser(user.user_id)}
+                    onSubmitPassword={data => changeUserPassword(user.user_id, data)}
                     permissions={{
                       manage: [ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS],
                       delete: [ACTIONS.DELETE, SUBJECTS.TENANT_SETTINGS],
@@ -91,6 +96,7 @@ const TenantUsersTab = () => {
                 headers={headers}
                 items={users}
                 rowKey="user_id"
+                onRowClick={user => navigate(`${USER_BASE_URL}/${user.user_id}`)}
                 itemWidth={TENANT_USER_INLINE_STYLES}
               />
             )}

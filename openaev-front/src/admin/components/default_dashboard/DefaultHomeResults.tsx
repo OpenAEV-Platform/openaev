@@ -1,4 +1,4 @@
-import { DevicesOtherOutlined, HelpOutlineOutlined, HubOutlined, KeyboardArrowRight, MovieFilterOutlined, TrackChangesOutlined } from '@mui/icons-material';
+import { BoltOutlined, DevicesOtherOutlined, HelpOutlineOutlined, HubOutlined, KeyboardArrowRight, MovieFilterOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, type SvgIconProps, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ComponentType, type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
@@ -52,6 +52,7 @@ const ENTITY_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   'vulnerable-endpoint': DevicesOtherOutlined,
   'scenario': MovieFilterOutlined,
   'simulation': HubOutlined,
+  'inject': BoltOutlined,
   'expectation-inject': TrackChangesOutlined,
 };
 

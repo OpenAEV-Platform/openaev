@@ -321,9 +321,12 @@ public final class ExpectationResultBuilder {
   // -- CLOSE --
 
   public static void expireEmptyResults(
-      @NotNull final List<InjectExpectationResult> results,
-      final Double score,
-      final String result) {
+      final List<InjectExpectationResult> results, final Double score, final String result) {
+    // An expectation that never received any result has a null results list; there is nothing to
+    // expire in that case, so no-op instead of throwing (ExpectationsExpirationManagerJob NPE).
+    if (results == null) {
+      return;
+    }
     results.stream()
         .filter(r -> !hasText(r.getResult()))
         .forEach(

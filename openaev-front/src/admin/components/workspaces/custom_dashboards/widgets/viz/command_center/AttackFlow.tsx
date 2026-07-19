@@ -65,6 +65,30 @@ const humanize = (key: string) => {
   return clean.charAt(0).toUpperCase() + clean.slice(1);
 };
 
+// Rough advance width of an uppercase-ish SVG string, used only to decide when a
+// gate label would overflow its column and must be condensed. ~0.6em per glyph
+// plus the inter-letter tracking.
+const estimateTextWidth = (text: string, fontSize: number, trackingEm: number) =>
+  text.length * fontSize * 0.6 + Math.max(text.length - 1, 0) * fontSize * trackingEm;
+
+// Caps a gate text to its column width: when the natural width overflows, SVG
+// condenses it to exactly `maxWidth` (spacingAndGlyphs) instead of overlapping
+// the neighbouring gate. Short labels are left untouched.
+const fitTextProps = (
+  text: string,
+  fontSize: number,
+  trackingEm: number,
+  maxWidth: number,
+) => {
+  const overflow = estimateTextWidth(text, fontSize, trackingEm) > maxWidth;
+  return overflow
+    ? {
+        textLength: Math.max(maxWidth, 1),
+        lengthAdjust: 'spacingAndGlyphs' as const,
+      }
+    : {};
+};
+
 /**
  * The defense gauntlet - a dynamic kill-chain where each expectation type found
  * in the data becomes a thin vertical defense gate between the adversary and
@@ -92,6 +116,10 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
 
   const n = Math.max(layers.length, 1);
   const gateX = (i: number) => GATES_START + ((GATES_END - GATES_START) * (i + 0.5)) / n;
+  // Width of one gate column; labels are condensed to fit inside it so adjacent
+  // gate labels (e.g. VULNERABILITY next to PREVENTION) can never overlap.
+  const columnWidth = (GATES_END - GATES_START) / n;
+  const labelMaxWidth = Math.max(columnWidth - 8, 24);
   const beamPath = `M ${ADVERSARY_X + 26} ${CY} L ${ASSETS_X - 26} ${CY}`;
   const pathTo = (endX: number) => `M ${ADVERSARY_X + 26} ${CY} L ${endX} ${CY}`;
 
@@ -215,6 +243,7 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
                   letterSpacing: '0.12em',
                   textTransform: 'uppercase',
                 }}
+                {...fitTextProps(label, 9.5, 0.12, labelMaxWidth)}
               >
                 {label}
               </text>
@@ -231,15 +260,21 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
               >
                 {layer.success}
               </text>
-              <text
-                x={x}
-                y={CY + GATE_HALF + 38}
-                textAnchor="middle"
-                fill={theme.palette.text.secondary}
-                style={{ fontSize: 9 }}
-              >
-                {`${Math.round(rate * 100)}% ${t(OUTCOME_LABELS[layer.key.toUpperCase()] ?? 'stopped')}`}
-              </text>
+              {(() => {
+                const outcomeText = `${Math.round(rate * 100)}% ${t(OUTCOME_LABELS[layer.key.toUpperCase()] ?? 'stopped')}`;
+                return (
+                  <text
+                    x={x}
+                    y={CY + GATE_HALF + 38}
+                    textAnchor="middle"
+                    fill={theme.palette.text.secondary}
+                    style={{ fontSize: 9 }}
+                    {...fitTextProps(outcomeText, 9, 0, labelMaxWidth)}
+                  >
+                    {outcomeText}
+                  </text>
+                );
+              })()}
               {/* absorbed particles + impact ring, density mirrors real outcomes */}
               {Array.from({ length: stopped }, (_, k) => (
                 <g key={k}>

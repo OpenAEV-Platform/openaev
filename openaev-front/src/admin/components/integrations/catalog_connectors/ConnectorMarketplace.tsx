@@ -1,16 +1,12 @@
 import { OnlinePredictionOutlined, SmartButtonOutlined, TerminalOutlined } from '@mui/icons-material';
-import { Chip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ReactNode, useMemo, useState } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import {
-  type CatalogFacetFilters,
-  type CatalogSort,
   CONNECTOR_TYPE_ORDER,
   type ConnectorItem,
-  EMPTY_FACET_FILTERS,
-  type FacetGroupId,
   filterConnectors,
   hasActiveFacetFilters,
   sortConnectors,
@@ -20,6 +16,7 @@ import CatalogConnectorCard from './CatalogConnectorCard';
 import CatalogEmptyState from './CatalogEmptyState';
 import CatalogSidebar from './CatalogSidebar';
 import CatalogToolbar from './CatalogToolbar';
+import useCatalogFilters from './useCatalogFilters';
 
 interface Props {
   items: ConnectorItem[];
@@ -32,27 +29,16 @@ interface Props {
  * The shared faceted marketplace browser: sticky filter sidebar, toolbar
  * (search / sort / result count), active-filter chips and type-sectioned
  * connector cards. Used by both the Available (catalog) and Deployed tabs.
+ * Filter state is persisted in the URL query string (per-tab, since each tab
+ * has its own URL).
  */
 const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
 
-  const [filters, setFilters] = useState<CatalogFacetFilters>(EMPTY_FACET_FILTERS);
-  const [keyword, setKeyword] = useState('');
-  const [sort, setSort] = useState<CatalogSort>('name_asc');
+  const { filters, keyword, setKeyword, sort, setSort, onToggleFacet, onClearFacets } = useCatalogFilters();
   // SearchFilter is uncontrolled; bumping this key remounts it to clear its value.
   const [searchResetKey, setSearchResetKey] = useState(0);
-
-  const onToggleFacet = (groupId: FacetGroupId, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [groupId]: prev[groupId].includes(value)
-        ? prev[groupId].filter(v => v !== value)
-        : [...prev[groupId], value],
-    }));
-  };
-
-  const onClearFacets = () => setFilters(EMPTY_FACET_FILTERS);
 
   const onResetAll = () => {
     onClearFacets();
@@ -143,48 +129,69 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
               <header style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: theme.spacing(1),
+                gap: theme.spacing(1.25),
               }}
               >
-                <SectionIcon sx={{
-                  fontSize: 18,
-                  color: 'primary.main',
+                <div style={{
+                  width: 28,
+                  height: 28,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: theme.shape.borderRadius,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
                 }}
-                />
+                >
+                  <SectionIcon sx={{
+                    fontSize: 16,
+                    color: 'primary.main',
+                  }}
+                  />
+                </div>
                 <Typography
                   component="h2"
                   sx={{
-                    fontFamily: '"Geologica", sans-serif',
+                    fontFamily: theme.typography.h1.fontFamily,
+                    fontSize: 16,
                     fontWeight: 600,
-                    fontSize: 13,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
                     margin: 0,
                   }}
                 >
                   {section.label}
                 </Typography>
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  sx={{
-                    borderRadius: 1,
-                    height: 20,
-                    fontSize: 11,
-                  }}
-                  label={section.items.length}
-                />
+                <span style={{
+                  padding: '1px 6px',
+                  borderRadius: 2,
+                  backgroundColor: alpha(theme.palette.text.primary, 0.06),
+                  fontSize: 11,
+                  fontWeight: 500,
+                  fontVariantNumeric: 'tabular-nums',
+                  color: theme.palette.text.secondary,
+                }}
+                >
+                  {section.items.length}
+                </span>
                 <div style={{
                   flex: 1,
-                  borderBottom: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+                  height: 1,
+                  backgroundColor: alpha(theme.palette.text.primary, 0.05),
                 }}
                 />
               </header>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                gap: theme.spacing(2),
-              }}
+              {/* Capped at 4 columns like OpenCTI (Grid2 xs-12 md-6 lg-4 xl-3):
+                  cards grow with the screen instead of multiplying columns. */}
+              <Box
+                sx={{
+                  display: 'grid',
+                  gap: 2,
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    md: 'repeat(2, 1fr)',
+                    lg: 'repeat(3, 1fr)',
+                    xl: 'repeat(4, 1fr)',
+                  },
+                }}
               >
                 {section.items.map(item => (
                   <CatalogConnectorCard
@@ -193,7 +200,7 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
                     footerAction={renderFooterAction?.(item)}
                   />
                 ))}
-              </div>
+              </Box>
             </section>
           );
         })}

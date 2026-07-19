@@ -15,7 +15,6 @@ interface Props {
   useCases?: string[];
   verified?: boolean;
   external?: boolean;
-  description?: string;
   /** Instance status chip (deployed connector pages). */
   statusChip?: ReactNode;
   /** Right-side actions (deploy / migrate / start-stop / popover). */
@@ -25,8 +24,9 @@ interface Props {
 /**
  * The marketplace-grade hero of a connector detail page: framed logo on an
  * accent-tinted band, title with support badge (Filigran / community) and
- * status, type / use-case / deployment chips, short description, and an
- * actions slot on the right.
+ * status, type / use-case / deployment chips, and an actions slot on the
+ * right. The full description lives in the Overview card below the hero (same
+ * layout as OpenCTI), keeping the hero compact.
  */
 const ConnectorDetailHero = ({
   title,
@@ -35,7 +35,6 @@ const ConnectorDetailHero = ({
   useCases = [],
   verified = false,
   external,
-  description,
   statusChip,
   actions,
 }: Props) => {
@@ -189,20 +188,6 @@ const ConnectorDetailHero = ({
             />
           )}
         </div>
-        {description && (
-          <Typography
-            variant="body2"
-            sx={{
-              color: 'text.secondary',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
-          >
-            {description}
-          </Typography>
-        )}
       </div>
       {actions && (
         <div style={{

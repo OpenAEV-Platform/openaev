@@ -7,7 +7,6 @@ import {
   DEPLOYMENT_EXTERNAL,
   type FacetGroupId,
   prettifyUseCase,
-  STATUS_COMMUNITY,
   STATUS_FILIGRAN,
 } from './catalog-facets';
 
@@ -46,16 +45,11 @@ const CatalogActiveFilters = ({ filters, onToggleFacet, onClearAll }: Props) => 
       label: prettifyUseCase(value),
       capitalize: true,
     })),
-    ...filters.status.map((value) => {
-      let label = t('Deployed');
-      if (value === STATUS_FILIGRAN) label = t('Supported by Filigran');
-      if (value === STATUS_COMMUNITY) label = t('Supported by Community');
-      return {
-        groupId: 'status' as const,
-        value,
-        label,
-      };
-    }),
+    ...filters.status.map(value => ({
+      groupId: 'status' as const,
+      value,
+      label: value === STATUS_FILIGRAN ? t('Supported by Filigran') : t('Supported by Community'),
+    })),
     ...filters.deployment.map(value => ({
       groupId: 'deployment' as const,
       value,

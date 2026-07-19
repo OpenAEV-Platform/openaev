@@ -13,7 +13,6 @@ const useStyles = makeStyles()(theme => ({
   item: {
     height: 30,
     fontSize: 13,
-    float: 'left',
     paddingRight: theme.spacing(1),
   },
 }));
@@ -33,10 +32,7 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
 
-  let tabValue = location.pathname;
-  if (location.pathname.includes(`/admin/atomic_testings/${injectResultOverview.inject_id}/detail`)) {
-    tabValue = `/admin/atomic_testings/${injectResultOverview.inject_id}/detail`;
-  }
+  const tabValue = location.pathname;
 
   const handleRemediationClick = (event: React.SyntheticEvent) => {
     event.preventDefault();
@@ -49,7 +45,13 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
   };
 
   return (
-    <Tabs value={tabValue}>
+    <Tabs
+      value={tabValue}
+      sx={{
+        borderBottom: 1,
+        borderColor: 'divider',
+      }}
+    >
       <Tab
         component={Link}
         to={`/admin/atomic_testings/${injectResultOverview.inject_id}`}
@@ -57,19 +59,12 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
         label={t('Overview')}
         className={classes.item}
       />
-      <Tab
-        component={Link}
-        to={`/admin/atomic_testings/${injectResultOverview.inject_id}/detail`}
-        value={`/admin/atomic_testings/${injectResultOverview.inject_id}/detail`}
-        label={t('Inject Execution details')}
-        className={classes.item}
-      />
       {injectResultOverview.inject_injector_contract?.injector_contract_payload && (
         <Tab
           component={Link}
           to={`/admin/atomic_testings/${injectResultOverview.inject_id}/payload_info`}
           value={`/admin/atomic_testings/${injectResultOverview.inject_id}/payload_info`}
-          label={t('Action info')}
+          label={t('Payload details')}
           className={classes.item}
         />
       )}

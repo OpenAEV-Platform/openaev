@@ -1,6 +1,6 @@
 import type { Dispatch } from 'redux';
 
-import { getReferential, simpleCall, simplePostCall } from '../../utils/Action';
+import { delReferential, getReferential, simpleCall, simplePostCall } from '../../utils/Action';
 import * as schema from '../Schema';
 
 const INJECTOR_URI = '/api/injectors';
@@ -32,4 +32,8 @@ export const searchInjectorByIdAsOptions = (ids: string[], sourceId: string = ''
 
 export const fetchInjectorRelatedIds = (injectorId: string) => {
   return simpleCall(`${INJECTOR_URI}/${injectorId}/related-ids`);
+};
+
+export const deleteInjector = (injectorId: string) => (dispatch: Dispatch) => {
+  return delReferential(`${INJECTOR_URI}/${injectorId}`, 'injectors', injectorId)(dispatch);
 };
