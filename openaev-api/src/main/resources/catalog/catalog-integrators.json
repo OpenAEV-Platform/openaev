@@ -2262,7 +2262,7 @@
         {
             "title": "Email (Microsoft 365)",
             "slug": "openaev_email_m365",
-            "description": "Send emails from Microsoft 365 mailboxes through the Microsoft Graph API",
+            "description": "Send emails from Microsoft 365 mailboxes through the Microsoft Graph API.",
             "short_description": "Send emails via Microsoft 365 (Microsoft Graph API)",
             "use_cases": [
                 "Communication"
@@ -2317,7 +2317,7 @@
                     },
                     "INJECTOR_PERIOD": {
                         "default": "PT1M",
-                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
+                        "description": "Duration between two scheduled runs of the injector (ISO 8601 format).",
                         "format": "duration",
                         "type": "string"
                     },
