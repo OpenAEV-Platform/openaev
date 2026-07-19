@@ -110,9 +110,11 @@ test.describe('Agent implant registration', () => {
     await expect(async () => {
       await page.reload();
       if (await endpointsTab.isVisible().catch(() => false)) {
-        await endpointsTab.click();
+        await endpointsTab.click({ timeout: 5_000 });
       }
-      await endpointRow.first().click();
+      // Keep every action bounded well under the 10s poll cadence so a not-yet-ready
+      // row can never block on the global 60s action timeout and stall the loop.
+      await endpointRow.first().click({ timeout: 5_000 });
       // The START trace is only rendered once the agent has executed and reported.
       await expect(spawnTrace).toBeVisible({ timeout: 5_000 });
     }).toPass({
