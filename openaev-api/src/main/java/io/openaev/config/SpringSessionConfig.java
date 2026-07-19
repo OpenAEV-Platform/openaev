@@ -1,6 +1,7 @@
 package io.openaev.config;
 
 import java.time.Duration;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,6 +35,22 @@ public class SpringSessionConfig {
   @Value("${server.servlet.session.timeout:1440m}")
   private Duration sessionTimeout;
 
+  /**
+   * SameSite attribute of the session cookie.
+   *
+   * <p>Left blank by default so the attribute is OMITTED, which is what the platform did before
+   * sessions moved to Spring Session (the servlet container never set SameSite). Omitting it lets
+   * the browser apply its default policy, which still delivers the cookie on the cross-site SSO
+   * callback (SAML ACS POST and OIDC {@code form_post}). An explicit {@code Lax} would drop the
+   * cookie on that POST and break SSO.
+   *
+   * <p>Production SSO deployments behind HTTPS should set this to {@code None} (which forces the
+   * {@code Secure} attribute) for a robust, spec-compliant cross-site session cookie. Accepted
+   * values: {@code None}, {@code Lax}, {@code Strict}, or blank to omit.
+   */
+  @Value("${openbas.session-cookie-same-site:${openaev.session-cookie-same-site:}}")
+  private String sessionCookieSameSite;
+
   @Bean
   public CookieSerializer cookieSerializer() {
     DefaultCookieSerializer serializer = new DefaultCookieSerializer();
@@ -47,7 +64,7 @@ public class SpringSessionConfig {
     // /login?error). We therefore honor the configured value and, by default, OMIT the attribute
     // (restoring the pre-Spring-Session behavior where the cookie is still delivered on the SSO
     // callback). SameSite=None additionally requires Secure to be accepted by browsers.
-    String sameSite = normalizeSameSite(openAEVConfig.getSessionCookieSameSite());
+    String sameSite = normalizeSameSite(sessionCookieSameSite);
     serializer.setSameSite(sameSite);
     boolean secure = openAEVConfig.isCookieSecure() || "None".equals(sameSite);
     serializer.setUseSecureCookie(secure);
@@ -70,7 +87,7 @@ public class SpringSessionConfig {
     if (configured == null) {
       return null;
     }
-    return switch (configured.trim().toLowerCase()) {
+    return switch (configured.trim().toLowerCase(Locale.ROOT)) {
       case "none" -> "None";
       case "lax" -> "Lax";
       case "strict" -> "Strict";

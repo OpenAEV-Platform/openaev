@@ -137,23 +137,6 @@ public class OpenAEVConfig {
   @Value("${openbas.session-cookie:${openaev.session-cookie:false}}")
   private boolean sessionCookie;
 
-  /**
-   * SameSite attribute of the session cookie.
-   *
-   * <p>Left blank by default so the attribute is OMITTED, which is what the platform did before
-   * sessions moved to Spring Session (the servlet container never set SameSite). Omitting it lets
-   * the browser apply its default policy, which still delivers the cookie on the cross-site SSO
-   * callback (SAML ACS POST and OIDC {@code form_post}). An explicit {@code Lax} would drop the
-   * cookie on that POST and break SSO.
-   *
-   * <p>Production SSO deployments behind HTTPS should set this to {@code None} (which forces the
-   * {@code Secure} attribute) for a robust, spec-compliant cross-site session cookie. Accepted
-   * values: {@code None}, {@code Lax}, {@code Strict}, or blank to omit.
-   */
-  @JsonIgnore
-  @Value("${openbas.session-cookie-same-site:${openaev.session-cookie-same-site:}}")
-  private String sessionCookieSameSite;
-
   @JsonProperty("application_agent_url")
   @Value("${openbas.agent-url:${openaev.agent-url:#{null}}}")
   private String agentUrl;
