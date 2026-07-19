@@ -41,6 +41,21 @@ class CatalogPage {
     await this.displayNameInput.fill(name);
   }
 
+  /**
+   * Fills a required configuration field by its human-readable label. Labels are
+   * derived from the configuration key by the form (e.g. EXECUTOR_TANIUM_API_URL
+   * -> "Executor Tanium Api Url"). Uses a substring match to tolerate the
+   * required-field marker ("*" for text/password, " *" for numbers).
+   */
+  async fillConfigurationField(label: string, value: string): Promise<void> {
+    // Target the actual form control by role (text inputs and number inputs) so we
+    // never resolve to a non-fillable wrapper element that merely carries the label.
+    const control = this.page
+      .getByRole('textbox', { name: label })
+      .or(this.page.getByRole('spinbutton', { name: label }));
+    await control.first().fill(value);
+  }
+
   async submitInstall(): Promise<void> {
     await this.installButton.click();
   }

@@ -12,6 +12,7 @@ import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { searchAssets } from '../../../../actions/assets/endpoint-actions';
+import { fetchExecutors } from '../../../../actions/executors/executor-action';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ExportButton from '../../../../components/common/ExportButton';
 import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
@@ -30,6 +31,8 @@ import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
 import { type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
+import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
@@ -62,6 +65,14 @@ const Endpoints = () => {
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
+  const dispatch = useAppDispatch();
+
+  // Load the executors once for the whole page; the per-row Executors column
+  // reads them from the store (previously each row fetched them, firing
+  // GET /api/executors once per endpoint).
+  useDataLoader(() => {
+    dispatch(fetchExecutors());
+  });
 
   // Query param
   const [searchParams] = useSearchParams();
@@ -72,6 +83,7 @@ const Endpoints = () => {
   const availableFilterNames = [
     'asset_category',
     'asset_subcategory',
+    'asset_status',
     'asset_criticality',
     'asset_cloud_provider',
     'asset_internet_facing',
@@ -128,24 +140,24 @@ const Endpoints = () => {
       field: EndpointListItemFragments.ENDPOINT_ACTIVE,
       label: 'Status',
       isSortable: false,
-      value: (endpoint: EndpointOutput) => <EndpointActiveFragment activity_map={endpoint.asset_agents.map(a => a.agent_active ?? false)} />,
+      value: (endpoint: EndpointOutput) => <EndpointActiveFragment activity_map={(endpoint.asset_agents ?? []).map(a => a.agent_active ?? false)} />,
     },
     {
       field: EndpointListItemFragments.ENDPOINT_AGENTS_PRIVILEGE,
       label: 'Agents Privileges',
       isSortable: false,
-      value: (endpoint: EndpointOutput) => <EndpointAgentsPrivilegeFragment privileges={endpoint.asset_agents.map(a => a.agent_privilege)} />,
+      value: (endpoint: EndpointOutput) => <EndpointAgentsPrivilegeFragment privileges={(endpoint.asset_agents ?? []).map(a => a.agent_privilege)} />,
     },
     {
       field: EndpointListItemFragments.ENDPOINT_PLATFORM,
       label: 'Platform',
-      isSortable: true,
+      isSortable: false,
       value: (endpoint: EndpointOutput) => <AssetPlatformFragment platform={endpoint.endpoint_platform} />,
     },
     {
       field: EndpointListItemFragments.ENDPOINT_ARCH,
       label: 'Architecture',
-      isSortable: true,
+      isSortable: false,
       value: (endpoint: EndpointOutput) => <EndpointArchFragment arch={endpoint.endpoint_arch} />,
     },
     {
@@ -172,8 +184,8 @@ const Endpoints = () => {
     <>
       <Breadcrumbs
         variant="list"
-        elements={[{ label: t('Assets') }, {
-          label: t('Inventory'),
+        elements={[{
+          label: t('Assets'),
           current: true,
         }]}
       />

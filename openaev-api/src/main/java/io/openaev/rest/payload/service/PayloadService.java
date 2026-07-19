@@ -331,7 +331,17 @@ public class PayloadService {
     Optional<InjectorContract> originInjectorContract =
         injectorContractRepository.findInjectorContractByPayload(origin);
 
-    Payload duplicated = payloadRepository.save(generateDuplicatedPayload(origin));
+    Payload duplicatedPayload = generateDuplicatedPayload(origin);
+    // A duplicate is a new manual payload: it is authored by the user performing the
+    // duplication. System flows without an authenticated user keep the author copied
+    // from the origin.
+    User duplicatingUser = userService.currentUserOrNull();
+    if (duplicatingUser != null) {
+      duplicatedPayload.setAuthorUser(duplicatingUser);
+      duplicatedPayload.setAuthorTeam(null);
+      duplicatedPayload.setAuthorOrganization(null);
+    }
+    Payload duplicated = payloadRepository.save(duplicatedPayload);
     InjectorContract injectorContract =
         this.synchroniseInjectorContractBasedOnPayload(
             duplicated,

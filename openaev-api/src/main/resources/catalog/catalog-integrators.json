@@ -5,10 +5,10 @@
     "version": "rolling",
     "contracts": [
         {
-            "title": "Crowdstrike",
+            "title": "CrowdStrike",
             "slug": "openaev_crowdstrike",
-            "description": "Collect responses from Crowdstrike EDR",
-            "short_description": "Collect responses from Crowdstrike EDR",
+            "description": "Validate OpenAEV detection and prevention expectations against CrowdStrike Falcon by collecting the detections and alerts its endpoint protection raises in response to simulated attacks.",
+            "short_description": "Collect detections from CrowdStrike Falcon EDR",
             "use_cases": [
                 "Security response"
             ],
@@ -111,8 +111,8 @@
         {
             "title": "Microsoft Entra",
             "slug": "openaev_microsoft_entra",
-            "description": "Collect users information from Microsoft Entra to create players",
-            "short_description": "Collect users information from Microsoft Entra to create players",
+            "description": "Synchronize users and groups from Microsoft Entra ID (Azure AD) into OpenAEV as players and teams, so simulations can target your real organizational directory.",
+            "short_description": "Import users from Microsoft Entra ID as players",
             "use_cases": [
                 "Player collection"
             ],
@@ -210,8 +210,8 @@
         {
             "title": "Microsoft Intune",
             "slug": "openaev_microsoft_intune",
-            "description": "Allow registration of agentless endpoints coming from Microsoft Intune endpoints",
-            "short_description": "Allow registration of agentless endpoints coming from Microsoft Intune endpoints",
+            "description": "Register agentless endpoints managed by Microsoft Intune in OpenAEV, so managed devices can be targeted by simulations without deploying an agent.",
+            "short_description": "Register Microsoft Intune managed devices as agentless endpoints",
             "use_cases": [
                 "Asset collection"
             ],
@@ -314,8 +314,8 @@
         {
             "title": "Microsoft Defender",
             "slug": "openaev_microsoft_defender",
-            "description": "Collect responses from Microsoft Defender",
-            "short_description": "Collect responses from Microsoft Defender",
+            "description": "Validate OpenAEV detection and prevention expectations against Microsoft Defender for Endpoint by collecting the alerts it raises in response to simulated attacks.",
+            "short_description": "Collect detections from Microsoft Defender for Endpoint",
             "use_cases": [
                 "Security response"
             ],
@@ -411,10 +411,10 @@
             }
         },
         {
-            "title": "Microsoft azure",
+            "title": "Microsoft Azure",
             "slug": "openaev_microsoft_azure",
-            "description": "Allow registration of agentless endpoints coming from Microsoft Azure",
-            "short_description": "Allow registration of agentless endpoints coming from Microsoft Azure",
+            "description": "Register agentless endpoints from Microsoft Azure virtual machines in OpenAEV, so cloud instances can be targeted by simulations without deploying an agent.",
+            "short_description": "Register Microsoft Azure virtual machines as agentless endpoints",
             "use_cases": [
                 "Asset collection",
                 "Cloud security"
@@ -518,8 +518,8 @@
         {
             "title": "Microsoft Sentinel",
             "slug": "openaev_microsoft_sentinel",
-            "description": "Collect responses from Microsoft Sentinel",
-            "short_description": "Collect responses from Microsoft Sentinel",
+            "description": "Validate OpenAEV detection expectations against Microsoft Sentinel by collecting the incidents and alerts your cloud-native SIEM correlates in response to simulated attacks.",
+            "short_description": "Collect incidents and alerts from Microsoft Sentinel",
             "use_cases": [
                 "Security response"
             ],
@@ -637,8 +637,8 @@
         {
             "title": "Atomic Red Team",
             "slug": "openaev_atomic_red_team",
-            "description": "Collect Atomic Red Team payload library",
-            "short_description": "Collect Atomic Red Team payload library",
+            "description": "Import the Atomic Red Team library of MITRE ATT&CK-aligned tests into OpenAEV as ready-to-run payloads, so you can exercise detection and prevention against community adversary techniques.",
+            "short_description": "Import the Atomic Red Team payload library",
             "use_cases": [
                 "Payload collection"
             ],
@@ -714,8 +714,8 @@
         {
             "title": "Tanium Threat Response",
             "slug": "openaev_tanium_threat_response",
-            "description": "Collect responses from Tanium Threat Response",
-            "short_description": "Collect responses from Tanium Threat Response",
+            "description": "Validate OpenAEV detection and prevention expectations against Tanium Threat Response by collecting the alerts it raises in response to simulated attacks.",
+            "short_description": "Collect detections from Tanium Threat Response",
             "use_cases": [
                 "Security response"
             ],
@@ -818,8 +818,8 @@
         {
             "title": "NVD NIST",
             "slug": "openaev_nvd_nist_cve",
-            "description": "Collect NVD NIST database",
-            "short_description": "Collect NVD NIST database",
+            "description": "Import CVE vulnerability data from the National Vulnerability Database (NVD) maintained by NIST, enriching OpenAEV with authoritative vulnerability references.",
+            "short_description": "Import CVE vulnerabilities from the NIST NVD",
             "use_cases": [
                 "Data collection"
             ],
@@ -912,8 +912,8 @@
         {
             "title": "MITRE Att&ck",
             "slug": "openaev_mitre_attack",
-            "description": "Collect MITRE Att&ck tactics and techniques library",
-            "short_description": "Collect MITRE Att&ck tactics and techniques library",
+            "description": "Import the MITRE ATT&CK knowledge base of adversary tactics and techniques into OpenAEV, so injects and payloads can be mapped to the ATT&CK matrix.",
+            "short_description": "Import the MITRE ATT&CK tactics and techniques",
             "use_cases": [
                 "Data collection"
             ],
@@ -989,8 +989,8 @@
         {
             "title": "OpenAEV Library",
             "slug": "openaev_openaev",
-            "description": "Collect OAEV payload library",
-            "short_description": "Collect OAEV payload library",
+            "description": "Import the curated OpenAEV payload library, giving you a maintained catalog of attack payloads to run in atomic tests and scenarios.",
+            "short_description": "Import the OpenAEV payload library",
             "use_cases": [
                 "Payload collection"
             ],
@@ -1074,10 +1074,10 @@
             }
         },
         {
-            "title": "Google workspace",
+            "title": "Google Workspace",
             "slug": "openaev_google_workspace",
-            "description": "Collect users information from Google Workspace to create players",
-            "short_description": "Collect users information from Google Workspace to create players",
+            "description": "Synchronize users and groups from Google Workspace into OpenAEV as players and teams, so simulations can target your real organizational directory.",
+            "short_description": "Import users from Google Workspace as players",
             "use_cases": [
                 "Player collection"
             ],
@@ -1278,8 +1278,8 @@
         {
             "title": "Nmap: The network mapper",
             "slug": "openaev_nmap",
-            "description": "Allow OAEV to perform nmap scans",
-            "short_description": "Allow OAEV to perform nmap scans",
+            "description": "Run Nmap scans from OpenAEV to discover live hosts, open ports and running services on your targets, feeding reconnaissance findings into simulations.",
+            "short_description": "Run Nmap network and port scans",
             "use_cases": [
                 "Reconnaissance"
             ],
@@ -1355,8 +1355,8 @@
         {
             "title": "Nuclei",
             "slug": "openaev_nuclei",
-            "description": "Allow to perform CVE scan based on Nuclei",
-            "short_description": "Allow to perform CVE scan based on Nuclei",
+            "description": "Run ProjectDiscovery Nuclei templates from OpenAEV to detect known CVEs and misconfigurations on your targets, turning findings into actionable exposure results.",
+            "short_description": "Run CVE and misconfiguration scans with Nuclei",
             "use_cases": [
                 "Vulnerability scanning"
             ],
@@ -1437,8 +1437,8 @@
         {
             "title": "HTTP query",
             "slug": "openaev_http_query",
-            "description": "Allow OAEV to perform HTTP queries",
-            "short_description": "Allow OAEV to perform HTTP queries",
+            "description": "Send arbitrary HTTP requests from OpenAEV to interact with web services and APIs - useful for custom checks, webhooks and lightweight attack simulation.",
+            "short_description": "Send custom HTTP requests to web services and APIs",
             "use_cases": [
                 "Attack simulation"
             ],
@@ -1514,8 +1514,8 @@
         {
             "title": "Amazon Web Service",
             "slug": "openaev_aws",
-            "description": "This Injector use the credentials provided to enumerate through contract the AWS ressources like S3, IAM, Lambda, CloudTrail, Route53, etc. ",
-            "short_description": "Use OpenAEV to perform AWS assessment through credentials sets",
+            "description": "Use the provided AWS credentials to enumerate and assess AWS resources - S3, IAM, Lambda, CloudTrail, Route 53 and more - to surface cloud misconfigurations and exposure.",
+            "short_description": "Assess AWS resources with a set of credentials",
             "use_cases": [
                 "Attack simulation",
                 "Cloud security"
@@ -1592,8 +1592,8 @@
         {
             "title": "SentinelOne",
             "slug": "openaev_sentinelone",
-            "description": "Collect responses from SentinelOne",
-            "short_description": "Collect responses from SentinelOne",
+            "description": "Validate OpenAEV detection and prevention expectations against SentinelOne Singularity by collecting the threats and alerts its EDR raises in response to simulated attacks.",
+            "short_description": "Collect detections from SentinelOne EDR",
             "use_cases": [
                 "Security response"
             ],
@@ -1707,8 +1707,8 @@
         {
             "title": "Splunk Enterprise Security",
             "slug": "openaev_splunk_es",
-            "description": "Collect responses from Splunk Enterprise Security",
-            "short_description": "Collect responses from Splunk Enterprise Security",
+            "description": "Validate OpenAEV detection expectations against Splunk Enterprise Security by collecting the notable events your SIEM raises in response to simulated attacks.",
+            "short_description": "Collect notable events from Splunk Enterprise Security",
             "use_cases": [
                 "Security response"
             ],
@@ -1833,8 +1833,8 @@
         {
             "title": "Amazon Web Service Resources",
             "slug": "openaev_aws_resources",
-            "description": "Allow registration of agentless endpoints coming from Amazon Web Service",
-            "short_description": "Allow registration of agentless endpoints coming from Amazon Web Service",
+            "description": "Register agentless endpoints from Amazon Web Services EC2 instances in OpenAEV, so cloud resources can be targeted by simulations without deploying an agent.",
+            "short_description": "Register AWS EC2 instances as agentless endpoints",
             "use_cases": [
                 "Asset collection",
                 "Cloud security"
@@ -1936,8 +1936,8 @@
         {
             "title": "Shodan",
             "slug": "openaev_shodan",
-            "description": "Scan for intel in Shodan",
-            "short_description": "Scan for intel in Shodan",
+            "description": "Query Shodan from OpenAEV to gather internet-exposure intelligence on your external assets, including open ports, service banners and known vulnerabilities.",
+            "short_description": "Gather external exposure intelligence from Shodan",
             "use_cases": [
                 "Reconnaissance"
             ],
@@ -2049,8 +2049,8 @@
         {
             "title": "Microsoft Teams",
             "slug": "openaev_teams",
-            "description": "Send messages through Microsoft Teams webhooks",
-            "short_description": "Send messages through Microsoft Teams webhooks",
+            "description": "Send messages and Adaptive Cards to Microsoft Teams channels and chats via the Microsoft Graph API, for table-top exercises and crisis communication injects.",
+            "short_description": "Send messages and Adaptive Cards to Microsoft Teams",
             "use_cases": [
                 "Communication"
             ],
@@ -2093,7 +2093,7 @@
                         "type": "string"
                     },
                     "INJECTOR_NAME": {
-                        "default": "Teams",
+                        "default": "Microsoft Teams",
                         "description": "Name of the injector.",
                         "type": "string"
                     },
@@ -2112,12 +2112,149 @@
                         "default": "openaev_teams",
                         "description": "Type of the injector.",
                         "type": "string"
+                    },
+                    "TEAMS_TENANT_ID": {
+                        "description": "Directory (tenant) ID of the Microsoft Entra ID app registration.",
+                        "type": "string"
+                    },
+                    "TEAMS_CLIENT_ID": {
+                        "description": "Application (client) ID of the Microsoft Entra ID app registration.",
+                        "type": "string"
+                    },
+                    "TEAMS_CLIENT_SECRET": {
+                        "description": "Client secret of the Microsoft Entra ID app registration.",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "TEAMS_REFRESH_TOKEN": {
+                        "description": "Long-lived OAuth2 refresh token obtained from the one-time admin consent flow (see the README). Exchanged for Graph access tokens at runtime.",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "TEAMS_AUTHORITY_BASE_URL": {
+                        "default": "https://login.microsoftonline.com",
+                        "description": "Microsoft identity platform base URL (override for sovereign/national clouds).",
+                        "type": "string"
+                    },
+                    "TEAMS_GRAPH_BASE_URL": {
+                        "default": "https://graph.microsoft.com/v1.0",
+                        "description": "Microsoft Graph base URL (override for sovereign/national clouds).",
+                        "type": "string"
+                    },
+                    "TEAMS_SCOPE": {
+                        "default": "offline_access ChannelMessage.Send ChatMessage.Send",
+                        "description": "Space-separated delegated Graph scopes requested during the token exchange.",
+                        "type": "string"
+                    },
+                    "TEAMS_REQUEST_TIMEOUT_SECONDS": {
+                        "default": 30,
+                        "description": "HTTP timeout (seconds) for a single Microsoft Graph or token request.",
+                        "type": "integer"
                     }
                 },
                 "required": [
                     "OPENAEV_URL",
                     "OPENAEV_TOKEN",
-                    "INJECTOR_ID"
+                    "INJECTOR_ID",
+                    "TEAMS_TENANT_ID",
+                    "TEAMS_CLIENT_ID",
+                    "TEAMS_CLIENT_SECRET",
+                    "TEAMS_REFRESH_TOKEN"
+                ],
+                "additionalProperties": true
+            }
+        },
+        {
+            "title": "Slack",
+            "slug": "openaev_slack",
+            "description": "Send messages and Block Kit layouts to Slack channels and users via the Slack Web API, for table-top exercises and crisis communication injects.",
+            "short_description": "Send messages and Block Kit layouts to Slack",
+            "use_cases": [
+                "Communication"
+            ],
+            "verified": true,
+            "last_verified_date": "",
+            "playbook_supported": false,
+            "max_confidence_level": 80,
+            "support_version": "",
+            "subscription_link": "https://slack.com/",
+            "source_code": "https://github.com/OpenAEV-Platform/injectors/tree/main/slack",
+            "manager_supported": true,
+            "container_version": "rolling",
+            "container_image": "openaev/injector-slack",
+            "container_type": "INJECTOR",
+            "logo": "data:image/png;base64,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",
+            "config_schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "config.schema.json",
+                "type": "object",
+                "properties": {
+                    "OPENAEV_URL": {
+                        "description": "The OpenAEV platform URL.",
+                        "format": "uri",
+                        "maxLength": 2083,
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "OPENAEV_TOKEN": {
+                        "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
+                    "INJECTOR_ID": {
+                        "description": "A unique UUIDv4 identifier for this injector instance.",
+                        "type": "string"
+                    },
+                    "INJECTOR_NAME": {
+                        "default": "Slack",
+                        "description": "Name of the injector.",
+                        "type": "string"
+                    },
+                    "INJECTOR_LOG_LEVEL": {
+                        "default": "info",
+                        "description": "Determines the verbosity of the logs. Options: debug, info, warn, or error.",
+                        "type": "string"
+                    },
+                    "INJECTOR_PERIOD": {
+                        "default": "PT1M",
+                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "INJECTOR_TYPE": {
+                        "default": "openaev_slack",
+                        "description": "Type of the injector.",
+                        "type": "string"
+                    },
+                    "SLACK_BOT_TOKEN": {
+                        "description": "Slack bot token (xoxb-...) with the chat:write scope.",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "SLACK_BASE_URL": {
+                        "default": "https://slack.com/api",
+                        "description": "Base URL of the Slack Web API.",
+                        "type": "string"
+                    },
+                    "SLACK_REQUEST_TIMEOUT_SECONDS": {
+                        "default": 30,
+                        "description": "HTTP timeout (seconds) for a single Slack Web API request.",
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "OPENAEV_URL",
+                    "OPENAEV_TOKEN",
+                    "INJECTOR_ID",
+                    "SLACK_BOT_TOKEN"
                 ],
                 "additionalProperties": true
             }
@@ -2125,8 +2262,8 @@
         {
             "title": "Palo Alto Cortex XDR",
             "slug": "palo_alto_cortex_xdr",
-            "description": "Collect alerts information from Palo Alto Cortex XDR",
-            "short_description": "Collect alerts information from Palo Alto Cortex XDR",
+            "description": "Validate OpenAEV detection and prevention expectations against Palo Alto Cortex XDR by collecting the alerts it raises in response to simulated attacks.",
+            "short_description": "Collect alerts from Palo Alto Cortex XDR",
             "use_cases": [
                 "Security response"
             ],
@@ -2310,8 +2447,8 @@
         {
             "title": "Palo Alto Cortex XSOAR",
             "slug": "palo_alto_cortex_xsoar",
-            "description": "Collect alerts information from Palo Alto Cortex XSOAR",
-            "short_description": "Collect alerts information from Palo Alto Cortex XSOAR",
+            "description": "Collect incidents from Palo Alto Cortex XSOAR to validate how your SOAR playbooks respond to OpenAEV simulated attacks.",
+            "short_description": "Collect incidents from Palo Alto Cortex XSOAR",
             "use_cases": [
                 "Security response"
             ],
@@ -3162,8 +3299,8 @@
         {
             "title": "Elastic Security",
             "slug": "openaev_elastic",
-            "description": "Collect responses from Elastic Security",
-            "short_description": "Collect responses from Elastic Security",
+            "description": "Validate OpenAEV detection expectations against Elastic Security by collecting the alerts its SIEM and endpoint protection raise in response to simulated attacks.",
+            "short_description": "Collect detections from Elastic Security",
             "use_cases": [
                 "Security response"
             ],
@@ -3268,8 +3405,8 @@
         {
             "title": "LogRhythm",
             "slug": "openaev_logrhythm",
-            "description": "Collect responses from LogRhythm",
-            "short_description": "Collect responses from LogRhythm",
+            "description": "Validate OpenAEV detection expectations against LogRhythm by collecting the alarms your SIEM raises in response to simulated attacks.",
+            "short_description": "Collect alarms from LogRhythm SIEM",
             "use_cases": [
                 "Security response"
             ],
@@ -3374,8 +3511,8 @@
         {
             "title": "NetWitness",
             "slug": "openaev_netwitness",
-            "description": "Collect responses from NetWitness",
-            "short_description": "Collect responses from NetWitness",
+            "description": "Validate OpenAEV detection expectations against NetWitness by collecting the alerts its network detection and response platform raises in response to simulated attacks.",
+            "short_description": "Collect detections from NetWitness",
             "use_cases": [
                 "Security response"
             ],
@@ -3480,8 +3617,8 @@
         {
             "title": "IBM QRadar",
             "slug": "openaev_qradar",
-            "description": "Collect responses from IBM QRadar",
-            "short_description": "Collect responses from IBM QRadar",
+            "description": "Validate OpenAEV detection expectations against IBM QRadar by collecting the offenses your SIEM raises in response to simulated attacks.",
+            "short_description": "Collect offenses from IBM QRadar SIEM",
             "use_cases": [
                 "Security response"
             ],

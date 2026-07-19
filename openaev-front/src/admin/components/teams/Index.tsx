@@ -10,7 +10,7 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 const Players = lazy(() => import('./Players'));
 const Teams = lazy(() => import('./Teams'));
-const Organizations = lazy(() => import('./Organizations'));
+const Organizations = lazy(() => import('./OrganizationsList'));
 
 const useStyles = makeStyles()(() => ({ root: { flexGrow: 1 } }));
 

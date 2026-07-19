@@ -63,7 +63,7 @@ const ExecutionStatusDetail = ({ injectId, target }: Props) => {
           <>
             {(isTeam || isPlayer) && (<MainTraces traces={traces} />)}
             {isAsset && (<EndpointTraces key={target.id} tracesByAgent={traces} />)}
-            {isAgent && (<AgentTraces traces={traces} isInitialExpanded />)}
+            {isAgent && (<AgentTraces traces={traces} />)}
           </>
         </Paper>
       )}

@@ -1058,6 +1058,11 @@ public class InjectService {
         injectStatusRepository.findInjectStatusWithGlobalExecutionTraces(injectId));
   }
 
+  public InjectStatusOutput getInjectStatusWithAllExecutionTraces(String injectId) {
+    return injectStatusMapper.toInjectStatusOutputWithAllTraces(
+        injectStatusRepository.findByInjectId(injectId));
+  }
+
   /**
    * Function used to get the targeted property field of a targeted asset.
    *

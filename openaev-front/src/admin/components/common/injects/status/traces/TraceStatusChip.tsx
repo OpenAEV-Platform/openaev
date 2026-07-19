@@ -1,9 +1,9 @@
-import { HelpOutlineOutlined } from '@mui/icons-material';
 import { alpha, Chip, Tooltip, type TooltipProps, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../../../components/i18n';
+import { getStatusIconComponent } from '../../../../../../utils/statusIcons';
 import { getAgentStatusTooltip, getStatusLabel } from '../../../../../../utils/statusLabels';
 import { getStatusColor } from '../../../../../../utils/statusUtils';
 
@@ -63,12 +63,13 @@ const TraceStatusChip: FunctionComponent<TraceStatusChipProps> = ({ status }) =>
   const label = t(getStatusLabel(status));
 
   const tooltip = getAgentStatusTooltip(status);
+  const StatusIcon = getStatusIconComponent(status);
 
   const chip = (
     <Chip
       size="medium"
       label={label}
-      icon={tooltip ? <HelpOutlineOutlined sx={{ fontSize: theme.typography.caption.fontSize }} /> : undefined}
+      icon={<StatusIcon sx={{ fontSize: theme.typography.caption.fontSize }} />}
       sx={{
         'backgroundColor': alpha(statusColor, 0.08),
         'color': statusColor,

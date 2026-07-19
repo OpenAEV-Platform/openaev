@@ -43,6 +43,7 @@ const AI_TARGET_INPUT_KEYS: (keyof AiTargetInput)[] = [
   'ai_target_system_prompt',
   'ai_target_token',
   'ai_target_configuration',
+  'asset_criticality',
   'asset_description',
   'asset_tags',
 ];

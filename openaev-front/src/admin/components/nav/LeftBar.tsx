@@ -2,6 +2,7 @@ import {
   DashboardOutlined,
   DescriptionOutlined,
   DnsOutlined,
+  DomainOutlined,
   ExtensionOutlined,
   GroupsOutlined,
   HubOutlined,
@@ -124,11 +125,23 @@ const LeftBar = () => {
           label: 'Teams',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
         },
+        {
+          path: `/admin/teams/organizations`,
+          icon: () => (<DomainOutlined />),
+          label: 'Organizations',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
+        },
       ],
     },
     {
       userRight: true,
       items: [
+        {
+          path: `/admin/integrations`,
+          icon: () => (<ExtensionOutlined />),
+          label: 'Integrations',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
+        },
         {
           path: `/admin/assets/security_platforms`,
           icon: () => (<SecurityNetwork />),
@@ -170,12 +183,6 @@ const LeftBar = () => {
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED),
             },
           ],
-        },
-        {
-          path: `/admin/integrations`,
-          icon: () => (<ExtensionOutlined />),
-          label: 'Integrations',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
         },
       ],
     },
