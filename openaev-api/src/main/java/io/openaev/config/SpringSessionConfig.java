@@ -40,8 +40,18 @@ public class SpringSessionConfig {
     serializer.setCookieName(SESSION_COOKIE_NAME);
     serializer.setCookiePath("/");
     serializer.setUseHttpOnlyCookie(true);
-    serializer.setUseSecureCookie(openAEVConfig.isCookieSecure());
-    serializer.setSameSite("Lax");
+
+    // SameSite handling is critical for SSO: the SAML ACS response and OIDC form_post callback
+    // arrive as a cross-site POST, and an explicit SameSite=Lax would drop the session cookie on
+    // that POST, losing the stored authorization request and failing the login (redirect to
+    // /login?error). We therefore honor the configured value and, by default, OMIT the attribute
+    // (restoring the pre-Spring-Session behavior where the cookie is still delivered on the SSO
+    // callback). SameSite=None additionally requires Secure to be accepted by browsers.
+    String sameSite = normalizeSameSite(openAEVConfig.getSessionCookieSameSite());
+    serializer.setSameSite(sameSite);
+    boolean secure = openAEVConfig.isCookieSecure() || "None".equals(sameSite);
+    serializer.setUseSecureCookie(secure);
+
     if (!openAEVConfig.isSessionCookie()) {
       // Persistent cookie: users stay logged in across browser restarts, capped at the session
       // timeout (the cookie is only written at session creation, so this is an absolute cap).
@@ -49,6 +59,23 @@ public class SpringSessionConfig {
     }
     // Default max-age (-1) = browser-session cookie: dies when the browser closes.
     return serializer;
+  }
+
+  /**
+   * Maps the configured value to a valid SameSite token, or {@code null} to omit the attribute
+   * entirely. Unknown / blank values omit the attribute so a misconfiguration can never silently
+   * break SSO with an over-restrictive policy.
+   */
+  private static String normalizeSameSite(String configured) {
+    if (configured == null) {
+      return null;
+    }
+    return switch (configured.trim().toLowerCase()) {
+      case "none" -> "None";
+      case "lax" -> "Lax";
+      case "strict" -> "Strict";
+      default -> null;
+    };
   }
 
   /**
