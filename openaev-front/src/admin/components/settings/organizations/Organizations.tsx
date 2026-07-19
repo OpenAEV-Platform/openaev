@@ -5,28 +5,28 @@ import { CSVLink } from 'react-csv';
 import { useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { type OrganizationHelper, type UserHelper } from '../../../actions/helper';
-import { fetchOrganizations } from '../../../actions/Organization';
-import { type TagHelper } from '../../../actions/tags/tag-helper';
-import Breadcrumbs from '../../../components/Breadcrumbs';
-import useBodyItemsStyles from '../../../components/common/queryable/style/style';
-import { useFormatter } from '../../../components/i18n';
-import ItemTags from '../../../components/ItemTags';
-import SearchFilter from '../../../components/SearchFilter';
-import { ORGANIZATION_BASE_URL } from '../../../constants/BaseUrls';
-import { useHelper } from '../../../store';
-import { type Organization } from '../../../utils/api-types';
-import { exportData } from '../../../utils/Environment';
-import { useAppDispatch } from '../../../utils/hooks';
-import useDataLoader from '../../../utils/hooks/useDataLoader';
-import { Can } from '../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import useSearchAndFilter from '../../../utils/SortingFiltering';
-import { truncate } from '../../../utils/String';
-import TagsFilter from '../common/filters/TagsFilter';
-import SecurityMenu from '../settings/SecurityMenu';
-import CreateOrganization from './organizations/CreateOrganization';
-import OrganizationPopover from './organizations/OrganizationPopover';
+import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
+import { fetchOrganizations } from '../../../../actions/Organization';
+import { type TagHelper } from '../../../../actions/tags/tag-helper';
+import Breadcrumbs from '../../../../components/Breadcrumbs';
+import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
+import { useFormatter } from '../../../../components/i18n';
+import ItemTags from '../../../../components/ItemTags';
+import SearchFilter from '../../../../components/SearchFilter';
+import { SECURITY_ORGANIZATION_BASE_URL } from '../../../../constants/BaseUrls';
+import { useHelper } from '../../../../store';
+import { type Organization } from '../../../../utils/api-types';
+import { exportData } from '../../../../utils/Environment';
+import { useAppDispatch } from '../../../../utils/hooks';
+import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { Can } from '../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import useSearchAndFilter from '../../../../utils/SortingFiltering';
+import { truncate } from '../../../../utils/String';
+import TagsFilter from '../../common/filters/TagsFilter';
+import SecurityMenu from '../SecurityMenu';
+import CreateOrganization from './CreateOrganization';
+import OrganizationPopover from './OrganizationPopover';
 
 const useStyles = makeStyles()(() => ({
   parameters: {
@@ -77,6 +77,10 @@ const inlineStyles: Record<string, CSSProperties> = {
   organization_tags: { width: '30%' },
 };
 
+// Admin-side organizations administration (Settings > Security >
+// Organizations), rendered with the security right menu. Fully separated from
+// the business-side list (teams/OrganizationsList) so the two experiences can
+// diverge.
 const Organizations = () => {
   // Standard hooks
   const dispatch = useAppDispatch();
@@ -218,7 +222,7 @@ const Organizations = () => {
               disablePadding
             >
               <ListItemButton
-                onClick={() => navigate(`${ORGANIZATION_BASE_URL}/${organization.organization_id}`)}
+                onClick={() => navigate(`${SECURITY_ORGANIZATION_BASE_URL}/${organization.organization_id}`)}
                 sx={{ height: 50 }}
               >
                 <ListItemIcon>

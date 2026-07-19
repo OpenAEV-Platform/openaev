@@ -2,7 +2,7 @@ import { NotificationsOutlined, UpdateOutlined } from '@mui/icons-material';
 import { Alert, AlertTitle, Box, IconButton, Tab, Tabs, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { Link, Route, Routes, useLocation, useParams } from 'react-router';
+import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
 import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
@@ -31,12 +31,10 @@ import injectContextForScenario from './ScenarioContext';
 import ScenarioHeader from './ScenarioHeader';
 
 const ScenarioComponent = lazy(() => import('./Scenario'));
-const ScenarioDefinition = lazy(() => import('./ScenarioDefinition'));
 const Injects = lazy(() => import('./injects/ScenarioInjects'));
 const Tests = lazy(() => import('./tests/ScenarioTests'));
 const Lessons = lazy(() => import('./lessons/ScenarioLessons'));
 const ScenarioFindings = lazy(() => import('./findings/ScenarioFindings'));
-const ScenarioAnalysis = lazy(() => import('./analysis/ScenarioAnalysis'));
 const ScenarioScope = lazy(() => import('./scope/ScenarioScope'));
 const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
 
@@ -67,8 +65,8 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
     }),
   }), [scenario?.scenario_id, scenario?.scenario_name]);
   let tabValue = location.pathname;
-  if (location.pathname.includes(`/admin/scenarios/${scenario.scenario_id}/definition`)) {
-    tabValue = `/admin/scenarios/${scenario.scenario_id}/definition`;
+  if (location.pathname.includes(`/admin/scenarios/${scenario.scenario_id}/injects`)) {
+    tabValue = `/admin/scenarios/${scenario.scenario_id}/injects`;
   } else if (location.pathname.includes(`/admin/scenarios/${scenario.scenario_id}/tests`)) {
     tabValue = `/admin/scenarios/${scenario.scenario_id}/tests`;
   }
@@ -210,12 +208,6 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
                   />
                   <Tab
                     component={Link}
-                    to={`/admin/scenarios/${scenario.scenario_id}/definition`}
-                    value={`/admin/scenarios/${scenario.scenario_id}/definition`}
-                    label={t('Definition')}
-                  />
-                  <Tab
-                    component={Link}
                     to={`/admin/scenarios/${scenario.scenario_id}/injects`}
                     value={`/admin/scenarios/${scenario.scenario_id}/injects`}
                     label={t('Injects')}
@@ -237,12 +229,6 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
                     to={`/admin/scenarios/${scenario.scenario_id}/findings`}
                     value={`/admin/scenarios/${scenario.scenario_id}/findings`}
                     label={t('Findings')}
-                  />
-                  <Tab
-                    component={Link}
-                    to={`/admin/scenarios/${scenario.scenario_id}/analysis`}
-                    value={`/admin/scenarios/${scenario.scenario_id}/analysis`}
-                    label={t('Analysis')}
                   />
                 </Tabs>
               )
@@ -327,12 +313,14 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
           <Suspense fallback={<Loader />}>
             <Routes>
               <Route path="" element={errorWrapper(ScenarioComponent)({ setOpenInstantiateSimulationAndStart })} />
-              <Route path="definition" element={errorWrapper(ScenarioDefinition)()} />
+              {/* Definition merged into the Injects authoring tab; redirect old links. */}
+              <Route path="definition" element={<Navigate to={`/admin/scenarios/${scenario.scenario_id}/injects`} replace />} />
               <Route path="injects" element={errorWrapper(Injects)()} />
               <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
               <Route path="lessons" element={errorWrapper(Lessons)()} />
               <Route path="findings" element={errorWrapper(ScenarioFindings)()} />
-              <Route path="analysis" element={errorWrapper(ScenarioAnalysis)()} />
+              {/* Analysis merged into the Overview dashboard; keep a redirect for old links. */}
+              <Route path="analysis" element={<Navigate to={`/admin/scenarios/${scenario.scenario_id}`} replace />} />
               <Route path="scope" element={errorWrapper(ScenarioScope)()} />
               <Route path="logic" element={errorWrapper(ScenarioLogic)()} />
               {/* Not found */}

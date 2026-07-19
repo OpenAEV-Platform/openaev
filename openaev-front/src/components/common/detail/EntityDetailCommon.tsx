@@ -1,6 +1,7 @@
 import { Box, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, type ReactNode } from 'react';
+import { Link } from 'react-router';
 
 const SECTION_LABEL_SX = {
   fontFamily: '"Geologica", sans-serif',
@@ -88,6 +89,117 @@ export const DetailSections = ({ children }: { children: ReactNode }) => (
     {children}
   </Box>
 );
+
+// A full-width titled block: uppercase overline label above an outlined Paper.
+// Use for embedded lists (injects played, findings) on overview pages so the
+// section-title styling stays consistent and is defined once.
+export const SectionBlock = ({ title, children, disablePadding }: {
+  title: string;
+  children: ReactNode;
+  disablePadding?: boolean;
+}) => (
+  <div style={{
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+  }}
+  >
+    <Typography sx={SECTION_LABEL_SX}>{title}</Typography>
+    <Paper
+      variant="outlined"
+      sx={{
+        padding: disablePadding ? 0 : 2,
+        borderRadius: 1,
+        flex: 1,
+      }}
+    >
+      {children}
+    </Paper>
+  </div>
+);
+
+// A compact KPI grid: as many metric tiles as fit, each a small square with a
+// big number. Use for entity overview headline metrics (players, injects,
+// findings, scores, ...).
+export const MetricGrid = ({ children }: { children: ReactNode }) => (
+  <Box sx={{
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+    gap: 1.5,
+  }}
+  >
+    {children}
+  </Box>
+);
+
+// A single KPI tile. When `to` is set the whole tile becomes a pivot link.
+export const MetricTile = ({ icon: Icon, label, value, to }: {
+  icon?: ComponentType<{
+    color?: 'primary';
+    sx?: object;
+  }>;
+  label: string;
+  value: ReactNode;
+  to?: string;
+}) => {
+  const theme = useTheme();
+  const tile = (
+    <Paper
+      variant="outlined"
+      sx={{
+        padding: 1.5,
+        borderRadius: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 0.5,
+        height: '100%',
+        ...(to
+          ? {
+              'transition': 'border-color 120ms, background-color 120ms',
+              '&:hover': {
+                borderColor: alpha(theme.palette.primary.main, 0.5),
+                backgroundColor: alpha(theme.palette.primary.main, 0.04),
+              },
+            }
+          : {}),
+      }}
+    >
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0.75,
+      }}
+      >
+        {Icon && <Icon color="primary" sx={{ fontSize: 16 }} />}
+        <Typography
+          sx={{
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'text.secondary',
+          }}
+        >
+          {label}
+        </Typography>
+      </Box>
+      <Typography variant="h2" sx={{ margin: 0 }}>{value}</Typography>
+    </Paper>
+  );
+  return to
+    ? (
+        <Link
+          to={to}
+          style={{
+            textDecoration: 'none',
+            color: 'inherit',
+          }}
+        >
+          {tile}
+        </Link>
+      )
+    : tile;
+};
 
 // The hero header shared by all Security detail pages.
 export const DetailHero = ({ icon: Icon, title, chips, action }: {

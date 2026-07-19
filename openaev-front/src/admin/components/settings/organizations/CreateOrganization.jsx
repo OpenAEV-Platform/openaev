@@ -15,10 +15,12 @@ const styles = () => ({
   createButton: {
     position: 'fixed',
     bottom: 30,
-    right: 30,
+    right: 230,
   },
 });
 
+// Settings > Security > Organizations creation. Separated from the
+// business-side CreateOrganization (teams/organizations) on purpose.
 class CreateOrganizationComponent extends Component {
   constructor(props) {
     super(props);

@@ -37,6 +37,7 @@ const InjectIndex = lazy(() => import('./components/simulations/simulation/injec
 const IndexProfile = lazy(() => import('./components/profile/Index'));
 const FullTextSearch = lazy(() => import('./components/search/FullTextSearch'));
 const Findings = lazy(() => import('./components/findings/Findings'));
+const FindingOverview = lazy(() => import('./components/findings/FindingOverview'));
 const Exercises = lazy(() => import('./components/simulations/Simulations'));
 const IndexExercise = lazy(() => import('./components/simulations/simulation/Index'));
 const AtomicTestings = lazy(() => import('./components/atomic_testings/AtomicTestings'));
@@ -141,6 +142,18 @@ const Index = () => {
                     subject: SUBJECTS.FINDINGS,
                   }]}
                   Component={errorWrapper(Findings)()}
+                />
+              )}
+            />
+            <Route
+              path="findings/:findingId"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.FINDINGS,
+                  }]}
+                  Component={errorWrapper(FindingOverview)()}
                 />
               )}
             />

@@ -1,4 +1,5 @@
-import { useTheme } from '@mui/material/styles';
+import { deepPurple } from '@mui/material/colors';
+import { type Theme, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { fetchScenarioStatistic } from '../../../../actions/scenarios/scenario-actions';
@@ -10,6 +11,16 @@ import { type GlobalScoreBySimulationEndDate, type ScenarioStatistic } from '../
 import { type CustomTooltipFunction, type CustomTooltipOptions, verticalBarsChartOptions } from '../../../../utils/Charts';
 
 interface Props { scenarioId: string }
+
+// One stable color per expectation type, so a series keeps its color no matter
+// which types are present (the old code reused a 3-color palette positionally,
+// so Detection could render with Prevention's color when Prevention was absent).
+const typeColor = (theme: Theme): Record<string, string> => ({
+  PREVENTION: theme.palette.primary.main,
+  DETECTION: theme.palette.secondary.main,
+  VULNERABILITY: theme.palette.warning.main,
+  HUMAN_RESPONSE: deepPurple[theme.palette.mode === 'dark' ? 300 : 500],
+});
 
 function generateFakeDataFromDates(dates: string[], percentage: number): GlobalScoreBySimulationEndDate[] {
   return dates.map(date => ({
@@ -26,21 +37,24 @@ const generateFakeData = (): Record<string, GlobalScoreBySimulationEndDate[]> =>
     return newDate.toISOString();
   });
   return ({
-    ...({ PREVENTION: generateFakeDataFromDates(dates, 69.0) }),
-    ...({ DETECTION: generateFakeDataFromDates(dates, 84.0) }),
-    ...({ VULNERABILITY: generateFakeDataFromDates(dates, 24.0) }),
-    ...({ HUMAN_RESPONSE: generateFakeDataFromDates(dates, 46.0) }),
+    PREVENTION: generateFakeDataFromDates(dates, 69.0),
+    DETECTION: generateFakeDataFromDates(dates, 84.0),
+    VULNERABILITY: generateFakeDataFromDates(dates, 24.0),
+    HUMAN_RESPONSE: generateFakeDataFromDates(dates, 46.0),
   });
 };
 
-function generateSeriesData(globalScores: GlobalScoreBySimulationEndDate[], successfulExpectationLabel: string) {
-  const { fldt } = useFormatter();
+function generateSeriesData(
+  globalScores: GlobalScoreBySimulationEndDate[],
+  successfulExpectationLabel: string,
+  fldt: (date: string) => string,
+) {
   return globalScores.map((globalScore, index) => ({
     x: `${index}|${globalScore.simulation_end_date}`,
     y: globalScore.global_score_success_percentage / 100,
     simulationEndDate: fldt(globalScore.simulation_end_date),
     simulationSuccessPercentage: globalScore.global_score_success_percentage,
-    successfulExpectationLabel: successfulExpectationLabel,
+    successfulExpectationLabel,
   }));
 }
 
@@ -51,7 +65,7 @@ type SeriesData = {
 };
 
 const customTooltip = (simulationEndDateLabel: string): CustomTooltipFunction => {
-  return function ({ series: _series, seriesIndex, dataPointIndex, w }: CustomTooltipOptions) {
+  return function ({ seriesIndex, dataPointIndex, w }: CustomTooltipOptions) {
     const { simulationEndDate, simulationSuccessPercentage, successfulExpectationLabel } = w.globals.initialSeries[seriesIndex].data[dataPointIndex] as SeriesData;
 
     return `<div class="apexcharts-tooltip-title" style="font-family: Helvetica, Arial, sans-serif; font-size: 12px;">
@@ -79,12 +93,18 @@ function getXFormatter(fsd: (date: string) => string) {
 }
 
 function getYFormatter() {
-  return (value: number) => `${value * 100}%`;
+  return (value: number) => `${Math.round(value * 100)}%`;
 }
 
+const EXPECTATION_TYPES = [
+  ['PREVENTION', 'Prevention', 'Prevented'],
+  ['DETECTION', 'Detection', 'Detected'],
+  ['VULNERABILITY', 'Vulnerability', 'Not vulnerable'],
+  ['HUMAN_RESPONSE', 'Human Response', 'Successful'],
+] as const;
+
 const ScenarioDistributionByExercise: FunctionComponent<Props> = ({ scenarioId }) => {
-  // Standard hooks
-  const { fsd, t } = useFormatter();
+  const { fsd, fldt, t } = useFormatter();
   const theme = useTheme();
 
   const simulationEndDateLabel = t('Simulation end date');
@@ -99,56 +119,47 @@ const ScenarioDistributionByExercise: FunctionComponent<Props> = ({ scenarioId }
     fetchStatistics();
   }, []);
 
-  const EXPECTATION_TYPES = [
-    ['PREVENTION', 'Prevention', 'Prevented'],
-    ['DETECTION', 'Detection', 'Detected'],
-    ['VULNERABILITY', 'Vulnerability', 'Not vulnerable'],
-    ['HUMAN_RESPONSE', 'Human Response', 'Successful'],
-  ] as const;
-
   const rawScores = statistic?.simulations_results_latest.global_scores_by_expectation_type || {};
   const hasRealData = EXPECTATION_TYPES.some(([type]) => Array.isArray(rawScores[type]) && rawScores[type].length > 0);
   const globalScoresByExpectationType = hasRealData ? rawScores : generateFakeData();
   const isFakeData = !hasRealData;
 
-  const series = EXPECTATION_TYPES
-    .filter(([type]) => globalScoresByExpectationType[type]?.length > 0)
-    .map(([type, name, label]) => ({
-      name: t(name),
-      data: generateSeriesData(globalScoresByExpectationType[type], t(label)),
-    }));
+  const colorMap = typeColor(theme);
+  const presentTypes = EXPECTATION_TYPES.filter(([type]) => globalScoresByExpectationType[type]?.length > 0);
+  const series = presentTypes.map(([type, name, label]) => ({
+    name: t(name),
+    data: generateSeriesData(globalScoresByExpectationType[type], t(label), fldt),
+  }));
+  const chartColors = presentTypes.map(([type]) => colorMap[type]);
+  const hasData = series.length > 0 && series[0].data.length > 0;
+
+  if (loadingScenarioStatistics) {
+    return <Loader variant="inElement" />;
+  }
+
+  if (!hasData) {
+    return <Empty message={t('No data to display')} />;
+  }
 
   return (
-    <>
-      {loadingScenarioStatistics && (<Loader variant="inElement" />)}
-      {(!loadingScenarioStatistics && series[0].data.length > 0) && (
-        <Chart
-          options={verticalBarsChartOptions({
-            theme,
-            xFormatter: getXFormatter(fsd),
-            yFormatter: getYFormatter(),
-            legend: true,
-            tickAmount: 'dataPoints',
-            isResult: true,
-            isFakeData,
-            max: 1,
-            emptyChartText: t('No data to display'),
-            customTooltip: customTooltip(simulationEndDateLabel),
-          })}
-          series={series}
-          type="bar"
-          width="100%"
-          height={300}
-        />
-      )}
-      {(!loadingScenarioStatistics && series[0].data.length === 0) && (
-        <Empty
-          message={t(
-            'No data to display',
-          )}
-        />
-      )}
-    </>
+    <Chart
+      options={verticalBarsChartOptions({
+        theme,
+        xFormatter: getXFormatter(fsd),
+        yFormatter: getYFormatter(),
+        legend: true,
+        tickAmount: 'dataPoints',
+        chartColors,
+        isFakeData,
+        max: 1,
+        emptyChartText: t('No data to display'),
+        customTooltip: customTooltip(simulationEndDateLabel),
+      })}
+      series={series}
+      type="bar"
+      width="100%"
+      height={300}
+    />
   );
 };
 export default ScenarioDistributionByExercise;

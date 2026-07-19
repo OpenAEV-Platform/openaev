@@ -16,7 +16,10 @@ export const SECURITY_PLATFORM_BASE_URL = '/admin/assets/security_platforms';
 
 // Peoples
 export const PLAYER_BASE_URL = '/admin/teams/players';
+export const PERSON_BASE_URL = '/admin/teams/persons';
 export const TEAM_BASE_URL = '/admin/teams/teams';
+// Business-side organization management (left menu > Organizations).
+export const ORGANIZATION_BASE_URL = '/admin/teams/organizations';
 
 // Components
 export const CHANNEL_BASE_URL = '/admin/components/channels';
@@ -32,5 +35,6 @@ export const COLLECTOR_BASE_URL = '/admin/integrations/collectors';
 export const GROUP_BASE_URL = '/admin/settings/security/groups';
 export const USER_BASE_URL = '/admin/settings/security/users';
 export const ROLE_BASE_URL = '/admin/settings/security/roles';
-export const ORGANIZATION_BASE_URL = '/admin/settings/security/organizations';
+// Admin-side organization administration (Settings > Security > Organizations).
+export const SECURITY_ORGANIZATION_BASE_URL = '/admin/settings/security/organizations';
 export const ASSET_RULES_BASE_URL = '/admin/settings/asset_rules';

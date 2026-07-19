@@ -166,6 +166,16 @@ const useSearchOptions = () => {
           setOptions(response.data);
         });
         break;
+      case 'finding_teams':
+        searchTeamsAsOption(search).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'finding_users':
+        searchPlayersAsOption(search).then((response) => {
+          setOptions(response.data);
+        });
+        break;
       case 'inject_assets':
       case 'base_endpoint_side':
         searchEndpointAsOption(search, contextId, contextId ? 'SIMULATION_OR_SCENARIO' : 'ATOMIC_TESTING').then((response) => {

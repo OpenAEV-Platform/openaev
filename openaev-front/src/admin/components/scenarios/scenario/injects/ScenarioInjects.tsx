@@ -29,6 +29,7 @@ import {
 } from '../../../common/Context';
 import Injects from '../../../common/injects/Injects';
 import articleContextForScenario from '../articles/articleContextForScenario';
+import ScenarioDefinition from '../ScenarioDefinition';
 import teamContextForScenario from '../teams/teamContextForScenario';
 
 const ScenarioInjects: FunctionComponent = () => {
@@ -77,26 +78,37 @@ const ScenarioInjects: FunctionComponent = () => {
     };
 
   return (
-    <ViewModeContext.Provider value={viewMode}>
-      <ArticleContext.Provider value={articleContext}>
-        <TeamContext.Provider value={teamContext}>
-          <EndpointContext.Provider value={endpointContext}>
-            <ChallengeContext.Provider value={challengeContext}>
-              <InjectTestContext.Provider value={injectTestContext}>
-                <Injects
-                  teams={teams}
-                  articles={articles}
-                  variables={variables}
-                  uriVariable={`/admin/scenarios/${scenarioId}/definition`}
-                  setViewMode={handleViewMode}
-                  availableButtons={availableButtons}
-                />
-              </InjectTestContext.Provider>
-            </ChallengeContext.Provider>
-          </EndpointContext.Provider>
-        </TeamContext.Provider>
-      </ArticleContext.Provider>
-    </ViewModeContext.Provider>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 24,
+    }}
+    >
+      <ViewModeContext.Provider value={viewMode}>
+        <ArticleContext.Provider value={articleContext}>
+          <TeamContext.Provider value={teamContext}>
+            <EndpointContext.Provider value={endpointContext}>
+              <ChallengeContext.Provider value={challengeContext}>
+                <InjectTestContext.Provider value={injectTestContext}>
+                  <Injects
+                    teams={teams}
+                    articles={articles}
+                    variables={variables}
+                    uriVariable={`/admin/scenarios/${scenarioId}/injects`}
+                    setViewMode={handleViewMode}
+                    availableButtons={availableButtons}
+                  />
+                </InjectTestContext.Provider>
+              </ChallengeContext.Provider>
+            </EndpointContext.Provider>
+          </TeamContext.Provider>
+        </ArticleContext.Provider>
+      </ViewModeContext.Provider>
+      {/* Definition (teams, variables, articles, challenges) merged into the
+          authoring tab. Rendered outside the injects-only context providers so
+          its behavior matches the former standalone Definition tab. */}
+      <ScenarioDefinition />
+    </div>
   );
 };
 
