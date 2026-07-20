@@ -1,5 +1,5 @@
-import type { LoggedHelper } from '../../actions/helper';
 import { fetchPlatformParameters } from '../../actions/Application';
+import type { LoggedHelper } from '../../actions/helper';
 import {
   fetchTenantHomeDashboard,
   fetchTenantSettings,
