@@ -7,11 +7,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM } from '../../../admin/components/xtm_hub/XtmHubRedirect';
 
-const { mockDispatch } = vi.hoisted(() => ({ mockDispatch: vi.fn() }));
+const { mockDispatch, mockHelperState } = vi.hoisted(() => ({
+  mockDispatch: vi.fn(),
+  mockHelperState: {
+    tenantSettings: { platform_home_dashboard: 'dashboard-id' as string | undefined },
+    me: undefined as { user_home_dashboard?: string } | undefined,
+  },
+}));
 
 vi.mock('../../../components/i18n', () => ({ useFormatter: () => ({ t: (value: string) => value }) }));
 
-vi.mock('../../../store', () => ({ useHelper: () => ({ tenantSettings: { platform_home_dashboard: 'dashboard-id' } }) }));
+vi.mock('../../../store', () => ({ useHelper: () => mockHelperState }));
+
+vi.mock('../../../admin/components/default_dashboard/DefaultHomeDashboard', () => ({ default: () => <div data-testid="default-home-dashboard" /> }));
 
 vi.mock('../../../utils/hooks', () => ({ useAppDispatch: () => mockDispatch }));
 
@@ -81,29 +89,47 @@ describe('Home permission dialog', () => {
     cleanup();
   });
 
-  it('opens the permission dialog and removes permission marker from URL', async () => {
-    // Arrange
-    renderHome(`/admin?${XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM}=true&foo=bar`);
+  const dashboardCases = [
+    {
+      label: 'custom dashboard (resolvedDashboardId is set)',
+      tenantSettings: { platform_home_dashboard: 'dashboard-id' as string | undefined },
+    },
+    {
+      label: 'default dashboard (resolvedDashboardId is not set)',
+      tenantSettings: { platform_home_dashboard: undefined },
+    },
+  ];
 
-    // Act
-    const title = await screen.findByText('Permission required');
-    const locationNode = await screen.findByTestId('location');
+  describe.each(dashboardCases)('with $label', ({ tenantSettings }) => {
+    beforeEach(() => {
+      mockHelperState.tenantSettings = tenantSettings;
+      mockHelperState.me = undefined;
+    });
 
-    // Assert
-    expect(title).toBeDefined();
-    expect(locationNode.textContent).toBe('/admin?foo=bar');
-  });
+    it('opens the permission dialog and removes permission marker from URL', async () => {
+      // Arrange
+      renderHome(`/admin?${XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM}=true&foo=bar`);
 
-  it('closes the permission dialog when user clicks close', async () => {
-    // Arrange
-    renderHome(`/admin?${XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM}=true`);
+      // Act
+      const title = await screen.findByText('Permission required');
+      const locationNode = await screen.findByTestId('location');
 
-    // Act
-    const closeButton = await screen.findByRole('button', { name: 'Close' });
-    fireEvent.click(closeButton);
+      // Assert
+      expect(title).toBeDefined();
+      expect(locationNode.textContent).toBe('/admin?foo=bar');
+    });
 
-    // Assert
-    await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
-    expect(screen.queryByRole('dialog')).toBeNull();
+    it('closes the permission dialog when user clicks close', async () => {
+      // Arrange
+      renderHome(`/admin?${XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM}=true`);
+
+      // Act
+      const closeButton = await screen.findByRole('button', { name: 'Close' });
+      fireEvent.click(closeButton);
+
+      // Assert
+      await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
   });
 });
