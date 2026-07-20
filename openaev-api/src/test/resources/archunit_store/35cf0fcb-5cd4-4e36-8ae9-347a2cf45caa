@@ -1,0 +1,2 @@
+io.openaev.scheduler.jobs.ScenarioExecutionJob.execute(org.quartz.JobExecutionContext) is annotated with @Transactional
+io.openaev.scheduler.jobs.SecurityCoverageJob.execute(org.quartz.JobExecutionContext) is annotated with @Transactional

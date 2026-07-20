@@ -227,6 +227,7 @@ nav:
     - Building and running from source: development/build-from-source.md
     - Database migrations: development/database-migrations.md
     - Platform: development/platform.md
+    - Tenant isolation: development/tenant-isolation.md
     - Collectors: development/collectors.md
     - Injectors: development/injectors.md
     - REST API: development/api-usage.md
