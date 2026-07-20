@@ -1235,7 +1235,7 @@
   "Installation Instructions": "安装说明",
   "Installation path": "安装路径",
   "Installing it as a system grants system-wide privileges.": "将其安装为系统将授予全系统权限。",
-  "On macOS, only Advanced installation as System is currently available.": "On macOS, only Advanced installation as System is currently available.",
+  "On macOS, only Advanced installation as System is currently available.": "在 macOS 上，目前仅支持以系统身份进行高级安装。",
   "Installing the agent is requiring local administrator privileges.": "安装代理需要本地管理员权限。",
   "Instance name": "实例名称",
   "Instantiate a simulation": "实例化模拟",
