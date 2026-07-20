@@ -2,6 +2,7 @@ package io.openaev.service.stix;
 
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,6 +10,8 @@ import io.openaev.IntegrationTest;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.DomainObject;
@@ -31,6 +34,7 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.*;
+import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,6 +60,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
   @Autowired private ResultUtils resultUtils;
   @Autowired private OpenAEVConfig openAEVConfig;
   private Parser stixParser;
+  @Mock private PreviewFeatureService previewFeatureService;
 
   @BeforeEach
   public void setup() {
@@ -69,6 +74,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     scenarioComposer.reset();
     securityPlatformComposer.reset();
     securityCoverageSendJobComposer.reset();
+
+    when(previewFeatureService.isFeatureEnabled(PreviewFeature.TENANT_FIELDS_FOR_SECURITY_COVERAGE))
+        .thenReturn(true);
 
     stixParser = new Parser(mapper);
   }
