@@ -2,10 +2,12 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.ConnectorType;
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
@@ -33,6 +35,15 @@ public interface ConnectorInstanceRepository
   /** Loads a single instance with configurations and catalogConnector eagerly initialized. */
   @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
   Optional<ConnectorInstancePersisted> findWithGraphById(String id);
+
+  /**
+   * Acquires a pessimistic write lock on the connector instance row. Use before writing logs to
+   * serialize concurrent log operations and prevent deadlocks with ON DELETE CASCADE.
+   */
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT ci FROM ConnectorInstancePersisted ci WHERE ci.id = :id")
+  Optional<ConnectorInstancePersisted> findByIdForUpdate(
+      @org.springframework.data.repository.query.Param("id") String id);
 
   @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
   List<ConnectorInstancePersisted> findAllByCatalogConnectorContainerType(

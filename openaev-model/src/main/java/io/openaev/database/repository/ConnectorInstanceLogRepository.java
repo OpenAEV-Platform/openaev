@@ -22,8 +22,8 @@ public interface ConnectorInstanceLogRepository
   @Query(
       value =
           "DELETE FROM connector_instance_logs "
-              + "WHERE ctid IN ("
-              + "  SELECT ctid FROM connector_instance_logs "
+              + "WHERE connector_instance_log_id IN ("
+              + "  SELECT connector_instance_log_id FROM connector_instance_logs "
               + "  WHERE connector_instance_id = :instanceId "
               + "  ORDER BY connector_instance_log_created_at ASC "
               + "  LIMIT :limit"

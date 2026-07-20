@@ -3,6 +3,7 @@ package io.openaev.service.connector_instances;
 import io.openaev.database.model.ConnectorInstanceLog;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
+import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ConnectorInstanceLogService {
   public static final long LOG_SIZE_LIMIT = 10L;
   private final ConnectorInstanceLogRepository connectorInstanceLogRepository;
+  private final ConnectorInstanceRepository connectorInstanceRepository;
 
   private void cleanupExcessLogs(String connectorInstanceId) {
     long currentCount =
@@ -60,6 +62,15 @@ public class ConnectorInstanceLogService {
     if (rawLogs.isEmpty()) {
       return;
     }
+    // Acquire a pessimistic write lock on the parent row first.
+    // This serializes concurrent pushes for the same instance and prevents deadlocks
+    // with ON DELETE CASCADE (deleteById also locks the parent before cascade-deleting children).
+    connectorInstanceRepository
+        .findByIdForUpdate(connectorInstance.getId())
+        .orElseThrow(
+            () ->
+                new IllegalArgumentException(
+                    "ConnectorInstance not found: " + connectorInstance.getId()));
     for (String log : rawLogs) {
       ConnectorInstanceLog logEntry = new ConnectorInstanceLog();
       logEntry.setConnectorInstance(connectorInstance);
