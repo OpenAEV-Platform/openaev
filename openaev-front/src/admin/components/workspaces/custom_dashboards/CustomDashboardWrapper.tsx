@@ -1,7 +1,7 @@
 import type { AxiosResponse } from 'axios';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useLocalStorage, useReadLocalStorage } from 'usehooks-ts';
+import { useLocalStorage } from 'usehooks-ts';
 
 import Loader from '../../../../components/Loader';
 import type {
@@ -67,8 +67,7 @@ const CustomDashboardWrapper = ({
   } = configuration || {};
 
   const [customDashboard, setCustomDashboard] = useState<CustomDashboard>();
-  const parametersLocalStorage = useReadLocalStorage<Record<string, ParameterOption>>(paramLocalStorageKey);
-  const [, setParametersLocalStorage] = useLocalStorage<Record<string, ParameterOption>>(paramLocalStorageKey, {});
+  const [parametersLocalStorage, setParametersLocalStorage] = useLocalStorage<Record<string, ParameterOption>>(paramLocalStorageKey, {});
   const [parameters, setParameters] = useState<Record<string, ParameterOption>>({});
   const [dataReady, setDataReady] = useState(false);
   const [_gridReady, setGridReady] = useState(false);
@@ -126,10 +125,6 @@ const CustomDashboardWrapper = ({
     if (!customDashboard) {
       return;
     }
-    if (!parametersLocalStorage) {
-      setParametersLocalStorage({});
-      return;
-    }
     const handleParametersInitialization = async () => {
       let params: Record<string, ParameterOption> = { ...parametersLocalStorage };
       customDashboard?.custom_dashboard_parameters?.forEach((p: {
@@ -152,7 +147,7 @@ const CustomDashboardWrapper = ({
       setParameters(params || {});
       setDataReadyWithDelay();
     });
-  }, [customDashboard, parametersLocalStorage, paramsBuilder, setParametersLocalStorage]);
+  }, [customDashboard, parametersLocalStorage, paramsBuilder]);
 
   useEffect(() => {
     if (customDashboardId) {

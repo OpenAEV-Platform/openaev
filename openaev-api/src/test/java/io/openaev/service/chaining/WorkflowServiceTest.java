@@ -130,7 +130,7 @@ class WorkflowServiceTest {
       assertEquals(exercise, savedWorkflow.getSimulation());
       // Configuration defaults stored inline on the workflow row
       assertFalse(savedWorkflow.isRateLimitEnabled());
-      assertFalse(savedWorkflow.isTimeoutEnabled());
+      assertTrue(savedWorkflow.isTimeoutEnabled());
       assertEquals(
           WorkflowService.DEFAULT_TIMEOUT_SECONDS,
           savedWorkflow.getTimeoutSeconds(),
@@ -154,7 +154,7 @@ class WorkflowServiceTest {
       assertEquals(WorkflowStatus.TEMPLATE, savedWorkflow.getStatus());
       assertEquals(scenario, savedWorkflow.getScenario());
       assertFalse(savedWorkflow.isRateLimitEnabled());
-      assertFalse(savedWorkflow.isTimeoutEnabled());
+      assertTrue(savedWorkflow.isTimeoutEnabled());
       assertEquals(
           WorkflowService.DEFAULT_TIMEOUT_SECONDS,
           savedWorkflow.getTimeoutSeconds(),

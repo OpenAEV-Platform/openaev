@@ -109,11 +109,10 @@ class EndpointApiTest extends IntegrationTest {
     // --ASSERT
     assertThatJson(response).node("asset_name").isEqualTo(endpointInput.getName());
     assertThatJson(response).node("asset_description").isEqualTo(endpointInput.getDescription());
-    assertThatJson(response).node("endpoint_hostname").isEqualTo(endpointInput.getHostname());
+    assertThatJson(response).node("asset_hostname").isEqualTo(endpointInput.getHostname());
     assertThatJson(response).node("endpoint_platform").isEqualTo(endpointInput.getPlatform());
     assertThatJson(response).node("endpoint_arch").isEqualTo(endpointInput.getArch());
-    assertThatJson(response).node("endpoint_ips").isEqualTo(endpointInput.getIps());
-    assertThatJson(response).node("endpoint_ips").isEqualTo(endpointInput.getIps());
+    assertThatJson(response).node("asset_ips").isEqualTo(endpointInput.getIps());
     assertThatJson(response).node("asset_tags").isEqualTo(endpointInput.getTags());
     assertThatJson(response).node("asset_agents").isEqualTo(endpointInput.getAgents());
   }
@@ -147,7 +146,7 @@ class EndpointApiTest extends IntegrationTest {
     // --ASSERT--
     assertThatJson(response).node("asset_category").isEqualTo("WEB_APPLICATION");
     assertThatJson(response).node("asset_subcategory").isEqualTo("WEBSITE");
-    assertThatJson(response).node("endpoint_url").isEqualTo("https://filigran.io");
+    assertThatJson(response).node("asset_url").isEqualTo("https://filigran.io");
     assertThatJson(response).node("asset_internet_facing").isEqualTo(true);
     // platform / arch default to Unknown server-side when omitted
     assertThatJson(response).node("endpoint_platform").isEqualTo("Unknown");
@@ -286,7 +285,7 @@ class EndpointApiTest extends IntegrationTest {
             .getContentAsString();
 
     // --ASSERT--
-    assertEquals(newName.toLowerCase(), JsonPath.read(response, "$.endpoint_hostname"));
+    assertEquals(newName.toLowerCase(), JsonPath.read(response, "$.asset_hostname"));
   }
 
   @DisplayName(
@@ -377,9 +376,9 @@ class EndpointApiTest extends IntegrationTest {
 
     // --ASSERT
     assertThatJson(response).node("asset_name").isEqualTo(newName);
-    assertThatJson(response).node("endpoint_hostname").isEqualTo(newName.toLowerCase());
+    assertThatJson(response).node("asset_hostname").isEqualTo(newName.toLowerCase());
     assertThatJson(response).node("endpoint_platform").isEqualTo(endpointCreated.getPlatform());
-    assertThatJson(response).node("endpoint_ips").isEqualTo(endpointCreated.getIps());
+    assertThatJson(response).node("asset_ips").isEqualTo(endpointCreated.getIps());
   }
 
   @DisplayName("Given valid input, should delete an endpoint successfully")

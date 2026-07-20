@@ -69,12 +69,10 @@ public class XtmComposerApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   public boolean isXtmComposerReachable() {
-    try {
-      this.xtmComposerService.throwIfXtmComposerNotReachable();
-      return true;
-    } catch (Exception e) {
-      return false;
-    }
+    // Use the non-throwing probe: throwing (and catching) a BadRequestException here would mark the
+    // shared transaction rollback-only and make the surrounding commit fail with
+    // UnexpectedRollbackException (500), even though we intend to just return false.
+    return this.xtmComposerService.isXtmComposerReachable();
   }
 
   @GetMapping(

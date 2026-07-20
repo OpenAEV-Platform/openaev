@@ -4,6 +4,7 @@ import static io.openaev.api.chaining.ChainingApi.TENANT_CHAINING_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -96,7 +97,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
     doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
-    doReturn(new ArrayList<>()).when(assetService).assets(any());
+    doReturn(new ArrayList<>()).when(assetService).assets(anyList());
     doReturn(new HashSet<>()).when(tagService).tagSet(any());
     doReturn(null).when(documentService).document(any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
@@ -187,7 +188,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       assertNull(
           workflowTemplate.getSimulation(), "The Workflow TEMPLATE must not have a simulation");
       // Timeout defaults must be set on creation
-      assertFalse(workflowTemplate.isTimeoutEnabled(), "Timeout must be disabled by default");
+      assertTrue(workflowTemplate.isTimeoutEnabled(), "Timeout must be enabled by default");
       assertEquals(
           WorkflowService.DEFAULT_TIMEOUT_SECONDS,
           workflowTemplate.getTimeoutSeconds(),
@@ -629,7 +630,7 @@ class ChainingIntegrationTest extends IntegrationTest {
           workflowTemplate.getScenario(),
           "Template workflow for simulation must not link scenario");
       // Timeout defaults must be set on creation
-      assertFalse(workflowTemplate.isTimeoutEnabled(), "Timeout must be disabled by default");
+      assertTrue(workflowTemplate.isTimeoutEnabled(), "Timeout must be enabled by default");
       assertEquals(
           WorkflowService.DEFAULT_TIMEOUT_SECONDS,
           workflowTemplate.getTimeoutSeconds(),

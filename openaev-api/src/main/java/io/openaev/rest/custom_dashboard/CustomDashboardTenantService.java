@@ -1,7 +1,11 @@
 package io.openaev.rest.custom_dashboard;
 
+import static io.openaev.config.SessionHelper.currentUser;
+
 import io.openaev.database.model.CustomDashboard;
+import io.openaev.database.model.User;
 import io.openaev.database.repository.CustomDashboardRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.engine.query.*;
 import io.openaev.rest.dashboard.DashboardService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -19,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -28,15 +33,28 @@ public class CustomDashboardTenantService {
   private final CustomDashboardRepository customDashboardRepository;
   private final TenantSettingsService tenantSettingsService;
   private final DashboardService dashboardService;
+  private final UserRepository userRepository;
 
   // -- READ --
 
   /**
-   * Finds the home dashboard for the given tenant by resolving the dashboard ID from tenant
-   * settings.
+   * Finds the home dashboard for the given tenant. Resolution order: the current user preference
+   * (user_home_dashboard) wins over the tenant setting (platform_home_dashboard); when neither is
+   * set the frontend falls back to the built-in platform default dashboard.
    */
   @Transactional(readOnly = true)
   public Optional<CustomDashboard> findTenantHomeDashboard(@NotBlank String tenantId) {
+    Optional<CustomDashboard> userDashboard =
+        userRepository
+            .findById(currentUser().getId())
+            .map(User::getHomeDashboard)
+            .filter(StringUtils::hasText)
+            // tenant-scoped lookup: a preference set in another tenant must not leak here,
+            // it simply falls back to the tenant setting below
+            .flatMap(id -> customDashboardRepository.findByIdAndTenantId(id, tenantId));
+    if (userDashboard.isPresent()) {
+      return userDashboard;
+    }
     return tenantSettingsService
         .findHomeDashboardId(tenantId)
         .flatMap(customDashboardRepository::findById);

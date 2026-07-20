@@ -27,6 +27,9 @@ public enum SettingKeys {
   SMTP_SERVICE_AVAILABLE("smtp_service_available", "false"),
   IMAP_SERVICE_AVAILABLE("imap_service_available", "false"),
 
+  // Session management
+  PLATFORM_SESSION_MAX_CONCURRENT("platform_session_max_concurrent", "0"),
+
   // AI capabilities
   FILIGRAN_CHATBOT_AI_CGU_STATUS("filigran_chatbot_ai_cgu_status", ""),
 

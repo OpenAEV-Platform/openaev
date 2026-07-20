@@ -15,6 +15,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
+import io.openaev.rest.injector_contract.output.InjectorContractAuthorCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.payload.form.PayloadCreateInput;
@@ -28,6 +29,7 @@ import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.criteria.Join;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -50,6 +52,9 @@ public class ThreatArsenalService {
   /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
   public static final List<String> TABLETOP_INJECTOR_TYPES =
       List.of("openaev_email", "openaev_ovh_sms", "openaev_challenge", "openaev_channel");
+
+  /** Max page size allowed by {@code Pagination}; used to page through select-all bulk deletes. */
+  private static final int MAX_PAGE_SIZE = 1000;
 
   /**
    * Retrieves a threat arsenal action by its identifier and returns the full-detail output.
@@ -125,6 +130,17 @@ public class ThreatArsenalService {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
     return injectorContractService.getDomainCounts(filtered);
+  }
+
+  /**
+   * Author facet counts for the current filters, so the sidebar can show every author and grey out
+   * the zero-count ones. Uses the same {@code action_*} -> {@code injector_contract_*} translation
+   * as the search route.
+   */
+  public List<InjectorContractAuthorCountOutput> getAuthorCounts(SearchPaginationInput input) {
+    SearchPaginationInput filtered =
+        handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
+    return injectorContractService.getAuthorCounts(filtered);
   }
 
   /**
@@ -356,9 +372,84 @@ public class ThreatArsenalService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void delete(String actionId) {
-    if (!injectorContractService.isPayloadBased(actionId)) {
-      throw new ElementNotFoundException("Only payload-based actions can be deleted.");
+    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
+    if (!isEligibleForDeletion(injectorContract)) {
+      throw new ElementNotFoundException("Only payload-based or orphaned actions can be deleted.");
     }
     this.injectorContractService.deleteInjectorContractById(actionId);
+  }
+
+  /**
+   * Bulk-deletes threat arsenal actions.
+   *
+   * <p>Resolves the target set from the search input using the same ids-to-process / ids-to-ignore
+   * semantics as the mass-run flow: when {@code injector_contract_ids_to_process} is provided, only
+   * those are considered; otherwise (select-all mode) every action matching the current filters is
+   * considered, minus {@code injector_contract_ids_to_ignore}. Only eligible actions are actually
+   * deleted (payload-based, and - for collector-sourced payloads - only when deprecated), mirroring
+   * the per-row delete eligibility. Non-eligible actions are silently skipped.
+   *
+   * @param input the search + selection input
+   * @return the ids that were actually deleted
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public List<String> bulkDelete(InjectorContractSearchPaginationInput input) {
+    List<String> candidateIds = resolveCandidateIds(input);
+    List<String> deleted = new ArrayList<>();
+    for (String actionId : candidateIds) {
+      if (isEligibleForDeletion(actionId)) {
+        injectorContractService.deleteInjectorContractById(actionId);
+        deleted.add(actionId);
+      }
+    }
+    return deleted;
+  }
+
+  private List<String> resolveCandidateIds(InjectorContractSearchPaginationInput input) {
+    List<String> idsToProcess = input.getInjectorContractIdsToProcess();
+    if (idsToProcess != null && !idsToProcess.isEmpty()) {
+      return idsToProcess;
+    }
+    // Select-all mode: page through every action matching the current filters
+    // (minus the explicitly de-selected ids, already honored by getSinglePage).
+    List<String> allIds = new ArrayList<>();
+    int page = 0;
+    Page<? extends InjectorContractBaseOutput> resultPage;
+    do {
+      InjectorContractSearchPaginationInput pageInput = new InjectorContractSearchPaginationInput();
+      BeanUtils.copyProperties(input, pageInput);
+      pageInput.setPage(page);
+      pageInput.setSize(MAX_PAGE_SIZE);
+      resultPage =
+          searchInjectorContracts(InjectorContractService.OutputMode.THREAT_ARSENAL, pageInput);
+      resultPage.getContent().forEach(output -> allIds.add(output.getId()));
+      page++;
+    } while (resultPage.hasNext());
+    return allIds;
+  }
+
+  private boolean isEligibleForDeletion(String actionId) {
+    InjectorContract injectorContract;
+    try {
+      injectorContract = injectorContractService.injectorContract(actionId);
+    } catch (ElementNotFoundException e) {
+      return false;
+    }
+    return isEligibleForDeletion(injectorContract);
+  }
+
+  private boolean isEligibleForDeletion(InjectorContract injectorContract) {
+    // Orphaned actions (their injector has been removed, so no injector type) can
+    // always be purged - they are dead entries the user needs to clean up.
+    if (injectorContract.getInjectorType() == null) {
+      return true;
+    }
+    Payload payload = injectorContract.getPayload();
+    if (payload == null) {
+      return false;
+    }
+    // Collector-sourced payloads can only be deleted once deprecated.
+    boolean fromCollector = payload.getCollectorType() != null;
+    return !fromCollector || payload.getStatus() == Payload.PAYLOAD_STATUS.DEPRECATED;
   }
 }

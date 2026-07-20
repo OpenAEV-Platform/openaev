@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
 
 /**
@@ -60,6 +61,63 @@ public class EndpointMapper {
         .cloudNativeType(endpoint.getCloudNativeType())
         .cloudRegion(endpoint.getCloudRegion())
         .linkedPerson(endpoint.getLinkedPerson())
+        .build();
+  }
+
+  /**
+   * Converts ANY asset to the inventory output DTO. Endpoints keep their full representation
+   * (agents, platform, arch); every other asset type (AI targets, identities, cloud / web / network
+   * / generic assets) is mapped from the shared {@link Asset} fields with no agents and no
+   * platform/arch, so the unified asset inventory can list all categories side by side.
+   */
+  public EndpointOutput toAssetOutput(Asset asset) {
+    // Unproxy before the instanceof so a lazily-loaded Asset proxy still reveals the Endpoint
+    // subtype (otherwise endpoints would lose their agents/platform in the unified list).
+    if (Hibernate.unproxy(asset) instanceof Endpoint endpoint) {
+      return toEndpointOutput(endpoint);
+    }
+    return EndpointOutput.builder()
+        .id(asset.getId())
+        .name(asset.getName())
+        .type(asset.getType())
+        .externalReference(asset.getExternalReference())
+        .agents(emptySet())
+        .tags(asset.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
+        .category(asset.getCategory())
+        .subcategory(asset.getSubcategory())
+        .criticality(asset.getCriticality())
+        .internetFacing(asset.getInternetFacing())
+        .build();
+  }
+
+  /**
+   * Converts ANY asset to the overview DTO used by the unified asset detail page. Endpoints get
+   * their full representation (agents, platform, arch, EOL); other asset types map from the shared
+   * {@link Asset} fields, and AI targets additionally expose their (non-secret) connection metadata
+   * so a single detail page can render every category with the relevant sections.
+   */
+  public EndpointOverviewOutput toAssetOverviewOutput(Asset asset) {
+    if (Hibernate.unproxy(asset) instanceof Endpoint endpoint) {
+      return toEndpointOverviewOutput(endpoint);
+    }
+    return EndpointOverviewOutput.builder()
+        .id(asset.getId())
+        .name(asset.getName())
+        .description(asset.getDescription())
+        .hostname(asset.getHostname())
+        .agents(emptySet())
+        .tags(asset.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
+        .category(asset.getCategory())
+        .subcategory(asset.getSubcategory())
+        .criticality(asset.getCriticality())
+        .internetFacing(asset.getInternetFacing())
+        .metadata(asset.getMetadata())
+        // AI target connection metadata (token intentionally omitted)
+        .aiTargetProvider(asset.getAiTargetProvider())
+        .aiTargetModality(asset.getAiTargetModality())
+        .aiTargetEndpoint(asset.getAiTargetEndpoint())
+        .aiTargetModel(asset.getAiTargetModel())
+        .aiTargetSystemPrompt(asset.getAiTargetSystemPrompt())
         .build();
   }
 

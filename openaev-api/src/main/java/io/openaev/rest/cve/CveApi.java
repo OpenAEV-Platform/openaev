@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.cve.form.*;
@@ -44,7 +45,9 @@ public class CveApi extends RestBehavior {
   @PostMapping("/search")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.VULNERABILITY)
-  public Page<CveSimple> searchCves(@Valid @RequestBody SearchPaginationInput input) {
+  // TxCtx is resolved from the request and applied by the transaction aspect; it scopes the CWEs
+  // reached through each vulnerability's association once the cwes table is active.
+  public Page<CveSimple> searchCves(TxCtx ctx, @Valid @RequestBody SearchPaginationInput input) {
     return vulnerabilityService.searchVulnerabilities(input).map(cveMapper::toCveSimple);
   }
 
@@ -55,7 +58,7 @@ public class CveApi extends RestBehavior {
       resourceId = "#cveId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.VULNERABILITY)
-  public CveOutput getCve(@PathVariable String cveId) {
+  public CveOutput getCve(TxCtx ctx, @PathVariable String cveId) {
     return cveMapper.toCveOutput(vulnerabilityService.findById(cveId));
   }
 
@@ -68,7 +71,7 @@ public class CveApi extends RestBehavior {
       resourceId = "#externalId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.VULNERABILITY)
-  public CveOutput getCvebyExternalId(@PathVariable String externalId) {
+  public CveOutput getCvebyExternalId(TxCtx ctx, @PathVariable String externalId) {
     return cveMapper.toCveOutput(vulnerabilityService.findByExternalId(externalId));
   }
 
@@ -76,8 +79,8 @@ public class CveApi extends RestBehavior {
   @PostMapping
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.VULNERABILITY)
   @Transactional(rollbackFor = Exception.class)
-  public CveSimple createCve(@Valid @RequestBody VulnerabilityCreateInput input) {
-    return cveMapper.toCveSimple(vulnerabilityService.createVulnerability(input));
+  public CveSimple createCve(TxCtx ctx, @Valid @RequestBody VulnerabilityCreateInput input) {
+    return cveMapper.toCveSimple(vulnerabilityService.createVulnerability(ctx, input));
   }
 
   @Operation(summary = "Bulk insert CVEs")
@@ -85,9 +88,10 @@ public class CveApi extends RestBehavior {
   @PostMapping("/bulk")
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.VULNERABILITY)
-  public void bulkInsertCVEsForCollector(@Valid @RequestBody @NotNull CVEBulkInsertInput input) {
+  public void bulkInsertCVEsForCollector(
+      TxCtx ctx, @Valid @RequestBody @NotNull CVEBulkInsertInput input) {
     this.vulnerabilityService.bulkUpsertVulnerabilities(
-        vulnerabilityMapper.fromCVEBulkInsertInput(input));
+        ctx, vulnerabilityMapper.fromCVEBulkInsertInput(input));
   }
 
   @Operation(summary = "Update an existing CVE")
@@ -98,8 +102,8 @@ public class CveApi extends RestBehavior {
       resourceType = ResourceType.VULNERABILITY)
   @Transactional(rollbackFor = Exception.class)
   public CveSimple updateCve(
-      @PathVariable String cveId, @Valid @RequestBody VulnerabilityUpdateInput input) {
-    return cveMapper.toCveSimple(vulnerabilityService.updateVulnerability(cveId, input));
+      TxCtx ctx, @PathVariable String cveId, @Valid @RequestBody VulnerabilityUpdateInput input) {
+    return cveMapper.toCveSimple(vulnerabilityService.updateVulnerability(ctx, cveId, input));
   }
 
   @Operation(summary = "Delete a CVE")

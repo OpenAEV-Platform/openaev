@@ -51,6 +51,20 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.scenario.ScenarioImportApi#validateImportXLSFile",
           "io.openaev.rest.exercise.ExerciseImportApi#dryRunImportXLSFile",
           "io.openaev.rest.exercise.ExerciseImportApi#validateImportXLSFile",
+          // cwes: reached through a vulnerability's @ManyToMany, so every vulnerability/CVE
+          // read-or-write entrypoint that maps the association carries the scope.
+          "io.openaev.rest.vulnerability.VulnerabilityApi#searchVulnerabilities",
+          "io.openaev.rest.vulnerability.VulnerabilityApi#getVulnerability",
+          "io.openaev.rest.vulnerability.VulnerabilityApi#getVulnerabilityByExternalId",
+          "io.openaev.rest.vulnerability.VulnerabilityApi#createVulnerability",
+          "io.openaev.rest.vulnerability.VulnerabilityApi#bulkInsertVulnerabilitiesForCollector",
+          "io.openaev.rest.vulnerability.VulnerabilityApi#updateVulnerability",
+          "io.openaev.rest.cve.CveApi#searchCves",
+          "io.openaev.rest.cve.CveApi#getCve",
+          "io.openaev.rest.cve.CveApi#getCvebyExternalId",
+          "io.openaev.rest.cve.CveApi#createCve",
+          "io.openaev.rest.cve.CveApi#bulkInsertCVEsForCollector",
+          "io.openaev.rest.cve.CveApi#updateCve",
           // mitigations (v2)
           "io.openaev.rest.mitigation.MitigationApi#mitigations",
           "io.openaev.rest.mitigation.MitigationApi#mitigation",

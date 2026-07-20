@@ -1,7 +1,8 @@
 import { Map, OrderedMap } from 'immutable';
 import { describe, expect, it } from 'vitest';
 
-import { applyLruEviction, ENTITY_SIZE_SOFT_CAP } from '../../reducers/Referential';
+import { DATA_DELETE_BATCH_SUCCESS } from '../../constants/ActionTypes';
+import referential, { applyLruEviction, ENTITY_SIZE_SOFT_CAP } from '../../reducers/Referential';
 
 const buildState = (entityType: string, entries: [string, unknown][], ordered = true) =>
   Map({ entities: Map({ [entityType]: ordered ? OrderedMap(entries) : Map(entries) }) });
@@ -67,5 +68,49 @@ describe('applyLruEviction', () => {
       payload: {},
     });
     expect(result).toBe(state);
+  });
+});
+
+describe('referential DATA_DELETE_BATCH_SUCCESS', () => {
+  it('applies a whole delete backlog in a single reducer pass', () => {
+    const state = Map({
+      entities: Map({
+        injects: Map({
+          a: 1,
+          b: 2,
+        }),
+        logs: Map({ x: 1 }),
+      }),
+    });
+    const next = referential(state, {
+      type: DATA_DELETE_BATCH_SUCCESS,
+      payload: [
+        {
+          id: 'a',
+          type: 'injects',
+        },
+        {
+          id: 'x',
+          type: 'logs',
+        },
+        // Unknown entity type must be ignored, not crash.
+        {
+          id: 'z',
+          type: 'unknown_type',
+        },
+      ],
+    });
+    expect(next.getIn(['entities', 'injects']).has('a')).toBe(false);
+    expect(next.getIn(['entities', 'injects']).has('b')).toBe(true);
+    expect(next.getIn(['entities', 'logs']).size).toBe(0);
+  });
+
+  it('returns the state unchanged for an empty batch', () => {
+    const state = Map({ entities: Map({ injects: Map({ a: 1 }) }) });
+    const next = referential(state, {
+      type: DATA_DELETE_BATCH_SUCCESS,
+      payload: [],
+    });
+    expect(next).toBe(state);
   });
 });

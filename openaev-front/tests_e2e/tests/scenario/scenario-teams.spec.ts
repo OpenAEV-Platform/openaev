@@ -22,9 +22,10 @@ test.describe('Scenario - Teams management', () => {
       `;
       document.head.appendChild(style);
     });
-    await page.goto(tenantUrl(`/admin/scenarios/${emptyScenario.scenario_id}/definition`));
+    // Teams management now lives in the hero "Configuration" drawer (teams tab).
+    await page.goto(tenantUrl(`/admin/scenarios/${emptyScenario.scenario_id}`));
     await page.waitForLoadState('domcontentloaded');
-    await scenarioPage.definitionTab.waitFor({ state: 'visible' });
+    await scenarioPage.openConfiguration();
   });
 
   test.describe('Team CRUD Operations in scenario', () => {

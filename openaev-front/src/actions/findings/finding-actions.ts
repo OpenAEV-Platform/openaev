@@ -1,7 +1,11 @@
-import { simplePostCall } from '../../utils/Action';
+import { simpleCall, simplePostCall } from '../../utils/Action';
 import { type SearchPaginationInput } from '../../utils/api-types';
 
 const FINDING_URI = '/api/findings';
+
+export const fetchFinding = (findingId: string) => {
+  return simpleCall(`${FINDING_URI}/${findingId}`);
+};
 
 export const searchFindings = (searchPaginationInput: SearchPaginationInput) => {
   const data = searchPaginationInput;

@@ -269,6 +269,17 @@ public interface ExerciseRepository
   void removeTeams(
       @Param("exerciseId") final String exerciseId, @Param("teamIds") final List<String> teamIds);
 
+  /**
+   * Bumps the exercise updated_at so the incremental search-engine indexer picks up denormalized
+   * changes (e.g. join-table mutations done via native queries that bypass JPA timestamps).
+   */
+  @Modifying
+  @Query(
+      value = "UPDATE exercises SET exercise_updated_at = now() WHERE exercise_id = :exerciseId",
+      nativeQuery = true)
+  @Transactional
+  void touchUpdatedAt(@Param("exerciseId") final String exerciseId);
+
   @Query(
       value =
           " SELECT ex.exercise_id, ex.exercise_end_date, "

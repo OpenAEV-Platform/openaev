@@ -1,6 +1,6 @@
 import { Drawer, ListItemIcon, ListItemText, MenuItem, MenuList } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type ReactElement } from 'react';
+import { type FunctionComponent, type ReactElement, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 import { type CSSObject } from 'tss-react';
 import { makeStyles } from 'tss-react/mui';
@@ -19,10 +19,17 @@ export interface RightMenuEntry {
   number?: number;
   chip?: ReactElement;
   onClick?: () => void;
+  /** When set, the entry is highlighted while the URL path matches this instead of `path`. */
+  activePath?: string;
 }
 
-const RightMenu: FunctionComponent<{ entries: RightMenuEntry[] }> = ({ entries }) => {
-  // Standard hooks
+interface Props {
+  entries: RightMenuEntry[];
+  /** Optional element rendered above the entries (e.g. a scope/context switcher). */
+  header?: ReactNode;
+}
+
+const RightMenu: FunctionComponent<Props> = ({ entries, header }) => {
   const location = useLocation();
   const { classes } = useStyles();
   const theme = useTheme();
@@ -44,35 +51,43 @@ const RightMenu: FunctionComponent<{ entries: RightMenuEntry[] }> = ({ entries }
       }}
     >
       <div className={classes.toolbar} />
-      <MenuList component="nav" sx={{ marginTop: bannerHeight }}>
-        {entries.map((entry, idx) => {
-          const isCurrentTab = location.pathname === entry.path;
-          return (
-            <MenuItem
-              key={idx}
-              component={Link}
-              to={entry.onClick ? '#' : entry.path}
-              selected={isCurrentTab}
-              onClick={entry.onClick
-                ? (e: React.MouseEvent) => {
-                    e.preventDefault();
-                    entry.onClick?.();
-                  }
-                : undefined}
-              sx={{
-                paddingTop: theme.spacing(1),
-                paddingBottom: theme.spacing(1),
-              }}
-            >
-              <ListItemIcon>
-                {entry.icon()}
-              </ListItemIcon>
-              <ListItemText primary={isNotEmptyField(entry.number) ? `${t(entry.label)} (${entry.number})` : t(entry.label)} />
-              {entry.chip && <>{entry.chip}</>}
-            </MenuItem>
-          );
-        })}
-      </MenuList>
+      <div style={{ marginTop: bannerHeight }}>
+        {header}
+        <MenuList component="nav">
+          {entries.map((entry, idx) => {
+            // Highlight the entry on its own route AND on any nested route
+            // (e.g. a detail/overview page like ".../users/{id}"), ignoring any
+            // query string on the entry's target path.
+            const targetPath = (entry.activePath ?? entry.path).split('?')[0];
+            const isCurrentTab = location.pathname === targetPath
+              || location.pathname.startsWith(`${targetPath}/`);
+            return (
+              <MenuItem
+                key={idx}
+                component={Link}
+                to={entry.onClick ? '#' : entry.path}
+                selected={isCurrentTab}
+                onClick={entry.onClick
+                  ? (e: React.MouseEvent) => {
+                      e.preventDefault();
+                      entry.onClick?.();
+                    }
+                  : undefined}
+                sx={{
+                  paddingTop: theme.spacing(1),
+                  paddingBottom: theme.spacing(1),
+                }}
+              >
+                <ListItemIcon>
+                  {entry.icon()}
+                </ListItemIcon>
+                <ListItemText primary={isNotEmptyField(entry.number) ? `${t(entry.label)} (${entry.number})` : t(entry.label)} />
+                {entry.chip && <>{entry.chip}</>}
+              </MenuItem>
+            );
+          })}
+        </MenuList>
+      </div>
     </Drawer>
   );
 };

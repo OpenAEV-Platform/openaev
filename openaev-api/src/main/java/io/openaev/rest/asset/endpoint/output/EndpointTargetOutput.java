@@ -20,15 +20,15 @@ public class EndpointTargetOutput {
   private String id;
 
   @Schema(description = "Hostname")
-  @JsonProperty("endpoint_hostname")
+  @JsonProperty("asset_hostname")
   private String hostname;
 
   @Schema(description = "List IPs")
-  @JsonProperty("endpoint_ips")
+  @JsonProperty("asset_ips")
   private Set<String> ips;
 
   @Schema(description = "Seen IP")
-  @JsonProperty("endpoint_seen_ip")
+  @JsonProperty("asset_seen_ip")
   private String seenIp;
 
   @Schema(description = "List agents installed")

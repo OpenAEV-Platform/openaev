@@ -142,13 +142,6 @@ public class ConnectorOrchestrationService {
     }
   }
 
-  private void cleanDummyInjectorsIfItExists(
-      String catalogConnectorSlug, ConnectorType catalogConnectorType) {
-    if (ConnectorType.INJECTOR.equals(catalogConnectorType)) {
-      injectorService.deleteDummyInjectorIfItExists(catalogConnectorSlug);
-    }
-  }
-
   /**
    * Holds a CatalogConnector and its configurations mapped by key.
    *
@@ -214,15 +207,8 @@ public class ConnectorOrchestrationService {
       throwIfConnectorIdDoesNotExist(input, catalogConnectorWithConfigMap.catalogConnector);
     }
 
-    ConnectorInstancePersisted connectorInstance =
-        connectorInstanceService.createConnectorInstance(
-            catalogConnectorWithConfigMap, input, tenantId);
-
-    cleanDummyInjectorsIfItExists(
-        catalogConnectorWithConfigMap.catalogConnector.getSlug(),
-        catalogConnectorWithConfigMap.catalogConnector.getContainerType());
-
-    return connectorInstance;
+    return connectorInstanceService.createConnectorInstance(
+        catalogConnectorWithConfigMap, input, tenantId);
   }
 
   /**

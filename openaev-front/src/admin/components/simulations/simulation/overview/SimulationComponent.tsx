@@ -1,13 +1,15 @@
-import { Paper, Typography } from '@mui/material';
+import { GroupsOutlined, PersonOutlined, TrackChangesOutlined } from '@mui/icons-material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { searchExerciseHealthchecks } from '../../../../../actions/Exercise';
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults, searchExerciseInjects } from '../../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
+import { MetricGrid, MetricTile, SectionBlock } from '../../../../../components/common/detail/EntityDetailCommon';
+import PostureGauges from '../../../../../components/common/detail/PostureGauges';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
@@ -18,25 +20,12 @@ import { type Exercise, type ExpectationResultsByType, type HealthCheck, type In
 import { isFeatureEnabled } from '../../../../../utils/utils';
 import InjectResultList from '../../../atomic_testings/InjectResultList';
 import Healthchecks from '../../../common/healthchecks/Healthchecks';
-import ResponsePie from '../../../common/injects/ResponsePie';
-import MitreMatrix from '../../../common/matrix/MitreMatrix';
+import MitreCoverageMatrix from '../../../common/matrix/MitreCoverageMatrix';
 import SimulationMainInformation from '../SimulationMainInformation';
 import ExerciseDistribution from './ExerciseDistribution';
 
-// Deprecated - https://mui.com/system/styles/basics/
-// Do not use it for new code.
-const useStyles = makeStyles()(theme => ({
-  paper: {
-    height: '100%',
-    minHeight: '100%',
-    padding: theme.spacing(2),
-    borderRadius: 4,
-  },
-}));
-
 const SimulationComponent = () => {
   // Standard hooks
-  const { classes } = useStyles();
   const theme = useTheme();
   const { t } = useFormatter();
   const [scrolledToAnchor, setScrolledToAnchor] = useState<boolean>(false);
@@ -63,7 +52,6 @@ const SimulationComponent = () => {
     }
   }, [exerciseId]);
 
-  const goToLink = `/admin/simulations/${exerciseId}/injects`;
   let resultAttackPatternIds = [];
   if (injectResults) {
     resultAttackPatternIds = R.uniq(
@@ -97,66 +85,58 @@ const SimulationComponent = () => {
   }, [anchor, injectResults, resultAttackPatternIds, scrolledToAnchor, setScrolledToAnchor]);
 
   return (
-    <div style={{ paddingBottom: theme.spacing(5) }}>
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 2,
+      paddingBottom: theme.spacing(5),
+    }}
+    >
       {isSimulationChaining && !!healthchecks?.length && (
         <Healthchecks
           healthchecks={healthchecks}
           exerciseId={exerciseId}
         />
       )}
-      <div style={{
+
+      <MetricGrid>
+        <MetricTile icon={TrackChangesOutlined} label={t('Injects')} value={exercise.exercise_injects?.length ?? 0} />
+        <MetricTile icon={GroupsOutlined} label={t('Teams')} value={exercise.exercise_teams?.length ?? 0} />
+        <MetricTile icon={PersonOutlined} label={t('Players')} value={exercise.exercise_all_users_number ?? exercise.exercise_users_number ?? 0} />
+      </MetricGrid>
+
+      <Box sx={{
         display: 'grid',
-        gap: `0px ${theme.spacing(3)}`,
-        gridTemplateColumns: `calc((100% - ${theme.spacing(3)})/2) calc((100% - ${theme.spacing(3)})/2)`,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+        gap: 2,
+        alignItems: 'stretch',
       }}
       >
-        <Typography variant="h4">{t('Information')}</Typography>
-        <Typography variant="h4">{t('Results')}</Typography>
-        <SimulationMainInformation exercise={exercise} />
-        <Paper
-          variant="outlined"
-          style={{
+        <SectionBlock title={t('Information')}>
+          <SimulationMainInformation exercise={exercise} />
+        </SectionBlock>
+        <SectionBlock title={t('Results')}>
+          <Box sx={{
             display: 'flex',
             alignItems: 'center',
-            height: '100%',
             justifyContent: 'center',
+            height: '100%',
           }}
-        >
-          {!results
-            ? <Loader variant="inElement" />
-            : <ResponsePie expectationResultsByTypes={results} humanValidationLink={`/admin/simulations/${exerciseId}/animation/validations`} />}
-        </Paper>
-      </div>
-      {injectResults && resultAttackPatternIds.length > 0 && (
-        <div style={{
-          display: 'grid',
-          marginTop: theme.spacing(3),
-          gap: `0px ${theme.spacing(3)}`,
-          gridTemplateColumns: '1fr',
-        }}
-        >
-          <Typography variant="h4">{t('MITRE ATT&CK Results')}</Typography>
-          <Paper
-            variant="outlined"
-            classes={{ root: classes.paper }}
-            style={{ minWidth: '100%' }}
           >
-            <MitreMatrix goToLink={goToLink} injectResults={injectResults} />
-          </Paper>
-        </div>
+            {!results
+              ? <Loader variant="inElement" />
+              : <PostureGauges expectationResultsByTypes={results} humanValidationLink={`/admin/simulations/${exerciseId}/animation/validations`} />}
+          </Box>
+        </SectionBlock>
+      </Box>
+      {injectResults && resultAttackPatternIds.length > 0 && (
+        <SectionBlock title={t('MITRE ATT&CK Results')}>
+          <MitreCoverageMatrix widgetId={`simulation-mitre-${exerciseId}`} injectResults={injectResults} />
+        </SectionBlock>
       )}
       {exercise.exercise_status !== 'SCHEDULED' && (
-        <div
-          style={{
-            display: 'grid',
-            marginTop: theme.spacing(3),
-            gap: `0px ${theme.spacing(3)}`,
-            gridTemplateColumns: '1fr',
-          }}
-          id="injects-results"
-        >
-          <Typography variant="h4">{t('Injects results')}</Typography>
-          <Paper classes={{ root: classes.paper }} variant="outlined">
+        <div id="injects-results">
+          <SectionBlock title={t('Injects results')}>
             <InjectResultList
               fetchInjects={input => searchExerciseInjects(exerciseId, input)}
               goTo={injectId => `/admin/simulations/${exerciseId}/injects/${injectId}`}
@@ -164,11 +144,11 @@ const SimulationComponent = () => {
               searchPaginationInput={searchPaginationInput}
               contextId={exercise.exercise_id}
             />
-          </Paper>
+          </SectionBlock>
         </div>
       )}
       <ExerciseDistribution exerciseId={exerciseId} />
-    </div>
+    </Box>
   );
 };
 

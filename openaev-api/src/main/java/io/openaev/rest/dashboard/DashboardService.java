@@ -18,6 +18,7 @@ import io.openaev.utils.es.WidgetToEntitiesOutput;
 import io.openaev.utils.mapper.RawUserAuthMapper;
 import io.openaev.utils.pagination.Pagination;
 import jakarta.annotation.Nullable;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -186,6 +187,175 @@ public class DashboardService {
         runtime,
         widgetContext.parameters(),
         widgetContext.definitionParameters());
+  }
+
+  // -- AD-HOC (non-persisted) WIDGET QUERIES --
+  // Used by hardcoded platform dashboards: the full widget configuration is
+  // provided by the caller instead of referencing a stored widget.
+
+  /**
+   * Retrieves series data for an ad-hoc widget configuration (histograms).
+   *
+   * @param configuration the widget configuration (temporal or structural histogram)
+   * @param parameters parameters passed at runtime
+   * @return list of {@link EsSeries} suitable for charting
+   */
+  public List<EsSeries> adHocSeries(
+      WidgetConfiguration configuration, Map<String, String> parameters) {
+    RawUserAuth user = currentUserAuth();
+    Map<String, String> params = parameters == null ? Map.of() : parameters;
+    Map<String, CustomDashboardParameters> defParams = adHocDefinitionParameters();
+    if (configuration instanceof DateHistogramWidget config) {
+      return engineService.multiDateHistogram(
+          user, new DateHistogramRuntime(config, params, defParams));
+    } else if (configuration instanceof StructuralHistogramWidget config) {
+      return engineService.multiTermHistogram(
+          user, new StructuralHistogramRuntime(config, params, defParams));
+    }
+    throw new UnsupportedOperationException(
+        "Unsupported ad-hoc widget configuration: " + configuration.getConfigurationType());
+  }
+
+  /**
+   * Retrieves security-domain averages for an ad-hoc average widget configuration.
+   *
+   * @param configuration the average widget configuration
+   * @param parameters parameters passed at runtime
+   * @return the security domain averages
+   */
+  public EsAvgs adHocAverage(WidgetConfiguration configuration, Map<String, String> parameters) {
+    if (!(configuration instanceof AverageConfiguration config)) {
+      throw new UnsupportedOperationException(
+          "Unsupported ad-hoc widget configuration: " + configuration.getConfigurationType());
+    }
+    RawUserAuth user = currentUserAuth();
+    Map<String, String> params = parameters == null ? Map.of() : parameters;
+    return engineService.average(
+        user,
+        new AverageRuntime(
+            esSecurityDomainService.setFieldsForQuery(config),
+            params,
+            adHocDefinitionParameters()));
+  }
+
+  /**
+   * Retrieves count data for an ad-hoc flat widget configuration.
+   *
+   * @param configuration the flat widget configuration
+   * @param parameters parameters passed at runtime
+   * @return the count with previous interval comparison
+   */
+  public EsCountInterval adHocCount(
+      WidgetConfiguration configuration, Map<String, String> parameters) {
+    if (!(configuration instanceof FlatConfiguration config)) {
+      throw new UnsupportedOperationException(
+          "Unsupported ad-hoc widget configuration: " + configuration.getConfigurationType());
+    }
+    RawUserAuth user = currentUserAuth();
+    Map<String, String> params = parameters == null ? Map.of() : parameters;
+    return engineService.count(user, new CountRuntime(config, params, adHocDefinitionParameters()));
+  }
+
+  /**
+   * Retrieves entities for an ad-hoc list widget configuration.
+   *
+   * @param configuration the list widget configuration
+   * @param parameters parameters passed at runtime
+   * @param pagination pagination passed at runtime
+   * @return the entities matching the list query
+   */
+  public EsEntities adHocEntities(
+      WidgetConfiguration configuration,
+      Map<String, String> parameters,
+      @Nullable Pagination pagination) {
+    if (!(configuration instanceof ListConfiguration config)) {
+      throw new UnsupportedOperationException(
+          "Unsupported ad-hoc widget configuration: " + configuration.getConfigurationType());
+    }
+    RawUserAuth user = currentUserAuth();
+    Map<String, String> params = parameters == null ? Map.of() : parameters;
+    return engineService.entities(
+        user, new ListRuntime(config, params, adHocDefinitionParameters(), pagination));
+  }
+
+  /**
+   * Converts an ad-hoc (non-persisted) widget into a scoped entity list. Mirrors {@link
+   * #widgetToEntitiesRuntime} but builds a transient widget from the provided type and
+   * configuration instead of loading a stored one, so the built-in default dashboard drill-downs
+   * behave exactly like custom dashboard ones.
+   *
+   * @param widgetType the widget type (drives the security-coverage special case)
+   * @param configuration the full widget configuration
+   * @param input clicked filter values, series index, parameters and pagination
+   * @return output containing both the generated list configuration and retrieved entities
+   */
+  public WidgetToEntitiesOutput adHocEntitiesRuntime(
+      WidgetType widgetType, WidgetConfiguration configuration, WidgetToEntitiesInput input) {
+    Widget transientWidget = new Widget();
+    transientWidget.setType(widgetType);
+    transientWidget.setWidgetConfiguration(configuration);
+
+    ListConfiguration listConfig;
+    if (isSecurityCoverageWidget(transientWidget)) {
+      listConfig =
+          widgetService.convertSecurityCoverageWidgetToListConfiguration(
+              transientWidget, input.getFilterValuesMap());
+    } else {
+      listConfig =
+          widgetService.convertWidgetToListConfiguration(
+              transientWidget, input.getSeriesIndex(), input.getFilterValuesMap());
+    }
+
+    Map<String, String> params = input.getParameters() == null ? Map.of() : input.getParameters();
+    EsEntities datas =
+        engineService.entities(
+            currentUserAuth(),
+            new ListRuntime(
+                listConfig, params, adHocDefinitionParameters(), input.getPagination()));
+    return WidgetToEntitiesOutput.builder().listConfiguration(listConfig).esEntities(datas).build();
+  }
+
+  private RawUserAuth currentUserAuth() {
+    List<RawUserAuthFlat> usersWithAuthFlat = userRepository.getUserWithAuth(currentUser().getId());
+    return rawUserAuthMapper.toRawUserAuth(usersWithAuthFlat);
+  }
+
+  /**
+   * The engine date-range helpers always resolve the dashboard timeRange / startDate / endDate
+   * parameter definitions, even when the widget carries an explicit time range. Ad-hoc widgets have
+   * no persisted dashboard, so we provide synthetic (never persisted) definitions; without matching
+   * runtime values the engine falls back to the widget configuration time range.
+   */
+  private Map<String, CustomDashboardParameters> adHocDefinitionParameters() {
+    Map<String, CustomDashboardParameters> definitions = new HashMap<>();
+    definitions.put(
+        "_adhoc_time_range",
+        adHocParameter(
+            "_adhoc_time_range",
+            "Time range",
+            CustomDashboardParameters.CustomDashboardParameterType.timeRange));
+    definitions.put(
+        "_adhoc_start_date",
+        adHocParameter(
+            "_adhoc_start_date",
+            "Start date",
+            CustomDashboardParameters.CustomDashboardParameterType.startDate));
+    definitions.put(
+        "_adhoc_end_date",
+        adHocParameter(
+            "_adhoc_end_date",
+            "End date",
+            CustomDashboardParameters.CustomDashboardParameterType.endDate));
+    return definitions;
+  }
+
+  private CustomDashboardParameters adHocParameter(
+      String id, String name, CustomDashboardParameters.CustomDashboardParameterType type) {
+    CustomDashboardParameters parameter = new CustomDashboardParameters();
+    parameter.setId(id);
+    parameter.setName(name);
+    parameter.setType(type);
+    return parameter;
   }
 
   /**

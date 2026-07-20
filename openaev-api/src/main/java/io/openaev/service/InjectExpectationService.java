@@ -216,9 +216,11 @@ public class InjectExpectationService {
       if (isAssetGroupExpectation(technicalExpectation)) {
         throw new IllegalArgumentException("Not possible to update Asset Group directly");
       }
-      // Allow down computation on asset
-      Endpoint endpoint = (Endpoint) Hibernate.unproxy(technicalExpectation.getAsset());
-      List<Agent> agents = getPrimaryAgents(endpoint);
+      // Allow down computation on asset. Non-endpoint assets (AI targets, ...) have no agents and
+      // are treated as agentless.
+      Asset unproxied = (Asset) Hibernate.unproxy(technicalExpectation.getAsset());
+      List<Agent> agents =
+          (unproxied instanceof Endpoint endpoint) ? getPrimaryAgents(endpoint) : List.of();
       boolean isAgentless = agents.isEmpty();
       if (isAssetExpectation(technicalExpectation) && !isAgentless) {
         List<TechnicalInjectExpectation> expectationsForAgents =
@@ -267,9 +269,10 @@ public class InjectExpectationService {
       if (isAssetGroupExpectation(technicalInjectExpectation)) {
         throw new IllegalArgumentException("Not possible to update Asset Group directly");
       }
-      // Not Endpoint if no agentless
-      Endpoint endpoint = (Endpoint) Hibernate.unproxy(technicalInjectExpectation.getAsset());
-      List<Agent> agents = getPrimaryAgents(endpoint);
+      // Non-endpoint assets (AI targets, ...) have no agents and are treated as agentless.
+      Asset unproxied = (Asset) Hibernate.unproxy(technicalInjectExpectation.getAsset());
+      List<Agent> agents =
+          (unproxied instanceof Endpoint endpoint) ? getPrimaryAgents(endpoint) : List.of();
       boolean isAgentless = agents.isEmpty();
       if (isAssetExpectation(technicalInjectExpectation) && !isAgentless) {
         throw new IllegalArgumentException(
@@ -558,9 +561,15 @@ public class InjectExpectationService {
             technicalInjectExpectation, input, collector);
     TechnicalInjectExpectation updated =
         this.injectExpectationRepository.save(technicalInjectExpectation);
+    // When the collector fills an ASSET-level (agentless) expectation - AI targets, or agentless
+    // endpoints - there is no agent layer below it: agent->asset propagation would recompute the
+    // asset score from zero children and immediately wipe the score we just set. Only asset->group
+    // propagation must run. When the collector fills an AGENT expectation, roll the score up the
+    // full agent->asset->group chain.
+    boolean isAgentless = updated.getAgent() == null;
     propagateTechnicalExpectation(
         updated,
-        false,
+        isAgentless,
         shouldPropagateLastInjectExpectationResult
             ? score -> updated.getResults().getLast()
             : null);
@@ -608,7 +617,11 @@ public class InjectExpectationService {
     Map<String, TechnicalInjectExpectation> assetPropagations = new LinkedHashMap<>();
     Map<String, TechnicalInjectExpectation> assetGroupPropagations = new LinkedHashMap<>();
     for (TechnicalInjectExpectation updated : saved) {
-      if (updated.getAsset() != null) {
+      // Agent -> asset rollup only applies when the updated leaf is an AGENT expectation. An
+      // agentless asset expectation (AI target, agentless endpoint) IS the leaf: recomputing it
+      // from its (nonexistent) agent children would wipe the score just written, so skip it here
+      // and let the asset -> group step below roll it up.
+      if (updated.getAsset() != null && updated.getAgent() != null) {
         assetPropagations.putIfAbsent(
             updated.getInject().getId()
                 + "|"
@@ -988,7 +1001,10 @@ public class InjectExpectationService {
             case PLAYERS ->
                 injectExpectationRepository.findAllByInjectAndPlayer(injectId, targetId);
             case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
-            case ASSETS -> injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
+            // AI targets are plain assets (asset_category driven), so their expectations are
+            // resolved through the asset lookup.
+            case ASSETS, AI_TARGETS ->
+                injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
             default ->
                 throw new RuntimeException(
                     "Target type "
@@ -1020,7 +1036,9 @@ public class InjectExpectationService {
         case TEAMS -> injectExpectationRepository.findAllByInjectAndTeam(injectId, targetId);
         case PLAYERS -> injectExpectationRepository.findAllByInjectAndPlayer(injectId, targetId);
         case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
-        case ASSETS -> injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
+        // AI targets are plain assets (asset_category driven), resolved through the asset lookup.
+        case ASSETS, AI_TARGETS ->
+            injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
         case ASSETS_GROUPS ->
             injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, targetId);
         default ->
@@ -1152,15 +1170,28 @@ public class InjectExpectationService {
       @Nullable String assetId,
       @Nullable String assetGroupId) {
     if (agentId != null) {
-      return injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
+      return filterTechnicalExpectations(
+          injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId));
     }
     if (assetId != null) {
-      return injectExpectationRepository.findAllByInjectAndAsset(injectId, assetId);
+      return filterTechnicalExpectations(
+          injectExpectationRepository.findAllByInjectAndAsset(injectId, assetId));
     }
     if (assetGroupId != null) {
-      return injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, assetGroupId);
+      return filterTechnicalExpectations(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, assetGroupId));
     }
     return Collections.emptyList();
+  }
+
+  // Agent/asset targets can also carry manual expectations: keep only the
+  // technical ones for the signature-application paths.
+  private static List<TechnicalInjectExpectation> filterTechnicalExpectations(
+      List<BaseInjectExpectation> expectations) {
+    return expectations.stream()
+        .filter(TechnicalInjectExpectation.class::isInstance)
+        .map(TechnicalInjectExpectation.class::cast)
+        .toList();
   }
 
   /**
@@ -1176,9 +1207,12 @@ public class InjectExpectationService {
       @NotBlank final String agentId,
       @NotBlank final Instant date,
       @NotBlank final String signatureType) {
-    // Load all expectations for the inject/agent, append the signature, then persist the changes.
+    // Load the technical expectations for the inject/agent, append the signature, then persist
+    // the changes. Agent rows can also carry MANUAL expectations, which must not receive
+    // start/end date signatures (they are matched against technical detection/prevention data).
     List<TechnicalInjectExpectation> injectExpectations =
-        injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
+        filterTechnicalExpectations(
+            injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId));
     if (!injectExpectations.isEmpty()) {
       injectExpectations.forEach(
           injectExpectation -> {

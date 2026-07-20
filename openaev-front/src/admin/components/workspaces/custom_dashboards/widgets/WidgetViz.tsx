@@ -13,8 +13,12 @@ import type { EsAvgsExtended } from './viz/domains/SecurityDomainsWidgetUtils';
 import { getWidgetTitle, type WidgetVizData, WidgetVizDataType } from './WidgetUtils';
 
 const AttackPathContextLayer = lazy(() => import('./viz/attack_paths/AttackPathContextLayer'));
+const CommandCenterWidget = lazy(() => import('./viz/command_center/CommandCenterWidget'));
 const SecurityDomainsWidget = lazy(() => import('./viz/domains/SecurityDomainsWidget'));
 const DonutChart = lazy(() => import('./viz/DonutChart'));
+const ResilienceGaugeWidget = lazy(() => import('./viz/ResilienceGaugeWidget'));
+const ExposureScoreWidget = lazy(() => import('./viz/ExposureScoreWidget'));
+const PostureRadarWidget = lazy(() => import('./viz/PostureRadarWidget'));
 const HorizontalBarChart = lazy(() => import('./viz/HorizontalBarChart'));
 const LineChart = lazy(() => import('./viz/LineChart'));
 const ListWidget = lazy(() => import('./viz/list/ListWidget'));
@@ -34,7 +38,8 @@ interface WidgetTemporalVizProps {
 
 export type SerieData = {
   x?: string;
-  y?: string;
+  // computeSeriesData assigns the numeric ES value; string is kept for legacy consumers.
+  y?: number | string;
   meta?: string;
 };
 
@@ -125,12 +130,24 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage, o
         if (vizData.type !== WidgetVizDataType.SERIES || !seriesData) {
           return 'Not implemented yet';
         }
-        const data = seriesData[0].data;
+        const data = seriesData[0]?.data ?? [];
         return (
           <DonutChart
             widgetId={widget.widget_id}
             widgetConfig={widget.widget_config as StructuralHistogramWidget}
             datas={data}
+          />
+        );
+      }
+      case 'resilience-gauge': {
+        if (vizData.type !== WidgetVizDataType.SERIES || !seriesData) {
+          return 'Not implemented yet';
+        }
+        return (
+          <ResilienceGaugeWidget
+            widgetId={widget.widget_id}
+            widgetConfig={widget.widget_config as StructuralHistogramWidget}
+            datas={(seriesData[0]?.data ?? []) as SerieData[]}
           />
         );
       }
@@ -147,6 +164,8 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage, o
             widgetConfig={widget.widget_config as ListConfiguration}
             onPaginationChange={onPaginationChange}
             contentLoading={contentLoading}
+            // pagination is rendered in the widget title row (see WidgetWrapper)
+            hidePagination
           />
         );
       case 'number':
@@ -156,6 +175,7 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage, o
         return (
           <NumberWidget
             widgetId={widget.widget_id}
+            widgetConfig={widget.widget_config}
             data={vizData.data}
           />
         );
@@ -164,6 +184,27 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage, o
           return 'Not implemented yet';
         }
         return <SecurityDomainsWidget widgetId={widget.widget_id} data={vizData.data as EsAvgsExtended} />;
+      case 'command-center':
+        if (vizData.type !== WidgetVizDataType.SERIES) {
+          return 'Not implemented yet';
+        }
+        return <CommandCenterWidget widgetId={widget.widget_id} series={vizData.data} />;
+      case 'exposure-score':
+        if (vizData.type !== WidgetVizDataType.SERIES) {
+          return 'Not implemented yet';
+        }
+        return <ExposureScoreWidget widgetId={widget.widget_id} series={vizData.data} />;
+      case 'posture-radar':
+        if (vizData.type !== WidgetVizDataType.SERIES) {
+          return 'Not implemented yet';
+        }
+        return (
+          <PostureRadarWidget
+            widgetId={widget.widget_id}
+            widgetConfig={widget.widget_config as StructuralHistogramWidget}
+            series={vizData.data}
+          />
+        );
       default:
         return 'Not implemented yet';
     }

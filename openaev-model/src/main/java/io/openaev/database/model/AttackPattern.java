@@ -114,9 +114,13 @@ public class AttackPattern implements TenantBase {
   @Transient
   private final ResourceType resourceType = ResourceType.ATTACK_PATTERN;
 
-  // UpdatedAt now used to sync with linked object
+  // UpdatedAt is synced manually with linked objects because join-table changes do not dirty this
+  // row. Only bump when contents actually change: an unconditional bump forces an UPDATE (and an
+  // SSE restream) on every no-op collector upsert (#6778).
   public void setKillChainPhases(List<KillChainPhase> killChainPhases) {
-    this.updatedAt = now();
+    if (!Base.haveSameIds(this.killChainPhases, killChainPhases)) {
+      this.updatedAt = now();
+    }
     this.killChainPhases = killChainPhases;
   }
 

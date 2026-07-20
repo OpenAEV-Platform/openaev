@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.AiTarget;
+import io.openaev.database.model.Asset;
 import io.openaev.database.repository.AiTargetRepository;
 import io.openaev.rest.asset.ai_targets.form.AiTargetInput;
 import io.openaev.utils.fixtures.PaginationFixture;
@@ -38,8 +38,8 @@ class AiTargetApiTest extends IntegrationTest {
   private AiTargetInput input(String name) {
     AiTargetInput input = new AiTargetInput();
     input.setName(name);
-    input.setProvider(AiTarget.AI_TARGET_PROVIDER.OPENAI_COMPATIBLE);
-    input.setModality(AiTarget.AI_TARGET_MODALITY.TEXT);
+    input.setAiTargetProvider(Asset.AI_TARGET_PROVIDER.OPENAI_COMPATIBLE);
+    input.setAiTargetModality(Asset.AI_TARGET_MODALITY.TEXT);
     return input;
   }
 
@@ -115,7 +115,7 @@ class AiTargetApiTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    assertThat(aiTargetRepository.findById(id)).isEmpty();
+    assertThat(aiTargetRepository.findAiTargetById(id)).isEmpty();
   }
 
   @DisplayName("Search AI targets returns the created target")
