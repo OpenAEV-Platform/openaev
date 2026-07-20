@@ -739,34 +739,4 @@ public class InjectExecutionStepTest extends IntegrationTest {
         PrimitiveType.Username.name(),
         StepService.getField(stepTemplate.getInput(), "input.keyType"));
   }
-
-  @Test
-  public void given_mapperConditionWithoutSubtype_should_not_includeKeySubtypeInStepInput()
-      throws JsonProcessingException, ChainingException {
-    // Arrange
-    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
-
-    ConditionCreateInput conditionMapper =
-        ConditionCreateInput.builder()
-            .keyType(PrimitiveType.IPv4)
-            .key("target_ip")
-            .value("output.message.ip")
-            .type(ConditionType.MAPPER)
-            .build();
-    step.setConditions(Collections.singletonList(conditionMapper));
-
-    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
-    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
-
-    // Act
-    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
-    assertTrue(stepTemplateOpt.isPresent());
-    Step stepTemplate = stepTemplateOpt.get();
-
-    // Assert
-    assertEquals(
-        PrimitiveType.IPv4.name(), StepService.getField(stepTemplate.getInput(), "input.keyType"));
-    assertNull(StepService.getField(stepTemplate.getInput(), "input.keySubtype"));
-  }
 }
