@@ -88,11 +88,17 @@ correspondent à **aucun** InjectorContract / Payload / Inject réel → toute r
    - Nécessite au préalable une notion de **criticité d'asset** (tags / équivalent Domain-Admin),
      inexistante aujourd'hui.
 
-### P1/P2 — chaîne d'attaque intra-endpoint (kill-chain / séquence d'étapes)
+### Kill-chain intra-endpoint — bloquant back AVANT tout dev front
 
 **Besoin métier** : modéliser une **séquence causale** d'étapes, p.ex. sur un même endpoint :
 `port 445 ouvert` → `SMB validé sur 445` → `NULL session enum réussie` → `énumération des shares`
 (et, entre hôtes, le pivot `host compromis → host suivant`).
+
+> **Décision** : le front de cette vue **ne démarre PAS** tant que les relations de dépendance
+> (point 10) n'existent pas. Une timeline purement **chronologique** (ordre = temps) serait du
+> **travail jetable** : ce sont les relations `dependsOn`/`consumedFindings` qui *constituent* le
+> graphe, pas un enrichissement. Le point 10 est donc la **fondation bloquante**, pas un « nice to
+> have ». Les points 11–12 suivent.
 
 **Ce qui existe déjà (donc partiellement faisable front-only, voir plus bas)** :
 - `AttackPathExecution` porte `executedAt`, `stepTemplateId`/`stepId`, `payloadName`,
