@@ -175,7 +175,6 @@ const Players = () => {
           : players.map((player: PlayerOutput) => (
               <ListItem
                 key={player.user_id}
-                classes={{ root: classes.item }}
                 divider
                 disablePadding
                 secondaryAction={(
@@ -185,7 +184,7 @@ const Players = () => {
                   />
                 )}
               >
-                <ListItemButton onClick={() => navigate(`${PERSON_BASE_URL}/${player.user_id}`)}>
+                <ListItemButton classes={{ root: classes.item }} onClick={() => navigate(`${PERSON_BASE_URL}/${player.user_id}`)}>
                   <ListItemIcon>
                     <PersonOutlined color="primary" />
                   </ListItemIcon>

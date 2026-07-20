@@ -201,6 +201,106 @@ export const MetricTile = ({ icon: Icon, label, value, to }: {
     : tile;
 };
 
+// A single headline stat rendered in the entity hero, mirroring the custom
+// dashboard NumberWidget look & feel: a tinted rounded icon box next to a big
+// Geologica number with an uppercase caption beneath it. When `to` is set the
+// whole stat becomes a pivot link.
+export const HeroStat = ({ icon: Icon, label, value, color, to }: {
+  icon: ComponentType<{ sx?: object }>;
+  label: string;
+  value: ReactNode;
+  color?: string;
+  to?: string;
+}) => {
+  const theme = useTheme();
+  const accent = color ?? theme.palette.primary.main;
+  const content = (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        minWidth: 0,
+        padding: 0.5,
+        ...(to
+          ? {
+              'borderRadius': 1,
+              'transition': 'background-color 120ms',
+              '&:hover': { backgroundColor: alpha(accent, 0.06) },
+            }
+          : {}),
+      }}
+    >
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 30,
+        height: 30,
+        borderRadius: 1,
+        flexShrink: 0,
+        color: accent,
+        background: alpha(accent, 0.1),
+        boxShadow: `inset 0 0 12px ${alpha(accent, 0.13)}`,
+      }}
+      >
+        <Icon sx={{ fontSize: 16 }} />
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography sx={{
+          fontFamily: '"Geologica", sans-serif',
+          fontSize: 18,
+          fontWeight: 500,
+          lineHeight: 1.05,
+          color: 'text.primary',
+        }}
+        >
+          {value}
+        </Typography>
+        <Typography sx={{
+          fontSize: 9.5,
+          fontWeight: 600,
+          letterSpacing: '0.07em',
+          textTransform: 'uppercase',
+          color: 'text.secondary',
+        }}
+        >
+          {label}
+        </Typography>
+      </Box>
+    </Box>
+  );
+  return to
+    ? (
+        <Link to={to} style={{ textDecoration: 'none' }}>
+          {content}
+        </Link>
+      )
+    : content;
+};
+
+// A horizontal cluster of hero stats separated by hairline dividers, spread
+// across the available width and wrapping on narrow viewports.
+export const HeroStats = ({ children }: { children: ReactNode }) => {
+  const theme = useTheme();
+  return (
+    <Box sx={{
+      'display': 'flex',
+      'alignItems': 'center',
+      'flexWrap': 'wrap',
+      'columnGap': 4,
+      'rowGap': 1,
+      '& > *:not(:last-child)': {
+        paddingRight: 4,
+        borderRight: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+      },
+    }}
+    >
+      {children}
+    </Box>
+  );
+};
+
 // The hero header shared by all Security detail pages.
 export const DetailHero = ({ icon: Icon, title, chips, action }: {
   icon: ComponentType<{

@@ -41,6 +41,7 @@ const FindingOverview = lazy(() => import('./components/findings/FindingOverview
 const Exercises = lazy(() => import('./components/simulations/Simulations'));
 const IndexExercise = lazy(() => import('./components/simulations/simulation/Index'));
 const AtomicTestings = lazy(() => import('./components/atomic_testings/AtomicTestings'));
+const AtomicTestingCreation = lazy(() => import('./components/atomic_testings/AtomicTestingCreation'));
 const IndexAtomicTesting = lazy(() => import('./components/atomic_testings/atomic_testing/Index'));
 const Scenarios = lazy(() => import('./components/scenarios/Scenarios'));
 const IndexScenario = lazy(() => import('./components/scenarios/scenario/Index'));
@@ -191,6 +192,8 @@ const Index = () => {
               )}
             />
             <Route path="atomic_testings" element={errorWrapper(AtomicTestings)()} />
+            <Route path="atomic_testings/create" element={errorWrapper(AtomicTestingCreation)()} />
+            <Route path="atomic_testings/create/:contractId" element={errorWrapper(AtomicTestingCreation)()} />
             <Route
               path="atomic_testings/:injectId/*"
               element={(

@@ -1,6 +1,4 @@
-import { NotificationsOutlined, UpdateOutlined } from '@mui/icons-material';
-import { Alert, AlertTitle, Box, IconButton, Tab, Tabs, Tooltip, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
 import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
@@ -32,18 +30,19 @@ import ScenarioHeader from './ScenarioHeader';
 
 const ScenarioComponent = lazy(() => import('./Scenario'));
 const Injects = lazy(() => import('./injects/ScenarioInjects'));
+const InjectCreation = lazy(() => import('./injects/ScenarioInjectCreation'));
 const Tests = lazy(() => import('./tests/ScenarioTests'));
 const Lessons = lazy(() => import('./lessons/ScenarioLessons'));
 const ScenarioFindings = lazy(() => import('./findings/ScenarioFindings'));
 const ScenarioScope = lazy(() => import('./scope/ScenarioScope'));
 const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
+const ScenarioDashboard = lazy(() => import('./analysis/ScenarioAnalysis'));
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = ({ scenario }) => {
-  const { t, locale, fld } = useFormatter();
+  const { t } = useFormatter();
   const location = useLocation();
-  const theme = useTheme();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const permissions = useScenarioPermissions(scenario.scenario_id);
   // Stable context identities: these providers wrap the whole scenario subtree and a
@@ -77,22 +76,6 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
   const noRepeat = !!scenario.scenario_recurrence_end && !!scenario.scenario_recurrence_start
     && new Date(scenario.scenario_recurrence_end).getTime() - new Date(scenario.scenario_recurrence_start).getTime() <= MS_PER_DAY
     && ['noRepeat', 'daily'].includes(selectRecurring);
-  const getHumanReadableScheduling = () => {
-    if (!cronObject?.isValid()) {
-      return null;
-    }
-    // process time
-
-    let sentence: string;
-    sentence = `${cronObject.toTranslatableStringArray(locale).map(element => t(element)).join(' ')}`;
-    if (scenario.scenario_recurrence_end) {
-      sentence += ` ${t('recurrence_from')} ${fld(scenario.scenario_recurrence_start)}`;
-      sentence += ` ${t('recurrence_to')} ${fld(scenario.scenario_recurrence_end)}`;
-    } else {
-      sentence += ` ${t('recurrence_starting_from')} ${fld(scenario.scenario_recurrence_start)}`;
-    }
-    return sentence;
-  };
   const [openScenarioNotificationRuleDrawer, setOpenScenarioNotificationRuleDrawer] = useState(false);
   const [editNotification, setEditNotification] = useState<boolean>(false);
   const [notificationRule, setNotificationRule] = useState<NotificationRuleOutput>({
@@ -155,6 +138,8 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
             setOpenInstantiateSimulationAndStart={setOpenInstantiateSimulationAndStart}
             openInstantiateSimulationAndStart={openInstantiateSimulationAndStart}
             noRepeat={noRepeat}
+            editNotification={editNotification}
+            setOpenScenarioNotificationRuleDrawer={setOpenScenarioNotificationRuleDrawer}
           />
           <Box
             sx={{
@@ -162,14 +147,10 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
               borderColor: 'divider',
               marginBottom: 2,
             }}
-            display="flex"
-            flexDirection="row"
-            justifyContent="space-between"
           >
             {
               isChainingFeatureEnabled && scenario.scenario_workflow_id ? (
                 <Tabs
-                  style={{ flex: 1 }}
                   value={tabValue}
                   variant="scrollable"
                   scrollButtons="auto"
@@ -195,7 +176,6 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
                 </Tabs>
               ) : (
                 <Tabs
-                  style={{ flex: 1 }}
                   value={tabValue}
                   variant="scrollable"
                   scrollButtons="auto"
@@ -233,94 +213,35 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
                 </Tabs>
               )
             }
-
-            <div style={{
-              display: 'flex',
-              flexDirection: 'row',
-            }}
-            >
-              {
-                permissionsContext.permissions.canManage && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                  >
-                    <IconButton
-                      size="small"
-                      style={{ marginRight: theme.spacing(1) }}
-                      onClick={() => setOpenScenarioNotificationRuleDrawer(true)}
-                    >
-                      <NotificationsOutlined color={editNotification ? 'success' : 'primary'} />
-                    </IconButton>
-                    <Typography
-                      variant="body1"
-                      style={{ marginRight: theme.spacing(1) }}
-                    >
-                      {t('Notification rules')}
-                    </Typography>
-                    <ScenarioNotificationRulesDrawer
-                      open={openScenarioNotificationRuleDrawer}
-                      setOpen={setOpenScenarioNotificationRuleDrawer}
-                      editing={editNotification}
-                      onCreate={onCreateNotification}
-                      onUpdate={result => setNotificationRule(result)}
-                      onDelete={onDeleteNotification}
-                      notificationRule={notificationRule}
-                      scenarioId={scenario.scenario_id}
-                      scenarioName={scenario.scenario_name}
-                    />
-                  </div>
-                )
-              }
-              { permissionsContext.permissions.canManage && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                >
-                  {!cronObject?.isValid() && (
-                    <IconButton size="small" onClick={() => setOpenScenarioRecurringFormDialog(true)} style={{ marginRight: theme.spacing(1) }}>
-                      <UpdateOutlined color="primary" />
-                    </IconButton>
-                  )}
-                  {cronObject?.isValid() && !scenario.scenario_recurrence && (
-                    <IconButton
-                      size="small"
-                      style={{
-                        cursor: 'default',
-                        marginRight: theme.spacing(1),
-                      }}
-                    >
-                      <UpdateOutlined />
-                    </IconButton>
-                  )}
-                  {cronObject?.isValid() && scenario.scenario_recurrence && (
-                    <Tooltip title={(t('Modify the scheduling'))}>
-                      <IconButton size="small" onClick={() => setOpenScenarioRecurringFormDialog(true)} style={{ marginRight: theme.spacing(1) }}>
-                        <UpdateOutlined color="primary" />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                  <span style={{ color: theme.palette.text?.disabled }}>{!cronObject?.isValid() && t('Not scheduled')}</span>
-                  {cronObject?.isValid() && <span>{getHumanReadableScheduling()}</span>}
-                </div>
-              )}
-
-            </div>
-
           </Box>
+          {permissionsContext.permissions.canManage && (
+            <ScenarioNotificationRulesDrawer
+              open={openScenarioNotificationRuleDrawer}
+              setOpen={setOpenScenarioNotificationRuleDrawer}
+              editing={editNotification}
+              onCreate={onCreateNotification}
+              onUpdate={result => setNotificationRule(result)}
+              onDelete={onDeleteNotification}
+              notificationRule={notificationRule}
+              scenarioId={scenario.scenario_id}
+              scenarioName={scenario.scenario_name}
+            />
+          )}
           <Suspense fallback={<Loader />}>
             <Routes>
               <Route path="" element={errorWrapper(ScenarioComponent)({ setOpenInstantiateSimulationAndStart })} />
               {/* Definition merged into the Injects authoring tab; redirect old links. */}
               <Route path="definition" element={<Navigate to={`/admin/scenarios/${scenario.scenario_id}/injects`} replace />} />
               <Route path="injects" element={errorWrapper(Injects)()} />
+              <Route path="injects/create" element={errorWrapper(InjectCreation)()} />
+              <Route path="injects/create/:contractId" element={errorWrapper(InjectCreation)()} />
               <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
               <Route path="lessons" element={errorWrapper(Lessons)()} />
               <Route path="findings" element={errorWrapper(ScenarioFindings)()} />
-              {/* Analysis merged into the Overview dashboard; keep a redirect for old links. */}
-              <Route path="analysis" element={<Navigate to={`/admin/scenarios/${scenario.scenario_id}`} replace />} />
+              {/* Scenario-scoped custom dashboard, reached from the hero "Analyze" quick action. */}
+              <Route path="dashboard" element={errorWrapper(ScenarioDashboard)()} />
+              {/* Analysis is no longer a permanent tab; keep a redirect for old links. */}
+              <Route path="analysis" element={<Navigate to={`/admin/scenarios/${scenario.scenario_id}/dashboard`} replace />} />
               <Route path="scope" element={errorWrapper(ScenarioScope)()} />
               <Route path="logic" element={errorWrapper(ScenarioLogic)()} />
               {/* Not found */}

@@ -27,6 +27,7 @@ const Simulation = lazy(() => import('./overview/SimulationComponent'));
 const Lessons = lazy(() => import('./lessons/SimulationLessons'));
 const SimulationFindings = lazy(() => import('./findings/SimulationFindings'));
 const Injects = lazy(() => import('./injects/ExerciseInjects'));
+const InjectCreation = lazy(() => import('./injects/SimulationInjectCreation'));
 const Tests = lazy(() => import('./tests/ExerciseTests'));
 const TimelineOverview = lazy(() => import('./timeline/TimelineOverview'));
 const Mails = lazy(() => import('./mails/Mails'));
@@ -195,6 +196,8 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                       {/* Definition merged into the Injects authoring tab; redirect old links. */}
                       <Route path="definition" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/injects`} replace={true} />} />
                       <Route path="injects" element={errorWrapper(Injects)()} />
+                      <Route path="injects/create" element={errorWrapper(InjectCreation)()} />
+                      <Route path="injects/create/:contractId" element={errorWrapper(InjectCreation)()} />
                       <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
                       <Route path="animation" element={<Navigate to="timeline" replace={true} />} />
                       <Route path="animation/timeline" element={errorWrapper(TimelineOverview)()} />

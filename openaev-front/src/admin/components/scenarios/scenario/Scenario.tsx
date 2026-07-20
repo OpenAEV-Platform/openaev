@@ -1,6 +1,6 @@
-import { GroupsOutlined, HubOutlined, PersonOutlined, PlayArrowOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Avatar, Box, Button, Chip, Tooltip } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
+import { Avatar, Box, Button, Chip, Paper, Tooltip, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type Dispatch, type SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
@@ -14,7 +14,7 @@ import { fetchScenarioInjects } from '../../../../actions/Inject';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import { searchScenarioExercises, searchScenarioHealthcheks } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
-import { Field, MetricGrid, MetricTile, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
+import { Field, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import PostureGauges from '../../../../components/common/detail/PostureGauges';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -49,7 +49,88 @@ import Healthchecks from '../../common/healthchecks/Healthchecks';
 import MitreCoverageMatrix from '../../common/matrix/MitreCoverageMatrix';
 import ExercisePopover from '../../simulations/simulation/ExercisePopover';
 import SimulationList from '../../simulations/SimulationList';
+import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import ScenarioDistributionByExercise from './ScenarioDistributionByExercise';
+
+// Illustrative posture used only when a scenario has never run, so the overview
+// previews the exact insights a real run produces instead of an empty CTA. The
+// distribution labels map through getStatusColor to success/partial/failed/pending.
+const SAMPLE_POSTURE: ExpectationResultsByType[] = [
+  {
+    type: 'PREVENTION',
+    avgResult: 'SUCCESS',
+    distribution: [
+      {
+        id: 'PREVENTED',
+        label: 'Prevented',
+        value: 34,
+      },
+      {
+        id: 'PARTIAL',
+        label: 'Partially prevented',
+        value: 5,
+      },
+      {
+        id: 'FAILED',
+        label: 'Failed',
+        value: 9,
+      },
+    ],
+  },
+  {
+    type: 'DETECTION',
+    avgResult: 'SUCCESS',
+    distribution: [
+      {
+        id: 'DETECTED',
+        label: 'Detected',
+        value: 41,
+      },
+      {
+        id: 'FAILED',
+        label: 'Failed',
+        value: 6,
+      },
+    ],
+  },
+  {
+    type: 'VULNERABILITY',
+    avgResult: 'FAILED',
+    distribution: [
+      {
+        id: 'NOT_VULNERABLE',
+        label: 'Not vulnerable',
+        value: 13,
+      },
+      {
+        id: 'VULNERABLE',
+        label: 'Vulnerable',
+        value: 27,
+      },
+    ],
+  },
+  {
+    type: 'HUMAN_RESPONSE',
+    avgResult: 'PARTIAL',
+    distribution: [
+      {
+        id: 'SUCCESS',
+        label: 'Successful',
+        value: 18,
+      },
+      {
+        id: 'PENDING',
+        label: 'Pending',
+        value: 7,
+      },
+      {
+        id: 'FAILED',
+        label: 'Failed',
+        value: 5,
+      },
+    ],
+  },
+];
 
 const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>> }) => {
   const theme = useTheme();
@@ -176,12 +257,16 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   const hasMitreResults = !!lastInjectResults && lastAttackPatternIds.length > 0;
   const hasPosture = !!lastResults && lastResults.length > 0;
 
+  // When the scenario has never run, render the SAME overview but fed with
+  // illustrative sample data (greyed "Sample" preview), like the home dashboard.
+  const isSample = !areAnyExercisesInScenario;
+  const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, scenario.scenario_id);
+  const postureResults = isSample ? SAMPLE_POSTURE : lastResults;
+  const showPosture = isSample || hasPosture;
+  const showMitre = isSample || hasMitreResults;
+
   const killChainPhases = sortByOrder(scenario.scenario_kill_chain_phases ?? []) as KillChainPhase[];
   const hasExternalUrl = !isEmptyField(scenario.scenario_external_url);
-  const injectsCount = scenario.scenario_injects?.length ?? 0;
-  const simulationsCount = scenario.scenario_exercises?.length ?? 0;
-  const teamsCount = scenario.scenario_teams?.length ?? 0;
-  const playersCount = scenario.scenario_all_users_number ?? scenario.scenario_users_number ?? 0;
 
   return (
     <Box sx={{
@@ -198,19 +283,63 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
         />
       )}
 
-      <MetricGrid>
-        <MetricTile icon={TrackChangesOutlined} label={t('Injects')} value={injectsCount} />
-        <MetricTile icon={HubOutlined} label={t('Simulations')} value={simulationsCount} />
-        <MetricTile icon={GroupsOutlined} label={t('Teams')} value={teamsCount} />
-        <MetricTile icon={PersonOutlined} label={t('Players')} value={playersCount} />
-      </MetricGrid>
+      {isSample && (
+        <Paper
+          variant="outlined"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            flexWrap: 'wrap',
+            padding: 2,
+            borderRadius: 1,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, transparent 60%)`,
+          }}
+        >
+          <RocketLaunchOutlined color="primary" />
+          <Box sx={{
+            flex: 1,
+            minWidth: 240,
+          }}
+          >
+            <Typography sx={{
+              fontWeight: 600,
+              marginBottom: 0.25,
+            }}
+            >
+              {t('This scenario has not run yet')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t('The insights below are a sample preview. Launch a simulation to populate them with your real posture.')}
+            </Typography>
+          </Box>
+          {canLaunch && (
+            <Tooltip title={isScopeMissing ? t('A Chaining Scenario requires a defined scope.') : ''}>
+              <span style={{ display: 'inline-flex' }}>
+                <Button
+                  startIcon={<PlayArrowOutlined />}
+                  variant="contained"
+                  color="primary"
+                  disabled={isScopeMissing}
+                  onClick={() => setOpenInstantiateSimulationAndStart(true)}
+                >
+                  {t('Launch simulation now')}
+                </Button>
+              </span>
+            </Tooltip>
+          )}
+        </Paper>
+      )}
 
-      {hasPosture && (
+      {showPosture && (
         <SectionBlock title={t('Latest run posture')}>
-          <PostureGauges
-            expectationResultsByTypes={lastResults}
-            humanValidationLink={lastSimulationId ? `/admin/simulations/${lastSimulationId}/animation/validations` : undefined}
-          />
+          <SamplePreview active={isSample} variant="subtle">
+            <PostureGauges
+              expectationResultsByTypes={postureResults}
+              humanValidationLink={!isSample && lastSimulationId ? `/admin/simulations/${lastSimulationId}/animation/validations` : undefined}
+            />
+          </SamplePreview>
         </SectionBlock>
       )}
 
@@ -315,16 +444,20 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
         </SectionBlock>
 
         <SectionBlock title={t('Posture trend')}>
-          <ScenarioDistributionByExercise scenarioId={scenarioId} />
+          <SamplePreview active={isSample} variant="subtle">
+            <ScenarioDistributionByExercise scenarioId={scenarioId} />
+          </SamplePreview>
         </SectionBlock>
       </Box>
 
-      {hasMitreResults && (
+      {showMitre && (
         <SectionBlock title={t('MITRE ATT&CK Results')}>
-          <MitreCoverageMatrix
-            widgetId={`scenario-mitre-${scenarioId}`}
-            injectResults={lastInjectResults}
-          />
+          <SamplePreview active={isSample} variant="subtle">
+            <MitreCoverageMatrix
+              widgetId={`scenario-mitre-${scenarioId}`}
+              injectResults={lastInjectResults}
+            />
+          </SamplePreview>
         </SectionBlock>
       )}
 
@@ -347,46 +480,6 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
             isGlobalScoreAsync={true}
           />
         </SectionBlock>
-      )}
-      {!areAnyExercisesInScenario && !scenario.scenario_recurrence && ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, scenario.scenario_id) && (
-        <div style={{
-          marginTop: 100,
-          textAlign: 'center',
-        }}
-        >
-          <div style={{ fontSize: 20 }}>
-            {t('This scenario has never run, schedule or run it now!')}
-          </div>
-          <Tooltip title={isScopeMissing ? t('A Chaining Scenario requires a defined scope.') : ''}>
-            <span style={{
-              display: 'inline-flex',
-              marginTop: theme.spacing(2),
-            }}
-            >
-              <Button
-                startIcon={<PlayArrowOutlined />}
-                variant="contained"
-                color="primary"
-                size="large"
-                disabled={isScopeMissing}
-                onClick={() => setOpenInstantiateSimulationAndStart(true)}
-              >
-                {t('Launch simulation now')}
-              </Button>
-            </span>
-          </Tooltip>
-        </div>
-      )}
-      {!areAnyExercisesInScenario && scenario.scenario_recurrence && (
-        <div style={{
-          marginTop: 100,
-          textAlign: 'center',
-        }}
-        >
-          <div style={{ fontSize: 20 }}>
-            {t('This scenario is scheduled to run, results will appear soon.')}
-          </div>
-        </div>
       )}
     </Box>
   );

@@ -177,7 +177,6 @@ const Teams = () => {
           : teams.map((team: Team) => (
               <ListItem
                 key={team.team_id}
-                classes={{ root: classes.item }}
                 divider
                 disablePadding
                 secondaryAction={(
@@ -190,7 +189,7 @@ const Teams = () => {
                   />
                 )}
               >
-                <ListItemButton onClick={() => navigate(`${TEAM_BASE_URL}/${team.team_id}`)}>
+                <ListItemButton classes={{ root: classes.item }} onClick={() => navigate(`${TEAM_BASE_URL}/${team.team_id}`)}>
                   <ListItemIcon>
                     <GroupsOutlined color="primary" />
                   </ListItemIcon>

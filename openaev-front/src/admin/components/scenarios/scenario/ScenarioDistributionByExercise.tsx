@@ -1,5 +1,6 @@
 import { deepPurple } from '@mui/material/colors';
-import { type Theme, useTheme } from '@mui/material/styles';
+import { alpha, type Theme, useTheme } from '@mui/material/styles';
+import { type ApexOptions } from 'apexcharts';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { fetchScenarioStatistic } from '../../../../actions/scenarios/scenario-actions';
@@ -8,7 +9,6 @@ import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type GlobalScoreBySimulationEndDate, type ScenarioStatistic } from '../../../../utils/api-types';
-import { type CustomTooltipFunction, type CustomTooltipOptions, verticalBarsChartOptions } from '../../../../utils/Charts';
 
 interface Props { scenarioId: string }
 
@@ -44,56 +44,23 @@ const generateFakeData = (): Record<string, GlobalScoreBySimulationEndDate[]> =>
   });
 };
 
-function generateSeriesData(
-  globalScores: GlobalScoreBySimulationEndDate[],
-  successfulExpectationLabel: string,
-  fldt: (date: string) => string,
-) {
+function generateSeriesData(globalScores: GlobalScoreBySimulationEndDate[]) {
   return globalScores.map((globalScore, index) => ({
+    // Keep the index in the key so two runs sharing a date stay distinct points.
     x: `${index}|${globalScore.simulation_end_date}`,
-    y: globalScore.global_score_success_percentage / 100,
-    simulationEndDate: fldt(globalScore.simulation_end_date),
-    simulationSuccessPercentage: globalScore.global_score_success_percentage,
-    successfulExpectationLabel,
+    y: Math.round(globalScore.global_score_success_percentage),
   }));
 }
 
-type SeriesData = {
-  simulationEndDate: string;
-  simulationSuccessPercentage: string;
-  successfulExpectationLabel: string;
-};
-
-const customTooltip = (simulationEndDateLabel: string): CustomTooltipFunction => {
-  return function ({ seriesIndex, dataPointIndex, w }: CustomTooltipOptions) {
-    const { simulationEndDate, simulationSuccessPercentage, successfulExpectationLabel } = w.globals.initialSeries[seriesIndex].data[dataPointIndex] as SeriesData;
-
-    return `<div class="apexcharts-tooltip-title" style="font-family: Helvetica, Arial, sans-serif; font-size: 12px;">
-            ${simulationEndDateLabel}: <b>${simulationEndDate}</b>
-          </div>
-          <div class="apexcharts-tooltip-series-group" style="order: 1; display: flex;">
-            <div class="apexcharts-tooltip-text" style="font-family: Helvetica, Arial, sans-serif; font-size: 12px;">
-              <div class="apexcharts-tooltip-y-group">
-                <span class="apexcharts-tooltip-text-y-label">${successfulExpectationLabel}: </span>
-                <span class="apexcharts-tooltip-text-y-value">${Number.parseFloat(simulationSuccessPercentage).toFixed(1)}%</span>
-              </div>
-           </div>
-          </div>`;
-  };
-};
-
+// The x category encodes "index|iso-date"; render only the human date.
 function getXFormatter(fsd: (date: string) => string) {
   return (rawData: string) => {
     if (!rawData) {
       return rawData;
     }
     const splitRawData = rawData.split('|');
-    return splitRawData.length > 0 ? fsd(splitRawData[1]) : rawData;
+    return splitRawData.length > 1 ? fsd(splitRawData[1]) : rawData;
   };
-}
-
-function getYFormatter() {
-  return (value: number) => `${Math.round(value * 100)}%`;
 }
 
 const EXPECTATION_TYPES = [
@@ -104,10 +71,8 @@ const EXPECTATION_TYPES = [
 ] as const;
 
 const ScenarioDistributionByExercise: FunctionComponent<Props> = ({ scenarioId }) => {
-  const { fsd, fldt, t } = useFormatter();
+  const { fsd, t } = useFormatter();
   const theme = useTheme();
-
-  const simulationEndDateLabel = t('Simulation end date');
 
   const [loadingScenarioStatistics, setLoadingScenarioStatistics] = useState(true);
   const [statistic, setStatistic] = useState<ScenarioStatistic>();
@@ -126,12 +91,102 @@ const ScenarioDistributionByExercise: FunctionComponent<Props> = ({ scenarioId }
 
   const colorMap = typeColor(theme);
   const presentTypes = EXPECTATION_TYPES.filter(([type]) => globalScoresByExpectationType[type]?.length > 0);
-  const series = presentTypes.map(([type, name, label]) => ({
+  const series = presentTypes.map(([type, name]) => ({
     name: t(name),
-    data: generateSeriesData(globalScoresByExpectationType[type], t(label), fldt),
+    data: generateSeriesData(globalScoresByExpectationType[type]),
   }));
   const chartColors = presentTypes.map(([type]) => colorMap[type]);
   const hasData = series.length > 0 && series[0].data.length > 0;
+  // A single run per type would render as a lone marker on a line; a spark of
+  // area under it keeps the card from looking empty.
+  const singlePoint = series.every(s => s.data.length <= 1);
+
+  const options: ApexOptions = {
+    chart: {
+      type: 'area',
+      background: 'transparent',
+      toolbar: { show: false },
+      zoom: { enabled: false },
+      foreColor: theme.palette.text.secondary,
+      fontFamily: '"IBM Plex Sans", sans-serif',
+      parentHeightOffset: 0,
+    },
+    theme: { mode: theme.palette.mode },
+    colors: chartColors,
+    dataLabels: { enabled: false },
+    stroke: {
+      curve: 'smooth',
+      width: 2.5,
+      lineCap: 'round',
+    },
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: isFakeData ? 0.12 : 0.32,
+        opacityTo: 0,
+        stops: [0, 95],
+      },
+    },
+    markers: {
+      size: singlePoint ? 5 : 0,
+      strokeWidth: 2,
+      strokeColors: theme.palette.background.paper,
+      hover: { size: 6 },
+    },
+    grid: {
+      borderColor: alpha(theme.palette.text.primary, 0.08),
+      strokeDashArray: 4,
+      padding: {
+        left: 8,
+        right: 8,
+        top: 0,
+      },
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true } },
+    },
+    legend: {
+      show: true,
+      position: 'bottom',
+      horizontalAlign: 'center',
+      fontSize: '12px',
+      markers: { size: 6 },
+      itemMargin: {
+        horizontal: 10,
+        vertical: 4,
+      },
+    },
+    xaxis: {
+      type: 'category',
+      tickPlacement: 'on',
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      labels: {
+        rotate: 0,
+        hideOverlappingLabels: true,
+        formatter: getXFormatter(fsd),
+        style: { fontSize: '11px' },
+      },
+      tooltip: { enabled: false },
+    },
+    yaxis: {
+      min: 0,
+      max: 100,
+      tickAmount: 5,
+      labels: {
+        formatter: (value: number) => `${Math.round(value)}%`,
+        style: { fontSize: '11px' },
+      },
+    },
+    tooltip: {
+      theme: theme.palette.mode,
+      shared: true,
+      intersect: false,
+      x: { formatter: value => getXFormatter(fsd)(String(value)) },
+      y: { formatter: (value: number) => `${Math.round(value)}%` },
+    },
+    noData: { text: t('No data to display') },
+  };
 
   if (loadingScenarioStatistics) {
     return <Loader variant="inElement" />;
@@ -143,22 +198,11 @@ const ScenarioDistributionByExercise: FunctionComponent<Props> = ({ scenarioId }
 
   return (
     <Chart
-      options={verticalBarsChartOptions({
-        theme,
-        xFormatter: getXFormatter(fsd),
-        yFormatter: getYFormatter(),
-        legend: true,
-        tickAmount: 'dataPoints',
-        chartColors,
-        isFakeData,
-        max: 1,
-        emptyChartText: t('No data to display'),
-        customTooltip: customTooltip(simulationEndDateLabel),
-      })}
+      options={options}
       series={series}
-      type="bar"
+      type="area"
       width="100%"
-      height={300}
+      height={280}
     />
   );
 };

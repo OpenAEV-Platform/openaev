@@ -36,7 +36,8 @@ const Integrations = () => {
   const { tab } = useParams() as { tab?: string };
 
   const [loading, setLoading] = useState<boolean>(true);
-  const [isXtmComposerUp, setIsXtmComposerUp] = useState<boolean>(false);
+  // null = reachability probe still in flight; the warning must not flash while unknown.
+  const [isXtmComposerUp, setIsXtmComposerUp] = useState<boolean | null>(null);
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
 
   // The Integration Manager warning is dismissible; the choice is persisted so
@@ -57,9 +58,9 @@ const Integrations = () => {
     dispatch(fetchCatalogConnectors()).finally(() => setLoading(false));
   });
   useEffect(() => {
-    isXtmComposerIsReachable().then(({ data }) => {
-      setIsXtmComposerUp(data);
-    });
+    isXtmComposerIsReachable()
+      .then(({ data }) => setIsXtmComposerUp(data))
+      .catch(() => setIsXtmComposerUp(false));
   }, []);
 
   const heroItems = useMemo(() => catalogConnectors.map(fromCatalogConnector), [catalogConnectors]);
@@ -83,7 +84,7 @@ const Integrations = () => {
           current: true,
         }]}
       />
-      {isEnterpriseEdition && !isXtmComposerUp && !warningDismissed
+      {isEnterpriseEdition && isXtmComposerUp === false && !warningDismissed
         && (
           <Alert severity="warning" onClose={dismissWarning}>
             {t('Some deployment requires the installation of our')}
@@ -126,8 +127,8 @@ const Integrations = () => {
       {!loading && (
         <Suspense fallback={<Loader variant="inElement" />}>
           {activeTab === 'available'
-            ? <Catalog catalogConnectors={catalogConnectors} isXtmComposerUp={isXtmComposerUp} />
-            : <DeployedConnectors catalogConnectors={catalogConnectors} isXtmComposerUp={isXtmComposerUp} />}
+            ? <Catalog catalogConnectors={catalogConnectors} isXtmComposerUp={isXtmComposerUp === true} />
+            : <DeployedConnectors catalogConnectors={catalogConnectors} isXtmComposerUp={isXtmComposerUp === true} />}
         </Suspense>
       )}
     </div>

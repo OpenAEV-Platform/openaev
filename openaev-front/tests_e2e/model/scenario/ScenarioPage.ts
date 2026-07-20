@@ -6,7 +6,9 @@ import UpdateTeamDialog from '../common/UpdateTeamDialog';
 class ScenarioPage {
   readonly page: Page;
 
-  // Team management locators (Definition content now lives in the Injects tab)
+  // Scenario configuration (teams, variables, media pressure, challenges) is
+  // opened from the hero "Configuration" action; teams is its first tab.
+  readonly configurationButton: Locator;
   readonly teamAddBtn: Locator;
   readonly teamListSection: Locator;
   readonly updateTeamDialog: UpdateTeamDialog;
@@ -18,7 +20,8 @@ class ScenarioPage {
 
   constructor(page: Page) {
     this.page = page;
-    // Team management locators (rendered inside the Injects tab)
+    // Scenario configuration drawer (hosts the teams section on its first tab)
+    this.configurationButton = page.getByRole('button', { name: 'Configuration' });
     this.teamAddBtn = page.getByRole('heading', { name: 'Teams Add' }).getByLabel('Add');
     this.teamListSection = page.getByTestId('teams-list-section');
     this.updateTeamDialog = new UpdateTeamDialog(page);
@@ -41,6 +44,12 @@ class ScenarioPage {
   }
 
   // -- Action methods
+  async openConfiguration() {
+    await this.configurationButton.waitFor({ state: 'visible' });
+    await this.configurationButton.click();
+    await this.teamAddBtn.waitFor({ state: 'visible' });
+  }
+
   async addExistingTeam(existingTeamName: string) {
     await this.teamAddBtn.click({ trial: true });
     await this.teamAddBtn.click();

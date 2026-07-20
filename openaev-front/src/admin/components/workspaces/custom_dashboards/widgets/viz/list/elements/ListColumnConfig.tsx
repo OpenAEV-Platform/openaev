@@ -20,6 +20,7 @@ import {
 import { computeInjectExpectationLabel } from '../../../../../../../../utils/statusUtils';
 import EndpointListItemFragments from '../../../../../../common/endpoints/EndpointListItemFragments';
 import InjectStatus from '../../../../../../common/injects/status/InjectStatus';
+import ExpectationTypeChip from './ExpectationTypeChip';
 import InjectExpectationSourceFragment from './InjectExpectationSourceFragment';
 
 export type ColumnRenderer = (value: string | string[] | boolean | boolean[], opts: {
@@ -88,6 +89,7 @@ const injectColumnsRenderers: RendererMap = {
 export { default as getTargetTypeFromInjectExpectation } from './injectExpectationTarget';
 
 const injectExpectationRenderers: RendererMap = {
+  ['inject_expectation_type']: value => <ExpectationTypeChip type={value as string} />,
   ['inject_expectation_status']: (_, { element }) => {
     const expectation = element as EsInjectExpectation;
     const label = computeInjectExpectationLabel(
