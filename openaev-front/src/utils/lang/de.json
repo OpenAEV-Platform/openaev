@@ -1228,7 +1228,7 @@
   "Install Linux Agent": "Linux-Agent installieren",
   "Install MacOS Agent": "MacOS-Agent installieren",
   "Install simulation agents": "Simulationsagenten installieren",
-  "Install the agent as a system service. This installation requires local administrator privileges.": "Install the agent as a system service. This installation requires local administrator privileges.",
+  "Install the agent as a system service. This installation requires local administrator privileges.": "Installieren Sie den Agenten als Systemdienst. Diese Installation erfordert lokale Administratorrechte.",
   "Install the agent as a user or a system service. This installation requires local administrator privileges.": "Installieren Sie den Agenten als Benutzer oder als Systemdienst. Diese Installation erfordert lokale Administrator-Rechte.",
   "Install the agent using your own user account.": "Installieren Sie den Agenten unter Ihrem eigenen Benutzerkonto.",
   "Install Windows Agent": "Windows-Agent installieren",
