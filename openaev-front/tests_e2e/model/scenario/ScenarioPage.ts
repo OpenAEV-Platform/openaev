@@ -6,8 +6,7 @@ import UpdateTeamDialog from '../common/UpdateTeamDialog';
 class ScenarioPage {
   readonly page: Page;
 
-  // Definition tab's locator
-  readonly definitionTab: Locator;
+  // Team management locators (Definition content now lives in the Injects tab)
   readonly teamAddBtn: Locator;
   readonly teamListSection: Locator;
   readonly updateTeamDialog: UpdateTeamDialog;
@@ -19,8 +18,7 @@ class ScenarioPage {
 
   constructor(page: Page) {
     this.page = page;
-    // Definition tab's locators
-    this.definitionTab = page.getByRole('tab', { name: 'Definition' });
+    // Team management locators (rendered inside the Injects tab)
     this.teamAddBtn = page.getByRole('heading', { name: 'Teams Add' }).getByLabel('Add');
     this.teamListSection = page.getByTestId('teams-list-section');
     this.updateTeamDialog = new UpdateTeamDialog(page);
@@ -56,12 +54,6 @@ class ScenarioPage {
     await this.injectAddBtn.click();
     await MuiListHelpers.searchAndSelectItemInList(this.page, 'Send individual mails');
     await this.page.getByTestId('inject-form-submit-button').click();
-  }
-
-  async goToDefinitionTab() {
-    await this.page.waitForLoadState('domcontentloaded');
-    await this.definitionTab.waitFor({ state: 'visible' });
-    await this.definitionTab.click();
   }
 
   async goToInjectsTab() {

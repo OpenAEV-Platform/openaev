@@ -22,9 +22,11 @@ test.describe('Scenario - Teams management', () => {
       `;
       document.head.appendChild(style);
     });
-    await page.goto(tenantUrl(`/admin/scenarios/${emptyScenario.scenario_id}/definition`));
+    // Teams management lives in the Injects tab since the Definition tab was merged into it.
+    await page.goto(tenantUrl(`/admin/scenarios/${emptyScenario.scenario_id}/injects`));
     await page.waitForLoadState('domcontentloaded');
-    await scenarioPage.definitionTab.waitFor({ state: 'visible' });
+    await scenarioPage.injectsTab.waitFor({ state: 'visible' });
+    await scenarioPage.teamAddBtn.waitFor({ state: 'visible' });
   });
 
   test.describe('Team CRUD Operations in scenario', () => {
