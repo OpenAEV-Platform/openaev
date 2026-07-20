@@ -83,6 +83,9 @@ public class AttackPathExecution implements TenantBase {
   @Column(name = "attackpath_execution_source_injector")
   private String sourceInjector;
 
+  @Column(name = "attackpath_execution_injector_type")
+  private String injectorType;
+
   @Column(name = "attackpath_execution_target_kind", nullable = false)
   private String targetKind;
 
@@ -106,6 +109,9 @@ public class AttackPathExecution implements TenantBase {
 
   @Column(name = "attackpath_execution_payload_name")
   private String payloadName;
+
+  @Column(name = "attackpath_execution_payload_id")
+  private String payloadId;
 
   @Column(name = "attackpath_execution_executed_at", nullable = false)
   private Instant executedAt;

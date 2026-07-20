@@ -72,6 +72,7 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
     e.setSimulationId(SIM);
     e.setInjectId("inject-detail-1");
     e.setContractExternalId(contract.getExternalId());
+    e.setPayloadId("payload-detail-1");
     e.setSourceKind("INJECTOR");
     e.setSourceInjector("hydra");
     e.setTargetKind("ASSET");
@@ -121,6 +122,7 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
     // header
     assertThat(d.injectId()).isEqualTo("inject-detail-1");
     assertThat(d.payloadName()).isEqualTo("hydra-payload");
+    assertThat(d.payloadId()).isEqualTo("payload-detail-1");
     // the run's contract resolves to its ATT&CK techniques (the drawer's chips)
     assertThat(d.attackPatterns()).hasSize(1);
     assertThat(d.attackPatterns().get(0).externalId()).isEqualTo("T1046");

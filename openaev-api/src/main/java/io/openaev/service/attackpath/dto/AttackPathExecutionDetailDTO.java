@@ -12,6 +12,7 @@ public record AttackPathExecutionDetailDTO(
     // header
     String payloadName,
     String injectId,
+    String payloadId,
     String agentName,
     String agentPrivilege,
     List<AttackPathAttackPatternDTO> attackPatterns,

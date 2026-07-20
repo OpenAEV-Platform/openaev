@@ -60,7 +60,9 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
             "exec-1",
             Instant.parse("2026-07-16T08:00:00Z"),
             "crackmapexec",
-            "contract-ext-1");
+            "contract-ext-1",
+            "payload-1",
+            "openaev_implant");
 
     ResolvedExecutionEdge edge =
         new ResolvedExecutionEdge(
@@ -122,6 +124,8 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
             "exec-idem",
             Instant.parse("2026-07-16T08:00:00Z"),
             "crackmapexec",
+            null,
+            null,
             null);
     ResolvedExecutionEdge edge =
         new ResolvedExecutionEdge(
@@ -183,6 +187,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
 
     Injector injector = new Injector();
     injector.setName("OpenAEV Implant");
+    injector.setType("openaev_implant");
 
     Exercise exercise = new Exercise();
     exercise.setId("SIM-ONRUN");
@@ -209,6 +214,10 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     assertThat(row.getSimulationId()).isEqualTo("SIM-ONRUN");
     // The run's contract external id, so the read can resolve its ATT&CK techniques.
     assertThat(row.getContractExternalId()).isEqualTo("contract-ext-1");
+    // The run's payload (for the remediations read) and injector type (for the injector node
+    // label).
+    assertThat(row.getPayloadId()).isEqualTo("cmd-1");
+    assertThat(row.getInjectorType()).isEqualTo("openaev_implant");
     assertThat(row.getSourceKind()).isEqualTo("AGENT_ASSET");
     assertThat(row.getSourceAssetId()).isEqualTo("ep-1");
     assertThat(row.getSourceHostname()).isEqualTo("corp-dc");

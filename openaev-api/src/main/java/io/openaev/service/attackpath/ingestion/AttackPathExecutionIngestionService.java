@@ -41,7 +41,9 @@ public class AttackPathExecutionIngestionService {
       String injectExecId,
       Instant executedAt,
       String payloadName,
-      String contractExternalId) {}
+      String contractExternalId,
+      String payloadId,
+      String injectorType) {}
 
   @Transactional
   public void createRows(ExecutionContext ctx, List<ResolvedExecutionEdge> edges) {
@@ -66,6 +68,10 @@ public class AttackPathExecutionIngestionService {
     row.setPayloadName(ctx.payloadName());
     // The run's injector contract, so the read can resolve its ATT&CK techniques.
     row.setContractExternalId(ctx.contractExternalId());
+    // The run's payload (so the read can resolve its detection remediations) and injector type (so
+    // the graph can label the injector node with its real type).
+    row.setPayloadId(ctx.payloadId());
+    row.setInjectorType(ctx.injectorType());
     row.setSourceKind(edge.sourceKind());
     row.setSourceInjector(edge.sourceInjector());
     row.setSourceAssetId(edge.sourceAssetId());
@@ -113,7 +119,9 @@ public class AttackPathExecutionIngestionService {
         inject.getId(),
         Instant.now(),
         payload != null ? payload.getName() : null,
-        contract.getExternalId());
+        contract.getExternalId(),
+        payload != null ? payload.getId() : null,
+        inject.getInjector() != null ? inject.getInjector().getType() : null);
   }
 
   private ResolutionInput resolutionInput(Inject inject, InjectorContract contract) {
