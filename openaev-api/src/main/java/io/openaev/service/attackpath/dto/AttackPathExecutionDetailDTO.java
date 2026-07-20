@@ -11,6 +11,7 @@ import java.util.List;
 public record AttackPathExecutionDetailDTO(
     // header
     String payloadName,
+    String injectId,
     String agentName,
     String agentPrivilege,
     // result

@@ -188,6 +188,7 @@ public class AttackPathGraphService {
     }
     return new AttackPathExecutionDetailDTO(
         e.getPayloadName(),
+        e.getInjectId(),
         e.getAgentName(),
         e.getAgentPrivilege(),
         e.getTargetKey(),

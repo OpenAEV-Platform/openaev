@@ -47,6 +47,7 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
     AttackPathExecution e = new AttackPathExecution();
     e.setTenant(tenant);
     e.setSimulationId(SIM);
+    e.setInjectId("inject-detail-1");
     e.setSourceKind("INJECTOR");
     e.setSourceInjector("hydra");
     e.setTargetKind("ASSET");
@@ -94,6 +95,7 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
 
     assertThat(d).isNotNull();
     // header
+    assertThat(d.injectId()).isEqualTo("inject-detail-1");
     assertThat(d.payloadName()).isEqualTo("hydra-payload");
     assertThat(d.agentName()).isEqualTo("agent-1");
     assertThat(d.agentPrivilege()).isEqualTo("user");
