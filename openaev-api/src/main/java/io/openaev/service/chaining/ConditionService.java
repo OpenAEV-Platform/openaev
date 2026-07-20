@@ -319,6 +319,67 @@ public class ConditionService {
   }
 
   /**
+   * Copies workflow-level event trees (non-mapper roots not linked to any step) from one workflow
+   * template to another.
+   *
+   * <p>Event roots already linked to steps are copied through {@link StepService#copyStepTemplate}
+   * and are intentionally ignored here to avoid duplicates.
+   *
+   * @param sourceWorkflowId source workflow template ID
+   * @param targetWorkflowId target workflow template ID
+   */
+  public void copyStandaloneEventTrees(String sourceWorkflowId, String targetWorkflowId) {
+    List<Condition> standaloneRoots =
+        findEventRootsByWorkflowId(sourceWorkflowId).stream().filter(this::hasNoStepLinks).toList();
+
+    for (Condition root : standaloneRoots) {
+      EventInput input =
+          EventInput.builder()
+              .workflowId(targetWorkflowId)
+              .name(root.getName())
+              .description(root.getDescription())
+              .conditions(toConditionInputs(root))
+              .build();
+      createConditionTree(input);
+    }
+  }
+
+  private boolean hasNoStepLinks(Condition condition) {
+    List<ConditionStep> links = condition.getConditionSteps();
+    return links == null || links.isEmpty();
+  }
+
+  private List<ConditionCreateInput> toConditionInputs(Condition root) {
+    List<ConditionCreateInput> result = new ArrayList<>();
+    collectConditionInputs(root, null, result);
+    return result;
+  }
+
+  private void collectConditionInputs(
+      Condition current, String parentTemporaryId, List<ConditionCreateInput> output) {
+    String temporaryId = current.getId();
+    output.add(
+        ConditionCreateInput.builder()
+            .temporaryId(temporaryId)
+            .temporaryIdConditionParent(parentTemporaryId)
+            .keyType(current.getKeyType())
+            .value(current.getValue())
+            .caseSensitive(current.isCaseSensitive())
+            .key(current.getKey())
+            .type(current.getType())
+            .mappingType(current.getMappingType())
+            .build());
+
+    List<Condition> children = current.getConditionChildren();
+    if (children == null || children.isEmpty()) {
+      return;
+    }
+    for (Condition child : children) {
+      collectConditionInputs(child, temporaryId, output);
+    }
+  }
+
+  /**
    * Returns all persisted conditions across workflows.
    *
    * @return list of all conditions
@@ -805,7 +866,8 @@ public class ConditionService {
     long nonMapperRootCount =
         roots.stream().filter(condition -> condition.getType() != ConditionType.MAPPER).count();
     if (nonMapperRootCount > 1) {
-      throw new IllegalArgumentException("New step (TEMPLATE): Only 1 condition can be first parent");
+      throw new IllegalArgumentException(
+          "New step (TEMPLATE): Only 1 condition can be first parent");
     }
     return roots;
   }

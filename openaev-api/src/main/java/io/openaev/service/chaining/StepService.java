@@ -87,6 +87,10 @@ public class StepService {
     // Copy steps template and linked conditions.
     List<Step> stepsTemplateCopy = copyStepsTemplate(stepsTemplate, workflowTemplateTo);
     saveSteps(stepsTemplateCopy);
+
+    // Copy workflow-level events not linked to any step.
+    conditionService.copyStandaloneEventTrees(
+        workflowTemplateFrom.getId(), workflowTemplateTo.getId());
   }
 
   /**
@@ -443,7 +447,8 @@ public class StepService {
         .forEach(
             condition ->
                 childrenByParentId
-                    .computeIfAbsent(condition.getConditionParent().getId(), ignored -> new ArrayList<>())
+                    .computeIfAbsent(
+                        condition.getConditionParent().getId(), ignored -> new ArrayList<>())
                     .add(condition));
 
     for (Condition root : rootConditions) {
