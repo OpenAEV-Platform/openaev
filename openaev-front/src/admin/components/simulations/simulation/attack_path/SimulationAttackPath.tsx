@@ -953,13 +953,14 @@ const SimulationAttackPath = () => {
     // Focused finding-path view: keep the focused scope, and let clicks on findings/clusters
     // highlight the exact sub-path (injector -> endpoint -> selection).
     if (pathFinding) {
-      // Endpoint focus (no specific finding, e.g. a chokepoint click) with nothing sub-selected:
-      // light the whole focused endpoint subgraph (injectors -> endpoint -> its finding clusters).
+      // Endpoint focus (no specific finding, e.g. a chokepoint click) with nothing sub-selected: only
+      // the focused endpoint is "selected" (blue); its injectors, edges and finding clusters keep their
+      // verdict colour (green/orange/red) so blue means "what I picked", not "the whole subgraph".
       if (!pathFinding.type && !selectedInjectorId && !selectedFindingId) {
         return {
           nodes: baseFlow.nodes.map(n => ({
             ...n,
-            selected: true,
+            selected: n.id === pathFinding.endpointNodeId,
             data: {
               ...(n.data ?? {}),
               dimmed: false,
@@ -967,7 +968,7 @@ const SimulationAttackPath = () => {
           })),
           edges: baseFlow.edges.map(e => ({
             ...e,
-            selected: true,
+            selected: false,
             data: {
               ...(e.data ?? {}),
               count: e.data?.count ?? 1,
@@ -1789,7 +1790,14 @@ const SimulationAttackPath = () => {
                 actions={producingActions}
                 activeRef={detailExecutionId}
                 onSelect={openExecutionDetail}
-                onClose={() => setFindingDetail(null)}
+                onClose={() => {
+                  // Clicking a finding in the clustered view also selects its endpoint (to load the
+                  // feed), so clear both here — otherwise closing the finding panel would just reveal
+                  // the endpoint panel and look like it never closed.
+                  setFindingDetail(null);
+                  setSelectedNodeId(null);
+                  setDetailExecutionId(null);
+                }}
               />
             )}
 
@@ -1822,12 +1830,6 @@ const SimulationAttackPath = () => {
                 loading={detailLoading}
                 detail={detail}
                 onClose={() => setDetailExecutionId(null)}
-                onFocusOnMap={selectedNodeId
-                  ? () => setFocusRequest(prev => ({
-                      nodeId: selectedNodeId,
-                      nonce: (prev?.nonce ?? 0) + 1,
-                    }))
-                  : undefined}
                 onOpenInject={(detail as { injectId?: string } | null)?.injectId
                   ? () => navigate(`../injects/${(detail as { injectId?: string }).injectId}`)
                   : undefined}

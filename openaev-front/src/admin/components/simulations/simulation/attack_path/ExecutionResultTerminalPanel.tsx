@@ -1,5 +1,5 @@
-import { CenterFocusStrong, Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
-import { Button, IconButton, Paper, Popover, Tooltip, Typography } from '@mui/material';
+import { Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
+import { Button, IconButton, Paper, Popover, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
@@ -39,8 +39,6 @@ interface Props {
   loading: boolean;
   detail: AttackPathExecutionDetailDTO | null;
   onClose: () => void;
-  // Re-center the execution's endpoint on the map (the product's link to the logic map).
-  onFocusOnMap?: () => void;
   // Open the originating inject (pending backend: needs the inject id on the execution detail).
   onOpenInject?: () => void;
 }
@@ -173,7 +171,7 @@ const SecurityPlatformItem = ({ platform, alerts }: {
 // feed and the map (product mockup), not an overlay. Reuses the platform's shared `Terminal` renderer,
 // fed by the frozen snapshot's masked command and output. The Result tab shows the target and the
 // security platforms that prevented/detected the action (with their linked alerts on click).
-const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap, onOpenInject }: Props) => {
+const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const { currentTab, handleChangeTab } = useTabs(RESULT_TAB);
@@ -354,23 +352,9 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap, 
             </div>
           )}
         </div>
-        <div style={{
-          display: 'flex',
-          gap: theme.spacing(0.5),
-          flexShrink: 0,
-        }}
-        >
-          {onFocusOnMap && (
-            <Tooltip title={t('Focus on map')}>
-              <IconButton size="small" aria-label={t('Focus on map')} onClick={onFocusOnMap}>
-                <CenterFocusStrong fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
-          <IconButton size="small" aria-label={t('Close')} onClick={onClose}>
-            <Close />
-          </IconButton>
-        </div>
+        <IconButton size="small" aria-label={t('Close')} onClick={onClose} sx={{ flexShrink: 0 }}>
+          <Close />
+        </IconButton>
       </div>
 
       {loading && (

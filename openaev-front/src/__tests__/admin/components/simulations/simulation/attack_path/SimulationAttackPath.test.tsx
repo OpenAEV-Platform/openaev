@@ -227,10 +227,6 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Terminal view' }));
     expect(await screen.findByText('$ nmap -p 445 host-x -u admin -p ••••')).toBeTruthy();
     expect(screen.getByText('open')).toBeTruthy();
-
-    // Focus on map: the panel action re-centers the execution's endpoint on the map.
-    fireEvent.click(screen.getByRole('button', { name: 'Focus on map' }));
-    await waitFor(() => expect(mocks.flowProps.current?.focusRequest?.nodeId).toBe(ENDPOINT_NODE));
   });
 
   it('switches to the table view, lists the exposed endpoint and exposes CSV export', async () => {
