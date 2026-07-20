@@ -393,41 +393,6 @@ export interface AiTargetTarget {
     | "SUCCESS";
 }
 
-export interface ArgumentTypeOutput {
-  argument_subtypes?: (
-    | "host"
-    | "port"
-    | "service"
-    | "username"
-    | "password"
-    | "severity"
-    | "domain"
-  )[];
-  argument_type:
-    | "text"
-    | "number"
-    | "port"
-    | "portscan"
-    | "ipv4"
-    | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "document"
-    | "targeted-asset";
-}
-
 export interface Article {
   article_author?: string;
   article_channel: string;

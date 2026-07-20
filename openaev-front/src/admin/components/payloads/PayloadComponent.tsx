@@ -79,8 +79,6 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
-  const theme = useTheme();
-  const isChainingEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   const { attackPatternsMap }: { attackPatternsMap: ReturnType<AttackPatternHelper['getAttackPatternsMap']> } = useHelper((helper: AttackPatternHelper) => ({ attackPatternsMap: helper.getAttackPatternsMap() }));
   const getAttackCommand = (payload: PayloadType | null): string => {

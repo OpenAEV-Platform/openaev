@@ -122,7 +122,6 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
                 <TableHead>
                   <TableRow>
                     <TableCell sx={headerCellSx}>{t('Type')}</TableCell>
-                    {isChainingEnabled && <TableCell sx={headerCellSx}>{t('Sub-type')}</TableCell>}
                     <TableCell sx={headerCellSx}>{t('Key')}</TableCell>
                     <TableCell sx={headerCellSx}>{t('Default value')}</TableCell>
                   </TableRow>
@@ -131,7 +130,6 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
                   {payloadOutput.payload_arguments?.map((argument: PayloadArgument) => (
                     <TableRow key={argument.key}>
                       <TableCell><KeyValueChip label="" value={formatPrimitiveTypeLabel(argument.type)} /></TableCell>
-                      {isChainingEnabled && <TableCell>{argument.subtype ?? '-'}</TableCell>}
                       <TableCell sx={{
                         fontFamily: 'Consolas, monaco, monospace',
                         fontWeight: 500,
