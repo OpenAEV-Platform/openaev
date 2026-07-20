@@ -8,6 +8,7 @@ import io.openaev.database.model.Setting;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.debug.DebugLogCorrelationListener;
 import io.openaev.debug.DebugTracingContextInitializer;
+import io.openaev.service.AuditLogService;
 import io.openaev.tools.FlywayMigrationValidator;
 import jakarta.annotation.PostConstruct;
 import java.sql.Timestamp;
@@ -27,6 +28,7 @@ public class App {
 
   private final SettingRepository settingRepository;
   private final OpenAEVConfig openAEVConfig;
+  private final AuditLogService auditLogService;
 
   public static void main(String[] args) {
     FlywayMigrationValidator.validateFlywayMigrationNames();
@@ -84,5 +86,6 @@ public class App {
       platformId = instanceId.get().getValue();
     }
     log.info("Startup of the platform - Platform Instance ID: {}", platformId);
+    auditLogService.checkLicenseBanner();
   }
 }

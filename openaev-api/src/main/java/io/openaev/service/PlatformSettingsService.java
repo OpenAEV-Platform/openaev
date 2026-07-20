@@ -47,6 +47,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.security.oauth2.client.OAuth2ClientProperties;
 import org.springframework.boot.autoconfigure.security.saml2.Saml2RelyingPartyProperties;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -83,6 +84,16 @@ public class PlatformSettingsService {
   @Resource private RabbitmqService rabbitmqService;
   @Resource private EngineConfig engineConfig;
   @Autowired private LicenseCacheManager licenseCacheManager;
+
+  // Setter injection with @Lazy to break the circular dependency:
+  // PlatformSettingsService → AuditLogService → PlatformSettingsService
+  private AuditLogService auditLogService;
+
+  @Autowired
+  @Lazy
+  public void setAuditLogService(AuditLogService auditLogService) {
+    this.auditLogService = auditLogService;
+  }
 
   // -- PROVIDERS --
   private List<OAuthProvider> buildOpenIdProviders() {
@@ -449,6 +460,7 @@ public class PlatformSettingsService {
     settingsToSave.add(resolveFromMap(dbSettings, PLATFORM_ENTERPRISE_LICENSE.key(), certPem));
     settingRepository.saveAll(settingsToSave);
     licenseCacheManager.refreshLicense();
+    auditLogService.checkLicenseBanner();
     return findSettings();
   }
 
