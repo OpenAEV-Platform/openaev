@@ -24,17 +24,14 @@ const MenuItemSingle: FunctionComponent<Props> = ({ navOpen, item }) => {
     || (item.path !== '/admin' && location.pathname.startsWith(`${item.path}/`));
 
   return (
-    <StyledTooltip title={t(item.label)} placement="right">
+    <StyledTooltip title={navOpen ? '' : t(item.label)} placement="right">
       <MenuItem
         aria-label={t(item.label)}
         component={Link}
         to={item.path}
         selected={isCurrentTab}
         dense
-        sx={{
-          paddingRight: '2px',
-          height: 35,
-        }}
+        sx={leftMenuStyle.menuItemSx}
       >
         <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
           {item.icon()}

@@ -31,6 +31,7 @@ import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
 import settingsEntries from './config/settings.config';
+import LeftBarHeader from './LeftBarHeader';
 import TenantSwitcher from './LeftBarTenantSwitcher';
 
 const LeftBar = () => {
@@ -211,6 +212,7 @@ const LeftBar = () => {
     <LeftMenu
       entries={entries}
       bottomEntries={bottomEntries}
+      logoHeader={(navOpen: boolean) => <LeftBarHeader navOpen={navOpen} />}
       headerElement={hasTenantSwitcher ? (navOpen: boolean) => <TenantSwitcher navOpen={navOpen} /> : undefined}
     />
   );

@@ -25,6 +25,10 @@ const ThemeForm: FunctionComponent<Props> = ({
   initialValues = {
     accent_color: '',
     background_color: '',
+    login_aside_color: '',
+    login_aside_gradient_end: '',
+    login_aside_gradient_start: '',
+    login_aside_image: '',
     logo_login_url: '',
     logo_url: '',
     logo_url_collapsed: '',
@@ -51,6 +55,10 @@ const ThemeForm: FunctionComponent<Props> = ({
       zodImplement<ThemeInput>().with({
         accent_color: z.string().optional(),
         background_color: z.string().optional(),
+        login_aside_color: z.string().optional(),
+        login_aside_gradient_end: z.string().optional(),
+        login_aside_gradient_start: z.string().optional(),
+        login_aside_image: z.string().optional(),
         logo_login_url: z.string().optional(),
         logo_url: z.string().optional(),
         logo_url_collapsed: z.string().optional(),
@@ -173,6 +181,7 @@ const ThemeForm: FunctionComponent<Props> = ({
         disabled={canNotManage}
       />
       <MuiTextField
+        className={classes.field}
         variant="standard"
         fullWidth
         label={t('Logo URL (login)')}
@@ -181,6 +190,58 @@ const ThemeForm: FunctionComponent<Props> = ({
         error={!!errors.logo_login_url}
         helperText={errors.logo_login_url && errors.logo_login_url?.message}
         inputProps={register('logo_login_url')}
+        disabled={canNotManage}
+      />
+      {/* Login page aside customization (aligned with OpenCTI):
+          priority is image > gradient > color > default Filigran gradient. */}
+      <ColorPickerField
+        className={classes.field}
+        variant="standard"
+        fullWidth
+        label={t('Login aside color')}
+        placeholder={t('Default')}
+        slotProps={{ inputLabel: { shrink: true } }}
+        error={!!errors.login_aside_color}
+        helperText={errors.login_aside_color && errors.login_aside_color?.message}
+        control={control}
+        name="login_aside_color"
+        disabled={canNotManage}
+      />
+      <ColorPickerField
+        className={classes.field}
+        variant="standard"
+        fullWidth
+        label={t('Login aside gradient start color')}
+        placeholder={t('Default')}
+        slotProps={{ inputLabel: { shrink: true } }}
+        error={!!errors.login_aside_gradient_start}
+        helperText={errors.login_aside_gradient_start && errors.login_aside_gradient_start?.message}
+        control={control}
+        name="login_aside_gradient_start"
+        disabled={canNotManage}
+      />
+      <ColorPickerField
+        className={classes.field}
+        variant="standard"
+        fullWidth
+        label={t('Login aside gradient end color')}
+        placeholder={t('Default')}
+        slotProps={{ inputLabel: { shrink: true } }}
+        error={!!errors.login_aside_gradient_end}
+        helperText={errors.login_aside_gradient_end && errors.login_aside_gradient_end?.message}
+        control={control}
+        name="login_aside_gradient_end"
+        disabled={canNotManage}
+      />
+      <MuiTextField
+        variant="standard"
+        fullWidth
+        label={t('Login aside image URL')}
+        placeholder={t('Default')}
+        slotProps={{ inputLabel: { shrink: true } }}
+        error={!!errors.login_aside_image}
+        helperText={errors.login_aside_image && errors.login_aside_image?.message}
+        inputProps={register('login_aside_image')}
         disabled={canNotManage}
       />
 

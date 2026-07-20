@@ -96,8 +96,8 @@ const ChallengePopover = ({ challenge, onRemoveChallenge, inline, disabled = fal
   return (
     <>
       {(ability.can(ACTIONS.MANAGE, SUBJECTS.CHALLENGES) || ability.can(ACTIONS.DELETE, SUBJECTS.CHALLENGES) || onRemoveChallenge) && (
-        <IconButton disabled={disabled} onClick={handlePopoverOpen} aria-haspopup="true" size="large" color="primary">
-          <MoreVert />
+        <IconButton disabled={disabled} onClick={handlePopoverOpen} aria-haspopup="true" size="small" color="primary" sx={{ borderRadius: 1 }}>
+          <MoreVert fontSize="small" />
         </IconButton>
       )}
       <Menu

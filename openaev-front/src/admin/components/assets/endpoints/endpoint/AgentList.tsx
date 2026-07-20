@@ -1,13 +1,11 @@
 import { DevicesOtherOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { type CSSProperties, type FunctionComponent } from 'react';
-import { makeStyles } from 'tss-react/mui';
+import { Box, Tooltip, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import { type FunctionComponent, type ReactNode } from 'react';
 
 import { fetchExecutors } from '../../../../../actions/executors/executor-action';
 import { type ExecutorHelper } from '../../../../../actions/executors/executor-helper';
 import type { LoggedHelper } from '../../../../../actions/helper';
-import useBodyItemsStyles from '../../../../../components/common/queryable/style/style';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type AgentOutput } from '../../../../../utils/api-types';
@@ -20,41 +18,48 @@ import AgentDeploymentMode from '../AgentDeploymentMode';
 import AgentPrivilege from '../AgentPrivilege';
 import AgentLastSeen from './AgentLastSeen';
 
-const useStyles = makeStyles()(() => ({
-  itemHead: {
-    paddingLeft: 10,
-    textTransform: 'uppercase',
-  },
-  item: {
-    paddingLeft: 10,
-    height: 50,
-  },
-}));
-
-const inlineStyles: Record<string, CSSProperties> = {
-  agent_executed_by_user: { width: '30%' },
-  agent_executor: {
-    width: '15%',
-    display: 'flex',
-    alignItems: 'center',
-    cursor: 'default',
-  },
-  agent_privilege: { width: '15%' },
-  agent_deployment_mode: { width: '10%' },
-  agent_active: { width: '10%' },
-  agent_version: { width: '5%' },
-  agent_last_seen: { width: '15%' },
-};
+// A tiny labeled meta cell inside an agent card (overline label + value).
+const MetaItem = ({ label, children }: {
+  label: string;
+  children: ReactNode;
+}) => (
+  <div style={{ minWidth: 0 }}>
+    <Typography sx={{
+      fontFamily: '"Geologica", sans-serif',
+      fontWeight: 600,
+      fontSize: 10,
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase',
+      color: 'text.secondary',
+      marginBottom: 0.25,
+    }}
+    >
+      {label}
+    </Typography>
+    <Box sx={{
+      display: 'flex',
+      alignItems: 'center',
+      minHeight: 24,
+      fontSize: 13,
+    }}
+    >
+      {children}
+    </Box>
+  </div>
+);
 
 interface Props { agents: AgentOutput[] }
 
+/**
+ * Agents installed on an asset, rendered as compact cards: an asset usually
+ * carries one or two agents, so a full seven-column table was overkill. Each
+ * card shows the executor identity, liveliness, and the deployment metadata
+ * at a glance.
+ */
 const AgentList: FunctionComponent<Props> = ({ agents }) => {
-  const { classes } = useStyles();
   const theme = useTheme();
-  const bodyItemsStyles = useBodyItemsStyles();
-  const dispatch = useAppDispatch();
   const { t } = useFormatter();
-  // Fetching data
+  const dispatch = useAppDispatch();
   const { settings, executorsMap } = useHelper((helper: ExecutorHelper & LoggedHelper) => ({
     settings: helper.getPlatformSettings(),
     executorsMap: helper.getExecutorsMap(),
@@ -63,149 +68,140 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
     dispatch(fetchExecutors());
   });
 
-  // Headers
-  const headers = [
-    {
-      field: 'agent_executed_by_user',
-      label: 'Agent Name',
-      isSortable: false,
-      value: (agent: AgentOutput) => agent.agent_executed_by_user,
-    },
-    {
-      field: 'agent_executor',
-      label: 'Executor',
-      isSortable: false,
-      value: (agent: AgentOutput) => {
+  return (
+    <Box sx={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
+      gap: 2,
+    }}
+    >
+      {agents.map((agent) => {
         const executorId = agent.agent_executor?.executor_id;
         const executor = executorId ? executorsMap[executorId] : undefined;
-
-        if (!executor) {
-          return <>{t('Unknown')}</>;
-        }
-
-        const { executor_type, executor_name } = executor;
-        const showEEChip = !settings.platform_license?.license_is_validated && (executor_type === 'openaev_tanium' || executor_type === 'openaev_crowdstrike_executor' || executor_type === 'openaev_sentinelone_executor' || executor_type === 'openaev_paloaltocortex_executor');
-
+        const showEEChip = !settings.platform_license?.license_is_validated
+          && (executor?.executor_type === 'openaev_tanium'
+            || executor?.executor_type === 'openaev_crowdstrike_executor'
+            || executor?.executor_type === 'openaev_sentinelone_executor'
+            || executor?.executor_type === 'openaev_paloaltocortex_executor');
         return (
-          <>
-            <img
-              src={buildTenantApiPath(`/api/images/executors/icons/${executor_type}`)}
-              alt={executor_type}
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: 4,
-                marginRight: theme.spacing(1),
-              }}
-            />
-            {executor_name}
-            {showEEChip && (
-              <EEChip
-                style={{ marginLeft: theme.spacing(1) }}
-                clickable
-                featureDetectedInfo={executor_name}
-              />
-            )}
-          </>
-        );
-      },
-    },
-    {
-      field: 'agent_privilege',
-      label: 'Privilege',
-      isSortable: false,
-      value: (agent: AgentOutput) => {
-        return (<AgentPrivilege variant="list" privilege={agent.agent_privilege ?? 'admin'} />);
-      },
-    },
-    {
-      field: 'agent_deployment_mode',
-      label: 'Deployment',
-      isSortable: false,
-      value: (agent: AgentOutput) => {
-        return (<AgentDeploymentMode variant="list" mode={agent.agent_deployment_mode ?? 'session'} />);
-      },
-    },
-    {
-      field: 'agent_active',
-      label: 'Status',
-      isSortable: false,
-      value: (agent: AgentOutput) => {
-        return (<AssetStatus variant="list" status={agent.agent_active ? 'Active' : 'Inactive'} />);
-      },
-    },
-    {
-      field: 'agent_version',
-      label: 'Version',
-      isSortable: false,
-      value: (agent: AgentOutput) => agent.agent_version ?? '-',
-    },
-    {
-      field: 'agent_last_seen',
-      label: 'Last Seen',
-      isSortable: false,
-      value: (agent: AgentOutput) => agent.agent_last_seen
-        ? <AgentLastSeen timestamp={agent.agent_last_seen} />
-        : '-',
-    },
-  ];
-
-  return (
-    <List disablePadding>
-      <ListItem
-        classes={{ root: classes.itemHead }}
-        style={{ paddingTop: 0 }}
-      >
-        <ListItemIcon />
-        <ListItemText
-          primary={(
-            <div style={bodyItemsStyles.bodyItems}>
-              {headers.map(header => (
-                <div
-                  key={header.field}
-                  style={{
-                    ...bodyItemsStyles.bodyItem,
-                    ...inlineStyles[header.field],
-                  }}
-                >
-                  {t(header.label)}
-                </div>
-              ))}
-            </div>
-          )}
-        />
-      </ListItem>
-      {agents.map((agent: AgentOutput) => {
-        return (
-          <ListItem
+          <Box
             key={agent.agent_id}
-            classes={{ root: classes.item }}
-            divider
+            data-testid="asset-agent-card"
+            sx={{
+              border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+              borderRadius: 1,
+              padding: 1.5,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1.5,
+              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.04)}, transparent 55%)`,
+            }}
           >
-            <ListItemIcon>
-              <DevicesOtherOutlined color="primary" />
-            </ListItemIcon>
-            <ListItemText
-              primary={(
-                <div style={bodyItemsStyles.bodyItems}>
-                  {headers.map(header => (
-                    <div
-                      key={header.field}
-                      style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles[header.field],
-                      }}
-                    >
-                      {header.value(agent)}
-                    </div>
-                  ))}
-                </div>
-              )}
-            />
-          </ListItem>
+            {/* Identity row: executor icon, agent name + executor, status. */}
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+            }}
+            >
+              <Box sx={{
+                width: 38,
+                height: 38,
+                borderRadius: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                backgroundColor: alpha(theme.palette.text.primary, 0.04),
+                border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+              }}
+              >
+                {executor
+                  ? (
+                      <img
+                        src={buildTenantApiPath(`/api/images/executors/icons/${executor.executor_type}`)}
+                        alt={executor.executor_type}
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 4,
+                        }}
+                      />
+                    )
+                  : <DevicesOtherOutlined color="primary" sx={{ fontSize: 20 }} />}
+              </Box>
+              <Box sx={{
+                minWidth: 0,
+                flex: 1,
+              }}
+              >
+                <Tooltip title={agent.agent_executed_by_user ?? ''}>
+                  <Typography sx={{
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    lineHeight: 1.35,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                  >
+                    {agent.agent_executed_by_user}
+                  </Typography>
+                </Tooltip>
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  minWidth: 0,
+                }}
+                >
+                  <Typography sx={{
+                    fontSize: 12,
+                    color: 'text.secondary',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                  >
+                    {executor?.executor_name ?? t('Unknown')}
+                  </Typography>
+                  {showEEChip && (
+                    <EEChip clickable featureDetectedInfo={executor?.executor_name} />
+                  )}
+                </Box>
+              </Box>
+              <AssetStatus variant="list" status={agent.agent_active ? 'Active' : 'Inactive'} />
+            </Box>
+            {/* Meta row: privilege / deployment / version / last seen. */}
+            <Box sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, auto)',
+              justifyContent: 'space-between',
+              columnGap: 2,
+              rowGap: 1,
+              borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.05)}`,
+              paddingTop: 1.5,
+            }}
+            >
+              <MetaItem label={t('Privilege')}>
+                <AgentPrivilege variant="list" privilege={agent.agent_privilege ?? 'admin'} />
+              </MetaItem>
+              <MetaItem label={t('Deployment')}>
+                <AgentDeploymentMode variant="list" mode={agent.agent_deployment_mode ?? 'session'} />
+              </MetaItem>
+              <MetaItem label={t('Version')}>
+                {agent.agent_version ?? '-'}
+              </MetaItem>
+              <MetaItem label={t('Last Seen')}>
+                {agent.agent_last_seen
+                  ? <AgentLastSeen timestamp={agent.agent_last_seen} />
+                  : '-'}
+              </MetaItem>
+            </Box>
+          </Box>
         );
       })}
-    </List>
+    </Box>
   );
 };
 

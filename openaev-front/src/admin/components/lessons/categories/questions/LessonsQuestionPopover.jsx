@@ -66,8 +66,8 @@ const LessonsQuestionPopover = ({
   )(lessonsQuestion);
   return (
     <div>
-      <IconButton onClick={handlePopoverOpen} aria-haspopup="true" size="large">
-        <MoreVert />
+      <IconButton onClick={handlePopoverOpen} aria-haspopup="true" size="small" color="primary" sx={{ borderRadius: 1 }}>
+        <MoreVert fontSize="small" />
       </IconButton>
       <Menu
         anchorEl={anchorEl}

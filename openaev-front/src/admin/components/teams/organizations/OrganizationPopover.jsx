@@ -97,10 +97,11 @@ class OrganizationPopoverComponent extends Component {
           <IconButton
             onClick={this.handlePopoverOpen.bind(this)}
             aria-haspopup="true"
-            size="large"
+            size="small"
             color="primary"
+            sx={{ borderRadius: 1 }}
           >
-            <MoreVert />
+            <MoreVert fontSize="small" />
           </IconButton>
         </Can>
         <Menu

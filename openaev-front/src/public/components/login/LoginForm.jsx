@@ -1,12 +1,15 @@
-import { Button } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import { Form } from 'react-final-form';
 
 import OldTextField from '../../../components/fields/OldTextField';
 import inject18n from '../../../components/i18n';
 
+// Login form aligned with OpenCTI's LoginForm: login + password fields, then
+// a row with the "I forgot my password" text action on the left and the
+// primary "Sign in" button on the right.
 const LoginFormComponent = (props) => {
-  const { t, onSubmit } = props;
+  const { t, onSubmit, onResetPassword } = props;
   const validate = (values) => {
     const errors = {};
     const requiredFields = ['username', 'password'];
@@ -18,39 +21,54 @@ const LoginFormComponent = (props) => {
     return errors;
   };
   return (
-    <div style={{ padding: 15 }}>
-      <Form onSubmit={onSubmit} validate={validate}>
-        {({ handleSubmit, submitting, pristine }) => (
-          <form onSubmit={handleSubmit}>
-            <OldTextField
-              name="username"
-              type="text"
-              variant="standard"
-              label={t('Login')}
-              fullWidth={true}
-              style={{ marginTop: 5 }}
-            />
-            <OldTextField
-              name="password"
-              type="password"
-              variant="standard"
-              label={t('Password')}
-              fullWidth={true}
-              style={{ marginTop: 20 }}
-            />
+    <Form onSubmit={onSubmit} validate={validate}>
+      {({ handleSubmit, submitting, pristine }) => (
+        <form onSubmit={handleSubmit}>
+          <OldTextField
+            name="username"
+            type="text"
+            variant="standard"
+            label={t('Login')}
+            fullWidth={true}
+          />
+          <OldTextField
+            name="password"
+            type="password"
+            variant="standard"
+            label={t('Password')}
+            fullWidth={true}
+            style={{ marginTop: 16 }}
+          />
+          <Stack
+            mt={3}
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Button
+              variant="text"
+              color="primary"
+              onClick={onResetPassword}
+              sx={{
+                marginLeft: -1,
+                fontWeight: 600,
+              }}
+            >
+              {t('I forgot my password')}
+            </Button>
             <Button
               type="submit"
               variant="contained"
+              color="primary"
               disabled={pristine || submitting}
               onClick={handleSubmit}
-              style={{ marginTop: 30 }}
             >
               {t('Sign in')}
             </Button>
-          </form>
-        )}
-      </Form>
-    </div>
+          </Stack>
+        </form>
+      )}
+    </Form>
   );
 };
 
@@ -58,6 +76,7 @@ LoginFormComponent.propTypes = {
   t: PropTypes.func,
   error: PropTypes.string,
   onSubmit: PropTypes.func.isRequired,
+  onResetPassword: PropTypes.func,
   handleSubmit: PropTypes.func,
 };
 

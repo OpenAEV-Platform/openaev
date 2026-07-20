@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { useContext, useEffect, useState } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -22,13 +21,14 @@ import { splitDuration } from '../../../../../utils/Time';
 import { PermissionsContext } from '../../Context';
 import { getValidatingRule, isInjectContentType, isRequiredField, isVisibleField } from '../utils';
 import InjectContentForm from './InjectContentForm';
+import InjectFormSection from './InjectFormSection';
 import InjectInjectorSelector from './InjectInjectorSelector';
 
 const useStyles = makeStyles()(theme => ({
   injectFormContainer: {
     display: 'flex',
     flexDirection: 'column',
-    gap: theme.spacing(2),
+    gap: theme.spacing(3),
     marginTop: theme.spacing(2),
   },
   injectFormButtonsContainer: {
@@ -36,27 +36,14 @@ const useStyles = makeStyles()(theme => ({
     justifyContent: 'flex-end',
     gap: theme.spacing(1),
     marginTop: theme.spacing(1),
+    marginBottom: theme.spacing(2),
+    marginRight: theme.spacing(2),
   },
-  injectContentButton: {
-    width: '100%',
-    height: theme.spacing(5),
+  durationGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: theme.spacing(2),
   },
-  triggerBox: {
-    borderRadius: 4,
-    display: 'flex',
-    alignItems: 'center',
-    padding: theme.spacing(1),
-    textWrap: 'nowrap',
-    gap: theme.spacing(3),
-  },
-  triggerBoxColor: { border: `1px solid ${theme.palette.primary.main}` },
-  triggerBoxColorDisabled: { border: `1px solid ${theme.palette.action.disabled}` },
-  triggerText: {
-    fontFamily: 'Consolas, monaco, monospace',
-    fontSize: 12,
-  },
-  triggerTextColor: { color: theme.palette.primary.main },
-  triggerTextColorDisabled: { color: theme.palette.action.disabled },
 }));
 
 type FieldValue = string | number | boolean | string[] | AttackPattern[] | object | {
@@ -109,7 +96,6 @@ const InjectForm = ({
 }: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
-  const theme = useTheme();
   const { permissions } = useContext(PermissionsContext);
 
   const [fieldsMapByKey, setFieldsMapByKey] = useState<Record<ContractElement['key'], ContractElement>>({});
@@ -495,22 +481,30 @@ const InjectForm = ({
         className={classes.injectFormContainer}
         onSubmit={handleSubmit(onSubmit)}
       >
-        <TextFieldController name="inject_title" label={t('Title')} required disabled={isSubmitting || disabled || permissions.readOnly} />
-        <TextFieldController name="inject_description" label={t('Description')} multiline rows={2} disabled={isSubmitting || disabled || permissions.readOnly} />
-        <TagFieldController name="inject_tags" label={t('Tags')} disabled={isSubmitting || disabled || permissions.readOnly} />
-
-        <InjectInjectorSelector
-          injectorNames={injectorNames}
-          disabled={isSubmitting || disabled || permissions.readOnly}
-        />
+        <InjectFormSection
+          title={t('General')}
+          helper={t('Name this inject and describe what it does.')}
+        >
+          <TextFieldController name="inject_title" label={t('Title')} required disabled={isSubmitting || disabled || permissions.readOnly} />
+          <TextFieldController name="inject_description" label={t('Description')} multiline rows={2} disabled={isSubmitting || disabled || permissions.readOnly} />
+          <TagFieldController name="inject_tags" label={t('Tags')} disabled={isSubmitting || disabled || permissions.readOnly} />
+          <InjectInjectorSelector
+            injectorNames={injectorNames}
+            disabled={isSubmitting || disabled || permissions.readOnly}
+          />
+        </InjectFormSection>
 
         {!isAtomic && (
-          <div className={`${classes.triggerBox} ${isSubmitting || disabled || permissions.readOnly ? classes.triggerBoxColorDisabled : classes.triggerBoxColor}`}>
-            <div className={`${classes.triggerText} ${isSubmitting || disabled || permissions.readOnly ? classes.triggerTextColorDisabled : classes.triggerTextColor}`}>{t('Trigger after')}</div>
-            <TextFieldController name="inject_depends_duration_days" label={t('Days')} type="number" disabled={permissions.readOnly || disabled} />
-            <TextFieldController name="inject_depends_duration_hours" label={t('Hours')} type="number" disabled={permissions.readOnly || disabled} />
-            <TextFieldController name="inject_depends_duration_minutes" label={t('Minutes')} type="number" disabled={permissions.readOnly || disabled} />
-          </div>
+          <InjectFormSection
+            title={t('Scheduling')}
+            helper={t('Delay before this inject runs, counted from the start of the simulation.')}
+          >
+            <div className={classes.durationGrid}>
+              <TextFieldController name="inject_depends_duration_days" label={t('Days')} type="number" disabled={permissions.readOnly || disabled} />
+              <TextFieldController name="inject_depends_duration_hours" label={t('Hours')} type="number" disabled={permissions.readOnly || disabled} />
+              <TextFieldController name="inject_depends_duration_minutes" label={t('Minutes')} type="number" disabled={permissions.readOnly || disabled} />
+            </div>
+          </InjectFormSection>
         )}
 
         {injectorContractContent && (
@@ -528,13 +522,7 @@ const InjectForm = ({
           />
         )}
 
-        <div
-          className={classes.injectFormButtonsContainer}
-          style={{
-            marginBottom: theme.spacing(2),
-            marginRight: theme.spacing(2),
-          }}
-        >
+        <div className={classes.injectFormButtonsContainer}>
           <Button
             variant="contained"
             onClick={handleClose}

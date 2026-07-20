@@ -1,42 +1,51 @@
-import { BlockOutlined, GppMaybeOutlined, ShieldOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Box } from '@mui/material';
+import { BlockOutlined, GppMaybeOutlined, HelpOutlineOutlined, KeyboardArrowRight, ShieldOutlined, TrackChangesOutlined } from '@mui/icons-material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ApexOptions } from 'apexcharts';
-import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router';
+import { type CSSProperties, type FunctionComponent, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
 
 import { fetchSecurityPlatform } from '../../../../actions/assets/securityPlatform-actions';
 import { adHocEntities, adHocSeries } from '../../../../actions/dashboards/dashboard-action';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import Chart from '../../../../components/Chart';
-import { DetailHero, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, SectionBlock, SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
+import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
+import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
+import { type Header } from '../../../../components/common/SortHeadersList';
 import Empty from '../../../../components/Empty';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
 import ItemSecurityPlatformType from '../../../../components/ItemSecurityPlatformType';
+import ItemStatus from '../../../../components/ItemStatus';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
+import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { SECURITY_PLATFORM_BASE_URL } from '../../../../constants/BaseUrls';
 import {
   type EsBase,
   type EsEntities,
+  type EsInjectExpectation,
   type EsSeries,
   type Filter,
   type FilterGroup,
-  type ListConfiguration,
   type SearchPaginationInput,
   type SecurityPlatform,
   type SortField,
   type Widget,
 } from '../../../../utils/api-types';
+import { computeInjectExpectationLabel } from '../../../../utils/statusUtils';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
-import ListWidget from '../../workspaces/custom_dashboards/widgets/viz/list/ListWidget';
+import expectationIconByType, { expectationTypeIcon } from '../../common/ExpectationIconByType';
+import ExpectationTypeChip from '../../workspaces/custom_dashboards/widgets/viz/list/elements/ExpectationTypeChip';
+import navigationHandlers from '../../workspaces/custom_dashboards/widgets/viz/list/elements/ListNavigationHandler';
+import SecurityPlatformPopover from './SecurityPlatformPopover';
 
 const PLATFORM_FILTER_KEY = 'base_security_platforms_side';
 
@@ -72,6 +81,8 @@ const rate = (success: number, failed: number) => {
 const SecurityPlatformDetail: FunctionComponent = () => {
   const { t, fldt, nsdt } = useFormatter();
   const theme = useTheme();
+  const navigate = useNavigate();
+  const bodyItemsStyles = useBodyItemsStyles();
   const { securityPlatformId } = useParams() as { securityPlatformId: string };
 
   const [platform, setPlatform] = useState<SecurityPlatform | null>(null);
@@ -165,18 +176,96 @@ const SecurityPlatformDetail: FunctionComponent = () => {
     adHocSeries(trendConfig).then((r: { data: EsSeries[] }) => setTrend(r.data)).catch(() => setTrend([]));
   }, [securityPlatformId, platformFilter]);
 
-  // Latest missed expectations: rendered with the custom-dashboard list widget
-  // (normal lines) and driven by the standard search / filters / pagination
-  // toolbar. The runtime search, filters, sort and page are translated into the
-  // ad-hoc list query scoped to this platform's FAILED expectations.
-  const MISSED_COLUMNS = ['inject_expectation_name', 'inject_expectation_type', 'inject_expectation_status', 'base_created_at'];
-  const missedListConfig = { columns: MISSED_COLUMNS } as unknown as ListConfiguration;
+  // Latest missed expectations: standard app list (sort headers + plain line
+  // items) driven by the standard search / filters / pagination toolbar. The
+  // runtime search, filters, sort and page are translated into the ad-hoc list
+  // query scoped to this platform's FAILED expectations.
+  const MISSED_COLUMNS = ['inject_title', 'inject_expectation_type', 'inject_expectation_status', 'inject_expectation_score', 'base_created_at'];
+  const [missedLoading, setMissedLoading] = useState(true);
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
     `security-platform-${securityPlatformId}-missed`,
     buildSearchPagination({ sorts: initSorting('base_created_at', 'DESC') }),
   );
 
+  const missedInlineStyles: Record<string, CSSProperties> = {
+    inject_title: { width: '34%' },
+    inject_expectation_type: { width: '16%' },
+    inject_expectation_status: { width: '20%' },
+    inject_expectation_score: { width: '12%' },
+    base_created_at: { width: '18%' },
+  };
+
+  const missedHeaders: Header[] = useMemo(() => [
+    {
+      field: 'inject_title',
+      // The expectation's own "name" is just its type (e.g. "Detection"), so it
+      // is redundant next to the Type column. Surface the inject (the attack that
+      // was tested) instead - the piece of metadata that actually identifies the row.
+      label: 'Inject',
+      isSortable: false,
+      value: (expectation: EsInjectExpectation) => {
+        const title = expectation.inject_title || expectation.base_representative || t('Unknown');
+        return (
+          <Tooltip title={expectation.inject_expectation_description || title} placement="bottom-start">
+            <span>{title}</span>
+          </Tooltip>
+        );
+      },
+    },
+    {
+      field: 'inject_expectation_type',
+      label: 'Type',
+      isSortable: false,
+      value: (expectation: EsInjectExpectation) => <ExpectationTypeChip type={expectation.inject_expectation_type} />,
+    },
+    {
+      field: 'inject_expectation_status',
+      label: 'Result',
+      isSortable: false,
+      value: (expectation: EsInjectExpectation) => {
+        const label = computeInjectExpectationLabel(
+          expectation.inject_expectation_status,
+          expectation.inject_expectation_type,
+        ) ?? '';
+        return (
+          <ItemStatus
+            label={label}
+            variant="inList"
+            status={label}
+            icon={expectationIconByType(expectation.inject_expectation_type, { fontSize: 14 })}
+          />
+        );
+      },
+    },
+    {
+      field: 'inject_expectation_score',
+      // Obtained vs expected score - shows how far the platform fell short.
+      label: 'Score',
+      isSortable: false,
+      value: (expectation: EsInjectExpectation) => {
+        const score = expectation.inject_expectation_score;
+        const expected = expectation.inject_expectation_expected_score;
+        if (score == null && expected == null) {
+          return <>-</>;
+        }
+        return (
+          <span>
+            {Math.round(score ?? 0)}
+            {expected != null ? ` / ${Math.round(expected)}` : ''}
+          </span>
+        );
+      },
+    },
+    {
+      field: 'base_created_at',
+      label: 'Date',
+      isSortable: true,
+      value: (expectation: EsInjectExpectation) => <>{nsdt(expectation.base_created_at)}</>,
+    },
+  ], [t, nsdt]);
+
   const fetchMissed = (input: SearchPaginationInput): Promise<{ data: Page<EsBase> }> => {
+    setMissedLoading(true);
     const runtimeFilters = input.filterGroup?.filters ?? [];
     const searchFilters = input.textSearch
       ? [filter('base_representative', [input.textSearch], 'contains')]
@@ -213,7 +302,7 @@ const SecurityPlatformDetail: FunctionComponent = () => {
         totalPages: r.data.page_size ? Math.ceil((r.data.total ?? 0) / r.data.page_size) : 0,
         pageable: { pageNumber: r.data.page_number ?? 0 },
       } as Page<EsBase>,
-    }));
+    })).finally(() => setMissedLoading(false));
   };
 
   const kpis = useMemo(() => {
@@ -368,6 +457,16 @@ const SecurityPlatformDetail: FunctionComponent = () => {
         iconNode={logo}
         title={platform.asset_name}
         chips={<ItemSecurityPlatformType type={platform.security_platform_type} size="medium" />}
+        action={(
+          <SecurityPlatformPopover
+            securityPlatform={{
+              ...platform,
+              type: 'security-platform',
+            }}
+            onUpdate={result => setPlatform(result)}
+            onDelete={() => navigate(SECURITY_PLATFORM_BASE_URL)}
+          />
+        )}
         stats={(
           <>
             <HeroStat
@@ -397,39 +496,44 @@ const SecurityPlatformDetail: FunctionComponent = () => {
         )}
       />
 
-      <InformationGrid title={t('Information')}>
-        <Field label={t('Type')}>
-          <ItemSecurityPlatformType type={platform.security_platform_type} />
-        </Field>
-        <Field label={t('Description')}>
-          {platform.asset_description
-            ? <ExpandableMarkdown source={platform.asset_description} limit={300} />
-            : '-'}
-        </Field>
-        <Field label={t('Tags')}>
-          <ItemTags variant="list" tags={platform.asset_tags} />
-        </Field>
-        <Field label={t('Creation date')}>{fldt(platform.asset_created_at)}</Field>
-        <Field label={t('Update date')}>{fldt(platform.asset_updated_at)}</Field>
-      </InformationGrid>
+      {/* Identity + performance trend side by side: the fields grid is short
+          and the chart reads fine at half width, so one row keeps the
+          overview compact. */}
+      <DetailSections>
+        <InformationGrid title={t('Information')}>
+          <Field label={t('Type')}>
+            <ItemSecurityPlatformType type={platform.security_platform_type} />
+          </Field>
+          <Field label={t('Description')}>
+            {platform.asset_description
+              ? <ExpandableMarkdown source={platform.asset_description} limit={300} />
+              : '-'}
+          </Field>
+          <Field label={t('Tags')}>
+            <ItemTags variant="list" tags={platform.asset_tags} />
+          </Field>
+          <Field label={t('Creation date')}>{fldt(platform.asset_created_at)}</Field>
+          <Field label={t('Update date')}>{fldt(platform.asset_updated_at)}</Field>
+        </InformationGrid>
+        <SectionBlock title={t('Performance over time')}>
+          {(() => {
+            if (trend === null) return <Loader variant="inElement" />;
+            if (!hasTrend) return <Empty message={t('No results yet for this security platform.')} />;
+            return (
+              <Chart
+                options={chartOptions}
+                series={trendSeries}
+                type="area"
+                width="100%"
+                height={280}
+              />
+            );
+          })()}
+        </SectionBlock>
+      </DetailSections>
 
-      <SectionBlock title={t('Performance over time')}>
-        {(() => {
-          if (trend === null) return <Loader variant="inElement" />;
-          if (!hasTrend) return <Empty message={t('No results yet for this security platform.')} />;
-          return (
-            <Chart
-              options={chartOptions}
-              series={trendSeries}
-              type="area"
-              width="100%"
-              height={280}
-            />
-          );
-        })()}
-      </SectionBlock>
-
-      <SectionBlock title={t('Latest missed expectations')}>
+      <div>
+        <SectionLabel>{t('Latest missed expectations')}</SectionLabel>
         <PaginationComponentV2
           fetch={fetchMissed}
           searchPaginationInput={searchPaginationInput}
@@ -438,18 +542,69 @@ const SecurityPlatformDetail: FunctionComponent = () => {
           availableFilterNames={['inject_expectation_type', 'inject_expectation_status']}
           queryableHelpers={queryableHelpers}
         />
-        <Box sx={{ height: 480 }}>
-          <ListWidget
-            widgetConfig={missedListConfig}
-            elements={missed}
-            currentPageNumber={searchPaginationInput.page}
-            elementsPerPage={searchPaginationInput.size}
-            totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
-            onPaginationChange={() => {}}
-            hidePagination
-          />
-        </Box>
-      </SectionBlock>
+        <List>
+          <ListItem
+            divider={false}
+            style={{
+              paddingTop: 0,
+              textTransform: 'uppercase',
+            }}
+            secondaryAction={<>&nbsp;</>}
+          >
+            <ListItemIcon />
+            <ListItemText
+              primary={(
+                <SortHeadersComponentV2
+                  headers={missedHeaders}
+                  inlineStylesHeaders={missedInlineStyles}
+                  sortHelpers={queryableHelpers.sortHelpers}
+                />
+              )}
+            />
+          </ListItem>
+          {missedLoading
+            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={missedHeaders} headerStyles={missedInlineStyles} />
+            : missed.map((element) => {
+                const expectation = element as EsInjectExpectation;
+                const LeadingIcon = expectationTypeIcon(expectation.inject_expectation_type);
+                return (
+                  <ListItem
+                    key={expectation.base_id}
+                    divider
+                    disablePadding
+                    secondaryAction={<KeyboardArrowRight color="action" />}
+                  >
+                    <ListItemButton
+                      style={{ height: 50 }}
+                      onClick={() => navigationHandlers['expectation-inject']?.(element, navigate)}
+                    >
+                      <ListItemIcon>
+                        <LeadingIcon color="primary" />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={(
+                          <div style={bodyItemsStyles.bodyItems}>
+                            {missedHeaders.map(header => (
+                              <div
+                                key={header.field}
+                                style={{
+                                  ...bodyItemsStyles.bodyItem,
+                                  ...missedInlineStyles[header.field],
+                                }}
+                              >
+                                {header.value?.(expectation)}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
+          {!missedLoading && missed.length === 0 && <Empty message={t('No data to display')} />}
+        </List>
+      </div>
     </Box>
   );
 };

@@ -1,195 +1,329 @@
-import { KeyboardArrowRight } from '@mui/icons-material';
-import { type TabPanelProps } from '@mui/lab';
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tab, Tabs } from '@mui/material';
-import { type CSSProperties, type SyntheticEvent, useEffect, useState } from 'react';
+import { KeyboardArrowRight, SearchOffOutlined, TravelExploreOutlined } from '@mui/icons-material';
+import { Box, Chip, List, ListItemButton, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { fullTextSearch, fullTextSearchByClass } from '../../../actions/fullTextSearch-action';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import PaginationComponent from '../../../components/common/pagination/PaginationComponent';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
-import { type Header } from '../../../components/common/SortHeadersList';
+import Empty from '../../../components/Empty';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
-import { type FullTextSearchCountResult, type FullTextSearchResult, type SearchPaginationInput } from '../../../utils/api-types';
+import SearchFilter from '../../../components/SearchFilter';
+import { type FullTextSearchCountResult, type FullTextSearchResult } from '../../../utils/api-types';
 import useEntityIcon from '../../../utils/hooks/useEntityIcon';
 import useEntityLink from './useEntityLink';
 
-const useStyles = makeStyles()(theme => ({
-  container: { display: 'flex' },
-  tabs: { minWidth: 'fit-content' },
-  tab: {
-    whiteSpace: 'nowrap',
-    minWidth: 'fit-content',
-  },
-  itemHead: { textTransform: 'uppercase' },
-  bodyItemHeader: {
-    fontSize: theme.typography.h4.fontSize,
-    fontWeight: 700,
-  },
-  item: { height: 50 },
-  bodyItem: {
-    fontSize: theme.typography.h3.fontSize,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  goIcon: { justifyContent: 'right' },
-}));
+// Shared grid template so the header row and every result row line up exactly:
+// medallion | name | description | tags | chevron.
+const RESULT_GRID = '36px minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1.1fr) 24px';
 
-const inlineStyles: Record<string, CSSProperties> = {
-  result_name: { width: '40%' },
-  result_description: { width: '40%' },
-  result_tags: { width: '20%' },
-};
+interface CategoryRailProps {
+  categories: FullTextSearchCountResult[];
+  selected: string | null;
+  onSelect: (clazz: string) => void;
+}
 
-const TabPanel = (props: TabPanelProps & {
-  index: number;
-  entity: string;
-  searchPaginationInput: SearchPaginationInput;
-}) => {
-  const { value, index, entity, searchPaginationInput } = props;
-
-  // Standard hooks
-  const { classes } = useStyles();
+// Left facet rail: one selectable row per entity type, with its icon, translated
+// label and result count. Replaces the old cramped vertical MUI Tabs.
+const CategoryRail: FunctionComponent<CategoryRailProps> = ({ categories, selected, onSelect }) => {
+  const theme = useTheme();
   const { t } = useFormatter();
-
-  // Headers
-  const fields: Header[] = [
-    {
-      field: 'result_name',
-      label: 'Name',
-      isSortable: false,
-      value: (result: FullTextSearchResult) => <span>{result.name}</span>,
-    },
-    {
-      field: 'result_description',
-      label: 'Description',
-      isSortable: false,
-      value: (result: FullTextSearchResult) => <span>{result.description}</span>,
-    },
-    {
-      field: 'result_tags',
-      label: 'Tags',
-      isSortable: false,
-      value: (result: FullTextSearchResult) => <span><ItemTags variant="list" tags={result.tags} /></span>,
-    },
-  ];
-
-  const [elements, setElements] = useState<FullTextSearchResult[]>([]);
-
   return (
-    <div
-      role="tabpanel"
-      hidden={value !== index.toString()}
-      aria-labelledby={`vertical-tab-${index}`}
-      style={{
-        width: '100%',
-        padding: '0 24px',
+    <Box
+      component="nav"
+      aria-label={t('Categories')}
+      sx={{
+        width: 240,
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 0.5,
       }}
     >
-      {value === index.toString() && (
-        <>
-          <PaginationComponent
-            fetch={input => fullTextSearchByClass(entity, {
-              ...input,
-              ...searchPaginationInput,
-            })}
-            searchPaginationInput={searchPaginationInput}
-            setContent={setElements}
-            searchEnable={false}
-          />
-          <List>
-            <ListItem
-              classes={{ root: classes.itemHead }}
-              divider={false}
-              style={{ paddingTop: 0 }}
+      <Typography sx={{
+        fontFamily: '"Geologica", sans-serif',
+        fontWeight: 600,
+        fontSize: 11,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        color: 'text.secondary',
+        marginBottom: 0.5,
+      }}
+      >
+        {t('Categories')}
+      </Typography>
+      {categories.map((category) => {
+        const isSelected = category.clazz === selected;
+        return (
+          <Box
+            key={category.clazz}
+            role="button"
+            tabIndex={0}
+            onClick={() => onSelect(category.clazz)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onSelect(category.clazz);
+              }
+            }}
+            sx={{
+              'display': 'flex',
+              'alignItems': 'center',
+              'gap': 1.25,
+              'paddingBlock': 0.75,
+              'paddingInline': 1,
+              'borderRadius': 1,
+              'cursor': 'pointer',
+              'borderLeft': `2px solid ${isSelected ? theme.palette.primary.main : 'transparent'}`,
+              'backgroundColor': isSelected ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
+              'transition': 'background-color 120ms',
+              '&:hover': { backgroundColor: isSelected ? alpha(theme.palette.primary.main, 0.14) : theme.palette.action.hover },
+            }}
+          >
+            <Box
+              aria-hidden
+              sx={{
+                'width': 28,
+                'height': 28,
+                'flexShrink': 0,
+                'borderRadius': 1,
+                'display': 'flex',
+                'alignItems': 'center',
+                'justifyContent': 'center',
+                'backgroundColor': alpha(theme.palette.text.primary, 0.04),
+                '& .MuiSvgIcon-root': { fontSize: 18 },
+              }}
             >
-              <ListItemIcon />
-              <ListItemText
-                primary={(
-                  <div className={classes.container}>
-                    {fields.map(header => (
-                      <div
-                        key={header.field}
-                        className={classes.bodyItemHeader}
-                        style={inlineStyles[header.field]}
+              {useEntityIcon(category.clazz)}
+            </Box>
+            <Typography sx={{
+              flex: 1,
+              minWidth: 0,
+              fontSize: 13.5,
+              fontWeight: isSelected ? 600 : 500,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+            >
+              {t(category.clazz)}
+            </Typography>
+            <Chip
+              label={category.count}
+              size="small"
+              sx={{
+                height: 20,
+                minWidth: 28,
+                borderRadius: 0.5,
+                fontSize: 11,
+                fontWeight: 600,
+                backgroundColor: isSelected ? alpha(theme.palette.primary.main, 0.2) : alpha(theme.palette.text.primary, 0.06),
+                color: isSelected ? theme.palette.primary.main : theme.palette.text.secondary,
+              }}
+            />
+          </Box>
+        );
+      })}
+    </Box>
+  );
+};
+
+interface ResultsPanelProps {
+  clazz: string;
+  textSearch: string;
+}
+
+const ResultsPanel: FunctionComponent<ResultsPanelProps> = ({ clazz, textSearch }) => {
+  const theme = useTheme();
+  const { t } = useFormatter();
+  const [elements, setElements] = useState<FullTextSearchResult[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Rebuild the pagination input whenever the query changes so the reused engine
+  // refetches the selected category.
+  const searchPaginationInput = useMemo(() => buildSearchPagination({ textSearch }), [textSearch]);
+
+  const headerSx = {
+    fontFamily: '"Geologica", sans-serif',
+    fontWeight: 600,
+    fontSize: 11,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase' as const,
+    color: 'text.secondary',
+  };
+
+  return (
+    <Box sx={{
+      flex: 1,
+      minWidth: 0,
+    }}
+    >
+      <PaginationComponent
+        fetch={(input) => {
+          setLoading(true);
+          return fullTextSearchByClass(clazz, {
+            ...input,
+            ...searchPaginationInput,
+          }).finally(() => setLoading(false));
+        }}
+        searchPaginationInput={searchPaginationInput}
+        setContent={setElements}
+        searchEnable={false}
+      />
+      <Box sx={{
+        border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+        borderRadius: 1,
+        overflow: 'hidden',
+      }}
+      >
+        <Box sx={{
+          display: 'grid',
+          gridTemplateColumns: RESULT_GRID,
+          alignItems: 'center',
+          gap: 1.5,
+          paddingBlock: 1,
+          paddingInline: 1.5,
+          borderBottom: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+        }}
+        >
+          <span />
+          <Typography sx={headerSx}>{t('Name')}</Typography>
+          <Typography sx={headerSx}>{t('Description')}</Typography>
+          <Typography sx={headerSx}>{t('Tags')}</Typography>
+          <span />
+        </Box>
+        {(() => {
+          if (!loading && elements.length === 0) {
+            return <Empty message={t('No results found')} icon={SearchOffOutlined} />;
+          }
+          return (
+            <List disablePadding>
+              {elements.map((result) => {
+                const to = useEntityLink(result.clazz, result.id, textSearch);
+                return (
+                  <ListItemButton
+                    key={result.id}
+                    component={Link}
+                    to={to}
+                    sx={{
+                      'display': 'grid',
+                      'gridTemplateColumns': RESULT_GRID,
+                      'alignItems': 'center',
+                      'gap': 1.5,
+                      'paddingBlock': 1,
+                      'paddingInline': 1.5,
+                      '&:not(:last-of-type)': { borderBottom: `1px solid ${alpha(theme.palette.text.primary, 0.05)}` },
+                    }}
+                  >
+                    <Box
+                      aria-hidden
+                      sx={{
+                        'width': 28,
+                        'height': 28,
+                        'borderRadius': 1,
+                        'display': 'flex',
+                        'alignItems': 'center',
+                        'justifyContent': 'center',
+                        'backgroundColor': alpha(theme.palette.text.primary, 0.04),
+                        '& .MuiSvgIcon-root': { fontSize: 18 },
+                      }}
+                    >
+                      {useEntityIcon(result.clazz)}
+                    </Box>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{
+                        fontSize: 13.5,
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
                       >
-                        <span>{t(header.label)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              />
-              <ListItemIcon />
-            </ListItem>
-            {elements.map(result => (
-              <ListItemButton
-                key={result.id}
-                classes={{ root: classes.item }}
-                divider
-                component={Link}
-                to={useEntityLink(result.clazz, result.id, searchPaginationInput.textSearch ?? '')}
-              >
-                <ListItemIcon>
-                  {useEntityIcon(result.clazz)}
-                </ListItemIcon>
-                <ListItemText
-                  primary={(
-                    <div className={classes.container}>
-                      {fields.map(field => (
-                        <div
-                          key={field.field}
-                          className={classes.bodyItem}
-                          style={inlineStyles[field.field]}
-                        >
-                          {field.value?.(result)}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                />
-                <ListItemIcon classes={{ root: classes.goIcon }}>
-                  <KeyboardArrowRight />
-                </ListItemIcon>
-              </ListItemButton>
-            ))}
-          </List>
-        </>
-      )}
-    </div>
+                        {result.name}
+                      </Typography>
+                      <Typography sx={{
+                        fontSize: 11,
+                        color: 'text.disabled',
+                      }}
+                      >
+                        {t(result.clazz)}
+                      </Typography>
+                    </Box>
+                    <Typography sx={{
+                      fontSize: 12.5,
+                      color: 'text.secondary',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                    >
+                      {result.description || '-'}
+                    </Typography>
+                    <Box sx={{ minWidth: 0 }}>
+                      <ItemTags variant="list" tags={result.tags} />
+                    </Box>
+                    <KeyboardArrowRight sx={{ color: 'text.disabled' }} />
+                  </ListItemButton>
+                );
+              })}
+            </List>
+          );
+        })()}
+      </Box>
+    </Box>
   );
 };
 
 const FullTextSearch = () => {
-  // Standard hooks
-  const { classes } = useStyles();
   const { t } = useFormatter();
+  const theme = useTheme();
 
-  const [searchParams] = useSearchParams();
-  const [search] = searchParams.getAll('search');
-  const [searchPaginationInput, setSearchPaginationInput] = useState(buildSearchPagination({ textSearch: search }));
-
-  const [results, setResults] = useState<Record<string, FullTextSearchCountResult>>({});
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get('search') ?? '');
+  const [counts, setCounts] = useState<Record<string, FullTextSearchCountResult>>({});
+  const [selected, setSelected] = useState<string | null>(null);
+  const [loadingCounts, setLoadingCounts] = useState(true);
 
   useEffect(() => {
-    fullTextSearch(search).then((result: { data: Record<string, FullTextSearchCountResult> }) => {
-      setResults(result.data);
-    });
-    setSearchPaginationInput(buildSearchPagination({ textSearch: search }));
+    setLoadingCounts(true);
+    fullTextSearch(search)
+      .then((result: { data: Record<string, FullTextSearchCountResult> }) => setCounts(result.data ?? {}))
+      .finally(() => setLoadingCounts(false));
   }, [search]);
 
-  // Tabs
-  const [value, setValue] = useState(0);
+  // Categories sorted by count (most relevant first), so the busiest bucket leads.
+  const categories = useMemo(
+    () => Object.values(counts).filter(c => c.count > 0).sort((a, b) => b.count - a.count),
+    [counts],
+  );
 
-  const handleChange = (_event: SyntheticEvent, newValue: number) => {
-    setValue(newValue);
-  };
+  const total = useMemo(() => categories.reduce((acc, c) => acc + c.count, 0), [categories]);
 
-  // Utils
-  const entries = (r: Record<string, FullTextSearchCountResult>) => {
-    return Object.entries(r).sort((e1, e2) => e1[0].localeCompare(e2[0]));
+  // Keep a valid selection: default to the busiest category, and re-point when the
+  // current selection disappears after a query change.
+  useEffect(() => {
+    if (categories.length === 0) {
+      setSelected(null);
+      return;
+    }
+    if (!selected || !categories.some(c => c.clazz === selected)) {
+      setSelected(categories[0].clazz);
+    }
+  }, [categories, selected]);
+
+  const handleRefine = (value?: string) => {
+    const next = value ?? '';
+    setSearch(next);
+    const params = new URLSearchParams(searchParams);
+    if (next) {
+      params.set('search', next);
+    } else {
+      params.delete('search');
+    }
+    setSearchParams(params, { replace: true });
   };
 
   return (
@@ -203,32 +337,90 @@ const FullTextSearch = () => {
           },
         ]}
       />
-      <Box className={classes.container}>
-        <Tabs
-          orientation="vertical"
-          variant="scrollable"
-          value={value}
-          onChange={handleChange}
-          aria-label="Vertical tabs example"
-          className={classes.tabs}
+      <Box sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        paddingBottom: 4,
+      }}
+      >
+        <Box sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          padding: 2,
+          borderRadius: 1,
+          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)}, transparent 60%)`,
+          border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+        }}
         >
-          {entries(results).map(([entity, result]) => (
-            <Tab
-              key={entity}
-              label={`${t(result.clazz)} (${result.count})`}
-              className={classes.tab}
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            flexWrap: 'wrap',
+          }}
+          >
+            <Typography variant="h1" sx={{ margin: 0 }}>{t('Search')}</Typography>
+            {search && !loadingCounts && (
+              <Chip
+                label={t('{count} results', { count: total })}
+                size="small"
+                sx={{
+                  borderRadius: 0.5,
+                  height: 22,
+                  fontSize: 12,
+                  color: 'text.secondary',
+                }}
+              />
+            )}
+          </Box>
+          <Box sx={{ maxWidth: 520 }}>
+            <SearchFilter
+              variant="topBar"
+              keyword={search}
+              onChange={handleRefine}
+              onSubmit={handleRefine}
+              placeholder={`${t('Search across OpenAEV')}...`}
             />
-          ))}
-        </Tabs>
-        {entries(results).map(([entity], idx) => (
-          <TabPanel
-            key={entity}
-            value={value.toString()}
-            index={idx}
-            entity={entity}
-            searchPaginationInput={searchPaginationInput}
-          />
-        ))}
+          </Box>
+        </Box>
+
+        {(() => {
+          if (!search) {
+            return (
+              <Empty
+                icon={TravelExploreOutlined}
+                message={t('Search across OpenAEV')}
+                hint={t('Find scenarios, simulations, assets, teams and more.')}
+              />
+            );
+          }
+          if (!loadingCounts && categories.length === 0) {
+            return (
+              <Empty
+                icon={SearchOffOutlined}
+                message={t('No results found')}
+                hint={t('Try a different search term.')}
+              />
+            );
+          }
+          return (
+            <Box sx={{
+              display: 'flex',
+              gap: 3,
+              alignItems: 'flex-start',
+            }}
+            >
+              <CategoryRail
+                categories={categories}
+                selected={selected}
+                onSelect={setSelected}
+              />
+              {selected && <ResultsPanel clazz={selected} textSearch={search} />}
+            </Box>
+          );
+        })()}
       </Box>
     </>
   );

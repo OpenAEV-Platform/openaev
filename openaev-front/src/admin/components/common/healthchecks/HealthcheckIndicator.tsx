@@ -178,7 +178,6 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
                   size="small"
                   sx={{
                     flexShrink: 0,
-                    lineHeight: 'initial',
                   }}
                   onClick={() => goToHealthcheckAction(healthcheck.type!)}
                 >

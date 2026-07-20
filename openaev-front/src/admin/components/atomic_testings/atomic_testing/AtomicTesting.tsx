@@ -71,6 +71,7 @@ const AtomicTesting = () => {
   const [hasPlayers, setHasPlayers] = useState(false);
   const [hasPlayersChecked, setHasPlayersChecked] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState<InjectTarget>();
+  const [pageTargets, setPageTargets] = useState<InjectTarget[]>([]);
 
   // Initial tab open
   const [searchParams, setSearchParams] = useSearchParams();
@@ -241,6 +242,25 @@ const AtomicTesting = () => {
     setSelectedTarget(target);
   };
 
+  // Prev/next switching across the currently loaded page of targets, so results
+  // can be browsed without hunting through the list on the left.
+  const selectedIndex = useMemo(
+    () => pageTargets.findIndex(target => target.target_id === selectedTarget?.target_id),
+    [pageTargets, selectedTarget],
+  );
+
+  const handleSelectPrevious = () => {
+    if (selectedIndex > 0) {
+      setSelectedTarget(pageTargets[selectedIndex - 1]);
+    }
+  };
+
+  const handleSelectNext = () => {
+    if (selectedIndex >= 0 && selectedIndex < pageTargets.length - 1) {
+      setSelectedTarget(pageTargets[selectedIndex + 1]);
+    }
+  };
+
   const handleTabChange = (_event: SyntheticEvent, newValue: number) => {
     const location = tabConfig.find(tc => newValue == tc.key);
     navigateToTab(location);
@@ -262,6 +282,8 @@ const AtomicTesting = () => {
             inject_id={injectResultOverviewOutput.inject_id}
             target_type={tab.type}
             reloadContentCount={reloadContentCount}
+            selectedTargetId={selectedTarget?.target_id}
+            onTargetsChange={setPageTargets}
           />
         )}
       </>
@@ -280,7 +302,10 @@ const AtomicTesting = () => {
       sx={{ alignItems: 'stretch' }}
     >
       <Grid
-        size={6}
+        size={{
+          xs: 12,
+          md: 6,
+        }}
         sx={{
           display: 'flex',
           flexDirection: 'column',
@@ -310,7 +335,10 @@ const AtomicTesting = () => {
         </Paper>
       </Grid>
       <Grid
-        size={6}
+        size={{
+          xs: 12,
+          md: 6,
+        }}
         sx={{
           display: 'flex',
           flexDirection: 'column',
@@ -328,7 +356,15 @@ const AtomicTesting = () => {
               '& > .MuiPaper-root': { flex: 1 },
             }}
           >
-            <TargetResultsDetail inject={injectResultOverviewOutput} target={selectedTarget} isAgentless={isAgentless(hasAgents, hasTeams)} />
+            <TargetResultsDetail
+              inject={injectResultOverviewOutput}
+              target={selectedTarget}
+              isAgentless={isAgentless(hasAgents, hasTeams)}
+              position={selectedIndex >= 0 ? selectedIndex + 1 : undefined}
+              total={pageTargets.length}
+              onSelectPrevious={handleSelectPrevious}
+              onSelectNext={handleSelectNext}
+            />
           </Box>
         )}
         {!selectedTarget && (

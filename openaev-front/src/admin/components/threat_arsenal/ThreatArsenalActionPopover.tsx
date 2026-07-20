@@ -227,8 +227,8 @@ const ThreatArsenalActionPopover = ({
 
   return (
     <>
-      <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="large">
-        <MoreVert />
+      <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="small" sx={{ borderRadius: 1 }}>
+        <MoreVert fontSize="small" />
       </IconButton>
       <Menu
         anchorEl={anchorEl}

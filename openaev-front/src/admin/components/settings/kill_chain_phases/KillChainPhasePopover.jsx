@@ -85,9 +85,10 @@ class KillChainPhasePopoverComponent extends Component {
             color="primary"
             onClick={this.handlePopoverOpen.bind(this)}
             aria-haspopup="true"
-            size="large"
+            size="small"
+            sx={{ borderRadius: 1 }}
           >
-            <MoreVert />
+            <MoreVert fontSize="small" />
           </IconButton>
         </Can>
         <Menu

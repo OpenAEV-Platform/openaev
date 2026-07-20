@@ -12,6 +12,7 @@ import { INHERITED_CONTEXT } from '../../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../../utils/permissions/useSimulationPermissions';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../../common/Context';
 import injectContextForExercise from '../ExerciseContext';
+import SimulationShell from '../SimulationShell';
 import SimulationInjectCreation from './SimulationInjectCreation';
 
 // Standalone route wrapper for the simulation inject-creation flow. It must be a
@@ -19,7 +20,9 @@ import SimulationInjectCreation from './SimulationInjectCreation';
 // `injects/:injectId/*` route would otherwise capture `injects/create` with
 // injectId="create" and mount the inject detail view (which loads forever). This
 // wrapper reprovides the same contexts the simulation Index gives the create
-// flow, so `SimulationInjectCreation` works identically outside the Index tree.
+// flow and renders inside the shared SimulationShell (breadcrumbs + header +
+// tabs), so the experience matches the scenario inject-creation flow: the user
+// keeps the full simulation context on screen while picking a contract.
 const SimulationInjectCreationRoute: FunctionComponent = () => {
   const dispatch = useAppDispatch();
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
@@ -55,7 +58,9 @@ const SimulationInjectCreationRoute: FunctionComponent = () => {
     <PermissionsContext.Provider value={permissionsContext}>
       <DocumentContext.Provider value={documentContext}>
         <InjectContext.Provider value={injectContext}>
-          <SimulationInjectCreation />
+          <SimulationShell exercise={exercise}>
+            <SimulationInjectCreation />
+          </SimulationShell>
         </InjectContext.Provider>
       </DocumentContext.Provider>
     </PermissionsContext.Provider>

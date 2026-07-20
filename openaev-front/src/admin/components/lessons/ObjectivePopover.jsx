@@ -77,10 +77,12 @@ class ObjectivePopoverComponent extends Component {
         <IconButton
           onClick={this.handlePopoverOpen.bind(this)}
           aria-haspopup="true"
-          size="large"
+          size="small"
+          color="primary"
+          sx={{ borderRadius: 1 }}
           disabled={this.props.isReadOnly}
         >
-          <MoreVert />
+          <MoreVert fontSize="small" />
         </IconButton>
         <Menu
           anchorEl={this.state.anchorEl}

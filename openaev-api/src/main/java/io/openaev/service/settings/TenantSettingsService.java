@@ -110,6 +110,20 @@ public class TenantSettingsService {
     upsertThemeKey(
         tenant, themeType, Theme.THEME_KEYS.LOGO_URL_COLLAPSED, input.getLogoUrlCollapsed());
     upsertThemeKey(tenant, themeType, Theme.THEME_KEYS.LOGO_LOGIN_URL, input.getLogoLoginUrl());
+    upsertThemeKey(
+        tenant, themeType, Theme.THEME_KEYS.LOGIN_ASIDE_COLOR, input.getLoginAsideColor());
+    upsertThemeKey(
+        tenant,
+        themeType,
+        Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_START,
+        input.getLoginAsideGradientStart());
+    upsertThemeKey(
+        tenant,
+        themeType,
+        Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_END,
+        input.getLoginAsideGradientEnd());
+    upsertThemeKey(
+        tenant, themeType, Theme.THEME_KEYS.LOGIN_ASIDE_IMAGE, input.getLoginAsideImage());
   }
 
   /** Clear a tenant setting value if it matches the given value. */
@@ -211,6 +225,16 @@ public class TenantSettingsService {
         getSettingValue(settings, themeType + "." + Theme.THEME_KEYS.LOGO_URL_COLLAPSED.key()));
     theme.setLogoLoginUrl(
         getSettingValue(settings, themeType + "." + Theme.THEME_KEYS.LOGO_LOGIN_URL.key()));
+    theme.setLoginAsideColor(
+        getSettingValue(settings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_COLOR.key()));
+    theme.setLoginAsideGradientStart(
+        getSettingValue(
+            settings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_START.key()));
+    theme.setLoginAsideGradientEnd(
+        getSettingValue(
+            settings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_END.key()));
+    theme.setLoginAsideImage(
+        getSettingValue(settings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_IMAGE.key()));
     return theme;
   }
 

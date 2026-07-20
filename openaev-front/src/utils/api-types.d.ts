@@ -9548,6 +9548,14 @@ export interface ThemeInput {
   accent_color?: string;
   /** Background color of the theme */
   background_color?: string;
+  /** Solid color of the login page aside */
+  login_aside_color?: string;
+  /** Gradient end color of the login page aside */
+  login_aside_gradient_end?: string;
+  /** Gradient start color of the login page aside */
+  login_aside_gradient_start?: string;
+  /** Url of the login page aside background image */
+  login_aside_image?: string;
   /** Url of the login logo */
   logo_login_url?: string;
   /** Url of the logo */

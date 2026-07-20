@@ -1,6 +1,5 @@
 import { useContext, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { deleteConnectorInstance } from '../../../../actions/connector_instances/connector-instance-actions';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
@@ -20,11 +19,8 @@ type ConnectorPopoverProps = {
   disabled?: boolean;
 };
 
-const useStyles = makeStyles()(() => ({ autoMarginLeft: { marginLeft: 'auto' } }));
-
 const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false }: ConnectorPopoverProps) => {
   // Standard hooks
-  const { classes } = useStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -76,9 +72,7 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
   return (
     <>
       <ButtonPopover
-        className={classes.autoMarginLeft}
         entries={entries}
-        variant="toggle"
         disabled={disabled}
       />
       <DialogDelete

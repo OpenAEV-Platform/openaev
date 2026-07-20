@@ -2,7 +2,7 @@ import { type FunctionComponent, useContext, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { deleteScenario, duplicateScenario, exportScenarioUri } from '../../../../actions/scenarios/scenario-actions';
-import ButtonPopover from '../../../../components/common/ButtonPopover';
+import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import DialogDuplicate from '../../../../components/common/DialogDuplicate';
 import ExportOptionsDialog from '../../../../components/common/export/ExportOptionsDialog';
@@ -21,6 +21,9 @@ interface Props {
   actions: ScenarioActionType[];
   onDelete?: (result: string) => void;
   inList?: boolean;
+  /** Extra entries prepended into the same kebab (setup actions from the hero),
+   *  so the header exposes a single overflow menu instead of a row of icons. */
+  leadingEntries?: PopoverEntry[];
 }
 
 const ScenarioPopover: FunctionComponent<Props> = ({
@@ -28,6 +31,7 @@ const ScenarioPopover: FunctionComponent<Props> = ({
   actions = [],
   onDelete,
   inList = false,
+  leadingEntries = [],
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -77,8 +81,11 @@ const ScenarioPopover: FunctionComponent<Props> = ({
     handleCloseExport();
   };
 
-  // Button Popover
-  const entries = [];
+  // Button Popover. Setup actions (leadingEntries) come first, then the
+  // lifecycle CRUD actions - the first CRUD entry draws a divider so the two
+  // groups read as distinct sections in the single overflow menu.
+  const entries: PopoverEntry[] = [...leadingEntries];
+  const crudStartIndex = entries.length;
   if (actions.includes('Update')) entries.push({
     label: 'Update',
     action: () => handleOpenEdit(),
@@ -99,10 +106,17 @@ const ScenarioPopover: FunctionComponent<Props> = ({
     action: () => handleOpenDelete(),
     userRight: canDelete,
   });
+  // Separate the setup group from the CRUD group when both are present.
+  if (crudStartIndex > 0 && entries[crudStartIndex]) {
+    entries[crudStartIndex] = {
+      ...entries[crudStartIndex],
+      dividerBefore: true,
+    };
+  }
 
   return (
     <>
-      {actions.length > 0 && <ButtonPopover entries={entries} variant={inList ? 'icon' : 'toggle'} />}
+      {(actions.length > 0 || leadingEntries.length > 0) && <ButtonPopover entries={entries} variant={inList ? 'icon' : 'toggle'} />}
       {actions.includes(('Update'))
         && (
           <ScenarioUpdate

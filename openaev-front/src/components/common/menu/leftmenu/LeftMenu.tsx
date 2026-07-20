@@ -1,4 +1,4 @@
-import { Divider, Drawer, MenuList, Toolbar } from '@mui/material';
+import { Divider, Drawer, MenuList } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Fragment, type FunctionComponent, type ReactNode } from 'react';
 
@@ -15,7 +15,10 @@ const LeftMenu: FunctionComponent<{
   entries: LeftMenuEntries[];
   bottomEntries: LeftMenuEntries[];
   headerElement?: (navOpen: boolean) => ReactNode;
-}> = ({ entries = [], bottomEntries = [], headerElement }) => {
+  /** Logo header rendered at the very top of the drawer (OpenCTI-style: the
+      logo + product switcher live in the drawer, not in the top bar). */
+  logoHeader?: (navOpen: boolean) => ReactNode;
+}> = ({ entries = [], bottomEntries = [], headerElement, logoHeader }) => {
   // Standard hooks
   const theme = useTheme();
   const { settings } = useAuth();
@@ -27,6 +30,14 @@ const LeftMenu: FunctionComponent<{
   const getWidth = () => {
     return state.navOpen ? 180 : 55;
   };
+
+  // OpenCTI-aligned drawer background: a 100deg gradient from the app background
+  // to the paper tone (falls back gracefully when no gradient tokens are set).
+  const gradientStart = theme.palette.background.gradient?.start ?? theme.palette.background.default;
+  const gradientEnd = theme.palette.background.gradient?.end ?? theme.palette.background.paper;
+  const drawerBackground = `linear-gradient(100deg, ${gradientStart} 0%, ${gradientEnd} 100%)`;
+  // Subtle section separators matching OpenCTI's LeftBar (designSystem bg2).
+  const separatorSx = { border: `1px solid ${theme.palette.designSystem.background.bg2}` };
 
   // The header element (e.g. the tenant switcher) can render nothing (single
   // tenant): only render the header MenuList + its divider when it does, so no
@@ -46,23 +57,25 @@ const LeftMenu: FunctionComponent<{
           width: getWidth(),
           minHeight: '100vh',
           overflowX: 'hidden',
+          background: drawerBackground,
+          borderRight: '1px solid transparent',
         },
       }}
     >
-      <Toolbar />
       <div style={{ marginTop: bannerHeightNumber }}>
+        {logoHeader?.(state.navOpen)}
         {headerNode && (
           <>
             <MenuList component="nav">
               {headerNode}
             </MenuList>
-            <Divider />
+            <Divider sx={separatorSx} />
           </>
         )}
         {entries.filter(entry => entry.userRight).map((entry, idxList) => {
           return (
             <Fragment key={idxList}>
-              {entry.items.some(item => item.userRight) && idxList !== 0 && <Divider />}
+              {entry.items.some(item => item.userRight) && idxList !== 0 && <Divider sx={separatorSx} />}
               {entry.items.filter(entry => entry.userRight).length > 0
                 && (
                   <MenuList component="nav">
@@ -97,16 +110,16 @@ const LeftMenu: FunctionComponent<{
             })
           );
         })}
+        <MenuItemToggle
+          navOpen={state.navOpen}
+          onClick={helpers.handleToggleDrawer}
+        />
         {!isWhitemarkEnable && (
           <MenuItemLogo
             navOpen={state.navOpen}
             onClick={() => window.open('https://filigran.io/', '_blank')}
           />
         )}
-        <MenuItemToggle
-          navOpen={state.navOpen}
-          onClick={helpers.handleToggleDrawer}
-        />
       </MenuList>
     </Drawer>
   );

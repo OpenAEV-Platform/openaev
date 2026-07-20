@@ -11,11 +11,18 @@ const useStyles = makeStyles()(theme => ({
     'borderRadius': 5,
     'padding': '0 10px',
     'backgroundColor': theme.palette.background.paper,
+    // OpenCTI-aligned icon-to-text gap: a tight 4px between the leading search
+    // icon and the placeholder, instead of MUI's default 8px adornment margin.
+    '& .MuiInputAdornment-positionStart': { marginRight: theme.spacing(0.5) },
     '&.inDrawer': { height: 30 },
+    // OpenCTI-aligned top bar field: fills its wrapper (the TopBar constrains
+    // min/max width), sits on the secondary background with no visible border.
     '&.topBar': {
-      marginRight: 5,
-      minWidth: 550,
-      width: '50%',
+      'marginRight': 5,
+      'width': '100%',
+      'borderRadius': 4,
+      'backgroundColor': theme.palette.background.secondary ?? theme.palette.background.paper,
+      '& fieldset': { borderColor: 'transparent' },
     },
     '&.thin': { height: 30 },
   },
@@ -23,6 +30,7 @@ const useStyles = makeStyles()(theme => ({
     'transition': theme.transitions.create('width'),
     'width': 200,
     '&:focus': { width: 350 },
+    '&.topBar': { width: '100%' },
     '&.small, &.thin': {
       'width': 150,
       '&:focus': { width: 250 },

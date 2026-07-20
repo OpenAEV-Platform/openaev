@@ -14,12 +14,17 @@ import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewT
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../../InjectResultOverviewOutputContext';
 import InjectExpectationProvider from '../context/InjectExpectationProvider';
 import InjectExpectationCard from './InjectExpectationCard';
+import TargetResultsHeader from './TargetResultsHeader';
 import TargetResultsTimeline from './TargetResultsTimeline';
 
 interface Props {
   inject: InjectResultOverviewOutput;
   target: InjectTarget;
   isAgentless: boolean;
+  position?: number;
+  total?: number;
+  onSelectPrevious?: () => void;
+  onSelectNext?: () => void;
 }
 
 interface SectionConfig {
@@ -28,7 +33,7 @@ interface SectionConfig {
   content: ReactNode;
 }
 
-const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
+const TargetResultsDetail = ({ inject, target, isAgentless, position, total, onSelectPrevious, onSelectNext }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
 
@@ -165,6 +170,14 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
           paddingTop: theme.spacing(1),
         }}
       >
+        <TargetResultsHeader
+          target={target}
+          position={position}
+          total={total}
+          onSelectPrevious={onSelectPrevious}
+          onSelectNext={onSelectNext}
+        />
+
         <TargetResultsTimeline
           injectStatusName={injectResultOverviewOutput?.inject_status?.status_name}
           targetResultsByType={sortedGroupedTargetResults}

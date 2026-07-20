@@ -9,8 +9,9 @@ import {
   RestartAltOutlined,
   TrackChangesOutlined,
   TuneOutlined,
+  UpdateOutlined,
 } from '@mui/icons-material';
-import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -19,7 +20,8 @@ import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/w
 import { createCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
 import { searchExerciseHealthchecks, updateExercise, updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
-import { HeroStat, HeroStats } from '../../../../components/common/detail/EntityDetailCommon';
+import { type PopoverEntry } from '../../../../components/common/ButtonPopover';
+import { DetailHero, HeroStat } from '../../../../components/common/detail/EntityDetailCommon';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
@@ -72,7 +74,6 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
             >
               <span style={{ display: 'inline-flex' }}>
                 <Button
-                  sx={{ lineHeight: 'initial' }}
                   startIcon={<PlayArrowOutlined />}
                   variant="contained"
                   size="small"
@@ -92,7 +93,6 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
         if (permissions.canLaunch) {
           return (
             <Button
-              sx={{ lineHeight: 'initial' }}
               startIcon={<PauseOutlined />}
               variant="outlined"
               color="warning"
@@ -110,7 +110,6 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
         if (permissions.canLaunch) {
           return (
             <Button
-              sx={{ lineHeight: 'initial' }}
               variant="outlined"
               startIcon={<PlayArrowOutlined />}
               color="success"
@@ -136,7 +135,6 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
         if (permissions.canLaunch) {
           return (
             <Button
-              sx={{ lineHeight: 'initial' }}
               variant="outlined"
               startIcon={<CancelOutlined />}
               color="error"
@@ -155,7 +153,6 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
         if (permissions.canLaunch) {
           return (
             <Button
-              sx={{ lineHeight: 'initial' }}
               variant="outlined"
               startIcon={<RestartAltOutlined />}
               color="warning"
@@ -250,6 +247,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
   const [openCreateDashboard, setOpenCreateDashboard] = useState(false);
   const [openConfiguration, setOpenConfiguration] = useState(false);
+  const [openDateDialog, setOpenDateDialog] = useState(false);
 
   const isScopeMissing = isSimulationChaining
     && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
@@ -266,7 +264,6 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   const injectsCount = exercise.exercise_injects?.length ?? 0;
   const teamsCount = exercise.exercise_teams?.length ?? 0;
   const playersCount = exercise.exercise_all_users_number ?? exercise.exercise_users_number ?? 0;
-  const accent = theme.palette.primary.main;
   const hasDashboard = !!exercise.exercise_custom_dashboard;
 
   // "Analyze" quick action: an already-attached dashboard opens straight away;
@@ -299,194 +296,110 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
     await attachDashboard(newDashboardId);
   };
 
+  // Setup actions consolidated into the single hero overflow menu, so the action
+  // bar stays to the status CTAs + one kebab instead of a row of loose icons.
+  const setupEntries: PopoverEntry[] = permissions.canManage
+    ? [
+        {
+          label: hasDashboard ? 'Open dashboard' : 'Create dashboard',
+          icon: <InsertChartOutlined fontSize="small" />,
+          action: onDashboardAction,
+          userRight: true,
+        },
+        ...(!isSimulationChaining
+          ? [{
+              label: 'Configuration',
+              icon: <TuneOutlined fontSize="small" />,
+              action: () => setOpenConfiguration(true),
+              userRight: true,
+            }]
+          : []),
+        {
+          label: 'Modify the scheduling',
+          icon: <UpdateOutlined fontSize="small" />,
+          action: () => setOpenDateDialog(true),
+          disabled: exercise.exercise_status !== 'SCHEDULED',
+          userRight: true,
+        },
+      ]
+    : [];
+
   return (
     <>
-      <Paper
-        variant="outlined"
-        sx={{
-          padding: 2,
-          borderRadius: 1,
-          marginBottom: 2,
-          background: `linear-gradient(135deg, ${alpha(accent, 0.08)}, transparent 60%)`,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-        }}
-      >
-        {/* Row 1: identity + actions */}
-        <Box sx={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          gap: 2,
-          flexWrap: 'wrap',
-        }}
-        >
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2,
-            minWidth: 0,
-          }}
-          >
-            <Box sx={{
-              width: 52,
-              height: 52,
-              borderRadius: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              color: accent,
-              backgroundColor: alpha(accent, 0.12),
-              border: `1px solid ${alpha(accent, 0.3)}`,
-            }}
-            >
-              <PlayCircleOutlineOutlined />
-            </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Tooltip title={exercise.exercise_name}>
-                <Typography
-                  variant="h1"
-                  sx={{
-                    margin: 0,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {truncate(exercise.exercise_name, 80)}
-                </Typography>
-              </Tooltip>
-              <Box sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                marginTop: 0.5,
-                flexWrap: 'wrap',
-              }}
-              >
-                <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
-                <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
-                {exercise.exercise_category && (
-                  <ItemCategory category={exercise.exercise_category} label={t(exercise.exercise_category)} />
-                )}
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  label={exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
-                  sx={{
-                    borderRadius: 1,
-                    height: 22,
-                    fontSize: 11,
-                    color: theme.palette.text.secondary,
-                    borderColor: theme.palette.divider,
-                  }}
-                />
-              </Box>
-            </Box>
-          </Box>
-
-          <Box sx={{
-            'display': 'flex',
-            'alignItems': 'center',
-            'gap': 1,
-            'flexWrap': 'wrap',
-            // Uniform 32px height for every hero action (text buttons - even
-            // Tooltip/span-wrapped ones - and the kebab) so the top-right row
-            // lines up perfectly. The icon toolbar cluster sizes its own
-            // IconButtons below (its border is part of the 32px). Popover/drawer
-            // actions render in portals, so they are unaffected.
-            '& .MuiButton-root': { height: 32 },
-            '& .MuiToggleButton-root': {
-              width: 32,
-              height: 32,
-            },
-          }}
-          >
-            {permissions.canManage && (
-              <HealthcheckIndicator healthchecks={healthchecks} exerciseId={exerciseId} />
-            )}
-            {permissions.canManage && (
-              <Button
-                variant="outlined"
-                color="inherit"
+      <Box sx={{ marginBottom: 2 }}>
+        <DetailHero
+          icon={PlayCircleOutlineOutlined}
+          title={truncate(exercise.exercise_name, 80) ?? ''}
+          chips={(
+            <>
+              <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
+              <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
+              {exercise.exercise_category && (
+                <ItemCategory category={exercise.exercise_category} label={t(exercise.exercise_category)} />
+              )}
+              <Chip
                 size="small"
-                startIcon={<InsertChartOutlined />}
+                variant="outlined"
+                label={exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
                 sx={{
-                  lineHeight: 'initial',
+                  borderRadius: 1,
+                  height: 22,
+                  fontSize: 11,
+                  color: theme.palette.text.secondary,
                   borderColor: theme.palette.divider,
                 }}
-                onClick={onDashboardAction}
-              >
-                {hasDashboard ? t('Open dashboard') : t('Create dashboard')}
-              </Button>
-            )}
-            <Buttons
-              exerciseId={exercise.exercise_id}
-              exerciseStatus={exercise.exercise_status}
-              exerciseName={exercise.exercise_name}
-              onLoading={onLoading}
-              isLoading={isLoading}
-              isScopeMissing={isScopeMissing}
-            />
-            {permissions.canManage && (
-              <Box sx={{
-                'display': 'flex',
-                'alignItems': 'center',
-                'marginLeft': 0.5,
-                'height': 32,
-                'borderRadius': 1,
-                'border': `1px solid ${theme.palette.divider}`,
-                'overflow': 'hidden',
-                '& .MuiIconButton-root': {
-                  borderRadius: 0,
-                  height: 30,
-                },
-                '& .MuiIconButton-root:not(:first-of-type)': { borderLeft: `1px solid ${theme.palette.divider}` },
-              }}
-              >
-                {!isSimulationChaining && (
-                  <Tooltip title={t('Configuration')}>
-                    <IconButton size="small" onClick={() => setOpenConfiguration(true)}>
-                      <TuneOutlined fontSize="small" color="primary" />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                <ExerciseDatePopover exercise={exercise} />
-              </Box>
-            )}
-            <ExercisePopover
-              exercise={exercise}
-              actions={actions}
-              onDelete={() => navigate('/admin/simulations')}
-            />
-          </Box>
-        </Box>
-
-        {/* Row 2: headline stats (custom-dashboard NumberWidget look) */}
-        <HeroStats>
-          <HeroStat
-            icon={TrackChangesOutlined}
-            label={t('Injects')}
-            value={injectsCount}
-            color={theme.palette.warning.main}
-            to={`/admin/simulations/${exerciseId}/injects`}
-          />
-          <HeroStat
-            icon={GroupsOutlined}
-            label={t('Teams')}
-            value={teamsCount}
-            color={theme.palette.secondary.main}
-          />
-          <HeroStat
-            icon={PersonOutlined}
-            label={t('Players')}
-            value={playersCount}
-            color={theme.palette.success.main}
-          />
-        </HeroStats>
-      </Paper>
+              />
+            </>
+          )}
+          action={(
+            <>
+              {/* Contextual configuration alert - self-hides when healthy. */}
+              {permissions.canManage && (
+                <HealthcheckIndicator healthchecks={healthchecks} exerciseId={exerciseId} />
+              )}
+              {/* Lifecycle CTAs (start / pause / resume / stop / reset). */}
+              <Buttons
+                exerciseId={exercise.exercise_id}
+                exerciseStatus={exercise.exercise_status}
+                exerciseName={exercise.exercise_name}
+                onLoading={onLoading}
+                isLoading={isLoading}
+                isScopeMissing={isScopeMissing}
+              />
+              {/* Everything else - analyze, setup, scheduling, CRUD - in one menu. */}
+              <ExercisePopover
+                exercise={exercise}
+                actions={actions}
+                onDelete={() => navigate('/admin/simulations')}
+                leadingEntries={setupEntries}
+              />
+            </>
+          )}
+          stats={(
+            <>
+              <HeroStat
+                icon={TrackChangesOutlined}
+                label={t('Injects')}
+                value={injectsCount}
+                color={theme.palette.warning.main}
+                to={`/admin/simulations/${exerciseId}/injects`}
+              />
+              <HeroStat
+                icon={GroupsOutlined}
+                label={t('Teams')}
+                value={teamsCount}
+                color={theme.palette.secondary.main}
+              />
+              <HeroStat
+                icon={PersonOutlined}
+                label={t('Players')}
+                value={playersCount}
+                color={theme.palette.success.main}
+              />
+            </>
+          )}
+        />
+      </Box>
 
       <Drawer
         open={openConfiguration}
@@ -495,6 +408,12 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
       >
         <SimulationConfiguration />
       </Drawer>
+      <ExerciseDatePopover
+        exercise={exercise}
+        open={openDateDialog}
+        onOpenChange={setOpenDateDialog}
+        showTrigger={false}
+      />
       <DashboardCreationDrawer
         open={openCreateDashboard}
         onClose={() => setOpenCreateDashboard(false)}
