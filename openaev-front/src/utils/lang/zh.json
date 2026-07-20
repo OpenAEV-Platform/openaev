@@ -1646,6 +1646,7 @@
   "name": "名称",
   "Name": "名称",
   "Name (A-Z)": "名称 (A-Z)",
+  "Name (event_name)": "姓名",
   "Name (Z-A)": "名称 (Z-A)",
   "Name of the injector config / environment variable holding the credential. The secret value is never stored by the platform.": "保存凭据的注入器配置或环境变量的名称。平台绝不会存储该机密值。",
   "Native type": "Native type",

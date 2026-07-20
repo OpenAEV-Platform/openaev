@@ -1646,6 +1646,7 @@
   "name": "Nome",
   "Name": "Nome",
   "Name (A-Z)": "Nome (A-Z)",
+  "Name (event_name)": "Nome",
   "Name (Z-A)": "Nome (Z-A)",
   "Name of the injector config / environment variable holding the credential. The secret value is never stored by the platform.": "Nome della variabile di configurazione dell'injector o d'ambiente che contiene la credenziale. Il valore segreto non viene mai memorizzato dalla piattaforma.",
   "Native type": "Native type",

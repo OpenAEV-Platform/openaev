@@ -1646,6 +1646,7 @@
   "name": "이름",
   "Name": "이름",
   "Name (A-Z)": "이름 (A-Z)",
+  "Name (event_name)": "이름",
   "Name (Z-A)": "이름 (Z-A)",
   "Name of the injector config / environment variable holding the credential. The secret value is never stored by the platform.": "자격 증명을 보유한 인젝터 구성 또는 환경 변수의 이름입니다. 비밀 값은 플랫폼에 저장되지 않습니다.",
   "Native type": "Native type",

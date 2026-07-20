@@ -1646,6 +1646,7 @@
   "name": "氏名",
   "Name": "氏名",
   "Name (A-Z)": "名前 (A-Z)",
+  "Name (event_name)": "名前",
   "Name (Z-A)": "名前 (Z-A)",
   "Name of the injector config / environment variable holding the credential. The secret value is never stored by the platform.": "認証情報を保持するインジェクター設定／環境変数の名前。秘密の値がプラットフォームに保存されることはありません。",
   "Native type": "Native type",

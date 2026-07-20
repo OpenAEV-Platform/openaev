@@ -1646,6 +1646,7 @@
   "name": "Имя",
   "Name": "Имя",
   "Name (A-Z)": "Имя (A-Z)",
+  "Name (event_name)": "Имя",
   "Name (Z-A)": "Имя (Z-A)",
   "Name of the injector config / environment variable holding the credential. The secret value is never stored by the platform.": "Имя переменной конфигурации инжектора или окружения, содержащей учётные данные. Секретное значение никогда не сохраняется платформой.",
   "Native type": "Native type",
