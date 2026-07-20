@@ -171,9 +171,11 @@ class TenantActiveTableAccessArchTest {
           .that()
           .doNotBelongToAnyOf(
               // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
-              CollectorApi.class, InjectExpectationTraceApi.class,
+              CollectorApi.class,
+              InjectExpectationTraceApi.class,
               // Services behind those handlers; every caller is a wired handler:
-              CollectorService.class, InjectExpectationTraceService.class,
+              CollectorService.class,
+              InjectExpectationTraceService.class,
               // Explicit tenantId param threaded from the caller (native DELETE ... AND
               // tenant_id = ?), not inspector-scoped: safe regardless of activation:
               ConnectorInstanceService.class,

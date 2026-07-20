@@ -435,6 +435,30 @@ any test that relied on the listener auto-populating tenant must be fixed to set
 masks missing write attribution and blocks the eventual removal of
 `TenantContext` from the codebase.
 
+**Write-path completeness check — before removing the listener, audit every
+persist call on the entity:**
+
+```bash
+# 4.1 Find every save/persist of the entity
+grep -rn "{EntityRepository}\.\(save\|saveAll\|saveAndFlush\)\|persist({entity}\|merge({entity}" \
+  openaev-api/src/main/java openaev-model/src/main/java --include="*.java"
+
+# 4.2 For each hit, confirm one of:
+#   (a) it calls writeScopeResolver.tenantForWrite(ctx, ...) and stamps the entity
+#       with setTenant(new Tenant(tenantId)) BEFORE the save — a CREATE path
+#   (b) it is an UPDATE-only path (the row already exists with tenant_id set;
+#       the inspector scopes the statement, no re-attribution needed)
+#   (c) it is a background writer covered by Phase 5b (stamped inside a
+#       forEachTenant or execute(forTenant(id), ...) scope)
+```
+
+Any save that creates a new entity without explicit tenant attribution is a
+**silent data corruption** once the listener is removed — `tenant_id` will be
+NULL. Fix it (add `tenantForWrite` + `setTenant`) before proceeding to go-live.
+This check catches paths that the Phase 1 inventory (which greps for readers)
+and the Phase 2 isolation test (which covers the main API only) can miss:
+services shared by multiple controllers, internal helpers, bulk importers.
+
 Re-run: create/import/upsert tests green, including "no selector → 400".
 
 ### Phase 5 — Other paths from the inventory
