@@ -74,8 +74,10 @@ immediately sees the highest-leverage endpoints to fix and can trust what the co
 - FR15: A view switcher (`Graph · Table`) MUST be offered at the top of the tab. Graph is the
   default. The Table view MUST list chokepoints and findings as an alternative to the graph and
   MUST be exportable.
-- FR16: The graph SHOULD offer global filtering/search (by injector, severity, platform/OS) beyond
-  the fixed summary cards.
+- FR16: A search box next to the view switcher MUST let the analyst find an endpoint (by hostname/
+  ip), injector, or finding category and adapt the graph accordingly (focus the endpoint's path,
+  highlight the injector, or open the finding-type drawer). Further filtering (by severity, platform/
+  OS) MAY follow.
 
 ### Polish (P2)
 - FR17: Dates displayed to the user MUST be formatted via the platform formatter (no raw ISO).

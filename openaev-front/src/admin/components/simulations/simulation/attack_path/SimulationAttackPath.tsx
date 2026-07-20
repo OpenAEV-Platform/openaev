@@ -1,4 +1,4 @@
-import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LocalFireDepartment, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
+import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LocalFireDepartment, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
 import { Alert, Autocomplete, Box, ButtonBase, Chip, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
@@ -117,6 +117,17 @@ interface FindingCard {
   icon: ReactNode;
   count: number;
   hint?: string;
+}
+
+// One entry of the graph search box: an endpoint, an injector, or a finding category. Selecting one
+// adapts the graph (focus an endpoint path, highlight an injector, or open a finding-type drawer).
+interface SearchOption {
+  kind: 'endpoint' | 'injector' | 'finding';
+  label: string;
+  sub?: string;
+  nodeId?: string;
+  ref?: string;
+  card?: FindingCard;
 }
 
 /**
@@ -1238,6 +1249,9 @@ const SimulationAttackPath = () => {
   // Graph (node-link) vs Table (sortable/exportable list of exposed endpoints) view of the same data.
   const [view, setView] = useState<'graph' | 'table'>('graph');
 
+  // Free-text search input (endpoint / injector / finding type), used by the search autocomplete.
+  const [searchInput, setSearchInput] = useState('');
+
   // Focus a chokepoint endpoint: redraw the graph as the focused endpoint path (injectors -> endpoint
   // -> its finding clusters) and open its side panel (findings + executions). Uses the endpoint-focus
   // mode of buildFindingPathFlow (empty finding type/value).
@@ -1276,6 +1290,71 @@ const SimulationAttackPath = () => {
 
   // Chokepoint accent (violet), reserved so it never reads as a prevention/detection verdict.
   const chokepointColor = attackPathChokepointColor(theme);
+
+  // Search entries: every endpoint (by hostname/ip), injector, and finding category present in the
+  // graph. Built from the already-loaded DTO — no extra fetch.
+  const searchOptions = useMemo<SearchOption[]>(() => {
+    const opts: SearchOption[] = [];
+    (dto?.attackPathNodes ?? []).forEach((n) => {
+      if (!n.id) {
+        return;
+      }
+      if (n.type === 'ASSET') {
+        opts.push({
+          kind: 'endpoint',
+          label: n.hostname || n.label || n.ref || n.id,
+          sub: n.ip,
+          nodeId: n.id,
+          ref: n.ref ?? n.id,
+        });
+      } else if (n.type === 'INJECTOR') {
+        opts.push({
+          kind: 'injector',
+          label: n.label || n.id,
+          nodeId: n.id,
+        });
+      }
+    });
+    cards
+      .filter(c => c.key !== 'endpoints' && c.count > 0)
+      .forEach(c => opts.push({
+        kind: 'finding',
+        label: c.label,
+        card: c,
+      }));
+    return opts;
+  }, [dto, cards]);
+
+  const searchGroupLabel = (kind: SearchOption['kind']): string => {
+    if (kind === 'endpoint') {
+      return t('Endpoints');
+    }
+    if (kind === 'injector') {
+      return t('Injectors');
+    }
+    return t('Finding types');
+  };
+
+  // Adapt the graph to the selected search entry: focus an endpoint's path, highlight an injector, or
+  // open a finding category's drawer. All route through the graph view.
+  const onSearchSelect = (opt: SearchOption | null) => {
+    if (!opt) {
+      return;
+    }
+    if (opt.kind === 'endpoint' && opt.nodeId && opt.ref) {
+      focusChokepoint({
+        nodeId: opt.nodeId,
+        ref: opt.ref,
+        label: opt.label,
+      });
+    } else if (opt.kind === 'injector' && opt.nodeId) {
+      setView('graph');
+      onInjectorSelect(opt.nodeId, opt.label);
+    } else if (opt.kind === 'finding' && opt.card) {
+      setView('graph');
+      onCardClick(opt.card);
+    }
+  };
 
   return (
     <div style={{
@@ -1372,6 +1451,51 @@ const SimulationAttackPath = () => {
               <Tooltip title={t('Table')}><TableRowsOutlined fontSize="small" /></Tooltip>
             </ToggleButton>
           </ToggleButtonGroup>
+          <Autocomplete<SearchOption>
+            size="small"
+            options={searchOptions}
+            value={null}
+            inputValue={searchInput}
+            onInputChange={(_, v) => setSearchInput(v)}
+            onChange={(_, v) => {
+              onSearchSelect(v);
+              setSearchInput('');
+            }}
+            blurOnSelect
+            clearOnBlur
+            groupBy={o => searchGroupLabel(o.kind)}
+            getOptionLabel={o => o.label}
+            isOptionEqualToValue={(o, v) => o.nodeId === v.nodeId && o.label === v.label}
+            filterOptions={(opts, state) => {
+              const q = state.inputValue.trim().toLowerCase();
+              if (!q) {
+                return opts;
+              }
+              return opts.filter(o => o.label.toLowerCase().includes(q) || (o.sub ?? '').toLowerCase().includes(q));
+            }}
+            renderOption={(props, o) => {
+              const { key, ...rest } = props as { key: string } & Record<string, unknown>;
+              return (
+                <li key={key} {...rest}>
+                  <div style={{ minWidth: 0 }}>
+                    <Typography variant="body2" noWrap>{o.label}</Typography>
+                    {o.sub && <Typography variant="caption" color="text.secondary" noWrap>{o.sub}</Typography>}
+                  </div>
+                </li>
+              );
+            }}
+            renderInput={params => (
+              <TextField
+                {...params}
+                placeholder={t('Search endpoint, injector, finding…')}
+                InputProps={{
+                  ...params.InputProps,
+                  startAdornment: <SearchOutlined fontSize="small" sx={{ mr: 0.5 }} />,
+                }}
+              />
+            )}
+            sx={{ width: 260 }}
+          />
         </div>
       </div>
 
