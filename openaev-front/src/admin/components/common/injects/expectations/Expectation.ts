@@ -22,7 +22,7 @@ export interface ExpectationInput {
   expectation_is_multi_selectable?: boolean;
   // Security platform types expected to fulfil this expectation (empty = any platform).
   expectation_expected_security_platform_types?: string[];
-  expectation_is_predefined?: number;
+  expectation_is_predefined: boolean;
 }
 
 export const SECURITY_PLATFORM_TYPES = [
