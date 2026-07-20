@@ -46,21 +46,21 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ platform, sel
 
   const tabEntries: TabsEntry[] = platform === MACOS
     ? [
-      {
-        key: 'Advanced Installation',
-        label: t('Advanced Installation'),
-      },
-    ]
+        {
+          key: 'Advanced Installation',
+          label: t('Advanced Installation'),
+        },
+      ]
     : [
-      {
-        key: 'Standard Installation',
-        label: t('Standard Installation'),
-      },
-      {
-        key: 'Advanced Installation',
-        label: t('Advanced Installation'),
-      },
-    ];
+        {
+          key: 'Standard Installation',
+          label: t('Standard Installation'),
+        },
+        {
+          key: 'Advanced Installation',
+          label: t('Advanced Installation'),
+        },
+      ];
   const { currentTab, setCurrentTab, handleChangeTab } = useTabs(tabEntries[0].key);
 
   const { settings, currentUserTenant } = useAuth();
