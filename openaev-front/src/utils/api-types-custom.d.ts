@@ -98,7 +98,6 @@ export interface ContractElement {
   defaultValue: any;
   richText?: boolean;
   tupleFilePrefix?: string;
-  predefinedExpectations?: ExpectationInput[];
   availableExpectations?: ExpectationInput[];
   dependencyField?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

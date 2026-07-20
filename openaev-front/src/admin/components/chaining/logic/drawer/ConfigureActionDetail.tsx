@@ -337,7 +337,6 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
                   ...prev,
                   [EXPECTATIONS_CONTENT_KEY]: updatedExpectations,
                 }))}
-                predefinedExpectations={expectationField.predefinedExpectations ?? []}
                 availableExpectations={expectationField.availableExpectations ?? []}
                 inline
               />

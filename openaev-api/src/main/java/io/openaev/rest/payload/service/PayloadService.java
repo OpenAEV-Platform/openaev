@@ -44,7 +44,6 @@ import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
-import io.openaev.service.ExpectationService;
 import io.openaev.service.UserService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.mapper.PayloadMapper;
@@ -82,7 +81,6 @@ public class PayloadService {
   private final ResultsMetricCollector resultsMetricCollector;
   private final DomainService domainService;
   private final TagService tagService;
-  private final ExpectationService expectationService;
 
   private final PayloadMapper payloadMapper;
 
@@ -198,7 +196,7 @@ public class PayloadService {
     ContractAsset assetField = assetField(Multiple);
     ContractAssetGroup assetGroupField = assetGroupField(Multiple);
     ContractExpectations expectationsField =
-        expectations(payload.getExpectations(), payload.getExpectedSecurityPlatforms());
+        createContractExpectationsBasedOnPayload(payload.getExpectations(), payload.getExpectedSecurityPlatforms());
     ContractDef builder = contractBuilder();
     builder.mandatoryGroup(assetField, assetGroupField);
 
@@ -235,65 +233,26 @@ public class PayloadService {
         domains);
   }
 
-  private ContractExpectations expectations(
-      BaseInjectExpectation.EXPECTATION_TYPE[] expectationTypes) {
-    return expectations(expectationTypes, null);
-  }
-
-  private ContractExpectations expectations(
+  private ContractExpectations createContractExpectationsBasedOnPayload(
       BaseInjectExpectation.EXPECTATION_TYPE[] expectationTypes,
       Map<BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
-          expectedSecurityPlatforms) {
-    List<Expectation> predefined = new ArrayList<>();
-    if (expectationTypes != null) {
-      for (BaseInjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
-        switch (type) {
-          case ARTICLE ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildArticleExpectation()));
-          case CHALLENGE ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildChallengeExpectation()));
-          case MANUAL ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildManualExpectation()));
-          case PREVENTION ->
-              predefined.add(
-                  withExpectedSecurityPlatforms(
-                      withExpectedMultiSelectableFlag(
-                          this.expectationBuilderService.buildPreventionExpectation()),
-                      type,
-                      expectedSecurityPlatforms));
-          case DETECTION ->
-              predefined.add(
-                  withExpectedSecurityPlatforms(
-                      withExpectedMultiSelectableFlag(
-                          this.expectationBuilderService.buildDetectionExpectation()),
-                      type,
-                      expectedSecurityPlatforms));
-          case VULNERABILITY ->
-              predefined.add(
-                  withExpectedSecurityPlatforms(
-                      withExpectedMultiSelectableFlag(
-                          this.expectationBuilderService.buildVulnerabilityExpectation()),
-                      type,
-                      expectedSecurityPlatforms));
-          default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
-        }
+              expectedSecurityPlatforms) {
+    Expectation preventionExpectation = this.expectationBuilderService.buildPreventionExpectation();
+    Expectation detectionExpectation = this.expectationBuilderService.buildDetectionExpectation();
+    Expectation vulnerableExpectation =
+        this.expectationBuilderService.buildVulnerabilityExpectation();
+
+    for (BaseInjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
+      switch (type) {
+        case DETECTION -> detectionExpectation.setPredefined(true);
+        case PREVENTION -> preventionExpectation.setPredefined(true);
+        case VULNERABILITY -> vulnerableExpectation.setPredefined(true);
+        default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
       }
     }
 
-    // Payload contracts are technical injects: available expectations are always the 3 standard
-    // technical types.
-    List<Expectation> available =
-        expectationService.buildAvailableExpectationsForTechnicalInject().stream()
-            .map(this::withExpectedMultiSelectableFlag)
-            .toList();
-
-    return expectationsField(predefined, available);
+    return expectationsField(
+        List.of(preventionExpectation, detectionExpectation, vulnerableExpectation));
   }
 
   public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(

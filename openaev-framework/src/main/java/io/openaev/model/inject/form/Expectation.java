@@ -59,6 +59,9 @@ public class Expectation {
   @JsonProperty("expectation_is_multi_selectable")
   private boolean isMultiSelectable;
 
+  @JsonProperty("expectation_is_predefined")
+  private boolean isPredefined;
+
   /**
    * Security platform types expected to fulfil this expectation.
    *

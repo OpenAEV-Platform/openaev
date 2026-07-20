@@ -42,14 +42,12 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 interface Props {
-  predefinedExpectations: ExpectationInput[];
   availableExpectations: ExpectationInput[];
   onSubmit: SubmitHandler<ExpectationInputForm>;
   handleClose: () => void;
 }
 
 const ExpectationFormCreate: FunctionComponent<Props> = ({
-  predefinedExpectations = [],
   availableExpectations = [],
   onSubmit,
   handleClose,
@@ -59,7 +57,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
 
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
   const availableTypes = Array.from(new Set(availableExpectations.map(e => e.expectation_type)));
-  const initialType = availableTypes[0] ?? predefinedExpectations[0]?.expectation_type ?? 'MANUAL';
+  const initialType = availableTypes[0] ?? 'MANUAL';
   const [expectationType, setExpectationType] = useState<string>(initialType);
 
   const expectationExpirationTime = useExpectationExpirationTime(initialType as InjectExpectationOutput['inject_expectation_type']);
@@ -73,7 +71,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
   };
 
   const computeValuesFromType = (type: string): ExpectationInputForm => {
-    const expectationDefinition = predefinedExpectations.find(pe => pe.expectation_type === type)
+    const expectationDefinition = availableExpectations.find(pe => pe.expectation_type === type)
       ?? availableExpectations.find(pe => pe.expectation_type === type);
     if (expectationDefinition) {
       const expirationTime = splitDuration(expectationDefinition.expectation_expiration_time || 0);
@@ -130,7 +128,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
     if (watchType) {
       reset(computeValuesFromType(watchType));
     }
-  }, [watchType, reset, predefinedExpectations, availableExpectations]);
+  }, [watchType, reset, availableExpectations]);
 
   useEffect(() => {
     if (!watchType && initialType) {

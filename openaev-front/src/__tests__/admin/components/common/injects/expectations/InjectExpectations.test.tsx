@@ -64,7 +64,6 @@ const renderInjectExpectations = (
   props: {
     expectationDatas?: ExpectationInput[];
     availableExpectations?: ExpectationInput[];
-    predefinedExpectations?: ExpectationInput[];
   },
   permissionsOverride: PermissionsContextType = permissionsCanManage,
   ability = fullAbility,
@@ -88,7 +87,6 @@ const renderInjectExpectations = (
       expectationDatas={props.expectationDatas ?? []}
       handleExpectations={() => {}}
       availableExpectations={props.availableExpectations ?? []}
-      predefinedExpectations={props.predefinedExpectations ?? []}
     />,
     { wrapper },
   );

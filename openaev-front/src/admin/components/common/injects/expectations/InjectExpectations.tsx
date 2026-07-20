@@ -34,7 +34,6 @@ interface InjectExpectationsProps {
   handleExpectations: (expectations: ExpectationInput[]) => void;
   readOnly?: boolean;
   injectId?: string;
-  predefinedExpectations?: ExpectationInput[];
   availableExpectations?: ExpectationInput[];
   inline?: boolean;
 }
@@ -44,7 +43,6 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   handleExpectations,
   readOnly = false,
   injectId,
-  predefinedExpectations = [],
   availableExpectations = [],
   inline = false,
 }) => {
@@ -60,19 +58,16 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   const [sortBy] = useState<keyof ExpectationInput>('expectation_name');
   const [sortAsc] = useState(true);
 
-  const expectationsAvailableInContract = availableExpectations.length > 0
-    ? availableExpectations
-    : predefinedExpectations;
 
   // Filter contract available expectations already included into current inject expectations.
   // expectation_is_multi_selectable=true means the type can be selected multiple times.
   const addableAvailableExpectations = useMemo(() => {
     const selectedTypes = new Set(sortedExpectations.map(e => e.expectation_type));
-    return expectationsAvailableInContract.filter((expectation) => {
+    return availableExpectations.filter((expectation) => {
       const isMultiSelectable = expectation.expectation_is_multi_selectable ?? false;
       return isMultiSelectable || !selectedTypes.has(expectation.expectation_type);
     });
-  }, [sortedExpectations, expectationsAvailableInContract]);
+  }, [sortedExpectations, availableExpectations]);
 
   const sortExpectations = (expectations: ExpectationInput[]): ExpectationInput[] =>
     [...expectations].sort((a, b) => {
@@ -136,7 +131,6 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
             <InjectAddExpectation
               disabled={readOnly}
               handleAddExpectation={handleAddExpectation}
-              predefinedExpectations={predefinedExpectations}
               availableExpectations={addableAvailableExpectations}
               inline
             />
@@ -211,7 +205,6 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
         <InjectAddExpectation
           disabled={readOnly}
           handleAddExpectation={handleAddExpectation}
-          predefinedExpectations={predefinedExpectations}
           availableExpectations={addableAvailableExpectations}
         />
       )}

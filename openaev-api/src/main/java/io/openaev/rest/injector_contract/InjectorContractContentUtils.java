@@ -1,11 +1,6 @@
 package io.openaev.rest.injector_contract;
 
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_CARDINALITY;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_NOT_DYNAMIC;
-import static io.openaev.database.model.InjectorContract.DEFAULT_VALUE_FIELD;
-import static io.openaev.database.model.InjectorContract.PREDEFINED_EXPECTATIONS;
+import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.utils.mapper.InjectExpectationMapper.NODE_EXPECTATION_TYPE;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -114,9 +109,21 @@ public class InjectorContractContentUtils {
 
         JsonNode valueNode;
 
-        // For expectation field, we should use predefinedExpectations
+        // For expectation field, we should use availableExpectations filtered by isPredefined
         if (CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS.equals(key)) {
-          valueNode = field.get(PREDEFINED_EXPECTATIONS);
+          JsonNode available = field.get(AVAILABLE_EXPECTATIONS);
+          if (available != null && available.isArray()) {
+            ArrayNode predefined = new ObjectMapper().createArrayNode();
+            for (JsonNode exp : available) {
+              if (exp.has(IS_PREDEFINED_EXPECTATION)
+                  && exp.get(IS_PREDEFINED_EXPECTATION).asBoolean()) {
+                predefined.add(exp);
+              }
+            }
+            valueNode = predefined.isEmpty() ? field.get(DEFAULT_VALUE_FIELD) : predefined;
+          } else {
+            valueNode = field.get(DEFAULT_VALUE_FIELD);
+          }
         } else {
           valueNode = field.get(DEFAULT_VALUE_FIELD);
         }
@@ -157,28 +164,21 @@ public class InjectorContractContentUtils {
       return predefinedExpectations.toArray(new BaseInjectExpectation.EXPECTATION_TYPE[0]);
     }
 
-    for (JsonNode field : convertedContent.get(FIELDS)) {
-      JsonNode keyNode = field.get(CONTRACT_ELEMENT_CONTENT_KEY);
-      if (keyNode == null || !CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS.equals(keyNode.asText())) {
-        continue;
-      }
-      JsonNode predefined = field.get(PREDEFINED_EXPECTATIONS);
-      if (predefined == null || !predefined.isArray()) {
-        continue;
-      }
-      for (JsonNode expectation : predefined) {
-        JsonNode typeNode = expectation.get(NODE_EXPECTATION_TYPE);
-        if (typeNode == null || !typeNode.isTextual()) {
-          continue;
-        }
-        try {
-          predefinedExpectations.add(
-              BaseInjectExpectation.EXPECTATION_TYPE.valueOf(typeNode.asText()));
-        } catch (IllegalArgumentException e) {
-          // Legacy or hand-crafted contract content can carry unknown enum values: skip the
-          // entry instead of failing the whole payload (same policy as
-          // getPredefinedExpectedSecurityPlatforms below).
-          log.warn("Ignoring predefined expectation with unknown type: {}", expectation, e);
+    ArrayNode fieldsArray = (ArrayNode) convertedContent.get(FIELDS);
+    ArrayNode fieldsNode = fieldsArray.deepCopy();
+    for (JsonNode field : fieldsNode) {
+      String key = field.get(CONTRACT_ELEMENT_CONTENT_KEY).asText();
+      if (CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS.equals(key)) {
+        JsonNode available = field.get(AVAILABLE_EXPECTATIONS);
+        if (available != null && available.isArray()) {
+          for (JsonNode expectation : available) {
+            if (expectation.has(IS_PREDEFINED_EXPECTATION)
+                && expectation.get(IS_PREDEFINED_EXPECTATION).asBoolean()) {
+              predefinedExpectations.add(
+                  BaseInjectExpectation.EXPECTATION_TYPE.valueOf(
+                      expectation.get(NODE_EXPECTATION_TYPE).asText()));
+            }
+          }
         }
       }
     }
@@ -300,11 +300,15 @@ public class InjectorContractContentUtils {
                 .toList();
         if (!contractElements.isEmpty()) {
           JsonNode contractElement = contractElements.getFirst();
-          if (!contractElement.get(PREDEFINED_EXPECTATIONS).isNull()
-              && !contractElement.get(PREDEFINED_EXPECTATIONS).isEmpty()) {
+          JsonNode availableNode = contractElement.get(AVAILABLE_EXPECTATIONS);
+          if (availableNode != null && !availableNode.isNull() && !availableNode.isEmpty()) {
             finalContent = finalContent != null ? finalContent : mapper.createObjectNode();
             ArrayNode predefinedExpectations = mapper.createArrayNode();
-            StreamSupport.stream(contractElement.get(PREDEFINED_EXPECTATIONS).spliterator(), false)
+            StreamSupport.stream(availableNode.spliterator(), false)
+                .filter(
+                    exp ->
+                        exp.has(IS_PREDEFINED_EXPECTATION)
+                            && exp.get(IS_PREDEFINED_EXPECTATION).asBoolean())
                 .forEach(
                     predefinedExpectation -> {
                       ObjectNode newExpectation = predefinedExpectation.deepCopy();

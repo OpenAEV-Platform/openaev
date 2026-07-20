@@ -13,7 +13,6 @@ import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
-import io.openaev.service.ExpectationService;
 import io.openaev.service.InjectExpectationService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -36,7 +35,6 @@ public class ExpectationApi extends RestBehavior {
       TENANT_PREFIX + "/injects/expectations";
 
   private final InjectExpectationService injectExpectationService;
-  private final ExpectationService expectationService;
 
   @Transactional(rollbackFor = Exception.class)
   @PutMapping({EXPECTATIONS_URI + "/{expectationId}", TENANT_EXPECTATIONS_URI + "/{expectationId}"})

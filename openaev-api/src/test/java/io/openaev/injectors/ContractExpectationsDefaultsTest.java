@@ -96,14 +96,14 @@ class ContractExpectationsDefaultsTest {
   }
 
   private void stubMediaPressureBuilderDefaults() {
-    given(expectationBuilderService.buildArticleExpectation())
+    given(expectationBuilderService.buildPredefinedArticleExpectation())
         .willReturn(createExpectation(ARTICLE, "article"));
     given(expectationBuilderService.buildManualExpectation())
         .willReturn(createExpectation(MANUAL, "manual"));
   }
 
   private void stubChallengeBuilderDefaults() {
-    given(expectationBuilderService.buildChallengeExpectation())
+    given(expectationBuilderService.buildPredefinedChallengeExpectation())
         .willReturn(createExpectation(CHALLENGE, "challenge"));
     given(expectationBuilderService.buildManualExpectation())
         .willReturn(createExpectation(MANUAL, "manual"));
