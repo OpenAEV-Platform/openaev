@@ -718,9 +718,15 @@ export interface AttackPathEndpointRelationsDTO {
   executions?: AttackPathNodeDTO[];
 }
 
+export interface AttackPathAttackPatternDTO {
+  externalId?: string;
+  name?: string;
+}
+
 export interface AttackPathExecutionDetailDTO {
   agentName?: string;
   agentPrivilege?: string;
+  attackPatterns?: AttackPathAttackPatternDTO[];
   command?: string;
   detectionStatus?: string;
   endpointKey?: string;

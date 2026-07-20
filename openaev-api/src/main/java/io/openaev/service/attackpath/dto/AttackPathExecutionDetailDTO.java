@@ -14,6 +14,7 @@ public record AttackPathExecutionDetailDTO(
     String injectId,
     String agentName,
     String agentPrivilege,
+    List<AttackPathAttackPatternDTO> attackPatterns,
     // result
     String endpointKey,
     String targetHostname,

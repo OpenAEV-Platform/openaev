@@ -11,9 +11,11 @@ import io.openaev.database.model.attackpath.projection.AttackPathFindingListRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
 import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
+import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.expectation.ExpectationType;
+import io.openaev.service.attackpath.dto.AttackPathAttackPatternDTO;
 import io.openaev.service.attackpath.dto.AttackPathCounters;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathEdges;
@@ -79,6 +81,7 @@ public class AttackPathGraphService {
 
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathFindingRepository findingRepository;
+  private final InjectorContractRepository injectorContractRepository;
 
   /**
    * Above this many executions a simulation is served collapsed by default. Tied to the front
@@ -186,11 +189,29 @@ public class AttackPathGraphService {
         }
       }
     }
+    // ATT&CK techniques of the run's injector contract, for the drawer's technique chips. One
+    // bounded lookup by the frozen contract external id (the accessor matches on id OR external id,
+    // so the external id is passed for both).
+    List<AttackPathAttackPatternDTO> attackPatterns = new ArrayList<>();
+    if (e.getContractExternalId() != null) {
+      injectorContractRepository
+          .findByIdOrExternalId(e.getContractExternalId(), e.getContractExternalId())
+          .ifPresent(
+              contract ->
+                  contract
+                      .getAttackPatterns()
+                      .forEach(
+                          pattern ->
+                              attackPatterns.add(
+                                  new AttackPathAttackPatternDTO(
+                                      pattern.getExternalId(), pattern.getName()))));
+    }
     return new AttackPathExecutionDetailDTO(
         e.getPayloadName(),
         e.getInjectId(),
         e.getAgentName(),
         e.getAgentPrivilege(),
+        attackPatterns,
         e.getTargetKey(),
         e.getTargetHostname(),
         e.getTargetIp(),

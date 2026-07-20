@@ -3,6 +3,7 @@ package io.openaev.api.attackpath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
@@ -11,6 +12,11 @@ import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.dto.AttackPathExecutionDetailDTO;
+import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.composers.AttackPatternComposer;
+import io.openaev.utils.fixtures.composers.InjectorContractComposer;
+import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
@@ -36,6 +42,9 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
   @Autowired private AttackPathGraphService graphService;
   @Autowired private AttackPathExecutionRepository executionRepository;
   @Autowired private AttackPathFindingRepository findingRepository;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private AttackPatternComposer attackPatternComposer;
+  @Autowired private InjectorFixture injectorFixture;
 
   private Tenant tenant;
   private String executionId;
@@ -44,10 +53,25 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
   void seed() {
     tenant = tenantRepository.save(TenantFixture.getTenant("ap-detail-tenant"));
 
+    // A real injector contract carrying an ATT&CK technique, referenced by the row's external id:
+    // the read resolves the techniques from it for the drawer's chips.
+    InjectorContract contract =
+        injectorContractComposer
+            .forInjectorContract(
+                InjectorContractFixture.createDefaultInjectorContractWithExternalId(
+                    "contract-ext-1"))
+            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+            .withAttackPattern(
+                attackPatternComposer.forAttackPattern(
+                    AttackPatternFixture.createAttackPatternsWithExternalId("T1046")))
+            .persist()
+            .get();
+
     AttackPathExecution e = new AttackPathExecution();
     e.setTenant(tenant);
     e.setSimulationId(SIM);
     e.setInjectId("inject-detail-1");
+    e.setContractExternalId(contract.getExternalId());
     e.setSourceKind("INJECTOR");
     e.setSourceInjector("hydra");
     e.setTargetKind("ASSET");
@@ -97,6 +121,9 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
     // header
     assertThat(d.injectId()).isEqualTo("inject-detail-1");
     assertThat(d.payloadName()).isEqualTo("hydra-payload");
+    // the run's contract resolves to its ATT&CK techniques (the drawer's chips)
+    assertThat(d.attackPatterns()).hasSize(1);
+    assertThat(d.attackPatterns().get(0).externalId()).isEqualTo("T1046");
     assertThat(d.agentName()).isEqualTo("agent-1");
     assertThat(d.agentPrivilege()).isEqualTo("user");
     // result
