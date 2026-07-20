@@ -3,6 +3,7 @@ package io.openaev.rest.collector;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -101,8 +102,10 @@ public class CollectorApi extends RestBehavior {
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.COLLECTOR)
-  // TxCtx scopes this read to the caller's tenants via the inspector.
-  public Collector getCollector(TxCtx ctx, @PathVariable String collectorId) {
+  // Collector uses a composite PK (collector_id, tenant_id); the same ID exists per tenant.
+  // Require a selector so findByCollectorId never returns multiple rows under a multi-tenant scope.
+  public Collector getCollector(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) {
     return collectorService.collector(collectorId);
   }
 
@@ -116,8 +119,9 @@ public class CollectorApi extends RestBehavior {
       resourceType = ResourceType.COLLECTOR)
   @Operation(summary = "Retrieve collector related ids")
   @Transactional
-  // TxCtx scopes this read to the caller's tenants via the inspector.
-  public ConnectorIds getCollectorRelatedIds(TxCtx ctx, @PathVariable String collectorId) {
+  // Composite PK: require a tenant selector to avoid NonUniqueResultException on the ID lookup.
+  public ConnectorIds getCollectorRelatedIds(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) {
     return collectorService.getCollectorRelationsId(collectorId);
   }
 
@@ -154,9 +158,9 @@ public class CollectorApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get collector image by collector id")
   @Transactional
-  // TxCtx scopes the collector lookup; a collectorId outside the scope resolves to empty.
-  public ResponseEntity<byte[]> getCollectorImageById(TxCtx ctx, @PathVariable String collectorId)
-      throws IOException {
+  // Composite PK: require a tenant selector to avoid NonUniqueResultException on the ID lookup.
+  public ResponseEntity<byte[]> getCollectorImageById(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) throws IOException {
     Optional<Collector> collector = collectorRepository.findByCollectorId(collectorId);
     if (collector.isEmpty()) {
       return ResponseEntity.notFound().build();
@@ -178,9 +182,11 @@ public class CollectorApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.COLLECTOR)
   @Transactional(rollbackFor = Exception.class)
-  // TxCtx scopes the update; the inspector refuses writes to rows outside the scope.
+  // Composite PK: require a tenant selector so the update targets exactly one row.
   public Collector updateCollector(
-      TxCtx ctx, @PathVariable String collectorId, @Valid @RequestBody CollectorUpdateInput input) {
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String collectorId,
+      @Valid @RequestBody CollectorUpdateInput input) {
     Collector collector = collectorService.collector(collectorId);
     return applyCollectorUpdate(
         collector,
@@ -202,7 +208,7 @@ public class CollectorApi extends RestBehavior {
           "Removes a registered collector. Intended for stopped collectors that no longer ping;"
               + " an active collector re-registers on its next heartbeat.")
   @Transactional(rollbackFor = Exception.class)
-  public void deleteCollector(TxCtx ctx, @PathVariable String collectorId) {
+  public void deleteCollector(@RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) {
     // TxCtx scopes this delete to the caller's tenants; the inspector rewrites the DELETE the
     // same way it rewrites SELECTs, so a delete outside the scope matches no row and is a no-op.
     collectorRepository.deleteByCollectorId(collectorId);
