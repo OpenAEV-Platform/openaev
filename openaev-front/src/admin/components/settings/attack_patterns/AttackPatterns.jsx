@@ -107,6 +107,13 @@ const AttackPatterns = () => {
           searchPaginationInput={searchPaginationInput}
           setContent={setAttackPatterns}
           exportProps={exportProps}
+          createButton={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+              <CreateAttackPattern
+                onCreate={result => setAttackPatterns([result, ...attackPatterns])}
+              />
+            </Can>
+          )}
         />
         <List>
           <ListItem
@@ -203,11 +210,6 @@ const AttackPatterns = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-          <CreateAttackPattern
-            onCreate={result => setAttackPatterns([result, ...attackPatterns])}
-          />
-        </Can>
       </div>
       <TaxonomiesMenu />
     </div>

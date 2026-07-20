@@ -36,7 +36,7 @@ const PlatformRoleCreate: FunctionComponent<Props> = ({ onCreate }) => {
 
   return (
     <>
-      <ButtonCreate onClick={handleOpen} variant="rightMenu" />
+      <ButtonCreate onClick={handleOpen} />
       <Drawer
         open={open}
         handleClose={handleClose}

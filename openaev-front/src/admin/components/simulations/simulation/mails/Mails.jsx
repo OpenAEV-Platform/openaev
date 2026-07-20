@@ -319,6 +319,13 @@ const Mails = () => {
               currentTags={filtering.tags}
             />
           </div>
+          {permissions.canManage && (
+            <div style={{ float: 'right' }}>
+              <TeamContext.Provider value={teamContext}>
+                <CreateQuickInject exercise={exercise} />
+              </TeamContext.Provider>
+            </div>
+          )}
           <div className="clearfix" />
           <List style={{ marginTop: 10 }}>
             <ListItem
@@ -448,11 +455,6 @@ const Mails = () => {
               );
             })}
           </List>
-          {permissions.canManage && (
-            <TeamContext.Provider value={teamContext}>
-              <CreateQuickInject exercise={exercise} />
-            </TeamContext.Provider>
-          )}
         </>
       )}
     </div>

@@ -385,7 +385,17 @@ const Lessons: FunctionComponent<Props> = ({
         />
         <CrysisIntensity injects={injects} />
       </div>
-      <div style={{ marginTop: theme.spacing(3) }}>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          marginTop: theme.spacing(3),
+        }}
+        >
+          <CreateLessonsCategory />
+        </div>
+      </Can>
+      <div style={{ marginTop: theme.spacing(1) }}>
         <LessonsCategories
           lessonsCategories={lessonsCategories}
           lessonsAnswers={lessonsAnswers}
@@ -396,9 +406,6 @@ const Lessons: FunctionComponent<Props> = ({
           isReport={false}
         />
       </div>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
-        <CreateLessonsCategory />
-      </Can>
       <Dialog
         TransitionComponent={Transition}
         keepMounted={false}

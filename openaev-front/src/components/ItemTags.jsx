@@ -15,21 +15,20 @@ import {
 
 const useStyles = makeStyles()(() => ({
   inline: {
-    display: 'inline',
+    display: 'flex',
     alignItems: 'center',
-    flexWrap: 'nowrap',
-    overflow: 'hidden',
+    flexWrap: 'wrap',
+    gap: 6,
   },
   tag: {
     height: 25,
     fontSize: 12,
-    margin: '0 7px 7px 0',
+    margin: 0,
     borderRadius: 4,
   },
   tagInList: {
-    float: 'left',
     height: 20,
-    margin: '0 7px 0 0',
+    margin: 0,
   },
 }));
 

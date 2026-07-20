@@ -1,5 +1,5 @@
 import { HelpOutlineOutlined } from '@mui/icons-material';
-import { Checkbox, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, Checkbox, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, lazy, Suspense, type SyntheticEvent, useContext, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -518,11 +518,16 @@ const Injects: FunctionComponent<Props> = ({
         queryableHelpers={queryableHelpers}
         reloadContentCount={reloadInjectCount}
         topBarButtons={(
-          <InjectsListButtons
-            availableButtons={availableButtons}
-            setViewMode={setViewMode}
-            onImportedInjects={() => setReloadInjectCount(prev => prev + 1)}
-          />
+          <Box display="flex" gap={1} alignItems="center">
+            <InjectsListButtons
+              availableButtons={availableButtons}
+              setViewMode={setViewMode}
+              onImportedInjects={() => setReloadInjectCount(prev => prev + 1)}
+            />
+            {permissions.canManage && (
+              <ButtonCreate onClick={() => openCreateInjectPage()} />
+            )}
+          </Box>
         )}
         contextId={contextId}
       />
@@ -548,7 +553,7 @@ const Injects: FunctionComponent<Props> = ({
         </div>
       )}
       {viewModeContext === 'list' && (
-        <List data-testid="injects-list-section">
+        <List data-testid="injects-list-section" sx={{ paddingTop: 0 }}>
           <ListItem
             classes={{ root: classes.itemHead }}
             divider={false}
@@ -699,9 +704,6 @@ const Injects: FunctionComponent<Props> = ({
               uriVariable={uriVariable}
             />
           )}
-        {permissions.canManage && (
-          <ButtonCreate onClick={() => openCreateInjectPage()} />
-        )}
       </>
     </>
   );

@@ -1,39 +1,40 @@
 import { Add } from '@mui/icons-material';
-import { Fab } from '@mui/material';
+import { Button } from '@mui/material';
 import { type FunctionComponent } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
-const RIGHT_MENU_OFFSET = 230;
-
-const useStyles = makeStyles<{ variant: ButtonCreateVariant }>()((_, { variant }) => ({
-  createButton: {
-    position: 'fixed',
-    bottom: 30,
-    right: variant === 'rightMenu' ? RIGHT_MENU_OFFSET : 30,
-  },
-}));
-
-type ButtonCreateVariant = 'default' | 'rightMenu';
+import { useFormatter } from '../i18n';
 
 interface Props {
   onClick: () => void;
   style?: React.CSSProperties;
-  variant?: ButtonCreateVariant;
+  label?: string;
+  disabled?: boolean;
 }
 
-const ButtonCreate: FunctionComponent<Props> = ({ onClick, style, variant = 'default' }) => {
-  const { classes } = useStyles({ variant });
+// Top-right inline creation button (OpenCTI-aligned): a contained primary
+// button rendered in the list header row instead of a floating bottom-right
+// Fab. The accessible name stays "Add" (aria-label) so existing e2e selectors
+// (getByRole('button', { name: 'Add' })) keep matching.
+const ButtonCreate: FunctionComponent<Props> = ({ onClick, style, label, disabled }) => {
+  const { t } = useFormatter();
 
   return (
-    <Fab
+    <Button
       onClick={onClick}
       color="primary"
+      variant="contained"
+      size="small"
       aria-label="Add"
-      className={classes.createButton}
+      startIcon={<Add />}
       style={style}
+      disabled={disabled}
+      sx={{
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+      }}
     >
-      <Add />
-    </Fab>
+      {label ?? t('Create')}
+    </Button>
   );
 };
 

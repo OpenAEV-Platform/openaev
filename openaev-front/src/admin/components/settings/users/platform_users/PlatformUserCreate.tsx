@@ -32,7 +32,6 @@ const PlatformUserCreate: FunctionComponent<Props> = ({ onCreate }) => {
     <UserCreate
       onSubmit={handleSubmit}
       type="PLATFORM"
-      buttonVariant="rightMenu"
     />
   );
 };

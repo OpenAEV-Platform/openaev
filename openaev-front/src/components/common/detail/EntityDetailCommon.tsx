@@ -57,17 +57,27 @@ export const InformationGrid = ({ title, children }: {
   title: string;
   children: ReactNode;
 }) => (
-  <div>
+  // Flex column + Paper flex:1 so that, when several InformationGrids sit side by
+  // side in a stretched DetailSections row, every Paper fills the row height and
+  // shares the same bottom edge (matching SectionBlock everywhere in the app).
+  <div style={{
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+  }}
+  >
     <Typography sx={SECTION_LABEL_SX}>{title}</Typography>
     <Paper
       variant="outlined"
       sx={{
         padding: 2,
         borderRadius: 1,
+        flex: 1,
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
         gap: 1.5,
         rowGap: 2,
+        alignContent: 'start',
       }}
     >
       {children}
@@ -302,11 +312,13 @@ export const HeroStats = ({ children }: { children: ReactNode }) => {
 };
 
 // The hero header shared by all Security detail pages.
-export const DetailHero = ({ icon: Icon, title, chips, action }: {
-  icon: ComponentType<{
+export const DetailHero = ({ icon: Icon, iconNode, title, chips, action }: {
+  icon?: ComponentType<{
     color?: 'primary';
     sx?: object;
   }>;
+  /** Custom node rendered inside the icon box (e.g. a brand logo), overrides `icon`. */
+  iconNode?: ReactNode;
   title: string;
   chips?: ReactNode;
   action?: ReactNode;
@@ -338,7 +350,7 @@ export const DetailHero = ({ icon: Icon, title, chips, action }: {
           border: `1px solid ${alpha(accent, 0.3)}`,
         }}
       >
-        <Icon color="primary" />
+        {iconNode ?? (Icon ? <Icon color="primary" /> : null)}
       </Box>
       <Box sx={{
         minWidth: 0,

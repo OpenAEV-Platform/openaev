@@ -3,6 +3,7 @@ import { type FunctionComponent, type KeyboardEvent, memo, useId, useRef } from 
 
 import { useFormatter } from '../../../../../../../components/i18n';
 import useSvgVisibilityPause from '../../../../../../../utils/hooks/useSvgVisibilityPause';
+import { expectationTypeColor } from '../../../../../common/ExpectationIconByType';
 
 export interface DefenseLayer {
   key: string;
@@ -33,17 +34,21 @@ const VALUE_Y = CY + GATE_HALF + 22;
 const GAUGE_Y = CY + GATE_HALF + 32;
 const PCT_Y = CY + GATE_HALF + 52;
 
-// Known expectation types get stable colors; unknown / future dynamic types
-// rotate through the fallback palette, so the gauntlet scales to any layer set.
-const TYPE_COLORS: Record<string, string> = {
-  PREVENTION: '#0fbcff',
-  DETECTION: '#00f1bd',
-  VULNERABILITY: '#ffa726',
-  MANUAL: '#9575cd',
-  CHALLENGE: '#ffb300',
-  ARTICLE: '#26a96c',
-};
-const FALLBACK_COLORS = ['#26a96c', '#ff7043', '#7e57c2', '#00bcd4', '#ffb300'];
+// Known expectation types get their shared categorical color (a cool spectrum
+// that deliberately avoids green / orange / red, which are reserved for result
+// semantics). Unknown / future dynamic types rotate through a cool fallback
+// palette, so the gauntlet scales to any layer set without ever borrowing a
+// result color.
+const FALLBACK_COLORS = ['#38bdf8', '#818cf8', '#c084fc', '#22d3ee', '#a855f7'];
+const KNOWN_TYPES = new Set([
+  'PREVENTION',
+  'DETECTION',
+  'VULNERABILITY',
+  'HUMAN_RESPONSE',
+  'MANUAL',
+  'ARTICLE',
+  'CHALLENGE',
+]);
 
 const KNOWN_LABELS: Record<string, string> = {
   PREVENTION: 'Prevention',
@@ -207,7 +212,10 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
         {/* DEFENSE GATES - one thin vertical gate per expectation type */}
         {layers.map((layer, i) => {
           const x = gateX(i);
-          const color = TYPE_COLORS[layer.key.toUpperCase()] ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+          const layerKey = layer.key.toUpperCase();
+          const color = KNOWN_TYPES.has(layerKey)
+            ? expectationTypeColor(layerKey)
+            : FALLBACK_COLORS[i % FALLBACK_COLORS.length];
           const resolved = layer.success + layer.failed;
           const rate = resolved > 0 ? layer.success / resolved : 0;
           const gaugeColor = resolved > 0 ? rateAccent(theme, rate) : theme.palette.text.disabled;

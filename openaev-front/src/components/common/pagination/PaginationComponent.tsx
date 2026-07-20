@@ -51,6 +51,9 @@ interface Props<T> {
   helpers?: FilterHelpers;
   children?: ReactElement | null;
   attackPatterns?: AttackPattern[];
+  // Creation button rendered at the top right of the header row
+  // (OpenCTI-aligned placement), after export / view controls.
+  createButton?: ReactElement | null;
 }
 
 /**
@@ -67,6 +70,7 @@ const PaginationComponent = <T extends object>({
   helpers,
   attackPatterns,
   children,
+  createButton,
 }: Props<T>) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -172,21 +176,26 @@ const PaginationComponent = <T extends object>({
             </>
           )}
         </div>
-        {!disablePagination && (
-          <div className={classes.container}>
-            <TablePagination
-              component="div"
-              rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
-              count={totalElements}
-              page={page}
-              onPageChange={handleChangePage}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-            />
-            <ToggleButtonGroup value="fake" exclusive>
-              {exportProps && <ExportButton totalElements={totalElements} exportProps={exportProps} />}
-              {!!component && component}
-            </ToggleButtonGroup>
+        {(!disablePagination || createButton) && (
+          <div className={classes.container} style={{ gap: 8 }}>
+            {!disablePagination && (
+              <>
+                <TablePagination
+                  component="div"
+                  rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+                  count={totalElements}
+                  page={page}
+                  onPageChange={handleChangePage}
+                  rowsPerPage={rowsPerPage}
+                  onRowsPerPageChange={handleChangeRowsPerPage}
+                />
+                <ToggleButtonGroup value="fake" exclusive>
+                  {exportProps && <ExportButton totalElements={totalElements} exportProps={exportProps} />}
+                  {!!component && component}
+                </ToggleButtonGroup>
+              </>
+            )}
+            {createButton}
           </div>
         )}
       </div>

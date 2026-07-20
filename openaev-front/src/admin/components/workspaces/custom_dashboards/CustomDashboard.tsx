@@ -13,11 +13,10 @@ import {
 } from '../../../../actions/dashboards/dashboard-action';
 import { useFormatter } from '../../../../components/i18n';
 import type { CustomDashboard, Pagination, WidgetToEntitiesInput } from '../../../../utils/api-types';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CustomDashboardEditHeader from './CustomDashboardEditHeader';
 import CustomDashboardWrapper from './CustomDashboardWrapper';
-import WidgetCreation from './widgets/WidgetCreation';
 
 const CustomDashboard = () => {
   const { t } = useFormatter();
@@ -40,7 +39,6 @@ const CustomDashboard = () => {
     <CustomDashboardWrapper
       configuration={configuration}
       topSlot={<CustomDashboardEditHeader />}
-      bottomSlot={<Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}><WidgetCreation /></Can>}
       readOnly={ability.cannot(ACTIONS.MANAGE, SUBJECTS.DASHBOARDS)}
       noDashboardSlot={(
         <Alert severity="warning">
