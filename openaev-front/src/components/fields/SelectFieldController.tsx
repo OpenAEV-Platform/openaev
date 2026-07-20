@@ -23,7 +23,15 @@ export const createItems = <T extends string>(vals: readonly T[]): Item<T>[] =>
     label: v,
   }));
 
-const SelectFieldController = ({ name, label, items, style, multiple = false, required, disabled }: Props) => {
+const SelectFieldController = ({
+  name,
+  label,
+  items,
+  style,
+  multiple = false,
+  required,
+  disabled,
+}: Props) => {
   const { control } = useFormContext();
 
   return (

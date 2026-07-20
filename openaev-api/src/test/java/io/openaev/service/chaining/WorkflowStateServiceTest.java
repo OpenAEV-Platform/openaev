@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.WorkflowStateRepository;
@@ -24,6 +26,7 @@ class WorkflowStateServiceTest {
   @Mock private WorkflowStateRepository workflowStateRepository;
   @Mock private ConditionRepository conditionRepository;
   @Mock private ConditionUtils conditionUtils;
+  @Mock private PrimitiveValidationContextBuilder primitiveValidationContextBuilder;
 
   @InjectMocks private WorkflowStateService workflowStateService;
 
@@ -347,6 +350,87 @@ class WorkflowStateServiceTest {
 
       // Assert
       assertTrue(input.getValues().contains("true"));
+    }
+  }
+
+  @Nested
+  @DisplayName("syncState - primitive validation on storage")
+  class SyncStateValidationTests {
+
+    @Test
+    @DisplayName("should store only valid primitive values and scoped asset IDs")
+    void givenMixedValues_shouldPersistOnlyValidOnes() {
+      String workflowId = UUID.randomUUID().toString();
+      String validAssetId = UUID.randomUUID().toString();
+      String validAssetGroupId = UUID.randomUUID().toString();
+      String deniedAssetGroupId = UUID.randomUUID().toString();
+      String deniedIp = "10.0.0.2";
+      String deniedDomain = "blocked.org";
+
+      Workflow workflow = Workflow.builder().id(workflowId).build();
+
+      WorkflowStateEntries initialEntries =
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      WorkflowState globalState =
+          WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
+
+      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
+          .thenReturn(globalState);
+
+      PrimitiveValidationContext validationContext =
+          new PrimitiveValidationContext(
+              Set.of(validAssetGroupId),
+              Set.of(validAssetId),
+              Set.of("example.org"),
+              Set.of(),
+              Set.of(),
+              Set.of(),
+              Set.of(),
+              Set.of(deniedDomain),
+              Set.of(deniedIp),
+              Set.of());
+      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflow)))
+          .thenReturn(validationContext);
+
+      JsonObject dataToSync =
+          JsonParser.parseString(
+                  """
+                  {
+                    "ipv4_values": ["10.0.0.1", "%s", "bad-ip"],
+                    "domain_values": ["example.org", "%s", "bad domain"],
+                    "subnet_values": ["10.0.0.0/24", "bad-subnet"],
+                    "asset_values": ["%s", "not-scoped-asset"],
+                    "asset_group_values": ["%s", "%s", "bad-group-id"]
+                  }
+                  """
+                      .formatted(
+                          deniedIp,
+                          deniedDomain,
+                          validAssetId,
+                          validAssetGroupId,
+                          deniedAssetGroupId))
+              .getAsJsonObject();
+
+      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+      typeMappings.put("ipv4_values", ChainingMappedType.primitive(PrimitiveType.IPv4));
+      typeMappings.put("domain_values", ChainingMappedType.primitive(PrimitiveType.Domain));
+      typeMappings.put("subnet_values", ChainingMappedType.primitive(PrimitiveType.IpSubnet));
+      typeMappings.put("asset_values", ChainingMappedType.primitive(PrimitiveType.AssetId));
+      typeMappings.put(
+          "asset_group_values", ChainingMappedType.primitive(PrimitiveType.AssetGroupId));
+
+      workflowStateService.syncState(dataToSync, typeMappings, workflow);
+
+      WorkflowStateEntries persistedEntries =
+          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+
+      assertEquals(Set.of("10.0.0.1"), persistedEntries.getInputByKey("IPv4").getValues());
+      assertEquals(Set.of("example.org"), persistedEntries.getInputByKey("Domain").getValues());
+      assertEquals(Set.of("10.0.0.0/24"), persistedEntries.getInputByKey("IpSubnet").getValues());
+      assertEquals(Set.of(validAssetId), persistedEntries.getInputByKey("AssetId").getValues());
+      assertEquals(
+          Set.of(validAssetGroupId), persistedEntries.getInputByKey("AssetGroupId").getValues());
     }
   }
 }

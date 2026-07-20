@@ -15,15 +15,13 @@ import type {
   PayloadPrerequisite,
   StatusPayloadOutput,
 } from '../../../../../utils/api-types';
-import { emptyFilled } from '../../../../../utils/String';
-import { isFeatureEnabled } from '../../../../../utils/utils';
+import { emptyFilled, formatPrimitiveTypeLabel } from '../../../../../utils/String';
 
 interface Props { payloadOutput?: StatusPayloadOutput }
 
 const CommandsInfoCard = ({ payloadOutput }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const isChainingEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   const headerCellSx = {
     fontWeight: 700,
@@ -40,7 +38,6 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
       </Section>
     );
   }
-
   return (
     <Section title={t('Commands')} icon={<TerminalOutlined fontSize="small" />}>
       <div style={{
@@ -125,7 +122,6 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
                 <TableHead>
                   <TableRow>
                     <TableCell sx={headerCellSx}>{t('Type')}</TableCell>
-                    {isChainingEnabled && <TableCell sx={headerCellSx}>{t('Sub-type')}</TableCell>}
                     <TableCell sx={headerCellSx}>{t('Key')}</TableCell>
                     <TableCell sx={headerCellSx}>{t('Default value')}</TableCell>
                   </TableRow>
@@ -133,8 +129,7 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
                 <TableBody>
                   {payloadOutput.payload_arguments?.map((argument: PayloadArgument) => (
                     <TableRow key={argument.key}>
-                      <TableCell><KeyValueChip label="" value={argument.type} /></TableCell>
-                      {isChainingEnabled && <TableCell>{argument.subtype ?? '-'}</TableCell>}
+                      <TableCell><KeyValueChip label="" value={formatPrimitiveTypeLabel(argument.type)} /></TableCell>
                       <TableCell sx={{
                         fontFamily: 'Consolas, monaco, monospace',
                         fontWeight: 500,

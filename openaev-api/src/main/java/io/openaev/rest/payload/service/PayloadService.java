@@ -211,7 +211,7 @@ public class PayloadService {
           .getArguments()
           .forEach(
               payloadArgument -> {
-                if (ArgumentType.TargetedAsset == payloadArgument.getType()) {
+                if (PrimitiveType.TargetedAsset == payloadArgument.getType()) {
                   List<ContractElement> targetedAssetsFields =
                       targetedAssetFields(payloadArgument.getKey(), payloadArgument);
                   targetedAssetsFields.forEach(builder::mandatory);
@@ -540,7 +540,7 @@ public class PayloadService {
     dynamicDnsResolutionPayload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
 
     PayloadArgument argument = new PayloadArgument();
-    argument.setType(ArgumentType.Text);
+    argument.setType(PrimitiveType.Text);
     argument.setKey(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY);
     argument.setDefaultValue("filigran.io");
     dynamicDnsResolutionPayload.setArguments(new ArrayList<>(List.of(argument)));
