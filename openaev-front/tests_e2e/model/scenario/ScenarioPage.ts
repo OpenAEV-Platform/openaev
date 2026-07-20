@@ -28,7 +28,7 @@ class ScenarioPage {
     // Injects tab's locators
     this.injectsTab = page.getByRole('tab', { name: 'Injects' });
     this.injectListSection = page.getByTestId('injects-list-section');
-    this.injectAddBtn = page.getByRole('button', { name: 'Add' });
+    this.injectAddBtn = page.getByTestId('button-create');
 
     this.searchInject = page.getByPlaceholder('Search these results...');
   }

@@ -1,5 +1,5 @@
 import { Checkbox, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
-import { type CSSProperties, type FunctionComponent, type MouseEvent } from 'react';
+import { type FunctionComponent, type MouseEvent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import useBodyItemsStyles from '../../../components/common/queryable/style/style';
@@ -11,44 +11,7 @@ import { type ThreatArsenalAction } from '../../../utils/api-types';
 import InjectIcon from '../common/injects/InjectIcon';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
-
-// Shared column widths so the header row and the body rows line up. Percentages
-// keep the list fluid, matching the standard platform list pages.
-export const THREAT_ARSENAL_LIST_INLINE_STYLES: Record<string, CSSProperties> = {
-  action_name: { width: '28%' },
-  action_domains: { width: '18%' },
-  action_platforms: { width: '15%' },
-  action_tags: { width: '17%' },
-  action_status: { width: '12%' },
-  action_updated: { width: '10%' },
-};
-
-export const THREAT_ARSENAL_LIST_HEADERS = [
-  {
-    field: 'action_name',
-    label: 'Name',
-  },
-  {
-    field: 'action_domains',
-    label: 'Domains',
-  },
-  {
-    field: 'action_platforms',
-    label: 'Platforms',
-  },
-  {
-    field: 'action_tags',
-    label: 'Tags',
-  },
-  {
-    field: 'action_status',
-    label: 'Status',
-  },
-  {
-    field: 'action_updated',
-    label: 'Updated',
-  },
-];
+import { THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
 
 const useStyles = makeStyles()(() => ({ item: { height: 50 } }));
 

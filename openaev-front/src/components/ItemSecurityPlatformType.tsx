@@ -13,9 +13,12 @@ import { Chip } from '@mui/material';
 import { alpha, type Theme, useTheme } from '@mui/material/styles';
 import { type ComponentType, type FunctionComponent } from 'react';
 
+import { type SecurityPlatform } from '../utils/api-types';
 import { useFormatter } from './i18n';
 
-type SecurityPlatformType = 'EDR' | 'XDR' | 'SIEM' | 'SOAR' | 'NDR' | 'ISPM' | 'LLM_FIREWALL' | 'AI_GATEWAY';
+// Sourced from the generated API types so new platform types added
+// server-side surface as a compile error here instead of drifting.
+type SecurityPlatformType = SecurityPlatform['security_platform_type'];
 
 interface TypeConfig {
   icon: ComponentType<{ sx?: object }>;

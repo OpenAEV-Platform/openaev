@@ -1074,7 +1074,7 @@ public class InjectExpectationService {
       final String assetId,
       final List<BaseInjectExpectation> assetExpectations) {
     List<BaseInjectExpectation> agentExpectations =
-        injectExpectationRepository.findAllByInjectAndAgent(injectId, assetId);
+        injectExpectationRepository.findAllAgentExpectationsByInjectAndAsset(injectId, assetId);
     if (agentExpectations.isEmpty()) {
       // Agentless asset (AI target, agentless endpoint): the asset expectation is filled directly.
       return assetExpectations;

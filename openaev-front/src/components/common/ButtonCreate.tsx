@@ -13,8 +13,8 @@ interface Props {
 
 // Top-right inline creation button (OpenCTI-aligned): a contained primary
 // button rendered in the list header row instead of a floating bottom-right
-// Fab. The accessible name stays "Add" (aria-label) so existing e2e selectors
-// (getByRole('button', { name: 'Add' })) keep matching.
+// Fab. The accessible name is the visible label (WCAG 2.5.3 Label in Name);
+// e2e selectors target the stable data-testid instead.
 const ButtonCreate: FunctionComponent<Props> = ({ onClick, style, label, disabled }) => {
   const { t } = useFormatter();
 
@@ -24,7 +24,7 @@ const ButtonCreate: FunctionComponent<Props> = ({ onClick, style, label, disable
       color="primary"
       variant="contained"
       size="small"
-      aria-label="Add"
+      data-testid="button-create"
       startIcon={<Add />}
       style={style}
       disabled={disabled}

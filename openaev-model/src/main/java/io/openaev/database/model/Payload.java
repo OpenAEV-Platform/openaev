@@ -165,9 +165,9 @@ public class Payload implements GrantableBase, TenantBase {
 
   /**
    * Optional map of expectation type to the security platform types expected to fulfil it (e.g.
-   * {@code {"DETECTION": ["EDR","XDR","SIEM"], "PREVENTION": ["EDR","XDR"]}}). Empty or absent means
-   * "any security platform" (legacy behaviour). Used to pre-seed only the relevant collectors when
-   * this payload's predefined expectations are instantiated on an inject.
+   * {@code {"DETECTION": ["EDR","XDR","SIEM"], "PREVENTION": ["EDR","XDR"]}}). Empty or absent
+   * means "any security platform" (legacy behaviour). Used to pre-seed only the relevant collectors
+   * when this payload's predefined expectations are instantiated on an inject.
    */
   @Setter
   @Type(JsonType.class)

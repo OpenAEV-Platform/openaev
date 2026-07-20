@@ -196,8 +196,8 @@ public class BaseInjectExpectation implements Base, Cloneable {
 
   /**
    * Security platform types expected to fulfil this (technical) expectation. When non-empty, only
-   * collectors of those types are pre-seeded as pending results and considered for scoring. Empty or
-   * null means "any security platform" (legacy behaviour).
+   * collectors of those types are pre-seeded as pending results and considered for scoring. Empty
+   * or null means "any security platform" (legacy behaviour).
    */
   @Setter
   @Type(JsonType.class)
