@@ -696,11 +696,19 @@ const SimulationAttackPath = () => {
       .filter(r => r.score > 0),
     [dto],
   );
+  // When the graph is focused on one endpoint's path, the table follows the focus (single endpoint),
+  // consistent with the summary cards; otherwise it lists every exposed endpoint.
+  const tableRows = useMemo(
+    () => (pathFinding
+      ? endpointRows.filter(r => r.nodeId === pathFinding.endpointNodeId)
+      : endpointRows),
+    [endpointRows, pathFinding],
+  );
   const endpointTypeColumns = useMemo(() => {
     const set = new Set<string>();
-    endpointRows.forEach(r => Object.keys(r.findingCounts).forEach(k => set.add(k)));
+    tableRows.forEach(r => Object.keys(r.findingCounts).forEach(k => set.add(k)));
     return [...set].sort();
-  }, [endpointRows]);
+  }, [tableRows]);
 
   // Base clustered flow — recomputed when the graph data, endpoint expansion, or finding drill-down
   // changes (positions are deterministic, so it stays off the pure selection/focus path). Top-
@@ -1718,7 +1726,7 @@ const SimulationAttackPath = () => {
             }}
           >
             <AttackPathTableView
-              rows={endpointRows}
+              rows={tableRows}
               typeColumns={endpointTypeColumns}
               chokepointTopN={CHOKEPOINT_TOP_N}
               onRowFocus={row => focusChokepoint(row)}
