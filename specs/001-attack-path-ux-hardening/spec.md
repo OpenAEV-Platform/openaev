@@ -39,8 +39,9 @@ immediately sees the highest-leverage endpoints to fix and can trust what the co
 
 ### Prioritization & legibility (P0)
 - FR1: The graph MUST auto-fit/centre on initial load and after every expand/collapse.
-- FR2: The top chokepoints MUST be visible on landing without a click (a persistent ranked
-  surface), in addition to the existing card/popover.
+- FR2: The top-chokepoints count MUST be visible on landing (summary card), and the ranked list
+  MUST be one click away via the card popover — which scales to any number of chokepoints, unlike a
+  fixed inline strip.
 - FR3: The "most exposed endpoints" ranking MUST remain explained to the user (what a chokepoint
   is and how it is scored), via the existing help affordance.
 
@@ -103,8 +104,10 @@ immediately sees the highest-leverage endpoints to fix and can trust what the co
 
 ## Resolved decisions
 
-- **Landing model**: graph-first with a **persistent chokepoint strip** (not list-first). The graph
-  stays the default view; prioritization is visible without a click via the strip. (FR2)
+- **Landing model**: graph-first (not list-first). The graph stays the default view; prioritization
+  is surfaced by the **Top-chokepoints summary card** (count on landing, ranked list in its popover)
+  plus the **Table view**. A separate inline "Fix first" chip strip was dropped — it duplicated the
+  card and did not scale past ~8 chokepoints on one line. (FR2)
 - **Chokepoint accent**: **purple/violet**, distinct from the verdict green/orange/red and the
   finding-type palette; "+N" hidden-endpoints uses a neutral pill. (FR5)
 - **Table/export**: **in scope for this spec**, delivered through a view switcher

@@ -1576,53 +1576,6 @@ const SimulationAttackPath = () => {
         )}
       </div>
 
-      {/* Persistent "fix first" strip: the ranked chokepoints are visible on landing without a click,
-          each chip focuses that endpoint's path. Complements the summary card + popover above.
-          Hidden in the table view, which already lists (and ranks) the same endpoints. */}
-      {view === 'graph' && !pathFinding && chokepoints.length > 0 && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing(1),
-          flexWrap: 'wrap',
-        }}
-        >
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 0.5,
-            }}
-          >
-            <LocalFireDepartment sx={{
-              fontSize: 15,
-              color: chokepointColor,
-            }}
-            />
-            {t('Fix first')}
-          </Typography>
-          {chokepoints.map((c, i) => (
-            <Chip
-              key={c.nodeId}
-              size="small"
-              clickable
-              variant="outlined"
-              onClick={() => focusChokepoint(c)}
-              label={`#${i + 1} ${c.label} · ${c.score}`}
-              title={[c.ip, `${c.score} ${t('findings')}`].filter(Boolean).join(' · ')}
-              sx={{
-                'borderColor': chokepointColor,
-                'color': 'text.primary',
-                '& .MuiChip-label': { fontWeight: 600 },
-                '&:hover': { backgroundColor: 'action.hover' },
-              }}
-            />
-          ))}
-        </div>
-      )}
-
       <div style={{
         display: 'flex',
         flex: 1,
