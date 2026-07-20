@@ -4,7 +4,8 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { Handle, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
-import attackPathStatusColor from '../attack-path-colors';
+import { useFormatter } from '../../../../../../components/i18n';
+import attackPathStatusColor, { attackPathChokepointColor, attackPathStatusLabel } from '../attack-path-colors';
 import { type AttackPathFlowNode } from '../attack-path-flow-helpers';
 import { AP_ENDPOINT_SIZE } from './node-sizes';
 
@@ -13,6 +14,7 @@ import { AP_ENDPOINT_SIZE } from './node-sizes';
 // its distinct-finding count (collapsed mode). Mirrors the product mockup's endpoint node.
 const AssetNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) => {
   const theme = useTheme();
+  const { t } = useFormatter();
   // findingCounts is only set in collapsed mode; when it is present and empty the endpoint is known
   // to have no findings (faint dashed grey). Otherwise the ring follows the prevention status.
   const counts = data.findingCounts;
@@ -20,18 +22,25 @@ const AssetNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) => {
   const knownNoFindings = counts !== undefined && total === 0;
   const color = knownNoFindings ? theme.palette.text.disabled : attackPathStatusColor(theme, data.status);
   const isChokepoint = data.chokepointRank !== undefined;
+  const chokepointColor = attackPathChokepointColor(theme);
+  // Ring stays the verdict colour; the chokepoint signal is a separate violet halo + badge so a single
+  // colour never carries two meanings. Status is also exposed as text below (a11y).
+  const statusText = knownNoFindings ? t('No findings') : t(attackPathStatusLabel(data.status));
   let nodeShadow = 'none';
   if (isChokepoint) {
-    nodeShadow = `0 0 0 6px ${alpha(theme.palette.error.main, 0.28)}`;
+    nodeShadow = `0 0 0 6px ${alpha(chokepointColor, 0.3)}`;
   } else if (selected) {
     nodeShadow = `0 0 0 4px ${alpha(color, 0.45)}`;
   }
   return (
-    <div style={{
-      position: 'relative',
-      width: AP_ENDPOINT_SIZE,
-      height: AP_ENDPOINT_SIZE,
-    }}
+    <div
+      style={{
+        position: 'relative',
+        width: AP_ENDPOINT_SIZE,
+        height: AP_ENDPOINT_SIZE,
+      }}
+      title={`${data.label} — ${statusText}`}
+      aria-label={`${data.label}, ${statusText}${isChokepoint ? `, ${t('chokepoint')}` : ''}`}
     >
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
       <div
@@ -39,9 +48,10 @@ const AssetNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) => {
           width: AP_ENDPOINT_SIZE,
           height: AP_ENDPOINT_SIZE,
           borderRadius: '50%',
-          border: `${selected || isChokepoint ? 3 : 2}px ${knownNoFindings ? 'dashed' : 'solid'} ${isChokepoint ? theme.palette.error.main : color}`,
+          border: `${selected || isChokepoint ? 3 : 2}px ${knownNoFindings ? 'dashed' : 'solid'} ${color}`,
           // Keep the dark node fill (readable white label); show selection with a halo ring, not a
-          // pale fill that would wash the text out. A chokepoint gets a stronger red halo so it stands out.
+          // pale fill that would wash the text out. A chokepoint gets a violet halo so it stands out
+          // without overriding the verdict-coloured ring.
           background: theme.palette.background.paper,
           boxShadow: nodeShadow,
           display: 'flex',
@@ -73,7 +83,11 @@ const AssetNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) => {
         )}
       </div>
       {data.chokepointRank !== undefined && (
-        <Tooltip title={`Chokepoint #${data.chokepointRank} — most exposed endpoint (${total} findings)`}>
+        <Tooltip title={t('Chokepoint #{rank} — most exposed endpoint ({count} findings)', {
+          rank: String(data.chokepointRank),
+          count: String(total),
+        })}
+        >
           <div
             style={{
               position: 'absolute',
@@ -83,8 +97,8 @@ const AssetNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) => {
               height: 30,
               padding: '0 9px',
               borderRadius: 15,
-              background: theme.palette.error.main,
-              color: theme.palette.getContrastText(theme.palette.error.main),
+              background: chokepointColor,
+              color: theme.palette.getContrastText(chokepointColor),
               fontSize: 15,
               fontWeight: 800,
               display: 'flex',

@@ -1,9 +1,10 @@
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import { IconButton, Paper, Typography } from '@mui/material';
+import { IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useRef, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
+import { attackPathChokepointColor } from './attack-path-colors';
 
 interface Props {
   // Bumped by the parent whenever a side panel/drawer opens, so the legend folds away to avoid
@@ -50,7 +51,8 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
     },
   ];
 
-  const colors: {
+  // The three verdict colours form the minimal key that stays visible even when the legend is folded.
+  const verdictColors: {
     color: string;
     label: string;
   }[] = [
@@ -65,6 +67,16 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
     {
       color: theme.palette.error.main,
       label: t('Neither prevented nor detected'),
+    },
+  ];
+  const colors: {
+    color: string;
+    label: string;
+  }[] = [
+    ...verdictColors,
+    {
+      color: attackPathChokepointColor(theme),
+      label: t('Chokepoint (most exposed endpoint)'),
     },
     {
       color: theme.palette.primary.main,
@@ -142,6 +154,30 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
           {open ? <ExpandMore fontSize="small" /> : <ExpandLess fontSize="small" />}
         </IconButton>
       </div>
+      {!open && (
+        // Minimal verdict-colour key stays visible when the legend is folded (e.g. a side panel open),
+        // so the analyst can still read what a coloured verdict means.
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginTop: 4,
+        }}
+        >
+          {verdictColors.map(c => (
+            <Tooltip key={c.label} title={c.label}>
+              <span style={{
+                width: 12,
+                height: 12,
+                flex: '0 0 auto',
+                borderRadius: '50%',
+                background: c.color,
+              }}
+              />
+            </Tooltip>
+          ))}
+        </div>
+      )}
       {open && (
         <div style={{
           display: 'flex',

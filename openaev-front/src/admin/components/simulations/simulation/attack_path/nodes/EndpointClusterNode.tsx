@@ -4,7 +4,7 @@ import { Handle, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
 import { useFormatter } from '../../../../../../components/i18n';
-import attackPathStatusColor from '../attack-path-colors';
+import attackPathStatusColor, { attackPathStatusLabel } from '../attack-path-colors';
 import { type AttackPathFlowNode } from '../attack-path-flow-helpers';
 import { AP_ENDPOINT_CLUSTER_SIZE } from './node-sizes';
 
@@ -24,6 +24,8 @@ const EndpointClusterNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) 
   } else if (expanded) {
     sub = t('Collapse');
   }
+  // Aggregated verdict as text so status is never colour-alone (a11y).
+  const statusText = t(attackPathStatusLabel(data.status));
   return (
     <div
       style={{
@@ -39,6 +41,8 @@ const EndpointClusterNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) 
         justifyContent: 'center',
         cursor: 'pointer',
       }}
+      title={`+${data.count ?? 0} ${sub} — ${statusText}`}
+      aria-label={`+${data.count ?? 0} ${sub}, ${statusText}`}
     >
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
       <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1 }}>

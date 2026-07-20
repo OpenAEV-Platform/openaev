@@ -16,4 +16,24 @@ const attackPathStatusColor = (theme: Theme, status?: string): string => {
   }
 };
 
+// Text equivalent of the verdict colour, so status is never conveyed by colour alone (a11y). Returns
+// an English key; wrap in t() at the call site.
+export const attackPathStatusLabel = (status?: string): string => {
+  switch (status) {
+    case 'GREEN':
+      return 'Prevented';
+    case 'ORANGE':
+      return 'Detected, not prevented';
+    case 'RED':
+      return 'Neither prevented nor detected';
+    default:
+      return 'No verdict';
+  }
+};
+
+// Chokepoint accent — deliberately OUTSIDE the green/orange/red verdict scale and the primary blue,
+// so "most exposed endpoint" never reads as a prevention/detection verdict. Violet in both themes.
+export const attackPathChokepointColor = (theme: Theme): string =>
+  (theme.palette.mode === 'dark' ? '#b388ff' : '#7c4dff');
+
 export default attackPathStatusColor;
