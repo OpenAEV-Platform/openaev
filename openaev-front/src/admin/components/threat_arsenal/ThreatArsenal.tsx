@@ -8,13 +8,17 @@ import {
   Checkbox,
   FormControlLabel,
   IconButton,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
   Skeleton,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
   Typography,
 } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
 
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
@@ -29,6 +33,7 @@ import ExportButton from '../../../components/common/ExportButton';
 import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
+import useBodyItemsStyles from '../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
@@ -47,6 +52,7 @@ import ThreatArsenalCard from './ThreatArsenalCard';
 import ThreatArsenalEmptyState from './ThreatArsenalEmptyState';
 import ThreatArsenalHero from './ThreatArsenalHero';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
+import { THREAT_ARSENAL_LIST_HEADERS, THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
 import ThreatArsenalListRow from './ThreatArsenalListRow';
 import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
 import ThreatArsenalSidebar from './ThreatArsenalSidebar';
@@ -65,6 +71,7 @@ const readViewMode = (): ViewMode => {
 const ThreatArsenal = () => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const bodyItemsStyles = useBodyItemsStyles();
   const ability = useContext(AbilityContext);
   const canDeleteThreatArsenal = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS);
 
@@ -314,103 +321,81 @@ const ThreatArsenal = () => {
   };
 
   const renderListView = () => {
-    return (
-      <Box
-        sx={{
-          border: `1px solid ${theme.palette.divider}`,
-          borderRadius: 1,
-          overflow: 'hidden',
-          backgroundColor: alpha(theme.palette.background.paper, 0.5),
-        }}
-      >
-        <Box
-          role="row"
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: '40px 44px minmax(0, 2fr) minmax(0, 1.2fr) 120px 130px 120px 160px 48px',
-            alignItems: 'center',
-            gap: 1.5,
-            paddingBlock: 1,
-            paddingInline: 1.5,
-            borderBottom: `1px solid ${theme.palette.divider}`,
-            backgroundColor: alpha(theme.palette.background.paper, 0.7),
-          }}
-        >
-          <Box />
-          <Box />
-          {['Name', 'Domains', 'Platforms', 'Tags', 'Status', 'Updated'].map(label => (
-            <Typography
-              key={label}
-              variant="overline"
+    if (loading) {
+      return (
+        <Box>
+          {Array.from({ length: 10 }).map((_, idx) => (
+            <Box
+              key={idx}
               sx={{
-                color: 'text.secondary',
-                fontSize: 10.5,
-                letterSpacing: '0.08em',
+                height: 50,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                borderBottom: `1px solid ${theme.palette.divider}`,
               }}
             >
-              {t(label)}
-            </Typography>
+              <Skeleton variant="circular" width={20} height={20} animation="wave" />
+              <Skeleton variant="text" width="50%" height={20} animation="wave" />
+            </Box>
           ))}
-          <Box />
         </Box>
-
-        {(() => {
-          if (loading) {
-            return (
-              <Box>
-                {Array.from({ length: 10 }).map((_, idx) => (
-                  <Box
-                    key={idx}
+      );
+    }
+    if (threatArsenalActions.length === 0) {
+      return <ThreatArsenalEmptyState hasFilters={hasActiveFilters} onResetFilters={handleResetFilters} />;
+    }
+    return (
+      <List disablePadding>
+        <ListItem
+          divider
+          secondaryAction={<>&nbsp;</>}
+          sx={{ paddingLeft: 2 }}
+        >
+          {/* Spacers align the header labels with the checkbox + icon columns. */}
+          <ListItemIcon style={{ minWidth: 38 }} />
+          <ListItemIcon style={{ minWidth: 40 }} />
+          <ListItemText
+            primary={(
+              <div style={bodyItemsStyles.bodyItems}>
+                {THREAT_ARSENAL_LIST_HEADERS.map(header => (
+                  <Typography
+                    key={header.field}
+                    variant="h4"
                     sx={{
-                      paddingBlock: 1.5,
-                      paddingInline: 1.5,
-                      borderBottom: `1px solid ${theme.palette.divider}`,
+                      ...bodyItemsStyles.bodyItem,
+                      ...THREAT_ARSENAL_LIST_INLINE_STYLES[header.field],
+                      margin: 0,
                     }}
                   >
-                    <Skeleton variant="text" width="60%" height={20} animation="wave" />
-                  </Box>
+                    {t(header.label)}
+                  </Typography>
                 ))}
-              </Box>
-            );
-          }
-          if (threatArsenalActions.length === 0) {
-            return (
-              <Box sx={{ padding: 4 }}>
-                <ThreatArsenalEmptyState hasFilters={hasActiveFilters} onResetFilters={handleResetFilters} />
-              </Box>
-            );
-          }
+              </div>
+            )}
+          />
+        </ListItem>
+        {threatArsenalActions.map((action) => {
+          const flags = computeRowFlags(action);
           return (
-            <Box>
-              {threatArsenalActions.map((action) => {
-                const flags = computeRowFlags(action);
-                return (
-                  <Box
-                    key={action.injector_contract_id}
-                    sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}
-                  >
-                    <ThreatArsenalListRow
-                      action={action}
-                      selected={selectedThreatArsenalAction?.injector_contract_id === action.injector_contract_id}
-                      checked={isSelectedAction(action)}
-                      onSelect={() => setSelectedThreatArsenalAction(action)}
-                      onToggleEntity={event => onToggleEntity(action, event)}
-                      onUpdate={(result: ThreatArsenalAction) =>
-                        setThreatArsenalActions(prev => prev.map(a => (a.injector_contract_id === action.injector_contract_id ? result : a)))}
-                      onDuplicate={(result: ThreatArsenalAction) => setThreatArsenalActions(prev => [result, ...prev])}
-                      onDelete={() => setThreatArsenalActions(prev => prev.filter(a => a.injector_contract_id !== action.injector_contract_id))}
-                      disableUpdate={flags.disableUpdate}
-                      disableDuplicate={flags.disableDuplicate}
-                      disableJsonExport={flags.disableJsonExport}
-                      disableDelete={flags.disableDelete}
-                    />
-                  </Box>
-                );
-              })}
-            </Box>
+            <ThreatArsenalListRow
+              key={action.injector_contract_id}
+              action={action}
+              checked={isSelectedAction(action)}
+              onSelect={() => setSelectedThreatArsenalAction(action)}
+              onToggleEntity={event => onToggleEntity(action, event)}
+              onUpdate={(result: ThreatArsenalAction) =>
+                setThreatArsenalActions(prev => prev.map(a => (a.injector_contract_id === action.injector_contract_id ? result : a)))}
+              onDuplicate={(result: ThreatArsenalAction) => setThreatArsenalActions(prev => [result, ...prev])}
+              onDelete={() => setThreatArsenalActions(prev => prev.filter(a => a.injector_contract_id !== action.injector_contract_id))}
+              disableUpdate={flags.disableUpdate}
+              disableDuplicate={flags.disableDuplicate}
+              disableJsonExport={flags.disableJsonExport}
+              disableDelete={flags.disableDelete}
+            />
           );
-        })()}
-      </Box>
+        })}
+      </List>
     );
   };
 
@@ -507,6 +492,15 @@ const ThreatArsenal = () => {
                 entityPrefix="threat_arsenal"
                 availableFilterNames={availableFilterNames}
                 queryableHelpers={queryableHelpers}
+                topBarButtons={(
+                  <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
+                    <CreateThreatArsenalAction
+                      onCreate={(result: ThreatArsenalAction) => {
+                        setThreatArsenalActions(prev => [result, ...prev]);
+                      }}
+                    />
+                  </Can>
+                )}
                 leftSlot={(
                   <Box sx={{
                     display: 'flex',
@@ -572,14 +566,6 @@ const ThreatArsenal = () => {
           </Box>
         </Box>
       </Box>
-
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
-        <CreateThreatArsenalAction
-          onCreate={(result: ThreatArsenalAction) => {
-            setThreatArsenalActions(prev => [result, ...prev]);
-          }}
-        />
-      </Can>
 
       {(selectedThreatArsenalAction !== null) && (
         <ThreatArsenalInformationDrawer

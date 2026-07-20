@@ -14,6 +14,7 @@ import { DEFAULT_TENANT_UUID } from '../../../utils/url-helper';
 import { copyToClipboard, download } from '../../../utils/utils';
 
 const USER = 'user';
+const SYSTEM = 'system';
 const WINDOWS = 'Windows';
 const MACOS = 'MacOS';
 const LINUX = 'Linux';
@@ -43,21 +44,43 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ platform, sel
 
   const executorCalderaPublicUrl = calderaSettings !== null && Array.isArray(calderaSettings) && calderaSettings.length > 0 ? calderaSettings[0].executor_caldera_public_url : '';
 
-  const tabEntries: TabsEntry[] = [{
-    key: 'Standard Installation',
-    label: t('Standard Installation'),
-  }, {
-    key: 'Advanced Installation',
-    label: t('Advanced Installation'),
-  }];
-  const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
+  const tabEntries: TabsEntry[] = platform === MACOS
+    ? [
+        {
+          key: 'Advanced Installation',
+          label: t('Advanced Installation'),
+        },
+      ]
+    : [
+        {
+          key: 'Standard Installation',
+          label: t('Standard Installation'),
+        },
+        {
+          key: 'Advanced Installation',
+          label: t('Advanced Installation'),
+        },
+      ];
+  const { currentTab, setCurrentTab, handleChangeTab } = useTabs(tabEntries[0].key);
 
   const { settings, currentUserTenant } = useAuth();
   const tenantPrefix = `/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}`;
 
   const handleOptionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedOption(event.target.value);
+    setSelectedOption(platform === MACOS ? SYSTEM : event.target.value);
   };
+
+  useEffect(() => {
+    if (!tabEntries.some(entry => entry.key === currentTab)) {
+      setCurrentTab(tabEntries[0].key);
+    }
+  }, [currentTab, setCurrentTab, tabEntries]);
+
+  useEffect(() => {
+    if (platform === MACOS && selectedOption !== SYSTEM) {
+      setSelectedOption(SYSTEM);
+    }
+  }, [platform, selectedOption]);
 
   const buildInstallationUrl = (baseUrl: string) => {
     if (currentTab === 'Standard Installation') return `${baseUrl}/session-user`;
@@ -149,7 +172,7 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
   const buildOpenAEVInstallerScript = () => {
     const buildExtraParams = (advanced: string, standard: string, other: string) => {
       let result = other;
-      if (currentTab === 'Advanced Installation' && selectedOption === USER) {
+      if (currentTab === 'Advanced Installation' && selectedOption === USER && platform !== MACOS) {
         result = advanced;
       } else if (currentTab === 'Standard Installation') {
         result = standard;
@@ -355,8 +378,19 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
           </a>
         </Alert>
         <p>
-          {`${t('Install the agent as a user or a system service. This installation requires local administrator privileges.')}`}
+          {`${platform === MACOS
+            ? t('Install the agent as a system service. This installation requires local administrator privileges.')
+            : t('Install the agent as a user or a system service. This installation requires local administrator privileges.')}`}
         </p>
+        {platform === MACOS && (
+          <Alert
+            variant="outlined"
+            severity="warning"
+            style={{ marginTop: theme.spacing(1) }}
+          >
+            {t('On macOS, only Advanced installation as System is currently available.')}
+          </Alert>
+        )}
         <div>
           <RadioGroup
             value={selectedOption}
@@ -367,8 +401,10 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
               gap: '20px',
             }}
           >
-            <FormControlLabel value="user" control={<Radio />} label={t('Install Agent as User')} />
-            <FormControlLabel value="system" control={<Radio />} label={t('Install Agent as System')} />
+            {platform !== MACOS && (
+              <FormControlLabel value={USER} control={<Radio />} label={t('Install Agent as User')} />
+            )}
+            <FormControlLabel value={SYSTEM} control={<Radio />} label={t('Install Agent as System')} />
           </RadioGroup>
         </div>
         {

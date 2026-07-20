@@ -2,6 +2,9 @@ package io.openaev.model.inject.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.SecurityPlatform;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Data;
 
 /**
@@ -55,4 +58,15 @@ public class Expectation {
    */
   @JsonProperty("expectation_is_multi_selectable")
   private boolean isMultiSelectable;
+
+  /**
+   * Security platform types expected to fulfil this expectation.
+   *
+   * <p>When non-empty, the platform focuses the detection/prevention result on collectors of those
+   * types only (instead of every connected security platform). An empty list means "any security
+   * platform" (unchanged behaviour), and is typical for MANUAL expectations.
+   */
+  @JsonProperty("expectation_expected_security_platform_types")
+  private List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedSecurityPlatformTypes =
+      new ArrayList<>();
 }

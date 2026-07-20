@@ -151,7 +151,7 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
   ];
 
   return (
-    <List>
+    <List disablePadding>
       <ListItem
         classes={{ root: classes.itemHead }}
         style={{ paddingTop: 0 }}
@@ -159,28 +159,21 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
         <ListItemIcon />
         <ListItemText
           primary={(
-            <div>
-              <div style={bodyItemsStyles.bodyItems}>
-                {headers.map(header => (
-                  <div
-                    key={header.field}
-                    style={{
-                      ...bodyItemsStyles.bodyItem,
-                      ...inlineStyles[header.field],
-                    }}
-                  >
-                    {t(header.label)}
-                  </div>
-                ))}
-              </div>
+            <div style={bodyItemsStyles.bodyItems}>
+              {headers.map(header => (
+                <div
+                  key={header.field}
+                  style={{
+                    ...bodyItemsStyles.bodyItem,
+                    ...inlineStyles[header.field],
+                  }}
+                >
+                  {t(header.label)}
+                </div>
+              ))}
             </div>
           )}
         />
-      </ListItem>
-      <ListItem
-        classes={{ root: classes.itemHead }}
-        style={{ paddingTop: 0 }}
-      >
       </ListItem>
       {agents.map((agent: AgentOutput) => {
         return (

@@ -197,7 +197,8 @@ public class PayloadService {
             "/img/icon-" + injector.getType() + ".png");
     ContractAsset assetField = assetField(Multiple);
     ContractAssetGroup assetGroupField = assetGroupField(Multiple);
-    ContractExpectations expectationsField = expectations(payload.getExpectations());
+    ContractExpectations expectationsField =
+        expectations(payload.getExpectations(), payload.getExpectedSecurityPlatforms());
     ContractDef builder = contractBuilder();
     builder.mandatoryGroup(assetField, assetGroupField);
 
@@ -211,7 +212,7 @@ public class PayloadService {
           .getArguments()
           .forEach(
               payloadArgument -> {
-                if (ArgumentType.TargetedAsset == payloadArgument.getType()) {
+                if (PrimitiveType.TargetedAsset == payloadArgument.getType()) {
                   List<ContractElement> targetedAssetsFields =
                       targetedAssetFields(payloadArgument.getKey(), payloadArgument);
                   targetedAssetsFields.forEach(builder::mandatory);
@@ -236,6 +237,13 @@ public class PayloadService {
 
   private ContractExpectations expectations(
       BaseInjectExpectation.EXPECTATION_TYPE[] expectationTypes) {
+    return expectations(expectationTypes, null);
+  }
+
+  private ContractExpectations expectations(
+      BaseInjectExpectation.EXPECTATION_TYPE[] expectationTypes,
+      Map<BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+          expectedSecurityPlatforms) {
     List<Expectation> predefined = new ArrayList<>();
     if (expectationTypes != null) {
       for (BaseInjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
@@ -254,16 +262,25 @@ public class PayloadService {
                       this.expectationBuilderService.buildManualExpectation()));
           case PREVENTION ->
               predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildPreventionExpectation()));
+                  withExpectedSecurityPlatforms(
+                      withExpectedMultiSelectableFlag(
+                          this.expectationBuilderService.buildPreventionExpectation()),
+                      type,
+                      expectedSecurityPlatforms));
           case DETECTION ->
               predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildDetectionExpectation()));
+                  withExpectedSecurityPlatforms(
+                      withExpectedMultiSelectableFlag(
+                          this.expectationBuilderService.buildDetectionExpectation()),
+                      type,
+                      expectedSecurityPlatforms));
           case VULNERABILITY ->
               predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildVulnerabilityExpectation()));
+                  withExpectedSecurityPlatforms(
+                      withExpectedMultiSelectableFlag(
+                          this.expectationBuilderService.buildVulnerabilityExpectation()),
+                      type,
+                      expectedSecurityPlatforms));
           default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
         }
       }
@@ -319,6 +336,25 @@ public class PayloadService {
   private Expectation withExpectedMultiSelectableFlag(Expectation expectation) {
     expectation.setMultiSelectable(
         BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.equals(expectation.getType()));
+    return expectation;
+  }
+
+  /**
+   * Applies the payload's optional expected security platform types to the predefined expectation
+   * of the given type. Absent / empty means "any platform" (legacy behaviour), so the expectation
+   * keeps its empty list.
+   */
+  private Expectation withExpectedSecurityPlatforms(
+      Expectation expectation,
+      BaseInjectExpectation.EXPECTATION_TYPE type,
+      Map<BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+          expectedSecurityPlatforms) {
+    if (expectedSecurityPlatforms != null) {
+      List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expected = expectedSecurityPlatforms.get(type);
+      if (expected != null && !expected.isEmpty()) {
+        expectation.setExpectedSecurityPlatformTypes(new ArrayList<>(expected));
+      }
+    }
     return expectation;
   }
 
@@ -540,7 +576,7 @@ public class PayloadService {
     dynamicDnsResolutionPayload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
 
     PayloadArgument argument = new PayloadArgument();
-    argument.setType(ArgumentType.Text);
+    argument.setType(PrimitiveType.Text);
     argument.setKey(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY);
     argument.setDefaultValue("filigran.io");
     dynamicDnsResolutionPayload.setArguments(new ArrayList<>(List.of(argument)));

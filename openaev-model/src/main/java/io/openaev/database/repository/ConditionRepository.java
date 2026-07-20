@@ -1,8 +1,8 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Condition;
-import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.PrimitiveType;
 import java.util.List;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -47,7 +47,7 @@ public interface ConditionRepository extends JpaRepository<Condition, String> {
   List<Condition> findAllByWorkflowIdAndConditionParentIsNullAndTypeNot(
       String workflowId, ConditionType excludedType);
 
-  List<Condition> findAllByKeyTypeIn(Set<ConditionKeyType> outputKeyTypes);
+  List<Condition> findAllByKeyTypeIn(Set<PrimitiveType> outputKeyTypes);
 
   /**
    * Retrieves root filter conditions for a given workflow that have at least one child condition
@@ -77,6 +77,6 @@ public interface ConditionRepository extends JpaRepository<Condition, String> {
           """)
   List<Condition> findFilterConditionsByWorkflowIdAndKeyTypes(
       @Param("workflowId") String workflowId,
-      @Param("keyTypes") Set<ConditionKeyType> keyTypes,
+      @Param("keyTypes") Set<PrimitiveType> keyTypes,
       @Param("excludedTypes") Set<ConditionType> excludedTypes);
 }

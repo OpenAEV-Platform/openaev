@@ -6,6 +6,7 @@ import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
@@ -16,6 +17,7 @@ import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.helper.CollectorTypeNameSerializer;
+import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.jsonapi.IncludeOption;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
@@ -161,6 +163,19 @@ public class Payload implements GrantableBase, TenantBase {
   @JsonProperty("payload_expectations")
   private EXPECTATION_TYPE[] expectations;
 
+  /**
+   * Optional map of expectation type to the security platform types expected to fulfil it (e.g.
+   * {@code {"DETECTION": ["EDR","XDR","SIEM"], "PREVENTION": ["EDR","XDR"]}}). Empty or absent
+   * means "any security platform" (legacy behaviour). Used to pre-seed only the relevant collectors
+   * when this payload's predefined expectations are instantiated on an inject.
+   */
+  @Setter
+  @Type(JsonType.class)
+  @Column(name = "payload_expected_security_platforms", columnDefinition = "jsonb")
+  @JsonProperty("payload_expected_security_platforms")
+  private Map<EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+      expectedSecurityPlatforms = new HashMap<>();
+
   @Setter
   @Queryable(filterable = true)
   @Column(name = "payload_status")
@@ -203,6 +218,7 @@ public class Payload implements GrantableBase, TenantBase {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "payload_author_user")
   @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("payload_author_user")
   @IncludeOption(key = "exclude from payload export")
   @Queryable(dynamicValues = true, filterable = true, path = "authorUser.id")
@@ -212,6 +228,7 @@ public class Payload implements GrantableBase, TenantBase {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "payload_author_team")
   @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("payload_author_team")
   @IncludeOption(key = "exclude from payload export")
   @Queryable(dynamicValues = true, filterable = true, path = "authorTeam.id")
@@ -221,6 +238,7 @@ public class Payload implements GrantableBase, TenantBase {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "payload_author_organization")
   @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("payload_author_organization")
   @IncludeOption(key = "exclude from payload export")
   @Queryable(dynamicValues = true, filterable = true, path = "authorOrganization.id")
@@ -289,7 +307,7 @@ public class Payload implements GrantableBase, TenantBase {
   @JsonIgnore
   public List<String> getArgumentsDocumentsIds() {
     return this.getArguments().stream()
-        .filter(payloadArgument -> ArgumentType.Document == payloadArgument.getType())
+        .filter(payloadArgument -> PrimitiveType.Document == payloadArgument.getType())
         .map(PayloadArgument::getDefaultValue)
         .toList();
   }

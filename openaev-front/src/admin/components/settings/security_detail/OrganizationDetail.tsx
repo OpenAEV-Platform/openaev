@@ -8,20 +8,20 @@ import { fetchOrganizationById } from '../../../../actions/security/securityDeta
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { fetchUsers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
+import { DetailHero, Field, InformationGrid, Section } from '../../../../components/common/detail/EntityDetailCommon';
 import Empty from '../../../../components/Empty';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
-import { ORGANIZATION_BASE_URL, USER_BASE_URL } from '../../../../constants/BaseUrls';
+import { SECURITY_ORGANIZATION_BASE_URL, USER_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { type Organization, type User } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
-import OrganizationPopover from '../../teams/organizations/OrganizationPopover';
+import OrganizationPopover from '../organizations/OrganizationPopover';
 import SecurityMenu from '../SecurityMenu';
-import { DetailHero, Field, InformationGrid, Section } from './SecurityDetailCommon';
 
 const OrganizationDetail = () => {
   const { t, fldt } = useFormatter();
@@ -61,7 +61,7 @@ const OrganizationDetail = () => {
             { label: t('Security') },
             {
               label: t('Organizations'),
-              link: ORGANIZATION_BASE_URL,
+              link: SECURITY_ORGANIZATION_BASE_URL,
             },
             {
               label: organization.organization_name,
@@ -86,7 +86,7 @@ const OrganizationDetail = () => {
                 organization={organization}
                 tagsMap={tagsMap}
                 onUpdate={(updated: Organization) => setOrganization(updated)}
-                onDelete={() => navigate(ORGANIZATION_BASE_URL)}
+                onDelete={() => navigate(SECURITY_ORGANIZATION_BASE_URL)}
               />
             )}
           />

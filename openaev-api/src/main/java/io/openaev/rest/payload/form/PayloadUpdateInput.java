@@ -8,6 +8,7 @@ import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PayloadPrerequisite;
+import io.openaev.database.model.SecurityPlatform;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -51,6 +52,11 @@ public class PayloadUpdateInput {
         BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
         BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
       };
+
+  @JsonProperty("payload_expected_security_platforms")
+  private java.util.Map<
+          BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+      expectedSecurityPlatforms = new java.util.HashMap<>();
 
   @JsonProperty("executable_file")
   private String executableFile;

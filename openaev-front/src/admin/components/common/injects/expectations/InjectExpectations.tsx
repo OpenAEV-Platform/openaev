@@ -9,19 +9,22 @@ import { type FunctionComponent, useContext, useEffect, useMemo, useState } from
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../components/i18n';
+import ItemSecurityPlatformType from '../../../../../components/ItemSecurityPlatformType';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
 import { truncate } from '../../../../../utils/String';
 import { PermissionsContext } from '../../Context';
 import { type ExpectationInput } from './Expectation';
 import ExpectationPopover from './ExpectationPopover';
-import { isAutomatic, typeIcon } from './ExpectationUtils';
+import { isAutomatic, isTechnicalExpectation, typeIcon } from './ExpectationUtils';
 import InjectAddExpectation from './InjectAddExpectation';
 
 const useStyles = makeStyles()(theme => ({
   column: {
     display: 'grid',
-    gridTemplateColumns: '2fr 1fr 1fr 1fr',
+    gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr',
+    alignItems: 'center',
+    gap: theme.spacing(1),
   },
   bodyItem: { fontSize: theme.typography.h3.fontSize },
 }));
@@ -174,6 +177,29 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
                   </div>
                   <div className={classes.bodyItem}>
                     {typeLabel(expectation.expectation_type)}
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 4,
+                  }}
+                  >
+                    {(() => {
+                      const expectedTypes = expectation.expectation_expected_security_platform_types ?? [];
+                      if (!isTechnicalExpectation(expectation.expectation_type)) {
+                        return null;
+                      }
+                      if (expectedTypes.length === 0) {
+                        return (
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            {t('Any security platform')}
+                          </Typography>
+                        );
+                      }
+                      return expectedTypes.map(type => (
+                        <ItemSecurityPlatformType key={type} type={type} />
+                      ));
+                    })()}
                   </div>
                 </div>
               )}

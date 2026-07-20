@@ -119,6 +119,9 @@ const Channels = () => {
             keyword={filtering.keyword}
           />
         </div>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.CHANNELS}>
+          <CreateChannel />
+        </Can>
       </div>
       <div className="clearfix" />
       <List>
@@ -219,10 +222,6 @@ const Channels = () => {
           </ListItemButton>
         ))}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.CHANNELS}>
-        <CreateChannel />
-      </Can>
-
     </>
   );
 };

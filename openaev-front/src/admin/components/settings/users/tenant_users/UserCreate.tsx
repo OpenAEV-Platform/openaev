@@ -11,15 +11,11 @@ import UserForm from './UserForm';
 interface UserCreateProps {
   onSubmit: (data: UserInput) => Promise<void> | void;
   type: UserType;
-  buttonVariant?: 'rightMenu' | undefined;
-  buttonStyle?: React.CSSProperties;
 }
 
 const UserCreate: FunctionComponent<UserCreateProps> = ({
   onSubmit,
   type,
-  buttonVariant,
-  buttonStyle,
 }) => {
   const { t } = useFormatter();
   const { open, handleOpen, handleClose } = useDialog();
@@ -36,7 +32,7 @@ const UserCreate: FunctionComponent<UserCreateProps> = ({
 
   return (
     <>
-      <ButtonCreate onClick={handleOpen} variant={buttonVariant} style={buttonStyle} />
+      <ButtonCreate onClick={handleOpen} />
       <Drawer
         open={open}
         handleClose={handleClose}

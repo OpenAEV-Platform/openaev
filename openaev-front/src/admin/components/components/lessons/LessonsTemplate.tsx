@@ -60,6 +60,15 @@ const LessonsTemplate = () => {
 
   return (
     <>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+        }}
+        >
+          <CreateLessonsTemplateCategory lessonsTemplateId={lessonsTemplateId} />
+        </div>
+      </Can>
       <GridLegacy container columnSpacing={3} rowSpacing={5} style={{ marginTop: '0px' }}>
         {categoriesSorted.map((category) => {
           const questionsSorted = sortQuestions(
@@ -117,9 +126,6 @@ const LessonsTemplate = () => {
           );
         })}
       </GridLegacy>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
-        <CreateLessonsTemplateCategory lessonsTemplateId={lessonsTemplateId} />
-      </Can>
     </>
   );
 };

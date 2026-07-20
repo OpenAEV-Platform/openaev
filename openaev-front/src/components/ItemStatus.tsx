@@ -1,5 +1,5 @@
 ﻿import { Chip, Tooltip } from '@mui/material';
-import { type FunctionComponent } from 'react';
+import { type FunctionComponent, type ReactElement } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { computeStatusStyle } from '../utils/statusUtils';
@@ -29,6 +29,8 @@ interface ItemStatusProps {
   tooltipLabel?: string;
   variant?: 'inList';
   isInject?: boolean;
+  /** Optional leading icon; inherits the chip's status color. */
+  icon?: ReactElement;
 }
 
 const ItemStatus: FunctionComponent<ItemStatusProps> = ({
@@ -36,6 +38,7 @@ const ItemStatus: FunctionComponent<ItemStatusProps> = ({
   status,
   tooltipLabel,
   variant,
+  icon,
 }) => {
   const { classes } = useStyles();
   const style = variant === 'inList' ? classes.chipInList : classes.chip;
@@ -43,7 +46,18 @@ const ItemStatus: FunctionComponent<ItemStatusProps> = ({
 
   return (
     <Tooltip title={tooltipLabel ?? label}>
-      <Chip classes={{ root: style }} style={classStyle} label={label} />
+      <Chip
+        classes={{ root: style }}
+        style={classStyle}
+        label={label}
+        icon={icon}
+        sx={icon ? {
+          '& .MuiChip-icon': {
+            color: 'inherit',
+            marginLeft: '8px',
+          },
+        } : undefined}
+      />
     </Tooltip>
   );
 };

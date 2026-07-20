@@ -102,7 +102,6 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep, onEd
       condition_temporary_id: String(i),
       condition_type: 'MAPPER' as const,
       condition_key_type: c.condition_key_type as ConditionCreateInput['condition_key_type'],
-      condition_key_subtype: c.condition_key_subtype as ConditionCreateInput['condition_key_subtype'],
       condition_key: c.condition_key,
       condition_value: c.condition_value,
       condition_mapping_type: c.condition_mapping_type as ConditionCreateInput['condition_mapping_type'],

@@ -73,7 +73,7 @@ const buildInitialValues
       dns_resolution_hostname: action.dns_resolution_hostname as string | undefined,
       action_arguments: action.action_arguments?.map(arg => ({
         ...arg,
-        subtype: arg.subtype ?? undefined,
+        type: String(arg.type) === 'targeted_asset' ? 'targeted-asset' : arg.type,
         description: arg.description ?? undefined,
         separator: arg.separator ?? undefined,
       })),

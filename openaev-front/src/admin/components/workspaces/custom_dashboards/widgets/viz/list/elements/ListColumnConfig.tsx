@@ -19,7 +19,9 @@ import {
 } from '../../../../../../../../utils/api-types';
 import { computeInjectExpectationLabel } from '../../../../../../../../utils/statusUtils';
 import EndpointListItemFragments from '../../../../../../common/endpoints/EndpointListItemFragments';
+import expectationIconByType from '../../../../../../common/ExpectationIconByType';
 import InjectStatus from '../../../../../../common/injects/status/InjectStatus';
+import ExpectationTypeChip from './ExpectationTypeChip';
 import InjectExpectationSourceFragment from './InjectExpectationSourceFragment';
 
 export type ColumnRenderer = (value: string | string[] | boolean | boolean[], opts: {
@@ -88,13 +90,21 @@ const injectColumnsRenderers: RendererMap = {
 export { default as getTargetTypeFromInjectExpectation } from './injectExpectationTarget';
 
 const injectExpectationRenderers: RendererMap = {
+  ['inject_expectation_type']: value => <ExpectationTypeChip type={value as string} />,
   ['inject_expectation_status']: (_, { element }) => {
     const expectation = element as EsInjectExpectation;
     const label = computeInjectExpectationLabel(
       expectation.inject_expectation_status,
       expectation.inject_expectation_type,
     ) ?? '';
-    return <ItemStatus label={label} variant="inList" status={label} />;
+    return (
+      <ItemStatus
+        label={label}
+        variant="inList"
+        status={label}
+        icon={expectationIconByType(expectation.inject_expectation_type, { fontSize: 14 })}
+      />
+    );
   },
   ['inject_expectation_source']: (_, { element }) => <InjectExpectationSourceFragment element={element} />,
 };

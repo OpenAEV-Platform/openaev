@@ -1,7 +1,7 @@
 import { GroupsOutlined, HelpOutlineOutlined } from '@mui/icons-material';
-import { Drawer, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
+import { Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
 import { type CSSProperties, useContext, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { searchTeams } from '../../../../actions/teams/team-actions';
@@ -15,6 +15,7 @@ import useBodyItemsStyles from '../../../../components/common/queryable/style/st
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
+import { TEAM_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { type SearchPaginationInput, type Team } from '../../../../utils/api-types';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
@@ -57,6 +58,7 @@ const inlineStyles: Record<string, CSSProperties> = {
 const Teams = () => {
   // Standard hooks
   const { classes } = useStyles();
+  const navigate = useNavigate();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const ability = useContext(AbilityContext);
@@ -150,6 +152,11 @@ const Teams = () => {
         searchPaginationInput={searchPaginationInput}
         setContent={setTeams}
         exportProps={exportProps}
+        createButton={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
+            <CreateTeam onCreate={result => setTeams([result, ...teams])} />
+          </Can>
+        )}
       />
       <List>
         <ListItem
@@ -175,8 +182,8 @@ const Teams = () => {
           : teams.map((team: Team) => (
               <ListItem
                 key={team.team_id}
-                classes={{ root: classes.item }}
                 divider
+                disablePadding
                 secondaryAction={(
                   <TeamPopover
                     team={team}
@@ -187,50 +194,52 @@ const Teams = () => {
                   />
                 )}
               >
-                <ListItemIcon>
-                  <GroupsOutlined color="primary" />
-                </ListItemIcon>
-                <ListItemText
-                  primary={(
-                    <div style={bodyItemsStyles.bodyItems}>
-                      <div style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles.team_name,
-                      }}
-                      >
-                        {team.team_name}
+                <ListItemButton classes={{ root: classes.item }} onClick={() => navigate(`${TEAM_BASE_URL}/${team.team_id}`)}>
+                  <ListItemIcon>
+                    <GroupsOutlined color="primary" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={(
+                      <div style={bodyItemsStyles.bodyItems}>
+                        <div style={{
+                          ...bodyItemsStyles.bodyItem,
+                          ...inlineStyles.team_name,
+                        }}
+                        >
+                          {team.team_name}
+                        </div>
+                        <div style={{
+                          ...bodyItemsStyles.bodyItem,
+                          ...inlineStyles.team_description,
+                        }}
+                        >
+                          {team.team_description || '-'}
+                        </div>
+                        <div style={{
+                          ...bodyItemsStyles.bodyItem,
+                          ...inlineStyles.team_users_number,
+                        }}
+                        >
+                          {team.team_users_number}
+                        </div>
+                        <div style={{
+                          ...bodyItemsStyles.bodyItem,
+                          ...inlineStyles.team_tags,
+                        }}
+                        >
+                          <ItemTags variant="list" tags={team.team_tags} />
+                        </div>
+                        <div style={{
+                          ...bodyItemsStyles.bodyItem,
+                          ...inlineStyles.team_updated_at,
+                        }}
+                        >
+                          {nsdt(team.team_updated_at)}
+                        </div>
                       </div>
-                      <div style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles.team_description,
-                      }}
-                      >
-                        {team.team_description || '-'}
-                      </div>
-                      <div style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles.team_users_number,
-                      }}
-                      >
-                        {team.team_users_number}
-                      </div>
-                      <div style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles.team_tags,
-                      }}
-                      >
-                        <ItemTags variant="list" tags={team.team_tags} />
-                      </div>
-                      <div style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles.team_updated_at,
-                      }}
-                      >
-                        {nsdt(team.team_updated_at)}
-                      </div>
-                    </div>
-                  )}
-                />
+                    )}
+                  />
+                </ListItemButton>
               </ListItem>
             ))}
       </List>
@@ -251,9 +260,6 @@ const Teams = () => {
           />
         )}
       </Drawer>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
-        <CreateTeam onCreate={result => setTeams([result, ...teams])} />
-      </Can>
     </>
   );
 };

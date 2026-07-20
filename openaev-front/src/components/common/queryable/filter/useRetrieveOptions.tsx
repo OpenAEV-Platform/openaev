@@ -149,8 +149,14 @@ const useRetrieveOptions = () => {
         }
         break;
       case 'inject_teams':
+      case 'finding_teams':
       case 'base_teams_side':
         searchTeamByIdAsOption(ids).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'finding_users':
+        searchPlayerByIdAsOption(ids).then((response) => {
           setOptions(response.data);
         });
         break;

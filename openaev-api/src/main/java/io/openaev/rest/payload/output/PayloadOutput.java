@@ -66,6 +66,14 @@ public class PayloadOutput {
   @JsonProperty("payload_expectations")
   private BaseInjectExpectation.EXPECTATION_TYPE[] expectations;
 
+  @Schema(
+      description =
+          "Optional map of expectation type to expected security platform types (empty = any)")
+  @JsonProperty("payload_expected_security_platforms")
+  private java.util.Map<
+          BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+      expectedSecurityPlatforms;
+
   @Schema(description = "Current payload lifecycle status")
   @JsonProperty("payload_status")
   @NotNull

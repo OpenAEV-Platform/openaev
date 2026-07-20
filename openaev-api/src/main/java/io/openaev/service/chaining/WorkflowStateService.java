@@ -17,11 +17,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 public class WorkflowStateService {
-
   private final ConditionUtils conditionUtils;
-
+  private final PrimitiveValidationContextBuilder primitiveValidationContextBuilder;
   private final WorkflowStateRepository workflowStateRepository;
-
   private final ConditionRepository conditionRepository;
 
   /**
@@ -29,11 +27,13 @@ public class WorkflowStateService {
    * values to the local states of steps whose filter conditions are satisfied by the output.
    *
    * @param dataToSync JSON element containing output data to merge
-   * @param fieldTypeMap mapping from field name to its contract output type
+   * @param typeMappings mapping from field name to resolved chaining mapped type
    * @param workflowRun the running workflow whose global state is updated
    */
   public void syncState(
-      JsonElement dataToSync, Map<String, ContractOutputType> fieldTypeMap, Workflow workflowRun) {
+      JsonElement dataToSync, Map<String, ChainingMappedType> typeMappings, Workflow workflowRun) {
+    Map<String, ChainingMappedType> safeTypeMappings =
+        typeMappings != null ? typeMappings : Collections.emptyMap();
     WorkflowState globalState = loadOrBuildGlobalState(workflowRun);
 
     WorkflowStateEntries entries =
@@ -42,7 +42,7 @@ public class WorkflowStateService {
     // Process traces
     if (dataToSync.isJsonObject()) {
       Map<String, List<String>> parsedValues =
-          saveToEntries(entries, dataToSync.getAsJsonObject(), fieldTypeMap);
+          saveToEntries(entries, dataToSync.getAsJsonObject(), safeTypeMappings, workflowRun);
       // Propagate to local states of steps whose events need this output
       propagateToLocalStates(parsedValues, workflowRun);
     }
@@ -67,8 +67,8 @@ public class WorkflowStateService {
     if (parsedByType.isEmpty() || workflowRun.getWorkflowTemplate() == null) {
       return;
     }
-    // Collect the ConditionKeyTypes matching the output types produced
-    Set<ConditionKeyType> outputKeyTypes = resolveOutputKeyTypes(parsedByType.keySet());
+    // Collect primitive key types matching the produced output.
+    Set<PrimitiveType> outputKeyTypes = resolveOutputKeyTypes(parsedByType.keySet());
     if (outputKeyTypes.isEmpty()) {
       return;
     }
@@ -87,19 +87,22 @@ public class WorkflowStateService {
   }
 
   /**
-   * Converts output type name strings to their corresponding {@link ConditionKeyType} enum values,
+   * Converts output type name strings to their corresponding {@link PrimitiveType} enum values,
    * ignoring any names that don't match a known enum constant.
    *
    * @param typeNames set of output type name strings
-   * @return set of resolved ConditionKeyType values
+   * @return set of resolved PrimitiveType values
    */
-  private Set<ConditionKeyType> resolveOutputKeyTypes(Set<String> typeNames) {
+  private Set<PrimitiveType> resolveOutputKeyTypes(Set<String> typeNames) {
     return typeNames.stream()
         .map(
             typeName -> {
               try {
-                return ConditionKeyType.valueOf(typeName);
+                return PrimitiveType.valueOf(typeName);
               } catch (IllegalArgumentException e) {
+                log.warn(
+                    "[Chaining] Ignoring output key '{}' because it does not match any PrimitiveType",
+                    typeName);
                 return null;
               }
             })
@@ -116,7 +119,7 @@ public class WorkflowStateService {
    * @return map of step templates to their matching filter conditions
    */
   private Map<Step, List<Condition>> findStepsWithMatchingConditions(
-      String workflowTemplateId, Set<ConditionKeyType> outputKeyTypes) {
+      String workflowTemplateId, Set<PrimitiveType> outputKeyTypes) {
 
     // Find filter conditions in the workflow template that match the output key types
     Set<ConditionType> excludedTypes = Set.of(ConditionType.MAPPER, ConditionType.DEPEND_ON);
@@ -239,46 +242,76 @@ public class WorkflowStateService {
   }
 
   /**
-   * Parses structured output fields and adds their values to the state entries.
+   * Parses structured output fields and adds their values to the global state entries.
    *
-   * @param entries state entries to populate
-   * @param structuredOutput JSON object with field arrays
-   * @param fieldTypeMap mapping from field name to contract output type
-   * @return map of contract output type names to extracted string values
+   * @param entries global state entries to populate
+   * @param structuredOutput JSON object with field arrays produced by the step
+   * @param typeMappings mapping from output field name to its resolved chaining type
+   * @param workflowRun the running workflow execution
+   * @return map of primitive type names to extracted, scope-validated values
    */
   private Map<String, List<String>> saveToEntries(
       WorkflowStateEntries entries,
       JsonObject structuredOutput,
-      Map<String, ContractOutputType> fieldTypeMap) {
+      Map<String, ChainingMappedType> typeMappings,
+      Workflow workflowRun) {
 
     Map<String, List<String>> parsedByType = new HashMap<>();
+    PrimitiveValidationContext validationContext =
+        primitiveValidationContextBuilder.build(typeMappings, workflowRun);
 
-    structuredOutput
-        .entrySet()
-        .forEach(
-            entry -> {
-              String nodeName = entry.getKey();
-              JsonElement jsonValue = entry.getValue();
+    for (Map.Entry<String, JsonElement> entry : structuredOutput.entrySet()) {
+      String fieldName = entry.getKey();
+      JsonElement jsonValue = entry.getValue();
 
-              ContractOutputType type = fieldTypeMap.get(nodeName);
-              if (type == null || jsonValue.isJsonNull() || !jsonValue.isJsonArray()) {
-                return;
-              }
+      // Each output field must be a non-null array to be processed
+      if (jsonValue.isJsonNull() || !jsonValue.isJsonArray()) {
+        continue;
+      }
 
-              JsonArray array = jsonValue.getAsJsonArray();
+      ChainingMappedType mappedType = typeMappings.get(fieldName);
+      if (mappedType == null) {
+        log.warn("Skipping output field '{}' because no primitive type mapping exists.", fieldName);
+        continue;
+      }
+      if (mappedType.kind() == ChainingTypeKind.NOT_CHAINABLE) {
+        continue;
+      }
 
-              for (JsonElement element : array) {
-                if (element.isJsonPrimitive()) {
-                  String val = element.getAsString();
-                  entries.getInputByKey(type.name()).getValues().add(val);
-                  parsedByType.computeIfAbsent(type.name(), k -> new ArrayList<>()).add(val);
-                } else if (element.isJsonObject()) {
-                  // e.g. "portscan": [{"port": 22, "host": "1.1.1.1"}]
-                  saveCorrelatedObject(entries, element.getAsJsonObject());
-                }
-              }
-            });
+      // Resolve primitive types once, avoids re-evaluating inside the element loop
+      List<PrimitiveType> primitiveTypes = mappedType.primitiveTypes();
+      boolean isComplex = mappedType.kind() == ChainingTypeKind.COMPLEX;
+
+      for (JsonElement element : jsonValue.getAsJsonArray()) {
+        if (element.isJsonPrimitive() && !isComplex && !primitiveTypes.isEmpty()) {
+          // Validate scalar value against scope rules and record under each matching primitive type
+          String val = element.getAsString();
+          for (PrimitiveType primitiveType : primitiveTypes) {
+            if (PrimitiveValueValidator.isAcceptedForPrimitiveType(
+                primitiveType, val, validationContext)) {
+              recordValue(primitiveType.name(), val, entries, parsedByType);
+            }
+          }
+        } else if (element.isJsonObject() && isComplex) {
+          // Complex output (e.g. {port: 22, host: "1.1.1.1"}): store as correlated pairs
+          saveCorrelatedObject(entries, element.getAsJsonObject());
+        }
+      }
+    }
     return parsedByType;
+  }
+
+  /**
+   * Records a validated primitive value into both the global state entries and the by-type
+   * accumulator used for local-state propagation.
+   */
+  private void recordValue(
+      String key,
+      String value,
+      WorkflowStateEntries entries,
+      Map<String, List<String>> parsedByType) {
+    entries.getInputByKey(key).getValues().add(value);
+    parsedByType.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
   }
 
   /**

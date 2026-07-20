@@ -60,6 +60,7 @@ class ImportMapperActivationConfigTest {
             + "'");
   }
 
+
   @Test
   @DisplayName("openaev.tenant.active-tables in application.properties contains collectors")
   void prodConfigActivatesCollectors() throws Exception {

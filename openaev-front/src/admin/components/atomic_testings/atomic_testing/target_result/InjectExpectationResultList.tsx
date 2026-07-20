@@ -1,4 +1,4 @@
-import { Box, Typography } from '@mui/material';
+import { Box, Chip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Fragment, useContext } from 'react';
 
@@ -13,11 +13,29 @@ import {
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
-import { getSourceLabel } from '../../../common/injects/expectations/ExpectationUtils';
 import InjectIcon from '../../../common/injects/InjectIcon';
 import InjectExpectationContext from '../context/InjectExpectationContext';
 import StatusPill from './StatusPill';
 import TargetResultAlertNumber from './TargetResultAlertNumber';
+
+// Stable accent per security-platform category (kept in sync with the exposure
+// console orbit colors), so each platform type reads as a distinct chip.
+const PLATFORM_TYPE_COLORS: Record<string, string> = {
+  EDR: '#0fbcff',
+  XDR: '#00bcd4',
+  SIEM: '#ffb300',
+  SOAR: '#9575cd',
+  NDR: '#26a96c',
+  ISPM: '#ff7043',
+  LLM_FIREWALL: '#00f1bd',
+  AI_GATEWAY: '#7e57c2',
+};
+
+// "LLM_FIREWALL" -> "LLM firewall": first token upper (acronym), rest lower.
+const humanizePlatformType = (type: string): string => type
+  .split('_')
+  .map((word, index) => (index === 0 ? word : word.toLowerCase()))
+  .join(' ');
 
 interface Props {
   injectExpectation: InjectExpectationsStore;
@@ -27,7 +45,7 @@ interface Props {
   injectType: Inject['inject_type'];
 }
 
-const GRID_TEMPLATE_COLUMNS = 'minmax(180px, 2fr) 140px 160px 80px 40px';
+const GRID_TEMPLATE_COLUMNS = 'minmax(180px, 2fr) 150px 140px 160px 80px 40px';
 
 const InjectExpectationResultList = ({
   injectExpectation,
@@ -90,10 +108,11 @@ const InjectExpectationResultList = ({
           gridTemplateColumns: GRID_TEMPLATE_COLUMNS,
           alignItems: 'center',
           columnGap: 1,
-          minWidth: 620,
+          minWidth: 720,
         }}
       >
         <Typography sx={headerSx}>{t('Security platforms')}</Typography>
+        <Typography sx={headerSx}>{t('Type')}</Typography>
         <Typography sx={headerSx}>{t('Status')}</Typography>
         <Typography sx={headerSx}>{t('Detection time')}</Typography>
         <Typography sx={headerSx}>{t('Alerts')}</Typography>
@@ -119,7 +138,6 @@ const InjectExpectationResultList = ({
             display: 'flex',
             alignItems: 'center',
             minHeight: 44,
-            borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.05)}`,
             cursor: isResultSecurityPlatform ? 'pointer' : 'default',
             ...(isResultSecurityPlatform && { '&:hover': { backgroundColor: alpha(theme.palette.text.primary, 0.04) } }),
           } as const;
@@ -130,8 +148,23 @@ const InjectExpectationResultList = ({
             }
           };
 
+          const sourceName = expectationResult.sourceName?.trim() || '-';
+          const platformType = expectationResult.sourcePlatform?.trim();
+          const typeColor = platformType
+            ? (PLATFORM_TYPE_COLORS[platformType.toUpperCase()] ?? theme.palette.primary.main)
+            : theme.palette.primary.main;
+
           return (
             <Fragment key={`${expectationResult.sourceName}-${index}`}>
+              {/* Full-width separator so the row divider is continuous across all
+                  columns (a per-cell border breaks at each column gap). */}
+              <Box
+                aria-hidden
+                sx={{
+                  gridColumn: '1 / -1',
+                  borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+                }}
+              />
               <Box sx={cellSx} onClick={handleRowClick}>
                 <div style={{
                   display: 'flex',
@@ -164,9 +197,37 @@ const InjectExpectationResultList = ({
                       textOverflow: 'ellipsis',
                     }}
                   >
-                    {getSourceLabel(expectationResult)}
+                    {sourceName}
                   </Typography>
                 </div>
+              </Box>
+              <Box sx={cellSx} onClick={handleRowClick}>
+                {platformType
+                  ? (
+                      <Chip
+                        label={humanizePlatformType(platformType)}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          height: 22,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          borderRadius: 1,
+                          color: typeColor,
+                          borderColor: alpha(typeColor, 0.4),
+                          backgroundColor: alpha(typeColor, 0.08),
+                        }}
+                      />
+                    )
+                  : (
+                      <Typography sx={{
+                        fontSize: 13,
+                        color: 'text.disabled',
+                      }}
+                      >
+                        -
+                      </Typography>
+                    )}
               </Box>
               <Box sx={cellSx} onClick={handleRowClick}>
                 {expectationResult.result && (

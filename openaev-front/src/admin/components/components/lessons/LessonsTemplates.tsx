@@ -76,6 +76,11 @@ const LessonsTemplates = () => {
         fetch={searchLessonsTemplatesToLoad}
         searchPaginationInput={searchPaginationInput}
         setContent={setLessonTemplates}
+        createButton={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
+            <CreateLessonsTemplate onCreate={result => setLessonTemplates([result, ...lessonTemplates])} />
+          </Can>
+        )}
       />
       <List>
         <ListItem
@@ -134,9 +139,6 @@ const LessonsTemplates = () => {
               );
             })}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
-        <CreateLessonsTemplate onCreate={result => setLessonTemplates([result, ...lessonTemplates])} />
-      </Can>
     </>
   );
 };

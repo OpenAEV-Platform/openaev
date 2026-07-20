@@ -1,4 +1,3 @@
-import { Paper } from '@mui/material';
 import { type FunctionComponent, useMemo } from 'react';
 
 import useFetchInjectExecutionResult from '../../../../../../actions/inject_status/useFetchInjectExecutionResult';
@@ -29,8 +28,10 @@ const TerminalViewTab: FunctionComponent<Props> = ({ injectId, target }) => {
     return <Empty message={t('No traces on this target.')} />;
   }
 
+  // No wrapping card: the section header delimits the block and each terminal
+  // renders its own strong dark panel, so an extra outline would just add noise.
   return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
+    <>
       {nonEmptyTraces.map(([key, value]) => (
         <TerminalView
           key={key}
@@ -38,7 +39,7 @@ const TerminalViewTab: FunctionComponent<Props> = ({ injectId, target }) => {
           traces={value}
         />
       ))}
-    </Paper>
+    </>
   );
 };
 

@@ -37,9 +37,12 @@ const InjectIndex = lazy(() => import('./components/simulations/simulation/injec
 const IndexProfile = lazy(() => import('./components/profile/Index'));
 const FullTextSearch = lazy(() => import('./components/search/FullTextSearch'));
 const Findings = lazy(() => import('./components/findings/Findings'));
+const FindingOverview = lazy(() => import('./components/findings/FindingOverview'));
 const Exercises = lazy(() => import('./components/simulations/Simulations'));
 const IndexExercise = lazy(() => import('./components/simulations/simulation/Index'));
+const SimulationInjectCreation = lazy(() => import('./components/simulations/simulation/injects/SimulationInjectCreationRoute'));
 const AtomicTestings = lazy(() => import('./components/atomic_testings/AtomicTestings'));
+const AtomicTestingCreation = lazy(() => import('./components/atomic_testings/AtomicTestingCreation'));
 const IndexAtomicTesting = lazy(() => import('./components/atomic_testings/atomic_testing/Index'));
 const Scenarios = lazy(() => import('./components/scenarios/Scenarios'));
 const IndexScenario = lazy(() => import('./components/scenarios/scenario/Index'));
@@ -144,7 +147,56 @@ const Index = () => {
                 />
               )}
             />
+            <Route
+              path="findings/:findingId"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.FINDINGS,
+                  }]}
+                  Component={errorWrapper(FindingOverview)()}
+                />
+              )}
+            />
             <Route path="simulations" element={errorWrapper(Exercises)()} />
+            {/* Inject creation is a full-page flow and MUST be declared before the
+                inject-detail route below: `injects/:injectId/*` would otherwise
+                capture `injects/create` (injectId="create") and mount the detail
+                view, which loads forever. The static `create` segment ranks these
+                two routes above both `injects/:injectId/*` and `:exerciseId/*`. */}
+            <Route
+              path="simulations/:exerciseId/injects/create"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.MANAGE,
+                    subject: SUBJECTS.ASSESSMENT,
+                  }, {
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.RESOURCE,
+                    resourceURIParamName: 'exerciseId',
+                  }]}
+                  Component={errorWrapper(SimulationInjectCreation)()}
+                />
+              )}
+            />
+            <Route
+              path="simulations/:exerciseId/injects/create/:contractId"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.MANAGE,
+                    subject: SUBJECTS.ASSESSMENT,
+                  }, {
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.RESOURCE,
+                    resourceURIParamName: 'exerciseId',
+                  }]}
+                  Component={errorWrapper(SimulationInjectCreation)()}
+                />
+              )}
+            />
             <Route
               path="simulations/:exerciseId/*"
               element={(
@@ -178,6 +230,31 @@ const Index = () => {
               )}
             />
             <Route path="atomic_testings" element={errorWrapper(AtomicTestings)()} />
+            {/* Creation requires the same Manage Assessment capability as the create button. */}
+            <Route
+              path="atomic_testings/create"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.MANAGE,
+                    subject: SUBJECTS.ASSESSMENT,
+                  }]}
+                  Component={errorWrapper(AtomicTestingCreation)()}
+                />
+              )}
+            />
+            <Route
+              path="atomic_testings/create/:contractId"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.MANAGE,
+                    subject: SUBJECTS.ASSESSMENT,
+                  }]}
+                  Component={errorWrapper(AtomicTestingCreation)()}
+                />
+              )}
+            />
             <Route
               path="atomic_testings/:injectId/*"
               element={(

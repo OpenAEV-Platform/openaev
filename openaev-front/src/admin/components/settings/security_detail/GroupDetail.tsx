@@ -14,6 +14,7 @@ import { findPlatformUsers } from '../../../../actions/platform/users/platform-u
 import { fetchAllRoles, fetchGroupById } from '../../../../actions/security/securityDetail-actions';
 import { fetchUsers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
+import { DetailHero, DetailSections, Field, InformationGrid, Section } from '../../../../components/common/detail/EntityDetailCommon';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
@@ -27,7 +28,6 @@ import PlatformGroupPopover from '../groups/platform_groups/PlatformGroupPopover
 import GroupPopover from '../groups/tenant_groups/GroupPopover';
 import SecurityMenu from '../SecurityMenu';
 import useSecurityScope from '../useSecurityScope';
-import { DetailHero, DetailSections, Field, InformationGrid, Section } from './SecurityDetailCommon';
 import { SecurityDetailNotFound } from './SecurityDetailNotFound';
 
 interface RelatedItem {

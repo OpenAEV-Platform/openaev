@@ -20,7 +20,20 @@ export interface ExpectationInput {
   expectation_expectation_group: boolean;
   expectation_expiration_time: number;
   expectation_is_multi_selectable?: boolean;
+  // Security platform types expected to fulfil this expectation (empty = any platform).
+  expectation_expected_security_platform_types?: string[];
 }
+
+export const SECURITY_PLATFORM_TYPES = [
+  'EDR',
+  'XDR',
+  'SIEM',
+  'SOAR',
+  'NDR',
+  'ISPM',
+  'LLM_FIREWALL',
+  'AI_GATEWAY',
+] as const;
 
 export interface ExpectationInputForm extends Omit<ExpectationInput, 'expectation_expiration_time' | 'expectation_is_multi_selectable'> {
   expiration_time_days: number;
