@@ -11,6 +11,7 @@ import { fetchXtmHubRegistration } from '../../../actions/xtmhub/xtmhub-actions'
 import { useFormatter } from '../../../components/i18n';
 import ItemBoolean from '../../../components/ItemBoolean';
 import SearchInput from '../../../components/SearchFilter';
+import { REDIRECT_CONNECT_XTM_HUB_URL } from '../../../constants/BaseUrls';
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import oaevDark from '../../../static/images/xtm/oaev_dark.png';
 import oaevLight from '../../../static/images/xtm/oaev_light.png';
@@ -316,7 +317,7 @@ const TopBar: FunctionComponent = () => {
                             </Badge>
                           </a>
                         ) : (
-                          <Link className={classes.xtmItem} to="/redirect/connect-xtm-hub" onClick={handleCloseXtm}>
+                          <Link className={classes.xtmItem} to={REDIRECT_CONNECT_XTM_HUB_URL} onClick={handleCloseXtm}>
                             <Badge variant="dot" color="warning">
                               {xtmhubBadgeImg}
                             </Badge>

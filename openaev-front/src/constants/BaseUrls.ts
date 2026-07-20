@@ -30,3 +30,6 @@ export const COLLECTOR_BASE_URL = '/admin/integrations/collectors';
 // Settings
 export const GROUP_BASE_URL = '/admin/settings/security/groups';
 export const ASSET_RULES_BASE_URL = '/admin/settings/asset_rules';
+
+// Redirects
+export const REDIRECT_CONNECT_XTM_HUB_URL = '/redirect/connect-xtm-hub';
