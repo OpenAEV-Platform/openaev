@@ -11,6 +11,7 @@ import { useFormatter } from '../../../components/i18n';
 import { type CustomDashboard, type Widget, type WidgetToEntitiesInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
+import limitConcurrency from '../../../utils/limitConcurrency';
 import { CustomDashboardContext, type CustomDashboardContextType } from '../workspaces/custom_dashboards/CustomDashboardContext';
 import CustomDashboardReactLayout from '../workspaces/custom_dashboards/CustomDashboardReactLayout';
 import { type WidgetDataDrawerConf } from '../workspaces/custom_dashboards/widgetDataDrawer/WidgetDataDrawer';
@@ -23,6 +24,13 @@ import {
 
 const NOW = new Date().toISOString();
 
+// The dashboard fires one ad-hoc query per widget (20+) the moment it mounts.
+// While the platform is still warming up each query can take seconds, and
+// letting them all run at once exhausts the browser's ~6 connections per
+// origin - lazy route chunks then queue behind them and the left menu appears
+// frozen. Capping the widget queries keeps connections free for navigation.
+const limitWidgetQueries = limitConcurrency(4);
+
 /**
  * The hardcoded "Platform default" home dashboard. Reuses the full custom
  * dashboard engine (grid layout, widget wrappers, visualizations) with
@@ -31,7 +39,7 @@ const NOW = new Date().toISOString();
  */
 const DefaultHomeDashboard = () => {
   const theme = useTheme();
-  const { t } = useFormatter();
+  const { t, locale } = useFormatter();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
@@ -44,7 +52,12 @@ const DefaultHomeDashboard = () => {
   const [refreshCount, setRefreshCount] = useState(0);
 
   // Titles are localized at build time so the grid headers and the results page agree.
-  const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange, t), [timeRange, t]);
+  // `t` from useFormatter() is a NEW function on every render, so it must NOT be a
+  // dependency here: every recompute cascades into new fetch functions in the
+  // context value and refetches all ~20 widgets (same rule as DefaultHomeResults).
+  // `locale` is the stable signal that t's output actually changed, so a runtime
+  // language switch still recomputes the titles (one refetch, but only then).
+  const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange, t), [timeRange, locale]);
 
   const widgetById = useMemo(() => {
     const map = new Map<string, Widget>();
@@ -52,6 +65,8 @@ const DefaultHomeDashboard = () => {
     return map;
   }, [widgets]);
 
+  // Deliberately not keyed on the unstable `t`; `locale` covers language switches
+  // (see the widgets memo above).
   const customDashboard: CustomDashboard = useMemo(() => ({
     custom_dashboard_id: PLATFORM_DEFAULT_DASHBOARD_ID,
     custom_dashboard_name: t('Platform default'),
@@ -60,7 +75,7 @@ const DefaultHomeDashboard = () => {
     custom_dashboard_created_at: NOW,
     custom_dashboard_updated_at: NOW,
     listened: false,
-  }), [widgets, t]);
+  }), [widgets, locale]);
 
   const widgetOf = useCallback((widgetId: string) => {
     const widget = widgetById.get(widgetId);
@@ -102,16 +117,16 @@ const DefaultHomeDashboard = () => {
       },
     },
     setCustomDashboardParameters: () => {},
-    fetchSeries: (widgetId: string) => adHocSeries(widgetOf(widgetId).widget_config),
-    fetchCount: (widgetId: string) => adHocCount(widgetOf(widgetId).widget_config),
+    fetchSeries: (widgetId: string) => limitWidgetQueries(() => adHocSeries(widgetOf(widgetId).widget_config)),
+    fetchCount: (widgetId: string) => limitWidgetQueries(() => adHocCount(widgetOf(widgetId).widget_config)),
     fetchEntities: (widgetId: string, _params: Record<string, string | undefined>, pagination?: Parameters<typeof adHocEntities>[2]) =>
-      adHocEntities(widgetOf(widgetId).widget_config, undefined, pagination),
-    fetchAverage: (widgetId: string) => adHocAverage(widgetOf(widgetId).widget_config),
+      limitWidgetQueries(() => adHocEntities(widgetOf(widgetId).widget_config, undefined, pagination)),
+    fetchAverage: (widgetId: string) => limitWidgetQueries(() => adHocAverage(widgetOf(widgetId).widget_config)),
     fetchAttackPaths: () => Promise.reject(new Error('Not supported on the default dashboard')),
     // drill-downs convert the ad-hoc widget into a scoped entity list
     fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => {
       const widget = widgetOf(widgetId);
-      return adHocEntitiesRuntime(widget.widget_type, widget.widget_config, input);
+      return limitWidgetQueries(() => adHocEntitiesRuntime(widget.widget_type, widget.widget_config, input));
     },
     openWidgetDataDrawer,
     closeWidgetDataDrawer,
@@ -152,15 +167,6 @@ const DefaultHomeDashboard = () => {
           }}
         >
           {t('Adversarial exposure overview')}
-        </Typography>
-        <Typography
-          sx={{
-            fontSize: 12,
-            fontStyle: 'italic',
-            color: 'text.secondary',
-          }}
-        >
-          {t('Platform default')}
         </Typography>
         <div style={{ flex: 1 }} />
         <Select

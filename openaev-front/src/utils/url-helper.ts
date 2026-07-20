@@ -166,19 +166,12 @@ const TENANT_EXEMPT_PREFIXES = [
   '/api/platform-groups',
   '/api/platform-roles',
   '/api/platform-users',
+  '/api/platform-sessions',
   '/api/capabilities',
   '/api/xtmhub/contact-us',
   '/api/xtmhub/auto-register',
   '/api/schemas',
   '/api/engine',
-];
-
-/**
- * API path patterns (regex) that are NEVER tenant-scoped.
- * Used for platform endpoints whose prefix overlaps with tenant-scoped ones.
- */
-const TENANT_EXEMPT_PATTERNS = [
-  /^\/api\/users\/[^/]+\/password$/,
 ];
 
 /**
@@ -192,9 +185,6 @@ export const buildTenantApiPath = (uri: string): string => {
     return uri;
   }
   if (TENANT_EXEMPT_PREFIXES.some(prefix => uri.startsWith(prefix))) {
-    return uri;
-  }
-  if (TENANT_EXEMPT_PATTERNS.some(pattern => pattern.test(uri))) {
     return uri;
   }
 

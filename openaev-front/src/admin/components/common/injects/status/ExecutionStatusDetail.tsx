@@ -1,5 +1,3 @@
-import { Paper } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 
 import { getInjectTracesFromInjectAndTarget } from '../../../../../actions/injects/inject-action';
@@ -23,7 +21,6 @@ interface Props {
 
 const ExecutionStatusDetail = ({ injectId, target }: Props) => {
   const { t } = useFormatter();
-  const theme = useTheme();
   const [traces, setTraces] = useState<ExecutionTraceOutput[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -56,16 +53,17 @@ const ExecutionStatusDetail = ({ injectId, target }: Props) => {
     return <Empty message={t('No traces on this target.')} />;
   }
 
+  // No wrapping card here: the parent section header already delimits the block,
+  // and the per-agent card (AgentTraces) provides the single, subtle outline
+  // around the timeline. This avoids stacking multiple outlined boxes.
   return (
     <>
       {!loading && traces && traces.length > 0 && (
-        <Paper variant="outlined" style={{ padding: theme.spacing(2) }}>
-          <>
-            {(isTeam || isPlayer) && (<MainTraces traces={traces} />)}
-            {isAsset && (<EndpointTraces key={target.id} tracesByAgent={traces} />)}
-            {isAgent && (<AgentTraces traces={traces} isInitialExpanded />)}
-          </>
-        </Paper>
+        <>
+          {(isTeam || isPlayer) && (<MainTraces traces={traces} />)}
+          {isAsset && (<EndpointTraces key={target.id} tracesByAgent={traces} />)}
+          {isAgent && (<AgentTraces traces={traces} />)}
+        </>
       )}
     </>
   );

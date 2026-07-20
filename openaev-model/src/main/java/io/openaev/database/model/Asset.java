@@ -31,6 +31,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
@@ -91,6 +92,20 @@ public class Asset implements TenantBase {
     AUDIO,
     @JsonProperty("MULTIMODAL")
     MULTIMODAL,
+  }
+
+  /**
+   * Activity status of an asset, derived from its agents' heartbeats: {@code ACTIVE} if at least
+   * one agent has been seen within the active window, {@code INACTIVE} if it has agents but none is
+   * active, {@code AGENTLESS} if it has no agent at all.
+   */
+  public enum ASSET_ACTIVITY_STATUS {
+    @JsonProperty("ACTIVE")
+    ACTIVE,
+    @JsonProperty("INACTIVE")
+    INACTIVE,
+    @JsonProperty("AGENTLESS")
+    AGENTLESS,
   }
 
   @Id
@@ -278,6 +293,23 @@ public class Asset implements TenantBase {
   @JsonProperty("asset_metadata")
   private Map<String, Object> metadata = new HashMap<>();
 
+  // Read-only activity status derived from the agents linked to this asset (agents live on the
+  // Endpoint subclass, but the correlated subquery works on the base assets table for every
+  // category - non-agent assets simply resolve to AGENTLESS). The active window mirrors
+  // AgentHelper.ACTIVE_THRESHOLD (1 hour). Filterable so the inventory can filter by status.
+  @Queryable(filterable = true, sortable = true, refEnumClazz = ASSET_ACTIVITY_STATUS.class)
+  @Formula(
+      "(CASE"
+          + " WHEN NOT EXISTS (SELECT 1 FROM agents ag WHERE ag.agent_asset = asset_id)"
+          + " THEN 'AGENTLESS'"
+          + " WHEN EXISTS (SELECT 1 FROM agents ag WHERE ag.agent_asset = asset_id"
+          + " AND ag.agent_last_seen > now() - interval '1 hour') THEN 'ACTIVE'"
+          + " ELSE 'INACTIVE' END)")
+  @Enumerated(EnumType.STRING)
+  @JsonProperty("asset_status")
+  @Schema(description = "Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS)")
+  private ASSET_ACTIVITY_STATUS activityStatus;
+
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
@@ -296,9 +328,13 @@ public class Asset implements TenantBase {
   @JsonProperty("asset_tags")
   private Set<Tag> tags = new HashSet<>();
 
-  // UpdatedAt now used to sync with linked object
+  // UpdatedAt is synced manually with linked objects because join-table changes do not dirty this
+  // row. Only bump when contents actually change: an unconditional bump forces an UPDATE (and an
+  // SSE restream) on every no-op collector upsert (#6778).
   public void setTags(Set<Tag> tags) {
-    this.updatedAt = now();
+    if (!Base.haveSameIds(this.tags, tags)) {
+      this.updatedAt = now();
+    }
     this.tags = tags;
   }
 

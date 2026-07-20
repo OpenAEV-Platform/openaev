@@ -11,7 +11,9 @@ import io.openaev.api.users.dto.UserOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.raw.RawUser;
+import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.service.tenants.TenantUserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
@@ -108,6 +110,21 @@ public class TenantUserApi extends RestBehavior {
   @Transactional
   public UserOutput update(@PathVariable String userId, @Valid @RequestBody UserInput input) {
     return tenantUserService.update(userId, input);
+  }
+
+  @Operation(
+      summary = "Change the password of a tenant user",
+      description = "Changes the password of a user belonging to the current tenant")
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.USER)
+  @PutMapping("/{userId}/password")
+  @Transactional
+  public UserOutput changePassword(
+      @PathVariable String userId, @Valid @RequestBody ChangePasswordInput input)
+      throws InputValidationException {
+    return tenantUserService.updatePassword(userId, input);
   }
 
   // -- DELETE --

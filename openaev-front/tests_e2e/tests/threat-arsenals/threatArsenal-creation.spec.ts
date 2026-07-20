@@ -197,6 +197,6 @@ test.describe('Threat Arsenal form', () => {
     await expect(page.getByText('The element has been successfully created')).toBeVisible();
     await expect(threatArsenalList.addButton).toBeVisible();
     await threatArsenalList.searchThreatArsenal(actionName);
-    await expect(threatArsenalList.getItem(1)).toContainText(actionName);
+    await expect(threatArsenalList.getItem(0)).toContainText(actionName);
   });
 });

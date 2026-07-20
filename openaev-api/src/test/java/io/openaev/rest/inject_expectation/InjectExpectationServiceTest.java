@@ -355,7 +355,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
     // -- ASSERT --
     // Agent level: every expectation carries the collector result and a success score, exactly as
     // the per-item computeTechnicalExpectation path would have produced
-    List<TechnicalInjectExpectation> updatedAgentExpectations =
+    List<BaseInjectExpectation> updatedAgentExpectations =
         Stream.concat(
                 injectExpectationRepository
                     .findAllByInjectAndAgent(savedInject.getId(), savedAgent.getId())

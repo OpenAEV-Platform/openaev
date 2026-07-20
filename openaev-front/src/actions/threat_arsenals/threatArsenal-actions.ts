@@ -52,6 +52,16 @@ export const deleteThreatArsenalAction = (actionId: string) => {
   return simpleDelCall(`${THREAT_ARSENAL_URI}/${actionId}`, {}, true, true);
 };
 
+export const bulkDeleteThreatArsenalActions = (input: InjectorContractSearchPaginationInput) => {
+  return simplePostCall(`${THREAT_ARSENAL_URI}/bulk-delete`, input, {}, true, true);
+};
+
+// Distinct authors + counts for the current filters, so the sidebar can keep
+// every author visible and grey out the zero-count ones (like the domain facet).
+export const fetchThreatArsenalAuthorCounts = (input: SearchPaginationInput) => {
+  return simplePostCall(`${THREAT_ARSENAL_URI}/author-counts`, input);
+};
+
 export const fetchCollectorsForActionRemediation = (actionId: string) => (dispatch: Dispatch) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}/collectors`;
   return getReferential(schema.arrayOfCollectors, uri)(dispatch);

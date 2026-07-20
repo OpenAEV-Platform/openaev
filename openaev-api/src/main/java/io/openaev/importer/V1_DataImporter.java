@@ -34,7 +34,6 @@ import io.openaev.rest.payload.regex_group.RegexGroupInput;
 import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.service.FileService;
 import io.openaev.service.ImportEntry;
-import io.openaev.service.InjectorService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.WorkflowScopeRuleUtils;
@@ -50,7 +49,6 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -92,9 +90,6 @@ public class V1_DataImporter implements Importer {
   private final io.openaev.service.chaining.ConditionService chainingConditionService;
 
   private final InjectorContractContentUtils injectorContractContentUtils;
-
-  @Qualifier("coreInjectorService")
-  private final InjectorService injectorService;
 
   // endregion
 
@@ -1443,21 +1438,9 @@ public class V1_DataImporter implements Importer {
   }
 
   /**
-   * Used to create or get a dummy injector to be able to import injector contract from the
-   * starterpack before the real contract is created by the real injector
-   *
-   * @param importNode contract node
-   * @return the dummy injector
-   */
-  private Injector createOrGetDummyInjector(JsonNode importNode) {
-    return injectorService.createOrGetDummyInjector(
-        importNode.get("injector_contract_injector_type").asText(),
-        importNode.get("injector_contract_injector_type_name").asText());
-  }
-
-  /**
    * Import injector contract from the starterpack before the real contract is created by the real
-   * injector, this contract will be overriden
+   * injector. The contract is created without any injector link: it is adopted (merged and linked)
+   * by the real injector when it registers with the same contract id.
    *
    * @param importNode contract node
    * @param payload to set on contract
@@ -1470,9 +1453,7 @@ public class V1_DataImporter implements Importer {
     injectorContract.setId(importNode.get("injector_contract_id").textValue());
     injectorContract.setCustom(false);
     injectorContract.setContent(importNode.get("injector_contract_content").textValue());
-    Injector dummyInjector = createOrGetDummyInjector(importNode);
-    injectorContract.addInjector(dummyInjector);
-    injectorContract.setTenant(new Tenant(dummyInjector.getTenantId()));
+    injectorContract.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     injectorContract.setConvertedContent((ObjectNode) importNode.get("convertedContent"));
     injectorContract.setExternalId(importNode.get("injector_contract_external_id").textValue());
 
@@ -1515,9 +1496,7 @@ public class V1_DataImporter implements Importer {
         new ObjectMapper()
             .convertValue(importNode.get("injector_contract_labels"), new TypeReference<>() {}));
     injectorContract.setPayload(payload);
-    InjectorContract saved = injectorContractRepository.save(injectorContract);
-    dummyInjector.linkContract(saved);
-    return saved;
+    return injectorContractRepository.save(injectorContract);
   }
 
   public static ContractOutputType formatStringToContractOutputType(String value) {

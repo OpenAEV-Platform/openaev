@@ -1,7 +1,8 @@
+import { TablePagination } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import usePaginationState from '../../../../../components/common/queryable/pagination/usePaginationState';
+import usePaginationState, { ROWS_PER_PAGE_OPTIONS } from '../../../../../components/common/queryable/pagination/usePaginationState';
 import ErrorBoundary from '../../../../../components/ErrorBoundary';
 import Loader from '../../../../../components/Loader';
 import {
@@ -57,13 +58,16 @@ const WidgetWrapper = ({
 
   const [errorMessage, setErrorMessage] = useState<string>('');
   const { customDashboardParameters, fetchCount, fetchSeries, fetchEntities, fetchAttackPaths, fetchAverage } = useContext(CustomDashboardContext);
-  const { elementsPerPage, page, handleChangePagination } = widget.widget_type === 'list'
-    ? usePaginationState(100, undefined, `widget-list-${widget.widget_id}`)
-    : {
-        elementsPerPage: 0,
-        page: 0,
-        handleChangePagination: () => {},
-      };
+  // A dashboard tile is small and its pagination lives in the title row, so it
+  // paginates at a tile-friendly page size (loading 100 rows into a tile never
+  // fit and hid the pagination whenever the total was below 100). The hook is
+  // called unconditionally (Rules of Hooks); only list widgets use its state.
+  const isListWidget = widget.widget_type === 'list';
+  const { elementsPerPage, page, handleChangePagination } = usePaginationState(
+    ROWS_PER_PAGE_OPTIONS[0],
+    undefined,
+    isListWidget ? `widget-list-${widget.widget_id}` : undefined,
+  );
 
   const widgetConfig = useMemo<Record<string, WidgetFetchConfig>>(() => ({
     'attack-path': {
@@ -99,16 +103,29 @@ const WidgetWrapper = ({
     };
   }, []);
 
+  // Monotonic request id: with fetches funneled through the dashboard's
+  // concurrency limiter, a slow stale response must never overwrite the
+  // result of a newer request (rapid pagination clicks, refresh races).
+  const requestIdRef = useRef(0);
+
+  /**
+   * Fetches the widget data. Resolves to true only when this call (or the
+   * clamped retry it delegated to) is still the LATEST request: callers gate
+   * their loading-state resets on it, so a superseded request can neither
+   * overwrite fresh data nor clear a spinner owned by a newer request.
+   */
   const fetchWidgetData = useCallback(
-    async (pagination: Pagination) => {
+    async (pagination: Pagination): Promise<boolean> => {
       setErrorMessage('');
 
       const params = buildParams(customDashboardParameters);
       const config = widgetConfig[widget.widget_type] ?? defaultConfig;
+      requestIdRef.current += 1;
+      const requestId = requestIdRef.current;
 
       try {
         const response = await config.fetchFn(widget.widget_id, params, pagination);
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current || requestId !== requestIdRef.current) return false;
         if (response.data) {
           setVizData({
             type: config.vizType,
@@ -116,13 +133,29 @@ const WidgetWrapper = ({
               ? config.transformData(response.data)
               : response.data,
           } as WidgetVizData);
+          // A page persisted in localStorage can point past the end after the
+          // data shrinks (e.g. a narrower time range). The pagination control
+          // hides itself in that case, so clamp back to the first page.
+          const entities = response.data as EsEntities;
+          if (config.vizType === WidgetVizDataType.ENTITIES
+            && pagination.page > 0
+            && (entities.total ?? 0) <= pagination.page * pagination.size) {
+            const firstPage = {
+              page: 0,
+              size: pagination.size,
+            };
+            handleChangePagination(firstPage);
+            return fetchWidgetData(firstPage);
+          }
         }
+        return true;
       } catch (error) {
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current || requestId !== requestIdRef.current) return false;
         setErrorMessage((error as Error).message);
+        return true;
       }
     },
-    [widget.widget_id, widget.widget_type, widget.widget_config, customDashboardParameters, widgetConfig, defaultConfig],
+    [widget.widget_id, widget.widget_type, widget.widget_config, customDashboardParameters, widgetConfig, defaultConfig, handleChangePagination],
   );
 
   useEffect(() => {
@@ -131,9 +164,12 @@ const WidgetWrapper = ({
     fetchWidgetData({
       page,
       size: elementsPerPage,
-    }).then(() => {
-      if (isMountedRef.current) {
+    }).then((latest) => {
+      if (latest && isMountedRef.current) {
         setInitialLoading(false);
+        // A refetch (refresh counter, parameter change) supersedes any
+        // pagination request still in flight; clear its spinner too.
+        setContentLoading(false);
       }
     });
   }, [fetchWidgetData]);
@@ -151,8 +187,54 @@ const WidgetWrapper = ({
   const onPaginationChange = (pagination: Pagination) => {
     setContentLoading(true);
     handleChangePagination(pagination);
-    fetchWidgetData(pagination).then(() => setContentLoading(false));
+    // Only the latest request may clear the spinner: an older, superseded
+    // pagination request resolving late must not hide it while a newer
+    // request is still in flight.
+    fetchWidgetData(pagination).then((latest) => {
+      if (latest && isMountedRef.current) {
+        setContentLoading(false);
+      }
+    });
   };
+
+  // List pagination lives in the title row (top right) instead of a dedicated
+  // bar below the list, so it costs no vertical space inside the tile.
+  const listPagination = widget.widget_type === 'list'
+    && vizData.type === WidgetVizDataType.ENTITIES
+    && vizData.data.total > vizData.data.page_size
+    ? (
+        <TablePagination
+          component="div"
+          className="noDrag"
+          rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+          count={vizData.data.total}
+          page={vizData.data.page_number}
+          rowsPerPage={vizData.data.page_size}
+          onPageChange={(_, newPage) => onPaginationChange({
+            page: newPage,
+            size: vizData.data.page_size,
+          })}
+          onRowsPerPageChange={event => onPaginationChange({
+            page: 0,
+            size: parseInt(event.target.value, 10),
+          })}
+          sx={{
+            'overflow': 'hidden',
+            'flexShrink': 0,
+            '& .MuiTablePagination-toolbar': {
+              minHeight: 22,
+              paddingLeft: 0,
+            },
+            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+              fontSize: 12,
+              margin: 0,
+            },
+            '& .MuiTablePagination-select': { fontSize: 12 },
+            '& .MuiTablePagination-actions .MuiIconButton-root': { padding: 0.25 },
+          }}
+        />
+      )
+    : undefined;
 
   return (
     <div style={{
@@ -167,6 +249,7 @@ const WidgetWrapper = ({
         handleWidgetDelete={handleWidgetDelete}
         readOnly={readOnly}
         vizData={vizData}
+        rightSlot={listPagination}
       />
       <ErrorBoundary>
         {isResizing ? (<div />) : (

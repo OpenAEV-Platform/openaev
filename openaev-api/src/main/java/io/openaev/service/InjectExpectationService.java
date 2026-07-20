@@ -1170,15 +1170,28 @@ public class InjectExpectationService {
       @Nullable String assetId,
       @Nullable String assetGroupId) {
     if (agentId != null) {
-      return injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
+      return filterTechnicalExpectations(
+          injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId));
     }
     if (assetId != null) {
-      return injectExpectationRepository.findAllByInjectAndAsset(injectId, assetId);
+      return filterTechnicalExpectations(
+          injectExpectationRepository.findAllByInjectAndAsset(injectId, assetId));
     }
     if (assetGroupId != null) {
-      return injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, assetGroupId);
+      return filterTechnicalExpectations(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, assetGroupId));
     }
     return Collections.emptyList();
+  }
+
+  // Agent/asset targets can also carry manual expectations: keep only the
+  // technical ones for the signature-application paths.
+  private static List<TechnicalInjectExpectation> filterTechnicalExpectations(
+      List<BaseInjectExpectation> expectations) {
+    return expectations.stream()
+        .filter(TechnicalInjectExpectation.class::isInstance)
+        .map(TechnicalInjectExpectation.class::cast)
+        .toList();
   }
 
   /**
@@ -1194,9 +1207,12 @@ public class InjectExpectationService {
       @NotBlank final String agentId,
       @NotBlank final Instant date,
       @NotBlank final String signatureType) {
-    // Load all expectations for the inject/agent, append the signature, then persist the changes.
+    // Load the technical expectations for the inject/agent, append the signature, then persist
+    // the changes. Agent rows can also carry MANUAL expectations, which must not receive
+    // start/end date signatures (they are matched against technical detection/prevention data).
     List<TechnicalInjectExpectation> injectExpectations =
-        injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
+        filterTechnicalExpectations(
+            injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId));
     if (!injectExpectations.isEmpty()) {
       injectExpectations.forEach(
           injectExpectation -> {

@@ -169,7 +169,7 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   @Transactional
   void
-      testScenario_given_injects_nuclei_without_nuclei_injector_registered_when_starterpack_then_should_create_dummy_injector()
+      testScenario_given_injects_nuclei_without_nuclei_injector_registered_when_starterpack_then_should_create_injectorless_contract()
           throws IOException {
 
     MockitoAnnotations.openMocks(this);
@@ -183,14 +183,17 @@ class V1_DataImporterTest extends IntegrationTest {
     this.importer.importData(
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
-    // dummy injector should be created with 1 associated injector contract
-    Injector dummyInjector =
+    // the contract should be created without any injector link (no placeholder injector):
+    // the real injector adopts it by id when it registers
+    InjectorContract importedContract =
+        this.injectorContractRepository
+            .findById("93d27459-68d0-43b1-ad65-eacc3cfa5cf7")
+            .orElseThrow();
+    assertTrue(importedContract.getInjectors().isEmpty());
+    assertTrue(
         this.injectorRepository
             .findByTypeAndTenantId(NMAP_DUMMY_INJECTOR_TYPE, TenantContext.getCurrentTenant())
-            .orElseThrow();
-    List<InjectorContract> injectorContracts =
-        injectorContractRepository.findByInjectorsContaining(dummyInjector);
-    assertEquals(1, injectorContracts.size());
+            .isEmpty());
   }
 
   @Test

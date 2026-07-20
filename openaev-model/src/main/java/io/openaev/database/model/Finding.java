@@ -139,6 +139,7 @@ public class Finding implements TenantBase {
       inverseJoinColumns = @JoinColumn(name = "team_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("finding_teams")
+  @Queryable(filterable = true, dynamicValues = true, path = "teams.id")
   private List<Team> teams = new ArrayList<>();
 
   @Schema(implementation = String[].class)
@@ -149,6 +150,7 @@ public class Finding implements TenantBase {
       inverseJoinColumns = @JoinColumn(name = "user_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("finding_users")
+  @Queryable(filterable = true, dynamicValues = true, path = "users.id")
   private List<User> users = new ArrayList<>();
 
   @Getter(onMethod_ = @JsonIgnore)

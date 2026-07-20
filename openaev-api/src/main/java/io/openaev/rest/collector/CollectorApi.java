@@ -183,6 +183,21 @@ public class CollectorApi extends RestBehavior {
         collector.getSecurityPlatform() != null ? collector.getSecurityPlatform().getId() : null);
   }
 
+  @DeleteMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})
+  @AccessControl(
+      resourceId = "#collectorId",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.COLLECTOR)
+  @Operation(
+      summary = "Delete a collector",
+      description =
+          "Removes a registered collector. Intended for stopped collectors that no longer ping;"
+              + " an active collector re-registers on its next heartbeat.")
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteCollector(@PathVariable String collectorId) {
+    collectorRepository.deleteByIdAndTenantId(collectorId, TenantContext.getCurrentTenant());
+  }
+
   @PostMapping(
       value = {COLLECTOR_URI, TENANT_COLLECTOR_URI},
       produces = {MediaType.APPLICATION_JSON_VALUE},

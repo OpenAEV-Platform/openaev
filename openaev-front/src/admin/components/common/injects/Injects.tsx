@@ -2,7 +2,7 @@ import { HelpOutlineOutlined } from '@mui/icons-material';
 import { Checkbox, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, lazy, Suspense, type SyntheticEvent, useContext, useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
@@ -26,7 +26,6 @@ import {
   type Inject,
   type InjectBulkUpdateOperation,
   type InjectExportFromSearchRequestInput,
-  type InjectInput,
   type InjectTestStatusOutput,
   type SearchPaginationInput,
   type Team,
@@ -39,7 +38,6 @@ import { splitDuration } from '../../../../utils/Time';
 import { download, isNotEmptyField } from '../../../../utils/utils';
 import { InjectContext, InjectTestContext, PermissionsContext, ViewModeContext } from '../Context';
 import ToolBar from '../ToolBar';
-import CreateInject from './CreateInject';
 import InjectIcon from './InjectIcon';
 import InjectorContract from './InjectorContract';
 import InjectPopover from './InjectPopover';
@@ -293,20 +291,6 @@ const Injects: FunctionComponent<Props> = ({
     }
   };
 
-  const onCreateInject = async (data: InjectInput) => {
-    await injectContext.onAddInject(data as Inject).then((result: {
-      result: string;
-      entities: { injects: Record<string, InjectStore> };
-    }) => {
-      onCreate(result);
-    });
-  };
-
-  const onCreateInjects = (created: InjectOutputType[]) => {
-    setInjects([...created, ...injects]);
-    queryableHelpers.paginationHelpers.handleChangeTotalElements(queryableHelpers.paginationHelpers.getTotalElements() + created.length);
-  };
-
   const onUpdateInject = async (data: Inject) => {
     if (selectedInjectId) {
       await injectContext.onUpdateInject(selectedInjectId, data).then((result: {
@@ -344,12 +328,11 @@ const Injects: FunctionComponent<Props> = ({
     });
   };
 
-  const [openCreateDrawer, setOpenCreateDrawer] = useState(false);
-
-  const [presetInjectDuration, setPresetInjectDuration] = useState<number>(0);
-  const openCreateInjectDrawer = (duration: number) => {
-    setOpenCreateDrawer(true);
-    setPresetInjectDuration(duration);
+  // Creation now happens on a dedicated full page (contract picker + config).
+  const navigate = useNavigate();
+  const openCreateInjectPage = (duration: number = 0) => {
+    const presetDuration = Math.max(0, Math.round(duration));
+    navigate(`${uriVariable}/create${presetDuration > 0 ? `?duration=${presetDuration}` : ''}`);
   };
 
   // Toolbar
@@ -549,7 +532,7 @@ const Injects: FunctionComponent<Props> = ({
             <ChainedTimeline
               injects={injects}
               onUpdateInject={massUpdateInject}
-              onTimelineClick={openCreateInjectDrawer}
+              onTimelineClick={openCreateInjectPage}
               onSelectedInject={(inject) => {
                 const injectContract = inject?.inject_injector_contract.convertedContent;
                 if (injectContract) {
@@ -716,30 +699,9 @@ const Injects: FunctionComponent<Props> = ({
               uriVariable={uriVariable}
             />
           )}
-        <>
-          {permissions.canManage && (
-            <ButtonCreate onClick={() => {
-              setOpenCreateDrawer(true);
-              setPresetInjectDuration(0);
-            }}
-            />
-          )}
-
-          {openCreateDrawer
-            && (
-              <CreateInject
-                title={t('Create a new inject')}
-                open
-                handleClose={() => setOpenCreateDrawer(false)}
-                onCreateInject={onCreateInject}
-                onCreateInjects={onCreateInjects}
-                presetInjectDuration={presetInjectDuration}
-                articlesFromExerciseOrScenario={articles}
-                uriVariable={uriVariable}
-                variablesFromExerciseOrScenario={variables}
-              />
-            )}
-        </>
+        {permissions.canManage && (
+          <ButtonCreate onClick={() => openCreateInjectPage()} />
+        )}
       </>
     </>
   );

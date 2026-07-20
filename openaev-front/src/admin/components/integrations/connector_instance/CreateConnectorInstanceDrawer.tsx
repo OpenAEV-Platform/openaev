@@ -74,7 +74,11 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
         {loading && <Loader />}
         {disabledMessage && disabled && <Alert style={{ marginBottom: theme.spacing(2) }} severity="warning">{disabledMessage}</Alert>}
         {!loading && (
+          // Remount the form per connector so react-hook-form re-initializes its
+          // defaultValues (display name, instance name, config) from scratch and
+          // never carries a previously opened connector's values.
           <ConnectorInstanceForm
+            key={catalogConnectorId}
             catalogConnectorSlug={catalogConnectorSlug}
             initialConfigurationValues={initialValues}
             configurationsDefinitionMap={configurationsDefinitionMap}

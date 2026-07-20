@@ -231,6 +231,12 @@ export interface AiAttack {
   ai_attack_success_detector?: Record<string, any>;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -339,6 +345,7 @@ export interface AiTargetInput {
     | "XTM_ONE";
   ai_target_system_prompt?: string | null;
   ai_target_token?: string | null;
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
   /** @minLength 1 */
@@ -539,6 +546,8 @@ export interface Asset {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
+  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"
@@ -1081,6 +1090,12 @@ type BaseInjectorContractBaseOutputInjectorContractHasFullDetailsMapping<
 interface BasePayload {
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -1651,6 +1666,12 @@ export interface Command {
   command_executor: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -2438,6 +2459,12 @@ export interface DnsResolution {
   dns_resolution_hostname: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -2632,6 +2659,8 @@ export interface Endpoint {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
+  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"
@@ -3913,6 +3942,12 @@ export interface Executable {
   executable_file: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -4313,6 +4348,12 @@ export interface FileDrop {
   file_drop_file: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -5390,6 +5431,10 @@ export interface InjectorContract {
   injector_contract_manual?: boolean;
   injector_contract_needs_executor?: boolean;
   injector_contract_payload?: Payload;
+  injector_contract_payload_author?: string;
+  injector_contract_payload_author_organization?: Organization;
+  injector_contract_payload_author_team?: Team;
+  injector_contract_payload_author_user?: User;
   injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   injector_contract_platforms?: (
     | "Linux"
@@ -5428,6 +5473,20 @@ export interface InjectorContractAddInput {
   /** @minLength 1 */
   injector_id: string;
   is_atomic_testing?: boolean;
+}
+
+export interface InjectorContractAuthorCountOutput {
+  /** Author id (user, team or organization) */
+  author?: string;
+  /** Author display name */
+  author_name?: string;
+  /** Author type: user, team or organization */
+  author_type?: string;
+  /**
+   * Number of contracts authored by this author under the current filters
+   * @format int64
+   */
+  count?: number;
 }
 
 export type InjectorContractBaseOutput = BaseInjectorContractBaseOutput &
@@ -5620,6 +5679,7 @@ export interface InjectorContractUpdateMappingInput {
 }
 
 export interface InjectorCreateInput {
+  injector_author?: string;
   injector_category?: string;
   injector_contracts?: InjectorContractInput[];
   injector_custom_contracts?: boolean;
@@ -6168,6 +6228,12 @@ export interface NetworkTraffic {
   network_traffic_port_src: number;
   network_traffic_protocol: string;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -7610,6 +7676,21 @@ export interface PlatformSettings {
   /** Policies of the platform */
   platform_policies?: PolicyInput;
   /**
+   * Idle timeout in milliseconds before the UI locks the screen (0 = disabled). Read-only, driven by server configuration
+   * @format int64
+   */
+  platform_session_idle_timeout?: number;
+  /**
+   * Maximum number of concurrent sessions per user (0 = unlimited)
+   * @format int32
+   */
+  platform_session_max_concurrent?: number;
+  /**
+   * Rolling session timeout in milliseconds (every request extends the session by this duration). Read-only, driven by server configuration
+   * @format int64
+   */
+  platform_session_timeout?: number;
+  /**
    * Theme of the platform
    * @minLength 1
    */
@@ -8637,6 +8718,8 @@ export interface SecurityPlatform {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
+  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"
@@ -8779,6 +8862,28 @@ export interface Series {
   name?: string;
 }
 
+export interface SessionOutput {
+  /**
+   * Session creation time
+   * @format date-time
+   */
+  session_created_at?: string;
+  /**
+   * Time at which the session expires if it stays idle
+   * @format date-time
+   */
+  session_expires_at?: string;
+  /** Identifier of the session */
+  session_id?: string;
+  /**
+   * Last time the session was used
+   * @format date-time
+   */
+  session_last_access_at?: string;
+  /** Identifier of the user owning the session */
+  session_user_id?: string;
+}
+
 export interface SettingsChatbotAiCguUpdateInput {
   /**
    * Chatbot AI CGU acceptance status: pending, enabled, or disabled
@@ -8799,6 +8904,15 @@ export interface SettingsPlatformWhitemarkUpdateInput {
    * @minLength 1
    */
   platform_whitemark: string;
+}
+
+export interface SettingsSessionsUpdateInput {
+  /**
+   * Maximum number of concurrent sessions per user (0 = unlimited)
+   * @format int32
+   * @min 0
+   */
+  platform_session_max_concurrent: number;
 }
 
 export interface SimulationChallengesReader {
@@ -9376,6 +9490,12 @@ export interface ThreatArsenalAction {
    * @uniqueItems true
    */
   action_attack_patterns_ids: string[];
+  /** Author id (user, team or organization) */
+  action_author?: string;
+  /** Author display name */
+  action_author_name?: string;
+  /** Author type: user, team or organization */
+  action_author_type?: string;
   /**
    * Domain IDs
    * @minItems 1
@@ -9649,6 +9769,16 @@ export interface ThreatArsenalActionWithContentOutput {
    * @format date-time
    */
   injector_contract_updated_at: string;
+}
+
+export interface ThreatArsenalBulkDeleteOutput {
+  /**
+   * Number of actions that were actually deleted
+   * @format int32
+   */
+  deleted_count?: number;
+  /** Ids of the actions that were actually deleted */
+  deleted_ids?: string[];
 }
 
 export interface Token {

@@ -1,4 +1,4 @@
-import { Grid, Paper, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Grid, Paper, Tab, Tabs, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useContext, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -24,8 +24,6 @@ const useStyles = makeStyles()({
     width: 180,
   },
   paper: {
-    height: '100%',
-    minHeight: '100%',
     padding: 15,
     borderRadius: 4,
   },
@@ -37,7 +35,10 @@ const useStyles = makeStyles()({
     height: '99%',
     left: '-10px',
   },
-  tabs: { marginLeft: 'auto' },
+  tabs: {
+    marginLeft: 'auto',
+    marginBottom: 12,
+  },
 });
 
 type TabConfig = {
@@ -272,13 +273,23 @@ const AtomicTesting = () => {
   }
 
   return (
-    <Grid container spacing={3} style={{ marginBottom: theme.spacing(3) }}>
-      <Grid size={6}>
-        <Typography variant="h4" gutterBottom style={{ float: 'left' }} sx={{ mb: theme.spacing(1) }}>
+    <Grid
+      container
+      spacing={3}
+      style={{ marginBottom: theme.spacing(3) }}
+      sx={{ alignItems: 'stretch' }}
+    >
+      <Grid
+        size={6}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <Typography variant="h4" gutterBottom sx={{ mb: theme.spacing(1) }}>
           {t('Targets')}
         </Typography>
-        <div className="clearfix" />
-        <Paper classes={{ root: classes.paper }} variant="outlined">
+        <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
           {hasAssetsGroupChecked && hasTeamsChecked && hasEndpointsChecked && hasAgentsChecked && hasPlayersChecked && hasAiTargetsChecked && (
             <>
               <Tabs
@@ -298,15 +309,30 @@ const AtomicTesting = () => {
           )}
         </Paper>
       </Grid>
-      <Grid size={6}>
+      <Grid
+        size={6}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         <Typography variant="h4" gutterBottom sx={{ mb: theme.spacing(1) }}>
           {t('Results by target')}
         </Typography>
         {selectedTarget && !!injectResultOverviewOutput.inject_type && (
-          <TargetResultsDetail inject={injectResultOverviewOutput} target={selectedTarget} isAgentless={isAgentless(hasAgents, hasTeams)} />
+          <Box
+            sx={{
+              'flex': 1,
+              'display': 'flex',
+              'flexDirection': 'column',
+              '& > .MuiPaper-root': { flex: 1 },
+            }}
+          >
+            <TargetResultsDetail inject={injectResultOverviewOutput} target={selectedTarget} isAgentless={isAgentless(hasAgents, hasTeams)} />
+          </Box>
         )}
         {!selectedTarget && (
-          <Paper classes={{ root: classes.paper }} variant="outlined">
+          <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
             <Empty message={t('No target data available.')} />
           </Paper>
         )}

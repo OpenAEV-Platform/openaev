@@ -1,11 +1,14 @@
-import { CloudOutlined, GroupsOutlined, HelpOutline, ImportantDevicesOutlined, LockOutlined, MailOutline, PublicOutlined, SmartToyOutlined, StorageOutlined, WebAssetOutlined } from '@mui/icons-material';
-import { type SvgIconProps, type Theme } from '@mui/material';
-import { type ComponentType, type CSSProperties, type ReactElement } from 'react';
+import { type Theme } from '@mui/material';
 
 import type { Domain, EsAvgs, EsDomainsAvgData, EsSeries, EsSeriesData } from '../../../../../../../utils/api-types';
+import { getOrderByDomain } from '../../../../../../../utils/domains/domainIcons';
 import { TO_CLASSIFY } from '../../../../../../../utils/domains/domainUtils';
 import { computeInjectExpectationLabel } from '../../../../../../../utils/statusUtils';
 import { type IconBarElement } from '../../../../../common/domains/IconBar-model';
+
+// The domain icon/order mapping lives in the shared utils (also used by the
+// shared ItemDomains component); re-exported here for the widget consumers.
+export { getDomainConfig, getIconByDomain, getOrderByDomain } from '../../../../../../../utils/domains/domainIcons';
 
 // Extend base types to add frontend values on objects
 export type EsExpectationByDomainTypeAndStatus = EsSeriesData & {
@@ -53,71 +56,6 @@ export const DEFAULT_EMPTY_EXPECTATIONS: EsExpectationByDomainAndType[] = [
     data: [],
   },
 ];
-
-interface DomainConfig {
-  icon: ComponentType<SvgIconProps>;
-  order: number;
-}
-
-const DOMAIN_CONFIG: Record<string, DomainConfig> = {
-  'Endpoint': {
-    icon: ImportantDevicesOutlined,
-    order: 0,
-  },
-  'Network': {
-    icon: PublicOutlined,
-    order: 1,
-  },
-  'Web App': {
-    icon: WebAssetOutlined,
-    order: 2,
-  },
-  'E-mail Infiltration': {
-    icon: MailOutline,
-    order: 3,
-  },
-  'Data Exfiltration': {
-    icon: StorageOutlined,
-    order: 4,
-  },
-  'URL Filtering': {
-    icon: LockOutlined,
-    order: 5,
-  },
-  'Cloud': {
-    icon: CloudOutlined,
-    order: 6,
-  },
-  'Artificial Intelligence': {
-    icon: SmartToyOutlined,
-    order: 7,
-  },
-  'Tabletop': {
-    icon: GroupsOutlined,
-    order: 8,
-  },
-};
-
-const DEFAULT_CONFIG: DomainConfig = {
-  icon: HelpOutline,
-  order: 9,
-};
-
-export const getDomainConfig = (name: string | undefined): DomainConfig => {
-  return DOMAIN_CONFIG[name ?? ''] ?? DEFAULT_CONFIG;
-};
-
-export const getIconByDomain = (
-  name: string | undefined,
-  style: CSSProperties = {},
-): ReactElement => {
-  const { icon: IconComponent } = getDomainConfig(name);
-  return <IconComponent fontSize="large" style={style} />;
-};
-
-export const getOrderByDomain = (name: string | undefined): number => {
-  return getDomainConfig(name).order;
-};
 
 export function calcPercentage(part: number, total: number): number {
   if (total <= 0) return -1;

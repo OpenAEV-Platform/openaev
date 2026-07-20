@@ -144,7 +144,10 @@ public class InjectorApi extends RestBehavior {
         input.getCategory(),
         input.getExecutorCommands(),
         input.getExecutorClearCommands(),
-        input.getPayloads());
+        input.getPayloads(),
+        // Manual injector edit: preserve the existing contract authorship (author
+        // is (re)declared by the connector at registration, not from this form).
+        null);
   }
 
   @GetMapping({INJECT0R_URI + "/{injectorId}", TENANT_INJECTOR_URI + "/{injectorId}"})
@@ -195,6 +198,21 @@ public class InjectorApi extends RestBehavior {
       }
     }
     return ResponseEntity.notFound().build();
+  }
+
+  @DeleteMapping({INJECT0R_URI + "/{injectorId}", TENANT_INJECTOR_URI + "/{injectorId}"})
+  @AccessControl(
+      resourceId = "#injectorId",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.INJECTOR)
+  @Operation(
+      summary = "Delete an injector",
+      description =
+          "Removes a registered injector. Intended for stopped injectors that no longer ping;"
+              + " an active injector re-registers on its next heartbeat.")
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteInjector(@PathVariable String injectorId) {
+    injectorRepository.deleteByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
   }
 
   @PostMapping(

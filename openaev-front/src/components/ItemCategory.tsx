@@ -1,5 +1,5 @@
-import { AdsClickOutlined, AppsOutlined, BlurLinearOutlined, CrisisAlertOutlined, NewspaperOutlined, TourOutlined } from '@mui/icons-material';
-import { AirFilter, CarShiftPattern, CrosshairsQuestion, DatabaseEyeOutline } from 'mdi-material-ui';
+import { AppsOutlined, CampaignOutlined, FilterAltOutlined, FlagOutlined, GpsFixedOutlined, PublicOutlined, SwapHorizOutlined } from '@mui/icons-material';
+import { CrosshairsQuestion, DatabaseExportOutline, ShieldBugOutline } from 'mdi-material-ui';
 import { type FunctionComponent } from 'react';
 
 interface ItemCategoryProps {
@@ -8,24 +8,33 @@ interface ItemCategoryProps {
   size?: 'small' | 'medium' | 'large' | 'inherit';
 }
 
+// One icon per scenario category, chosen to read at a glance:
+// - global-crisis: a globe (world-wide crisis)
+// - attack-scenario: a crosshair on target (a targeted attack)
+// - media-pressure: a megaphone (public / press pressure)
+// - data-exfiltration: data leaving a database (export)
+// - capture-the-flag: a flag (CTF)
+// - vulnerability-exploitation: a shield with a bug (exploited weakness)
+// - lateral-movement: horizontal swap arrows (host-to-host movement)
+// - url-filtering: a filter funnel (web content filtering)
 const renderIcon = (category: string, size: 'small' | 'medium' | 'large' | 'inherit' | undefined) => {
   switch (category) {
     case 'global-crisis':
-      return <CrisisAlertOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <PublicOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
     case 'attack-scenario':
-      return <BlurLinearOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <GpsFixedOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
     case 'media-pressure':
-      return <NewspaperOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <CampaignOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
     case 'data-exfiltration':
-      return <DatabaseEyeOutline fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <DatabaseExportOutline fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
     case 'capture-the-flag':
-      return <TourOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <FlagOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
     case 'vulnerability-exploitation':
-      return <AdsClickOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <ShieldBugOutline fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
     case 'lateral-movement':
-      return <CarShiftPattern fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <SwapHorizOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
     case 'url-filtering':
-      return <AirFilter fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <FilterAltOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
     case 'all':
       return <AppsOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
     default:

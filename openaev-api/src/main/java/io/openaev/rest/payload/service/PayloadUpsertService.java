@@ -8,6 +8,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.collector.service.CollectorService;
@@ -42,6 +43,7 @@ public class PayloadUpsertService {
   private final PayloadRepository payloadRepository;
   private final CollectorService collectorService;
   private final CollectorTypeRepository collectorTypeRepository;
+  private final OrganizationRepository organizationRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final DocumentService documentService;
   private final DomainService domainService;
@@ -58,6 +60,7 @@ public class PayloadUpsertService {
     }
 
     CollectorType collectorType = null;
+    Organization collectorOrganization = null;
     if (input.getCollector() != null) {
       Collector collector = this.collectorService.collector(input.getCollector());
       collectorType =
@@ -67,19 +70,47 @@ public class PayloadUpsertService {
                   () ->
                       new IllegalStateException(
                           "Collector type not found: " + collector.getType()));
+      // A collector's payloads are authored by the collector's organization
+      // (created on first use), so the arsenal can be filtered "created by
+      // Atomic Red Team" etc.
+      collectorOrganization = resolveCollectorOrganization(collector);
     }
     List<AttackPattern> attackPatterns =
         attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
             input.getAttackPatternsExternalIds(), TenantContext.getCurrentTenant());
     if (payload.isPresent()) {
-      return updatePayloadFromUpsert(input, payload.get(), attackPatterns, collectorType);
+      return updatePayloadFromUpsert(
+          input, payload.get(), attackPatterns, collectorType, collectorOrganization);
     } else {
-      return createPayloadFromUpsert(input, attackPatterns, collectorType);
+      return createPayloadFromUpsert(input, attackPatterns, collectorType, collectorOrganization);
     }
   }
 
+  /**
+   * Finds or creates the {@link Organization} that authors a collector's payloads, keyed on the
+   * collector's display name within the current tenant.
+   */
+  private Organization resolveCollectorOrganization(Collector collector) {
+    String name = collector.getName();
+    if (name == null || name.isBlank()) {
+      return null;
+    }
+    return organizationRepository.findByNameIgnoreCase(name).stream()
+        .findFirst()
+        .orElseGet(
+            () -> {
+              Organization organization = new Organization();
+              organization.setName(name);
+              organization.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+              return organizationRepository.save(organization);
+            });
+  }
+
   private Payload createPayloadFromUpsert(
-      PayloadUpsertInput input, List<AttackPattern> attackPatterns, CollectorType collectorType) {
+      PayloadUpsertInput input,
+      List<AttackPattern> attackPatterns,
+      CollectorType collectorType,
+      Organization collectorOrganization) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
@@ -88,6 +119,9 @@ public class PayloadUpsertService {
 
     if (collectorType != null) {
       payload.setCollectorType(collectorType);
+    }
+    if (collectorOrganization != null) {
+      payload.setAuthorOrganization(collectorOrganization);
     }
 
     if (payload instanceof Executable executable) {
@@ -118,7 +152,8 @@ public class PayloadUpsertService {
       PayloadUpsertInput input,
       Payload existingPayload,
       List<AttackPattern> attackPatterns,
-      CollectorType collectorType) {
+      CollectorType collectorType,
+      Organization collectorOrganization) {
     PayloadType payloadType = PayloadType.fromString(existingPayload.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
@@ -127,6 +162,9 @@ public class PayloadUpsertService {
 
     if (collectorType != null) {
       payload.setCollectorType(collectorType);
+    }
+    if (collectorOrganization != null) {
+      payload.setAuthorOrganization(collectorOrganization);
     }
 
     Optional<InjectorContract> existingInjectorContracts =
