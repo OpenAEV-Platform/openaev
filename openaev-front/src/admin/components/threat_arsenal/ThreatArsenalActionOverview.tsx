@@ -69,7 +69,6 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
 }) => {
   const { t, tPick, nsdt } = useFormatter();
   const theme = useTheme();
-  const isChainingEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   const { attackPatternsMap, documentsMap, allDomains } = useHelper(
     (helper: AttackPatternHelper & DocumentHelper & DomainHelper) => ({
@@ -564,18 +563,6 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                 >
                   {t('Type')}
                 </TableCell>
-                {isChainingEnabled && (
-                  <TableCell sx={{
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    fontSize: 10.5,
-                    color: 'text.secondary',
-                    letterSpacing: '0.06em',
-                  }}
-                  >
-                    {t('Subtype')}
-                  </TableCell>
-                )}
                 <TableCell sx={{
                   fontWeight: 700,
                   textTransform: 'uppercase',
@@ -604,11 +591,6 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                   <TableCell>
                     <KeyValueChip label="" value={arg.type} />
                   </TableCell>
-                  {isChainingEnabled && (
-                    <TableCell sx={{ color: arg.subtype ? 'text.primary' : 'text.disabled' }}>
-                      {arg.subtype ?? '—'}
-                    </TableCell>
-                  )}
                   <TableCell sx={{
                     fontFamily: 'Consolas, monaco, monospace',
                     fontWeight: 500,
