@@ -102,13 +102,21 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
 
   /**
    * Widget drawer (issue 5048): the (finding, producing execution) links for a page of findings, so
-   * each drawer row can carry its execution ids for cross-focus. The finding ids come from a
-   * tenant-scoped finding page, so this link read is already bounded to the tenant.
+   * each drawer row can carry its execution ids for cross-focus.
+   *
+   * <p>The join on {@code AttackPathFinding} is what makes this read tenant-safe, and it is not
+   * decorative. {@code attackpath_execution_finding} has no {@code tenant_id} of its own, so it is
+   * deliberately not tenant-active and the statement inspector adds no predicate to it. Read alone
+   * it would return every tenant's links. Joined to its guarded parent, it inherits the parent's
+   * scope. Isolation here is enforced by the mechanism rather than argued from the caller passing
+   * ids it obtained from a scoped page. Pinned by {@code linkReadWithoutScopeIsFailClosed}.
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingExecutionRow("
           + "ef.findingId, ef.executionId) "
-          + "FROM AttackPathExecutionFinding ef WHERE ef.findingId IN :findingIds "
+          + "FROM AttackPathExecutionFinding ef "
+          + "JOIN AttackPathFinding f ON f.id = ef.findingId "
+          + "WHERE ef.findingId IN :findingIds "
           + "ORDER BY ef.executionId")
   List<AttackPathFindingExecutionRow> findExecutionLinks(
       @Param("findingIds") Collection<String> findingIds);

@@ -7,10 +7,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
+import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.List;
 import java.util.UUID;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,17 +62,19 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private AttackPathExecutionRepository executionRepository;
+  @Autowired private AttackPathFindingRepository findingRepository;
 
   private String tenantA;
   private String tenantB;
   private String executionId;
+  private String findingId;
 
   @BeforeEach
   void seedGraphUnderTenantA() throws Exception {
     tenantA = tenantHelper.createTenantWithCurrentUser("ap-iso-a").getId();
     tenantB = tenantHelper.createTenantWithCurrentUser("ap-iso-b").getId();
     executionId = seedExecution(tenantA);
-    String findingId = seedFinding(tenantA);
+    findingId = seedFinding(tenantA);
     linkExecutionFinding(executionId, findingId);
   }
 
@@ -206,6 +210,18 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
     assertThat(rawExecutionCount(executionId)).isEqualTo(1L);
   }
 
+  @Test
+  @DisplayName("no scope set: the finding-to-execution links are fail-closed like every other read")
+  void linkReadWithoutScopeIsFailClosed() {
+    // The links live in attackpath_execution_finding, a child table with no tenant_id of its own,
+    // so
+    // it is deliberately not tenant-active. That is fine only as long as it is never read on its
+    // own: reached through its guarded parent, it inherits the parent's scope. This pins that
+    // property, so a future query that drops the parent join fails here instead of leaking quietly.
+    assertThat(findingRepository.findExecutionLinks(List.of(findingId))).isEmpty();
+    assertThat(rawLinkCount(findingId)).isEqualTo(1L);
+  }
+
   // Native seed, not the API: the setup seeds two tenants, and an explicit tenant_id lets both rows
   // land without a request scope while keeping the read cases independent of any write endpoint.
   private String seedExecution(String tenantId) {
@@ -268,6 +284,24 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
                   connection.prepareStatement(
                       "SELECT count(*) FROM attackpath_execution WHERE attackpath_execution_id = ?")) {
                 statement.setString(1, id);
+                try (ResultSet rows = statement.executeQuery()) {
+                  rows.next();
+                  return rows.getLong(1);
+                }
+              }
+            });
+  }
+
+  private long rawLinkCount(String finding) {
+    entityManager.flush();
+    return entityManager
+        .unwrap(Session.class)
+        .doReturningWork(
+            connection -> {
+              try (PreparedStatement statement =
+                  connection.prepareStatement(
+                      "SELECT count(*) FROM attackpath_execution_finding WHERE finding_id = ?")) {
+                statement.setString(1, finding);
                 try (ResultSet rows = statement.executeQuery()) {
                   rows.next();
                   return rows.getLong(1);
