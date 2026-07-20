@@ -48,7 +48,8 @@ class InjectStatusRepositoryTest extends IntegrationTest {
         injectComposer
             .forInject(InjectFixture.getDefaultInject())
             .withInjectStatus(
-                injectStatusComposer.forInjectStatus(InjectStatusFixture.createPendingInjectStatus()))
+                injectStatusComposer.forInjectStatus(
+                    InjectStatusFixture.createPendingInjectStatus()))
             .persist()
             .get();
 
@@ -87,7 +88,9 @@ class InjectStatusRepositoryTest extends IntegrationTest {
 
     // Act
     InjectStatus foundStatus =
-        injectStatusRepository.findInjectStatusWithGlobalExecutionTraces(inject.getId()).orElseThrow();
+        injectStatusRepository
+            .findInjectStatusWithGlobalExecutionTraces(inject.getId())
+            .orElseThrow();
 
     // Assert
     assertThat(foundStatus.getTraces())
@@ -95,4 +98,3 @@ class InjectStatusRepositoryTest extends IntegrationTest {
         .containsExactly("early", "middle", "late");
   }
 }
-
