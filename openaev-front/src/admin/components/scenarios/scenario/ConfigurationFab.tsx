@@ -8,6 +8,7 @@ import { type FunctionComponent, type ReactNode } from 'react';
 // a contained primary action pinned to the top right of the tab content.
 const ConfigurationFab: FunctionComponent<{ children: ReactNode }> = ({ children }) => (
   <Box
+    data-testid="configuration-fab"
     sx={theme => ({
       'display': 'flex',
       'justifyContent': 'flex-end',
