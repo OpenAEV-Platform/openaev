@@ -22,9 +22,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Attack-path ingestion — Phase A (issue 5048, #203). At RUN, create one EXECUTION row per resolved
- * edge from the run's source/target resolution, on the store columns the read already consumes. The
- * tenant is set by {@code TenantBaseListener} from the current tenant context. #204/#202 update
- * these rows later (Phase B), found by the queryable {@code (inject_id, agent_id)} written here.
+ * edge from the run's source/target resolution, on the store columns the read already consumes.
+ * #204/#202 update these rows later (Phase B), found by the queryable {@code (inject_id, agent_id)}
+ * written here.
+ *
+ * <p><b>Known limitation, being fixed.</b> This runs from the cross-tenant inject executor, which
+ * sets no tenant scope, so {@code TenantBaseListener} has nothing to attribute the row to and the
+ * write lands zero rows. The table is tenant-active, so the failure is silent. The fix is to open
+ * the write's own scoped transaction through the tenant transaction primitive, using the inject's
+ * tenant. Until then this class is a waived entry in {@code TenantActiveTableAccessArchTest}.
  */
 @Service
 @RequiredArgsConstructor
@@ -47,6 +53,10 @@ public class AttackPathExecutionIngestionService {
 
   @Transactional
   public void createRows(ExecutionContext ctx, List<ResolvedExecutionEdge> edges) {
+    writeRows(ctx, edges);
+  }
+
+  private void writeRows(ExecutionContext ctx, List<ResolvedExecutionEdge> edges) {
     // saveAll batches the run's N rows in one round-trip (an inject can hit N targets).
     executionRepository.saveAll(edges.stream().map(edge -> toRow(ctx, edge)).toList());
   }
@@ -106,8 +116,9 @@ public class AttackPathExecutionIngestionService {
     if (inject.getExercise() == null) {
       return;
     }
-    createRows(
-        context(step, inject, contract), resolver.resolve(resolutionInput(inject, contract)));
+    // Calls the private body, not the transactional twin: an intra-class call bypasses the Spring
+    // proxy, so the inner annotation would be silently inert.
+    writeRows(context(step, inject, contract), resolver.resolve(resolutionInput(inject, contract)));
   }
 
   private ExecutionContext context(Step step, Inject inject, InjectorContract contract) {

@@ -103,9 +103,11 @@ public class AttackPathGraphService {
    */
   @Transactional(readOnly = true)
   public AttackPathDTO buildGraph(String simulationId, String requestedMode) {
+    // Both branches call the private bodies, never the public transactional twins: an intra-class
+    // call bypasses the Spring proxy, so the inner annotation would be silently inert.
     return resolveCollapsed(simulationId, requestedMode)
-        ? buildCollapsedGraph(simulationId)
-        : buildGraph(simulationId);
+        ? collapsedGraph(simulationId)
+        : fullGraph(simulationId);
   }
 
   private boolean resolveCollapsed(String simulationId, String requestedMode) {
@@ -320,6 +322,10 @@ public class AttackPathGraphService {
 
   @Transactional(readOnly = true)
   public AttackPathDTO buildGraph(String simulationId) {
+    return fullGraph(simulationId);
+  }
+
+  private AttackPathDTO fullGraph(String simulationId) {
     List<AttackPathExecutionRow> executions = executionRepository.findGraphRows(simulationId);
     List<AttackPathFindingRow> findings = findingRepository.findGraphRows(simulationId);
     return assemble(executions, findings);
@@ -485,6 +491,10 @@ public class AttackPathGraphService {
    */
   @Transactional(readOnly = true)
   public AttackPathDTO buildCollapsedGraph(String simulationId) {
+    return collapsedGraph(simulationId);
+  }
+
+  private AttackPathDTO collapsedGraph(String simulationId) {
     List<AttackPathEndpointGroupRow> endpoints =
         executionRepository.findEndpointGroups(simulationId);
     List<AttackPathEdgeGroupRow> edges = executionRepository.findEdgeGroups(simulationId);

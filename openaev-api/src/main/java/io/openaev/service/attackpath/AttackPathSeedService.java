@@ -118,7 +118,9 @@ public class AttackPathSeedService {
    */
   @Transactional
   public AttackPathSeedResultDTO generate(AttackPathSeedParams params) {
-    return generate(params, null);
+    // Delegates to the private body, not to the transactional twin: an intra-class call bypasses
+    // the Spring proxy, so the inner annotation would be silently inert.
+    return doGenerate(params, null);
   }
 
   /**
@@ -128,6 +130,10 @@ public class AttackPathSeedService {
    */
   @Transactional
   public AttackPathSeedResultDTO generate(AttackPathSeedParams params, String tenantId) {
+    return doGenerate(params, tenantId);
+  }
+
+  private AttackPathSeedResultDTO doGenerate(AttackPathSeedParams params, String tenantId) {
     long start = System.currentTimeMillis();
     Session session = entityManager.unwrap(Session.class);
     long[] counts = session.doReturningWork(connection -> insertAll(connection, params, tenantId));
