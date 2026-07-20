@@ -50,7 +50,6 @@ import {
   type ThreatArsenalAction,
 } from '../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
-import { isFeatureEnabled } from '../../../utils/utils';
 import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
