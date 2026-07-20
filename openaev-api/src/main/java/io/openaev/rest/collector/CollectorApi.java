@@ -202,8 +202,10 @@ public class CollectorApi extends RestBehavior {
           "Removes a registered collector. Intended for stopped collectors that no longer ping;"
               + " an active collector re-registers on its next heartbeat.")
   @Transactional(rollbackFor = Exception.class)
-  public void deleteCollector(@PathVariable String collectorId) {
-    collectorRepository.deleteByIdAndTenantId(collectorId, TenantContext.getCurrentTenant());
+  public void deleteCollector(TxCtx ctx, @PathVariable String collectorId) {
+    // TxCtx scopes this delete to the caller's tenants; the inspector rewrites the DELETE the
+    // same way it rewrites SELECTs, so a delete outside the scope matches no row and is a no-op.
+    collectorRepository.deleteByCollectorId(collectorId);
   }
 
   @PostMapping(

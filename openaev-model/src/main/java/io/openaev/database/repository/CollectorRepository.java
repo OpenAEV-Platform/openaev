@@ -54,6 +54,14 @@ public interface CollectorRepository
   void deleteByIdAndTenantId(@Param("id") String id, @Param("tenantId") String tenantId);
 
   /**
+   * Deletes a collector by its ID only. Tenant scoping is handled by the v2 SQL inspector, which
+   * rewrites this DELETE the same way it rewrites SELECTs on active tables.
+   */
+  @Modifying
+  @Query("DELETE FROM Collector c WHERE c.id = :id")
+  void deleteByCollectorId(@Param("id") String id);
+
+  /**
    * Native query to bypass Hibernate's @Filter("tenantFilter"). This is called from
    * InjectsExecutionJob (background scheduler) via buildAndSaveInjectExpectations(). InjectHelper
    * disables the tenant filter at the start of the job, but the @Transactional on
