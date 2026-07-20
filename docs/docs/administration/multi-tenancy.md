@@ -1,10 +1,5 @@
 # Multi-tenancy
 
-!!! tip "Under construction"
-
-    This feature is under development.
-
-{% if "multi-tenancy" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}
 This page explains how to configure and manage multi-tenancy in OpenAEV, enabling multiple isolated workspaces on a single platform instance.
 
 !!! tip "Enterprise Edition"
@@ -111,4 +106,3 @@ OPENAEV_PROVIDER_AZURE_TENANT_ID=<your-tenant-uuid>
 - [Enterprise Edition](enterprise.md) — Activate your EE license
 - [Authentication](../deployment/authentication.md) — Set up SSO providers for tenant mapping
 - [Hub](hub.md) — Manage platform-wide resources shared across tenants
-{% endif %}
