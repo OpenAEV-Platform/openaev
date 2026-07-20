@@ -13,7 +13,7 @@ public class V6_20260720110000000__Add_payload_expected_security_platforms
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
       // Optional map of expectation type to the security platform types expected to fulfil it.
-      // Stored as a JSONB object (e.g. {"DETECTION":["EDR","XDR"],"PREVENTION":["EDR"]}). NULL / empty
+      // Stored as JSONB (e.g. {"DETECTION":["EDR","XDR"],"PREVENTION":["EDR"]}). NULL / empty
       // means "any platform" (legacy behaviour). Metadata-only, lock-light nullable ADD COLUMN.
       statement.executeUpdate(
           """

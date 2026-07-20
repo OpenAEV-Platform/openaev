@@ -15,7 +15,8 @@ import org.junit.jupiter.api.Test;
 
 class InjectExpectationServiceSecurityPlatformTest {
 
-  private Collector collectorOfType(String id, int period, SecurityPlatform.SECURITY_PLATFORM_TYPE type) {
+  private Collector collectorOfType(
+      String id, int period, SecurityPlatform.SECURITY_PLATFORM_TYPE type) {
     Collector collector = new Collector();
     collector.setId(id);
     collector.setName(id);

@@ -373,8 +373,7 @@ public class InjectorContractService implements DependenciesManager {
       return;
     }
     if (injector != null && injector.isExternal() && contract.getPayload() == null) {
-      contract.setAuthorOrganization(
-          organizationService.findOrCreateByName(injector.getName()));
+      contract.setAuthorOrganization(organizationService.findOrCreateByName(injector.getName()));
     }
   }
 
@@ -382,8 +381,8 @@ public class InjectorContractService implements DependenciesManager {
    * Heals authorless external-injector contracts on update. The Nuclei/nmap maintenance loops call
    * {@code updateInjectorContract} on every existing contract each sync cycle, so legacy per-CVE
    * contracts created before authorship (all author FKs null) get attributed to their injector's
-   * publisher organization here. Only payload-less contracts already carrying no author are touched,
-   * so user-authored and payload-based contracts are never overwritten.
+   * publisher organization here. Only payload-less contracts already carrying no author are
+   * touched, so user-authored and payload-based contracts are never overwritten.
    */
   private void healExternalInjectorAuthor(InjectorContract contract) {
     boolean authorless =

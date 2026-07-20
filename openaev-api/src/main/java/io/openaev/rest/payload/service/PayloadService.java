@@ -340,9 +340,9 @@ public class PayloadService {
   }
 
   /**
-   * Applies the payload's optional expected security platform types to the predefined expectation of
-   * the given type. Absent / empty means "any platform" (legacy behaviour), so the expectation keeps
-   * its empty list.
+   * Applies the payload's optional expected security platform types to the predefined expectation
+   * of the given type. Absent / empty means "any platform" (legacy behaviour), so the expectation
+   * keeps its empty list.
    */
   private Expectation withExpectedSecurityPlatforms(
       Expectation expectation,
