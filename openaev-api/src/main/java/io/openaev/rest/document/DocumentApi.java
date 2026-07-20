@@ -76,7 +76,6 @@ public class DocumentApi extends RestBehavior {
   private final ExerciseRepository exerciseRepository;
   private final ScenarioRepository scenarioRepository;
   private final UserRepository userRepository;
-  private final CollectorRepository collectorRepository;
   private final SecurityPlatformRepository securityPlatformRepository;
 
   private final DocumentService documentService;

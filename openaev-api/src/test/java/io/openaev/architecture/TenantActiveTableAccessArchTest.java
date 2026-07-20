@@ -9,18 +9,25 @@ import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import io.openaev.database.model.Vulnerability;
+import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CweRepository;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
+import io.openaev.rest.collector.CollectorApi;
+import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exercise.ExerciseImportApi;
+import io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi;
 import io.openaev.rest.lessons.ExerciseLessonsApi;
 import io.openaev.rest.lessons.ScenarioLessonsApi;
 import io.openaev.rest.lessons_template.LessonsTemplateApi;
 import io.openaev.rest.mapper.MapperApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.service.InjectExpectationTraceService;
 import io.openaev.service.MapperService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
 import io.openaev.utils.mapper.CveMapper;
 import io.openaev.utils.mapper.VulnerabilityMapper;
@@ -56,7 +63,7 @@ class TenantActiveTableAccessArchTest {
 
   /** Tables guarded by this test. Must cover every entry of the production allowlist. */
   private static final Set<String> GUARDED_TABLES =
-      Set.of("import_mappers", "lessons_templates", "cwes");
+      Set.of("import_mappers", "lessons_templates", "cwes", "collectors");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -141,4 +148,25 @@ class TenantActiveTableAccessArchTest {
               "cwes is reached through Vulnerability's association WITHOUT touching the repository:"
                   + " a lazy getCwes() in an unscoped context silently loads zero rows. New callers"
                   + " must run inside a scoped transaction and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule collectors_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              CollectorApi.class, InjectExpectationTraceApi.class,
+              // Services behind those handlers; every caller is a wired handler:
+              CollectorService.class, InjectExpectationTraceService.class,
+              // Explicit tenantId param threaded from the caller (native DELETE ... AND
+              // tenant_id = ?), not inspector-scoped: safe regardless of activation:
+              ConnectorInstanceService.class,
+              // Documented degraded background reader (telemetry counts read 0 rows unscoped):
+              InventoryMetricCollector.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(CollectorRepository.class)
+          .because(
+              "collectors is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
 }

@@ -61,10 +61,12 @@ public class InjectExpectationTraceApi extends RestBehavior {
   public InjectExpectationTrace createInjectExpectationTraceForCollector(
       TxCtx ctx, @Valid @RequestBody InjectExpectationTraceInput input) {
 
-    InjectExpectationTraceBulkInsertInput bulkInput = new InjectExpectationTraceBulkInsertInput();
-    bulkInput.setExpectationTraces(List.of(input));
-
-    this.bulkInsertInjectExpectationTraceForCollector(ctx, bulkInput);
+    // Call the service directly (not the sibling endpoint below): a self-invocation would bypass
+    // the Spring proxy and its own @Transactional, silently relying on this method's transaction
+    // instead. That happens to be harmless here (this method is itself @Transactional), but the
+    // shape is exactly what TenantBackgroundTransactionArchTest.no_transactional_self_invocation
+    // flags, so keep the transactional boundary honest and call the shared logic directly.
+    this.injectExpectationTraceService.bulkInsertInjectExpectationTraces(List.of(input));
 
     Collector collector =
         collectorRepository
