@@ -3,7 +3,7 @@ package io.openaev.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.InjectExpectationTrace;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.CollectorRepository;
@@ -28,7 +28,6 @@ class InjectExpectationTraceServiceTest {
   @InjectMocks private InjectExpectationTraceService injectExpectationTraceService;
 
   private InjectExpectationTrace injectExpectationTrace;
-  private InjectExpectation injectExpectation;
   private SecurityPlatform securityPlatform;
   private String injectExpectationId;
   private String securityPlatformId;
@@ -40,15 +39,15 @@ class InjectExpectationTraceServiceTest {
     securityPlatformId = UUID.randomUUID().toString();
     expectationResultSourceType = "TYPE";
 
-    injectExpectation = new InjectExpectation();
-    injectExpectation.setId(injectExpectationId);
+    BaseInjectExpectation baseInjectExpectation = new BaseInjectExpectation();
+    baseInjectExpectation.setId(injectExpectationId);
 
     securityPlatform = new SecurityPlatform();
     securityPlatform.setId(securityPlatformId);
 
     injectExpectationTrace = new InjectExpectationTrace();
     injectExpectationTrace.setId(UUID.randomUUID().toString());
-    injectExpectationTrace.setInjectExpectation(injectExpectation);
+    injectExpectationTrace.setInjectExpectation(baseInjectExpectation);
     injectExpectationTrace.setSecurityPlatform(securityPlatform);
     injectExpectationTrace.setAlertDate(Instant.now());
     injectExpectationTrace.setAlertLink("http://test-link.com");

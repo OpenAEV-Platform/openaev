@@ -13,10 +13,10 @@ public class SecretService {
   private final ManagerFactory managerFactory;
   private List<SecretsProvider> providers;
 
-  public List<SecretsProvider> getAllProviders() {
+  public List<SecretsProvider> getAllProviders(String tenantId) {
     this.providers =
         managerFactory
-            .getManager()
+            .getManager(tenantId)
             .requestManyAllStates(new ComponentRequest("secrets-provider"), SecretsProvider.class);
     return providers.stream().toList();
   }

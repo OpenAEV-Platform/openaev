@@ -178,10 +178,14 @@ public class LogService {
 
       // Enrich with entity-level diffs captured by @AuditDiffTracked listeners.
       if (entityDiffsNode != null && !entityDiffsNode.isEmpty()) {
+        entityDiffsNode = ObjectRedactionUtils.redact(entityDiffsNode, resourceType);
         ctx.put("entity_diffs", toContextValue(entityDiffsNode));
       }
 
-      doc.getRequestMetadata().setSignature(signatureNode);
+      if (signatureNode != null) {
+        signatureNode = ObjectRedactionUtils.redact(signatureNode, resourceType);
+        doc.getRequestMetadata().setSignature(signatureNode);
+      }
 
       ctx.put("message", message);
       doc.setContextData(ctx);

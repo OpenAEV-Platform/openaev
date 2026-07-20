@@ -23,6 +23,8 @@ import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.database.audit.IndexEvent;
+import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
@@ -78,6 +80,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -145,6 +148,8 @@ public class ExerciseService {
   private final StepService stepService;
 
   private final HealthCheckUtils healthCheckUtils;
+
+  private final ApplicationEventPublisher eventPublisher;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -553,7 +558,13 @@ public class ExerciseService {
    * @param simulationId ID of the simulation to delete
    */
   public void deleteById(String simulationId) {
+    existsByIdAndTenantId(simulationId);
     exerciseRepository.deleteById(simulationId);
+    // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
+    // must be notified explicitly or the simulation (and its cascade-deleted injects,
+    // expectations, findings...) would remain in the indexes forever.
+    eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, simulationId));
+    log.info("Simulation {} deleted by user {}", simulationId, currentUser().getId());
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -618,6 +629,8 @@ public class ExerciseService {
       fileService.deleteDirectory(exerciseId);
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
           && workflowService.isSimulationChaining(exercise.getId())) {
+        // DELETE workflow states
+        workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
         // DELETE injects
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
@@ -664,19 +677,20 @@ public class ExerciseService {
         && ExerciseStatus.CANCELED.equals(status)) {
       exercise.setEnd(now());
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
-        // End WORKFLOW + STEP + delete injects
+        // End WORKFLOW + STEP + delete injects + delete workflow states
         List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
         if (!run.isEmpty()) {
           List<Step> stepsToUpdate = new ArrayList<>();
           run.forEach(
               workflow -> {
                 workflow.setStatus(WorkflowStatus.END);
-                List<Step> steps = stepService.findAllStepExecutedByWorkflowRunId(workflow.getId());
+                List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
                 steps.forEach(step -> step.setStatus(StepStatus.END));
                 stepsToUpdate.addAll(steps);
               });
           stepService.saveSteps(stepsToUpdate);
           workflowService.saveAll(run);
+          workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
           List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
           this.injectRepository.deleteAll(injects);
         }
@@ -698,7 +712,10 @@ public class ExerciseService {
     // 3. RESET LESSONS ANSWERS
     lessonsService.resetLessonsAnswer(exercise.getId());
 
-    // 4. SCHEDULE MINIO CLEANUP (after commit to avoid cleanup on rollback)
+    // 4. CLEAR WORKFLOW STATES
+    workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
+
+    // 5. SCHEDULE MINIO CLEANUP (after commit to avoid cleanup on rollback)
     TransactionSynchronizationManager.registerSynchronization(
         new TransactionSynchronization() {
           @Override
@@ -711,7 +728,7 @@ public class ExerciseService {
           }
         });
 
-    // 5. RESET EXERCISE DATES
+    // 6. RESET EXERCISE DATES
     exercise.setStart(null);
     exercise.setEnd(null);
     exercise.setCurrentPause(null);
@@ -1027,6 +1044,10 @@ public class ExerciseService {
     this.injectService.removeTeamsForSimulation(exerciseId, teamIds);
     // Remove all association between lessons learned and teams
     this.lessonsService.removeTeamsForSimulation(exerciseId, teamIds);
+    // The join-table deletes above are native queries that bypass JPA timestamps: bump the
+    // exercise and its injects so the incremental indexer refreshes the denormalized team sides.
+    this.exerciseRepository.touchUpdatedAt(exerciseId);
+    this.injectRepository.touchUpdatedAtByExerciseId(exerciseId);
     return teamService.find(fromIds(teamIds));
   }
 
@@ -1046,6 +1067,10 @@ public class ExerciseService {
       this.injectRepository.removeTeamsForExercise(exerciseId, removedTeamIdsList);
       this.lessonsCategoryRepository.removeTeamsForExercise(exerciseId, removedTeamIdsList);
     }
+    // Team changes alter the denormalized inject_teams of the exercise's injects (including
+    // all-teams injects, derived from exercises_teams): bump the injects so the incremental
+    // indexer refreshes them (the native join-table mutations bypass JPA timestamps).
+    this.injectRepository.touchUpdatedAtByExerciseId(exerciseId);
 
     // Replace teams from exercise
     List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));
@@ -1149,18 +1174,23 @@ public class ExerciseService {
 
       // we ignore manual expectation
       if (ExpectationType.HUMAN_RESPONSE.equals(type)) {
-        break;
+        continue;
       }
 
       ExpectationResultsByType secondLastSimulationResultsByType =
           secondLastSimulationResultsMap.get(type);
 
+      // if the second simulation has no result for this type, skip
+      if (secondLastSimulationResultsByType == null) {
+        continue;
+      }
+
       // we ignore if one of the 2 expectation is still PENDING
-      if (InjectExpectation.EXPECTATION_STATUS.PENDING.equals(
+      if (BaseInjectExpectation.EXPECTATION_STATUS.PENDING.equals(
               lastSimulationResultsByType.avgResult())
-          || InjectExpectation.EXPECTATION_STATUS.PENDING.equals(
+          || BaseInjectExpectation.EXPECTATION_STATUS.PENDING.equals(
               secondLastSimulationResultsByType.avgResult())) {
-        break;
+        continue;
       }
 
       float lastSimulationScore =

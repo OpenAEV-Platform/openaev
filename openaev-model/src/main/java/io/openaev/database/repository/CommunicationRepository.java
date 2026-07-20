@@ -17,5 +17,5 @@ public interface CommunicationRepository
 
   List<Communication> findByInjectId(@NotNull String injectId);
 
-  boolean existsByIdentifier(String identifier);
+  boolean existsByIdentifierAndInjectTenantId(String identifier, String tenantId);
 }

@@ -7,6 +7,7 @@ import io.openaev.database.raw.RawUserAuthFlat;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.domain.Page;
@@ -27,7 +28,19 @@ public interface UserRepository
 
   Optional<User> findByEmailIgnoreCase(String email);
 
-  List<User> findAllByEmailInIgnoreCase(List<String> emails);
+  @Query(
+      "SELECT DISTINCT u FROM User u JOIN u.tenants t WHERE LOWER(u.email) IN :emails AND t.id = :tenantId")
+  List<User> findAllByEmailInAndTenantIdNormalized(
+      @Param("emails") List<String> emails, @Param("tenantId") String tenantId);
+
+  default List<User> findAllByEmailInIgnoreCaseAndTenantId(List<String> emails, String tenantId) {
+    if (emails == null || emails.isEmpty()) {
+      return List.of();
+    }
+    List<String> normalizedEmails =
+        emails.stream().map(email -> email.toLowerCase(Locale.ROOT)).toList();
+    return findAllByEmailInAndTenantIdNormalized(normalizedEmails, tenantId);
+  }
 
   @Override
   @Query(
@@ -79,6 +92,11 @@ public interface UserRepository
               + "      group by us.user_id;",
       nativeQuery = true)
   List<RawUser> rawAllInTenant(@Param("tenantId") String tenantId);
+
+  @Query(
+      value = "select ut.user_id from users_tenants ut where ut.tenant_id = :tenantId",
+      nativeQuery = true)
+  List<String> findUserIdsByTenantId(@Param("tenantId") String tenantId);
 
   @Query(
       value =

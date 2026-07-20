@@ -22,6 +22,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.database.audit.IndexEvent;
+import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
@@ -66,7 +68,6 @@ import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -82,6 +83,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -89,6 +91,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 @RequiredArgsConstructor
@@ -125,6 +128,7 @@ public class InjectService {
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final InjectUtils injectUtils;
   private final ThreatArsenalService threatArsenalService;
+  private final ApplicationEventPublisher eventPublisher;
 
   private InjectStatusService injectStatusService;
 
@@ -311,10 +315,14 @@ public class InjectService {
         true);
   }
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteAllByIds(List<String> injectIds) {
     if (!CollectionUtils.isEmpty(injectIds)) {
       injectRepository.deleteByAllIdsNative(injectIds);
+      // Native delete: no JPA lifecycle event fires, notify the search engine explicitly so the
+      // inject docs (and their expectation/finding docs via dependency cascade) are removed.
+      injectIds.forEach(
+          id -> eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, id)));
     }
   }
 
@@ -323,7 +331,7 @@ public class InjectService {
    *
    * @param injects the injects to delete
    */
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteAll(List<Inject> injects) {
     if (!CollectionUtils.isEmpty(injects)) {
       injectRepository.deleteAll(injects);
@@ -345,7 +353,7 @@ public class InjectService {
    *
    * @param injects the injects to save
    */
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public List<Inject> saveAll(List<Inject> injects) {
     if (!CollectionUtils.isEmpty(injects)) {
       return injectRepository.saveAll(injects);
@@ -489,6 +497,9 @@ public class InjectService {
   public void deleteForRelaunch(String oldId, String newId) {
     injectDocumentRepository.updateInjectId(newId, oldId);
     injectRepository.deleteByIdNative(oldId);
+    // Native delete: notify the search engine so the old inject and its expectation/finding docs
+    // don't survive the relaunch (they would double-count against the duplicated inject).
+    eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, oldId));
   }
 
   /**
@@ -957,9 +968,13 @@ public class InjectService {
 
   private void extractAgentsAndAssetsAgentless(
       Set<Agent> agents, Set<Asset> assetsAgentless, Asset asset) {
+    // Only endpoints carry agents. A group may resolve non-endpoint assets (e.g. AI targets);
+    // they are not agent-bearing endpoints and are irrelevant to agent extraction.
+    if (!(Hibernate.unproxy(asset) instanceof Endpoint endpoint)) {
+      return;
+    }
     List<Agent> collectedAgents =
-        Optional.ofNullable(((Endpoint) Hibernate.unproxy(asset)).getAgents())
-            .orElse(Collections.emptyList());
+        Optional.ofNullable(endpoint.getAgents()).orElse(Collections.emptyList());
     if (collectedAgents.isEmpty()) {
       assetsAgentless.add(asset);
     } else {
@@ -977,9 +992,12 @@ public class InjectService {
 
     Consumer<Asset> extractAgents =
         asset -> {
+          // Only endpoints carry agents; skip non-endpoint assets (e.g. AI targets).
+          if (!(Hibernate.unproxy(asset) instanceof Endpoint endpoint)) {
+            return;
+          }
           List<Agent> collectedAgents =
-              Optional.ofNullable(((Endpoint) Hibernate.unproxy(asset)).getAgents())
-                  .orElse(Collections.emptyList());
+              Optional.ofNullable(endpoint.getAgents()).orElse(Collections.emptyList());
           for (Agent agent : collectedAgents) {
             if (isPrimaryAgent(agent) && !agentIds.contains(agent.getId())) {
               agents.add(agent);
@@ -1026,7 +1044,9 @@ public class InjectService {
       final String injectId, final String targetId, final TargetType targetType) {
     return switch (targetType) {
       case AGENT -> this.executionTraceRepository.findByInjectIdAndAgentId(injectId, targetId);
-      case ASSETS -> this.executionTraceRepository.findByInjectIdAndAssetId(injectId, targetId);
+      // AI targets are plain assets (asset_category driven), so their traces are asset-scoped.
+      case ASSETS, AI_TARGETS ->
+          this.executionTraceRepository.findByInjectIdAndAssetId(injectId, targetId);
       case TEAMS -> this.executionTraceRepository.findByInjectIdAndTeamId(injectId, targetId);
       case PLAYERS -> this.executionTraceRepository.findByInjectIdAndPlayerId(injectId, targetId);
       default -> throw new BadRequestException("Target type " + targetType + " is not supported");
@@ -1036,6 +1056,11 @@ public class InjectService {
   public InjectStatusOutput getInjectStatusWithGlobalExecutionTraces(String injectId) {
     return injectStatusMapper.toInjectStatusOutput(
         injectStatusRepository.findInjectStatusWithGlobalExecutionTraces(injectId));
+  }
+
+  public InjectStatusOutput getInjectStatusWithAllExecutionTraces(String injectId) {
+    return injectStatusMapper.toInjectStatusOutputWithAllTraces(
+        injectStatusRepository.findByInjectId(injectId));
   }
 
   /**
@@ -1356,7 +1381,8 @@ public class InjectService {
       return null;
     }
 
-    List<Collector> collectors = this.collectorService.securityPlatformCollectors();
+    List<Collector> collectors =
+        this.collectorService.securityPlatformCollectors(inject.getTenant().getId());
     List<Injector> injectors = this.injectorService.findAll();
     List<HealthCheck> healthChecks = new ArrayList<>();
 
@@ -1391,7 +1417,7 @@ public class InjectService {
    * @return distinct security platforms
    */
   public List<SecurityPlatform> extractSecurityPlatforms(List<Inject> injects) {
-    Stream<InjectExpectation> allInjectExpectationsStream =
+    Stream<BaseInjectExpectation> allInjectExpectationsStream =
         extractInjectExpectationsFromInjects(injects);
     Set<String> assetIds =
         extractAssetIdsFromInjectExpectationsResults(allInjectExpectationsStream);

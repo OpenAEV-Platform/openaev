@@ -33,7 +33,7 @@ const TenantPopover: FunctionComponent<Props> = ({
   // Standard hooks
   const { t } = useFormatter();
   const ability = useContext(AbilityContext);
-  const { reloadUserTenants } = useAuth();
+  const { reloadUserTenants, settings } = useAuth();
 
   // Edition
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -53,10 +53,14 @@ const TenantPopover: FunctionComponent<Props> = ({
     setIsDeleteOpen(false);
   }, []);
   const handleDelete = useCallback(async () => {
-    const result = await softDeleteTenant(tenant.tenant_id);
-    handleCloseDelete();
-    onDelete?.(result.data as TenantOutput);
-    await reloadUserTenants();
+    try {
+      const result = await softDeleteTenant(tenant.tenant_id);
+      onDelete?.(result.data as TenantOutput);
+      await reloadUserTenants();
+    } finally {
+      // Close dialog on both success and failure; failures are still propagated.
+      handleCloseDelete();
+    }
   }, [tenant.tenant_id, onDelete, handleCloseDelete, reloadUserTenants]);
 
   // Reactivation
@@ -68,13 +72,19 @@ const TenantPopover: FunctionComponent<Props> = ({
     setIsReactivateOpen(false);
   }, []);
   const handleReactivate = useCallback(async () => {
-    const result = await reactivateTenant(tenant.tenant_id);
-    handleCloseReactivate();
-    onReactivate?.(result.data as TenantOutput);
-    await reloadUserTenants();
+    try {
+      const result = await reactivateTenant(tenant.tenant_id);
+      onReactivate?.(result.data as TenantOutput);
+      await reloadUserTenants();
+    } finally {
+      // Close dialog on both success and failure; failures are still propagated.
+      handleCloseReactivate();
+    }
   }, [tenant.tenant_id, onReactivate, handleCloseReactivate, reloadUserTenants]);
 
   // Button Popover
+  const isDefaultTenant = tenant.tenant_id === settings.default_tenant_id;
+
   const entries = useMemo(() => {
     const result = [];
 
@@ -94,6 +104,8 @@ const TenantPopover: FunctionComponent<Props> = ({
       result.push({
         label: t('Delete'),
         action: handleOpenDelete,
+        disabled: isDefaultTenant,
+        disabledMessage: t('The default tenant cannot be deleted.'),
         userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TENANTS),
       });
     }
@@ -109,7 +121,7 @@ const TenantPopover: FunctionComponent<Props> = ({
     }
 
     return result;
-  }, [actions, ability, handleOpenEdit, handleOpenDelete, handleOpenReactivate]);
+  }, [actions, ability, handleOpenEdit, handleOpenDelete, handleOpenReactivate, isDefaultTenant]);
 
   return (
     <>

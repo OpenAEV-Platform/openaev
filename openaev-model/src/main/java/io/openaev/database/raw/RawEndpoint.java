@@ -84,4 +84,11 @@ public interface RawEndpoint extends RawAssetIndexing {
    * @return the update timestamp
    */
   Instant getEndpoint_updated_at();
+
+  /**
+   * Returns the product taxonomy category of the asset (HOST, CONTAINER_WORKLOAD...).
+   *
+   * @return the asset category
+   */
+  String getAsset_category();
 }

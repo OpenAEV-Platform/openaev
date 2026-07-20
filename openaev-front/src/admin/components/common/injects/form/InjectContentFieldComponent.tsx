@@ -2,6 +2,7 @@ import { Alert, InputLabel } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 import {
+  Controller,
   type FieldError,
   useFormContext,
   useWatch,
@@ -15,6 +16,7 @@ import TagFieldController from '../../../../../components/fields/TagFieldControl
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
 import { type ChoiceItem, type EnhancedContractElement } from '../../../../../utils/api-types-custom';
+import AiTargetAutocompleteField from '../../../assets/ai_targets/AiTargetAutocompleteField';
 import InjectEndpointsList from './endpoints/InjectEndpointsList';
 
 interface Props {
@@ -74,7 +76,6 @@ const InjectContentFieldComponent = ({
             key={field.key}
             name={field.key}
             label={t(label)}
-            style={{ height: 250 }}
             disabled={readOnly}
             askAi={true}
             inInject={true}
@@ -132,6 +133,23 @@ const InjectContentFieldComponent = ({
               errorLabel={error?.message}
             />
           </>
+        );
+      case 'ai-target':
+        return (
+          <Controller
+            name={field.key}
+            control={control}
+            render={({ field: { onChange, value } }) => (
+              <AiTargetAutocompleteField
+                label={label}
+                value={(value as string) || undefined}
+                onChange={v => onChange(v ?? '')}
+                disabled={readOnly}
+                required={field.settings?.required}
+                error={!!error}
+              />
+            )}
+          />
         );
       default: {
         if (field.key.includes('targeted-asset-separator')) {

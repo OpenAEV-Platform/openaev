@@ -1,6 +1,10 @@
-import { type InjectExpectation } from '../../../../../utils/api-types';
+import { type InjectExpectationOutput } from '../../../../../utils/api-types';
 
-export interface InjectExpectationsStore extends Omit<InjectExpectation, 'inject_expectation_team' | 'inject_expectation_user' | 'inject_expectation_article' | 'inject_expectation_challenge' | 'inject_expectation_asset'> {
+export interface InjectExpectationsStore extends Omit<InjectExpectationOutput, 'inject_expectation_team' | 'inject_expectation_user' | 'inject_expectation_article' | 'inject_expectation_challenge' | 'inject_expectation_asset'> {
+  inject_expectation_id: string;
+  inject_expectation_type: InjectExpectationOutput['inject_expectation_type'];
+  inject_expectation_expected_score: number;
+  inject_expectation_expiration_time: number;
   inject_expectation_team: string | undefined;
   inject_expectation_user: string | undefined;
   inject_expectation_article: string | undefined;
@@ -15,9 +19,10 @@ export interface ExpectationInput {
   expectation_score: number;
   expectation_expectation_group: boolean;
   expectation_expiration_time: number;
+  expectation_is_multi_selectable?: boolean;
 }
 
-export interface ExpectationInputForm extends Omit<ExpectationInput, 'expectation_expiration_time'> {
+export interface ExpectationInputForm extends Omit<ExpectationInput, 'expectation_expiration_time' | 'expectation_is_multi_selectable'> {
   expiration_time_days: number;
   expiration_time_hours: number;
   expiration_time_minutes: number;

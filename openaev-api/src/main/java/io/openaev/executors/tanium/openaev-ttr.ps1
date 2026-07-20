@@ -1,6 +1,9 @@
 param([string]$arg)
 
-if(-not $arg){ $arg = "NOOP" }
+if(-not $arg) {
+    Write-Host "[ERROR] No payload argument supplied"
+    exit 1
+}
 
 # Clean up URL encoding before anything else
 $argClean = $arg.Replace('%3d', '=').Replace('%2b', '+').Replace('%2f', '/')

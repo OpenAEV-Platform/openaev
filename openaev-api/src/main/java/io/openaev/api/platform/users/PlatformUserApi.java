@@ -8,6 +8,8 @@ import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.exception.InputValidationException;
+import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,6 +19,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -35,6 +38,7 @@ public class PlatformUserApi {
       isEnterpriseEdition = true)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
+  @Transactional
   public UserOutput create(@Valid @RequestBody UserInput input) {
     return toPlatformOutput(userService.createUser(input));
   }
@@ -42,6 +46,7 @@ public class PlatformUserApi {
   // -- READ --
 
   @Operation(summary = "Get platform user by ID")
+  @Transactional
   @AccessControl(
       resourceId = "#userId",
       actionPerformed = Action.READ,
@@ -60,6 +65,7 @@ public class PlatformUserApi {
       resourceType = ResourceType.PLATFORM_USER,
       isEnterpriseEdition = true)
   @PostMapping("/search")
+  @Transactional
   public Page<UserOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return userService.search(searchPaginationInput);
@@ -71,6 +77,7 @@ public class PlatformUserApi {
       resourceType = ResourceType.PLATFORM_USER,
       isEnterpriseEdition = true)
   @PostMapping("/find")
+  @Transactional
   public List<UserOutput> find(@RequestBody @Valid @NotNull final List<String> userIds) {
     return userService.find(userIds).stream().map(UserMapper::toPlatformOutput).toList();
   }
@@ -84,8 +91,23 @@ public class PlatformUserApi {
       resourceType = ResourceType.PLATFORM_USER,
       isEnterpriseEdition = true)
   @PutMapping("/{userId}")
+  @Transactional
   public UserOutput update(@PathVariable String userId, @Valid @RequestBody UserInput input) {
     return toPlatformOutput(userService.updateUser(userId, input));
+  }
+
+  @Operation(summary = "Change the password of a platform user")
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.PLATFORM_USER,
+      isEnterpriseEdition = true)
+  @PutMapping("/{userId}/password")
+  @Transactional
+  public UserOutput changePassword(
+      @PathVariable String userId, @Valid @RequestBody ChangePasswordInput input)
+      throws InputValidationException {
+    return toPlatformOutput(userService.changePassword(userId, input));
   }
 
   // -- DELETE --
@@ -98,6 +120,7 @@ public class PlatformUserApi {
       isEnterpriseEdition = true)
   @DeleteMapping("/{userId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Transactional
   public void delete(@PathVariable String userId) {
     userService.delete(userId);
   }

@@ -12,7 +12,6 @@ import io.openaev.integration.IntegrationInMemory;
 import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 
 public class ChallengeInjectorIntegration extends IntegrationInMemory {
@@ -27,7 +26,6 @@ public class ChallengeInjectorIntegration extends IntegrationInMemory {
   private final InjectExpectationService injectExpectationService;
   private final ChallengeRepository challengeRepository;
   private final UrlAccessTokenService urlAccessTokenService;
-  private final PreviewFeatureService previewFeatureService;
 
   @QualifiedComponent(identifier = {ChallengeContract.TYPE, CHALLENGE_INJECTOR_ID})
   private ChallengeExecutor challengeExecutor;
@@ -42,8 +40,7 @@ public class ChallengeInjectorIntegration extends IntegrationInMemory {
       InjectorService injectorService,
       InjectExpectationService injectExpectationService,
       ChallengeRepository challengeRepository,
-      UrlAccessTokenService urlAccessTokenService,
-      PreviewFeatureService previewFeatureService) {
+      UrlAccessTokenService urlAccessTokenService) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.injectorService = injectorService;
     this.challengeContract = challengeContract;
@@ -52,7 +49,6 @@ public class ChallengeInjectorIntegration extends IntegrationInMemory {
     this.injectorContext = injectorContext;
     this.injectExpectationService = injectExpectationService;
     this.urlAccessTokenService = urlAccessTokenService;
-    this.previewFeatureService = previewFeatureService;
   }
 
   @Override
@@ -63,8 +59,7 @@ public class ChallengeInjectorIntegration extends IntegrationInMemory {
             challengeRepository,
             emailService,
             injectExpectationService,
-            urlAccessTokenService,
-            previewFeatureService);
+            urlAccessTokenService);
   }
 
   @Override

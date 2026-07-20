@@ -132,7 +132,7 @@ services:
   # You typically only need to run one search engine at a time.
   openaev-dev-opensearch:
     container_name: openaev-dev-opensearch
-    image: opensearchproject/opensearch:3.6.0
+    image: opensearchproject/opensearch:3.7.0
     volumes:
       - osdata:/usr/share/opensearch/data
       - ossnapshots:/usr/share/opensearch/snapshots
@@ -225,7 +225,7 @@ services:
   # RSA key generator & XTM Composer (needed only for injector integration testing)
   rsa-key-generator:
     container_name: rsa-key-generator
-    image: alpine/openssl:3.5.6
+    image: alpine/openssl:3.5.7
     volumes:
       - rsakeys:/keys
     entrypoint: [ "/bin/ash" ]

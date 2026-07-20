@@ -33,6 +33,7 @@ public class FindingService {
   private final InjectService injectService;
 
   private final FindingRepository findingRepository;
+  private final FindingWriter findingWriter;
   private final AssetRepository assetRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
@@ -153,7 +154,7 @@ public class FindingService {
   public void saveAgentFinding(
       Inject inject, Asset asset, ContractOutputContext contractOutputContext, String value) {
 
-    findingRepository.saveCompleteFinding(
+    findingWriter.saveCompleteFinding(
         contractOutputContext.key(),
         contractOutputContext.type().name(),
         value,
@@ -216,7 +217,11 @@ public class FindingService {
   public void createFindings(
       @NotNull final List<Finding> findings, @NotBlank final String injectId) {
     Inject inject = injectService.inject(injectId);
-    findings.forEach(finding -> finding.setInject(inject));
+    findings.forEach(
+        finding -> {
+          finding.setInject(inject);
+          finding.setTenant(inject.getTenant());
+        });
     List<Finding> deduplicatedFindings = deduplicateFindings(findings);
     findingRepository.saveAll(deduplicatedFindings);
   }
@@ -291,6 +296,13 @@ public class FindingService {
     if (contractOutputContext.isMultiple() && structuredOutputNode.isArray()) {
       List<Finding> findings = new ArrayList<>();
       for (JsonNode node : structuredOutputNode) {
+        // Skip malformed entries instead of aborting the whole batch: a single bad finding must not
+        // throw out of the execution callback, which would prevent the COMPLETE trace from being
+        // saved and leave the inject stuck (ultimately flipped to ERROR).
+        if (!validator.test(node)) {
+          log.warn("Skipping malformed {} finding: {}", contractOutputContext.type(), node);
+          continue;
+        }
         findings.add(
             buildSingleFinding(
                 node,

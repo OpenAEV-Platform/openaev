@@ -98,7 +98,8 @@ public class AssetOutputProcessor extends AbstractOutputProcessor {
    */
   private void processEndpoint(ExecutionProcessingContext executionContext, JsonNode assetNode) {
     EndpointInput input = buildEndpointInput(assetNode);
-    Optional<Endpoint> existing = endpointService.findExistingEndpoint(input);
+    String tenantId = executionContext.inject().getTenant().getId();
+    Optional<Endpoint> existing = endpointService.findExistingEndpoint(input, tenantId);
     if (existing.isPresent()) {
       log.info("Endpoint already exists: {} (id={})", input.getName(), existing.get().getId());
       return;

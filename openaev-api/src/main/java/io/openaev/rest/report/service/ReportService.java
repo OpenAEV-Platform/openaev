@@ -3,14 +3,14 @@ package io.openaev.rest.report.service;
 import static java.time.Instant.now;
 
 import io.openaev.database.model.*;
+import io.openaev.database.model.Report;
+import io.openaev.database.model.ReportInformation;
+import io.openaev.database.model.ReportInjectComment;
+import io.openaev.database.repository.ReportRepository;
+import io.openaev.database.specification.ReportSpecification;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.report.form.ReportInjectCommentInput;
 import io.openaev.rest.report.form.ReportInput;
-import io.openaev.rest.report.model.Report;
-import io.openaev.rest.report.model.ReportInformation;
-import io.openaev.rest.report.model.ReportInjectComment;
-import io.openaev.rest.report.repository.ReportRepository;
-import io.openaev.rest.report.specification.ReportSpecification;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -24,8 +24,10 @@ import org.springframework.stereotype.Service;
 public class ReportService {
   private final ReportRepository reportRepository;
 
-  public Report report(@NotNull final UUID reportId) {
-    return this.reportRepository.findById(reportId).orElseThrow(ElementNotFoundException::new);
+  public Report report(@NotNull final UUID reportId, @NotBlank final String tenantId) {
+    return this.reportRepository
+        .findByIdAndTenantId(reportId, tenantId)
+        .orElseThrow(ElementNotFoundException::new);
   }
 
   /**
@@ -34,42 +36,50 @@ public class ReportService {
    *
    * @param simulationId
    * @param reportId
+   * @param tenantId
    * @return
    */
   public Report reportFromSimulation(
-      @NotBlank final String simulationId, @NotNull final UUID reportId) {
+      @NotBlank final String simulationId,
+      @NotNull final UUID reportId,
+      @NotBlank final String tenantId) {
     return this.reportRepository
-        .findByIdAndExercise_Id(reportId, simulationId)
+        .findByIdAndExercise_IdAndTenantId(reportId, simulationId, tenantId)
         .orElseThrow(ElementNotFoundException::new);
   }
 
-  public List<Report> reportsFromExercise(@NotNull final String exerciseId) {
-    return this.reportRepository.findAll(ReportSpecification.fromExercise(exerciseId));
+  public List<Report> reportsFromExercise(
+      @NotNull final String exerciseId, @NotBlank final String tenantId) {
+    return this.reportRepository.findAll(
+        ReportSpecification.fromExerciseAndTenant(exerciseId, tenantId));
   }
 
   public Report updateReport(@NotNull final Report report, @NotNull final ReportInput input) {
     report.setUpdateAttributes(input);
     report.setUpdateDate(now());
-    input
-        .getReportInformations()
-        .forEach(
-            i -> {
-              ReportInformation reportInformation =
-                  report.getReportInformations().stream()
-                      .filter(
-                          r -> r.getReportInformationsType().equals(i.getReportInformationsType()))
-                      .findFirst()
-                      .orElse(null);
-              if (reportInformation != null) {
-                reportInformation.setReportInformationsDisplay(i.getReportInformationsDisplay());
-              } else {
-                reportInformation = new ReportInformation();
-                reportInformation.setReport(report);
-                reportInformation.setReportInformationsDisplay(i.getReportInformationsDisplay());
-                reportInformation.setReportInformationsType(i.getReportInformationsType());
-                report.getReportInformations().add(reportInformation);
-              }
-            });
+    if (input.getReportInformations() != null) {
+      input
+          .getReportInformations()
+          .forEach(
+              i -> {
+                ReportInformation reportInformation =
+                    report.getReportInformations().stream()
+                        .filter(
+                            r ->
+                                r.getReportInformationsType().equals(i.getReportInformationsType()))
+                        .findFirst()
+                        .orElse(null);
+                if (reportInformation != null) {
+                  reportInformation.setReportInformationsDisplay(i.getReportInformationsDisplay());
+                } else {
+                  reportInformation = new ReportInformation();
+                  reportInformation.setReport(report);
+                  reportInformation.setReportInformationsDisplay(i.getReportInformationsDisplay());
+                  reportInformation.setReportInformationsType(i.getReportInformationsType());
+                  report.getReportInformations().add(reportInformation);
+                }
+              });
+    }
     return this.reportRepository.save(report);
   }
 
@@ -94,7 +104,9 @@ public class ReportService {
     return this.reportRepository.save(report);
   }
 
-  public void deleteReport(@NotBlank final UUID reportId) {
+  public void deleteReport(@NotNull final UUID reportId, @NotBlank final String tenantId) {
+    // Verify the report belongs to the current tenant before deleting
+    report(reportId, tenantId);
     this.reportRepository.deleteById(reportId);
   }
 }

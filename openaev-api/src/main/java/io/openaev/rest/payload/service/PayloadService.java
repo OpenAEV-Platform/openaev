@@ -44,7 +44,9 @@ import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
+import io.openaev.service.ExpectationService;
 import io.openaev.service.UserService;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
@@ -77,8 +79,10 @@ public class PayloadService {
   private final UserService userService;
   private final DocumentService documentService;
   private final PayloadUtils payloadUtils;
+  private final ResultsMetricCollector resultsMetricCollector;
   private final DomainService domainService;
   private final TagService tagService;
+  private final ExpectationService expectationService;
 
   private final PayloadMapper payloadMapper;
 
@@ -230,30 +234,49 @@ public class PayloadService {
         domains);
   }
 
-  private ContractExpectations expectations(InjectExpectation.EXPECTATION_TYPE[] expectationTypes) {
-    List<Expectation> expectations = new ArrayList<>();
+  private ContractExpectations expectations(
+      BaseInjectExpectation.EXPECTATION_TYPE[] expectationTypes) {
+    List<Expectation> predefined = new ArrayList<>();
     if (expectationTypes != null) {
-      for (InjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
+      for (BaseInjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
         switch (type) {
-          case TEXT -> expectations.add(this.expectationBuilderService.buildTextExpectation());
-          case DOCUMENT ->
-              expectations.add(this.expectationBuilderService.buildDocumentExpectation());
           case ARTICLE ->
-              expectations.add(this.expectationBuilderService.buildArticleExpectation());
+              predefined.add(
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildArticleExpectation()));
           case CHALLENGE ->
-              expectations.add(this.expectationBuilderService.buildChallengeExpectation());
-          case MANUAL -> expectations.add(this.expectationBuilderService.buildManualExpectation());
+              predefined.add(
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildChallengeExpectation()));
+          case MANUAL ->
+              predefined.add(
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildManualExpectation()));
           case PREVENTION ->
-              expectations.add(this.expectationBuilderService.buildPreventionExpectation());
+              predefined.add(
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildPreventionExpectation()));
           case DETECTION ->
-              expectations.add(this.expectationBuilderService.buildDetectionExpectation());
+              predefined.add(
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildDetectionExpectation()));
           case VULNERABILITY ->
-              expectations.add(this.expectationBuilderService.buildVulnerabilityExpectation());
+              predefined.add(
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildVulnerabilityExpectation()));
           default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
         }
       }
     }
-    return expectationsField(expectations);
+
+    // Payload contracts are technical injects: available expectations are always the 3 standard
+    // technical types.
+    List<Expectation> available =
+        expectationService.buildAvailableExpectationsForTechnicalInject().stream()
+            .map(this::withExpectedMultiSelectableFlag)
+            .toList();
+
+    return expectationsField(predefined, available);
   }
 
   public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
@@ -289,13 +312,36 @@ public class PayloadService {
     return new PayloadWithRelatedEntities(payload, attackPatternIds, domainIds, tagIds);
   }
 
+  /**
+   * Applies the OpenAEV rule for available expectations: only MANUAL is multi-selectable, all other
+   * types are single-select.
+   */
+  private Expectation withExpectedMultiSelectableFlag(Expectation expectation) {
+    expectation.setMultiSelectable(
+        BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.equals(expectation.getType()));
+    return expectation;
+  }
+
   public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
       @NotBlank final String payloadId) {
     Payload origin = this.payloadRepository.findById(payloadId).orElseThrow();
+    // Telemetry: one payload duplicated (community payload customization signal),
+    // counted only once the origin payload is known to exist.
+    resultsMetricCollector.recordPayloadDuplicated();
     Optional<InjectorContract> originInjectorContract =
         injectorContractRepository.findInjectorContractByPayload(origin);
 
-    Payload duplicated = payloadRepository.save(generateDuplicatedPayload(origin));
+    Payload duplicatedPayload = generateDuplicatedPayload(origin);
+    // A duplicate is a new manual payload: it is authored by the user performing the
+    // duplication. System flows without an authenticated user keep the author copied
+    // from the origin.
+    User duplicatingUser = userService.currentUserOrNull();
+    if (duplicatingUser != null) {
+      duplicatedPayload.setAuthorUser(duplicatingUser);
+      duplicatedPayload.setAuthorTeam(null);
+      duplicatedPayload.setAuthorOrganization(null);
+    }
+    Payload duplicated = payloadRepository.save(duplicatedPayload);
     InjectorContract injectorContract =
         this.synchroniseInjectorContractBasedOnPayload(
             duplicated,
@@ -343,6 +389,27 @@ public class PayloadService {
         NetworkTraffic duplicateNetworkTraffic = new NetworkTraffic();
         payloadUtils.duplicateCommonProperties(originNetworkTraffic, duplicateNetworkTraffic);
         yield duplicateNetworkTraffic;
+      }
+      case AI_ATTACK -> {
+        AiAttack originAiAttack = (AiAttack) Hibernate.unproxy(originalPayload);
+        AiAttack duplicateAiAttack = new AiAttack();
+        payloadUtils.duplicateCommonProperties(originAiAttack, duplicateAiAttack);
+        // duplicateCommonProperties already copies the scalar AiAttack fields; re-copy the
+        // mutable JSON-backed structures defensively so the duplicate never shares state with
+        // the origin within the same persistence context.
+        duplicateAiAttack.setMultiTurn(
+            Optional.ofNullable(originAiAttack.getMultiTurn())
+                .map(HashMap::new)
+                .orElseGet(HashMap::new));
+        duplicateAiAttack.setSuccessDetector(
+            Optional.ofNullable(originAiAttack.getSuccessDetector())
+                .map(HashMap::new)
+                .orElseGet(HashMap::new));
+        duplicateAiAttack.setConverters(
+            Optional.ofNullable(originAiAttack.getConverters())
+                .map(String[]::clone)
+                .orElseGet(() -> new String[0]));
+        yield duplicateAiAttack;
       }
     };
   }
@@ -424,9 +491,9 @@ public class PayloadService {
     fileDrop.setPlatforms(ALL_PLATFORMS);
     fileDrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
     fileDrop.setExpectations(
-        new InjectExpectation.EXPECTATION_TYPE[] {
-          InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-          InjectExpectation.EXPECTATION_TYPE.DETECTION
+        new BaseInjectExpectation.EXPECTATION_TYPE[] {
+          BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
         });
 
     FileDrop saved = payloadRepository.save(fileDrop);
@@ -479,9 +546,9 @@ public class PayloadService {
     dynamicDnsResolutionPayload.setArguments(new ArrayList<>(List.of(argument)));
 
     dynamicDnsResolutionPayload.setExpectations(
-        new InjectExpectation.EXPECTATION_TYPE[] {
-          InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-          InjectExpectation.EXPECTATION_TYPE.DETECTION
+        new BaseInjectExpectation.EXPECTATION_TYPE[] {
+          BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
         });
 
     DnsResolution saved = payloadRepository.save(dynamicDnsResolutionPayload);

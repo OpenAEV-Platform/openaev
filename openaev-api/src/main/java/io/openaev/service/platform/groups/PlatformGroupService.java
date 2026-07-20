@@ -43,6 +43,31 @@ public class PlatformGroupService {
     return groupRepository.save(group);
   }
 
+  /**
+   * Idempotently creates or updates a system-managed platform group (with the given roles) using a
+   * deterministic id (used by the bootstrap to seed the platform administrators group). Keeps the
+   * group platform-scoped (no tenant) and does not touch its membership. Fails fast if a group
+   * already exists under the id but is tenant-scoped, since {@code tenant_id} is {@code
+   * updatable=false} and silently reusing it would corrupt the platform scope invariant.
+   */
+  public Group ensureInternalPlatformGroupWithRoles(
+      @NotBlank final String id,
+      @NotBlank final String name,
+      final String description,
+      final List<Role> roles) {
+    Group group = groupRepository.findById(id).orElseGet(Group::new);
+    if (group.getTenant() != null) {
+      throw new IllegalStateException(
+          "Group " + id + " already exists as a tenant-scoped group; expected a platform group");
+    }
+    group.setId(id);
+    group.setName(name);
+    group.setDescription(description);
+    group.setDefaultUserAssignation(false);
+    group.setRoles(new java.util.ArrayList<>(roles));
+    return groupRepository.save(group);
+  }
+
   // -- READ --
 
   @Transactional(readOnly = true)
@@ -111,7 +136,7 @@ public class PlatformGroupService {
     Group group = findById(groupId);
     // Clear bidirectional associations before delete to avoid TransientObjectException
     // (User entities in the persistence context would otherwise still reference the removed Group)
-    group.getUsers().forEach(user -> user.getGroups().remove(group));
+    group.getUsers().forEach(user -> user.getUnscopedGroups().remove(group));
     groupRepository.delete(group);
   }
 }

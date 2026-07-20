@@ -1,53 +1,70 @@
 package io.openaev.database.model;
 
-import io.openaev.validator.Ipv4OrIpv6Validator;
-import lombok.Builder;
-import lombok.Data;
+import static java.time.Instant.now;
 
-@Data
-@Builder
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.io.Serializable;
+import java.time.Instant;
+import lombok.*;
+import org.hibernate.annotations.SQLInsert;
+import org.hibernate.jdbc.Expectation;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode(of = {"injectExpectation", "type", "value"})
+@Entity
+@IdClass(InjectExpectationSignature.InjectExpectationSignatureId.class)
+@Table(name = "injects_expectations_signatures")
+@SQLInsert(
+    sql =
+        """
+        INSERT INTO injects_expectations_signatures \
+        (inject_expectation_signature_created_at, \
+        inject_expectation_signature_inject_expectation_id, \
+        inject_expectation_signature_type, \
+        inject_expectation_signature_value) \
+        VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING\
+        """,
+    verify = Expectation.None.class)
 public class InjectExpectationSignature {
-  public static final String EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME = "parent_process_name";
-  public static final String EXPECTATION_SIGNATURE_TYPE_SOURCE_IPV4_ADDRESS = "source_ipv4_address";
-  public static final String EXPECTATION_SIGNATURE_TYPE_SOURCE_IPV6_ADDRESS = "source_ipv6_address";
-  public static final String EXPECTATION_SIGNATURE_TYPE_TARGET_IPV4_ADDRESS = "target_ipv4_address";
-  public static final String EXPECTATION_SIGNATURE_TYPE_TARGET_IPV6_ADDRESS = "target_ipv6_address";
-  public static final String EXPECTATION_SIGNATURE_TYPE_TARGET_HOSTNAME_ADDRESS =
-      "target_hostname_address";
-  public static final String EXPECTATION_SIGNATURE_TYPE_START_DATE = "start_date";
-  public static final String EXPECTATION_SIGNATURE_TYPE_END_DATE = "end_date";
 
+  @Id
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "inject_expectation_signature_inject_expectation_id")
+  private BaseInjectExpectation injectExpectation;
+
+  @Id
+  @NotBlank
+  @Column(name = "inject_expectation_signature_type")
+  @JsonProperty("type")
   private String type;
+
+  @Id
+  @NotBlank
+  @Column(name = "inject_expectation_signature_value")
+  @JsonProperty("value")
   private String value;
 
-  public InjectExpectationSignature(String signatureType, String signatureValue) {
-    this.type = signatureType;
-    this.value = signatureValue;
-  }
+  @NotNull
+  @JsonIgnore
+  @Column(name = "inject_expectation_signature_created_at", updatable = false)
+  private Instant createdAt = now();
 
-  public static InjectExpectationSignature createIpSignature(String ip, boolean isTarget) {
-    if (ip == null || ip.isEmpty()) {
-      return null;
-    }
-    if (Ipv4OrIpv6Validator.isIpv4(ip)) {
-      return new InjectExpectationSignature(
-          isTarget
-              ? EXPECTATION_SIGNATURE_TYPE_TARGET_IPV4_ADDRESS
-              : EXPECTATION_SIGNATURE_TYPE_SOURCE_IPV4_ADDRESS,
-          ip);
-    } else if (Ipv4OrIpv6Validator.isIpv6(ip)) {
-      return new InjectExpectationSignature(
-          isTarget
-              ? EXPECTATION_SIGNATURE_TYPE_TARGET_IPV6_ADDRESS
-              : EXPECTATION_SIGNATURE_TYPE_SOURCE_IPV6_ADDRESS,
-          ip);
-    } else {
-      return null;
-    }
-  }
-
-  public static InjectExpectationSignature createHostnameSignature(String signatureValue) {
-    return new InjectExpectationSignature(
-        EXPECTATION_SIGNATURE_TYPE_TARGET_HOSTNAME_ADDRESS, signatureValue);
+  @Getter
+  @Setter
+  @NoArgsConstructor
+  @AllArgsConstructor
+  @EqualsAndHashCode
+  public static class InjectExpectationSignatureId implements Serializable {
+    private String injectExpectation;
+    private String type;
+    private String value;
   }
 }

@@ -13,6 +13,7 @@ import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.executor.form.ExecutorOutput;
+import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -20,12 +21,12 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ExecutorService extends AbstractConnectorService<Executor, ExecutorOutput> {
@@ -40,6 +41,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   private final ExecutorMapper executorMapper;
 
+  private final EndpointService endpointService;
+
   @Autowired
   public ExecutorService(
       ExecutorRepository executorRepository,
@@ -49,7 +52,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       CatalogConnectorService catalogConnectorService,
       ConnectorInstanceService connectorInstanceService,
       ExecutorMapper executorMapper,
-      CatalogConnectorMapper catalogConnectorMapper) {
+      CatalogConnectorMapper catalogConnectorMapper,
+      EndpointService endpointService) {
     super(
         ConnectorType.EXECUTOR,
         connectorInstanceConfigurationRepository,
@@ -60,6 +64,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     this.executorRepository = executorRepository;
     this.executionTraceRepository = executionTraceRepository;
     this.executorMapper = executorMapper;
+    this.endpointService = endpointService;
   }
 
   @Override
@@ -151,6 +156,22 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       InputStream bannerData,
       String[] platforms)
       throws Exception {
+    return register(
+        id, type, name, documentationUrl, backgroundColor, iconData, bannerData, platforms, true);
+  }
+
+  @Transactional
+  public Executor register(
+      String id,
+      String type,
+      String name,
+      String documentationUrl,
+      String backgroundColor,
+      InputStream iconData,
+      InputStream bannerData,
+      String[] platforms,
+      boolean external)
+      throws Exception {
     // Sanity checks
     if (id == null || id.isEmpty()) {
       throw new IllegalArgumentException("Executor ID must not be null or empty.");
@@ -167,11 +188,9 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     Executor executor =
         executorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
     if (executor == null) {
-      Tenant tenant = new Tenant(TenantContext.getCurrentTenant());
       executor = new Executor();
       executor.setId(id);
-      executor.setTenant(tenant);
-      executor.setTenantId(tenant.getId());
+      executor.setTenantId(TenantContext.getCurrentTenant());
     }
 
     executor.setName(name);
@@ -179,6 +198,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     executor.setDoc(documentationUrl);
     executor.setBackgroundColor(backgroundColor);
     executor.setPlatforms(platforms);
+    executor.setExternal(external);
 
     return executorRepository.save(executor);
   }
@@ -187,7 +207,11 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   public void remove(String id) {
     executorRepository
         .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
-        .ifPresent(executor -> executorRepository.delete(executor));
+        .ifPresent(
+            executor -> {
+              endpointService.removeSourceTagsForExecutor(id, TenantContext.getCurrentTenant());
+              executorRepository.delete(executor);
+            });
   }
 
   /**

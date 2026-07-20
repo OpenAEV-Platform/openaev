@@ -1,5 +1,6 @@
 package io.openaev.scheduler;
 
+import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_TRIGGER;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_TRIGGER;
@@ -54,17 +55,6 @@ public class PlatformTriggers {
         .forJob(this.platformJobs.getScenarioExecution())
         .withIdentity("ScenarioExecutionTrigger")
         .withSchedule(repeatMinutelyForever())
-        .build();
-  }
-
-  @Bean
-  @Profile("!test")
-  public Trigger elasticSyncExecutionTrigger() {
-    SimpleScheduleBuilder _15_seconds = simpleSchedule().withIntervalInSeconds(15).repeatForever();
-    return newTrigger()
-        .forJob(this.platformJobs.getEngineSyncExecution())
-        .withIdentity("engineSyncExecutionTrigger")
-        .withSchedule(_15_seconds.withMisfireHandlingInstructionNextWithRemainingCount())
         .build();
   }
 
@@ -150,6 +140,16 @@ public class PlatformTriggers {
         .forJob(this.platformJobs.workflowTimeoutJobDetail())
         .withIdentity("WorkflowTimeoutJob")
         .withSchedule(every30Seconds)
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
+  public Trigger executionTraceRetentionTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.executionTraceRetentionJobDetail())
+        .withIdentity(EXECUTION_TRACE_RETENTION_TRIGGER)
+        .withSchedule(cronSchedule("0 30 1 * * ?")) // Daily at 1:30 AM
         .build();
   }
 

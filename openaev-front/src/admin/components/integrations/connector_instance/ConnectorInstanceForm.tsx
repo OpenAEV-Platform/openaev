@@ -130,7 +130,11 @@ const ConnectorInstanceForm = ({
   };
 
   const formatKeyToLabel = (key: string): string => {
+    // Keys are SCREAMING_SNAKE_CASE (e.g. EXECUTOR_TANIUM_API_URL); lowercase first
+    // so an already-uppercase key becomes proper Title Case ("Executor Tanium Api Url")
+    // instead of staying all-caps.
     return key
+      .toLowerCase()
       .replace(/_/g, ' ')
       .replace(/\b\w/g, char => char.toUpperCase());
   };
@@ -145,7 +149,15 @@ const ConnectorInstanceForm = ({
     return 'Create';
   };
 
-  const formatFieldType = (configurationType: CatalogConnectorConfiguration['connector_configuration_type'], configurationFormat: CatalogConnectorConfiguration['connector_configuration_format'], isEnum: boolean): ContractType => {
+  // Threshold above which a STRING field renders as a multiline textarea instead of a single-line input
+  const TEXTAREA_DEFAULT_LENGTH_THRESHOLD = 100;
+
+  const formatFieldType = (
+    configurationType: CatalogConnectorConfiguration['connector_configuration_type'],
+    configurationFormat: CatalogConnectorConfiguration['connector_configuration_format'],
+    isEnum: boolean,
+    defaultValue?: unknown,
+  ): ContractType => {
     if (isEnum) {
       return 'choice';
     }
@@ -158,6 +170,9 @@ const ConnectorInstanceForm = ({
     if (configurationType == 'INTEGER') {
       return 'number';
     }
+    if (configurationType == 'STRING' && typeof defaultValue === 'string' && defaultValue.length > TEXTAREA_DEFAULT_LENGTH_THRESHOLD) {
+      return 'textarea';
+    }
     return 'text';
   };
 
@@ -169,7 +184,12 @@ const ConnectorInstanceForm = ({
       isInMandatoryGroup: false,
       mandatoryGroupContractElementLabels: '',
       key: `connector_instance_configurations.${index}.configuration_value`,
-      type: formatFieldType(definition.connector_configuration_type, definition.connector_configuration_format, !!definition.connector_configuration_enum?.length),
+      type: formatFieldType(
+        definition.connector_configuration_type,
+        definition.connector_configuration_format,
+        !!definition.connector_configuration_enum?.length,
+        definition.connector_configuration_default,
+      ),
       mandatory: required,
       label: formatKeyToLabel(definition.connector_configuration_key || ''), // TODO should be not null
       readOnly: false,

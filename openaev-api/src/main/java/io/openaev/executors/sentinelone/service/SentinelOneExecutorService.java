@@ -84,7 +84,9 @@ public class SentinelOneExecutorService implements Runnable {
       List<Agent> agents =
           endpointService.syncAgentsEndpoints(
               toAgentEndpoint(sentinelOneAgents),
-              agentService.getAgentsByExecutorId(executor.getId()));
+              agentService.getAgentsByExecutorIdAndTenantId(
+                  executor.getId(), executor.getTenantId()),
+              executor.getTenantId());
       // For each sentinel one account/site/group id, create/update the relevant OpenAEV asset group
       Optional<AssetGroup> existingAssetGroup;
       AssetGroup assetGroup;
@@ -93,13 +95,13 @@ public class SentinelOneExecutorService implements Runnable {
         String assetGroupId = assetGroupIdAgentIds.getKey();
         List<String> agentIds = assetGroupIdAgentIds.getValue();
         existingAssetGroup =
-            assetGroupService.findByExternalReference(assetGroupId, executor.getTenant().getId());
+            assetGroupService.findByExternalReference(assetGroupId, executor.getTenantId());
         if (existingAssetGroup.isPresent()) {
           assetGroup = existingAssetGroup.get();
         } else {
           assetGroup = new AssetGroup();
           assetGroup.setExternalReference(assetGroupId);
-          assetGroup.setTenant(executor.getTenant());
+          assetGroup.setTenant(new Tenant(executor.getTenantId()));
         }
         assetGroup.setName(assetGroupIdNameMap.get(assetGroupId));
         assetGroup.setAssets(

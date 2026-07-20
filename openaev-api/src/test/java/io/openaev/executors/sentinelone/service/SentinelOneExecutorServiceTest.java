@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -40,6 +41,7 @@ public class SentinelOneExecutorServiceTest {
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
+  @Mock private OpenAEVConfig openAEVConfig;
 
   @InjectMocks private SentinelOneExecutorService sentinelOneExecutorService;
 
@@ -54,7 +56,7 @@ public class SentinelOneExecutorServiceTest {
     sentinelOneExecutor = new Executor();
     sentinelOneExecutor.setName(SENTINELONE_EXECUTOR_NAME);
     sentinelOneExecutor.setType(SENTINELONE_EXECUTOR_TYPE);
-    sentinelOneExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    sentinelOneExecutor.setTenantId(TenantContext.getCurrentTenant());
   }
 
   @Test
@@ -66,12 +68,14 @@ public class SentinelOneExecutorServiceTest {
     sentinelOneExecutorService.run();
     // Asserts
     ArgumentCaptor<String> executorIdCaptor = ArgumentCaptor.forClass(String.class);
-    verify(agentService).getAgentsByExecutorId(executorIdCaptor.capture());
+    verify(agentService)
+        .getAgentsByExecutorIdAndTenantId(
+            executorIdCaptor.capture(), eq(TenantContext.getCurrentTenant()));
     assertEquals(sentinelOneExecutor.getId(), executorIdCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<Agent>> agents = ArgumentCaptor.forClass(List.class);
-    verify(endpointService).syncAgentsEndpoints(inputsCaptor.capture(), agents.capture());
+    verify(endpointService).syncAgentsEndpoints(inputsCaptor.capture(), agents.capture(), any());
     assertEquals(1, inputsCaptor.getValue().size());
     assertEquals(0, agents.getValue().size());
 
@@ -115,21 +119,19 @@ public class SentinelOneExecutorServiceTest {
         List.of(AgentFixture.createAgent(EndpointFixture.createEndpoint(), "12345"));
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
+    when(openAEVConfig.getBaseUrlForAgent()).thenReturn("http://localhost:8080");
     // Run method to test
     sentinelOneExecutorContextService.launchBatchExecutorSubprocess(
         inject, new HashSet<>(agents), injectStatus, "token");
     // Executor scheduled so we have to wait before the execution
     Thread.sleep(1000);
     // Asserts
-    ArgumentCaptor<List<String>> agentIds = ArgumentCaptor.forClass(List.class);
+    ArgumentCaptor<String> agentId = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> scriptName = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> commandEncoded = ArgumentCaptor.forClass(String.class);
-    verify(client)
-        .executeScript(agentIds.capture(), scriptName.capture(), commandEncoded.capture());
-    assertEquals(1, agentIds.getValue().size());
+    verify(client).executeScript(agentId.capture(), scriptName.capture(), commandEncoded.capture());
+    assertEquals("12345", agentId.getValue());
     assertEquals("1234567890", scriptName.getValue());
-    assertEquals(
-        "JABhAGcAZQBuAHQASQBEAD0AJgAgACcAQwA6AFwAUAByAG8AZwByAGEAbQAgAEYAaQBsAGUAcwBcAFMAZQBuAHQAaQBuAGUAbABPAG4AZQBcAFMAZQBuAHQAaQBuAGUAbAAgAEEAZwBlAG4AdAAgACoAXABTAGUAbgB0AGkAbgBlAGwAQwB0AGwALgBlAHgAZQAnACAAYQBnAGUAbgB0AF8AaQBkADsAeAA4ADYAXwA2ADQA",
-        commandEncoded.getValue());
+    assertEquals("eAA4ADYAXwA2ADQA", commandEncoded.getValue());
   }
 }

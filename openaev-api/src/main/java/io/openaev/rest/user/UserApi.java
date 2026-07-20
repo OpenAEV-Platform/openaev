@@ -9,7 +9,6 @@ import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.user.form.login.LoginUserInput;
@@ -66,6 +65,7 @@ public class UserApi extends RestBehavior {
             content = @Content(schema = @Schema(implementation = User.class))),
       })
   @PostMapping("/api/login")
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UserRoleDescription(needAuthenticated = false)
   public User login(@Valid @RequestBody LoginUserInput input, HttpServletRequest httpRequest) {
@@ -75,7 +75,9 @@ public class UserApi extends RestBehavior {
       if (userService.isUserPasswordValid(user, input.getPassword())) {
         userService.createUserSession(user);
         // Capture auth context in session for reliable expiry audit metadata.
-        SessionManager.markAuthenticatedSession(httpRequest);
+        SessionManager.markAuthenticatedSession(httpRequest, user.getId());
+        // Enforce the max concurrent sessions platform setting (oldest sessions are evicted).
+        sessionManager.enforceSessionLimit(user.getId(), httpRequest.getSession().getId());
         userEventService.createLoginSuccessEvent(user);
 
         auditLogger.ifPresent(
@@ -114,7 +116,9 @@ public class UserApi extends RestBehavior {
         @ApiResponse(responseCode = "400", description = "The user was not found")
       })
   @PostMapping("/api/reset")
-  @AccessControl(skipRBAC = true)
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @Transactional
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public ResponseEntity<?> passwordReset(@Valid @RequestBody ResetUserInput input) {
     // async execution; check method annotation
     userService.requestPasswordReset(input);
@@ -132,7 +136,9 @@ public class UserApi extends RestBehavior {
             content = @Content(schema = @Schema(implementation = User.class))),
       })
   @PostMapping("/api/reset/{token}")
-  @AccessControl(skipRBAC = true)
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @Transactional
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User changePasswordReset(
       @PathVariable @Schema(description = "Token generated during reset") String token,
       @Valid @RequestBody ChangePasswordInput input)
@@ -143,6 +149,7 @@ public class UserApi extends RestBehavior {
   @Operation(
       description = "Validate that the reset token does exist",
       summary = "Check reset token")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -155,21 +162,5 @@ public class UserApi extends RestBehavior {
   public boolean validatePasswordResetToken(
       @PathVariable @Schema(description = "Token generated during reset") String token) {
     return userService.getResetToken(token);
-  }
-
-  @PutMapping(USER_URI + "/{userId}/password")
-  @AccessControl(
-      resourceId = "#userId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.USER)
-  @Transactional(rollbackFor = Exception.class)
-  @Operation(description = "Change the password of a user", summary = "Change password")
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The modified user")})
-  public User changePassword(
-      @PathVariable @Schema(description = "ID of the user") String userId,
-      @Valid @RequestBody ChangePasswordInput input) {
-    User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
-    user.setPassword(userService.encodeUserPassword(input.getPassword()));
-    return userRepository.save(user);
   }
 }

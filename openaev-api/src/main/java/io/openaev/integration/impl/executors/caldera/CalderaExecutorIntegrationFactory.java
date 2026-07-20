@@ -83,21 +83,35 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
     calderaExecutorConfigurationMigration.migrate();
   }
 
+  private String getLogoFilename() {
+    return "%s-logo.png".formatted(CALDERA_EXECUTOR_TYPE);
+  }
+
   @Override
-  protected void insertCatalogEntry() throws Exception {
-    String logoFilename = "%s-logo.png".formatted(CALDERA_EXECUTOR_TYPE);
-    fileService.uploadStream(
+  protected void ensureCatalogLogo() throws Exception {
+    ensureCatalogLogo(getLogoFilename());
+  }
+
+  private void ensureCatalogLogo(String logoFilename) throws Exception {
+    fileService.uploadCatalogLogo(
         FileService.CONNECTORS_LOGO_PATH,
         logoFilename,
         getClass().getResourceAsStream("/img/icon-caldera.png"));
+  }
+
+  @Override
+  protected void insertCatalogEntry() throws Exception {
+    String logoFilename = getLogoFilename();
+    ensureCatalogLogo(logoFilename);
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("Caldera Executor");
     connector.setSlug(CALDERA_EXECUTOR_TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
-        "With Caldera executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Caldera instance.");
-    connector.setShortDescription(
-        "Enable execution of OpenAEV scenarios through your Caldera instance.");
+        "Register hosts managed by your MITRE Caldera instance as OpenAEV executors and run"
+            + " simulated attacks on them through Caldera, so you can validate detection and"
+            + " prevention on real endpoints without deploying the OpenAEV agent.");
+    connector.setShortDescription("Run OpenAEV simulations on hosts managed by MITRE Caldera.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("https://caldera.mitre.org/");
     connector.setContainerType(ConnectorType.EXECUTOR);

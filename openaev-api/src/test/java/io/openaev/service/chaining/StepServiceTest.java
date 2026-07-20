@@ -2,6 +2,7 @@ package io.openaev.service.chaining;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -30,6 +31,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.quartz.JobExecutionException;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class StepServiceTest {
@@ -42,9 +44,11 @@ class StepServiceTest {
   @Mock private QueueChainingService queueChainingService;
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private StepDelayQueueRepository stepDelayQueueRepository;
+  @Mock private SimulationRateLimitService simulationRateLimitService;
 
   @Spy @InjectMocks StepService stepService;
   private QueueChainingJob queueChainingJob;
+  private TransactionTemplate transactionTemplate;
 
   private Workflow workflow;
 
@@ -57,7 +61,18 @@ class StepServiceTest {
 
   @BeforeEach
   void setUp() {
-    queueChainingJob = new QueueChainingJob(stepDelayQueueService, stepService, workflowService);
+    transactionTemplate = mock(TransactionTemplate.class);
+    lenient()
+        .doAnswer(
+            invocation -> {
+              ((java.util.function.Consumer<Object>) invocation.getArgument(0)).accept(null);
+              return null;
+            })
+        .when(transactionTemplate)
+        .executeWithoutResult(any());
+    queueChainingJob =
+        new QueueChainingJob(
+            stepDelayQueueService, stepService, workflowService, transactionTemplate);
     workflow = mock(Workflow.class);
   }
 
@@ -304,17 +319,22 @@ class StepServiceTest {
       void given_nullAction_should_throw() throws Exception {
         // Arrange
         Step nextStepTemplateToExecute = mock(Step.class);
+        Step persistedTemplate = mock(Step.class);
         Workflow workflowRun = mock(Workflow.class);
 
-        when(nextStepTemplateToExecute.getStepAction()).thenReturn(null);
+        String stepId = UUID.randomUUID().toString();
+        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
+        when(stepRepository.findByIdAndStatus(stepId, StepStatus.TEMPLATE))
+            .thenReturn(Optional.of(persistedTemplate));
+        when(persistedTemplate.getStepAction()).thenReturn(null);
 
         // Act + Assert
         assertThrows(
             ChainingException.class,
             () ->
-                stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, "{\"a\":1}"));
+                stepService.createReadySteps(
+                    nextStepTemplateToExecute, workflowRun, "{\"a\":1}", 0));
 
-        verify(stepRepository, never()).findById(anyString());
         verify(stepRepository, never()).save(any());
         verify(conditionService, never()).checkCondition(any(), any(), any());
         verify(conditionService, never()).saveAllConditions(anyList());
@@ -336,13 +356,13 @@ class StepServiceTest {
         String input = "{\"hello\":\"world\"}";
         String stepId = UUID.randomUUID().toString();
 
-        when(nextStepTemplateToExecute.getStepAction())
-            .thenReturn(StepActionClass.INJECT_EXECUTION);
+        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
+        when(persistedTemplate.getId()).thenReturn(stepId);
+        when(persistedTemplate.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
         doReturn(localActionStep)
             .when(stepService)
             .factoryAction(StepActionClass.INJECT_EXECUTION, stepId);
 
-        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
         when(stepRepository.findByIdAndStatus(stepId, StepStatus.TEMPLATE))
             .thenReturn(Optional.of(persistedTemplate));
 
@@ -351,7 +371,7 @@ class StepServiceTest {
 
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
 
         // Assert
         assertTrue(result.isEmpty());
@@ -382,19 +402,21 @@ class StepServiceTest {
         String input = "{\"x\":1}";
         String stepId = UUID.randomUUID().toString();
 
-        when(nextStepTemplateToExecute.getStepAction())
-            .thenReturn(StepActionClass.INJECT_EXECUTION);
+        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
+        when(persistedTemplate.getId()).thenReturn(stepId);
+        when(persistedTemplate.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
         when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, stepId))
             .thenReturn(localActionStep);
 
-        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
+        when(stepRepository.findByIdAndStatus(stepId, StepStatus.TEMPLATE))
+            .thenReturn(Optional.of(persistedTemplate));
 
         Condition c1 = mock(Condition.class);
         Condition c2 = mock(Condition.class);
         List<Condition> usedMappers = new ArrayList<>(List.of(c1, c2));
 
         when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
-            .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers)));
+            .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers, null)));
 
         Step stepReady = mock(Step.class);
 
@@ -403,12 +425,9 @@ class StepServiceTest {
         assertNotNull(stepReady);
         when(stepRepository.save(stepReady)).thenReturn(stepReady);
 
-        when(stepRepository.findByIdAndStatus(any(), eq(StepStatus.TEMPLATE)))
-            .thenReturn(Optional.of(persistedTemplate));
-
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
 
         // Assert
         assertEquals(1, result.size());
@@ -443,12 +462,12 @@ class StepServiceTest {
 
         String input = "{\"q\":true}";
         String stepId = UUID.randomUUID().toString();
-        when(nextStepTemplateToExecute.getStepAction())
-            .thenReturn(StepActionClass.INJECT_EXECUTION);
+        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
+        when(persistedTemplate.getId()).thenReturn(stepId);
+        when(persistedTemplate.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
         when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, stepId))
             .thenReturn(localActionStep);
 
-        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
         when(stepRepository.findByIdAndStatus(stepId, StepStatus.TEMPLATE))
             .thenReturn(Optional.of(persistedTemplate));
 
@@ -456,7 +475,7 @@ class StepServiceTest {
         List<Condition> usedMappers = new ArrayList<>(List.of(c1));
 
         when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
-            .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers)));
+            .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers, null)));
 
         Step stepReady = mock(Step.class);
 
@@ -468,7 +487,7 @@ class StepServiceTest {
 
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
 
         // Assert
         assertEquals(1, result.size());
@@ -737,25 +756,27 @@ class StepServiceTest {
       when(stepRepository.findStepIdByInjectId(injectId)).thenReturn(Optional.of(stepId));
 
       // Act
-      String result = stepService.findStepIdByInjectId(injectId);
+      Optional<String> result = stepService.findStepIdByInjectId(injectId);
 
       // Assert
-      assertNotNull(result);
-      assertEquals(stepId, result);
+      assertTrue(result.isPresent());
+      assertEquals(stepId, result.get());
       verify(stepRepository).findStepIdByInjectId(injectId);
       verifyNoMoreInteractions(stepRepository);
     }
 
     @Test
-    void given_missingInjectId_should_throw() {
+    void given_missingInjectId_should_returnEmptyOptional() {
       // Arrange
       String injectId = UUID.randomUUID().toString();
 
       when(stepRepository.findStepIdByInjectId(injectId)).thenReturn(Optional.empty());
 
-      // Act + Assert
-      assertThrows(
-          ElementNotFoundException.class, () -> stepService.findStepIdByInjectId(injectId));
+      // Act
+      Optional<String> result = stepService.findStepIdByInjectId(injectId);
+
+      // Assert
+      assertTrue(result.isEmpty());
       verify(stepRepository).findStepIdByInjectId(injectId);
       verifyNoMoreInteractions(stepRepository);
     }
@@ -790,11 +811,11 @@ class StepServiceTest {
           if (throwException) {
             doThrow(new ChainingException("error"))
                 .when(stepService)
-                .createReadySteps(any(Step.class), any(Workflow.class), any());
+                .createReadySteps(any(Step.class), any(Workflow.class), any(), anyInt());
           } else {
             doReturn(List.of(mock(Step.class)))
                 .when(stepService)
-                .createReadySteps(any(Step.class), any(Workflow.class), any());
+                .createReadySteps(any(Step.class), any(Workflow.class), any(), anyInt());
           }
         }
 
@@ -803,9 +824,9 @@ class StepServiceTest {
 
         // Assert
         if (stepFound) {
-          verify(stepService).createReadySteps(step, workflowRun, null);
+          verify(stepService).createReadySteps(step, workflowRun, null, 0);
         } else {
-          verify(stepService, never()).createReadySteps(any(), any(), any());
+          verify(stepService, never()).createReadySteps(any(), any(), any(), anyInt());
         }
       }
 
@@ -922,6 +943,8 @@ class StepServiceTest {
       Step existing = new Step();
       Workflow existingWorkflow = new Workflow();
       existing.setWorkflow(existingWorkflow);
+      existing.setConditionSteps(
+          new ArrayList<>(List.of(new ConditionStep(), new ConditionStep())));
 
       Step candidate = new Step();
       candidate.setStepAction(StepActionClass.INJECT_EXECUTION);
@@ -929,6 +952,7 @@ class StepServiceTest {
       candidate.setData("{\"updated\":true}");
       candidate.setInput("{}");
       candidate.setOutputParser("{}");
+      Step saved = new Step();
 
       when(stepInput.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
       when(stepInput.getConditions()).thenReturn(Collections.emptyList());
@@ -940,15 +964,16 @@ class StepServiceTest {
           .factoryAction(StepActionClass.INJECT_EXECUTION, stepId);
       when(actionStep.create(any(StepsCreateInput.StepInput.class), eq(existingWorkflow)))
           .thenReturn(Optional.of(candidate));
-      when(stepRepository.save(existing)).thenReturn(existing);
+      when(stepRepository.save(existing)).thenReturn(saved);
 
       // Act
       Step updated = stepService.updateStepTemplate(stepId, stepInput);
 
       // Assert
-      assertSame(existing, updated);
-      assertEquals(5, updated.getLimitExecution());
-      assertEquals("{\"updated\":true}", updated.getData());
+      assertSame(saved, updated);
+      assertEquals(5, existing.getLimitExecution());
+      assertEquals("{\"updated\":true}", existing.getData());
+      assertTrue(existing.getConditionSteps().isEmpty());
       verify(conditionService).deleteAllConditionsByStepId(stepId, List.of("cond-x"));
       verify(conditionService).linkExistingConditionsToStep(existing, List.of("cond-x"));
       verify(stepRepository).save(existing);
@@ -1015,17 +1040,15 @@ class StepServiceTest {
     }
 
     @Test
-    void given_mixedSteps_should_findAllStepTemplates_onlyTemplateRows() {
+    void given_templateSteps_should_findAllStepTemplates_returnTemplateRowsFromRepository() {
       // Arrange
       Step templateA = new Step();
       Step templateB = new Step();
-      Step executed = new Step();
       templateA.setId("tA");
       templateB.setId("tB");
-      executed.setId("exec");
-      executed.setStepTemplate(new Step());
+      List<Step> templates = List.of(templateA, templateB);
 
-      when(stepRepository.findAll()).thenReturn(List.of(templateA, executed, templateB));
+      when(stepRepository.findAllByStepTemplateIdIsNull()).thenReturn(templates);
 
       // Act
       List<Step> result = stepService.findAllStepTemplates();
@@ -1034,7 +1057,7 @@ class StepServiceTest {
       assertEquals(2, result.size());
       assertTrue(result.contains(templateA));
       assertTrue(result.contains(templateB));
-      assertFalse(result.contains(executed));
+      verify(stepRepository).findAllByStepTemplateIdIsNull();
     }
   }
 }

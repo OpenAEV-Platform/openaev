@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RequestMapping("/api/settings")
@@ -51,6 +52,7 @@ public class PlatformSettingsApi extends RestBehavior {
       summary = "List public settings",
       description =
           "Return only non-sensitive settings (auth providers, theme, language, policies)")
+  @Transactional
   public PublicPlatformSettings publicSettings() {
     return platformSettingsService.findPublicSettings();
   }
@@ -61,6 +63,7 @@ public class PlatformSettingsApi extends RestBehavior {
   @Operation(
       summary = "List settings",
       description = "Return the full settings (authenticated users only)")
+  @Transactional
   public PlatformSettings settings() {
     return platformSettingsService.findSettings();
   }
@@ -73,6 +76,7 @@ public class PlatformSettingsApi extends RestBehavior {
             description = "The list of the first caldera instance settings")
       })
   @Operation(summary = "List caldera settings", description = "Return the settings")
+  @Transactional
   @Deprecated
   public List<CalderaSettings> getCalderaSettings() {
     return calderaSettingsService.getCalderaSettings();
@@ -82,11 +86,13 @@ public class PlatformSettingsApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The platform version")})
   @Operation(summary = "Get platform version", description = "Return the platform version")
+  @Transactional
   public String platformVersion() {
     return platformSettingsService.getPlatformVersion();
   }
 
   @PutMapping("/enterprise-edition")
+  @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(
       value = {
@@ -100,6 +106,7 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PutMapping("/platform_whitemark")
+  @Transactional
   @AccessControl(
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLATFORM_SETTING,
@@ -111,7 +118,20 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.updateSettingsPlatformWhitemark(input);
   }
 
+  @PutMapping("/sessions")
+  @Transactional
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
+  @Operation(
+      summary = "Update session settings",
+      description = "Update the session management settings (max concurrent sessions per user)")
+  public PlatformSettings updateSettingsSessions(
+      @Valid @RequestBody SettingsSessionsUpdateInput input) {
+    return platformSettingsService.updateSettingsSessions(input);
+  }
+
   @PutMapping("/theme/light")
+  @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(
@@ -122,6 +142,7 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PutMapping("/theme/dark")
+  @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update dark theme settings", description = "Update the dark theme settings")
@@ -130,6 +151,7 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PutMapping("/policies")
+  @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update policies settings", description = "Update the policies settings")
@@ -138,6 +160,7 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PutMapping("/chatbot-ai-cgu")
+  @Transactional
   @AccessControl(
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLATFORM_SETTING,

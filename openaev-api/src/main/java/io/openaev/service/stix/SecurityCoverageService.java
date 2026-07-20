@@ -37,6 +37,7 @@ import io.openaev.stix.parsing.ParsingException;
 import io.openaev.stix.types.*;
 import io.openaev.stix.types.Boolean;
 import io.openaev.stix.types.Dictionary;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.SecurityCoverageUtils;
@@ -83,6 +84,7 @@ public class SecurityCoverageService {
   private final PreviewFeatureService previewFeatureService;
 
   private final SecurityCoverageUtils securityCoverageUtils;
+  private final ResultsMetricCollector resultsMetricCollector;
 
   /**
    * Creates or updates a security coverage and the associated scenario, and updates the
@@ -101,12 +103,16 @@ public class SecurityCoverageService {
   public Scenario handleSecurityCoverageProcessing(
       String securityCoverageStixId, ObjectBase securityCoverageObj, Bundle bundle, String tenantId)
       throws ParsingException, BundleValidationError, ConnectorError, IOException {
+    // Telemetry: one CTI security coverage bundle processed (attempts semantics).
+    resultsMetricCollector.recordSecurityCoverageProcessed();
     String bundleHash = md5Hex(bundle.toStix(objectMapper).toString());
 
     SecurityCoverage securityCoverage =
         buildSecurityCoverageFromStix(
             securityCoverageObj, bundle, securityCoverageStixId, bundleHash, tenantId);
     Scenario scenario = buildScenarioFromSecurityCoverage(securityCoverage);
+    // Telemetry: a scenario was generated from the coverage.
+    resultsMetricCollector.recordCoverageScenarioGenerated();
 
     // FIXME: extract this behaviour into an async worker
     pushSecurityCoverageBundleWithExternalURI(scenario);
@@ -752,7 +758,8 @@ public class SecurityCoverageService {
     for (InjectExpectationResultUtils.ExpectationResultsByType result : coverageResults) {
       CoverageResult cov =
           new CoverageResult(
-              result.type().name(), result.getSuccessRate() * 100); // force percentage points
+              result.type().name(),
+              (int) Math.round(result.getSuccessRate() * 100)); // force percentage points
       coverageValues.add(new Complex<>(cov));
     }
     return new io.openaev.stix.types.List<>(coverageValues);

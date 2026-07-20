@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.QueueChainingService;
@@ -12,6 +11,7 @@ import io.openaev.service.chaining.StepService;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.aspectj.lang.JoinPoint;
@@ -161,11 +161,9 @@ class WorkflowUpdateEventAspectTest {
       // -------- Prepare --------
       String injectId = "inject-123";
       setupJoinPoint(injectId);
-      when(stepService.findStepIdByInjectId(injectId))
-          .thenThrow(new ElementNotFoundException("Step id not found for inject id : " + injectId));
+      when(stepService.findStepIdByInjectId(injectId)).thenReturn(Optional.empty());
       // -------- Act --------
-      assertThrows(
-          ElementNotFoundException.class, () -> aspect.afterEventProcessed(joinPoint, annotation));
+      assertDoesNotThrow(() -> aspect.afterEventProcessed(joinPoint, annotation));
 
       // -------- Assert --------
       verify(stepService).findStepIdByInjectId(injectId);
@@ -179,7 +177,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId = "step-success";
       setupJoinPoint(injectId);
 
-      when(stepService.findStepIdByInjectId(injectId)).thenReturn(stepId);
+      when(stepService.findStepIdByInjectId(injectId)).thenReturn(Optional.of(stepId));
 
       // -------- Act --------
       aspect.afterEventProcessed(joinPoint, annotation);
@@ -197,7 +195,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId = "step-cache";
       setupJoinPoint(injectId);
 
-      when(stepService.findStepIdByInjectId(injectId)).thenReturn(stepId);
+      when(stepService.findStepIdByInjectId(injectId)).thenReturn(Optional.of(stepId));
 
       IOException ioException = new IOException("Queue error");
       doThrow(ioException).when(queueChainingService).updateStep(stepId);
@@ -473,7 +471,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId1 = "step-1";
       setupInjectIdJoinPoint(injectId1);
 
-      when(stepService.findStepIdByInjectId(injectId1)).thenReturn(stepId1);
+      when(stepService.findStepIdByInjectId(injectId1)).thenReturn(Optional.of(stepId1));
       doThrow(new IOException("Queue error")).when(queueChainingService).updateStep(stepId1);
 
       // First call - should cache stepId1
@@ -485,7 +483,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId2 = "step-2";
       setupInjectIdJoinPoint(injectId2);
 
-      when(stepService.findStepIdByInjectId(injectId2)).thenReturn(stepId2);
+      when(stepService.findStepIdByInjectId(injectId2)).thenReturn(Optional.of(stepId2));
       // Now updateStep succeeds
 
       // -------- Act --------
@@ -506,7 +504,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId1 = "step-1";
       setupInjectIdJoinPoint(injectId1);
 
-      when(stepService.findStepIdByInjectId(injectId1)).thenReturn(stepId1);
+      when(stepService.findStepIdByInjectId(injectId1)).thenReturn(Optional.of(stepId1));
       doThrow(new IOException("Queue error")).when(queueChainingService).updateStep(stepId1);
 
       // First call - caches stepId1
@@ -518,7 +516,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId2 = "step-2";
       setupInjectIdJoinPoint(injectId2);
 
-      when(stepService.findStepIdByInjectId(injectId2)).thenReturn(stepId2);
+      when(stepService.findStepIdByInjectId(injectId2)).thenReturn(Optional.of(stepId2));
 
       // Second call - sends both and clears cache
       aspect.afterEventProcessed(joinPoint, annotation);
@@ -529,12 +527,9 @@ class WorkflowUpdateEventAspectTest {
       setupInjectIdJoinPoint(injectId3);
 
       // -------- Act --------
-      when(stepService.findStepIdByInjectId(injectId3))
-          .thenThrow(
-              new ElementNotFoundException("Step id not found for inject id : " + injectId3));
+      when(stepService.findStepIdByInjectId(injectId3)).thenReturn(Optional.empty());
 
-      assertThrows(
-          ElementNotFoundException.class, () -> aspect.afterEventProcessed(joinPoint, annotation));
+      assertDoesNotThrow(() -> aspect.afterEventProcessed(joinPoint, annotation));
 
       // -------- Assert --------
       // Cache should be cleared, so no retry attempts on third call
@@ -548,7 +543,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId1 = "step-1";
       setupInjectIdJoinPoint(injectId1);
 
-      when(stepService.findStepIdByInjectId(injectId1)).thenReturn(stepId1);
+      when(stepService.findStepIdByInjectId(injectId1)).thenReturn(Optional.of(stepId1));
       doThrow(new IOException("Queue error")).when(queueChainingService).updateStep(any());
 
       aspect.afterEventProcessed(joinPoint, annotation);
@@ -559,7 +554,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId2 = "step-2";
       setupInjectIdJoinPoint(injectId2);
 
-      when(stepService.findStepIdByInjectId(injectId2)).thenReturn(stepId2);
+      when(stepService.findStepIdByInjectId(injectId2)).thenReturn(Optional.of(stepId2));
 
       aspect.afterEventProcessed(joinPoint, annotation);
 
@@ -569,7 +564,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId3 = "step-3";
       setupInjectIdJoinPoint(injectId3);
 
-      when(stepService.findStepIdByInjectId(injectId3)).thenReturn(stepId3);
+      when(stepService.findStepIdByInjectId(injectId3)).thenReturn(Optional.of(stepId3));
 
       // -------- Act --------
       aspect.afterEventProcessed(joinPoint, annotation);
@@ -633,7 +628,7 @@ class WorkflowUpdateEventAspectTest {
       when(joinPoint.getArgs()).thenReturn(new Object[] {request});
 
       String stepId = "step-for-nested";
-      when(stepService.findStepIdByInjectId("nested-inject-123")).thenReturn(stepId);
+      when(stepService.findStepIdByInjectId("nested-inject-123")).thenReturn(Optional.of(stepId));
 
       // -------- Act --------
       aspect.afterEventProcessed(joinPoint, annotation);

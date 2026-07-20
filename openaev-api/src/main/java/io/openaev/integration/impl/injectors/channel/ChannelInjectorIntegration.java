@@ -12,7 +12,6 @@ import io.openaev.integration.IntegrationInMemory;
 import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 
 public class ChannelInjectorIntegration extends IntegrationInMemory {
@@ -27,7 +26,6 @@ public class ChannelInjectorIntegration extends IntegrationInMemory {
   private final InjectExpectationService injectExpectationService;
   private final ArticleRepository articleRepository;
   private final UrlAccessTokenService urlAccessTokenService;
-  private final PreviewFeatureService previewFeatureService;
 
   @QualifiedComponent(identifier = {ChannelContract.TYPE, CHANNEL_INJECTOR_ID})
   private ChannelExecutor channelExecutor;
@@ -42,8 +40,7 @@ public class ChannelInjectorIntegration extends IntegrationInMemory {
       InjectorService injectorService,
       InjectExpectationService injectExpectationService,
       ArticleRepository articleRepository,
-      UrlAccessTokenService urlAccessTokenService,
-      PreviewFeatureService previewFeatureService) {
+      UrlAccessTokenService urlAccessTokenService) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.channelContract = channelContract;
     this.injectorContext = injectorContext;
@@ -52,7 +49,6 @@ public class ChannelInjectorIntegration extends IntegrationInMemory {
     this.injectExpectationService = injectExpectationService;
     this.articleRepository = articleRepository;
     this.urlAccessTokenService = urlAccessTokenService;
-    this.previewFeatureService = previewFeatureService;
   }
 
   @Override
@@ -63,8 +59,7 @@ public class ChannelInjectorIntegration extends IntegrationInMemory {
             this.articleRepository,
             this.emailService,
             this.injectExpectationService,
-            this.urlAccessTokenService,
-            this.previewFeatureService);
+            this.urlAccessTokenService);
   }
 
   @Override

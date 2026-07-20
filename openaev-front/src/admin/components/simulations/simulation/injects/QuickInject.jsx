@@ -476,10 +476,7 @@ class QuickInjectComponent extends Component {
                       name={field.key}
                       label={t(field.label)}
                       fullWidth={true}
-                      style={{
-                        marginTop: theme.spacing(2.5),
-                        height: 250,
-                      }}
+                      style={{ marginTop: theme.spacing(2.5) }}
                       disabled={isDisabled}
                     />
                   )
@@ -1419,7 +1416,7 @@ class QuickInjectComponent extends Component {
           </Form>
         </div>
         <AvailableVariablesDialog
-          uriVariable={`/admin/simulations/${exerciseId}/definition`}
+          uriVariable={`/admin/simulations/${exerciseId}/injects`}
           variables={this.props.exerciseVariables}
           open={openVariables}
           handleClose={this.handleCloseVariables.bind(this)}

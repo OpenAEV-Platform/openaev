@@ -142,13 +142,6 @@ public class ConnectorOrchestrationService {
     }
   }
 
-  private void cleanDummyInjectorsIfItExists(
-      String catalogConnectorSlug, ConnectorType catalogConnectorType) {
-    if (ConnectorType.INJECTOR.equals(catalogConnectorType)) {
-      injectorService.deleteDummyInjectorIfItExists(catalogConnectorSlug);
-    }
-  }
-
   /**
    * Holds a CatalogConnector and its configurations mapped by key.
    *
@@ -195,7 +188,8 @@ public class ConnectorOrchestrationService {
    */
   public ConnectorInstancePersisted createConnectorInstance(
       CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
-      CreateConnectorInstanceInput input) {
+      CreateConnectorInstanceInput input,
+      String tenantId) {
     throwIfEnterpriseLicenseNotActive();
 
     throwIfXtmComposerDownAndNeeded(catalogConnectorWithConfigMap.catalogConnector);
@@ -213,14 +207,8 @@ public class ConnectorOrchestrationService {
       throwIfConnectorIdDoesNotExist(input, catalogConnectorWithConfigMap.catalogConnector);
     }
 
-    ConnectorInstancePersisted connectorInstance =
-        connectorInstanceService.createConnectorInstance(catalogConnectorWithConfigMap, input);
-
-    cleanDummyInjectorsIfItExists(
-        catalogConnectorWithConfigMap.catalogConnector.getSlug(),
-        catalogConnectorWithConfigMap.catalogConnector.getContainerType());
-
-    return connectorInstance;
+    return connectorInstanceService.createConnectorInstance(
+        catalogConnectorWithConfigMap, input, tenantId);
   }
 
   /**
@@ -256,7 +244,7 @@ public class ConnectorOrchestrationService {
       return;
     }
     ConnectorInstancePersisted instance =
-        connectorInstanceService.connectorInstanceById(connectorInstanceId);
+        connectorInstanceService.connectorInstanceByIdIgnoringTenantFilter(connectorInstanceId);
     connectorInstanceLogService.pushLogByConnectorInstance(
         instance, connectorInstanceLogService.transformRawLogsLineToLog(logs));
   }

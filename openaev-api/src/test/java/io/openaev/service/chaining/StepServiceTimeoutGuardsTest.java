@@ -7,6 +7,8 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -15,17 +17,36 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("StepService Timeout Guards Tests")
 class StepServiceTimeoutGuardsTest {
 
   @Mock private StepRepository stepRepository;
+  @Mock private ChainingConfig chainingConfig;
   @Mock private StepService stepService;
   @Mock private WorkflowService workflowService;
+  @Mock private QueueChainingService queueChainingService;
+  @Mock private TransactionTemplate transactionTemplate;
   @Mock private ActionStep actionStep;
 
   @Spy @InjectMocks private StepEventService stepEventService;
+
+  @SuppressWarnings("unchecked")
+  @BeforeEach
+  void setUp() {
+    lenient()
+        .doAnswer(
+            invocation -> {
+              Consumer<TransactionStatus> action = invocation.getArgument(0);
+              action.accept(null);
+              return null;
+            })
+        .when(transactionTemplate)
+        .executeWithoutResult(any());
+  }
 
   // ========================================================================
   // handleReadyStepEvent() / run() — guard on ended workflow

@@ -7,7 +7,7 @@ import static io.openaev.utils.fixtures.CatalogConnectorFixture.createDefaultCat
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createConnectorInstanceConfiguration;
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultConnectorInstance;
 import static io.openaev.utils.fixtures.InjectorFixture.createDefaultInjector;
-import static io.openaev.utils.fixtures.InjectorFixture.createInjector;
+import static io.openaev.utils.fixtures.InjectorFixture.createDefaultInjectorCreateInput;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -26,6 +27,7 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
+import io.openaev.service.FileService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.HashUtils;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -39,10 +41,10 @@ import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceConfigurationComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -52,6 +54,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
@@ -65,6 +68,7 @@ public class InjectorApiTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private EntityManager em;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private FileService fileService;
 
   @Autowired private InjectComposer injectComposer;
   @Autowired private EndpointComposer endpointComposer;
@@ -403,35 +407,25 @@ public class InjectorApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Should delete dummy injector and reassign its contracts to the new injector on registration")
-    void shouldDeleteDummyInjectorAndReassignContracts() throws Exception {
+        "Should adopt an injector-less contract (starter-pack import) on injector registration")
+    void shouldAdoptInjectorlessContractOnRegistration() throws Exception {
       // -- ARRANGE --
-      String injectorType = "openaev_dummy_test";
-      String dummyId = injectorType + "_dummy";
-      String dummyType = injectorType + "_dummy";
-
-      // Create a dummy injector (simulating what createOrGetDummyInjector does)
-      Injector dummyInjector = createInjector(dummyId, "Dummy " + injectorType, dummyType);
-      injectorRepository.save(dummyInjector);
-
-      // Create an injector contract linked to the dummy injector
-      InjectorContract dummyContract = InjectorContractFixture.createDefaultInjectorContract();
-      dummyContract.getInjectors().clear();
-      dummyContract.addInjector(dummyInjector);
-      em.persist(dummyContract);
-      injectorContractRepository.save(dummyContract);
-      dummyInjector.getContracts().add(dummyContract);
-      injectorRepository.save(dummyInjector);
+      // Simulate a starter-pack import: the contract exists without any injector link
+      InjectorContract orphanContract = InjectorContractFixture.createDefaultInjectorContract();
+      orphanContract.clearInjectors();
+      em.persist(orphanContract);
+      injectorContractRepository.save(orphanContract);
       em.flush();
 
-      String dummyContractId = dummyContract.getId();
-      String realInjectorId = "real-injector-for-dummy";
+      String orphanContractId = orphanContract.getId();
+      String realInjectorId = "real-injector-for-orphan";
 
       InjectorCreateInput input = new InjectorCreateInput();
       input.setId(realInjectorId);
       input.setName("Real Injector");
-      input.setType(injectorType);
-      input.setContracts(List.of(buildContractInput("real-contract-1")));
+      input.setType("openaev_orphan_test");
+      // The real injector registers a contract with the SAME id as the imported one
+      input.setContracts(List.of(buildContractInput(orphanContractId)));
 
       // -- ACT --
       mvc.perform(
@@ -443,21 +437,17 @@ public class InjectorApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      assertThat(injectorRepository.findByIdAndTenantId(dummyId, TenantContext.getCurrentTenant()))
-          .isEmpty();
-
       Optional<Injector> realInjector =
           injectorRepository.findByIdAndTenantId(realInjectorId, TenantContext.getCurrentTenant());
       assertThat(realInjector).isPresent();
       assertThat(realInjector.get().isExternal()).isTrue();
 
-      Optional<InjectorContract> reassignedContract =
-          injectorContractRepository.findById(dummyContractId);
-      assertThat(reassignedContract).isPresent();
-      assertThat(reassignedContract.get().getInjectors())
+      Optional<InjectorContract> adoptedContract =
+          injectorContractRepository.findById(orphanContractId);
+      assertThat(adoptedContract).isPresent();
+      assertThat(adoptedContract.get().getInjectors())
           .extracting(Injector::getId)
-          .contains(realInjectorId)
-          .doesNotContain(dummyId);
+          .contains(realInjectorId);
     }
 
     @Test
@@ -637,9 +627,126 @@ public class InjectorApiTest extends IntegrationTest {
           .as("Inject should have an injector (not null)")
           .isNotNull();
 
-      assertThat(reloadedInject.getInjector().getTenant().getId())
+      assertThat(reloadedInject.getInjector().getTenantId())
           .as("Injector should belong to tenant A")
           .isEqualTo(tenantA);
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation API")
+  @WithMockUser
+  class TenantIsolationApi {
+
+    @Test
+    @DisplayName("Injector created in tenant X should NOT appear in tenant Y list")
+    void given_injectorInTenantX_should_notAppearInTenantYList() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+
+      InjectorCreateInput input =
+          createDefaultInjectorCreateInput(
+              "tenant-x-injector", "Tenant X Injector", "tenant_x_type", "tenant-x-contract");
+
+      mvc.perform(
+              multipart("/api/tenants/" + tenantX.getId() + "/injectors")
+                  .file(buildInputPart(input))
+                  .file(buildEmptyIconPart())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      em.flush();
+      em.clear();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/injectors")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> injectorIds = JsonPath.read(response, "$[*].injector_id");
+      assertThat(injectorIds).doesNotContain(input.getId());
+    }
+
+    @Test
+    @DisplayName("Injector created in tenant X should appear in tenant X list")
+    void given_injectorInTenantX_should_appearInTenantXList() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+
+      InjectorCreateInput input =
+          createDefaultInjectorCreateInput(
+              "tenant-x-injector-visible",
+              "Tenant X Injector Visible",
+              "tenant_x_visible_type",
+              "tenant-x-visible-contract");
+
+      mvc.perform(
+              multipart("/api/tenants/" + tenantX.getId() + "/injectors")
+                  .file(buildInputPart(input))
+                  .file(buildEmptyIconPart())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      em.flush();
+      em.clear();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  get("/api/tenants/" + tenantX.getId() + "/injectors")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> injectorIds = JsonPath.read(response, "$[*].injector_id");
+      assertThat(injectorIds).contains(input.getId());
+    }
+  }
+
+  @Nested
+  @DisplayName("Injector image")
+  class InjectorImage {
+    @Test
+    @DisplayName("Given existing injector image should return image")
+    void given_existingInjectorImage_should_returnImage() throws Exception {
+      // -- Arrange --
+      String injectorType = "test-injector-type";
+      fileService.uploadStream(
+          FileService.INJECTORS_IMAGES_BASE_PATH,
+          injectorType + FileService.EXT_PNG,
+          new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}));
+
+      // -- Act / Assert --
+      mvc.perform(get(INJECT0R_URI + "/" + injectorType + "/image")).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Given missing injector image should return 404")
+    void given_missingInjectorImage_should_return404() throws Exception {
+      // -- Act / Assert --
+      mvc.perform(get(INJECT0R_URI + "/nonexistent-type/image")).andExpect(status().isNotFound());
     }
   }
 }

@@ -18,6 +18,7 @@ import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.CompositeIdResolvableI;
 import io.openaev.helper.MonoIdDeserializerHelper;
+import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -152,6 +153,103 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     return ofNullable(getPayload()).map(Payload::getStatus).orElse(null);
   }
 
+  // -- Author (user / team / organization) --
+  // Every injector contract has an author. It is stored directly on the contract
+  // (payload-less built-in contracts are authored by Filigran, custom contracts
+  // by their creator) AND falls back to the underlying payload's author for
+  // payload-based contracts whose author lives on the payload. The three typed
+  // getters are output-only (id per type); a SINGLE filterable getter ORs across
+  // every contract- and payload-level author path so the UI exposes one "Author"
+  // filter (autocomplete grouped by type) rather than several. --
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "injector_contract_author_user")
+  @JsonIgnore
+  private User authorUser;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "injector_contract_author_team")
+  @JsonIgnore
+  private Team authorTeam;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "injector_contract_author_organization")
+  @JsonIgnore
+  private Organization authorOrganization;
+
+  @JsonProperty("injector_contract_payload_author_user")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  public User getPayloadAuthorUser() {
+    if (authorUser != null) {
+      return authorUser;
+    }
+    return ofNullable(getPayload()).map(Payload::getAuthorUser).orElse(null);
+  }
+
+  @JsonProperty("injector_contract_payload_author_team")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  public Team getPayloadAuthorTeam() {
+    if (authorTeam != null) {
+      return authorTeam;
+    }
+    return ofNullable(getPayload()).map(Payload::getAuthorTeam).orElse(null);
+  }
+
+  @JsonProperty("injector_contract_payload_author_organization")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  public Organization getPayloadAuthorOrganization() {
+    if (authorOrganization != null) {
+      return authorOrganization;
+    }
+    return ofNullable(getPayload()).map(Payload::getAuthorOrganization).orElse(null);
+  }
+
+  // Single polymorphic author filter: resolves to the id of whichever author is
+  // set (contract-level first, then payload-level). paths() makes FilterUtilsJpa
+  // OR the predicate across every author FK.
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      paths = {
+        "authorUser.id",
+        "authorTeam.id",
+        "authorOrganization.id",
+        "payload.authorUser.id",
+        "payload.authorTeam.id",
+        "payload.authorOrganization.id"
+      })
+  @JsonProperty("injector_contract_payload_author")
+  public String getPayloadAuthor() {
+    if (authorUser != null) {
+      return authorUser.getId();
+    }
+    if (authorTeam != null) {
+      return authorTeam.getId();
+    }
+    if (authorOrganization != null) {
+      return authorOrganization.getId();
+    }
+    Payload contractPayload = getPayload();
+    if (contractPayload == null) {
+      return null;
+    }
+    if (contractPayload.getAuthorUser() != null) {
+      return contractPayload.getAuthorUser().getId();
+    }
+    if (contractPayload.getAuthorTeam() != null) {
+      return contractPayload.getAuthorTeam().getId();
+    }
+    if (contractPayload.getAuthorOrganization() != null) {
+      return contractPayload.getAuthorOrganization().getId();
+    }
+    return null;
+  }
+
+  // NOTE: do NOT add @Fetch(FetchMode.SUBSELECT) to the collections of this entity. Contracts are
+  // loaded through Inject's EAGER @JoinColumnsOrFormulas association; subselect-fetching their
+  // collections re-renders the loading query's SQL AST and triggers an infinite recursion
+  // (StackOverflowError) in Hibernate's AbstractSqlAstWalker on paginated inject searches.
+  // hibernate.default_batch_fetch_size keeps these collections batched instead.
   @Schema(implementation = String[].class)
   @Getter
   @ManyToMany(fetch = FetchType.EAGER)
@@ -168,9 +266,13 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
 
-  // UpdatedAt now used to sync with linked object
+  // UpdatedAt is synced manually with linked objects because join-table changes do not dirty this
+  // row. Only bump when contents actually change: an unconditional bump forces an UPDATE (and an
+  // SSE restream) on every no-op collector/injector upsert (#6778).
   public void setTags(Set<Tag> tags) {
-    this.updatedAt = now();
+    if (!Base.haveSameIds(this.tags, tags)) {
+      this.updatedAt = now();
+    }
     this.tags = tags;
   }
 
@@ -193,9 +295,42 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @UpdateTimestamp
   private Instant updatedAt = now();
 
-  @ManyToMany(mappedBy = "contracts", fetch = FetchType.EAGER)
+  @OneToMany(
+      mappedBy = "injectorContract",
+      cascade = CascadeType.ALL,
+      orphanRemoval = true,
+      fetch = FetchType.EAGER)
+  @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
   @JsonIgnore
-  private List<Injector> injectors = new ArrayList<>();
+  private List<InjectorInjectorContract> injectorLinks = new ArrayList<>();
+
+  @JsonIgnore
+  public List<Injector> getInjectors() {
+    return this.injectorLinks.stream()
+        .map(InjectorInjectorContract::getInjector)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toList());
+  }
+
+  public void setInjectors(List<Injector> injectors) {
+    clearInjectors();
+    if (injectors != null) {
+      injectors.forEach(this::addInjector);
+    }
+  }
+
+  /** Removes all injector links from this owning-side collection. */
+  public void clearInjectors() {
+    this.injectorLinks.clear();
+  }
+
+  /** Unlinks a single injector from this contract. */
+  public void removeInjector(Injector injector) {
+    if (injector == null) {
+      return;
+    }
+    this.injectorLinks.removeIf(l -> Objects.equals(l.getInjectorId(), injector.getId()));
+  }
 
   /**
    * Convenience method: returns the first linked injector, or null. All injectors sharing a
@@ -205,39 +340,37 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @JsonIgnore
   @Deprecated
   public Injector getFirstInjector() {
-    return (injectors != null && !injectors.isEmpty()) ? injectors.getFirst() : null;
+    List<Injector> current = getInjectors();
+    return current.isEmpty() ? null : current.getFirst();
   }
 
   /**
-   * Sets the injector reference on this contract (inverse side only). Safe to call on transient
-   * contracts — does NOT modify the owning side ({@code Injector.contracts}), so it will not cause
-   * Hibernate auto-flush issues.
-   *
-   * <p>After the contract is persisted, update the owning side directly via {@code
-   * injector.getContracts().add(contract)} for join-table persistence.
+   * Links an injector to this contract through the {@link InjectorInjectorContract} join entity on
+   * this owning side. The join row is persisted by the cascade on {@code injectorLinks} when the
+   * contract is saved. Idempotent, and enforces that all injectors on a contract share the same
+   * type.
    */
   public void addInjector(Injector injector) {
-    if (injector != null && !this.injectors.contains(injector)) {
-      if (!this.injectors.isEmpty()
-          && !this.injectors.getFirst().getType().equals(injector.getType())) {
-        throw new IllegalArgumentException(
-            "Cannot link injector of type "
-                + injector.getType()
-                + " to contract already linked to type "
-                + this.injectors.getFirst().getType());
-      }
-      this.injectors.add(injector);
+    if (injector == null) {
+      return;
     }
+    // The cross-tenant invariant is enforced in the InjectorInjectorContract constructor below, the
+    // single point where every link is created (so linkContract is covered too).
+    List<Injector> current = getInjectors();
+    if (current.contains(injector)) {
+      return;
+    }
+    if (!current.isEmpty() && !current.getFirst().getType().equals(injector.getType())) {
+      throw new IllegalArgumentException(
+          "Cannot link injector of type "
+              + injector.getType()
+              + " to contract already linked to type "
+              + current.getFirst().getType());
+    }
+    this.injectorLinks.add(new InjectorInjectorContract(injector, this));
   }
 
-  /**
-   * Sets the injector reference on this contract (inverse side only). Safe to call on transient
-   * contracts — does NOT modify the owning side ({@code Injector.contracts}), so it will not cause
-   * Hibernate auto-flush issues.
-   *
-   * <p>After the contract is persisted, update the owning side directly via {@code
-   * injector.getContracts().add(contract)} for join-table persistence.
-   */
+  /** Links each injector to this contract via {@link #addInjector(Injector)}. */
   public void addInjectors(List<Injector> injectors) {
     if (injectors != null) {
       injectors.forEach(this::addInjector);
@@ -259,9 +392,11 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @Queryable(searchable = true, filterable = true, path = "attackPatterns.externalId")
   private List<AttackPattern> attackPatterns = new ArrayList<>();
 
-  // UpdatedAt now used to sync with linked object
+  // UpdatedAt synced with linked objects; only bump on real changes (see setTags)
   public void setAttackPatterns(List<AttackPattern> attackPatterns) {
-    this.updatedAt = now();
+    if (!Base.haveSameIds(this.attackPatterns, attackPatterns)) {
+      this.updatedAt = now();
+    }
     this.attackPatterns = attackPatterns;
   }
 
@@ -295,9 +430,11 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @Queryable(searchable = true, filterable = true, path = "vulnerabilities.externalId")
   private Set<Vulnerability> vulnerabilities = new HashSet<>();
 
-  // UpdatedAt now used to sync with linked object
+  // UpdatedAt synced with linked objects; only bump on real changes (see setTags)
   public void setVulnerabilities(Set<Vulnerability> vulnerabilities) {
-    this.updatedAt = now();
+    if (!Base.haveSameIds(this.vulnerabilities, vulnerabilities)) {
+      this.updatedAt = now();
+    }
     this.vulnerabilities = vulnerabilities;
   }
 
@@ -334,28 +471,22 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   /** Returns all linked injector IDs. */
   @JsonProperty("injector_contract_injectors")
   @Schema(implementation = String[].class)
-  @Queryable(filterable = true, dynamicValues = true, path = "injectors.id")
+  @Queryable(filterable = true, dynamicValues = true, path = "injectorLinks.injector.id")
   private List<String> getInjectorIds() {
-    return injectors != null
-        ? new ArrayList<>(
-            injectors.stream()
-                .filter(Objects::nonNull)
-                .map(Injector::getId)
-                .filter(Objects::nonNull)
-                .toList())
-        : Collections.emptyList();
+    return getInjectors().stream()
+        .filter(Objects::nonNull)
+        .map(Injector::getId)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toCollection(ArrayList::new));
   }
 
   /** Returns a map of injector ID → injector name for all linked injectors. */
   @JsonProperty("injector_contract_injector_names")
   private Map<String, String> getInjectorNames() {
-    return injectors != null
-        ? injectors.stream()
-            .filter(i -> i != null && i.getId() != null && i.getName() != null)
-            .collect(
-                Collectors.toMap(
-                    Injector::getId, Injector::getName, (a, b) -> a, LinkedHashMap::new))
-        : Collections.emptyMap();
+    return getInjectors().stream()
+        .filter(i -> i != null && i.getId() != null && i.getName() != null)
+        .collect(
+            Collectors.toMap(Injector::getId, Injector::getName, (a, b) -> a, LinkedHashMap::new));
   }
 
   @JsonProperty("injector_contract_injector_type")

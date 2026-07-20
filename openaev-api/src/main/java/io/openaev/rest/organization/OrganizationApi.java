@@ -18,12 +18,12 @@ import io.openaev.rest.organization.form.OrganizationUpdateInput;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -38,6 +38,7 @@ public class OrganizationApi extends RestBehavior {
   private final OrganizationService organizationService;
 
   @GetMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public Iterable<RawOrganization> organizations() {
     List<RawOrganization> organizations;
@@ -46,15 +47,31 @@ public class OrganizationApi extends RestBehavior {
   }
 
   @PostMapping({ORGANIZATION_URI + "/search", TENANT_ORGANIZATION_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public Page<Organization> organizations(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.organizationService.organizationPagination(searchPaginationInput);
   }
 
+  @GetMapping({
+    ORGANIZATION_URI + "/{organizationId}",
+    TENANT_ORGANIZATION_URI + "/{organizationId}"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#organizationId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.ORGANIZATION)
+  public Organization organization(@PathVariable String organizationId) {
+    return organizationRepository
+        .findById(organizationId)
+        .orElseThrow(ElementNotFoundException::new);
+  }
+
   @PostMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ORGANIZATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Organization createOrganization(@Valid @RequestBody OrganizationCreateInput input) {
     Organization organization = new Organization();
     organization.setUpdateAttributes(input);
@@ -66,6 +83,7 @@ public class OrganizationApi extends RestBehavior {
     ORGANIZATION_URI + "/{organizationId}",
     TENANT_ORGANIZATION_URI + "/{organizationId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#organizationId",
       actionPerformed = Action.WRITE,
@@ -84,6 +102,7 @@ public class OrganizationApi extends RestBehavior {
     ORGANIZATION_URI + "/{organizationId}",
     TENANT_ORGANIZATION_URI + "/{organizationId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#organizationId",
       actionPerformed = Action.DELETE,
@@ -95,6 +114,7 @@ public class OrganizationApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping({ORGANIZATION_URI + "/options", TENANT_ORGANIZATION_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
@@ -107,6 +127,7 @@ public class OrganizationApi extends RestBehavior {
   }
 
   @PostMapping({ORGANIZATION_URI + "/options", TENANT_ORGANIZATION_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.organizationRepository.findAllById(ids)).stream()

@@ -15,24 +15,29 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.rest.collector.form.CollectorCreateInput;
+import io.openaev.service.FileService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
-import jakarta.transaction.Transactional;
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
@@ -43,6 +48,7 @@ public class CollectorApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private CollectorRepository collectorRepository;
+  @Autowired private FileService fileService;
 
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
   @Autowired private CollectorComposer collectorComposer;
@@ -50,6 +56,8 @@ public class CollectorApiTest extends IntegrationTest {
   @Autowired private ConnectorInstanceConfigurationComposer connectorInstanceConfigurationComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private CollectorTypeComposer collectorTypeComposer;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+  @Autowired private EntityManager entityManager;
 
   private MockMultipartFile buildInputPart(CollectorCreateInput input) {
     return new MockMultipartFile(
@@ -413,6 +421,148 @@ public class CollectorApiTest extends IntegrationTest {
           collectorRepository.findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant());
       assertThat(persisted).isPresent();
       assertThat(persisted.get().getSecurityPlatform()).isNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser
+  class TenantIsolation {
+
+    @Test
+    @DisplayName("Collector created in tenant X should NOT be visible from tenant Y list")
+    void given_collectorInTenantX_should_notAppearInTenantYList() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+
+      CollectorCreateInput input = new CollectorCreateInput();
+      input.setId("collector-tenant-x");
+      input.setType("openaev_tenant_x");
+      input.setName("Collector Tenant X");
+      input.setPeriod(60);
+
+      mvc.perform(
+              multipart("/api/tenants/" + tenantX.getId() + "/collectors")
+                  .file(buildInputPart(input))
+                  .file(buildEmptyIconPart())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/collectors")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> collectorIds = JsonPath.read(response, "$[*].collector_id");
+      assertThat(collectorIds).doesNotContain(input.getId());
+    }
+
+    @Test
+    @DisplayName("Collector created in tenant X should be visible from tenant X list")
+    void given_collectorInTenantX_should_appearInTenantXList() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+
+      CollectorCreateInput input = new CollectorCreateInput();
+      input.setId("collector-tenant-x-visible");
+      input.setType("openaev_tenant_x_visible");
+      input.setName("Collector Tenant X Visible");
+      input.setPeriod(60);
+
+      mvc.perform(
+              multipart("/api/tenants/" + tenantX.getId() + "/collectors")
+                  .file(buildInputPart(input))
+                  .file(buildEmptyIconPart())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  get("/api/tenants/" + tenantX.getId() + "/collectors")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> collectorIds = JsonPath.read(response, "$[*].collector_id");
+      assertThat(collectorIds).contains(input.getId());
+    }
+  }
+
+  @Nested
+  @DisplayName("Collector image")
+  class CollectorImage {
+    @Test
+    @DisplayName("Given existing collector image should return image by type")
+    void given_existingCollectorImage_should_returnImageByType() throws Exception {
+      // -- Arrange --
+      String collectorType = "test-collector-type";
+      fileService.uploadStream(
+          FileService.COLLECTORS_IMAGES_BASE_PATH,
+          collectorType + FileService.EXT_PNG,
+          new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}));
+
+      // -- Act / Assert --
+      mvc.perform(get(COLLECTOR_URI + "/" + collectorType + "/image")).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Given existing collector image should return image by id")
+    void given_existingCollectorImage_should_returnImageById() throws Exception {
+      // -- Arrange --
+      Collector collector = getCollector("test-collector-by-id");
+      fileService.uploadStream(
+          FileService.COLLECTORS_IMAGES_BASE_PATH,
+          collector.getType() + FileService.EXT_PNG,
+          new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}));
+
+      // -- Act / Assert --
+      mvc.perform(get(COLLECTOR_URI + "/id/" + collector.getId() + "/image"))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Given missing collector image should return 404")
+    void given_missingCollectorImage_should_return404() throws Exception {
+      // -- Act / Assert --
+      mvc.perform(get(COLLECTOR_URI + "/nonexistent-type/image")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Given unknown collector id should return 404")
+    void given_unknownCollectorId_should_return404() throws Exception {
+      // -- Act / Assert --
+      mvc.perform(get(COLLECTOR_URI + "/id/nonexistent-id/image")).andExpect(status().isNotFound());
     }
   }
 }

@@ -4,8 +4,8 @@ import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.*;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Payload.PAYLOAD_SOURCE;
 import io.openaev.database.model.Payload.PAYLOAD_STATUS;
 import io.openaev.rest.payload.output_parser.OutputParserInput;

@@ -83,6 +83,7 @@ public class TeamApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TEAM)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of teams")})
   @Operation(summary = "List teams", description = "Return the teams")
+  @Transactional
   public Iterable<TeamSimple> getTeams() {
     List<RawTeamIndexing> teams;
     // We get all the teams as raw
@@ -122,6 +123,7 @@ public class TeamApi extends RestBehavior {
       resourceType = ResourceType.TEAM)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The team")})
   @Operation(description = "Get a team", summary = "Get team")
+  @Transactional
   public Team getTeam(@PathVariable @Schema(description = "ID of the team") String teamId) {
     return teamRepository
         .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
@@ -136,6 +138,7 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The list of players of the team")})
   @Operation(description = "Get the list of players of a team", summary = "Get team's players")
+  @Transactional
   public Iterable<User> getTeamPlayers(
       @PathVariable @Schema(description = "ID of the team") String teamId) {
     return teamRepository
@@ -202,6 +205,7 @@ public class TeamApi extends RestBehavior {
       resourceType = ResourceType.TEAM)
   @ApiResponses(value = {@ApiResponse(responseCode = "200")})
   @Operation(description = "Delete an existing team", summary = "Delete team")
+  @Transactional
   public void deleteTeam(@PathVariable @Schema(description = "ID of the team") String teamId)
       throws ResourceInUseException {
     if (!teamRepository.existsByIdAndTenantId(teamId, TenantContext.getCurrentTenant())) {
@@ -217,6 +221,7 @@ public class TeamApi extends RestBehavior {
   }
 
   @PutMapping({"/api/teams/{teamId}", TENANT_TEAM_URI + "/{teamId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#teamId",
       actionPerformed = Action.WRITE,
@@ -239,6 +244,7 @@ public class TeamApi extends RestBehavior {
   }
 
   @PutMapping({"/api/teams/{teamId}/players", TENANT_TEAM_URI + "/{teamId}/players"})
+  @Transactional
   @AccessControl(
       resourceId = "#teamId",
       actionPerformed = Action.WRITE,
@@ -261,6 +267,7 @@ public class TeamApi extends RestBehavior {
 
   // -- OPTION --
   @GetMapping({TEAM_URI + "/options", TENANT_TEAM_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TEAM)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
@@ -315,6 +322,7 @@ public class TeamApi extends RestBehavior {
   }
 
   @PostMapping({TEAM_URI + "/options", TENANT_TEAM_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TEAM)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.teamRepository.findAllById(ids)).stream()

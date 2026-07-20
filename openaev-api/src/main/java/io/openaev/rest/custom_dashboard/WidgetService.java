@@ -3,9 +3,9 @@ package io.openaev.rest.custom_dashboard;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Filters;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.Widget;
 import io.openaev.database.repository.CustomDashboardRepository;
 import io.openaev.database.repository.WidgetRepository;
@@ -132,8 +132,12 @@ public class WidgetService {
         && !filterValues.isEmpty()) {
       filterValues.forEach(
           (key, values) -> {
+            // Drill-down values are exact aggregation bucket keys (enum / keyword
+            // terms), so the filter must use an exact-match operator. "contains"
+            // is not a valid operator for these keyword fields and surfaces as an
+            // unselectable operator in the filter chip UI.
             WidgetUtils.setOrAddFilterByKey(
-                perspectives.getFilter(), key, values, Filters.FilterOperator.contains);
+                perspectives.getFilter(), key, values, Filters.FilterOperator.eq);
           });
     } else if (WidgetConfigurationType.TEMPORAL_HISTOGRAM.type.equals(
             widgetConfig.getConfigurationType().type)
@@ -164,13 +168,13 @@ public class WidgetService {
         this.convertWidgetToListConfiguration(widget, 0, attackPatternFilterValues);
     List<String> statusFilters =
         List.of(
-            InjectExpectation.EXPECTATION_STATUS.FAILED.name(),
-            InjectExpectation.EXPECTATION_STATUS.SUCCESS.name());
+            BaseInjectExpectation.EXPECTATION_STATUS.FAILED.name(),
+            BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS.name());
     WidgetUtils.setOrAddFilterByKey(
         listInjectExpectationsConfig.getPerspective().getFilter(),
         "inject_expectation_status",
         statusFilters,
-        Filters.FilterOperator.contains);
+        Filters.FilterOperator.eq);
     return listInjectExpectationsConfig;
   }
 

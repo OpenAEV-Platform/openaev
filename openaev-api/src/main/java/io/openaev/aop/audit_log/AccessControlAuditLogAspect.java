@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
-import io.openaev.database.audit.EntityDiffContext;
+import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
@@ -79,7 +79,6 @@ public class AccessControlAuditLogAspect {
     }
 
     Object result = null;
-    Map<String, EntityDiffContext.EntitySnapshot> snapshots = null;
 
     try {
       result = joinPoint.proceed();
@@ -87,24 +86,18 @@ public class AccessControlAuditLogAspect {
       if (isActive) {
         try {
           if (isRbacDeniedException(ex)) {
-            // Capture snapshots on the servlet thread before any async handoff.
-            snapshots = captureEntitySnapshots();
             String eventScope = LogUtils.getEventScope(Action.UNAUTHORIZED);
             String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode errorNode = buildErrorNode(null, ex);
 
-            logAccessControlEvent(
-                joinPoint, accessControl, eventScope, eventStatus, errorNode, snapshots);
+            logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
           } else if (isActionActive) {
-            // Capture snapshots on the servlet thread before any async handoff.
-            snapshots = captureEntitySnapshots();
             String eventScope = LogUtils.getEventScope(action);
             String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode resultNode = getOutputNode(result);
             JsonNode errorNode = buildErrorNode(resultNode, ex);
 
-            logAccessControlEvent(
-                joinPoint, accessControl, eventScope, eventStatus, errorNode, snapshots);
+            logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
           }
         } catch (Exception e) {
           log.warn(LOG_ERROR_MSG, e);
@@ -113,16 +106,13 @@ public class AccessControlAuditLogAspect {
       throw ex;
     }
 
-    if (isActive && isActionActive) {
+    if (isActive && isActionActive && AuditLogContext.isEnabled()) {
       try {
-        // Capture snapshots on the servlet thread before any async handoff.
-        snapshots = captureEntitySnapshots();
         String eventScope = LogUtils.getEventScope(action);
         String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
         JsonNode resultNode = getOutputNode(result);
 
-        logAccessControlEvent(
-            joinPoint, accessControl, eventScope, eventStatus, resultNode, snapshots);
+        logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, resultNode);
       } catch (Exception ex) {
         log.warn(LOG_ERROR_MSG, ex);
       }
@@ -136,14 +126,16 @@ public class AccessControlAuditLogAspect {
       AccessControl accessControl,
       String eventScope,
       String eventStatus,
-      JsonNode outputNode,
-      Map<String, EntityDiffContext.EntitySnapshot> snapshots) {
+      JsonNode outputNode) {
     try {
       String logUUID = UUID.randomUUID().toString();
       ResourceType resourceType = accessControl.resourceType();
       String resourceId = resolveResourceId(joinPoint, accessControl);
       JsonNode inputNode = getInputNode(joinPoint, eventScope);
       JsonNode signatureNode = getMethodSignature(joinPoint, inputNode);
+
+      // Capture snapshots on the servlet thread before any async handoff.
+      Map<String, AuditLogContext.EntitySnapshot> snapshots = captureEntitySnapshots();
 
       BiConsumer<Boolean, Throwable> logCompletion =
           (success, throwable) -> {
@@ -174,15 +166,15 @@ public class AccessControlAuditLogAspect {
   }
 
   /**
-   * Captures all pending entity snapshots from {@link EntityDiffContext}. Must be called on the
-   * servlet thread before any async handoff, since {@link EntityDiffContext} is request-scoped.
+   * Captures all pending entity snapshots from {@link AuditLogContext}. Must be called on the
+   * servlet thread before any async handoff, since {@link AuditLogContext} is request-scoped.
    */
-  private Map<String, EntityDiffContext.EntitySnapshot> captureEntitySnapshots() {
+  private Map<String, AuditLogContext.EntitySnapshot> captureEntitySnapshots() {
     try {
-      return EntityDiffContext.consumeAllSnapshots();
+      return AuditLogContext.consumeAllSnapshots();
     } catch (Exception e) {
       log.debug("[AUDIT] Failed to capture entity snapshots: {}", e.getMessage());
-      EntityDiffContext.clear();
+      AuditLogContext.clear();
       return null;
     }
   }

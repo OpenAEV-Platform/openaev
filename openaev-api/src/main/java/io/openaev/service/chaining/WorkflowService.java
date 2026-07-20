@@ -12,6 +12,8 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.IpAddressUtils;
 import jakarta.validation.constraints.NotBlank;
@@ -37,12 +39,15 @@ public class WorkflowService {
   private final PreviewFeatureService previewFeatureService;
   private final WorkflowStateService workflowStateService;
   private final StepDelayQueueService stepDelayQueueService;
+  private final SimulationRateLimitService simulationRateLimitService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final ScopeVariableRepository scopeVariableRepository;
 
   private final ScopeMetricCollector scopeMetricCollector;
+  private final ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
+  private final ResultsMetricCollector resultsMetricCollector;
 
   // -- READ --
 
@@ -67,6 +72,13 @@ public class WorkflowService {
                         + workflowId));
   }
 
+  public Workflow findById(@NotBlank final String workflowId) {
+    return this.workflowRepository
+        .findById(workflowId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Workflow not found with id: " + workflowId));
+  }
+
   /**
    * Returns the TEMPLATE workflow for the given ID with its scope-rules collection eagerly
    * initialized, so the caller can safely read the collection after the session closes (e.g. inside
@@ -88,7 +100,7 @@ public class WorkflowService {
 
   /**
    * Creates a new workflow template for a simulation with safe defaults for the inline
-   * configuration (rate-limit and timeout disabled, safe-mode enabled).
+   * configuration (rate-limit disabled, timeout enabled to 1 hour, safe-mode enabled).
    *
    * @param simulation the simulation to create the workflow for
    */
@@ -99,7 +111,7 @@ public class WorkflowService {
             .status(WorkflowStatus.TEMPLATE)
             .simulation(simulation)
             .rateLimitEnabled(false)
-            .timeoutEnabled(false)
+            .timeoutEnabled(true)
             .timeoutSeconds(DEFAULT_TIMEOUT_SECONDS)
             .safeModeEnabled(true)
             .build();
@@ -118,7 +130,7 @@ public class WorkflowService {
             .status(WorkflowStatus.TEMPLATE)
             .scenario(scenario)
             .rateLimitEnabled(false)
-            .timeoutEnabled(false)
+            .timeoutEnabled(true)
             .timeoutSeconds(DEFAULT_TIMEOUT_SECONDS)
             .safeModeEnabled(true)
             .build();
@@ -399,6 +411,40 @@ public class WorkflowService {
   }
 
   /**
+   * Finds the workflow template for a scenario without throwing on multiple workflows. Used for
+   * export where we simply want the template if it exists.
+   *
+   * @param scenarioId the ID of the scenario
+   * @return the workflow template wrapped in an Optional, or empty if not found
+   */
+  @Transactional(readOnly = true)
+  public Optional<Workflow> findWorkflowTemplateByScenarioIdForExport(String scenarioId) {
+    List<Workflow> workflows =
+        this.workflowRepository.findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE);
+    if (workflows.isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(workflows.getFirst());
+  }
+
+  /**
+   * Finds the workflow template for a simulation without throwing. Used for export.
+   *
+   * @param simulationId the ID of the simulation
+   * @return the workflow template wrapped in an Optional, or empty if not found
+   */
+  @Transactional(readOnly = true)
+  public Optional<Workflow> findWorkflowTemplateBySimulationIdForExport(String simulationId) {
+    List<Workflow> workflows =
+        this.workflowRepository.findAllBySimulation_IdAndStatus(
+            simulationId, WorkflowStatus.TEMPLATE);
+    if (workflows.isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(workflows.getFirst());
+  }
+
+  /**
    * Finds the workflow template for a simulation.
    *
    * @param simulationId the ID of the simulation
@@ -450,6 +496,15 @@ public class WorkflowService {
     workflowRepository.deleteById(workflowId);
   }
 
+  /**
+   * Deletes all workflow states associated with workflows of the given simulation.
+   *
+   * @param simulationId the ID of the simulation whose workflow states should be cleared
+   */
+  public void deleteWorkflowStatesBySimulationId(String simulationId) {
+    workflowStateService.deleteAllBySimulationId(simulationId);
+  }
+
   // -- Configuration Update --
 
   /**
@@ -458,25 +513,33 @@ public class WorkflowService {
    */
   private boolean applyConfigurationInput(WorkflowConfigurationInput input, Workflow workflow) {
     boolean changed = false;
+    boolean rateLimitChanged = false;
+    boolean timeoutChanged = false;
+
     if (workflow.isRateLimitEnabled() != input.isRateLimitEnabled()) {
       workflow.setRateLimitEnabled(input.isRateLimitEnabled());
       changed = true;
+      rateLimitChanged = true;
     }
     if (!Objects.equals(workflow.getMaxAttempts(), input.getMaxAttempts())) {
       workflow.setMaxAttempts(input.getMaxAttempts());
       changed = true;
+      rateLimitChanged = true;
     }
     if (!Objects.equals(workflow.getMaxTemporalRateSeconds(), input.getMaxTemporalRateSeconds())) {
       workflow.setMaxTemporalRateSeconds(input.getMaxTemporalRateSeconds());
       changed = true;
+      rateLimitChanged = true;
     }
     if (workflow.isTimeoutEnabled() != input.isTimeoutEnabled()) {
       workflow.setTimeoutEnabled(input.isTimeoutEnabled());
       changed = true;
+      timeoutChanged = true;
     }
     if (!Objects.equals(workflow.getTimeoutSeconds(), input.getTimeoutSeconds())) {
       workflow.setTimeoutSeconds(input.getTimeoutSeconds());
       changed = true;
+      timeoutChanged = true;
     }
     if (workflow.isSafeModeEnabled() != input.isSafeModeEnabled()) {
       workflow.setSafeModeEnabled(input.isSafeModeEnabled());
@@ -484,6 +547,20 @@ public class WorkflowService {
     }
     boolean rulesChanged = applyScopeRules(input.getWorkflowScopeRules(), workflow);
     boolean variablesChanged = applyScopeVariables(input.getWorkflowScopeVariables(), workflow);
+
+    if (timeoutChanged) {
+      long timeoutSec = input.getTimeoutSeconds() != null ? input.getTimeoutSeconds() : 0L;
+      chainingSafetyPolicyMetricCollector.recordTimeoutConfigured(
+          timeoutSec / 3600, (timeoutSec % 3600) / 60, timeoutSec == DEFAULT_TIMEOUT_SECONDS);
+    }
+    if (rateLimitChanged) {
+      int attempts = input.getMaxAttempts() != null ? input.getMaxAttempts() : 0;
+      long seconds =
+          input.getMaxTemporalRateSeconds() != null ? input.getMaxTemporalRateSeconds() : 0L;
+      chainingSafetyPolicyMetricCollector.recordRateLimitConfigured(
+          attempts, seconds, !input.isRateLimitEnabled());
+    }
+
     return rulesChanged || variablesChanged || changed;
   }
 
@@ -757,6 +834,8 @@ public class WorkflowService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void startWorkflow(Workflow workflowRun) throws ChainingException {
+    // Telemetry: one chaining workflow run started.
+    resultsMetricCollector.recordWorkflowRun();
 
     Map<String, ContractOutputType> fieldTypeMap =
         java.util.Arrays.stream(ContractOutputType.values())
@@ -844,19 +923,21 @@ public class WorkflowService {
     }
 
     // At least one template generated one or more ready execution steps.
-    boolean hasReadySteps = false;
+    boolean hasActiveSteps = stepService.countActiveSteps(workflowRun.getId()) > 0;
+    int pendingCount = 0;
 
     for (Step step : stepsTemplate) {
-      List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null);
+      List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null, pendingCount);
       if (!stepReadys.isEmpty()) {
-        hasReadySteps = true;
+        hasActiveSteps = true;
+        pendingCount += stepReadys.size();
         stepService.enqueueReadySteps(stepReadys, workflowRun);
       }
     }
 
     // If none step TEMPLATE with valid conditions && no step template delayed update workflow with
     // status END
-    if (!hasReadySteps && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
+    if (!hasActiveSteps && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
       workflowRun.setStatus(WorkflowStatus.END);
     }
 

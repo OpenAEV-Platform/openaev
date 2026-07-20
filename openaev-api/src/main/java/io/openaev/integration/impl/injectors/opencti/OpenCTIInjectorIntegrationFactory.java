@@ -79,22 +79,34 @@ public class OpenCTIInjectorIntegrationFactory extends IntegrationFactory {
     openctiInjectorConfigurationMigration.migrate();
   }
 
+  private String getLogoFilename() {
+    return "%s-logo.png".formatted(openCTIContract.TYPE);
+  }
+
   @Override
-  protected void insertCatalogEntry() throws Exception {
-    String logoFilename = "%s-logo.png".formatted(openCTIContract.TYPE);
-    fileService.uploadStream(
+  protected void ensureCatalogLogo() throws Exception {
+    ensureCatalogLogo(getLogoFilename());
+  }
+
+  private void ensureCatalogLogo(String logoFilename) throws Exception {
+    fileService.uploadCatalogLogo(
         FileService.CONNECTORS_LOGO_PATH,
         logoFilename,
         getClass().getResourceAsStream("/img/icon-opencti.png"));
+  }
+
+  @Override
+  protected void insertCatalogEntry() throws Exception {
+    String logoFilename = getLogoFilename();
+    ensureCatalogLogo(logoFilename);
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle(OPENCTI_INJECTOR_NAME);
     connector.setSlug(openCTIContract.TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
-        """
-                        Allow OAEV to create report and case based on OpenCTI injector
-                        """);
-    connector.setShortDescription("Allow OAEV to create report and case based on OpenCTI injector");
+        "Create reports and cases in OpenCTI directly from OpenAEV injects, so simulation"
+            + " outcomes can feed your threat intelligence and incident response workflows.");
+    connector.setShortDescription("Create OpenCTI reports and cases from OpenAEV injects.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("https://filigran.io/platforms/opencti/");
     connector.setContainerType(ConnectorType.INJECTOR);

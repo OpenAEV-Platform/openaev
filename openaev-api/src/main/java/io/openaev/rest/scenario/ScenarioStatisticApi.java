@@ -10,9 +10,9 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.scenario.response.ScenarioStatistic;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.swagger.v3.oas.annotations.Operation;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,7 +31,7 @@ public class ScenarioStatisticApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Retrieve scenario statistics")
   public ScenarioStatistic getScenarioStatistics(@PathVariable @NotBlank final String scenarioId) {
     return scenarioStatisticService.getStatistics(scenarioId);

@@ -6,6 +6,7 @@ import io.openaev.api.xtmone.dto.AgentCallInput;
 import io.openaev.api.xtmone.dto.AgentCallOutput;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +20,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,9 +33,9 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 /**
  * Proxy endpoints for programmatic XTM One agent calls from the OpenAEV frontend. These complement
- * the chatbot panel endpoints in {@link io.openaev.rest.xtmone.XtmOneChatApi} by providing
- * intent-based agent resolution, plus non-streaming and streaming agent calls (used by
- * TextFieldAskAI and generic chatbot interactions).
+ * the chatbot panel endpoints in {@link XtmOneChatApi} by providing intent-based agent resolution,
+ * plus non-streaming and streaming agent calls (used by TextFieldAskAI and generic chatbot
+ * interactions).
  */
 @Slf4j
 @RestController
@@ -45,6 +48,7 @@ public class XtmOneProxyApi extends RestBehavior {
 
   private final XtmOneConfig config;
   private final XtmOneClient client;
+  private final AiMetricCollector aiMetricCollector;
 
   // -- READ --
 
@@ -55,6 +59,7 @@ public class XtmOneProxyApi extends RestBehavior {
       summary = "List XTM One agents for an intent",
       description =
           "Returns the agents enabled for the given intent in the discovered XTM One catalog.")
+  @Transactional(propagation = Propagation.NEVER)
   public ResponseEntity<List<ChatbotAgentOutput>> getChatbotAgents(
       @RequestParam(value = "intent", defaultValue = "global.assistant") String intent) {
     if (!config.isConfigured()) {
@@ -66,6 +71,7 @@ public class XtmOneProxyApi extends RestBehavior {
   // -- AGENT CALLS --
 
   @PostMapping("/agent")
+  @Transactional(propagation = Propagation.NEVER)
   @LogExecutionTime
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   @Operation(
@@ -79,6 +85,9 @@ public class XtmOneProxyApi extends RestBehavior {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
           .body(AgentCallOutput.error("XTM One is not configured"));
     }
+    // Telemetry: feature-intent calls land in the backend-agnostic per-feature
+    // counter; other agent calls are counted by agent slug.
+    aiMetricCollector.recordAgentProxyCall(input.agentSlug(), input.intent());
     String result = client.callAgentSync(input.agentSlug(), input.content(), null);
     if (result == null) {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
@@ -88,6 +97,7 @@ public class XtmOneProxyApi extends RestBehavior {
   }
 
   @PostMapping(value = "/agent/stream", produces = "text/event-stream")
+  @Transactional(propagation = Propagation.NEVER)
   @LogExecutionTime
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   @Operation(
@@ -108,6 +118,9 @@ public class XtmOneProxyApi extends RestBehavior {
           .contentType(MediaType.TEXT_EVENT_STREAM)
           .body(errorBody);
     }
+
+    // Telemetry: same feature-intent mapping as the synchronous variant.
+    aiMetricCollector.recordAgentProxyCall(input.agentSlug(), input.intent());
 
     final String validatedSlug = input.agentSlug();
     final String content = input.content();

@@ -46,7 +46,7 @@ declare module '@mui/material/styles' {
   }
   interface TypeBackground {
     nav: string;
-    accent: string;
+    accent?: string;
     shadow: string;
     secondary: string;
     disabled: string;

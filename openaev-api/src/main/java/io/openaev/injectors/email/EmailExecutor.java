@@ -8,11 +8,11 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
+import io.openaev.expectation.Expectation;
+import io.openaev.expectation.ManualExpectation;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.model.ExecutionProcess;
-import io.openaev.model.Expectation;
-import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
@@ -87,7 +87,7 @@ public class EmailExecutor extends Injector {
       @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
-    EmailContent content = contentConvert(injection, EmailContent.class);
+    EmailContent content = injectExpectationService.contentConvert(injection, EmailContent.class);
     List<Document> documents =
         inject.getDocuments().stream()
             .filter(InjectDocument::isAttached)

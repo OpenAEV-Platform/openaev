@@ -5,7 +5,9 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ResourceType;
@@ -18,6 +20,7 @@ import io.openaev.rest.asset.endpoint.output.EndpointTargetOutput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.service.AssetService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.HttpReqRespUtils;
@@ -35,6 +38,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -45,8 +49,11 @@ public class EndpointApi extends RestBehavior {
 
   public static final String ENDPOINT_URI = "/api/endpoints";
   private static final String TENANT_ENDPOINT_URI = TENANT_PREFIX + "/endpoints";
+  public static final String ASSET_URI = "/api/assets";
+  private static final String TENANT_ASSET_URI = TENANT_PREFIX + "/assets";
 
   private final EndpointService endpointService;
+  private final AssetService assetService;
   private final InjectStatusService injectStatusService;
   private final EndpointRepository endpointRepository;
   private final AssetAgentJobRepository assetAgentJobRepository;
@@ -57,14 +64,14 @@ public class EndpointApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public Endpoint createEndpoint(@Valid @RequestBody final EndpointInput input) {
-    return this.endpointService.createEndpoint(input);
+    return this.endpointService.createEndpoint(input, TenantContext.getCurrentTenant());
   }
 
   @PostMapping({ENDPOINT_URI + "/agentless/upsert", TENANT_ENDPOINT_URI + "/agentless/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public Endpoint upsertAgentLessEndpoint(@Valid @RequestBody final EndpointInput input) {
-    return this.endpointService.upsertEndpoint(input);
+    return this.endpointService.upsertEndpoint(input, TenantContext.getCurrentTenant());
   }
 
   @PostMapping({ENDPOINT_URI + "/register", TENANT_ENDPOINT_URI + "/register"})
@@ -73,7 +80,7 @@ public class EndpointApi extends RestBehavior {
   public Endpoint upsertEndpoint(@Valid @RequestBody final EndpointRegisterInput input)
       throws IOException {
     input.setSeenIp(HttpReqRespUtils.getClientIpAddressIfServletRequestExist());
-    return this.endpointService.register(input);
+    return this.endpointService.register(input, TenantContext.getCurrentTenant());
   }
 
   @LogExecutionTime
@@ -126,6 +133,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional
   @GetMapping({ENDPOINT_URI, TENANT_ENDPOINT_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<Endpoint> endpoints() {
@@ -134,17 +142,20 @@ public class EndpointApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional
   @GetMapping({ENDPOINT_URI + "/{endpointId}", TENANT_ENDPOINT_URI + "/{endpointId}"})
   @AccessControl(
       resourceId = "#endpointId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   public EndpointOverviewOutput endpoint(@PathVariable @NotBlank final String endpointId) {
-    return endpointMapper.toEndpointOverviewOutput(this.endpointService.getEndpoint(endpointId));
+    return endpointMapper.toEndpointOverviewOutput(
+        this.endpointService.getEndpoint(endpointId, TenantContext.getCurrentTenant()));
   }
 
   @LogExecutionTime
   @PostMapping({ENDPOINT_URI + "/search", TENANT_ENDPOINT_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public Page<EndpointOutput> endpoints(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
@@ -156,8 +167,27 @@ public class EndpointApi extends RestBehavior {
         endpointOutputs, endpointPage.getPageable(), endpointPage.getTotalElements());
   }
 
+  /**
+   * Unified asset inventory: paginated search over EVERY asset type (endpoints, AI targets,
+   * identities, cloud / web / network / generic assets). Endpoints keep their agents/platform in
+   * the output; other asset types list with those fields empty. Filters/sorts must reference base
+   * {@link Asset} attributes (endpoint-only facets such as platform/arch cannot resolve here).
+   */
+  @LogExecutionTime
+  @PostMapping({ASSET_URI + "/search", TENANT_ASSET_URI + "/search"})
+  @Transactional
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  public Page<EndpointOutput> assets(
+      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+    Page<Asset> assetPage = assetService.searchAssets(searchPaginationInput);
+    List<EndpointOutput> assetOutputs =
+        assetPage.getContent().stream().map(endpointMapper::toAssetOutput).toList();
+    return new PageImpl<>(assetOutputs, assetPage.getPageable(), assetPage.getTotalElements());
+  }
+
   @LogExecutionTime
   @PostMapping({ENDPOINT_URI + "/targets", TENANT_ENDPOINT_URI + "/targets"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public Page<EndpointTargetOutput> targetEndpoints(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
@@ -187,7 +217,7 @@ public class EndpointApi extends RestBehavior {
       @PathVariable @NotBlank final String endpointId,
       @Valid @RequestBody final EndpointInput input) {
     return endpointMapper.toEndpointOverviewOutput(
-        this.endpointService.updateEndpoint(endpointId, input));
+        this.endpointService.updateEndpoint(endpointId, input, TenantContext.getCurrentTenant()));
   }
 
   @DeleteMapping({ENDPOINT_URI + "/{endpointId}", TENANT_ENDPOINT_URI + "/{endpointId}"})
@@ -200,9 +230,48 @@ public class EndpointApi extends RestBehavior {
     this.endpointService.deleteEndpoint(endpointId);
   }
 
+  /**
+   * Generic asset overview for the unified asset detail page: returns any asset type (endpoint, AI
+   * target or any other category). Endpoints keep their full representation; other types expose
+   * their category-relevant fields (AI targets include their connection metadata, token excluded).
+   */
+  @Transactional
+  @GetMapping({ASSET_URI + "/{assetId}", TENANT_ASSET_URI + "/{assetId}"})
+  @AccessControl(
+      resourceId = "#assetId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.ASSET)
+  public EndpointOverviewOutput asset(@PathVariable @NotBlank final String assetId) {
+    return endpointMapper.toAssetOverviewOutput(assetService.asset(assetId));
+  }
+
+  /**
+   * Generic asset deletion for the unified inventory: deletes any asset type (endpoint, AI target
+   * or any other category) by id. Security platforms are rejected (managed in their own area).
+   */
+  @DeleteMapping({ASSET_URI + "/{assetId}", TENANT_ASSET_URI + "/{assetId}"})
+  @AccessControl(
+      resourceId = "#assetId",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.ASSET)
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteAsset(@PathVariable @NotBlank final String assetId) {
+    this.assetService.deleteAsset(assetId);
+  }
+
+  @GetMapping({ENDPOINT_URI + "/resolve", TENANT_ENDPOINT_URI + "/resolve"})
+  // DNS resolution is network I/O and touches no DB. The endpoint @Transactional rule still
+  // requires the annotation, so NOT_SUPPORTED keeps it while suspending any DB transaction.
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  public List<String> resolveHostname(@RequestParam @NotBlank final String hostname) {
+    return this.endpointService.resolveHostnameToIps(hostname);
+  }
+
   // -- OPTION --
 
   @GetMapping({ENDPOINT_URI + "/options", TENANT_ENDPOINT_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
@@ -258,6 +327,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional
   @GetMapping({ENDPOINT_URI + "/findings/options", TENANT_ENDPOINT_URI + "/findings/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
@@ -268,6 +338,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @PostMapping({ENDPOINT_URI + "/options", TENANT_ENDPOINT_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.endpointRepository.findAllById(ids)).stream()

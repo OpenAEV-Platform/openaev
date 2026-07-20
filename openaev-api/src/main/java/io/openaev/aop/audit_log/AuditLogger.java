@@ -6,11 +6,11 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
-import io.openaev.database.audit.EntityDiffContext;
+import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
-import io.openaev.utils.ObjectDiffUtils;
+import io.openaev.utils.object.ObjectDiffUtils;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -140,7 +140,7 @@ public class AuditLogger {
       JsonNode input,
       JsonNode output,
       JsonNode signatureNode,
-      Map<String, EntityDiffContext.EntitySnapshot> snapshots,
+      Map<String, AuditLogContext.EntitySnapshot> snapshots,
       String logUUID) {
     if (!isAuditLoggingEnabled()) return CompletableFuture.completedFuture(true);
 

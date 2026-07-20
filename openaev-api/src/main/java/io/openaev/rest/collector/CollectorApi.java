@@ -3,6 +3,7 @@ package io.openaev.rest.collector;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
@@ -21,13 +22,18 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.io.IOUtils;
+import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -47,6 +53,7 @@ public class CollectorApi extends RestBehavior {
   @Operation(
       summary = "Retrieve collectors",
       description = "Retrieve all collectors and pending collectors if includeNext is true")
+  @Transactional(readOnly = true)
   @ApiResponse(
       responseCode = "200",
       content =
@@ -84,6 +91,7 @@ public class CollectorApi extends RestBehavior {
   }
 
   @GetMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
@@ -101,8 +109,60 @@ public class CollectorApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.COLLECTOR)
   @Operation(summary = "Retrieve collector related ids")
+  @Transactional
   public ConnectorIds getCollectorRelatedIds(@PathVariable String collectorId) {
     return collectorService.getCollectorRelationsId(collectorId);
+  }
+
+  // -- IMAGE --
+
+  @GetMapping(
+      value = {
+        COLLECTOR_URI + "/{collectorType}/image",
+        TENANT_COLLECTOR_URI + "/{collectorType}/image"
+      },
+      produces = MediaType.IMAGE_PNG_VALUE)
+  @AccessControl(skipRBAC = true)
+  @Operation(summary = "Get collector image by type")
+  @Transactional
+  public ResponseEntity<byte[]> getCollectorImage(@PathVariable String collectorType)
+      throws IOException {
+    Optional<InputStream> fileStream = fileService.getCollectorImage(collectorType);
+    if (fileStream.isPresent()) {
+      try (InputStream is = fileStream.get()) {
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+            .body(IOUtils.toByteArray(is));
+      }
+    }
+    return ResponseEntity.notFound().build();
+  }
+
+  @GetMapping(
+      value = {
+        COLLECTOR_URI + "/id/{collectorId}/image",
+        TENANT_COLLECTOR_URI + "/id/{collectorId}/image"
+      },
+      produces = MediaType.IMAGE_PNG_VALUE)
+  @AccessControl(skipRBAC = true)
+  @Operation(summary = "Get collector image by collector id")
+  @Transactional
+  public ResponseEntity<byte[]> getCollectorImageById(@PathVariable String collectorId)
+      throws IOException {
+    Optional<Collector> collector =
+        collectorRepository.findByIdAndTenantId(collectorId, TenantContext.getCurrentTenant());
+    if (collector.isEmpty()) {
+      return ResponseEntity.notFound().build();
+    }
+    Optional<InputStream> fileStream = fileService.getCollectorImage(collector.get().getType());
+    if (fileStream.isPresent()) {
+      try (InputStream is = fileStream.get()) {
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+            .body(IOUtils.toByteArray(is));
+      }
+    }
+    return ResponseEntity.notFound().build();
   }
 
   @PutMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})
@@ -110,7 +170,7 @@ public class CollectorApi extends RestBehavior {
       resourceId = "#collectorId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.COLLECTOR)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Collector updateCollector(
       @PathVariable String collectorId, @Valid @RequestBody CollectorUpdateInput input) {
     Collector collector = collectorService.collector(collectorId);
@@ -123,12 +183,27 @@ public class CollectorApi extends RestBehavior {
         collector.getSecurityPlatform() != null ? collector.getSecurityPlatform().getId() : null);
   }
 
+  @DeleteMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})
+  @AccessControl(
+      resourceId = "#collectorId",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.COLLECTOR)
+  @Operation(
+      summary = "Delete a collector",
+      description =
+          "Removes a registered collector. Intended for stopped collectors that no longer ping;"
+              + " an active collector re-registers on its next heartbeat.")
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteCollector(@PathVariable String collectorId) {
+    collectorRepository.deleteByIdAndTenantId(collectorId, TenantContext.getCurrentTenant());
+  }
+
   @PostMapping(
       value = {COLLECTOR_URI, TENANT_COLLECTOR_URI},
       produces = {MediaType.APPLICATION_JSON_VALUE},
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.COLLECTOR)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Collector registerCollector(
       @Valid @RequestPart("input") CollectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {
@@ -138,6 +213,7 @@ public class CollectorApi extends RestBehavior {
               ? file.get().getInputStream()
               : null;
       return collectorService.register(
+          TenantContext.getCurrentTenant(),
           input.getId(),
           input.getType(),
           input.getName(),

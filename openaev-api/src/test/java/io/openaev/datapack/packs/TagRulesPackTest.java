@@ -6,6 +6,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.processor.datapack.V20260107_Tags_and_tagrules_and_assetgroups;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.DataPackService;

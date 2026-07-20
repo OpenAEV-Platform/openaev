@@ -6,7 +6,7 @@ import static io.openaev.utils.fixtures.payload_fixture.RegexGroupInputFixture.c
 
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.database.model.*;
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH;
 import io.openaev.database.model.Payload.PAYLOAD_SOURCE;
 import io.openaev.database.model.Payload.PAYLOAD_STATUS;

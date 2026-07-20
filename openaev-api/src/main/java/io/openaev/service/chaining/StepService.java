@@ -33,8 +33,11 @@ public class StepService {
   private final InjectService injectService;
   private final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
+  private final SimulationRateLimitService simulationRateLimitService;
 
   private final StepRepository stepRepository;
+
+  static final List<StepStatus> ACTIVE_STEP_STATUS = List.of(StepStatus.READY, StepStatus.RUN);
 
   /**
    * Create a single step template.
@@ -90,40 +93,66 @@ public class StepService {
 
   /**
    * Evaluates conditions for a step template and creates READY execution steps for each valid
-   * batch. Returns an empty list when conditions defer execution.
+   * batch. Batches that exceed the configured rate limit are pushed into the delay queue instead of
+   * being executed immediately. Only hashes of actually created steps are committed.
    *
    * @param nextStepTemplateToExecute step template to ready
    * @param workflowRun the running workflow
    * @param input json input for the execution step
-   * @return created ready execution steps
+   * @param pendingCount number of steps already scheduled in the current evaluation cycle but not
+   *     yet reflected in the database
+   * @return created ready execution steps (does not include delayed batches)
    */
+  @Transactional(rollbackFor = Exception.class)
   public List<Step> createReadySteps(
-      Step nextStepTemplateToExecute, Workflow workflowRun, String input) throws ChainingException {
+      Step nextStepTemplateToExecute, Workflow workflowRun, String input, int pendingCount)
+      throws ChainingException {
+
+    // Re-load the step template within this transaction so lazy collections can be initialized.
+    // The parameter may be a detached entity loaded outside any session (e.g. from a Quartz job).
+    Step persistedTemplate =
+        findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
 
     // If no condition mapper and step already executed, we skip the step to avoid to execute it
     // again
-    if (!conditionService.hasConditionMapper(nextStepTemplateToExecute)
-        && isStepAlreadyExecutedOnce(nextStepTemplateToExecute.getId(), workflowRun.getId())) {
+    if (!conditionService.hasConditionMapper(persistedTemplate)
+        && isStepAlreadyExecutedOnce(persistedTemplate.getId(), workflowRun.getId())) {
       return List.of();
     }
 
     ActionStep actionStep =
-        factoryAction(nextStepTemplateToExecute.getStepAction(), nextStepTemplateToExecute.getId());
-
-    Step persistedTemplate =
-        findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
+        factoryAction(persistedTemplate.getStepAction(), persistedTemplate.getId());
 
     List<ConditionService.ExecutionBatch> executionBatches =
         conditionService.checkCondition(persistedTemplate, workflowRun, input);
 
-    if (executionBatches == null) {
+    if (executionBatches == null || executionBatches.isEmpty()) {
       return List.of();
     }
 
     List<Step> stepReadys = new ArrayList<>();
+    Set<String> committedHashes = new HashSet<>();
+    int localPending = pendingCount;
+
     for (ConditionService.ExecutionBatch batch : executionBatches) {
+      // Guard: rate limit — if the rate limit is reached, delay this batch with its
+      // resolved input. The hash is NOT committed so the batch can be retried later.
+      if (simulationRateLimitService.delayIfRateLimitReached(
+          persistedTemplate, batch.inputString(), workflowRun, localPending)) {
+        continue;
+      }
+
       stepReadys.add(createReadyStepFromBatch(actionStep, persistedTemplate, workflowRun, batch));
+
+      if (batch.hash() != null) {
+        committedHashes.add(batch.hash());
+      }
+      localPending++;
     }
+
+    // Commit only the hashes of batches that were actually turned into READY steps.
+    conditionService.commitHashes(persistedTemplate, workflowRun, committedHashes);
+
     return stepReadys;
   }
 
@@ -204,6 +233,16 @@ public class StepService {
   public int countExecutedStep(String workflowRunId, String stepTemplateId) {
     return stepRepository.countStepExecutedByStepTemplateIdAndWorkflowRunId(
         workflowRunId, stepTemplateId);
+  }
+
+  /**
+   * Count active step by status
+   *
+   * @param workflowRunId id of the executed workflow
+   * @return long
+   */
+  public long countActiveSteps(String workflowRunId) {
+    return stepRepository.countActiveSteps(workflowRunId, ACTIVE_STEP_STATUS);
   }
 
   /**
@@ -444,10 +483,9 @@ public class StepService {
    *
    * @return list of all step templates
    */
+  @Transactional(readOnly = true)
   public List<Step> findAllStepTemplates() {
-    return this.stepRepository.findAll().stream()
-        .filter(step -> step.getStepTemplate() == null)
-        .toList();
+    return this.stepRepository.findAllByStepTemplateIdIsNull();
   }
 
   /**
@@ -481,16 +519,22 @@ public class StepService {
     existing.setData(updatedCandidate.getData());
     existing.setInput(updatedCandidate.getInput());
     existing.setOutputParser(updatedCandidate.getOutputParser());
-    Step updated = saveStep(existing);
 
     // Remove all existing conditions (full replace strategy),
     // but preserve conditions referenced by conditionIds so they can be re-linked
-    conditionService.deleteAllConditionsByStepId(stepId, stepInput.getConditionIds());
+    conditionService.deleteAllConditionsByStepId(
+        stepId, stepInput.getConditionIds() != null ? stepInput.getConditionIds() : List.of());
+
+    // Clear the step-side collection to stay consistent with the condition-side unlinking above.
+    // linkExistingConditionsToStep below will recreate the preserved links.
+    if (existing.getConditionSteps() != null) {
+      existing.getConditionSteps().clear();
+    }
 
     // Recreate conditions from input (same logic as create)
-    stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), updated);
-    conditionService.linkExistingConditionsToStep(updated, stepInput.getConditionIds());
-    return updated;
+    stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), existing);
+    conditionService.linkExistingConditionsToStep(existing, stepInput.getConditionIds());
+    return saveStep(existing);
   }
 
   /**
@@ -576,11 +620,8 @@ public class StepService {
    * @param injectId inject id to find step id
    * @return optional step id
    */
-  public String findStepIdByInjectId(final String injectId) {
-    return stepRepository
-        .findStepIdByInjectId(injectId)
-        .orElseThrow(
-            () -> new ElementNotFoundException("Step id not found for inject id : " + injectId));
+  public Optional<String> findStepIdByInjectId(final String injectId) {
+    return stepRepository.findStepIdByInjectId(injectId);
   }
 
   /**
@@ -601,26 +642,24 @@ public class StepService {
   }
 
   /**
-   * Returns all RUN and READY steps for a given workflow execution.
+   * Returns all active steps for a given workflow execution.
    *
    * @param id workflow run ID
-   * @return list of steps currently executing or ready
+   * @return list of steps active
    */
-  public List<Step> findAllStepExecutedByWorkflowRunId(String id) {
-    return stepRepository.findAllStepByWorkflow_IdAndStatusIn(
-        id, List.of(StepStatus.RUN, StepStatus.READY));
+  public List<Step> findAllStepActiveByWorkflowRunId(String id) {
+    return stepRepository.findAllStepByWorkflow_IdAndStatusIn(id, ACTIVE_STEP_STATUS);
   }
 
   /**
-   * Ends all active steps (READY or RUN) for the given workflow run.
+   * Ends all active steps for the given workflow run.
    *
    * @param workflowId the workflow run ID
    * @return number of steps terminated
    */
   public int endActiveStepsByWorkflowId(String workflowId) {
     List<Step> activeSteps =
-        stepRepository.findAllStepByWorkflow_IdAndStatusIn(
-            workflowId, List.of(StepStatus.READY, StepStatus.RUN));
+        stepRepository.findAllStepByWorkflow_IdAndStatusIn(workflowId, ACTIVE_STEP_STATUS);
     for (Step step : activeSteps) {
       step.setStatus(StepStatus.END);
     }

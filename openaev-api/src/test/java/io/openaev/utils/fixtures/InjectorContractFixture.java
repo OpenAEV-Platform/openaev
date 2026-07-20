@@ -60,7 +60,7 @@ public class InjectorContractFixture {
       return injectorContract.get();
     }
     try {
-      emailInjectorIntegrationFactory.registerConnectorForTenant();
+      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
       return injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -73,7 +73,7 @@ public class InjectorContractFixture {
       return injectorContract.get();
     }
     try {
-      emailInjectorIntegrationFactory.registerConnectorForTenant();
+      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
       return injectorContractRepository.findById(EMAIL_GLOBAL).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -121,9 +121,11 @@ public class InjectorContractFixture {
   @SneakyThrows
   private static InjectorContract createDefaultInjectorContractInternal() {
     InjectorContract injectorContract = new InjectorContract();
-    injectorContract.addInjector(createDefaultPayloadInjector());
+    // Assign id and tenant before linking, so the join entity captures the real composite key
+    // (mirrors the sibling helpers and every production link site).
     injectorContract.setId(UUID.randomUUID().toString());
     setDefaultTenant(injectorContract);
+    injectorContract.addInjector(createDefaultPayloadInjector());
 
     ObjectMapper objectMapper = new ObjectMapper();
     ObjectNode content = createDefaultContent(objectMapper);
@@ -402,7 +404,7 @@ public class InjectorContractFixture {
       return injectorContract.get();
     }
     try {
-      manualInjectorIntegrationFactory.registerConnectorForTenant();
+      manualInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
       return injectorContractRepository.findById(MANUAL_DEFAULT).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);

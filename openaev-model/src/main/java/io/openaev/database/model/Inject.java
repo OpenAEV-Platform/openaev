@@ -144,6 +144,9 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @Schema(implementation = String.class)
   private Scenario scenario;
 
+  // No @Fetch(SUBSELECT) here: dependency rows are deleted/recreated during scenario deletion and
+  // a subselect re-execution can resolve dependencies of already-removed injects. Collections stay
+  // batched through hibernate.default_batch_fetch_size.
   @Getter
   @OneToMany(
       mappedBy = "compositeId.injectChildren",
@@ -182,6 +185,10 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   private InjectorContract injectorContract;
 
   @Getter
+  // A connector can be uninstalled, so an inject may reference an injector row that no longer
+  // resolves under the tenant filter. Degrade that to null instead of throwing at proxy init
+  // (which otherwise fails audit serialization on every inject update via MonoIdSerializer).
+  @NotFound(action = NotFoundAction.IGNORE)
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumnsOrFormulas({
     @JoinColumnOrFormula(
@@ -248,6 +255,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       name = "injects_teams",
       joinColumns = @JoinColumn(name = "inject_id"),
       inverseJoinColumns = @JoinColumn(name = "team_id"))
+  @Fetch(FetchMode.SUBSELECT)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_teams")
@@ -267,6 +275,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       name = "injects_assets",
       joinColumns = @JoinColumn(name = "inject_id"),
       inverseJoinColumns = @JoinColumn(name = "asset_id"))
+  @Fetch(FetchMode.SUBSELECT)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_assets")
@@ -286,6 +295,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       name = "injects_asset_groups",
       joinColumns = @JoinColumn(name = "inject_id"),
       inverseJoinColumns = @JoinColumn(name = "asset_group_id"))
+  @Fetch(FetchMode.SUBSELECT)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_asset_groups")
@@ -306,6 +316,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       fetch = FetchType.EAGER,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
+  @Fetch(FetchMode.SUBSELECT)
   @JsonProperty("inject_documents")
   @JsonSerialize(using = MultiModelSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
@@ -319,6 +330,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       fetch = FetchType.EAGER,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
+  @Fetch(FetchMode.SUBSELECT)
   @JsonProperty("inject_communications")
   @JsonSerialize(using = MultiModelSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
@@ -332,10 +344,11 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       fetch = FetchType.EAGER,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
+  @Fetch(FetchMode.SUBSELECT)
   @JsonProperty("inject_expectations")
   @JsonSerialize(using = MultiModelSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
-  private List<InjectExpectation> expectations = new ArrayList<>();
+  private List<BaseInjectExpectation> expectations = new ArrayList<>();
 
   @JsonIgnore
   @Getter
@@ -463,9 +476,10 @@ public class Inject implements GrantableBase, Injection, TenantBase {
     return ofNullable(this.status);
   }
 
-  public List<InjectExpectation> getUserExpectationsForArticle(User user, Article article) {
+  public List<ArticleInjectExpectation> getUserExpectationsForArticle(User user, Article article) {
     return this.expectations.stream()
-        .filter(execution -> execution.getType().equals(InjectExpectation.EXPECTATION_TYPE.ARTICLE))
+        .filter(ArticleInjectExpectation.class::isInstance)
+        .map(ArticleInjectExpectation.class::cast)
         .filter(execution -> execution.getArticle().equals(article))
         .filter(
             execution ->

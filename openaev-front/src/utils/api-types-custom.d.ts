@@ -66,6 +66,7 @@ export type ContractType
     | 'expectation'
     | 'asset'
     | 'asset-group'
+    | 'ai-target'
     | 'payload'
     | 'targeted-asset' | 'password';
 
@@ -98,6 +99,7 @@ export interface ContractElement {
   richText?: boolean;
   tupleFilePrefix?: string;
   predefinedExpectations?: ExpectationInput[];
+  availableExpectations?: ExpectationInput[];
   dependencyField?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   choices?: Record<string, any> | ChoiceItem[];

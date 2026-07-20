@@ -13,9 +13,10 @@ import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.helper.CollectorTypeNameSerializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.openaev.jsonapi.IncludeOption;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -46,7 +47,8 @@ import org.hibernate.annotations.*;
       Executable.class,
       FileDrop.class,
       DnsResolution.class,
-      NetworkTraffic.class
+      NetworkTraffic.class,
+      AiAttack.class
     },
     discriminatorMapping = {
       @DiscriminatorMapping(value = Command.COMMAND_TYPE, schema = Command.class),
@@ -57,7 +59,8 @@ import org.hibernate.annotations.*;
           schema = DnsResolution.class),
       @DiscriminatorMapping(
           value = NetworkTraffic.NETWORK_TRAFFIC_TYPE,
-          schema = NetworkTraffic.class)
+          schema = NetworkTraffic.class),
+      @DiscriminatorMapping(value = AiAttack.AI_ATTACK_TYPE, schema = AiAttack.class)
     })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.PAYLOAD)
 public class Payload implements GrantableBase, TenantBase {
@@ -187,6 +190,42 @@ public class Payload implements GrantableBase, TenantBase {
   @IncludeOption(key = "exclude from payload export")
   @Schema(implementation = String.class)
   private CollectorType collectorType;
+
+  // -- AUTHOR (polymorphic: a payload is authored by a user, a team OR an
+  // organization). The three FKs are mutually exclusive; collector-created
+  // payloads are authored by the collector's organization, manually created
+  // ones by the creating user. --
+
+  // The author must never travel with payload/action exports: the JSON:API
+  // exporter would embed the full user/team/organization resource and the
+  // import would then re-create it (duplicate email/name in the target
+  // environment). Authorship is environment-local by design.
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "payload_author_user")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("payload_author_user")
+  @IncludeOption(key = "exclude from payload export")
+  @Queryable(dynamicValues = true, filterable = true, path = "authorUser.id")
+  @Schema(description = "User author of the payload", type = "string")
+  private User authorUser;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "payload_author_team")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("payload_author_team")
+  @IncludeOption(key = "exclude from payload export")
+  @Queryable(dynamicValues = true, filterable = true, path = "authorTeam.id")
+  @Schema(description = "Team author of the payload", type = "string")
+  private Team authorTeam;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "payload_author_organization")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("payload_author_organization")
+  @IncludeOption(key = "exclude from payload export")
+  @Queryable(dynamicValues = true, filterable = true, path = "authorOrganization.id")
+  @Schema(description = "Organization author of the payload", type = "string")
+  private Organization authorOrganization;
 
   @OneToMany(
       mappedBy = "payload",

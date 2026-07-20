@@ -1,6 +1,5 @@
 package io.openaev.rest.collector.service;
 
-import static io.openaev.database.specification.CollectorSpecification.hasSecurityPlatform;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
@@ -22,7 +21,6 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.time.Instant;
@@ -30,6 +28,7 @@ import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -135,8 +134,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     return getConnectorRelationsId(collectorId);
   }
 
-  public List<Collector> securityPlatformCollectors() {
-    return fromIterable(collectorRepository.findAll(hasSecurityPlatform()));
+  public List<Collector> securityPlatformCollectors(@NotNull String tenantId) {
+    return collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(tenantId);
   }
 
   public Collector updateCollectorState(Collector collectorToUpdate, ObjectNode newState) {
@@ -184,6 +183,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    */
   @Transactional
   public Collector register(
+      @NotNull final String tenantId,
       @NotNull String id,
       @NotNull String type,
       @NotNull String name,
@@ -199,41 +199,60 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
     CollectorType collectorType = ensureCollectorTypeExists(type);
 
-    Collector collector =
-        collectorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+    Collector collector = collectorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null
-            ? securityPlatformRepository.findById(securityPlatformId).orElseThrow()
+            ? securityPlatformRepository
+                .findByIdAndTenantId(securityPlatformId, tenantId)
+                .orElse(null)
             : null;
 
-    if (collector != null) {
-      collector.setName(name);
-      collector.setType(type);
-      collector.setCollectorType(collectorType);
-      collector.setExternal(external);
-      if (external) {
-        collector.setUpdatedAt(Instant.now());
-      }
-      if (securityPlatform != null) {
-        collector.setSecurityPlatform(securityPlatform);
-      }
-      return collectorRepository.save(collector);
+    if (securityPlatformId != null && securityPlatform == null) {
+      log.warn(
+          "SecurityPlatform {} not found for tenant {} during collector registration (collector: {})",
+          securityPlatformId,
+          tenantId,
+          id);
     }
 
-    Collector newCollector = new Collector();
-    newCollector.setId(id);
-    newCollector.setName(name);
-    newCollector.setType(type);
-    newCollector.setCollectorType(collectorType);
-    newCollector.setExternal(external);
-    newCollector.setPeriod(period);
-    if (securityPlatform != null) {
-      newCollector.setSecurityPlatform(securityPlatform);
+    if (collector == null) {
+      collector = new Collector();
+      collector.setId(id);
+      collector.setTenantId(tenantId);
+      collector.setPeriod(period); // immutable after creation
     }
-    // For new entities, isNew()=true triggers persist() via Spring Data save().
-    newCollector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
-    return collectorRepository.save(newCollector);
+
+    collector.setName(name);
+    collector.setType(type);
+    collector.setCollectorType(collectorType);
+    collector.setExternal(external);
+    if (external) {
+      collector.setUpdatedAt(Instant.now());
+    }
+    if (securityPlatform != null) {
+      collector.setSecurityPlatform(securityPlatform);
+    }
+    return collectorRepository.save(collector);
+  }
+
+  /**
+   * Stamps the last execution of a collector. Used as a heartbeat by built-in collectors (which run
+   * inside the platform and never go through the external registration ping) so the UI can surface
+   * a truthful liveliness signal.
+   *
+   * @param collectorId collector identifier
+   * @param tenantId tenant the collector belongs to
+   */
+  @Transactional
+  public void updateLastExecution(@NotNull final String collectorId, @NotNull String tenantId) {
+    collectorRepository
+        .findByIdAndTenantId(collectorId, tenantId)
+        .ifPresent(
+            collector -> {
+              collector.setLastExecution(Instant.now());
+              collectorRepository.save(collector);
+            });
   }
 
   public List<Collector> collectorsForPayload(String payloadId) {

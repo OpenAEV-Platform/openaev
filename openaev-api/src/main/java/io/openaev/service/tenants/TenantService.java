@@ -5,11 +5,12 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 
 import io.openaev.api.tenants.TenantInput;
 import io.openaev.api.tenants.TenantOutput;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.engine.EngineService;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
@@ -23,6 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.ClassUtils;
 
 @Slf4j
@@ -35,6 +38,7 @@ public class TenantService {
 
   private final TenantRepository tenantRepository;
   private final List<DependenciesManager> dependencies;
+  private final EngineService engineService;
   @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
@@ -45,11 +49,6 @@ public class TenantService {
     Objects.requireNonNull(tenant.getName(), "tenant name must not be null");
 
     Tenant createdTenant = tenantRepository.save(tenant);
-
-    // Switch context to the new tenant so that subsequent dependency creation
-    // (domains, roles, etc.) is scoped to the new tenant via Hibernate filter.
-    String newTenantId = createdTenant.getId();
-    TenantContext.setCurrentTenant(newTenantId);
 
     for (DependenciesManager dependency : sortByPrerequisites(dependencies)) {
       dependency.createDependencyForTenant(createdTenant);
@@ -121,6 +120,11 @@ public class TenantService {
     return tenantRepository.findTenantsByUserId(userId);
   }
 
+  @Transactional(readOnly = true)
+  public List<String> findActiveTenantIds() {
+    return tenantRepository.findAllIdsByDeletedAtIsNull();
+  }
+
   /** Counts the number of active (non-soft-deleted) tenants. */
   @Transactional(readOnly = true)
   public long countActiveTenants() {
@@ -132,6 +136,11 @@ public class TenantService {
   /** Updates an existing tenant's attributes. */
   public Tenant update(String tenantId, TenantInput input) {
     Tenant existing = findById(tenantId);
+    if (input.name() != null
+        && !input.name().equals(existing.getName())
+        && tenantRepository.existsByNameAndIdNot(input.name(), tenantId)) {
+      throw new BadRequestException("Tenant name already used: " + input.name());
+    }
     existing.setUpdateAttributes(input);
     return tenantRepository.save(existing);
   }
@@ -141,12 +150,12 @@ public class TenantService {
     Tenant tenant = findById(tenantId);
 
     if (tenant.getDeletedAt() == null) {
-      throw new IllegalStateException("Tenant is already enabled: " + tenantId);
+      throw new BadRequestException("Tenant is already enabled: " + tenantId);
     }
 
     Instant cutoff = tenant.getDeletedAt().plus(SOFT_DELETE_RETENTION_DAYS, ChronoUnit.DAYS);
     if (Instant.now().isAfter(cutoff)) {
-      throw new IllegalStateException(
+      throw new BadRequestException(
           "Reactivation of "
               + SOFT_DELETE_RETENTION_DAYS
               + " days period expired: "
@@ -166,10 +175,15 @@ public class TenantService {
    * has a grace period to reactivate the tenant before permanent deletion.
    */
   public Tenant softDelete(String tenantId) {
+    if (Tenant.DEFAULT_TENANT_UUID.equals(tenantId)) {
+      throw new BadRequestException("Default tenant cannot be deleted: " + tenantId);
+    }
+
     Tenant tenant = findById(tenantId);
     if (tenant.getDeletedAt() != null) {
-      throw new IllegalStateException("Tenant is already deleted: " + tenantId);
+      throw new BadRequestException("Tenant is already deleted: " + tenantId);
     }
+
     tenant.setDeletedAt(Instant.now());
     return tenantRepository.save(tenant);
   }
@@ -203,6 +217,22 @@ public class TenantService {
 
     if (!purgedIds.isEmpty()) {
       tenantRepository.deleteAllByIdsNative(purgedIds);
+      // Tenant data is removed via native SQL (no JPA lifecycle events): clean the search engine
+      // explicitly so the purged tenants' documents don't survive as permanent index garbage.
+      // Deferred to after commit: if the surrounding transaction rolls back, the SQL data is
+      // restored and the index must not have been wiped. Single batched delete-by-query.
+      List<String> idsToClean = List.copyOf(purgedIds);
+      if (TransactionSynchronizationManager.isSynchronizationActive()) {
+        TransactionSynchronizationManager.registerSynchronization(
+            new TransactionSynchronization() {
+              @Override
+              public void afterCommit() {
+                engineService.deleteByTenants(idsToClean);
+              }
+            });
+      } else {
+        engineService.deleteByTenants(idsToClean);
+      }
     }
     return purgedIds.size();
   }

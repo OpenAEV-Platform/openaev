@@ -21,6 +21,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
@@ -88,6 +90,20 @@ public class User implements Base {
 
   public String getTheme() {
     return ofNullable(this.theme).orElse(THEME_DEFAULT);
+  }
+
+  @Column(name = "user_home_dashboard")
+  @JsonProperty("user_home_dashboard")
+  @Schema(
+      description =
+          "Preferred home dashboard of the user; overrides the tenant home dashboard setting")
+  private String homeDashboard;
+
+  // The UI sends an empty string to mean "platform default"; normalize it to null so the FK to
+  // custom_dashboards is never violated (profile updates copy this value via BeanUtils).
+  public void setHomeDashboard(final String homeDashboard) {
+    this.homeDashboard =
+        ofNullable(homeDashboard).map(String::trim).filter(v -> !v.isEmpty()).orElse(null);
   }
 
   @Getter(NONE)
@@ -184,17 +200,37 @@ public class User implements Base {
 
   // -- RELATIONS --
 
-  @ArraySchema(
-      schema = @Schema(description = "Group IDs of the user", implementation = String.class))
   @Setter
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "users_groups",
       joinColumns = @JoinColumn(name = "user_id"),
       inverseJoinColumns = @JoinColumn(name = "group_id"))
+  @Fetch(FetchMode.SUBSELECT)
+  @JsonIgnore
+  @Getter(NONE)
+  private List<Group> groups = new ArrayList<>();
+
+  /**
+   * Returns the raw, unscoped group collection for internal mutations only (SSO sync, bidirectional
+   * cleanup before delete). Never serialize this — use {@link #getScopedGroups()} for API
+   * responses.
+   */
+  public List<Group> getUnscopedGroups() {
+    return groups;
+  }
+
+  /**
+   * Serialized as {@code user_groups} in JSON: filtered to the current tenant context (tenant
+   * groups belonging to the current tenant + platform-level groups with {@code tenant IS NULL}).
+   */
+  @ArraySchema(
+      schema = @Schema(description = "Group IDs of the user", implementation = String.class))
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("user_groups")
-  private List<Group> groups = new ArrayList<>();
+  public List<Group> getScopedGroups() {
+    return scopedGroups();
+  }
 
   @ArraySchema(
       schema = @Schema(description = "Team IDs of the user", implementation = String.class))
@@ -300,7 +336,7 @@ public class User implements Base {
   @Schema(description = "True if the user is planner")
   public boolean isPlanner() {
     return isAdmin()
-        || getGroups().stream()
+        || scopedGroups().stream()
             .flatMap(group -> group.getGrants().stream())
             .anyMatch(grant -> Grant.GRANT_TYPE.PLANNER.equals(grant.getName()));
   }
@@ -308,7 +344,8 @@ public class User implements Base {
   @JsonProperty("user_is_observer")
   @Schema(description = "True if the user is observer")
   public boolean isObserver() {
-    return isAdmin() || getGroups().stream().mapToLong(group -> group.getGrants().size()).sum() > 0;
+    return isAdmin()
+        || scopedGroups().stream().mapToLong(group -> group.getGrants().size()).sum() > 0;
   }
 
   @JsonProperty("user_is_manager")
@@ -361,7 +398,7 @@ public class User implements Base {
     if (currentTenant == null) {
       return false;
     }
-    return getGroups().stream()
+    return scopedGroups().stream()
         .filter(
             group -> group.getTenant() != null && currentTenant.equals(group.getTenant().getId()))
         .flatMap(group -> group.getRoles().stream())
@@ -371,16 +408,23 @@ public class User implements Base {
 
   /** Returns only platform-level groups (tenant IS NULL). */
   private List<Group> platformGroups() {
-    return getGroups().stream().filter(group -> group.getTenant() == null).toList();
+    return getUnscopedGroups().stream().filter(group -> group.getTenant() == null).toList();
   }
 
   /**
-   * Returns only groups visible in the current tenant context: groups belonging to the current
+   * Returns the groups visible in the current tenant context: groups belonging to the current
    * tenant plus platform-level groups (tenant IS NULL).
+   *
+   * <p>A request without an explicit tenant context - token/bearer API clients (Postman, httpx, the
+   * integrations) and Community Edition, where multi-tenancy is disabled - still operates on the
+   * default tenant. {@link TenantContext#getCurrentTenant()} falls back to the default tenant when
+   * none is set, so such requests resolve default-tenant groups plus platform groups. Without this,
+   * {@code getCapabilities()} was empty for those requests and {@code AccessControlAspect} denied
+   * them with 403 (issues #6331 / #6332).
    */
   private List<Group> scopedGroups() {
     String currentTenant = TenantContext.getCurrentTenant();
-    return getGroups().stream()
+    return getUnscopedGroups().stream()
         .filter(
             group ->
                 group.getTenant() == null

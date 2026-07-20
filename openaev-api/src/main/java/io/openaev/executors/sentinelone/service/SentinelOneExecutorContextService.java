@@ -5,6 +5,7 @@ import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOSAndArch;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
 import static java.util.Optional.ofNullable;
 
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -32,15 +33,6 @@ import org.springframework.stereotype.Service;
 public class SentinelOneExecutorContextService extends ExecutorContextService {
   public static final String SERVICE_NAME = SENTINELONE_EXECUTOR_NAME;
 
-  private static final String AGENT_ID_VARIABLE = "$agentID";
-
-  private static final String WINDOWS_EXTERNAL_REFERENCE =
-      "$agentID=& 'C:\\Program Files\\SentinelOne\\Sentinel Agent *\\SentinelCtl.exe' agent_id;";
-  private static final String LINUX_EXTERNAL_REFERENCE =
-      "agentID=$(sudo /opt/sentinelone/bin/sentinelctl management status | grep UUID | sed 's/UUID //g; s/ //g');";
-  private static final String MAC_EXTERNAL_REFERENCE =
-      "agentID=$(sudo /Library/Sentinel/sentinel-agent.bundle/Contents/MacOS/sentinelctl status | grep ID: | sed 's/ID: //g; s/ //g');";
-
   ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
   private final SentinelOneExecutorConfig config;
@@ -48,6 +40,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
+  private final OpenAEVConfig openAEVConfig;
 
   @Override
   public void launchExecutorSubprocess(
@@ -121,30 +114,32 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
 
   public void executeActions(List<SentinelOneAction> actions) {
     int paginationLimit = this.config.getApiBatchExecutionActionPagination();
-    for (SentinelOneAction action : actions) {
-      int paginationCount = (int) Math.ceil(action.getAgents().size() / (double) paginationLimit);
-      for (int batchIndex = 0; batchIndex < paginationCount; batchIndex++) {
-        int fromIndex = (batchIndex * paginationLimit);
-        int toIndex = Math.min(fromIndex + paginationLimit, action.getAgents().size());
-        List<String> batchAgentIds =
-            action.getAgents().subList(fromIndex, toIndex).stream().map(Agent::getId).toList();
-        // Pagination of XXX agents (paginationLimit) per batch with 5s waiting
-        // because each XXX actions will call the SentinelOne API to execute the implants
-        // and each implant will call OpenAEV API to set traces
-        scheduledExecutorService.schedule(
-            () ->
-                this.client.executeScript(
-                    batchAgentIds, action.getScriptId(), action.getCommandEncoded()),
-            batchIndex * 5L,
-            TimeUnit.SECONDS);
-      }
+    int paginationCount = (int) Math.ceil(actions.size() / (double) paginationLimit);
+
+    for (int batchIndex = 0; batchIndex < paginationCount; batchIndex++) {
+      int fromIndex = (batchIndex * paginationLimit);
+      int toIndex = Math.min(fromIndex + paginationLimit, actions.size());
+      List<SentinelOneAction> batchActions = actions.subList(fromIndex, toIndex);
+      // Pagination of XXX calls (paginationLimit) per batch with 5s waiting
+      // because each action will call the SentinelOne API to execute the implant
+      // and each implant will call OpenAEV API to set traces
+      scheduledExecutorService.schedule(
+          () ->
+              batchActions.forEach(
+                  action ->
+                      this.client.executeScript(
+                          action.getAgentExternalReference(),
+                          action.getScriptId(),
+                          action.getCommandEncoded())),
+          batchIndex * 5L,
+          TimeUnit.SECONDS);
     }
   }
 
   private List<SentinelOneAction> getWindowsActions(
       List<Agent> agents, Injector injector, Inject inject, String arch, String token) {
     List<SentinelOneAction> actions = new ArrayList<>();
-    if (!agents.isEmpty()) {
+    for (Agent agent : agents) {
       SentinelOneAction actionWindows = new SentinelOneAction();
       actionWindows.setScriptId(this.config.getWindowsScriptId());
       String implantLocation =
@@ -156,28 +151,25 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
       Endpoint.PLATFORM_TYPE platform = Endpoint.PLATFORM_TYPE.Windows;
       String executorCommandKey = platform.name() + "." + arch;
       String command = injector.getExecutorCommands().get(executorCommandKey);
-      // The default command to download the openaev implant and execute the attack is modified for
-      // Sentinel ONE
-      // - WINDOWS_EXTERNAL_REFERENCE: the agent id in the openAEV DB for SentinelOne is the
-      // SentinelOne agent id to
-      // make the batch attack work so we get it with a command line from the endpoint and give it
-      // to the implant
-      command = WINDOWS_EXTERNAL_REFERENCE + command;
       command =
           replaceArgs(
               platform,
               command,
               inject.getId(),
-              AGENT_ID_VARIABLE,
+              agent.getId(),
               inject.getTenant().getId(),
-              token);
+              token,
+              openAEVConfig.getBaseUrlForAgent(),
+              Integer.toString(openAEVConfig.getLogsMaxSize()),
+              Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
+              Boolean.toString(openAEVConfig.isWithProxy()));
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
               Matcher.quoteReplacement(implantLocation));
       actionWindows.setCommandEncoded(
           Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_16LE)));
-      actionWindows.setAgents(agents);
+      actionWindows.setAgentExternalReference(agent.getExternalReference());
       actions.add(actionWindows);
     }
     return actions;
@@ -186,18 +178,12 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
   private List<SentinelOneAction> getLinuxActions(
       List<Agent> agents, Injector injector, Inject inject, String arch, String token) {
     List<SentinelOneAction> actions = new ArrayList<>();
-    if (!agents.isEmpty()) {
+    for (Agent agent : agents) {
       SentinelOneAction actionLinux = new SentinelOneAction();
       actionLinux.setScriptId(this.config.getUnixScriptId());
       actionLinux.setCommandEncoded(
-          getUnixCommand(
-              Endpoint.PLATFORM_TYPE.Linux,
-              injector,
-              inject,
-              LINUX_EXTERNAL_REFERENCE,
-              arch,
-              token));
-      actionLinux.setAgents(agents);
+          getUnixCommand(Endpoint.PLATFORM_TYPE.Linux, injector, inject, agent, arch, token));
+      actionLinux.setAgentExternalReference(agent.getExternalReference());
       actions.add(actionLinux);
     }
     return actions;
@@ -206,13 +192,12 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
   private List<SentinelOneAction> getMacOSActions(
       List<Agent> agents, Injector injector, Inject inject, String arch, String token) {
     List<SentinelOneAction> actions = new ArrayList<>();
-    if (!agents.isEmpty()) {
+    for (Agent agent : agents) {
       SentinelOneAction actionMac = new SentinelOneAction();
       actionMac.setScriptId(this.config.getUnixScriptId());
       actionMac.setCommandEncoded(
-          getUnixCommand(
-              Endpoint.PLATFORM_TYPE.MacOS, injector, inject, MAC_EXTERNAL_REFERENCE, arch, token));
-      actionMac.setAgents(agents);
+          getUnixCommand(Endpoint.PLATFORM_TYPE.MacOS, injector, inject, agent, arch, token));
+      actionMac.setAgentExternalReference(agent.getExternalReference());
       actions.add(actionMac);
     }
     return actions;
@@ -222,7 +207,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
       Endpoint.PLATFORM_TYPE platform,
       Injector injector,
       Inject inject,
-      String externalReferenceVariable,
+      Agent agent,
       String arch,
       String token) {
     String implantLocation =
@@ -233,21 +218,18 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
             + ";mkdir -p $location;filename=";
     String executorCommandKey = platform.name() + "." + arch;
     String command = injector.getExecutorCommands().get(executorCommandKey);
-    // The default command to download the openaev implant and execute the attack is modified for
-    // SentinelOne
-    // - externalReferenceVariable: the agent id in the openAEV DB for SentinelOne is the
-    // SentinelOne agent id to make
-    // the batch attack works so we get it with a command line from the endpoint and give it to the
-    // implant
-    command = externalReferenceVariable + command;
     command =
         replaceArgs(
             platform,
             command,
             inject.getId(),
-            AGENT_ID_VARIABLE,
+            agent.getId(),
             inject.getTenant().getId(),
-            token);
+            token,
+            openAEVConfig.getBaseUrlForAgent(),
+            Integer.toString(openAEVConfig.getLogsMaxSize()),
+            Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
+            Boolean.toString(openAEVConfig.isWithProxy()));
     command =
         command.replaceFirst(
             "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));

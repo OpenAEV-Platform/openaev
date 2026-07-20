@@ -152,13 +152,14 @@ const ThemeDark = (
       color: text_color,
     },
     h4: {
-      height: 15,
-      margin: '0 0 10px 0',
+      margin: '0 0 12px 0',
       padding: 0,
       textTransform: 'uppercase',
-      fontSize: 12,
-      fontWeight: 500,
-      color: text_color,
+      fontFamily: '"Geologica", sans-serif',
+      fontSize: 11,
+      fontWeight: 600,
+      letterSpacing: '0.12em',
+      color: 'rgba(255, 255, 255, 0.7)',
     },
     h5: {
       fontWeight: 400,
@@ -334,7 +335,14 @@ const ThemeDark = (
         },
       },
     },
-    MuiTypography: { styleOverrides: { root: { color: text_color } } },
+    MuiTypography: {
+      styleOverrides: {
+        root: { color: text_color },
+        // Section titles read as muted overlines (matches the detail-page SECTION_LABEL_SX);
+        // this slot override is needed because the root color above wins over typography.h4.
+        h4: { color: 'rgba(255, 255, 255, 0.7)' },
+      },
+    },
     MuiInputBase: { styleOverrides: { root: { color: text_color } } },
     MuiChip: { styleOverrides: { root: { color: text_color } } },
   },

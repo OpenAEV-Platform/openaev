@@ -6,6 +6,8 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.LessonsTemplateCategoryRepository;
 import io.openaev.database.repository.LessonsTemplateQuestionRepository;
@@ -18,10 +20,10 @@ import io.openaev.rest.lessons_template.form.LessonsTemplateCategoryInput;
 import io.openaev.rest.lessons_template.form.LessonsTemplateInput;
 import io.openaev.rest.lessons_template.form.LessonsTemplateQuestionInput;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -34,28 +36,36 @@ public class LessonsTemplateApi extends RestBehavior {
   private final LessonsTemplateRepository lessonsTemplateRepository;
   private final LessonsTemplateCategoryRepository lessonsTemplateCategoryRepository;
   private final LessonsTemplateQuestionRepository lessonsTemplateQuestionRepository;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- LESSONS TEMPLATES --
 
   @PostMapping({LESSON_TEMPLATE_URI, TENANT_LESSON_TEMPLATE_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.LESSON_LEARNED)
-  @Transactional(rollbackOn = Exception.class)
-  public LessonsTemplate createLessonsTemplate(@Valid @RequestBody LessonsTemplateInput input) {
+  @Transactional(rollbackFor = Exception.class)
+  public LessonsTemplate createLessonsTemplate(
+      TxCtx ctx, @Valid @RequestBody LessonsTemplateInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     LessonsTemplate lessonsTemplate = new LessonsTemplate();
     lessonsTemplate.setUpdateAttributes(input);
+    lessonsTemplate.setTenant(new Tenant(tenantId));
     return lessonsTemplateRepository.save(lessonsTemplate);
   }
 
   @GetMapping({LESSON_TEMPLATE_URI, TENANT_LESSON_TEMPLATE_URI})
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.LESSON_LEARNED)
-  public Iterable<LessonsTemplate> lessonsTemplates() {
+  // TxCtx is resolved from the request and applied by the transaction aspect; it scopes this read
+  // to the caller's tenants. The handler does not use it directly.
+  public Iterable<LessonsTemplate> lessonsTemplates(TxCtx ctx) {
     return fromIterable(lessonsTemplateRepository.findAll()).stream().toList();
   }
 
   @PostMapping({LESSON_TEMPLATE_URI + "/search", TENANT_LESSON_TEMPLATE_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.LESSON_LEARNED)
   public Page<LessonsTemplate> lessonsTemplates(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
         this.lessonsTemplateRepository::findAll, searchPaginationInput, LessonsTemplate.class);
   }
@@ -64,12 +74,15 @@ public class LessonsTemplateApi extends RestBehavior {
     LESSON_TEMPLATE_URI + "/{lessonsTemplateId}",
     TENANT_LESSON_TEMPLATE_URI + "/{lessonsTemplateId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)
   public LessonsTemplate updateLessonsTemplate(
-      @PathVariable String lessonsTemplateId, @Valid @RequestBody LessonsTemplateInput input) {
+      TxCtx ctx,
+      @PathVariable String lessonsTemplateId,
+      @Valid @RequestBody LessonsTemplateInput input) {
     LessonsTemplate lessonsTemplate =
         lessonsTemplateRepository
             .findById(lessonsTemplateId)
@@ -83,11 +96,12 @@ public class LessonsTemplateApi extends RestBehavior {
     LESSON_TEMPLATE_URI + "/{lessonsTemplateId}",
     TENANT_LESSON_TEMPLATE_URI + "/{lessonsTemplateId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.LESSON_LEARNED)
-  public void deleteLessonsTemplate(@PathVariable String lessonsTemplateId) {
+  public void deleteLessonsTemplate(TxCtx ctx, @PathVariable String lessonsTemplateId) {
     lessonsTemplateRepository.deleteById(lessonsTemplateId);
   }
 
@@ -103,8 +117,9 @@ public class LessonsTemplateApi extends RestBehavior {
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public LessonsTemplateCategory createLessonsTemplateCategory(
+      TxCtx ctx,
       @PathVariable String lessonsTemplateId,
       @Valid @RequestBody LessonsTemplateCategoryInput input) {
     LessonsTemplate lessonsTemplate =
@@ -118,6 +133,7 @@ public class LessonsTemplateApi extends RestBehavior {
   }
 
   @GetMapping({LESSON_CATEGORY_URI, TENANT_LESSON_CATEGORY_URI})
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.READ,
@@ -136,7 +152,7 @@ public class LessonsTemplateApi extends RestBehavior {
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public LessonsTemplateCategory updateLessonsTemplateCategory(
       @PathVariable String lessonsTemplateId,
       @PathVariable String lessonsTemplateCategoryId,
@@ -154,6 +170,7 @@ public class LessonsTemplateApi extends RestBehavior {
     LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}",
     TENANT_LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
@@ -169,6 +186,7 @@ public class LessonsTemplateApi extends RestBehavior {
     LESSON_TEMPLATE_URI + "/{lessonsTemplateId}/lessons_template_questions",
     TENANT_LESSON_TEMPLATE_URI + "/{lessonsTemplateId}/lessons_template_questions"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.READ,
@@ -194,6 +212,7 @@ public class LessonsTemplateApi extends RestBehavior {
       TENANT_LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}/lessons_template_questions";
 
   @PostMapping({LESSON_QUESTION_URI, TENANT_LESSON_QUESTION_URI})
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
@@ -213,6 +232,7 @@ public class LessonsTemplateApi extends RestBehavior {
   }
 
   @GetMapping({LESSON_QUESTION_URI, TENANT_LESSON_QUESTION_URI})
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.READ,
@@ -227,6 +247,7 @@ public class LessonsTemplateApi extends RestBehavior {
     LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}",
     TENANT_LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
@@ -249,6 +270,7 @@ public class LessonsTemplateApi extends RestBehavior {
     LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}",
     TENANT_LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,

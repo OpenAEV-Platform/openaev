@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.ConnectorType;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -24,6 +25,14 @@ public interface ConnectorInstanceRepository
   List<ConnectorInstancePersisted> findAllManagedByXtmComposerAndConfiguration();
 
   List<ConnectorInstancePersisted> findAllByCatalogConnectorId(String catalogConnectorId);
+
+  @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
+  List<ConnectorInstancePersisted> findAllByTenantIdAndCatalogConnectorClassName(
+      String tenantId, String className);
+
+  /** Loads a single instance with configurations and catalogConnector eagerly initialized. */
+  @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
+  Optional<ConnectorInstancePersisted> findWithGraphById(String id);
 
   @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
   List<ConnectorInstancePersisted> findAllByCatalogConnectorContainerType(

@@ -10,6 +10,7 @@ import static org.mockito.Mockito.mock;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
+import io.openaev.processor.datapack.V20260518_Service_Account;
 import io.openaev.service.DataPackService;
 import io.openaev.service.UserService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;

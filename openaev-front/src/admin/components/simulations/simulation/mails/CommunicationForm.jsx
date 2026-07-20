@@ -45,10 +45,7 @@ const CommunicationForm = ({ onSubmit, handleClose, initialValues }) => {
             name="communication_content"
             label={t('Content')}
             fullWidth={true}
-            style={{
-              marginTop: 20,
-              height: 250,
-            }}
+            style={{ marginTop: 20 }}
           />
           <FileField
             variant="standard"

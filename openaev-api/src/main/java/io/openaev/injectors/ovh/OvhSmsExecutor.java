@@ -12,11 +12,11 @@ import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ProtectUser;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
+import io.openaev.expectation.Expectation;
+import io.openaev.expectation.ManualExpectation;
 import io.openaev.injectors.ovh.model.OvhSmsContent;
 import io.openaev.injectors.ovh.service.OvhSmsService;
 import io.openaev.model.ExecutionProcess;
-import io.openaev.model.Expectation;
-import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -45,7 +45,7 @@ public class OvhSmsExecutor extends Injector {
       @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
-    OvhSmsContent content = contentConvert(injection, OvhSmsContent.class);
+    OvhSmsContent content = injectExpectationService.contentConvert(injection, OvhSmsContent.class);
     String smsMessage = content.buildMessage(inject.getFooter(), inject.getHeader());
     List<ExecutionContext> users = injection.getUsers();
     if (users.isEmpty()) {

@@ -44,9 +44,9 @@ public class CrowdStrikeExecutorClient {
   private static final String OAUTH_URI = "/oauth2/token";
   private static final String HOST_GROUPS_URI = "/devices/entities/host-groups/v1";
   private static final String ENDPOINTS_URI = "/devices/combined/host-group-members/v1";
-  private static final String SESSION_URI = "/real-time-response/combined/batch-init-session/v1";
+  private static final String SESSION_URI = "/real-time-response/entities/sessions/v1";
   private static final String REAL_TIME_RESPONSE_URI =
-      "/real-time-response/combined/batch-active-responder-command/v1";
+      "/real-time-response/entities/active-responder-command/v1";
 
   private final CrowdStrikeExecutorConfig config;
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -151,15 +151,16 @@ public class CrowdStrikeExecutorClient {
     }
   }
 
-  public void executeAction(List<String> devicesId, String scriptName, String command) {
+  public void executeAction(String deviceId, String scriptName, String command) {
     try {
       // Open remote session
       Map<String, Object> bodySession = new HashMap<>();
-      bodySession.put("host_ids", devicesId);
+      bodySession.put("device_id", deviceId);
       bodySession.put("queue_offline", false);
       String jsonSessionResponse = this.postSync(SESSION_URI, bodySession);
-      ResourcesSession session =
+      ResourcesSession sessions =
           this.objectMapper.readValue(jsonSessionResponse, new TypeReference<>() {});
+      CrowdStrikeSession session = sessions.getResources().getFirst();
       if (session == null) {
         log.error("Cannot get the session on the selected device");
         throw new ExecutorException(
@@ -167,7 +168,7 @@ public class CrowdStrikeExecutorClient {
       }
       // Execute the command
       Map<String, Object> bodyCommand = new HashMap<>();
-      bodyCommand.put("batch_id", session.getBatch_id());
+      bodyCommand.put("session_id", session.getSession_id());
       bodyCommand.put("base_command", "runscript");
       bodyCommand.put(
           "command_string",
@@ -242,6 +243,27 @@ public class CrowdStrikeExecutorClient {
       String jsonResponse =
           httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
       Authentication auth = this.objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+      if (auth.getErrors() != null && !auth.getErrors().isEmpty()) {
+        StringBuilder msg =
+            new StringBuilder(
+                "Crowdstrike authentication failed: the token could not be obtained (expired or"
+                    + " invalid credentials).");
+        for (CrowdstrikeError error : auth.getErrors()) {
+          msg.append("\nCode: ")
+              .append(error.getCode())
+              .append(", message: ")
+              .append(error.getMessage())
+              .append(".");
+        }
+        log.error(msg.toString());
+        return;
+      }
+      if (auth.getAccess_token() == null || auth.getAccess_token().isBlank()) {
+        log.error(
+            "Crowdstrike authentication failed: no access token returned (expired or invalid"
+                + " credentials).");
+        return;
+      }
       this.token = auth.getAccess_token();
       this.lastAuthentication = Instant.now();
     } catch (IOException e) {

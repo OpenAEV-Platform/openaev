@@ -1,6 +1,7 @@
 package io.openaev.api.secrets_providers;
 
 import io.openaev.api.secrets_providers.form.SecretsProviderOutput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -57,12 +58,12 @@ public class SecretsProviderService
 
   @Override
   protected List<SecretsProvider> getAllConnectors() {
-    return secretService.getAllProviders();
+    return secretService.getAllProviders(TenantContext.getCurrentTenant());
   }
 
   @Override
   protected SecretsProvider getConnectorById(String id) {
-    return secretService.getAllProviders().stream()
+    return secretService.getAllProviders(TenantContext.getCurrentTenant()).stream()
         .filter(sp -> id.equals(sp.getId()))
         .findFirst()
         .orElse(null);

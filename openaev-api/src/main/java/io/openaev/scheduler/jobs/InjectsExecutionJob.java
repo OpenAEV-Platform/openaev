@@ -13,6 +13,7 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectDependenciesRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
 import io.openaev.notification.model.NotificationEvent;
@@ -47,6 +48,7 @@ import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.EvaluationException;
@@ -64,7 +66,12 @@ import org.springframework.stereotype.Component;
 public class InjectsExecutionJob implements Job {
 
   public static final String DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES = "10";
-  private static final long delayForSimulationCompletedEvent = 3600L;
+
+  // Thread-safe and expensive to instantiate; never recreate per dependency evaluation
+  private static final ExpressionParser SPEL_PARSER = new SpelExpressionParser();
+
+  @Value("${openaev.notification.simulation-completed-delay-seconds:3600}")
+  private long delayForSimulationCompletedEvent;
 
   private final Environment env;
   private int injectExecutionThreshold;
@@ -90,8 +97,8 @@ public class InjectsExecutionJob implements Job {
           ExecutionStatus.EXECUTING,
           ExecutionStatus.PENDING);
 
-  private final List<InjectExpectation.EXPECTATION_STATUS> expectationStatusesSuccess =
-      List.of(InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+  private final List<BaseInjectExpectation.EXPECTATION_STATUS> expectationStatusesSuccess =
+      List.of(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
 
   private final WorkflowService workflowService;
   private final HealthCheckUtils healthCheckUtils;
@@ -204,9 +211,21 @@ public class InjectsExecutionJob implements Job {
     if (ofNullable(executableInject.getExerciseId()).isPresent()) {
       checkErrorMessagesPreExecution(executableInject.getExerciseId(), inject);
     }
-    if (!healthCheckUtils.runContentChecks(inject).isEmpty()) {
+    List<HealthCheck> contentChecks = healthCheckUtils.runContentChecks(inject);
+    if (!contentChecks.isEmpty()) {
+      String details =
+          contentChecks.stream()
+              .map(check -> check.getType().getValue() + ":" + check.getDetail().name())
+              .distinct()
+              .collect(Collectors.joining(", "));
       throw new UnsupportedOperationException(
-          "The inject is not ready to be executed (missing mandatory fields)");
+          "The inject is not ready to be executed (injectId="
+              + inject.getId()
+              + ", title="
+              + inject.getTitle()
+              + ", missing mandatory fields: "
+              + details
+              + ")");
     }
     log.info("Executing inject {}", inject.getInject().getTitle());
     this.executor.execute(executableInject);
@@ -252,7 +271,7 @@ public class InjectsExecutionJob implements Job {
                           if (jsonNode
                               .get("expectation_type")
                               .asText()
-                              .equals(InjectExpectation.EXPECTATION_TYPE.MANUAL.name())) {
+                              .equals(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.name())) {
                             return jsonNode.get("expectation_name").asText().toLowerCase();
                           }
                           return jsonNode.get("expectation_type").asText().toLowerCase();
@@ -274,11 +293,9 @@ public class InjectsExecutionJob implements Job {
                     String.format("#this['%s']", condition.split("==")[0].trim()));
           }
 
-          ExpressionParser parser = new SpelExpressionParser();
-
           EvaluationContext context = SimpleEvaluationContext.forReadOnlyDataBinding().build();
           try {
-            Expression exp = parser.parseExpression(expressionToEvaluate);
+            Expression exp = SPEL_PARSER.parseExpression(expressionToEvaluate);
             boolean canBeExecuted =
                 Boolean.TRUE.equals(exp.getValue(context, mapCondition, Boolean.class));
             if (!canBeExecuted) {
@@ -334,19 +351,23 @@ public class InjectsExecutionJob implements Job {
                   && !ExecutionStatus.ERROR.equals(parent.getStatus().get().getName())
                   && !executionStatusesNotReady.contains(parent.getStatus().get().getName()));
 
-          List<InjectExpectation> expectations =
+          List<BaseInjectExpectation> expectations =
               injectExpectationRepository.findAllForExerciseAndInject(exerciseId, parent.getId());
           expectations.forEach(
               injectExpectation -> {
                 String name =
                     StringUtils.capitalize(injectExpectation.getType().toString().toLowerCase());
-                if (injectExpectation.getType().equals(InjectExpectation.EXPECTATION_TYPE.MANUAL)) {
+                if (injectExpectation
+                    .getType()
+                    .equals(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL)) {
                   name = injectExpectation.getName();
                 }
-                if (InjectExpectation.EXPECTATION_TYPE.CHALLENGE.equals(injectExpectation.getType())
-                    || InjectExpectation.EXPECTATION_TYPE.ARTICLE.equals(
-                        injectExpectation.getType())) {
-                  if (injectExpectation.getUser() == null && injectExpectation.getScore() != null) {
+                if (injectExpectation instanceof TableTopInjectExpectation tableTop
+                    && (BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE.equals(
+                            injectExpectation.getType())
+                        || BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE.equals(
+                            injectExpectation.getType()))) {
+                  if (tableTop.getUser() == null && injectExpectation.getScore() != null) {
                     mapCondition.put(
                         name, injectExpectation.getScore() >= injectExpectation.getExpectedScore());
                   }
@@ -386,6 +407,12 @@ public class InjectsExecutionJob implements Job {
       // Get all injects to execute grouped by exercise.
       List<ExecutableInject> injects = injectHelper.getInjectsToRun();
 
+      // Computed once for the whole batch instead of once per inject (was O(n^2))
+      Set<String> batchInjectIds =
+          injects.stream()
+              .map(execInject -> execInject.getInjection().getId())
+              .collect(Collectors.toSet());
+
       // We're grouping the injects to run by exercises but also making sure no injects
       // run in the same batch as it's parents
       Map<String, List<ExecutableInject>> byExercises =
@@ -400,19 +427,15 @@ public class InjectsExecutionJob implements Job {
                       // out. It'll then start the injects that were not started because the
                       // platform was down.
                       executableInject.getInjection().getInject().getDependsOn() == null
-                          || !intersect(
-                              injects.stream()
-                                  .map(execInject -> execInject.getInjection().getId())
-                                  .toList(),
-                              executableInject.getInjection().getInject().getDependsOn().stream()
-                                  .map(
-                                      injectDependency ->
-                                          injectDependency
-                                              .getCompositeId()
-                                              .getInjectParent()
-                                              .getInject()
-                                              .getId())
-                                  .toList()))
+                          || executableInject.getInjection().getInject().getDependsOn().stream()
+                              .map(
+                                  injectDependency ->
+                                      injectDependency
+                                          .getCompositeId()
+                                          .getInjectParent()
+                                          .getInject()
+                                          .getId())
+                              .noneMatch(batchInjectIds::contains))
               .collect(
                   groupingBy(
                       ex ->
@@ -473,20 +496,5 @@ public class InjectsExecutionJob implements Job {
       }
     }
     injectService.saveAll(fulfilled);
-  }
-
-  /**
-   * Return true if some elements are in the two lists
-   *
-   * @param firstList the first list to test
-   * @param secondList the second list to test
-   * @return true if some elements are present in both the lists
-   */
-  private boolean intersect(List<String> firstList, List<String> secondList) {
-    return !firstList.stream()
-        .distinct()
-        .filter(secondList::contains)
-        .collect(Collectors.toSet())
-        .isEmpty();
   }
 }

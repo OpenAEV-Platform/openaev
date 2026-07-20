@@ -50,7 +50,7 @@ public class InjectTestHelper {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public InjectExpectation forceSaveInjectExpectation(InjectExpectation expectation) {
+  public BaseInjectExpectation forceSaveInjectExpectation(BaseInjectExpectation expectation) {
     return injectExpectationRepository.save(expectation);
   }
 

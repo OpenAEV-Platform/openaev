@@ -12,6 +12,8 @@ import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import java.util.Collections;
@@ -43,8 +45,11 @@ class WorkflowServiceTest {
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private StepService stepService;
   @Mock private StepDelayQueueService stepDelayQueueService;
+  @Mock private SimulationRateLimitService simulationRateLimitService;
   @Mock private WorkflowStateService workflowStateService;
   @Mock private ScopeMetricCollector scopeMetricCollector;
+  @Mock private ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
+  @Mock private ResultsMetricCollector resultsMetricCollector;
 
   @InjectMocks private WorkflowService workflowService;
 
@@ -125,7 +130,7 @@ class WorkflowServiceTest {
       assertEquals(exercise, savedWorkflow.getSimulation());
       // Configuration defaults stored inline on the workflow row
       assertFalse(savedWorkflow.isRateLimitEnabled());
-      assertFalse(savedWorkflow.isTimeoutEnabled());
+      assertTrue(savedWorkflow.isTimeoutEnabled());
       assertEquals(
           WorkflowService.DEFAULT_TIMEOUT_SECONDS,
           savedWorkflow.getTimeoutSeconds(),
@@ -149,7 +154,7 @@ class WorkflowServiceTest {
       assertEquals(WorkflowStatus.TEMPLATE, savedWorkflow.getStatus());
       assertEquals(scenario, savedWorkflow.getScenario());
       assertFalse(savedWorkflow.isRateLimitEnabled());
-      assertFalse(savedWorkflow.isTimeoutEnabled());
+      assertTrue(savedWorkflow.isTimeoutEnabled());
       assertEquals(
           WorkflowService.DEFAULT_TIMEOUT_SECONDS,
           savedWorkflow.getTimeoutSeconds(),
@@ -731,10 +736,13 @@ class WorkflowServiceTest {
               previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
+              simulationRateLimitService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
-              scopeMetricCollector);
+              scopeMetricCollector,
+              chainingSafetyPolicyMetricCollector,
+              resultsMetricCollector);
     }
 
     private Workflow buildTemplate() {
@@ -944,10 +952,13 @@ class WorkflowServiceTest {
               previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
+              simulationRateLimitService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
-              scopeMetricCollector);
+              scopeMetricCollector,
+              chainingSafetyPolicyMetricCollector,
+              resultsMetricCollector);
     }
 
     private Workflow buildTemplate() {
@@ -1102,6 +1113,290 @@ class WorkflowServiceTest {
 
       // Assert
       verifyNoInteractions(scopeMetricCollector);
+    }
+  }
+
+  // ========================================================================
+  // Safety Policy Metrics Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("updateWorkflowConfiguration – safety policy metrics")
+  class SafetyPolicyMetrics {
+
+    private WorkflowService service;
+
+    @BeforeEach
+    void setUp() {
+      service =
+          new WorkflowService(
+              stepService,
+              previewFeatureService,
+              workflowStateService,
+              stepDelayQueueService,
+              simulationRateLimitService,
+              workflowRepository,
+              workflowScopeRuleRepository,
+              scopeVariableRepository,
+              scopeMetricCollector,
+              chainingSafetyPolicyMetricCollector,
+              resultsMetricCollector);
+    }
+
+    private Workflow buildTemplate() {
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .timeoutEnabled(false)
+              .timeoutSeconds(WorkflowService.DEFAULT_TIMEOUT_SECONDS)
+              .rateLimitEnabled(false)
+              .build();
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      lenient()
+          .when(workflowRepository.save(any(Workflow.class)))
+          .thenAnswer(i -> i.getArgument(0));
+      return workflow;
+    }
+
+    @Test
+    @DisplayName("should emit timeout metric when timeout fields changed")
+    void shouldEmitTimeoutMetric_whenTimeoutFieldsChanged() {
+      // Arrange
+      Workflow workflow = buildTemplate();
+      WorkflowConfigurationInput input =
+          WorkflowConfigurationInput.builder().timeoutEnabled(true).timeoutSeconds(3600L).build();
+
+      // Act
+      service.updateWorkflowConfiguration(workflow.getId(), input);
+
+      // Assert
+      verify(chainingSafetyPolicyMetricCollector).recordTimeoutConfigured(1L, 0L, true);
+      verify(chainingSafetyPolicyMetricCollector, never())
+          .recordRateLimitConfigured(anyLong(), anyLong(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("should emit rate limit metric when rate limit fields changed")
+    void shouldEmitRateLimitMetric_whenRateLimitFieldsChanged() {
+      // Arrange
+      Workflow workflow = buildTemplate();
+      WorkflowConfigurationInput input =
+          WorkflowConfigurationInput.builder()
+              .rateLimitEnabled(true)
+              .maxAttempts(5)
+              .maxTemporalRateSeconds(60L)
+              .timeoutSeconds(WorkflowService.DEFAULT_TIMEOUT_SECONDS)
+              .build();
+
+      // Act
+      service.updateWorkflowConfiguration(workflow.getId(), input);
+
+      // Assert
+      verify(chainingSafetyPolicyMetricCollector).recordRateLimitConfigured(5L, 60L, false);
+      verify(chainingSafetyPolicyMetricCollector, never())
+          .recordTimeoutConfigured(anyLong(), anyLong(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("should emit both metrics when both groups changed")
+    void shouldEmitBothMetrics_whenBothGroupsChanged() {
+      // Arrange
+      Workflow workflow = buildTemplate();
+      WorkflowConfigurationInput input =
+          WorkflowConfigurationInput.builder()
+              .timeoutEnabled(true)
+              .timeoutSeconds(7200L)
+              .rateLimitEnabled(true)
+              .maxAttempts(5)
+              .maxTemporalRateSeconds(60L)
+              .build();
+
+      // Act
+      service.updateWorkflowConfiguration(workflow.getId(), input);
+
+      // Assert
+      verify(chainingSafetyPolicyMetricCollector).recordTimeoutConfigured(2L, 0L, false);
+      verify(chainingSafetyPolicyMetricCollector).recordRateLimitConfigured(5L, 60L, false);
+    }
+
+    @Test
+    @DisplayName("should emit no metric when no fields changed")
+    void shouldEmitNoMetric_whenNoFieldsChanged() {
+      // Arrange
+      Workflow workflow = buildTemplate();
+      WorkflowConfigurationInput input =
+          WorkflowConfigurationInput.builder()
+              .timeoutEnabled(false)
+              .timeoutSeconds(WorkflowService.DEFAULT_TIMEOUT_SECONDS)
+              .rateLimitEnabled(false)
+              .build();
+
+      // Act
+      service.updateWorkflowConfiguration(workflow.getId(), input);
+
+      // Assert
+      verify(chainingSafetyPolicyMetricCollector, never())
+          .recordTimeoutConfigured(anyLong(), anyLong(), anyBoolean());
+      verify(chainingSafetyPolicyMetricCollector, never())
+          .recordRateLimitConfigured(anyLong(), anyLong(), anyBoolean());
+    }
+  }
+
+  // ========================================================================
+  // evaluateWorkflowProgress Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("evaluateWorkflowProgress")
+  class EvaluateWorkflowProgressTests {
+
+    @Test
+    @DisplayName("given active steps exist should not set workflow to END")
+    void given_activeStepsExist_should_notEndWorkflow() throws Exception {
+      // Arrange
+      String workflowRunId = UUID.randomUUID().toString();
+      String workflowTemplateId = UUID.randomUUID().toString();
+
+      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
+      Workflow workflowRun =
+          Workflow.builder()
+              .id(workflowRunId)
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(workflowTemplate)
+              .build();
+
+      Step stepTemplate = mock(Step.class);
+
+      when(workflowRepository.existsByIdAndStatus(workflowRunId, WorkflowStatus.END))
+          .thenReturn(false);
+      when(stepService.findAllStepTemplateByWorkflow(workflowTemplateId))
+          .thenReturn(List.of(stepTemplate));
+      // Active steps (RUN or READY) exist
+      when(stepService.countActiveSteps(workflowRunId)).thenReturn(2L);
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+          .thenReturn(Collections.emptyList());
+
+      // Act
+      Workflow result = workflowService.evaluateWorkflowProgress(workflowRun);
+
+      // Assert
+      assertNotEquals(WorkflowStatus.END, result.getStatus());
+      assertEquals(WorkflowStatus.RUN, result.getStatus());
+      verify(stepDelayQueueService, never()).findAllByWorkflowRun(any());
+    }
+
+    @Test
+    @DisplayName("given steps in delay queue should not set workflow to END")
+    void given_stepsInDelayQueue_should_notEndWorkflow() throws Exception {
+      // Arrange
+      String workflowRunId = UUID.randomUUID().toString();
+      String workflowTemplateId = UUID.randomUUID().toString();
+
+      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
+      Workflow workflowRun =
+          Workflow.builder()
+              .id(workflowRunId)
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(workflowTemplate)
+              .build();
+
+      Step stepTemplate = mock(Step.class);
+
+      when(workflowRepository.existsByIdAndStatus(workflowRunId, WorkflowStatus.END))
+          .thenReturn(false);
+      when(stepService.findAllStepTemplateByWorkflow(workflowTemplateId))
+          .thenReturn(List.of(stepTemplate));
+      // No active steps
+      when(stepService.countActiveSteps(workflowRunId)).thenReturn(0L);
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+          .thenReturn(Collections.emptyList());
+      // Delay queue has entries
+      StepDelayQueue delayedEntry = mock(StepDelayQueue.class);
+      when(stepDelayQueueService.findAllByWorkflowRun(workflowRun))
+          .thenReturn(List.of(delayedEntry));
+
+      // Act
+      Workflow result = workflowService.evaluateWorkflowProgress(workflowRun);
+
+      // Assert
+      assertNotEquals(WorkflowStatus.END, result.getStatus());
+      assertEquals(WorkflowStatus.RUN, result.getStatus());
+    }
+
+    @Test
+    @DisplayName("given new ready steps created should not set workflow to END")
+    void given_newReadyStepsCreated_should_notEndWorkflow() throws Exception {
+      // Arrange
+      String workflowRunId = UUID.randomUUID().toString();
+      String workflowTemplateId = UUID.randomUUID().toString();
+
+      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
+      Workflow workflowRun =
+          Workflow.builder()
+              .id(workflowRunId)
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(workflowTemplate)
+              .build();
+
+      Step stepTemplate = mock(Step.class);
+      Step stepReady = mock(Step.class);
+
+      when(workflowRepository.existsByIdAndStatus(workflowRunId, WorkflowStatus.END))
+          .thenReturn(false);
+      when(stepService.findAllStepTemplateByWorkflow(workflowTemplateId))
+          .thenReturn(List.of(stepTemplate));
+      // No pre-existing active steps
+      when(stepService.countActiveSteps(workflowRunId)).thenReturn(0L);
+      // But createReadySteps produces a new ready step
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+          .thenReturn(List.of(stepReady));
+
+      // Act
+      Workflow result = workflowService.evaluateWorkflowProgress(workflowRun);
+
+      // Assert
+      assertNotEquals(WorkflowStatus.END, result.getStatus());
+      assertEquals(WorkflowStatus.RUN, result.getStatus());
+      verify(stepService).enqueueReadySteps(List.of(stepReady), workflowRun);
+      verify(stepDelayQueueService, never()).findAllByWorkflowRun(any());
+    }
+
+    @Test
+    @DisplayName("given no active steps and empty delay queue should set workflow to END")
+    void given_noActiveStepsAndEmptyDelayQueue_should_endWorkflow() throws Exception {
+      // Arrange
+      String workflowRunId = UUID.randomUUID().toString();
+      String workflowTemplateId = UUID.randomUUID().toString();
+
+      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
+      Workflow workflowRun =
+          Workflow.builder()
+              .id(workflowRunId)
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(workflowTemplate)
+              .build();
+
+      Step stepTemplate = mock(Step.class);
+
+      when(workflowRepository.existsByIdAndStatus(workflowRunId, WorkflowStatus.END))
+          .thenReturn(false);
+      when(stepService.findAllStepTemplateByWorkflow(workflowTemplateId))
+          .thenReturn(List.of(stepTemplate));
+      // No active steps
+      when(stepService.countActiveSteps(workflowRunId)).thenReturn(0L);
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+          .thenReturn(Collections.emptyList());
+      // Delay queue is empty
+      when(stepDelayQueueService.findAllByWorkflowRun(workflowRun))
+          .thenReturn(Collections.emptyList());
+
+      // Act
+      Workflow result = workflowService.evaluateWorkflowProgress(workflowRun);
+
+      // Assert
+      assertEquals(WorkflowStatus.END, result.getStatus());
     }
   }
 }

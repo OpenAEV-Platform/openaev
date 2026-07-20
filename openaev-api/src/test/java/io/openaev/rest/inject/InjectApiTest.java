@@ -2,8 +2,6 @@ package io.openaev.rest.inject;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.model.ExerciseStatus.RUNNING;
-import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_END_DATE;
-import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_START_DATE;
 import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
@@ -11,6 +9,8 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static io.openaev.rest.inject.service.ExecutableInjectService.formatMultilineCommand;
 import static io.openaev.rest.inject.service.ExecutableInjectService.replaceCmdVariables;
+import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_END_DATE;
+import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_START_DATE;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
@@ -26,11 +26,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.injector_contract.ContractTargetedProperty;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
@@ -134,11 +136,13 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
+  @Autowired private ManagerFactory managerFactory;
 
   @BeforeEach
   void beforeEach() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    managerFactory.getManager(Tenant.DEFAULT_TENANT_UUID).monitorIntegrations();
 
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
@@ -834,7 +838,7 @@ class InjectApiTest extends IntegrationTest {
       entityManager.clear();
 
       // -- ASSERT --
-      List<InjectExpectation> injectExpectationSaved =
+      List<BaseInjectExpectation> injectExpectationSaved =
           injectExpectationRepository.findAllByInjectAndAgent(
               injectWrapper.get().getId(), agentWrapper.get().getId());
 
@@ -982,6 +986,71 @@ class InjectApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isBadRequest());
+    }
+
+    @DisplayName(
+        "Should override document argument default_value with the inject content value so the implant downloads the right document")
+    @Test
+    void
+        given_documentArgumentOverriddenInInjectContent_should_returnActualDocumentIdInPayloadArguments()
+            throws Exception {
+      // -- PREPARE --
+      // Simulate a payload whose document argument has a generic default (e.g., a template UUID)
+      String payloadDefaultDocumentId = UUID.randomUUID().toString();
+      PayloadArgument docArg =
+          PayloadFixture.createPayloadArgument(
+              "zip_file", ArgumentType.Document, payloadDefaultDocumentId, null);
+
+      Command payloadCommand =
+          PayloadFixture.createCommand(
+              "psh", "Expand-Archive -Path '#{zip_file}'", List.of(), null);
+      payloadCommand.setArguments(new ArrayList<>(List.of(docArg)));
+
+      // The inject content selects DOCUMENT1, not the payload default
+      Map<String, Object> payloadArguments = new HashMap<>();
+      payloadArguments.put("zip_file", DOCUMENT1.getId());
+
+      Inject injectSaved =
+          injectComposer
+              .forInject(InjectFixture.createInjectWithPayloadArg(payloadArguments))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .persist()
+              .get();
+
+      doNothing()
+          .when(injectStatusService)
+          .addStartImplantExecutionTraceByInject(any(), any(), any(), any());
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeId/executable-payload")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertNotNull(response);
+      // The implant reads payload_arguments[].default_value to decide which document to download.
+      // It must equal the inject content value (DOCUMENT1), not the payload's template default.
+      String returnedDefaultValue = JsonPath.read(response, "$.payload_arguments[0].default_value");
+      assertEquals(
+          DOCUMENT1.getId(),
+          returnedDefaultValue,
+          "The returned default_value must be the inject content value so the implant downloads the"
+              + " correct document");
+      assertNotEquals(
+          payloadDefaultDocumentId,
+          returnedDefaultValue,
+          "The payload template default should have been overridden");
     }
   }
 
@@ -1204,7 +1273,7 @@ class InjectApiTest extends IntegrationTest {
         Agent agent = ((Endpoint) inject.getAssets().getFirst()).getAgents().getFirst();
 
         // create expectation
-        InjectExpectation detectionExpectation =
+        BaseInjectExpectation detectionExpectation =
             InjectExpectationFixture.createDetectionInjectExpectation(inject, agent);
         injectTestHelper.forceSaveInjectExpectation(detectionExpectation);
 
@@ -1219,7 +1288,7 @@ class InjectApiTest extends IntegrationTest {
         // -- ASSERT --
         entityManager.flush();
         entityManager.clear();
-        List<InjectExpectation> injectExpectationSaved =
+        List<BaseInjectExpectation> injectExpectationSaved =
             injectExpectationRepository.findAllByInjectAndAgent(inject.getId(), agent.getId());
         assertEquals(1, injectExpectationSaved.size());
         List<InjectExpectationSignature> endDatesignatures =
@@ -1396,9 +1465,18 @@ class InjectApiTest extends IntegrationTest {
 
       // Deduplication
 
-      @Test
+      /** Wraps stdout content in the expected JSON envelope used by the implant callback. */
+      private InjectExecutionInput buildStdoutInput(String stdoutContent) {
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("{\"stdout\":\"" + stdoutContent + "\"}");
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
+        return input;
+      }
+
       @DisplayName(
           "Should consolidate duplicate CVE findings when structured output contains multiple entries with the same id")
+      @Test
       void shouldConsolidateDuplicateCveFindingsWhenStructuredOutputContainsDuplicates()
           throws Exception {
         // -- PREPARE --
@@ -2049,7 +2127,7 @@ class InjectApiTest extends IntegrationTest {
           "Should not create IPv4 findings when raw output contains no valid IPv4 addresses")
       void shouldNotCreateIPv4FindingsWhenRawOutputContainsNoValidIPv4Addresses() throws Exception {
         // -- PREPARE --
-        RegexGroup ipv4Group = OutputParserFixture.getRegexGroup("ipv4", "$0");
+        RegexGroup ipv4Group = OutputParserFixture.getRegexGroup("ipv4", "$1");
         ContractOutputElement ipv4Element =
             OutputParserFixture.getContractOutputElement(
                 ContractOutputType.IPv4,
@@ -2061,7 +2139,6 @@ class InjectApiTest extends IntegrationTest {
         Inject ipv4Inject = (Inject) setup[0];
         String agentId = (String) setup[1];
 
-        // 999.x.x.x is not a valid IPv4, the processor's validate() rejects it
         InjectExecutionInput input = buildStdoutInput("host 999.999.999.999 is unknown");
 
         // -- EXECUTE --
@@ -2688,8 +2765,12 @@ class InjectApiTest extends IntegrationTest {
         Inject vulnInject = (Inject) setup[0];
         String agentId = (String) setup[1];
 
-        String rawOutput = "VULN: EternalBlue EXPLOITABLE\\nVULN: BlueKeep PATCHED\\n";
-        InjectExecutionInput input = buildStdoutInput(rawOutput);
+        InjectExecutionInput input = new InjectExecutionInput();
+        // Input uses "VULN: <name> <status>" format to match the regex VULN:\s*(\S+)\s+(\S+)
+        // which captures name=$1 and status=$2. toFindingValue() returns "name [status]".
+        input.setMessage("{\"stdout\":\"VULN: EternalBlue critical\\nVULN: BlueKeep high\\n\"}");
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
 
         // -- EXECUTE --
         performCallbackRequest(agentId, vulnInject.getId(), input);
@@ -3047,9 +3128,11 @@ class InjectApiTest extends IntegrationTest {
         entityManager.clear();
 
         List<Endpoint> endpointsA =
-            endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+            endpointRepository.findByExternalReference(
+                "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
         List<Endpoint> endpointsB =
-            endpointRepository.findByExternalReference("https://shodan.io/.../assetB");
+            endpointRepository.findByExternalReference(
+                "https://shodan.io/.../assetB", TenantContext.getCurrentTenant());
         assertEquals(1, endpointsA.size());
         assertEquals(1, endpointsB.size());
         assertEquals("test.if", endpointsA.getFirst().getHostname());
@@ -3139,7 +3222,8 @@ class InjectApiTest extends IntegrationTest {
         entityManager.clear();
 
         List<Endpoint> endpointsA =
-            endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+            endpointRepository.findByExternalReference(
+                "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
         assertEquals(1, endpointsA.size());
         assertEquals("test.if", endpointsA.getFirst().getHostname());
       }
@@ -3269,7 +3353,8 @@ class InjectApiTest extends IntegrationTest {
             .until(
                 () -> {
                   List<Endpoint> endpointsA =
-                      endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+                      endpointRepository.findByExternalReference(
+                          "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
                   return endpointsA.isEmpty();
                 });
       }
@@ -3341,7 +3426,8 @@ class InjectApiTest extends IntegrationTest {
         entityManager.clear();
 
         List<Endpoint> endpointsA =
-            endpointRepository.findByExternalReference("https://shodan.io/.../assetC");
+            endpointRepository.findByExternalReference(
+                "https://shodan.io/.../assetC", TenantContext.getCurrentTenant());
         assertEquals(1, endpointsA.size());
         assertEquals("", endpointsA.getFirst().getHostname());
         assertEquals(Endpoint.PLATFORM_TYPE.Unknown, endpointsA.getFirst().getPlatform());

@@ -41,7 +41,7 @@ const ScenarioChallengesPreview = () => {
   return (
     <PreviewChallengeContext.Provider value={{
       linkToPlayerMode: '',
-      linkToAdministrationMode: `/admin/scenarios/${scenarioId}/definition`,
+      linkToAdministrationMode: `/admin/scenarios/${scenarioId}/injects`,
       scenarioOrExercise: scenario,
     }}
     >

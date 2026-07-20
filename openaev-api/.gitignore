@@ -5,3 +5,7 @@ src/main/resources/application-*.properties
 src/main/resources/localhost.p12
 src/main/resources/build/*
 swagger.json
+
+# Auto-DB — copied by openaev-dev/setup-auto-db.sh (source of truth: openaev-dev/test-containers/)
+src/main/java/io/openaev/config/DevDatabaseEnvironmentPostProcessor.java
+src/main/resources/META-INF/spring.factories

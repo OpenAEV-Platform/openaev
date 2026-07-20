@@ -27,7 +27,6 @@ public class UrlAccessTokenFixture {
    */
   public static UrlAccessToken createValidToken(Exercise exercise, User user, String url) {
     UrlAccessToken token = new UrlAccessToken();
-    token.setId(UUID.randomUUID().toString());
     token.setTokenHash(hashToken(DEFAULT_RAW_TOKEN));
     token.setUrl(url);
     token.setExercise(exercise);
@@ -45,7 +44,6 @@ public class UrlAccessTokenFixture {
    */
   public static UrlAccessToken createExpiredToken(Exercise exercise, User user) {
     UrlAccessToken token = new UrlAccessToken();
-    token.setId(UUID.randomUUID().toString());
     token.setTokenHash(hashToken("expired-token-" + UUID.randomUUID()));
     token.setUrl(DEFAULT_TARGET_URL);
     token.setExercise(exercise);

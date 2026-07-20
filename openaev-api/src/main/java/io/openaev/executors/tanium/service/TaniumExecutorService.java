@@ -61,40 +61,49 @@ public class TaniumExecutorService implements Runnable {
     this.assetGroupService = assetGroupService;
   }
 
+  /*
+   * All DB calls in syncAgentsEndpoints receive tenantId as an explicit parameter — no
+   * TenantContext dependency.
+   */
   @Override
   public void run() {
     log.info("Running Tanium executor endpoints gathering...");
-    List<String> computerGroupIds =
-        Stream.of(this.config.getComputerGroupId().split(",")).distinct().toList();
-    for (String computerGroupId : computerGroupIds) {
-      TaniumComputerGroup computerGroup =
-          this.client.computerGroup(computerGroupId).getComputerGroup();
-      List<NodeEndpoint> nodeEndpoints = this.client.endpoints(computerGroupId);
-      if (!nodeEndpoints.isEmpty()) {
-        Optional<AssetGroup> existingAssetGroup =
-            assetGroupService.findByExternalReference(
-                computerGroupId, executor.getTenant().getId());
-        AssetGroup assetGroup;
-        if (existingAssetGroup.isPresent()) {
-          assetGroup = existingAssetGroup.get();
-        } else {
-          assetGroup = new AssetGroup();
-          assetGroup.setExternalReference(computerGroupId);
-          assetGroup.setTenant(executor.getTenant());
+    String tenantId = executor.getTenantId();
+    try {
+      List<String> computerGroupIds =
+          Stream.of(this.config.getComputerGroupId().split(",")).distinct().toList();
+      for (String computerGroupId : computerGroupIds) {
+        TaniumComputerGroup computerGroup =
+            this.client.computerGroup(computerGroupId).getComputerGroup();
+        List<NodeEndpoint> nodeEndpoints = this.client.endpoints(computerGroupId);
+        if (!nodeEndpoints.isEmpty()) {
+          Optional<AssetGroup> existingAssetGroup =
+              assetGroupService.findByExternalReference(computerGroupId, executor.getTenantId());
+          AssetGroup assetGroup;
+          if (existingAssetGroup.isPresent()) {
+            assetGroup = existingAssetGroup.get();
+          } else {
+            assetGroup = new AssetGroup();
+            assetGroup.setExternalReference(computerGroupId);
+            assetGroup.setTenant(new Tenant(executor.getTenantId()));
+          }
+          assetGroup.setName(computerGroup.getName());
+          log.info(
+              "Tanium executor provisioning based on "
+                  + nodeEndpoints.size()
+                  + " assets for the computer group "
+                  + assetGroup.getName());
+          List<Agent> agents =
+              endpointService.syncAgentsEndpoints(
+                  toAgentEndpoint(nodeEndpoints),
+                  agentService.getAgentsByExecutorIdAndTenantId(executor.getId(), tenantId),
+                  tenantId);
+          assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
+          assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
         }
-        assetGroup.setName(computerGroup.getName());
-        log.info(
-            "Tanium executor provisioning based on "
-                + nodeEndpoints.size()
-                + " assets for the computer group "
-                + assetGroup.getName());
-        List<Agent> agents =
-            endpointService.syncAgentsEndpoints(
-                toAgentEndpoint(nodeEndpoints),
-                agentService.getAgentsByExecutorId(executor.getId()));
-        assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
-        assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }
+    } catch (Exception e) {
+      log.error("Error during Tanium executor endpoints gathering", e);
     }
   }
 

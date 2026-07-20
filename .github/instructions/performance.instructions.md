@@ -19,6 +19,8 @@ description: "Performance conventions: N+1 queries, lazy/eager loading, paginati
 - `FetchType.EAGER` is acceptable only for small, always-needed collections (e.g. capabilities on a role)
 - Never use `FetchType.EAGER` on collections that can grow unbounded
 - For APIs returning IDs only (serialized via `MultiIdListSerializer`): LAZY + `@Fetch(FetchMode.SUBSELECT)` is enough
+- Any collection that must stay EAGER (legacy serialization constraints) MUST carry `@Fetch(FetchMode.SUBSELECT)` so list loads issue one subselect instead of one query per row
+- `spring.jpa.properties.hibernate.default_batch_fetch_size` is set platform-wide as a safety net against N+1 amplification — do NOT rely on it as a license to add new EAGER associations; it caps the damage, it does not remove it. Reviewers should flag any new `FetchType.EAGER` without justification
 
 ### Resolving Entity Associations from IDs
 
@@ -56,6 +58,34 @@ Repositories that are used with `ReferenceResolver` must expose a `countByIdIn(S
 - Use `@Modifying @Query` for bulk updates/deletes — avoid loading entities just to delete them
 - Use projections (DTO queries) for read-heavy endpoints that don't need the full entity
 - Add database indexes on columns used in WHERE, ORDER BY, and JOIN conditions
+- Verify with `EXPLAIN` on realistic data volumes (>= 100k rows) that new indexes are actually
+  picked: a flat `OR` across joined tables or a sort on `GREATEST(a, b)` usually defeats
+  single-column indexes — restructure as a `UNION` of index-backed branches instead
+- Cursor/polling queries (`WHERE x_updated_at > :from ORDER BY x_updated_at LIMIT :n`) need an
+  index on the cursor column
+
+## Transactions & Network I/O
+
+- NEVER perform network I/O (HTTP downloads, SMTP sends, Elasticsearch/OpenSearch calls, RabbitMQ
+  publishes) inside a DB transaction — the connection stays held for the whole call
+- Pattern: materialize data inside a short transaction (`TransactionTemplate` in Quartz jobs),
+  perform the network calls outside, persist results in a second short transaction
+- Cache static remote content (e.g. installer script templates) instead of re-fetching per request
+- **Factory startup pattern**: when a factory must both write to DB (`@Transactional`) and upload
+  to MinIO/S3, split into two methods — `initialise()` (DB-only, `@Transactional`) and
+  `refreshLogo()` / `refreshAssets()` (MinIO-only, **no** `@Transactional`). The caller invokes
+  `refreshLogo()` *after* `initialise()` returns so the DB transaction is already committed. Make
+  the asset upload best-effort (catch + warn, don't throw).
+
+## Scheduled Jobs & Data Retention
+
+- High-growth tables (`execution_traces`, `injects_expectations`, `communications`, `user_events`)
+  need a retention strategy before they reach tens of millions of rows — see
+  `ExecutionTraceRetentionJob` for the batched-delete pattern (bounded batches, short independent
+  transactions, disabled by default via configuration)
+- Scheduler hot loops must not load entities per item: precompute lookup `Set`s/`Map`s, batch with
+  `saveAll`, and deduplicate downstream propagation per parent (see
+  `InjectExpectationService.bulkComputeTechnicalExpectations`)
 
 ## Collections & Streams
 
@@ -76,4 +106,5 @@ Repositories that are used with `ReferenceResolver` must expose a `countByIdIn(S
 - ❌ Iterating a list to call `repository.findById()` in a loop — use `ReferenceResolver` or `findAllById()` instead
 - ❌ Opening a transaction for read-only operations without `readOnly = true`
 - ❌ Returning JPA entities with LAZY collections from `@RestController` (triggers proxy outside session)
+- ❌ Performing MinIO / S3 / file I/O inside `@Transactional` — split into DB method + separate best-effort upload method called after the transaction commits
 

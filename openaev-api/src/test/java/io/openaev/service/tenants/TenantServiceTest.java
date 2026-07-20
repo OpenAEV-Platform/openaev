@@ -1,5 +1,6 @@
 package io.openaev.service.tenants;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.service.tenants.TenantService.SOFT_DELETE_RETENTION_DAYS;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.TENANT_NAME;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.getTenant;
@@ -17,9 +18,15 @@ import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.MinioConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
+import io.openaev.database.model.Injector;
+import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Role;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.*;
-import io.openaev.datapack.packs.V20260330_Default_tenant_data;
+import io.openaev.injectors.email.EmailContract;
+import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
+import io.openaev.processor.datapack.V20260330_Default_tenant_data;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.RoleService;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -33,7 +40,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.hibernate.Session;
-import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,6 +63,8 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired private CweRepository cweRepository;
   @Autowired private RoleService roleService;
   @Autowired private GroupRepository groupRepository;
+  @Autowired private InjectorRepository injectorRepository;
+  @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private V20260330_Default_tenant_data datapack;
 
   @Test
@@ -67,6 +75,7 @@ class TenantServiceTest extends IntegrationTest {
     // -- ACT --
     Tenant created = tenantService.create(tenant);
     TenantContext.setCurrentTenant(tenant.getId());
+
     // Simulate for tenant creation because Dataprocessor has @Profile("!test")
     datapack.process(created);
 
@@ -95,16 +104,19 @@ class TenantServiceTest extends IntegrationTest {
     boolean pathExists = results.iterator().hasNext();
     assertThat(pathExists).isTrue();
 
-    // Verify the 9 domains from PresetDomain are created for this tenant
+    // Verify the 10 domains from PresetDomain are created for this tenant
     Session session = entityManager.unwrap(Session.class);
     session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
-    assertThat(domainRepository.findAll()).hasSize(9);
+    assertThat(domainRepository.findAll()).hasSize(10);
     // Verify datapack
     assertThat(vulnerabilityRepository.findAll()).hasSize(7);
     assertThat(cweRepository.findAll()).hasSize(7);
-    assertThat(roleService.findAll(created.getId())).hasSize(3);
+    List<Role> roles = roleService.findAll(created.getId());
+    assertThat(roles).extracting(Role::getName).contains("Admin", "Manager", "Observer");
+    assertThat(roles).hasSizeGreaterThanOrEqualTo(3);
     List<Group> groups = groupRepository.findAllByTenantId(created.getId());
-    assertThat(groups).hasSize(3);
+    assertThat(groups).extracting(Group::getName).contains("Admin", "Manager", "Observer");
+    assertThat(groups).hasSizeGreaterThanOrEqualTo(3);
     assertThat(
             groups.stream()
                 .filter(group -> group.getName().equals("Admin"))
@@ -115,6 +127,61 @@ class TenantServiceTest extends IntegrationTest {
 
     Tenant exists = tenantService.findById(created.getId());
     assertThat(exists.getName()).isEqualTo(TENANT_NAME);
+  }
+
+  @Test
+  void should_provision_and_link_builtin_injector_contracts_for_new_tenant() throws Exception {
+    // A new tenant provisions its built-in connectors in two steps: the default injector contracts
+    // are copied first, then the built-in injectors register and create the join rows.
+    // PRIMARY guard: create() must complete without the composite-key foreign-key violation on
+    // injectors_injector_contracts that the broken copy step used to raise (proven by reverting the
+    // fix -> this test fails at create()). SECONDARY guards below: the new tenant ends up with the
+    // email injector linked to its default contract, and the default tenant is left untouched (the
+    // copy must never mutate or steal the source tenant's links).
+
+    // Precondition: the default tenant must already carry a built-in contract WITH a join row, so
+    // the copy step has a contract-with-link to copy. Without this the copy step is a no-op and the
+    // foreign-key path is never exercised.
+    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    entityManager.flush();
+    entityManager.clear();
+
+    Tenant tenant = getTenant("Tenant Connectors");
+
+    // -- ACT --
+    Tenant created = tenantService.create(tenant);
+
+    // -- ASSERT --
+    entityManager.flush();
+    entityManager.clear();
+    TenantContext.setCurrentTenant(created.getId());
+    Session session = entityManager.unwrap(Session.class);
+    session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
+
+    Injector emailInjector =
+        injectorRepository
+            .findByTypeAndTenantId(EmailContract.TYPE, created.getId())
+            .orElseThrow(
+                () -> new AssertionError("the email injector was not provisioned for the tenant"));
+    assertThat(emailInjector.getContracts())
+        .as("the email injector must be linked to its default contract in the new tenant")
+        .extracting(InjectorContract::getId)
+        .contains(EmailContract.EMAIL_DEFAULT);
+
+    // The default tenant must be left untouched by the copy: its own email injector is still linked
+    // to EMAIL_DEFAULT (the broken re-tenant/clear variants stole or deleted the source link).
+    entityManager.clear();
+    TenantContext.setCurrentTenant(DEFAULT_TENANT_UUID);
+    session = entityManager.unwrap(Session.class);
+    session.enableFilter("tenantFilter").setParameter("tenantId", DEFAULT_TENANT_UUID);
+    Injector defaultEmailInjector =
+        injectorRepository
+            .findByTypeAndTenantId(EmailContract.TYPE, DEFAULT_TENANT_UUID)
+            .orElseThrow(() -> new AssertionError("the default tenant lost its email injector"));
+    assertThat(defaultEmailInjector.getContracts())
+        .as("the default tenant's link must be untouched by the new-tenant copy")
+        .extracting(InjectorContract::getId)
+        .contains(EmailContract.EMAIL_DEFAULT);
   }
 
   @Test
@@ -129,12 +196,47 @@ class TenantServiceTest extends IntegrationTest {
     TenantInput duplicateNameInput = new TenantInput("Tenant A", null);
 
     // -- ACT & ASSERT --
-    assertThatThrownBy(
-            () -> {
-              tenantService.update(tenantB.getId(), duplicateNameInput);
-              entityManager.flush();
-            })
-        .isInstanceOf(ConstraintViolationException.class);
+    assertThatThrownBy(() -> tenantService.update(tenantB.getId(), duplicateNameInput))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("Tenant name already used");
+  }
+
+  @Test
+  void should_update_tenant_to_same_name_without_error() {
+    // -- ARRANGE --
+    Tenant existing = getTenant("Tenant Same");
+    tenantComposer.forTenant(existing).persist();
+
+    // -- ACT --
+    TenantInput sameNameInput = new TenantInput("Tenant Same", null);
+    Tenant updated = tenantService.update(existing.getId(), sameNameInput);
+
+    // -- ASSERT --
+    assertThat(updated.getName()).isEqualTo("Tenant Same");
+  }
+
+  @Test
+  void should_update_default_tenant_to_unique_name() {
+    // -- ACT --
+    TenantInput input = new TenantInput("Renamed Default", null);
+    Tenant updated = tenantService.update(DEFAULT_TENANT_UUID, input);
+
+    // -- ASSERT --
+    assertThat(updated.getName()).isEqualTo("Renamed Default");
+  }
+
+  @Test
+  void should_fail_when_updating_default_tenant_to_existing_name() {
+    // -- ARRANGE --
+    Tenant other = getTenant("Existing Name");
+    tenantComposer.forTenant(other).persist();
+
+    TenantInput input = new TenantInput("Existing Name", null);
+
+    // -- ACT & ASSERT --
+    assertThatThrownBy(() -> tenantService.update(DEFAULT_TENANT_UUID, input))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("Tenant name already used");
   }
 
   @Test
@@ -188,6 +290,14 @@ class TenantServiceTest extends IntegrationTest {
     // -- ASSERT --
     assertThat(softDeleted.getDeletedAt()).isNotNull();
     assertThat(tenantRepository.findById(created.getId())).isPresent();
+  }
+
+  @Test
+  void should_fail_when_soft_deleting_default_tenant() {
+    // -- ACT & ASSERT --
+    assertThatThrownBy(() -> tenantService.softDelete(DEFAULT_TENANT_UUID))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("Default tenant cannot be deleted");
   }
 
   @Test

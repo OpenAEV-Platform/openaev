@@ -11,16 +11,29 @@ description: >
   SPRING_PROFILES_ACTIVE, GH_TOKEN.
 
 inputs:
-  is-pr:
-    description: "Whether this run is triggered by a pull request (true/false)."
-    required: false
-    default: "false"
   playwright-config:
     description: "Playwright config file to use (relative to openaev-front/)."
     required: true
   browser:
-    description: "Browser name (chrome or webkit) — used for artifact naming and browser install."
+    description: "Browser name (chrome, chromium, webkit, or firefox) — used for artifact naming and browser install."
     required: true
+  artifact-name-prefix:
+    description: >
+      Base name for the uploaded Playwright report artifact. Override
+      per caller when the matrix does NOT vary on `browser` (e.g.
+      e2e-infra-tests varies on `arch` instead, with `browser` fixed to
+      `chromium`), so the two callers' artifacts stay visually distinct
+      in the Actions UI.
+    required: false
+    default: "playwright-report"
+  artifact-suffix:
+    description: >
+      Suffix appended to the report artifact name to keep it unique per
+      matrix leg when `browser` alone doesn't vary across the matrix
+      (e.g. matrix.arch for e2e-infra-tests). Leave empty when `browser`
+      already uniquely identifies the leg (e.g. e2e-tests).
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -69,9 +82,9 @@ runs:
         java-version: "21"
         distribution: temurin
     - name: Set up Node.js 22.11
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
-        node-version: "22.22.3"
+        node-version: "22.23.1"
     - name: Install corepack
       run: npm install -g corepack
       shell: bash
@@ -81,7 +94,7 @@ runs:
       shell: bash
       working-directory: openaev-front
     - name: Cache Yarn dependencies
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: ${{ steps.yarn-cache-dir.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
@@ -93,10 +106,10 @@ runs:
       working-directory: openaev-front
     - name: Cache Playwright browsers
       id: playwright-cache
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ hashFiles('openaev-front/yarn.lock') }}
+        key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('openaev-front/yarn.lock') }}
     - name: Install Playwright browser (${{ inputs.browser }})
       if: steps.playwright-cache.outputs.cache-hit != 'true'
       run: yarn playwright install --with-deps ${{ inputs.browser }}
@@ -108,7 +121,7 @@ runs:
       shell: bash
       working-directory: openaev-front
 
-    - name: Wait for and download backend JAR artifact
+    - name: Wait for backend JAR artifact
       shell: bash
       run: |
         echo "⏳ Waiting for backend-package artifact (services booting in parallel)..."
@@ -134,11 +147,11 @@ runs:
           sleep 5
         done
 
-        echo "📥 Downloading openaev-api-jar..."
-        if ! gh run download "${{ github.run_id }}" -n openaev-api-jar -D openaev-api/target; then
-          echo "❌ Failed to download openaev-api-jar artifact"
-          exit 1
-        fi
+    - name: Download backend JAR artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: openaev-api-jar
+        path: openaev-api/target
 
     - name: Verify backend JAR
       shell: bash
@@ -189,23 +202,53 @@ runs:
         echo "✅ All services ready"
 
     - name: Start application
-      run: java -jar openaev-api/target/openaev-api.jar &
+      run: java -jar openaev-api/target/openaev-api.jar > /tmp/openaev-app.log 2>&1 &
       shell: bash
     - name: Wait for application to be ready
       shell: bash
       run: |
-        echo "Waiting for application on port 8080..."
-        timeout 180 bash -c '
-          until curl -sf -o /dev/null -w "%{http_code}" http://localhost:8080 | grep -q "200"; do
-            sleep 2
-          done
-        ' || {
-          echo "❌ Application failed to become ready within 180s"
-          echo "  Last HTTP response:"
-          curl -s -o /dev/null -w "  HTTP %{http_code}\n" http://localhost:8080 2>/dev/null || echo "  (no response)"
-          exit 1
-        }
-        echo "✅ Application is ready (HTTP 200)"
+        ADMIN_TOKEN="${OPENAEV_ADMIN_TOKEN}"
+
+        echo "⏳ Waiting for API to be fully initialized (GET /api/me)..."
+        APP_UP=false
+        for i in $(seq 1 150); do
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            http://localhost:8080/api/me \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" 2>/dev/null || echo -e "\n000")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ API fully ready (HTTP 200 on /api/me after ~$((i * 2))s)"
+            break
+          fi
+
+          # Track when the app first starts responding
+          if [ "$APP_UP" = false ] && [ "$HTTP_CODE" -ne 000 ]; then
+            APP_UP=true
+            echo "  Application responding (HTTP ${HTTP_CODE} after ~$((i * 2))s), waiting for full init..."
+          fi
+
+          if [ $((i % 15)) -eq 0 ]; then
+            BODY=$(echo "$RESPONSE" | sed '$d')
+            echo "  Attempt $i/150 — HTTP ${HTTP_CODE} — ${BODY}"
+            echo "  Last 10 lines of app log:"
+            tail -10 /tmp/openaev-app.log 2>/dev/null || echo "  (no app log)"
+          fi
+
+          if [ "$i" -eq 150 ]; then
+            echo "❌ API /api/me not returning 200 after 300s (last HTTP ${HTTP_CODE})"
+            echo "  Last 80 lines of app log:"
+            tail -80 /tmp/openaev-app.log 2>/dev/null || echo "  (no app log)"
+            exit 1
+          fi
+          sleep 2
+        done
+
+    - name: Start XTM Composer
+      uses: ./.github/actions/start-xtm-composer
+      with:
+        openaev-url: http://localhost:8080
+
     - name: Run E2E tests (${{ inputs.browser }})
       run: yarn playwright test --config ${{ inputs.playwright-config }}
       shell: bash
@@ -217,7 +260,7 @@ runs:
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v7
       with:
-        name: playwright-report-${{ inputs.browser }}
+        name: ${{ inputs.artifact-name-prefix }}-${{ inputs.browser }}${{ inputs.artifact-suffix != '' && format('-{0}', inputs.artifact-suffix) || '' }}
         path: openaev-front/test-results/
     - name: Upload E2E coverage report (${{ inputs.browser }})
       if: ${{ !cancelled() && inputs.browser == 'chrome' }}

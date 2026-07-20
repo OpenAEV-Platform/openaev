@@ -3,6 +3,7 @@ package io.openaev.rest.inject.output;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.expectations.dto.InjectExpectationOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.model.InjectDependency;
 import io.openaev.database.model.InjectorContract;
@@ -112,8 +113,11 @@ public class InjectOutput {
   @JsonProperty("inject_expectations")
   @JsonSerialize(using = MultiModelSerializer.class)
   @ArraySchema(
-      schema = @Schema(implementation = String.class, description = "Expectation of the inject"))
-  private List<InjectExpectation> expectations = new ArrayList<>();
+      schema =
+          @Schema(
+              implementation = InjectExpectationOutput.class,
+              description = "Expectation of the inject"))
+  private List<InjectExpectationOutput> expectations = new ArrayList<>();
 
   @JsonProperty("listened")
   @Schema(description = "Stream listener value of the inject")

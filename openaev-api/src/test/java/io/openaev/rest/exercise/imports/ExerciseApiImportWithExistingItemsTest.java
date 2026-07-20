@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -76,8 +77,9 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
 
   @BeforeEach
   void before() throws Exception {
-    channelInjectorIntegrationFactory.registerConnectorForTenant();
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
+    channelInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    challengeInjectorIntegrationFactory.registerConnectorForTenant(
+        TenantContext.getCurrentTenant());
 
     lessonsQuestionsComposer.reset();
     lessonsCategoryComposer.reset();
@@ -168,7 +170,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
 
   private byte[] doExport(ExerciseComposer.Composer composer) throws Exception {
     Exercise exercise = composer.persist().get();
-    return exportService.exportExerciseToZip(exercise, FULL_EXPORT_OPTIONS);
+    return exportService.exportExerciseToZip(exercise, FULL_EXPORT_OPTIONS, true);
   }
 
   @DisplayName(

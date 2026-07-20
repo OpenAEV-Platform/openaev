@@ -12,6 +12,7 @@ import java.util.Map;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,6 +28,7 @@ public class FullTextSearchApi extends RestBehavior {
   private final FullTextSearchService<? extends Base> fullTextSearchService;
 
   @PostMapping({GLOBAL_SEARCH_URI, TENANT_GLOBAL_SEARCH_URI})
+  @Transactional
   @AccessControl(skipRBAC = true)
   public Map<? extends Class<? extends Base>, FullTextSearchService.FullTextSearchCountResult>
       fullTextSearch(@Valid @RequestBody final SearchTerm searchTerm) {
@@ -34,6 +36,7 @@ public class FullTextSearchApi extends RestBehavior {
   }
 
   @PostMapping({GLOBAL_SEARCH_URI + "/{clazz}", TENANT_GLOBAL_SEARCH_URI + "/{clazz}"})
+  @Transactional
   @AccessControl(skipRBAC = true)
   public Page<FullTextSearchService.FullTextSearchResult> fullTextSearch(
       @PathVariable @NotBlank final String clazz,

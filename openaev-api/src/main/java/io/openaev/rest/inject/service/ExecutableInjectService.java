@@ -27,6 +27,7 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -191,6 +192,7 @@ public class ExecutableInjectService {
     return Base64.getEncoder().encodeToString(computedCommand.getBytes());
   }
 
+  @Transactional(rollbackFor = Exception.class)
   public Payload getExecutablePayloadAndUpdateInjectStatus(String injectId, String agentId)
       throws Exception {
     // Need startTime to be defined before everything else to be the most accurate start time, as
@@ -286,16 +288,22 @@ public class ExecutableInjectService {
       Inject inject,
       List<ObjectNode> injectorContractFields,
       String obfuscator) {
-    switch (contract.getPayload().getTypeEnum()) {
-      case PayloadType.COMMAND:
-        return processCommandPayload(
-            payloadToExecute, contract, inject, injectorContractFields, obfuscator);
-      case PayloadType.DNS_RESOLUTION:
-        return processDnsResolutionPayload(payloadToExecute, inject);
-      default:
-        // All other payload types are intentionally passed through unchanged.
-        return payloadToExecute;
-    }
+    Payload processed =
+        switch (contract.getPayload().getTypeEnum()) {
+          case PayloadType.COMMAND ->
+              processCommandPayload(
+                  payloadToExecute, contract, inject, injectorContractFields, obfuscator);
+          case PayloadType.DNS_RESOLUTION -> processDnsResolutionPayload(payloadToExecute, inject);
+          default ->
+              // All other payload types are intentionally passed through unchanged.
+              payloadToExecute;
+        };
+    // Override the default_value of document-type arguments with the actual inject content value
+    // for all payload types. The implant uses payload_arguments[].default_value to download
+    // documents before execution; without this override it would download the payload's default
+    // document instead of the one configured on the inject.
+    resolveDocumentArgumentsFromInjectContent(processed, inject.getContent());
+    return processed;
   }
 
   private Payload processCommandPayload(
@@ -315,6 +323,37 @@ public class ExecutableInjectService {
             injectorContractFields,
             obfuscator));
     return payloadCommand;
+  }
+
+  private void resolveDocumentArgumentsFromInjectContent(
+      Payload payload, ObjectNode injectContent) {
+    if (isEmpty(payload.getArguments()) || injectContent == null) {
+      return;
+    }
+    List<PayloadArgument> resolved =
+        payload.getArguments().stream()
+            .map(
+                arg -> {
+                  if (ArgumentType.Document != arg.getType()) {
+                    return arg;
+                  }
+                  String actualValue =
+                      getArgumentValueOrDefault(arg.getKey(), injectContent, arg.getDefaultValue());
+                  if (!hasText(actualValue) || actualValue.equals(arg.getDefaultValue())) {
+                    return arg;
+                  }
+                  // Create a copy to avoid mutating the shared original PayloadArgument.
+                  PayloadArgument copy = new PayloadArgument();
+                  copy.setType(arg.getType());
+                  copy.setSubtype(arg.getSubtype());
+                  copy.setKey(arg.getKey());
+                  copy.setDefaultValue(actualValue);
+                  copy.setDescription(arg.getDescription());
+                  copy.setSeparator(arg.getSeparator());
+                  return copy;
+                })
+            .toList();
+    payload.setArguments(new ArrayList<>(resolved));
   }
 
   private Payload processDnsResolutionPayload(Payload payloadToExecute, Inject inject) {

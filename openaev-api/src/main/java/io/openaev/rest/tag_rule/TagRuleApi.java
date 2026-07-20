@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
@@ -52,16 +53,21 @@ public class TagRuleApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.TAG_RULE)
   @Operation(description = "Get TagRule by Id", summary = "Get TagRule")
+  @Transactional
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The TagRule")})
   public TagRuleOutput findTagRule(
       @PathVariable @NotBlank @Schema(description = "ID of the tag rule") final String tagRuleId) {
-    return tagRuleService.findById(tagRuleId).map(tagRuleMapper::toTagRuleOutput).orElse(null);
+    return tagRuleService
+        .findById(tagRuleId, TenantContext.getCurrentTenant())
+        .map(tagRuleMapper::toTagRuleOutput)
+        .orElse(null);
   }
 
   @LogExecutionTime
   @GetMapping({TagRuleApi.TAG_RULE_URI, TENANT_TAG_RULE_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TAG_RULE)
   @Operation(description = "Get All TagRules", summary = "Get TagRules")
+  @Transactional
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The list of all TagRules")})
   public List<TagRuleOutput> tags() {
@@ -83,7 +89,7 @@ public class TagRuleApi extends RestBehavior {
       })
   public void deleteTagRule(
       @PathVariable @NotBlank @Schema(description = "ID of the tag rule") final String tagRuleId) {
-    tagRuleService.deleteTagRule(tagRuleId);
+    tagRuleService.deleteTagRule(tagRuleId, TenantContext.getCurrentTenant());
   }
 
   @LogExecutionTime
@@ -118,11 +124,16 @@ public class TagRuleApi extends RestBehavior {
       @PathVariable @NotBlank @Schema(description = "ID of the tag rule") final String tagRuleId,
       @Valid @RequestBody final TagRuleInput input) {
     return tagRuleMapper.toTagRuleOutput(
-        tagRuleService.updateTagRule(tagRuleId, input.getTagName(), input.getAssetGroups()));
+        tagRuleService.updateTagRule(
+            tagRuleId,
+            input.getTagName(),
+            input.getAssetGroups(),
+            TenantContext.getCurrentTenant()));
   }
 
   @LogExecutionTime
   @PostMapping({TagRuleApi.TAG_RULE_URI + "/search", TENANT_TAG_RULE_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG_RULE)
   @Operation(
       description = "Search TagRules corresponding to search criteria",

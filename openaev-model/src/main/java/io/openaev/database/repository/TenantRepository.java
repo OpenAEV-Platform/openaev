@@ -44,9 +44,18 @@ public interface TenantRepository
   /** Counts tenants matching the given IDs (for ReferenceResolver validation). */
   long countByIdIn(Set<String> ids);
 
+  /** Checks whether another tenant with the same name already exists (case-sensitive). */
+  boolean existsByNameAndIdNot(String name, String id);
+
   /** Returns soft-deleted tenants whose grace period has expired. */
   @Query("SELECT t FROM Tenant t WHERE t.deletedAt IS NOT NULL AND t.deletedAt < :cutoffDate")
   List<Tenant> findAllExpiredSoftDeleted(@Param("cutoffDate") Instant cutoffDate);
+
+  /** Returns all active (non-soft-deleted) tenants. */
+  List<Tenant> findAllByDeletedAtIsNull();
+
+  @Query("SELECT t.id FROM Tenant t WHERE t.deletedAt IS NULL")
+  List<String> findAllIdsByDeletedAtIsNull();
 
   // -- WRITE --
 

@@ -20,7 +20,8 @@ import lombok.Data;
       TeamTarget.class,
       EndpointTarget.class,
       AgentTarget.class,
-      PlayerTarget.class
+      PlayerTarget.class,
+      AiTargetTarget.class
     },
     discriminatorMapping = {
       @DiscriminatorMapping(value = "ASSETS_GROUPS", schema = AssetGroupTarget.class),
@@ -28,6 +29,7 @@ import lombok.Data;
       @DiscriminatorMapping(value = "TEAMS", schema = TeamTarget.class),
       @DiscriminatorMapping(value = "PLAYERS", schema = PlayerTarget.class),
       @DiscriminatorMapping(value = "AGENT", schema = AgentTarget.class),
+      @DiscriminatorMapping(value = "AI_TARGETS", schema = AiTargetTarget.class),
     })
 @JsonInclude(NON_NULL)
 public abstract class InjectTarget {
@@ -49,18 +51,18 @@ public abstract class InjectTarget {
   protected abstract String getTargetSubtype();
 
   @JsonProperty("target_detection_status")
-  private InjectExpectation.EXPECTATION_STATUS targetDetectionStatus;
+  private BaseInjectExpectation.EXPECTATION_STATUS targetDetectionStatus;
 
   @JsonProperty("target_prevention_status")
-  private InjectExpectation.EXPECTATION_STATUS targetPreventionStatus;
+  private BaseInjectExpectation.EXPECTATION_STATUS targetPreventionStatus;
 
   @JsonProperty("target_vulnerability_status")
-  private InjectExpectation.EXPECTATION_STATUS targetVulnerabilityStatus;
+  private BaseInjectExpectation.EXPECTATION_STATUS targetVulnerabilityStatus;
 
   @JsonProperty("target_human_response_status")
-  private InjectExpectation.EXPECTATION_STATUS targetHumanResponseStatus;
+  private BaseInjectExpectation.EXPECTATION_STATUS targetHumanResponseStatus;
 
   @JsonProperty("target_execution_status")
-  private InjectExpectation.EXPECTATION_STATUS targetExecutionStatus =
-      InjectExpectation.EXPECTATION_STATUS.UNKNOWN;
+  private BaseInjectExpectation.EXPECTATION_STATUS targetExecutionStatus =
+      BaseInjectExpectation.EXPECTATION_STATUS.UNKNOWN;
 }

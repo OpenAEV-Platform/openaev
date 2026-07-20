@@ -42,7 +42,7 @@ public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFa
   }
 
   @Override
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return List.of(
         connectorInstanceService.createAutostartInstance(
             LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID,
@@ -57,7 +57,7 @@ public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFa
   }
 
   @Override
-  public void registerConnectorForTenant() throws Exception {
+  public void registerConnectorForTenant(String tenantId) throws Exception {
     // noop
   }
 }

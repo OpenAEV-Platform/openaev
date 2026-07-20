@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.export.Mixins;
@@ -59,6 +60,7 @@ class ExerciseApiExportTest extends IntegrationTest {
   @Autowired private TagComposer tagComposer;
   @Autowired private DomainComposer domainComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private WorkflowComposer workflowComposer;
   @Autowired private ChallengeService challengeService;
   @Autowired private ArticleService articleService;
   @Resource protected ObjectMapper mapper;
@@ -83,8 +85,9 @@ class ExerciseApiExportTest extends IntegrationTest {
     tagComposer.reset();
     exerciseComposer.reset();
     payloadComposer.reset();
-    channelInjectorIntegrationFactory.registerConnectorForTenant();
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
+    channelInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    challengeInjectorIntegrationFactory.registerConnectorForTenant(
+        TenantContext.getCurrentTenant());
 
     // delete the test files from the minio service
     for (String fileName : WELL_KNOWN_FILES.keySet()) {
@@ -683,5 +686,30 @@ class ExerciseApiExportTest extends IntegrationTest {
         Assertions.assertArrayEquals(docFromZip, docFromDisk);
       }
     }
+  }
+
+  @DisplayName("Given a chaining simulation, exported injects are empty")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_a_chaining_simulation_exported_injects_are_empty() throws Exception {
+    // Arrange
+    Exercise exercise = getExercise();
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(exercise);
+    workflowComposer.forWorkflow(workflowTemplate).persist();
+
+    // Act
+    byte[] response =
+        mvc.perform(
+                get(EXERCISE_URI + "/" + exercise.getId() + "/export")
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsByteArray();
+    String actualJson = getJsonExportFromZip(response, exercise.getName());
+
+    // Assert
+    assertThatJson(actualJson).node("exercise_injects").isArray().isEqualTo("[]");
   }
 }

@@ -193,7 +193,7 @@ const UpdateInject: React.FC<Props> = ({
         {/* Inject details */}
         <TabPanel value="Inject details" keepMounted className={classes.tabPanel}>
           {injectFormContent}
-          {!isInjectLoading && (
+          {!isInjectLoading && inject && (
             <InjectForm
               handleClose={handleClose}
               disabled={
@@ -201,7 +201,8 @@ const UpdateInject: React.FC<Props> = ({
                 || !injectorContractContent
                 || permissions.readOnly
                 || (inherited_context === INHERITED_CONTEXT.NONE
-                  && ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId))
+                  && ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId)
+                  && ability.cannot(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT))
               }
               isAtomic={isAtomic}
               defaultInject={inject}
@@ -219,7 +220,7 @@ const UpdateInject: React.FC<Props> = ({
         {/* Action info */}
         {contractPayload && !isAtomic && (
           <TabPanel value="Action info" keepMounted className={classes.tabPanel}>
-            {!isInjectLoading && (
+            {!isInjectLoading && inject && (
               <PayloadComponent
                 documentsMap={documentsMap}
                 selectedPayload={contractPayload}
@@ -234,7 +235,7 @@ const UpdateInject: React.FC<Props> = ({
         {/* Logical chains */}
         <TabPanel value="Logical chains" keepMounted className={classes.tabPanel}>
           {injectFormContent}
-          {!isInjectLoading && !isAtomic && (
+          {!isInjectLoading && inject && !isAtomic && (
             <UpdateInjectLogicalChains
               inject={inject}
               handleClose={handleClose}

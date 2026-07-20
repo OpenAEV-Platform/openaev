@@ -16,6 +16,7 @@ import java.util.logging.Level;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class LogApi extends RestBehavior {
 
   @PostMapping("/api/logs")
+  @Transactional
   @Operation(
       hidden = true,
       summary = "Log message details",

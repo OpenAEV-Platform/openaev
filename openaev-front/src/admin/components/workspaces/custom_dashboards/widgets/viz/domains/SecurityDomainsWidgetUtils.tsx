@@ -1,12 +1,14 @@
-import { Groups, HelpOutlined, ImportantDevices, Language, Lock, Mail, WebAsset } from '@mui/icons-material';
-import { type SvgIconProps, type Theme } from '@mui/material';
-import { Cloud, Database } from 'mdi-material-ui';
-import { type ComponentType, type CSSProperties, type ReactElement } from 'react';
+import { type Theme } from '@mui/material';
 
 import type { Domain, EsAvgs, EsDomainsAvgData, EsSeries, EsSeriesData } from '../../../../../../../utils/api-types';
+import { getOrderByDomain } from '../../../../../../../utils/domains/domainIcons';
 import { TO_CLASSIFY } from '../../../../../../../utils/domains/domainUtils';
 import { computeInjectExpectationLabel } from '../../../../../../../utils/statusUtils';
 import { type IconBarElement } from '../../../../../common/domains/IconBar-model';
+
+// The domain icon/order mapping lives in the shared utils (also used by the
+// shared ItemDomains component); re-exported here for the widget consumers.
+export { getDomainConfig, getIconByDomain, getOrderByDomain } from '../../../../../../../utils/domains/domainIcons';
 
 // Extend base types to add frontend values on objects
 export type EsExpectationByDomainTypeAndStatus = EsSeriesData & {
@@ -54,67 +56,6 @@ export const DEFAULT_EMPTY_EXPECTATIONS: EsExpectationByDomainAndType[] = [
     data: [],
   },
 ];
-
-interface DomainConfig {
-  icon: ComponentType<SvgIconProps>;
-  order: number;
-}
-
-const DOMAIN_CONFIG: Record<string, DomainConfig> = {
-  'Endpoint': {
-    icon: ImportantDevices,
-    order: 0,
-  },
-  'Network': {
-    icon: Language,
-    order: 1,
-  },
-  'Web App': {
-    icon: WebAsset,
-    order: 2,
-  },
-  'E-mail Infiltration': {
-    icon: Mail,
-    order: 3,
-  },
-  'Data Exfiltration': {
-    icon: Database,
-    order: 4,
-  },
-  'URL Filtering': {
-    icon: Lock,
-    order: 5,
-  },
-  'Cloud': {
-    icon: Cloud,
-    order: 6,
-  },
-  'Tabletop': {
-    icon: Groups,
-    order: 7,
-  },
-};
-
-const DEFAULT_CONFIG: DomainConfig = {
-  icon: HelpOutlined,
-  order: 8,
-};
-
-export const getDomainConfig = (name: string | undefined): DomainConfig => {
-  return DOMAIN_CONFIG[name ?? ''] ?? DEFAULT_CONFIG;
-};
-
-export const getIconByDomain = (
-  name: string | undefined,
-  style: CSSProperties = {},
-): ReactElement => {
-  const { icon: IconComponent } = getDomainConfig(name);
-  return <IconComponent fontSize="large" style={style} />;
-};
-
-export const getOrderByDomain = (name: string | undefined): number => {
-  return getDomainConfig(name).order;
-};
 
 export function calcPercentage(part: number, total: number): number {
   if (total <= 0) return -1;
@@ -180,19 +121,25 @@ export const colorByAverageForExpectation = (average: number, theme: Theme): str
 };
 
 /**
+ * Case-insensitive status matcher: ES bucket keys depend on the keyword normalizer of the live
+ * mapping (may be "SUCCESS" or "success"), so status comparisons must never be case-sensitive.
+ */
+export const isStatus = (value: string | null | undefined, status: string): boolean =>
+  (value ?? '').toUpperCase() === status.toUpperCase();
+
+/**
  * Define the colors of the percentage displayed on each lines of a domain
  * @param label to calculate
  * @param theme to get colors values
  */
 export const colorByLabel = (label: string | null, theme: Theme): string => {
-  switch (label) {
-    case 'success':
-      return theme.palette.widgets.securityDomains.colors.success;
-    case 'failed':
-      return theme.palette.widgets.securityDomains.colors.failed;
-    default:
-      return theme.palette.widgets.securityDomains.colors.pending;
+  if (isStatus(label, 'SUCCESS')) {
+    return theme.palette.widgets.securityDomains.colors.success;
   }
+  if (isStatus(label, 'FAILED')) {
+    return theme.palette.widgets.securityDomains.colors.failed;
+  }
+  return theme.palette.widgets.securityDomains.colors.pending;
 };
 
 /**
@@ -232,11 +179,16 @@ const manageExpectationByDomainAndType = (esSerie: EsSeries, theme: Theme): EsEx
     } as EsExpectationByDomainTypeAndStatus;
   });
 
-  // Determine the information for the icon of the expectation line of a domain, from the success value
-  const successExpectationByDomainAndType = esSerie.data?.find(expectationData => expectationData.key === 'success');
-  const successRate = successExpectationByDomainAndType?.value && esSerie?.value
-    ? calcPercentage(successExpectationByDomainAndType.value, esSerie.value)
-    : 0;
+  // Success rate over RESOLVED expectations only (success + failed): pending/unknown docs must
+  // not deflate the rate (the resilience gauges use the same denominator). Status keys are
+  // matched case-insensitively (raw ES bucket keys). No resolved data -> -1 (empty state, grey).
+  const success = esSerie.data
+    ?.filter(d => isStatus(d.key, 'SUCCESS'))
+    .reduce((acc, d) => acc + (d.value ?? 0), 0) ?? 0;
+  const failed = esSerie.data
+    ?.filter(d => isStatus(d.key, 'FAILED'))
+    .reduce((acc, d) => acc + (d.value ?? 0), 0) ?? 0;
+  const successRate = calcPercentage(success, success + failed);
 
   return {
     ...esSerie,
