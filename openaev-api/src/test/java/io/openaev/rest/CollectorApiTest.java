@@ -188,7 +188,7 @@ public class CollectorApiTest extends IntegrationTest {
           getCollectorInstance(collector.getId(), collector.getName());
       String response =
           mvc.perform(
-                  get(COLLECTOR_URI + "/" + collector.getId() + "/related-ids")
+                  get(tenantUri(TENANT_COLLECTOR_URI + "/" + collector.getId() + "/related-ids"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
@@ -217,7 +217,7 @@ public class CollectorApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  get(COLLECTOR_URI + "/" + collector.getId() + "/related-ids")
+                  get(tenantUri(TENANT_COLLECTOR_URI + "/" + collector.getId() + "/related-ids"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
@@ -236,7 +236,7 @@ public class CollectorApiTest extends IntegrationTest {
       Collector collector = getCollector("Atomic Red Team");
       String response =
           mvc.perform(
-                  get(COLLECTOR_URI + "/" + collector.getId() + "/related-ids")
+                  get(tenantUri(TENANT_COLLECTOR_URI + "/" + collector.getId() + "/related-ids"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
@@ -451,7 +451,7 @@ public class CollectorApiTest extends IntegrationTest {
           new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}));
 
       // -- Act / Assert --
-      mvc.perform(get(COLLECTOR_URI + "/id/" + collector.getId() + "/image"))
+      mvc.perform(get(tenantUri(TENANT_COLLECTOR_URI + "/id/" + collector.getId() + "/image")))
           .andExpect(status().isOk());
     }
 
@@ -466,7 +466,8 @@ public class CollectorApiTest extends IntegrationTest {
     @DisplayName("Given unknown collector id should return 404")
     void given_unknownCollectorId_should_return404() throws Exception {
       // -- Act / Assert --
-      mvc.perform(get(COLLECTOR_URI + "/id/nonexistent-id/image")).andExpect(status().isNotFound());
+      mvc.perform(get(tenantUri(TENANT_COLLECTOR_URI + "/id/nonexistent-id/image")))
+          .andExpect(status().isNotFound());
     }
   }
 }
