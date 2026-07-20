@@ -1,5 +1,5 @@
-import { BugReportOutlined, DnsOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LocalFireDepartment, VpnKeyOutlined } from '@mui/icons-material';
-import { Alert, Autocomplete, Box, ButtonBase, Chip, Paper, Popover, TextField, Tooltip, Typography } from '@mui/material';
+import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LocalFireDepartment, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
+import { Alert, Autocomplete, Box, ButtonBase, Chip, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -14,6 +14,7 @@ import attackPathStatusColor, { attackPathChokepointColor } from './attack-path-
 import { AP_ALL_ENDPOINTS, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFindingFilter, buildClusteredAttackPathFlow, buildFindingPathFlow, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
+import AttackPathTableView, { type AttackPathEndpointRow } from './AttackPathTableView';
 import EndpointDetailPanel from './EndpointDetailPanel';
 import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
 import FindingDetailPanel, { type FindingExpectations, type ProducingAction } from './FindingDetailPanel';
@@ -668,6 +669,28 @@ const SimulationAttackPath = () => {
     return m;
   }, [chokepoints]);
 
+  // All exposed endpoints (not just the top-N) for the table view; same source as chokepoints, no
+  // extra fetch. Type columns are the union of finding types present, in a stable order.
+  const endpointRows = useMemo<AttackPathEndpointRow[]>(
+    () => (dto?.attackPathNodes ?? [])
+      .filter(n => n.type === 'ASSET' && n.id)
+      .map(n => ({
+        nodeId: n.id as string,
+        ref: n.ref ?? (n.id as string),
+        label: n.hostname || n.label || n.ref || (n.id as string),
+        ip: n.ip,
+        score: Object.values(n.findingCounts ?? {}).reduce((s, v) => s + (v ?? 0), 0),
+        findingCounts: n.findingCounts ?? {},
+      }))
+      .filter(r => r.score > 0),
+    [dto],
+  );
+  const endpointTypeColumns = useMemo(() => {
+    const set = new Set<string>();
+    endpointRows.forEach(r => Object.keys(r.findingCounts).forEach(k => set.add(k)));
+    return [...set].sort();
+  }, [endpointRows]);
+
   // Base clustered flow — recomputed when the graph data, endpoint expansion, or finding drill-down
   // changes (positions are deterministic, so it stays off the pure selection/focus path). Top-
   // chokepoint endpoints are decorated with their rank so the node can badge them.
@@ -1212,6 +1235,9 @@ const SimulationAttackPath = () => {
   // "Top chokepoints" card popover: the ranked list of the most-exposed endpoints.
   const [chokepointsAnchor, setChokepointsAnchor] = useState<HTMLElement | null>(null);
 
+  // Graph (node-link) vs Table (sortable/exportable list of exposed endpoints) view of the same data.
+  const [view, setView] = useState<'graph' | 'table'>('graph');
+
   // Focus a chokepoint endpoint: redraw the graph as the focused endpoint path (injectors -> endpoint
   // -> its finding clusters) and open its side panel (findings + executions). Uses the endpoint-focus
   // mode of buildFindingPathFlow (empty finding type/value).
@@ -1328,6 +1354,21 @@ const SimulationAttackPath = () => {
               onClick={clearPathFocus}
             />
           )}
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={view}
+            onChange={(_, v) => v && setView(v)}
+            aria-label={t('View')}
+            sx={{ ml: 'auto' }}
+          >
+            <ToggleButton value="graph" aria-label={t('Graph')}>
+              <Tooltip title={t('Graph')}><AccountTreeOutlined fontSize="small" /></Tooltip>
+            </ToggleButton>
+            <ToggleButton value="table" aria-label={t('Table')}>
+              <Tooltip title={t('Table')}><TableRowsOutlined fontSize="small" /></Tooltip>
+            </ToggleButton>
+          </ToggleButtonGroup>
         </div>
       </div>
 
@@ -1585,103 +1626,128 @@ const SimulationAttackPath = () => {
         gap: theme.spacing(1),
       }}
       >
-        <Paper
-          variant="outlined"
-          sx={{
-            flex: 1,
-            minWidth: 0,
-            position: 'relative',
-          }}
-        >
-          {loading && <Loader />}
-          {!loading && forbidden && (
-            <Alert severity="warning" sx={{ m: 2 }}>
-              {t('You do not have access to this simulation\'s attack path.')}
-            </Alert>
-          )}
-          {!loading && !forbidden && error && (
-            <Alert severity="error" sx={{ m: 2 }}>
-              {t('Failed to load the attack-path graph. Check the simulation or reload the page.')}
-            </Alert>
-          )}
-          {!loading && !forbidden && !error && nodes.length === 0 && (
-            <Alert severity="info" sx={{ m: 2 }}>
-              {t('No attack-path data for this simulation. Select a simulation with attack-path data above.')}
-            </Alert>
-          )}
-          {!loading && !forbidden && !error && nodes.length > 0 && (
-            <ReactFlowProvider>
-              <AttackPathFlow
-                nodes={nodes}
-                edges={edges}
-                onEndpointClick={onEndpointClick}
-                onClusterClick={onClusterClick}
-                onFindingClusterClick={onFindingClusterClick}
-                onFindingSelect={onFindingSelect}
-                onInjectorSelect={onInjectorSelect}
-                focusRequest={focusRequest}
-                fitRequest={fitNonce}
-                fitOnNodesChange={!pathFinding}
-                showMiniMap={!pathFinding && nodes.length > 40}
+        {view === 'table' && (
+          <Paper
+            variant="outlined"
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              overflow: 'hidden',
+              display: 'flex',
+            }}
+          >
+            <AttackPathTableView
+              rows={endpointRows}
+              typeColumns={endpointTypeColumns}
+              chokepointTopN={CHOKEPOINT_TOP_N}
+              onRowFocus={(row) => {
+                setView('graph');
+                focusChokepoint(row);
+              }}
+            />
+          </Paper>
+        )}
+        {view === 'graph' && (
+          <>
+            <Paper
+              variant="outlined"
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                position: 'relative',
+              }}
+            >
+              {loading && <Loader />}
+              {!loading && forbidden && (
+                <Alert severity="warning" sx={{ m: 2 }}>
+                  {t('You do not have access to this simulation\'s attack path.')}
+                </Alert>
+              )}
+              {!loading && !forbidden && error && (
+                <Alert severity="error" sx={{ m: 2 }}>
+                  {t('Failed to load the attack-path graph. Check the simulation or reload the page.')}
+                </Alert>
+              )}
+              {!loading && !forbidden && !error && nodes.length === 0 && (
+                <Alert severity="info" sx={{ m: 2 }}>
+                  {t('No attack-path data for this simulation. Select a simulation with attack-path data above.')}
+                </Alert>
+              )}
+              {!loading && !forbidden && !error && nodes.length > 0 && (
+                <ReactFlowProvider>
+                  <AttackPathFlow
+                    nodes={nodes}
+                    edges={edges}
+                    onEndpointClick={onEndpointClick}
+                    onClusterClick={onClusterClick}
+                    onFindingClusterClick={onFindingClusterClick}
+                    onFindingSelect={onFindingSelect}
+                    onInjectorSelect={onInjectorSelect}
+                    focusRequest={focusRequest}
+                    fitRequest={fitNonce}
+                    fitOnNodesChange={!pathFinding}
+                    showMiniMap={!pathFinding && nodes.length > 40}
+                  />
+                  <AttackPathLegend collapseSignal={legendCollapseNonce} />
+                </ReactFlowProvider>
+              )}
+            </Paper>
+
+            {findingDetail && (
+              <FindingDetailPanel
+                value={maskFindingValue(findingDetail.type, findingDetail.value)}
+                type={findingDetail.type}
+                endpointLabel={focusedEndpoint?.hostname || focusedEndpoint?.label || pathFinding?.endpointKey || t('Endpoint')}
+                endpointSub={[focusedEndpoint?.ip, focusedEndpoint?.platform].filter(Boolean).join(' · ')}
+                expectations={findingExpectations}
+                actions={producingActions}
+                activeRef={detailExecutionId}
+                onSelect={openExecutionDetail}
+                onClose={() => setFindingDetail(null)}
               />
-              <AttackPathLegend collapseSignal={legendCollapseNonce} />
-            </ReactFlowProvider>
-          )}
-        </Paper>
+            )}
 
-        {findingDetail && (
-          <FindingDetailPanel
-            value={maskFindingValue(findingDetail.type, findingDetail.value)}
-            type={findingDetail.type}
-            endpointLabel={focusedEndpoint?.hostname || focusedEndpoint?.label || pathFinding?.endpointKey || t('Endpoint')}
-            endpointSub={[focusedEndpoint?.ip, focusedEndpoint?.platform].filter(Boolean).join(' · ')}
-            expectations={findingExpectations}
-            actions={producingActions}
-            activeRef={detailExecutionId}
-            onSelect={openExecutionDetail}
-            onClose={() => setFindingDetail(null)}
-          />
-        )}
+            {!findingDetail && selectedNodeId && (
+              <EndpointDetailPanel
+                endpointLabel={selectedLabel || t('Endpoint')}
+                findingsLoading={endpointFindingsLoading}
+                findingGroups={endpointFindingGroups}
+                executions={executions}
+                execDisplayCap={EXEC_DISPLAY_CAP}
+                highlightedExecutionIds={highlightedExecutionIds}
+                registerRow={(id, el) => {
+                  if (el) {
+                    feedRowRefs.current.set(id, el);
+                  } else {
+                    feedRowRefs.current.delete(id);
+                  }
+                }}
+                onSelectExecution={openExecutionDetail}
+                execStatusLabel={status => t(statusLabelKey(status))}
+                onClose={() => {
+                  setSelectedNodeId(null);
+                  setDetailExecutionId(null);
+                }}
+              />
+            )}
 
-        {!findingDetail && selectedNodeId && (
-          <EndpointDetailPanel
-            endpointLabel={selectedLabel || t('Endpoint')}
-            findingsLoading={endpointFindingsLoading}
-            findingGroups={endpointFindingGroups}
-            executions={executions}
-            execDisplayCap={EXEC_DISPLAY_CAP}
-            highlightedExecutionIds={highlightedExecutionIds}
-            registerRow={(id, el) => {
-              if (el) {
-                feedRowRefs.current.set(id, el);
-              } else {
-                feedRowRefs.current.delete(id);
-              }
-            }}
-            onSelectExecution={openExecutionDetail}
-            execStatusLabel={status => t(statusLabelKey(status))}
-            onClose={() => {
-              setSelectedNodeId(null);
-              setDetailExecutionId(null);
-            }}
-          />
-        )}
-
-        {detailExecutionId && (
-          <ExecutionResultTerminalPanel
-            loading={detailLoading}
-            detail={detail}
-            onClose={() => setDetailExecutionId(null)}
-            onFocusOnMap={selectedNodeId
-              ? () => setFocusRequest(prev => ({
-                  nodeId: selectedNodeId,
-                  nonce: (prev?.nonce ?? 0) + 1,
-                }))
-              : undefined}
-            onOpenInject={(detail as { injectId?: string } | null)?.injectId
-              ? () => navigate(`../injects/${(detail as { injectId?: string }).injectId}`)
-              : undefined}
-          />
+            {detailExecutionId && (
+              <ExecutionResultTerminalPanel
+                loading={detailLoading}
+                detail={detail}
+                onClose={() => setDetailExecutionId(null)}
+                onFocusOnMap={selectedNodeId
+                  ? () => setFocusRequest(prev => ({
+                      nodeId: selectedNodeId,
+                      nonce: (prev?.nonce ?? 0) + 1,
+                    }))
+                  : undefined}
+                onOpenInject={(detail as { injectId?: string } | null)?.injectId
+                  ? () => navigate(`../injects/${(detail as { injectId?: string }).injectId}`)
+                  : undefined}
+              />
+            )}
+          </>
         )}
       </div>
 

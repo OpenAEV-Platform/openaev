@@ -52,8 +52,19 @@ vi.mock('../../../../../../admin/components/simulations/simulation/attack_path/A
 // The shared Drawer pulls in useAuth (needs a user context we do not set up here); stub it to render
 // its title and children when open so the findings drawer stays testable.
 vi.mock('../../../../../../components/common/Drawer', () => ({
-  default: ({ open, title, children }: { open: boolean; title: string; children: ReactNode }) =>
-    (open ? <div data-testid="shared-drawer"><span>{title}</span>{children}</div> : null),
+  default: ({ open, title, children }: {
+    open: boolean;
+    title: string;
+    children: ReactNode;
+  }) =>
+    (open
+      ? (
+          <div data-testid="shared-drawer">
+            <span>{title}</span>
+            {children}
+          </div>
+        )
+      : null),
 }));
 
 vi.mock('react-router', async (importOriginal) => {
@@ -220,5 +231,23 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     // Focus on map: the panel action re-centers the execution's endpoint on the map.
     fireEvent.click(screen.getByRole('button', { name: 'Focus on map' }));
     await waitFor(() => expect(mocks.flowProps.current?.focusRequest?.nodeId).toBe(ENDPOINT_NODE));
+  });
+
+  it('switches to the table view, lists the exposed endpoint and exposes CSV export', async () => {
+    setup();
+    await screen.findByTestId('attack-path-flow');
+
+    // Toggle to the table view; the graph is replaced by the sortable endpoint table.
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+
+    // The single exposed endpoint (score 1) is listed with its friendly hostname and total findings,
+    // and the CSV export action is available.
+    expect(await screen.findByText('CORP-HOST')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Export CSV/ })).toBeTruthy();
+
+    // Clicking the row returns to the graph and focuses that endpoint's path.
+    fireEvent.click(screen.getByText('CORP-HOST'));
+    await waitFor(() => expect(screen.getByTestId('attack-path-flow')).toBeTruthy());
+    await waitFor(() => expect(mocks.flowProps.current?.fitRequest ?? 0).toBeGreaterThan(0));
   });
 });
