@@ -27,6 +27,7 @@ import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.inject.form.InjectDependencyInput;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
+import io.openaev.rest.injector_contract.InjectorContractMigrationUtils;
 import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
 import io.openaev.rest.payload.form.*;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
@@ -1496,6 +1497,7 @@ public class V1_DataImporter implements Importer {
         new ObjectMapper()
             .convertValue(importNode.get("injector_contract_labels"), new TypeReference<>() {}));
     injectorContract.setPayload(payload);
+    InjectorContractMigrationUtils.migratePredefinedExpectations(injectorContract);
     return injectorContractRepository.save(injectorContract);
   }
 

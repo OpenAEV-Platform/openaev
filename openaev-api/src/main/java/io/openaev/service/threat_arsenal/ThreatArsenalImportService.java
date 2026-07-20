@@ -3,10 +3,13 @@ package io.openaev.service.threat_arsenal;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.payload.PayloadImportService;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Tenant;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.jsonapi.ZipJsonApi;
+import io.openaev.rest.injector_contract.InjectorContractMigrationUtils;
 import io.openaev.service.ZipJsonService;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import jakarta.validation.constraints.NotNull;
@@ -47,6 +50,7 @@ public class ThreatArsenalImportService {
             null,
             contract -> {
               contract.setId(UUID.randomUUID().toString());
+              contract.setTenant(new Tenant(TenantContext.getCurrentTenant()));
               if (contract.getLabels() != null) {
                 Map<String, String> updatedLabels = new HashMap<>(contract.getLabels());
                 updatedLabels.replaceAll((key, value) -> value + " (Import)");
@@ -55,6 +59,7 @@ public class ThreatArsenalImportService {
               if (contract.getPayload() != null && contract.getPayload().getName() != null) {
                 contract.getPayload().setName(contract.getPayload().getName() + " (Import)");
               }
+              InjectorContractMigrationUtils.migratePredefinedExpectations(contract);
               return contract;
             });
     return threatArsenalMapper.toThreatArsenalAction(response.persistedData());

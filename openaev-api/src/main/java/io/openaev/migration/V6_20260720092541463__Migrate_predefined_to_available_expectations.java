@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.Optional;
 import java.util.stream.StreamSupport;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
@@ -83,6 +84,13 @@ public class V6_20260720092541463__Migrate_predefined_to_available_expectations
       if (expectationsField.has(AVAILABLE_EXPECTATIONS)
           && expectationsField.get(AVAILABLE_EXPECTATIONS).isArray()) {
         available = (ArrayNode) expectationsField.get(AVAILABLE_EXPECTATIONS);
+        // Ensure all existing entries have the is_predefined field (default to false)
+        for (JsonNode entry : available) {
+          if (!entry.has(IS_PREDEFINED)) {
+            ((ObjectNode) entry).put(IS_PREDEFINED, false);
+            modified = true;
+          }
+        }
       } else {
         available = mapper.createArrayNode();
       }
@@ -91,31 +99,20 @@ public class V6_20260720092541463__Migrate_predefined_to_available_expectations
       if (expectationsField.has(PREDEFINED_EXPECTATIONS)) {
         ArrayNode predefined = (ArrayNode) expectationsField.get(PREDEFINED_EXPECTATIONS);
         for (JsonNode exp : predefined) {
-          boolean alreadyExists =
+          String expType = exp.path("expectation_type").asText();
+          Optional<JsonNode> existingOpt =
               StreamSupport.stream(available.spliterator(), false)
-                  .anyMatch(
-                      existing ->
-                          existing
-                              .path("expectation_type")
-                              .asText()
-                              .equals(exp.path("expectation_type").asText()));
+                  .filter(e -> e.path("expectation_type").asText().equals(expType))
+                  .findFirst();
 
-          if (!alreadyExists) {
+          if (existingOpt.isEmpty()) {
             ObjectNode expCopy = exp.deepCopy();
             expCopy.put(IS_PREDEFINED, true);
             available.add(expCopy);
           } else {
-            StreamSupport.stream(available.spliterator(), false)
-                .filter(
-                    existing ->
-                        existing
-                            .path("expectation_type")
-                            .asText()
-                            .equals(exp.path("expectation_type").asText()))
-                .forEach(existing -> ((ObjectNode) existing).put(IS_PREDEFINED, true));
+            ((ObjectNode) existingOpt.get()).put(IS_PREDEFINED, true);
           }
         }
-        expectationsField.remove(PREDEFINED_EXPECTATIONS);
         modified = true;
       }
 
@@ -136,7 +133,7 @@ public class V6_20260720092541463__Migrate_predefined_to_available_expectations
             newExp.put("expectation_expectation_group", false);
             newExp.put("expectation_is_multi_selectable", false);
             newExp.put("expectation_expiration_time", 21600);
-            newExp.put(IS_PREDEFINED, true);
+            newExp.put(IS_PREDEFINED, false);
             available.add(newExp);
             modified = true;
           }
@@ -145,6 +142,9 @@ public class V6_20260720092541463__Migrate_predefined_to_available_expectations
 
       if (modified) {
         expectationsField.set(AVAILABLE_EXPECTATIONS, available);
+        if (expectationsField.has(PREDEFINED_EXPECTATIONS)) {
+          expectationsField.remove(PREDEFINED_EXPECTATIONS);
+        }
         String updatedContent = mapper.writeValueAsString(contractContent);
         update.setString(1, updatedContent);
         update.setString(2, contractId);
