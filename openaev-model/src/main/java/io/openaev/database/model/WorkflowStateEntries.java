@@ -10,7 +10,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @AllArgsConstructor
 @Getter
 @Setter
@@ -91,6 +93,7 @@ public class WorkflowStateEntries {
     return index;
   }
 
+  // TODO: to delete — WIP stub, superseded by read-time execution pipeline
   public void testAndSaveCombinationsForCorrelated(Correlated newCorrelated) {
     List<Map<String, String>> combinations = generateCombinations(this.inputs, newCorrelated);
 
@@ -99,22 +102,24 @@ public class WorkflowStateEntries {
     }
   }
 
+  // TODO: to delete — WIP stub, superseded by read-time execution pipeline
   private void testAndSaveCombo(Map<String, String> combo) {
     if (!comboContainAllExecutionKeys(executionKeys, combo)) {
-      System.out.println("No execution, missing input : " + combo);
+      log.debug("No execution, missing input : {}", combo);
       return;
     }
 
     String hash = hashCombo(combo);
     if (!hashExecution.contains(hash)) {
       hashExecution.add(hash);
-      System.out.println("New execution : " + combo + " -> hash=" + hash);
+      log.debug("New execution : {} -> hash={}", combo, hash);
       // TODO: lancer l'exécution + persister StepInputBuffer
     } else {
-      System.out.println("Already executed : " + combo);
+      log.debug("Already executed : {}", combo);
     }
   }
 
+  // TODO: to delete — WIP stub, superseded by read-time execution pipeline
   public void testAndSaveCombinationsForInput(Input targetInput, List<String> newValues) {
     // Separate the target input from the other inputs
     List<Input> otherInputs =

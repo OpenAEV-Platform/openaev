@@ -2,6 +2,8 @@ package io.openaev.database.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -89,5 +91,34 @@ class ChainingTypeRegistryTest {
         assertThat(kind).isNotEqualTo(ChainingTypeKind.NOT_CHAINABLE);
       }
     }
+  }
+
+  @Test
+  @DisplayName("Credentials recipe should be [Username, Password]")
+  void given_credentials_should_haveUsernamePasswordRecipe() {
+    ChainingMappedType mapped =
+        ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.Credentials);
+    assertThat(mapped.kind()).isEqualTo(ChainingTypeKind.COMPLEX);
+    assertThat(mapped.primitiveTypes())
+        .isEqualTo(List.of(PrimitiveType.Username, PrimitiveType.Password));
+  }
+
+  @Test
+  @DisplayName("Primitive type should have empty recipe")
+  void given_primitiveType_should_haveEmptyRecipe() {
+    ChainingMappedType mapped =
+        ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.Text);
+    assertThat(mapped.kind()).isEqualTo(ChainingTypeKind.PRIMITIVE);
+    assertThat(mapped.primitiveTypes()).containsExactly(PrimitiveType.Text);
+  }
+
+  @Test
+  @DisplayName("fromLabelOptional should resolve known labels and return empty for unknown")
+  void given_labels_should_resolveOptionally() {
+    assertThat(PrimitiveType.fromLabelOptional("username"))
+        .isEqualTo(Optional.of(PrimitiveType.Username));
+    assertThat(PrimitiveType.fromLabelOptional("password"))
+        .isEqualTo(Optional.of(PrimitiveType.Password));
+    assertThat(PrimitiveType.fromLabelOptional("nonexistent")).isEmpty();
   }
 }

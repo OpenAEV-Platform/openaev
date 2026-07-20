@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Arrays;
+import java.util.Optional;
 
 public enum PrimitiveType {
   @JsonProperty("asset_group_id")
@@ -74,9 +75,7 @@ public enum PrimitiveType {
   }
 
   public static PrimitiveType fromLabel(String label) {
-    return Arrays.stream(values())
-        .filter(v -> v.label.equals(label))
-        .findFirst()
+    return fromLabelOptional(label)
         .orElseThrow(
             () ->
                 new IllegalArgumentException(
@@ -84,5 +83,9 @@ public enum PrimitiveType {
                         + label
                         + "'. Valid values: "
                         + Arrays.toString(values())));
+  }
+
+  public static Optional<PrimitiveType> fromLabelOptional(String label) {
+    return Arrays.stream(values()).filter(v -> v.label.equals(label)).findFirst();
   }
 }

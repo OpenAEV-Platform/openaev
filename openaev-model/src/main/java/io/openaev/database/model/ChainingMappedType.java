@@ -20,6 +20,10 @@ public record ChainingMappedType(ChainingTypeKind kind, List<PrimitiveType> prim
     return new ChainingMappedType(ChainingTypeKind.COMPLEX, List.of());
   }
 
+  public static ChainingMappedType complex(List<PrimitiveType> primitiveRecipe) {
+    return new ChainingMappedType(ChainingTypeKind.COMPLEX, primitiveRecipe);
+  }
+
   public static ChainingMappedType nonChainable() {
     return new ChainingMappedType(ChainingTypeKind.NOT_CHAINABLE, List.of());
   }
