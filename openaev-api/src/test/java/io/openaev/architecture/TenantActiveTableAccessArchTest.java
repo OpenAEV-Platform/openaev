@@ -176,9 +176,9 @@ class TenantActiveTableAccessArchTest {
               // Read path, driven by the TxCtx-carrying AttackPathApi (pinned by
               // TenantScopedEntrypointsTxCtxArchTest):
               AttackPathGraphService.class,
-              // Known-unscoped background writer: it runs from the cross-tenant inject executor
-              // with no scope, so it writes zero rows today. Waived here rather than hidden, and
-              // the waiver is removed when the write moves to the transaction primitive:
+              // Background writer, scoped: opens its own transaction through the tenant primitive
+              // with the inject's tenant, and stamps the row through TenantWriteScopeResolver.
+              // Pinned by AttackPathIngestionTenantAttributionTest:
               AttackPathExecutionIngestionService.class)
           .should()
           .dependOnClassesThat()

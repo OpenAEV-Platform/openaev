@@ -1,5 +1,8 @@
 package io.openaev.service.attackpath.ingestion;
 
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.Command;
@@ -8,6 +11,7 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Step;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.service.attackpath.AttackPathIds;
@@ -18,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Attack-path ingestion — Phase A (issue 5048, #203). At RUN, create one EXECUTION row per resolved
@@ -26,11 +29,12 @@ import org.springframework.transaction.annotation.Transactional;
  * #204/#202 update these rows later (Phase B), found by the queryable {@code (inject_id, agent_id)}
  * written here.
  *
- * <p><b>Known limitation, being fixed.</b> This runs from the cross-tenant inject executor, which
- * sets no tenant scope, so {@code TenantBaseListener} has nothing to attribute the row to and the
- * write lands zero rows. The table is tenant-active, so the failure is silent. The fix is to open
- * the write's own scoped transaction through the tenant transaction primitive, using the inject's
- * tenant. Until then this class is a waived entry in {@code TenantActiveTableAccessArchTest}.
+ * <p><b>Why the write is attributed by hand.</b> This runs from the cross-tenant inject executor,
+ * which sets no tenant scope. Relying on the ambient one would not fail loudly: {@code
+ * TenantContext.getCurrentTenant()} falls back to the default tenant, so {@code TenantBaseListener}
+ * would stamp every tenant's rows with that one and the real owner would see nothing. So the write
+ * takes the inject's own tenant, opens its own scoped transaction through the tenant primitive, and
+ * has the attribution validated by {@code TenantWriteScopeResolver} rather than assumed.
  */
 @Service
 @RequiredArgsConstructor
@@ -38,6 +42,8 @@ public class AttackPathExecutionIngestionService {
 
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathSourceTargetResolver resolver;
+  private final TenantScopedTransaction tenantTx;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   /** The run context shared by all of a run's execution rows. */
   public record ExecutionContext(
@@ -51,21 +57,33 @@ public class AttackPathExecutionIngestionService {
       String payloadId,
       String injectorType) {}
 
-  @Transactional
-  public void createRows(ExecutionContext ctx, List<ResolvedExecutionEdge> edges) {
-    writeRows(ctx, edges);
+  /**
+   * Row building, exposed to this package's tests only. Production must go through {@link #onRun},
+   * which opens the tenant scope: {@code saveAll} on an assigned id does a read before writing, and
+   * an unscoped read of an active table is fail-closed, so calling this without a scope would turn
+   * a second run into a primary-key violation instead of the intended update.
+   *
+   * <p>Package-private on purpose, and with no {@code @Transactional}: Spring's proxying ignores
+   * the annotation on non-public methods, so carrying it here would only be decorative.
+   */
+  void createRows(String tenantId, ExecutionContext ctx, List<ResolvedExecutionEdge> edges) {
+    writeRows(tenantId, ctx, edges);
   }
 
-  private void writeRows(ExecutionContext ctx, List<ResolvedExecutionEdge> edges) {
+  private void writeRows(String tenantId, ExecutionContext ctx, List<ResolvedExecutionEdge> edges) {
     // saveAll batches the run's N rows in one round-trip (an inject can hit N targets).
-    executionRepository.saveAll(edges.stream().map(edge -> toRow(ctx, edge)).toList());
+    executionRepository.saveAll(edges.stream().map(edge -> toRow(tenantId, ctx, edge)).toList());
   }
 
   /**
    * One frozen EXECUTION row (source → target) for a resolved edge, keyed by the deterministic id.
    */
-  private AttackPathExecution toRow(ExecutionContext ctx, ResolvedExecutionEdge edge) {
+  private AttackPathExecution toRow(
+      String tenantId, ExecutionContext ctx, ResolvedExecutionEdge edge) {
     AttackPathExecution row = new AttackPathExecution();
+    // Explicit attribution, so TenantBaseListener never fires for this row: it only fills a null
+    // tenant, and the value set here wins.
+    row.setTenant(new Tenant(tenantId));
     // Deterministic natural key so #204/#202 (Phase B) and retries converge on this same row.
     row.setId(AttackPathIds.executionNode(ctx.injectExecId(), edge.targetKey(), edge.agentId()));
     row.setSimulationId(ctx.simulationId());
@@ -103,22 +121,35 @@ public class AttackPathExecutionIngestionService {
 
   /**
    * Phase A entry point, called (guarded) at RUN: extract the run context + resolution input from
-   * the executed inject, resolve the edges, create the rows. Joins the caller's RUN transaction, so
-   * the rows commit with the inject and a rolled-back run leaves none.
+   * the executed inject, resolve the edges, create the rows.
+   *
+   * <p><b>Transaction semantics, changed deliberately.</b> This no longer joins the run's
+   * transaction: the primitive opens a new one ({@code REQUIRES_NEW}) so the write can carry its
+   * own tenant scope. Consequence to know about: the rows commit on their own, so a run that later
+   * rolls back leaves them behind. That is the accepted trade for correct attribution, and it is
+   * also what makes the caller's guard genuinely safe, since a failure here can no longer poison
+   * the run's transaction.
    *
    * <p>Scope and assumptions (agent-based; injector path is TBD): the sources are the inject's
    * direct asset endpoints and their installed agents (asset-group expansion is a follow-up); the
    * agent label is the endpoint hostname. Documented, not final.
    */
-  @Transactional
   public void onRun(Step step, Inject inject, InjectorContract contract) {
     // The attack path is simulation-scoped, so an inject with no simulation records nothing.
     if (inject.getExercise() == null) {
       return;
     }
-    // Calls the private body, not the transactional twin: an intra-class call bypasses the Spring
-    // proxy, so the inner annotation would be silently inert.
-    writeRows(context(step, inject, contract), resolver.resolve(resolutionInput(inject, contract)));
+    // The write carries the inject's own tenant, not the executor's ambient state, and opens its
+    // own scoped transaction through the primitive rather than joining the run's. The resolver
+    // validates the attribution instead of us trusting it.
+    TxCtx scope = TxCtx.forTenant(inject.getTenant().getId());
+    tenantTx.executeNew(
+        scope,
+        () ->
+            writeRows(
+                writeScopeResolver.tenantForWrite(scope, null),
+                context(step, inject, contract),
+                resolver.resolve(resolutionInput(inject, contract))));
   }
 
   private ExecutionContext context(Step step, Inject inject, InjectorContract contract) {
