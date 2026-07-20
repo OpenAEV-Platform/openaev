@@ -1,5 +1,6 @@
 package io.openaev.api.attackpath;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -47,17 +48,21 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
 
   private static final String SIM = "SIM-ISO";
   private static final String ENDPOINT_KEY = "dc-01";
-  private static final String GRAPH =
-      "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/graph";
-  private static final String EXPAND =
-      "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/endpoint/findings";
-  private static final String RELATIONS =
-      "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/endpoint/relations";
-  private static final String LIST = "/api/tenants/{tenantId}/attack-path/simulations";
-  private static final String FINDINGS =
-      "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/findings";
+  // Both mappings the API declares, derived from its own constants rather than retyped: a route
+  // renamed on the controller must break this test, not silently stop covering it.
+  private static final String SCOPED = TENANT_PREFIX + "/attack-path";
+  private static final String PLAIN = AttackPathApi.ATTACK_PATH_URI;
+
+  private static final String GRAPH = SCOPED + "/simulations/{simulationId}/graph";
+  private static final String EXPAND = SCOPED + "/simulations/{simulationId}/endpoint/findings";
+  private static final String RELATIONS = SCOPED + "/simulations/{simulationId}/endpoint/relations";
+  private static final String LIST = SCOPED + "/simulations";
+  private static final String FINDINGS = SCOPED + "/simulations/{simulationId}/findings";
   private static final String EXECUTION =
-      "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/executions/{executionId}";
+      SCOPED + "/simulations/{simulationId}/executions/{executionId}";
+  // The same handlers without the tenant prefix: here the scope comes from the header.
+  private static final String PLAIN_GRAPH = PLAIN + "/simulations/{simulationId}/graph";
+  private static final String PLAIN_LIST = PLAIN + "/simulations";
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -197,6 +202,45 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   @DisplayName("the simulations picker under another tenant does not list the owner's simulation")
   void simulationsListUnderOtherTenantIsHidden() throws Exception {
     mvc.perform(get(LIST, tenantB))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[?(@.simulationId=='" + SIM + "')]").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("via the X-Tenant-Ids header (no path tenant): the owner's graph is visible")
+  void graphViaHeaderForOwnerTenantIsVisible() throws Exception {
+    // Second scope-carrying route: the same handlers are also mapped without the tenant prefix, and
+    // the scope then comes from the header instead of the path. Different plumbing, so path
+    // coverage does not imply header coverage.
+    mvc.perform(get(PLAIN_GRAPH, SIM).header("X-Tenant-Ids", tenantA))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.counters.endpoints").value(1))
+        .andExpect(jsonPath("$.attackPathNodes").isNotEmpty());
+  }
+
+  @Test
+  @DisplayName("via the X-Tenant-Ids header: another tenant selected, the graph is empty (no leak)")
+  void graphViaHeaderForOtherTenantIsHidden() throws Exception {
+    mvc.perform(get(PLAIN_GRAPH, SIM).header("X-Tenant-Ids", tenantB))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.attackPathNodes").isEmpty())
+        .andExpect(jsonPath("$.attackPathEdges").isEmpty());
+  }
+
+  @Test
+  @DisplayName("via the X-Tenant-Ids header: the picker lists the selected owner's simulation")
+  void simulationsListViaHeaderForOwnerTenantIsVisible() throws Exception {
+    mvc.perform(get(PLAIN_LIST).header("X-Tenant-Ids", tenantA))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[?(@.simulationId=='" + SIM + "')]").exists());
+  }
+
+  @Test
+  @DisplayName("via the X-Tenant-Ids header: the picker hides another tenant's simulation")
+  void simulationsListViaHeaderForOtherTenantIsHidden() throws Exception {
+    // Deliberately a separate method: the aspect refuses to redefine the scope inside one
+    // transaction, so the two selections cannot share a test.
+    mvc.perform(get(PLAIN_LIST).header("X-Tenant-Ids", tenantB))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[?(@.simulationId=='" + SIM + "')]").doesNotExist());
   }
