@@ -1235,7 +1235,7 @@
   "Installation Instructions": "Anweisungen zur Installation",
   "Installation path": "Installationspfad",
   "Installing it as a system grants system-wide privileges.": "Die Installation als System gewährt systemweite Privilegien.",
-  "On macOS, only Advanced installation as System is currently available.": "On macOS, only Advanced installation as System is currently available.",
+  "On macOS, only Advanced installation as System is currently available.": "Unter macOS ist derzeit nur die erweiterte Installation als System verfügbar.",
   "Installing the agent is requiring local administrator privileges.": "Für die Installation des Agenten sind lokale Administratorrechte erforderlich.",
   "Instance name": "Instanzname",
   "Instantiate a simulation": "Eine Simulation instanziieren",
