@@ -49,7 +49,11 @@ import org.springframework.transaction.annotation.Transactional;
     reason =
         "seed generator bypasses the inspector on purpose (ADR-003): batched raw JDBC with tenant_id"
             + " set explicitly on every row; the inspector adds no guarantee to a VALUES insert and"
-            + " is ~17x slower. Admin-only, flag-gated, isolated to this service.")
+            + " is ~17x slower. Admin-only, flag-gated, isolated to this service. KNOWN DEVIATION:"
+            + " the activate-tenant-table runbook forbids this annotation on a tenant-active table"
+            + " without exception. It is accepted here only because the path is provably"
+            + " insert-only, which AttackPathSeedServiceTest enforces on every build; the rule's"
+            + " wording is open with its owner.")
 public class AttackPathSeedService {
 
   // Small rows batch large; the execution rows carry the heavy command/terminal_output text, so
@@ -73,7 +77,7 @@ public class AttackPathSeedService {
   private static final String TERMINAL_LINE =
       " bytes=4096 status=ok hash=a1b2c3d4e5f60718 latency_ms=12 conn=tcp/445 result=delivered";
 
-  private static final String[] EXECUTION_COLUMNS = {
+  static final String[] EXECUTION_COLUMNS = {
     "attackpath_execution_id",
     "tenant_id",
     "attackpath_execution_simulation_id",
@@ -98,7 +102,7 @@ public class AttackPathSeedService {
     "attackpath_execution_command",
     "attackpath_execution_terminal_output"
   };
-  private static final String[] FINDING_COLUMNS = {
+  static final String[] FINDING_COLUMNS = {
     "attackpath_finding_id",
     "tenant_id",
     "attackpath_finding_simulation_id",
