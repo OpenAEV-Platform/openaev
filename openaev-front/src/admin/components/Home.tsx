@@ -22,10 +22,10 @@ import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
 import { Can } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
-import { XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM } from './RedirectByPath';
 import CustomDashboardWrapper from './workspaces/custom_dashboards/CustomDashboardWrapper';
 import NoDashboardComponent from './workspaces/custom_dashboards/NoDashboardComponent';
 import SelectDashboardButton from './workspaces/custom_dashboards/SelectDashboardButton';
+import { XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM } from './xtm_hub/XtmHubRedirect';
 
 const Home = () => {
   const { t } = useFormatter();

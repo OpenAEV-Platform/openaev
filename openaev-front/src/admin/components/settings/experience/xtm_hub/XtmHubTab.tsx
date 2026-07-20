@@ -16,7 +16,7 @@ import GradientButton from '../../../common/GradientButton';
 import {
   XTM_HUB_AUTO_REGISTER_QUERY_PARAM,
   XTM_HUB_PRODUCT_NAME_QUERY_PARAM,
-} from '../../../RedirectByPath';
+} from '../../../xtm_hub/XtmHubRedirect';
 import XtmHubConfirmationDialog from './XtmHubConfirmationDialog';
 import XtmHubProcessDialog from './XtmHubProcessDialog';
 import XtmHubProcessInstructions from './XtmHubProcessInstructions';

@@ -1,9 +1,9 @@
 import { useContext } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router';
 
-import NotFound from '../../components/NotFound';
-import { AbilityContext } from '../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
+import NotFound from '../../../components/NotFound';
+import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 export const XTM_HUB_AUTO_REGISTER_QUERY_PARAM = 'xtmHubAutoRegister';
 export const XTM_HUB_PRODUCT_NAME_QUERY_PARAM = 'productName';
@@ -15,7 +15,7 @@ const PATH_REDIRECT_QUERY_PARAMS: Record<string, Record<string, string>> = { 'co
 
 const normalizePathKey = (value?: string) => (value ?? '').replace(/^\/+|\/+$/g, '');
 
-const RedirectByPath = () => {
+const XtmHubRedirect = () => {
   const { '*': pathKey } = useParams();
   const { search } = useLocation();
   const ability = useContext(AbilityContext);
@@ -57,4 +57,4 @@ const RedirectByPath = () => {
   );
 };
 
-export default RedirectByPath;
+export default XtmHubRedirect;

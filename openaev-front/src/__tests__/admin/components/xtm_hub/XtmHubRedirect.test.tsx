@@ -5,13 +5,13 @@ import { IntlProvider } from 'react-intl';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import RedirectByPath, {
+import XtmHubRedirect, {
   XTM_HUB_AUTO_REGISTER_QUERY_PARAM,
   XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM,
   XTM_HUB_PRODUCT_NAME_QUERY_PARAM,
-} from '../../../admin/components/RedirectByPath';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+} from '../../../../admin/components/xtm_hub/XtmHubRedirect';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 const theme = createTheme();
 
@@ -50,7 +50,7 @@ const renderWithRouter = ({
   );
 };
 
-describe('RedirectByPath', () => {
+describe('XtmHubRedirect', () => {
   afterEach(() => {
     cleanup();
   });
@@ -61,7 +61,7 @@ describe('RedirectByPath', () => {
       canManageTenantSettings: true,
       children: (
         <Routes>
-          <Route path="/redirect/*" element={<RedirectByPath />} />
+          <Route path="/redirect/*" element={<XtmHubRedirect />} />
           <Route path="/admin/settings/experience" element={<LocationProbe />} />
         </Routes>
       ),
@@ -77,7 +77,7 @@ describe('RedirectByPath', () => {
       canManageTenantSettings: false,
       children: (
         <Routes>
-          <Route path="/redirect/*" element={<RedirectByPath />} />
+          <Route path="/redirect/*" element={<XtmHubRedirect />} />
           <Route path="/admin" element={<LocationProbe />} />
         </Routes>
       ),
@@ -93,7 +93,7 @@ describe('RedirectByPath', () => {
       canManageTenantSettings: true,
       children: (
         <Routes>
-          <Route path="/redirect/*" element={<RedirectByPath />} />
+          <Route path="/redirect/*" element={<XtmHubRedirect />} />
         </Routes>
       ),
     });

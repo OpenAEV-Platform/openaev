@@ -1,4 +1,4 @@
-import { XTM_HUB_PRODUCT_NAME_QUERY_PARAM } from '../../../RedirectByPath';
+import { XTM_HUB_PRODUCT_NAME_QUERY_PARAM } from '../../../xtm_hub/XtmHubRedirect';
 
 export const getXtmHubProductName = (search: string) => {
   const productName = new URLSearchParams(search).get(XTM_HUB_PRODUCT_NAME_QUERY_PARAM);

@@ -5,11 +5,11 @@ import { IntlProvider } from 'react-intl';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import XtmHubTab from '../../../../../../admin/components/settings/experience/xtm_hub/XtmHubTab';
 import {
   XTM_HUB_AUTO_REGISTER_QUERY_PARAM,
   XTM_HUB_PRODUCT_NAME_QUERY_PARAM,
-} from '../../../../../../admin/components/RedirectByPath';
-import XtmHubTab from '../../../../../../admin/components/settings/experience/xtm_hub/XtmHubTab';
+} from '../../../../../../admin/components/xtm_hub/XtmHubRedirect';
 import { type PlatformSettings, type TenantOutput, type User } from '../../../../../../utils/api-types';
 import type * as EnvironmentModule from '../../../../../../utils/Environment';
 import { isDemoInstance, XTM_HUB_DEFAULT_URL } from '../../../../../../utils/Environment';

@@ -5,7 +5,7 @@ import { IntlProvider } from 'react-intl';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM } from '../../../admin/components/RedirectByPath';
+import { XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM } from '../../../admin/components/xtm_hub/XtmHubRedirect';
 
 const { mockDispatch } = vi.hoisted(() => ({ mockDispatch: vi.fn() }));
 
