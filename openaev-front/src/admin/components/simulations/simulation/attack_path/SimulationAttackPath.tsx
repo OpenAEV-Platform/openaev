@@ -997,14 +997,14 @@ const SimulationAttackPath = () => {
           }
         }
       } else {
-        const defaultId = `path-finding|${pathFinding.type}|${pathFinding.value}`;
+        // The focused finding is highlighted inside its own type cluster (no extracted node), so the
+        // default active node is that type's cluster. A leaf finding clicked in place overrides it.
+        const defaultId = `path-cl-type|${pathFinding.type}|${pathFinding.endpointKey}`;
         const activeId = selectedFindingId ?? defaultId;
-        // Only the injector(s) that actually produced the highlighted finding (their executions match
-        // it) light up — not every injector that merely reached the endpoint. This applies both to the
-        // main focused finding and to a leaf finding highlighted in place. Selecting a cluster header
-        // lifts the restriction (full walk-up over every injector that reached the endpoint).
-        const clusterSelected = selectedFindingId?.startsWith('path-cl-') ?? false;
-        const restrictInjectors = !clusterSelected && producingInjectorIds.size > 0;
+        // Only the injector(s) that actually produced the focused finding light up — not every injector
+        // that merely reached the endpoint — so the highlighted path stays scoped to the finding the
+        // analyst opened, even after expanding its cluster.
+        const restrictInjectors = producingInjectorIds.size > 0;
         pathSet.add(activeId);
         for (let pass = 0; pass < 8; pass += 1) {
           for (const e of baseFlow.edges) {

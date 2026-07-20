@@ -710,20 +710,14 @@ export const buildFindingPathFlow = (
   // The focused endpoint's verdict, applied to its finding clusters/edges so they carry the
   // prevention/detection colour (green/orange/red) — blue is reserved for the actively selected path.
   const endpointStatus = endpoint?.status;
-  // Endpoint focus (no specific finding, e.g. from a chokepoint click): show the whole endpoint —
-  // injector(s) -> endpoint -> one cluster per finding type on it — instead of a single finding path.
-  const endpointFocus = !finding.type;
+  // Always lay the endpoint out as one cluster per finding type (whether we arrived here from a
+  // chokepoint/endpoint click or from a specific finding): a specific finding is highlighted inside
+  // its own type cluster rather than pulled out as a separate node, so there is a single cluster per
+  // type and no confusing "other" bucket.
   const focusTypes = (Object.entries(endpointCounts).filter(([, v]) => (v ?? 0) > 0)) as Array<[string, number]>;
-  const selectedTypeCount = endpointCounts[finding.type] ?? 0;
-  const sameTypeOthers = Math.max(selectedTypeCount - 1, 0);
-  const otherTypesTotal = Object.entries(endpointCounts)
-    .filter(([k]) => k !== finding.type)
-    .reduce((sum, [, v]) => sum + (v ?? 0), 0);
 
   const rowH = CLUSTER_FINDING_ROW_H;
-  const rightRows = endpointFocus
-    ? Math.max(1, focusTypes.length)
-    : 1 + (sameTypeOthers > 0 ? 1 : 0) + (otherTypesTotal > 0 ? 1 : 0);
+  const rightRows = Math.max(1, focusTypes.length);
   const rightH = Math.max(rowH, rightRows * rowH);
   const leftH = Math.max(CLUSTER_EP_ROW_H, injectors.length * CLUSTER_EP_ROW_H);
   const blockH = Math.max(leftH, rightH);
@@ -771,36 +765,6 @@ export const buildFindingPathFlow = (
         },
     selected: true,
   });
-
-  if (!endpointFocus) {
-    const findingId = `path-finding|${finding.type}|${finding.value}`;
-    nodes.push({
-      id: findingId,
-      type: AP_FLOW_NODE_TYPE.finding,
-      position: {
-        x: CLUSTER_FINDING_DETAIL_X,
-        y: rightTopY,
-      },
-      data: {
-        label: finding.value,
-        typeFindings: finding.type,
-      },
-      selected: true,
-    });
-    edges.push({
-      id: `${endpointId}-${findingId}`,
-      source: endpointId,
-      target: findingId,
-      type: AP_FLOW_EDGE_TYPE,
-      data: {
-        count: 1,
-        // Focused path is intentionally highlighted in blue.
-        status: undefined,
-        label: `${finding.type} found`,
-      },
-      selected: true,
-    });
-  }
 
   // Contextual clusters (the endpoint's other findings) sit to the right of the focused finding. Each
   // is expandable in place: on expand it fans out its (fetched, batched) individual findings so the
@@ -916,39 +880,22 @@ export const buildFindingPathFlow = (
     return Math.max(rowH, CLUSTER_FINDING_ROW_H + childrenH);
   };
 
-  if (endpointFocus) {
-    // Endpoint focus: one cluster per finding type on the endpoint, hanging straight off it (in the
-    // normal finding-cluster columns), each expandable in place.
-    let clusterY = rightTopY;
-    focusTypes.forEach(([type, count]) => {
-      const id = `path-cl-type|${type}|${finding.endpointKey}`;
-      clusterY += emitCtxCluster(
-        id,
-        type,
-        count,
-        `${count} ${findingCategoryNoun(type)}`,
-        clusterY,
-        CLUSTER_FINDING_X,
-        CLUSTER_FINDING_DETAIL_X,
-      );
-    });
-  } else {
-    let clusterY = rightTopY + rowH;
-    if (sameTypeOthers > 0) {
-      const id = `path-cl-same|${finding.type}|${finding.endpointKey}`;
-      clusterY += emitCtxCluster(
-        id,
-        finding.type,
-        sameTypeOthers,
-        `${sameTypeOthers} ${findingCategoryNoun(finding.type)}`,
-        clusterY,
-      );
-    }
-    if (otherTypesTotal > 0) {
-      const id = `path-cl-other|${finding.type}|${finding.endpointKey}`;
-      emitCtxCluster(id, 'other', otherTypesTotal, `${otherTypesTotal} findings`, clusterY);
-    }
-  }
+  // One cluster per finding type on the endpoint, hanging straight off it, each expandable in place.
+  // A specific finding focus highlights its own type cluster (see the page's selection logic) rather
+  // than extracting the finding, so there is exactly one cluster per type.
+  let clusterY = rightTopY;
+  focusTypes.forEach(([type, count]) => {
+    const id = `path-cl-type|${type}|${finding.endpointKey}`;
+    clusterY += emitCtxCluster(
+      id,
+      type,
+      count,
+      `${count} ${findingCategoryNoun(type)}`,
+      clusterY,
+      CLUSTER_FINDING_X,
+      CLUSTER_FINDING_DETAIL_X,
+    );
+  });
 
   return {
     nodes,
