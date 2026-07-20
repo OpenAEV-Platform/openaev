@@ -192,8 +192,31 @@ const Index = () => {
               )}
             />
             <Route path="atomic_testings" element={errorWrapper(AtomicTestings)()} />
-            <Route path="atomic_testings/create" element={errorWrapper(AtomicTestingCreation)()} />
-            <Route path="atomic_testings/create/:contractId" element={errorWrapper(AtomicTestingCreation)()} />
+            {/* Creation requires the same Manage Assessment capability as the create button. */}
+            <Route
+              path="atomic_testings/create"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.MANAGE,
+                    subject: SUBJECTS.ASSESSMENT,
+                  }]}
+                  Component={errorWrapper(AtomicTestingCreation)()}
+                />
+              )}
+            />
+            <Route
+              path="atomic_testings/create/:contractId"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.MANAGE,
+                    subject: SUBJECTS.ASSESSMENT,
+                  }]}
+                  Component={errorWrapper(AtomicTestingCreation)()}
+                />
+              )}
+            />
             <Route
               path="atomic_testings/:injectId/*"
               element={(
