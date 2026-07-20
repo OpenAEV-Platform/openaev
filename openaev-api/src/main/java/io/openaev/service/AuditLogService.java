@@ -38,7 +38,7 @@ public class AuditLogService {
    *   <li>Otherwise → clears that banner.
    * </ul>
    */
-  @Transactional
+  @Transactional(rollbackFor = Exception.class)
   public void checkLicenseBanner() {
     boolean isAuditFlagEnabled = previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
     if (!isAuditFlagEnabled) {
