@@ -1235,7 +1235,7 @@
   "Installation Instructions": "Инструкции по установке",
   "Installation path": "Путь установки",
   "Installing it as a system grants system-wide privileges.": "Установка в качестве системы дает общесистемные привилегии.",
-  "On macOS, only Advanced installation as System is currently available.": "On macOS, only Advanced installation as System is currently available.",
+  "On macOS, only Advanced installation as System is currently available.": "На macOS в настоящее время доступна только расширенная установка от имени системы.",
   "Installing the agent is requiring local administrator privileges.": "Установка агента требует привилегий локального администратора.",
   "Instance name": "Имя экземпляра",
   "Instantiate a simulation": "Инстанцировать симуляцию",
