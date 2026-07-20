@@ -2368,6 +2368,99 @@
             }
         },
         {
+            "title": "Email (Google Workspace)",
+            "slug": "openaev_email_gws",
+            "description": "Send email from Google Workspace mailboxes through the Gmail API using service-account domain-wide delegation.",
+            "short_description": "Send email through Google Workspace Gmail",
+            "use_cases": [
+                "Communication"
+            ],
+            "verified": true,
+            "last_verified_date": "",
+            "playbook_supported": false,
+            "max_confidence_level": 80,
+            "support_version": "",
+            "subscription_link": "https://workspace.google.com/",
+            "source_code": "https://github.com/OpenAEV-Platform/injectors/tree/main/email-google-workspace",
+            "manager_supported": true,
+            "container_version": "rolling",
+            "container_image": "openaev/injector-email-google-workspace",
+            "container_type": "INJECTOR",
+            "logo": "data:image/png;base64,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",
+            "config_schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "config.schema.json",
+                "type": "object",
+                "properties": {
+                    "OPENAEV_URL": {
+                        "description": "The OpenAEV platform URL.",
+                        "format": "uri",
+                        "maxLength": 2083,
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "OPENAEV_TOKEN": {
+                        "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
+                    "INJECTOR_ID": {
+                        "description": "A unique UUIDv4 identifier for this injector instance.",
+                        "type": "string"
+                    },
+                    "INJECTOR_NAME": {
+                        "default": "Email (Google Workspace)",
+                        "description": "Name of the injector.",
+                        "type": "string"
+                    },
+                    "INJECTOR_LOG_LEVEL": {
+                        "default": "info",
+                        "description": "Determines the verbosity of the logs. Options: debug, info, warn, or error.",
+                        "type": "string"
+                    },
+                    "INJECTOR_PERIOD": {
+                        "default": "PT1M",
+                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "INJECTOR_TYPE": {
+                        "default": "openaev_email_gws",
+                        "description": "Type of the injector.",
+                        "type": "string"
+                    },
+                    "GWS_SERVICE_ACCOUNT_JSON": {
+                        "description": "Full Google Cloud service account key JSON with domain-wide delegation for gmail.send.",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "GWS_GMAIL_BASE_URL": {
+                        "default": "https://gmail.googleapis.com/gmail/v1",
+                        "description": "Base URL of the Gmail API.",
+                        "type": "string"
+                    },
+                    "GWS_REQUEST_TIMEOUT_SECONDS": {
+                        "default": 30,
+                        "description": "HTTP timeout (seconds) for a single Gmail API request.",
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "OPENAEV_URL",
+                    "OPENAEV_TOKEN",
+                    "INJECTOR_ID",
+                    "GWS_SERVICE_ACCOUNT_JSON"
+                ],
+                "additionalProperties": true
+            }
+        },
+        {
             "title": "Palo Alto Cortex XDR",
             "slug": "palo_alto_cortex_xdr",
             "description": "Validate OpenAEV detection and prevention expectations against Palo Alto Cortex XDR by collecting the alerts it raises in response to simulated attacks.",
