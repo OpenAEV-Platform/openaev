@@ -10,6 +10,7 @@ import {
 import { fetchPlatformRoleById, fetchPlatformRoleCapabilities } from '../../../../actions/platform/platform-role/platform-role-action';
 import { fetchAllGroups, fetchRoleById } from '../../../../actions/security/securityDetail-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
+import { DetailHero, DetailSections, Field, InformationGrid, Section } from '../../../../components/common/detail/EntityDetailCommon';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
@@ -22,7 +23,6 @@ import PlatformRolePopover from '../roles/platform_roles/PlatformRolePopover';
 import RolePopover from '../roles/tenant_roles/RolePopover';
 import SecurityMenu from '../SecurityMenu';
 import useSecurityScope from '../useSecurityScope';
-import { DetailHero, DetailSections, Field, InformationGrid, Section } from './SecurityDetailCommon';
 import { SecurityDetailNotFound } from './SecurityDetailNotFound';
 
 // Turns MANAGE_ASSESSMENT into "Manage assessment" for display.

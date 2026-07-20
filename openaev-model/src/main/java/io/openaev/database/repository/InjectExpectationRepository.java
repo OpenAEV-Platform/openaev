@@ -233,7 +233,11 @@ public interface InjectExpectationRepository
       @Param("injectId") @NotBlank final String injectId,
       @Param("teamId") @NotBlank final String teamId);
 
-  // -- INJECT EXPECTATION TECHNICAL --
+  // -- BY AGENT / ASSET / ASSET GROUP TARGET --
+  // These queries select from the base InjectExpectation entity: agent/asset
+  // targets can carry MANUAL expectations too, so the results MUST be typed as
+  // BaseInjectExpectation (typing them TechnicalInjectExpectation makes Spring
+  // Data throw a ConversionFailedException as soon as a manual row matches).
 
   @Query(
       value =
@@ -241,7 +245,7 @@ public interface InjectExpectationRepository
               + "WHERE i.inject.id = :injectId "
               + "AND i.agent.id = :agentId "
               + "ORDER BY i.type, i.createdAt")
-  List<TechnicalInjectExpectation> findAllByInjectAndAgent(
+  List<BaseInjectExpectation> findAllByInjectAndAgent(
       @Param("injectId") @NotBlank String injectId, @Param("agentId") @NotBlank String agentId);
 
   @Query(
@@ -251,7 +255,7 @@ public interface InjectExpectationRepository
               + "AND i.asset.id = :assetId "
               + "AND i.agent IS NULL "
               + "ORDER BY i.type, i.createdAt")
-  List<TechnicalInjectExpectation> findAllByInjectAndAsset(
+  List<BaseInjectExpectation> findAllByInjectAndAsset(
       @Param("injectId") @NotBlank String injectId, @Param("assetId") @NotBlank String assetId);
 
   @Query(
@@ -274,7 +278,7 @@ public interface InjectExpectationRepository
               + "AND i.assetGroup.id = :assetGroupId "
               + "AND i.asset IS NULL "
               + "AND i.agent IS NULL ")
-  List<TechnicalInjectExpectation> findAllByInjectAndAssetGroup(
+  List<BaseInjectExpectation> findAllByInjectAndAssetGroup(
       @Param("injectId") @NotBlank final String injectId,
       @Param("assetGroupId") @NotBlank final String assetGroupId);
 

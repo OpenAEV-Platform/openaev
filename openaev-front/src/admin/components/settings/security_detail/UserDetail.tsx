@@ -8,6 +8,7 @@ import { fetchAllGroups, fetchUserById } from '../../../../actions/security/secu
 import { fetchUserSessions, killSession } from '../../../../actions/sessions/session-actions';
 import { deleteUser, updateUser, updateUserPassword } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
+import { DetailHero, DetailSections, Field, InformationGrid, Section } from '../../../../components/common/detail/EntityDetailCommon';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
@@ -22,7 +23,6 @@ import SessionsTable from '../sessions/SessionsTable';
 import PlatformUserPopover from '../users/platform_users/PlatformUserPopover';
 import UserPopover from '../users/tenant_users/UserPopover';
 import useSecurityScope from '../useSecurityScope';
-import { DetailHero, DetailSections, Field, InformationGrid, Section } from './SecurityDetailCommon';
 import { SecurityDetailNotFound } from './SecurityDetailNotFound';
 
 const UserDetail = () => {

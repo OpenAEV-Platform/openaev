@@ -87,7 +87,7 @@ const ScenarioInjects: FunctionComponent = () => {
                   teams={teams}
                   articles={articles}
                   variables={variables}
-                  uriVariable={`/admin/scenarios/${scenarioId}/definition`}
+                  uriVariable={`/admin/scenarios/${scenarioId}/injects`}
                   setViewMode={handleViewMode}
                   availableButtons={availableButtons}
                 />

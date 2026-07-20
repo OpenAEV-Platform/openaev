@@ -21,8 +21,10 @@ import { useHelper } from '../../../../../../../store';
 import {
   type AttackPattern,
   type EsBase,
+  type EsInjectExpectation,
   type ListConfiguration, type Pagination,
 } from '../../../../../../../utils/api-types';
+import { expectationTypeIcon } from '../../../../../common/ExpectationIconByType';
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
 import EndpointElementStyles from './elements/EndpointElementStyles';
@@ -68,6 +70,11 @@ const ListWidgetItem = memo<{
     onItemClick(element);
   }, [element, onItemClick]);
 
+  // Inject-expectation rows lead with the expectation-type icon (shield /
+  // sensor / bug / support agent...) instead of the generic device icon.
+  const expectationType = (element as EsInjectExpectation).inject_expectation_type;
+  const LeadingIcon = expectationType ? expectationTypeIcon(expectationType) : DevicesOtherOutlined;
+
   const renderedColumns = useMemo(() => columns.map((col) => {
     const renderer = listConfigRenderer[col] ?? defaultRenderer;
     const value = element[col as keyof typeof element] as string | boolean | string[] | boolean[];
@@ -100,7 +107,7 @@ const ListWidgetItem = memo<{
         className="noDrag"
       >
         <ListItemIcon>
-          <DevicesOtherOutlined color="primary" />
+          <LeadingIcon color="primary" />
         </ListItemIcon>
         <ListItemText
           primary={(

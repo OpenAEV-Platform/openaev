@@ -838,7 +838,7 @@ class InjectApiTest extends IntegrationTest {
       entityManager.clear();
 
       // -- ASSERT --
-      List<TechnicalInjectExpectation> injectExpectationSaved =
+      List<BaseInjectExpectation> injectExpectationSaved =
           injectExpectationRepository.findAllByInjectAndAgent(
               injectWrapper.get().getId(), agentWrapper.get().getId());
 
@@ -1288,7 +1288,7 @@ class InjectApiTest extends IntegrationTest {
         // -- ASSERT --
         entityManager.flush();
         entityManager.clear();
-        List<TechnicalInjectExpectation> injectExpectationSaved =
+        List<BaseInjectExpectation> injectExpectationSaved =
             injectExpectationRepository.findAllByInjectAndAgent(inject.getId(), agent.getId());
         assertEquals(1, injectExpectationSaved.size());
         List<InjectExpectationSignature> endDatesignatures =

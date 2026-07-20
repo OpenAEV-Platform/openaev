@@ -1,6 +1,5 @@
 import {
   CancelOutlined,
-  CheckOutlined,
   DomainOutlined,
   GroupsOutlined,
   PendingOutlined,
@@ -8,10 +7,9 @@ import {
   PersonOutlined,
   VerifiedOutlined,
 } from '@mui/icons-material';
-import { Box, Button, ButtonBase, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
 import { type ReactElement, useCallback, useMemo } from 'react';
 
+import { type FacetRow, type FacetSection, FacetSidebar } from '../../../components/common/facets/FacetFilters';
 import { type FilterHelpers } from '../../../components/common/queryable/filter/FilterHelpers';
 import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import { useFormatter } from '../../../components/i18n';
@@ -44,128 +42,6 @@ const authorIconComponent = (type?: string) => {
   }
 };
 
-interface FacetRow {
-  value: string;
-  label: string;
-  count?: number;
-  icon?: () => ReactElement;
-  onToggle: () => void;
-  checked: boolean;
-}
-
-interface FacetRowItemProps { row: FacetRow }
-
-// Same anatomy as the integrations marketplace CatalogSidebar row: custom
-// checkbox + optional icon + label + optional count badge.
-const FacetRowItem = ({ row }: FacetRowItemProps) => {
-  const theme = useTheme();
-  const disabled = row.count === 0 && !row.checked;
-  return (
-    <ButtonBase
-      role="checkbox"
-      aria-checked={row.checked}
-      aria-label={row.label}
-      disabled={disabled}
-      onClick={row.onToggle}
-      sx={{
-        'display': 'flex',
-        'alignItems': 'center',
-        'gap': 1,
-        'width': '100%',
-        'justifyContent': 'flex-start',
-        'padding': theme.spacing(0.5, 1),
-        'borderRadius': 1,
-        'textAlign': 'left',
-        'opacity': disabled ? 0.4 : 1,
-        'transition': 'background-color 0.15s ease',
-        '&:hover': { backgroundColor: theme.palette.action.hover },
-      }}
-    >
-      <span
-        aria-hidden
-        style={{
-          width: 16,
-          height: 16,
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: 2,
-          border: `1px solid ${row.checked ? theme.palette.primary.main : theme.palette.divider}`,
-          backgroundColor: row.checked ? theme.palette.primary.main : 'transparent',
-          boxShadow: row.checked ? `0 0 6px ${alpha(theme.palette.primary.main, 0.5)}` : 'none',
-          transition: 'all 0.15s ease',
-        }}
-      >
-        {row.checked && (
-          <CheckOutlined sx={{
-            fontSize: 12,
-            color: theme.palette.primary.contrastText,
-          }}
-          />
-        )}
-      </span>
-      {row.icon && (
-        <Box
-          aria-hidden
-          sx={{
-            'display': 'flex',
-            'alignItems': 'center',
-            'justifyContent': 'center',
-            'flexShrink': 0,
-            'color': 'text.secondary',
-            // Force a consistent 16px icon size (matching the integrations
-            // marketplace sidebar), whatever the underlying icon/image.
-            '& svg': { fontSize: 16 },
-            '& img': {
-              width: 16,
-              height: 16,
-            },
-          }}
-        >
-          {row.icon()}
-        </Box>
-      )}
-      <Typography
-        variant="body2"
-        sx={{
-          flex: 1,
-          minWidth: 0,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {row.label}
-      </Typography>
-      {row.count !== undefined && (
-        <span
-          style={{
-            fontSize: 11,
-            lineHeight: '18px',
-            minWidth: 24,
-            textAlign: 'center',
-            padding: theme.spacing(0, 0.5),
-            borderRadius: 2,
-            backgroundColor: row.checked
-              ? alpha(theme.palette.primary.main, 0.16)
-              : theme.palette.action.hover,
-            color: row.checked ? theme.palette.primary.main : theme.palette.text.secondary,
-          }}
-        >
-          {row.count}
-        </span>
-      )}
-    </ButtonBase>
-  );
-};
-
-interface FacetSection {
-  id: string;
-  label: string;
-  rows: FacetRow[];
-}
-
 interface Props {
   /** Domain facet rows (with live counts + icons), already ordered. */
   domainElements: IconBarElement[];
@@ -180,7 +56,6 @@ interface Props {
 // filters through `filterHelpers`. The generic "Add filter" bar still handles
 // every other property (injectors, tags, dates...).
 const ThreatArsenalSidebar = ({ domainElements, authorOptions, searchPaginationInput, filterHelpers }: Props) => {
-  const theme = useTheme();
   const { t } = useFormatter();
 
   const filters = useMemo(
@@ -413,85 +288,11 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, searchPaginationI
     || domainElements.some(e => e.color === 'success');
 
   return (
-    <aside
-      style={{
-        width: 250,
-        flexShrink: 0,
-        position: 'sticky',
-        top: theme.spacing(2),
-        alignSelf: 'flex-start',
-        maxHeight: `calc(100vh - ${theme.spacing(20)})`,
-        overflowY: 'auto',
-      }}
-    >
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: theme.spacing(2),
-        padding: theme.spacing(2),
-        borderRadius: theme.shape.borderRadius,
-        border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-        backgroundColor: theme.palette.background.paper,
-      }}
-      >
-        <header style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-        >
-          <Typography
-            sx={{
-              fontFamily: theme.typography.h1.fontFamily,
-              fontWeight: 600,
-              fontSize: 15,
-            }}
-          >
-            {t('Filters')}
-          </Typography>
-          {anyActive && (
-            <Button size="small" onClick={() => filterHelpers.handleClearAllFilters()}>
-              {t('Clear all')}
-            </Button>
-          )}
-        </header>
-        {sections.map((section, sectionIndex) => (
-          <section
-            key={section.id}
-            aria-label={section.label}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: theme.spacing(0.25),
-              ...(sectionIndex > 0
-                ? {
-                    borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.05)}`,
-                    paddingTop: theme.spacing(2),
-                  }
-                : {}),
-            }}
-          >
-            <Typography
-              component="h3"
-              sx={{
-                fontFamily: theme.typography.h1.fontFamily,
-                fontWeight: 600,
-                fontSize: 12,
-                textTransform: 'uppercase',
-                letterSpacing: '0.12em',
-                color: 'text.secondary',
-                paddingInline: 1,
-              }}
-            >
-              {section.label}
-            </Typography>
-            {section.rows.map(row => (
-              <FacetRowItem key={row.value} row={row} />
-            ))}
-          </section>
-        ))}
-      </div>
-    </aside>
+    <FacetSidebar
+      sections={sections}
+      anyActive={anyActive}
+      onClearAll={() => filterHelpers.handleClearAllFilters()}
+    />
   );
 };
 

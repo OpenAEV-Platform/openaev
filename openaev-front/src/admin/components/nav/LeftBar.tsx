@@ -5,12 +5,12 @@ import {
   DomainOutlined,
   ExtensionOutlined,
   GroupsOutlined,
-  HubOutlined,
   InsertChartOutlined,
   LayersOutlined,
-  MovieFilterOutlined,
   PersonOutlined,
+  PlayCircleOutlineOutlined,
   RocketLaunchOutlined,
+  RouteOutlined,
   RowingOutlined,
   SchoolOutlined,
 } from '@mui/icons-material';
@@ -69,13 +69,13 @@ const LeftBar = () => {
       items: [
         {
           path: `/admin/scenarios`,
-          icon: () => (<MovieFilterOutlined />),
+          icon: () => (<RouteOutlined />),
           label: 'Scenarios',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT),
         },
         {
           path: `/admin/simulations`,
-          icon: () => (<HubOutlined />),
+          icon: () => (<PlayCircleOutlineOutlined />),
           label: 'Simulations',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT),
         },
