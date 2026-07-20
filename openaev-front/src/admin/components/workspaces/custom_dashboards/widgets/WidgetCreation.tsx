@@ -61,6 +61,18 @@ const WidgetCreation: FunctionComponent = () => {
       width = 12;
       height = 4;
     }
+    if ('exposure-score' === input.widget_type || 'posture-radar' === input.widget_type) {
+      width = 4;
+      height = 6;
+    }
+    if ('resilience-gauge' === input.widget_type) {
+      width = 3;
+      height = 4;
+    }
+    if ('command-center' === input.widget_type) {
+      width = 12;
+      height = 6;
+    }
     const layout = {
       widget_layout_x: maxX,
       widget_layout_y: maxY,

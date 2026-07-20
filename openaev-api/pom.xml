@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>2.260710.0</version>
+        <version>2.260717.0</version>
     </parent>
 
     <artifactId>openaev-api</artifactId>
@@ -49,7 +49,7 @@
         <dependency>
             <groupId>io.openaev</groupId>
             <artifactId>openaev-framework</artifactId>
-            <version>2.260710.0</version>
+            <version>2.260717.0</version>
         </dependency>
         <dependency>
             <groupId>co.elastic.clients</groupId>
@@ -76,6 +76,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-freemarker</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.session</groupId>
+            <artifactId>spring-session-jdbc</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

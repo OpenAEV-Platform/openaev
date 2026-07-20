@@ -1,6 +1,5 @@
 package io.openaev.telemetry.metric_collectors;
 
-import static io.openaev.service.InjectorService.DUMMY_SUFFIX;
 import static io.opentelemetry.api.common.AttributeKey.booleanKey;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
@@ -73,11 +72,6 @@ public class InventoryMetricCollector {
       for (BaseConnectorEntity entity : entitiesSupplier.get()) {
         String type = entity.getType() == null ? "" : entity.getType().trim();
         if (type.isEmpty()) {
-          continue;
-        }
-        // Placeholder injectors created by the starter-pack import (before the real
-        // injector registers) are not deployed components; keep them out of the inventory.
-        if (type.endsWith(DUMMY_SUFFIX)) {
           continue;
         }
         CatalogConnector catalogConnector = catalogByConnectorId.get(entity.getId());

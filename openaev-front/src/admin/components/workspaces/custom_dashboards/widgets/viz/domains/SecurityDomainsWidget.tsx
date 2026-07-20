@@ -1,5 +1,5 @@
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo, useState } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
 import { type DomainHelper } from '../../../../../../../actions/domains/domain-helper';
 import { useHelper } from '../../../../../../../store';
@@ -8,7 +8,8 @@ import { TO_CLASSIFY } from '../../../../../../../utils/domains/domainUtils';
 import SecurityDomainCardWidget from './SecurityDomainCardWidget';
 import {
   EMPTY_DATA,
-  type EsAvgsExtended, orderDomains,
+  type EsAvgsExtended,
+  orderDomains,
 } from './SecurityDomainsWidgetUtils';
 
 interface Props {
@@ -16,21 +17,8 @@ interface Props {
   data: EsAvgsExtended;
 }
 
-const useStyles = makeStyles()(theme => ({
-  widgetContainer: {
-    width: '100%',
-    height: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-evenly',
-    gap: theme.spacing(1),
-    overflowX: 'auto',
-    overflowY: 'hidden',
-  },
-}));
-
 const SecurityDomainsWidget: FunctionComponent<Props> = ({ widgetId, data }) => {
-  const { classes } = useStyles();
+  const theme = useTheme();
 
   const [selectedDomainName, setSelectedDomainName] = useState<string | null>(null);
   const onCardDomainClick = (type: string) => setSelectedDomainName(current => (current === type ? null : type));
@@ -46,7 +34,18 @@ const SecurityDomainsWidget: FunctionComponent<Props> = ({ widgetId, data }) => 
   );
 
   return (
-    <div className={classes.widgetContainer}>
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'stretch',
+        gap: theme.spacing(1.5),
+        padding: theme.spacing(0.5),
+        overflowX: 'auto',
+        overflowY: 'hidden',
+      }}
+    >
       {orderedDomains.map((domain) => {
         const { domain_name } = domain;
         const domainData = domainDataMap.get(domain_name) ?? {

@@ -66,7 +66,7 @@ test.describe('Catalog — injector installation per tenant', () => {
     // ─────────────────────────────────────────────────
     // Arrange
     const catalogPage = new CatalogPage(page);
-    await page.goto(tenantUrl('/admin/integrations/catalog', newTenantId!));
+    await page.goto(tenantUrl('/admin/integrations/available', newTenantId!));
     await catalogPage.waitForLoad();
     // Act: search for Nmap and click Deploy
     await catalogPage.searchConnector('Nmap');
@@ -80,7 +80,7 @@ test.describe('Catalog — injector installation per tenant', () => {
     // ─────────────────────────────────────────────────
     // Navigate to the injectors list (catalog may or may not auto-redirect)
     const injectorsListPage = new InjectorsListPage(page);
-    await page.goto(tenantUrl('/admin/integrations/injectors', newTenantId!));
+    await page.goto(tenantUrl('/admin/integrations/deployed', newTenantId!));
     await injectorsListPage.waitForLoad();
     // Wait for the connector instance to appear as a (possibly pending) card
     await injectorsListPage.waitForConnectorToAppear(NMAP_INJECTOR_NAME);
@@ -130,7 +130,7 @@ test.describe('Catalog — injector installation per tenant', () => {
     // Step — Verify "Nmap - Tenant A" is NOT visible in the default tenant
     // ─────────────────────────────────────────────────
     // Arrange: navigate to the injectors list in the default tenant
-    await page.goto(tenantUrl('/admin/integrations/injectors'));
+    await page.goto(tenantUrl('/admin/integrations/deployed'));
     await injectorsListPage.waitForLoad();
     // Assert: the collector name from Tenant A must not appear here
     await expect(page.getByText(NMAP_INJECTOR_NAME)).toBeHidden();

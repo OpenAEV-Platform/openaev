@@ -71,6 +71,10 @@ public enum ContractFieldType {
   @JsonProperty("asset-group")
   AssetGroup("asset-group"),
 
+  /** AI target selector field (LLM endpoint / AI agent under adversarial test). */
+  @JsonProperty("ai-target")
+  AiTarget("ai-target"),
+
   /** Payload selector field. */
   @JsonProperty("payload")
   Payload("payload"),

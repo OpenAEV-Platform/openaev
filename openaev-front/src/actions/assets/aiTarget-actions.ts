@@ -8,7 +8,7 @@ import {
   simpleCall,
   simplePostCall,
 } from '../../utils/Action';
-import { type AiTarget, type AiTargetInput, type SearchPaginationInput } from '../../utils/api-types';
+import { type AiTargetInput, type Asset, type SearchPaginationInput } from '../../utils/api-types';
 import { aiTarget, arrayOfAiTargets } from './asset-schema';
 
 const AI_TARGET_URI = '/api/ai_targets';
@@ -18,14 +18,14 @@ export const addAiTarget = (data: AiTargetInput) => (dispatch: Dispatch) => {
 };
 
 export const updateAiTarget = (
-  assetId: AiTarget['asset_id'],
+  assetId: Asset['asset_id'],
   data: AiTargetInput,
 ) => (dispatch: Dispatch) => {
   const uri = `${AI_TARGET_URI}/${assetId}`;
   return putReferential(aiTarget, uri, data)(dispatch);
 };
 
-export const deleteAiTarget = (assetId: AiTarget['asset_id']) => (dispatch: Dispatch) => {
+export const deleteAiTarget = (assetId: Asset['asset_id']) => (dispatch: Dispatch) => {
   const uri = `${AI_TARGET_URI}/${assetId}`;
   return delReferential(uri, aiTarget.key, assetId)(dispatch);
 };
@@ -38,6 +38,12 @@ export const searchAiTargets = (searchPaginationInput: SearchPaginationInput) =>
   const data = searchPaginationInput;
   const uri = `${AI_TARGET_URI}/search`;
   return simplePostCall(uri, data);
+};
+
+// Single AI target with its full connection config (provider / endpoint / model / token), used to
+// prefill the edit form from the unified inventory where the row only carries the shared fields.
+export const fetchAiTargetById = (assetId: string) => {
+  return simpleCall(`${AI_TARGET_URI}/${assetId}`);
 };
 
 export const searchAiTargetAsOption = (searchText: string = '') => {

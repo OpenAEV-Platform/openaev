@@ -1,5 +1,4 @@
 import { Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../../../components/i18n';
 import { type ExecutionTraceOutput } from '../../../../../../utils/api-types';
@@ -9,7 +8,6 @@ interface Props { traces?: ExecutionTraceOutput[] }
 
 const MainTraces = ({ traces }: Props) => {
   const { t } = useFormatter();
-  const theme = useTheme();
 
   if (!traces || traces.length === 0) return null;
 
@@ -17,10 +15,7 @@ const MainTraces = ({ traces }: Props) => {
     <>
       <Typography
         variant="subtitle1"
-        style={{
-          fontWeight: 'bold',
-          marginTop: theme.spacing(3),
-        }}
+        style={{ fontWeight: 'bold' }}
         gutterBottom
       >
         {t('Traces')}

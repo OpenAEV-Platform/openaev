@@ -1,8 +1,8 @@
 import { DomainOutlined, FileDownloadOutlined } from '@mui/icons-material';
-import { IconButton, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
+import { IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
 import { type CSSProperties } from 'react';
 import { CSVLink } from 'react-csv';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type OrganizationHelper, type UserHelper } from '../../../actions/helper';
@@ -13,6 +13,7 @@ import useBodyItemsStyles from '../../../components/common/queryable/style/style
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import SearchFilter from '../../../components/SearchFilter';
+import { ORGANIZATION_BASE_URL } from '../../../constants/BaseUrls';
 import { useHelper } from '../../../store';
 import { type Organization } from '../../../utils/api-types';
 import { exportData } from '../../../utils/Environment';
@@ -43,7 +44,6 @@ const useStyles = makeStyles()(() => ({
     cursor: 'pointer',
     paddingLeft: 10,
   },
-  item: { height: 50 },
   downloadButton: { marginRight: 15 },
 }));
 
@@ -80,6 +80,7 @@ const inlineStyles: Record<string, CSSProperties> = {
 const Organizations = () => {
   // Standard hooks
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
@@ -206,7 +207,6 @@ const Organizations = () => {
           {sortedOrganizations.map(organization => (
             <ListItem
               key={organization.organization_id}
-              classes={{ root: classes.item }}
               secondaryAction={(
                 <OrganizationPopover
                   organization={organization}
@@ -215,46 +215,52 @@ const Organizations = () => {
                 />
               )}
               divider
+              disablePadding
             >
-              <ListItemIcon>
-                <DomainOutlined color="primary" />
-              </ListItemIcon>
-              <ListItemText
-                primary={(
-                  <div style={bodyItemsStyles.bodyItems}>
-                    <div
-                      style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles.organization_name,
-                      }}
-                    >
-                      {organization.organization_name}
+              <ListItemButton
+                onClick={() => navigate(`${ORGANIZATION_BASE_URL}/${organization.organization_id}`)}
+                sx={{ height: 50 }}
+              >
+                <ListItemIcon>
+                  <DomainOutlined color="primary" />
+                </ListItemIcon>
+                <ListItemText
+                  primary={(
+                    <div style={bodyItemsStyles.bodyItems}>
+                      <div
+                        style={{
+                          ...bodyItemsStyles.bodyItem,
+                          ...inlineStyles.organization_name,
+                        }}
+                      >
+                        {organization.organization_name}
+                      </div>
+                      <div
+                        style={{
+                          ...bodyItemsStyles.bodyItem,
+                          ...inlineStyles.organization_description,
+                        }}
+                      >
+                        {truncate(
+                          organization.organization_description || '-',
+                          50,
+                        )}
+                      </div>
+                      <div
+                        style={{
+                          ...bodyItemsStyles.bodyItem,
+                          ...inlineStyles.organization_tags,
+                        }}
+                      >
+                        <ItemTags
+                          variant="list"
+                          tags={organization.organization_tags}
+                        />
+                      </div>
                     </div>
-                    <div
-                      style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles.organization_description,
-                      }}
-                    >
-                      {truncate(
-                        organization.organization_description || '-',
-                        50,
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles.organization_tags,
-                      }}
-                    >
-                      <ItemTags
-                        variant="list"
-                        tags={organization.organization_tags}
-                      />
-                    </div>
-                  </div>
-                )}
-              />
+                  )}
+                />
+              </ListItemButton>
             </ListItem>
           ))}
         </List>

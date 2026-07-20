@@ -40,7 +40,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.hibernate.Session;
-import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -197,12 +196,47 @@ class TenantServiceTest extends IntegrationTest {
     TenantInput duplicateNameInput = new TenantInput("Tenant A", null);
 
     // -- ACT & ASSERT --
-    assertThatThrownBy(
-            () -> {
-              tenantService.update(tenantB.getId(), duplicateNameInput);
-              entityManager.flush();
-            })
-        .isInstanceOf(ConstraintViolationException.class);
+    assertThatThrownBy(() -> tenantService.update(tenantB.getId(), duplicateNameInput))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("Tenant name already used");
+  }
+
+  @Test
+  void should_update_tenant_to_same_name_without_error() {
+    // -- ARRANGE --
+    Tenant existing = getTenant("Tenant Same");
+    tenantComposer.forTenant(existing).persist();
+
+    // -- ACT --
+    TenantInput sameNameInput = new TenantInput("Tenant Same", null);
+    Tenant updated = tenantService.update(existing.getId(), sameNameInput);
+
+    // -- ASSERT --
+    assertThat(updated.getName()).isEqualTo("Tenant Same");
+  }
+
+  @Test
+  void should_update_default_tenant_to_unique_name() {
+    // -- ACT --
+    TenantInput input = new TenantInput("Renamed Default", null);
+    Tenant updated = tenantService.update(DEFAULT_TENANT_UUID, input);
+
+    // -- ASSERT --
+    assertThat(updated.getName()).isEqualTo("Renamed Default");
+  }
+
+  @Test
+  void should_fail_when_updating_default_tenant_to_existing_name() {
+    // -- ARRANGE --
+    Tenant other = getTenant("Existing Name");
+    tenantComposer.forTenant(other).persist();
+
+    TenantInput input = new TenantInput("Existing Name", null);
+
+    // -- ACT & ASSERT --
+    assertThatThrownBy(() -> tenantService.update(DEFAULT_TENANT_UUID, input))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("Tenant name already used");
   }
 
   @Test

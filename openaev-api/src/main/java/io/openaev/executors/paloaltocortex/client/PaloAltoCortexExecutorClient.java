@@ -174,7 +174,11 @@ public class PaloAltoCortexExecutorClient {
       return httpClient.execute(
           httpPost,
           response -> {
-            if (response.getCode() >= 400) {
+            if (response.getCode() == 401) {
+              log.error(
+                  "Palo Alto Cortex authentication failed: API key is invalid or expired"
+                      + " (HTTP 401).");
+            } else if (response.getCode() >= 400) {
               log.warn(
                   "Unexpected response for HTTP POST Palo Alto Cortex: {} {}",
                   response.getCode(),

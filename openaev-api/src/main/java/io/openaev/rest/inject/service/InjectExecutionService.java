@@ -2,8 +2,6 @@ package io.openaev.rest.inject.service;
 
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.WorkflowUpdateEvent;
@@ -15,7 +13,6 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.InjectExpectationService;
 import jakarta.annotation.Nullable;
-import jakarta.annotation.Resource;
 import java.time.Instant;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -37,8 +34,6 @@ public class InjectExecutionService {
 
   private final AgentExecutionProcessingHandler agentExecutionProcessingHandler;
   private final InjectorExecutionProcessingHandler injectorExecutionProcessingHandler;
-
-  @Resource protected ObjectMapper mapper;
 
   @Transactional
   @WorkflowUpdateEvent(injectId = "#injectId")
@@ -105,20 +100,27 @@ public class InjectExecutionService {
       @Nullable Agent agent,
       InjectExecutionInput input,
       AbstractExecutionProcessingHandler handler) {
+    // Output post-processing (targeted-asset resolution, findings / vulnerability / asset
+    // extraction) is best-effort: a failure here must NOT prevent the terminal status trace from
+    // being recorded. Otherwise the callback is dropped (the async trace queue swallows the
+    // exception) and the inject stays stuck in PENDING forever, or an ERROR-only run is lost.
+    // We always record the status the injector/agent reported; on failure we simply lose the
+    // derived findings, not the execution outcome.
+    ObjectNode resolvedStructured = null;
     try {
       Map<String, Endpoint> valueTargetedAssetsMap = injectService.getValueTargetedAssetMap(inject);
-      // Build the context encapsulating all execution data and conditions (success, action, source)
       ExecutionProcessingContext executionContext =
           new ExecutionProcessingContext(inject, agent, input, valueTargetedAssetsMap);
-      // Delegate to the appropriate handler (injector or agent) to process output execution
-      ObjectNode resolvedStructured = handler.processContext(executionContext).orElse(null);
-
-      injectStatusService.updateInjectStatus(inject, agent, input, resolvedStructured);
-      addEndDateInjectExpectationTimeSignatureIfNeeded(inject, agent, input);
-
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException("Failed to process inject execution for inject", e);
+      resolvedStructured = handler.processContext(executionContext).orElse(null);
+    } catch (Exception e) {
+      log.error(
+          "Output post-processing failed for inject {}; recording execution status without derived findings",
+          inject.getId(),
+          e);
     }
+
+    injectStatusService.updateInjectStatus(inject, agent, input, resolvedStructured);
+    addEndDateInjectExpectationTimeSignatureIfNeeded(inject, agent, input);
   }
 
   /**

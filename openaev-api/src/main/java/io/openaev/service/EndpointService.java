@@ -21,6 +21,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.audit.AuditLoggedService;
+import io.openaev.database.audit.IndexEvent;
+import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.AssetAgentJobSpecification;
@@ -54,6 +56,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
@@ -125,6 +128,7 @@ public class EndpointService implements AuditLoggedService {
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final TenantRepository tenantRepository;
+  private final ApplicationEventPublisher eventPublisher;
 
   // -- CRUD --
   public Endpoint createEndpoint(@NotNull final Endpoint endpoint) {
@@ -216,6 +220,9 @@ public class EndpointService implements AuditLoggedService {
 
   public void deleteEndpoint(@NotBlank final String endpointId) {
     this.endpointRepository.deleteById(endpointId);
+    // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
+    // must be notified explicitly (endpoint + vulnerable-endpoint docs would stay stale).
+    eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, endpointId));
   }
 
   /**
@@ -385,7 +392,6 @@ public class EndpointService implements AuditLoggedService {
    * @param existingAgents in the database
    * @return OpenAEV agents
    */
-  @Transactional
   public List<Agent> syncAgentsEndpoints(
       List<AgentRegisterInput> inputs, List<Agent> existingAgents, @NotNull String tenantId) {
     log.info(

@@ -1,6 +1,7 @@
 import { PermIdentityOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router';
 
 import PaginatedList from '../../../../../components/common/list/PaginatedList';
 import PaginationComponentV2 from '../../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -9,6 +10,7 @@ import SortHeadersComponentV2 from '../../../../../components/common/queryable/s
 import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
+import { USER_BASE_URL } from '../../../../../constants/BaseUrls';
 import { type UserOutput } from '../../../../../utils/api-types';
 import { Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -26,6 +28,7 @@ import {
 
 const PlatformUsersTab = () => {
   const { t } = useFormatter();
+  const navigate = useNavigate();
   const {
     platformUsers,
     setPlatformUserList,
@@ -87,6 +90,7 @@ const PlatformUsersTab = () => {
                 headers={headers}
                 items={platformUsers}
                 rowKey="user_id"
+                onRowClick={user => navigate(`${USER_BASE_URL}/${user.user_id}?scope=platform`)}
                 itemWidth={PLATFORM_USER_INLINE_STYLES}
               />
             )}

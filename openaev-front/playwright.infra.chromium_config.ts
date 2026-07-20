@@ -12,6 +12,11 @@ import baseConfig from './playwright.config';
 
 export default defineConfig({
   ...baseConfig,
+  // Infra specs install a real agent and launch atomic tests that take several
+  // minutes each. The base config retries twice on CI, which - combined with the
+  // beforeAll agent reinstall - can push this job past its 30 min budget. One
+  // retry still absorbs a single flake while keeping the worst case bounded.
+  retries: process.env.CI ? 1 : 0,
   projects: [
     {
       name: 'setup',

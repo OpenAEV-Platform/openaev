@@ -183,19 +183,25 @@ export const colorByAverageForExpectation = (average: number, theme: Theme): str
 };
 
 /**
+ * Case-insensitive status matcher: ES bucket keys depend on the keyword normalizer of the live
+ * mapping (may be "SUCCESS" or "success"), so status comparisons must never be case-sensitive.
+ */
+export const isStatus = (value: string | null | undefined, status: string): boolean =>
+  (value ?? '').toUpperCase() === status.toUpperCase();
+
+/**
  * Define the colors of the percentage displayed on each lines of a domain
  * @param label to calculate
  * @param theme to get colors values
  */
 export const colorByLabel = (label: string | null, theme: Theme): string => {
-  switch (label) {
-    case 'success':
-      return theme.palette.widgets.securityDomains.colors.success;
-    case 'failed':
-      return theme.palette.widgets.securityDomains.colors.failed;
-    default:
-      return theme.palette.widgets.securityDomains.colors.pending;
+  if (isStatus(label, 'SUCCESS')) {
+    return theme.palette.widgets.securityDomains.colors.success;
   }
+  if (isStatus(label, 'FAILED')) {
+    return theme.palette.widgets.securityDomains.colors.failed;
+  }
+  return theme.palette.widgets.securityDomains.colors.pending;
 };
 
 /**
@@ -235,11 +241,16 @@ const manageExpectationByDomainAndType = (esSerie: EsSeries, theme: Theme): EsEx
     } as EsExpectationByDomainTypeAndStatus;
   });
 
-  // Determine the information for the icon of the expectation line of a domain, from the success value
-  const successExpectationByDomainAndType = esSerie.data?.find(expectationData => expectationData.key === 'success');
-  const successRate = successExpectationByDomainAndType?.value && esSerie?.value
-    ? calcPercentage(successExpectationByDomainAndType.value, esSerie.value)
-    : 0;
+  // Success rate over RESOLVED expectations only (success + failed): pending/unknown docs must
+  // not deflate the rate (the resilience gauges use the same denominator). Status keys are
+  // matched case-insensitively (raw ES bucket keys). No resolved data -> -1 (empty state, grey).
+  const success = esSerie.data
+    ?.filter(d => isStatus(d.key, 'SUCCESS'))
+    .reduce((acc, d) => acc + (d.value ?? 0), 0) ?? 0;
+  const failed = esSerie.data
+    ?.filter(d => isStatus(d.key, 'FAILED'))
+    .reduce((acc, d) => acc + (d.value ?? 0), 0) ?? 0;
+  const successRate = calcPercentage(success, success + failed);
 
   return {
     ...esSerie,

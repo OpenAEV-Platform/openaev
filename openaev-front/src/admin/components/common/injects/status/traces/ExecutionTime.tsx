@@ -37,14 +37,24 @@ const ExecutionTime = ({ startDate, endDate, style = {} }: Props) => {
   ];
 
   return (
-    <div style={style}>
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        columnGap: theme.spacing(2),
+        rowGap: theme.spacing(0.5),
+        padding: theme.spacing(0.5, 0),
+        ...style,
+      }}
+    >
       {items.map(item => (
         <div
           key={item.label}
           style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr',
-            padding: theme.spacing(0.5, 0),
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: theme.spacing(0.75),
+            minWidth: 0,
           }}
         >
           <Typography
@@ -53,6 +63,7 @@ const ExecutionTime = ({ startDate, endDate, style = {} }: Props) => {
               color: 'text.secondary',
               textTransform: 'uppercase',
               letterSpacing: 0.5,
+              whiteSpace: 'nowrap',
             }}
           >
             {item.label}

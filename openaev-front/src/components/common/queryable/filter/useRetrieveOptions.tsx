@@ -16,6 +16,7 @@ import { searchScenarioByIdAsOption } from '../../../../actions/scenarios/scenar
 import { searchSimulationByIdAsOptions } from '../../../../actions/simulations/simulation-action';
 import { searchTagByIdAsOption } from '../../../../actions/tags/tag-action';
 import { searchTeamByIdAsOption } from '../../../../actions/teams/team-actions';
+import { searchPlayerByIdAsOption } from '../../../../actions/users/User';
 import ContractOutputElementType from '../../../../admin/components/findings/ContractOutputElementType';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
@@ -78,6 +79,7 @@ const useRetrieveOptions = () => {
       case 'action_domains':
       case 'injector_contract_domains':
       case 'inject_contract_domains':
+      case 'base_security_domains_side':
         searchDomainsByIdsAsOption(ids).then((response) => {
           setOptions(response.data);
         });
@@ -179,6 +181,17 @@ const useRetrieveOptions = () => {
       case 'user_organization':
         searchOrganizationByIdAsOptions(ids).then((response) => {
           setOptions(response.data);
+        });
+        break;
+      // Author filter: an id may belong to a person, a team or an organization -
+      // resolve across all three and merge (each id only matches its own type).
+      case 'action_author':
+        Promise.all([
+          searchPlayerByIdAsOption(ids),
+          searchTeamByIdAsOption(ids),
+          searchOrganizationByIdAsOptions(ids),
+        ]).then(([players, teams, organizations]) => {
+          setOptions([...players.data, ...teams.data, ...organizations.data]);
         });
         break;
       case CUSTOM_DASHBOARD:
