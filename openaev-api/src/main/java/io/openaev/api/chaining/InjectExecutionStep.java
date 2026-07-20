@@ -579,10 +579,13 @@ public class InjectExecutionStep implements ActionStep {
             }
             String agentId =
                 executionTrace.getAgent().getId() + executionTrace.getAgent().getAsset().getId();
-            tracesByEndpointSource
-                .computeIfAbsent(agentId, k -> new StringBuilder())
-                .append(executionTrace.getTime())
-                .append(" ")
+            StringBuilder agentTraces =
+                tracesByEndpointSource.computeIfAbsent(agentId, k -> new StringBuilder());
+            // A trace with no timestamp must not render a literal "null" at the start of the line.
+            if (executionTrace.getTime() != null) {
+              agentTraces.append(executionTrace.getTime()).append(" ");
+            }
+            agentTraces
                 .append(executionTrace.getStatus().name())
                 .append(" ")
                 .append(executionTrace.getMessage())
@@ -593,10 +596,13 @@ public class InjectExecutionStep implements ActionStep {
       String injectorId = inject.getInjector().getId();
       executionTraces.forEach(
           executionTrace -> {
-            tracesByEndpointSource
-                .computeIfAbsent(injectorId, k -> new StringBuilder())
-                .append(executionTrace.getTime())
-                .append(" ")
+            StringBuilder injectorTraces =
+                tracesByEndpointSource.computeIfAbsent(injectorId, k -> new StringBuilder());
+            // A trace with no timestamp must not render a literal "null" at the start of the line.
+            if (executionTrace.getTime() != null) {
+              injectorTraces.append(executionTrace.getTime()).append(" ");
+            }
+            injectorTraces
                 .append(executionTrace.getStatus().name())
                 .append(" ")
                 .append(executionTrace.getMessage())
