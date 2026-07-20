@@ -38,7 +38,10 @@ immediately sees the highest-leverage endpoints to fix and can trust what the co
 ## Functional requirements
 
 ### Prioritization & legibility (P0)
-- FR1: The graph MUST auto-fit/centre on initial load and after every expand/collapse.
+- FR1: The graph MUST auto-fit/centre on initial load, on simulation switch, on focus transitions
+  (entering/leaving the focused path), and on **collapse** (which removes nodes and would otherwise
+  leave the analyst lost). It MUST NOT re-fit on **expand** / reveal-more — the current zoom/pan is
+  preserved while drilling down.
 - FR2: The top-chokepoints count MUST be visible on landing (summary card), and the ranked list
   MUST be one click away via the card popover — which scales to any number of chokepoints, unlike a
   fixed inline strip.

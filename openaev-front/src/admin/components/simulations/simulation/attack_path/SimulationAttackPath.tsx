@@ -380,6 +380,9 @@ const SimulationAttackPath = () => {
   // Progressive endpoint reveal: the "+N" header toggles expand/collapse; an "+rest" overflow reveals
   // the next batch.
   const onClusterClick = useCallback((injectorId: string, kind: 'header' | 'overflow') => {
+    // Collapsing removes many nodes: re-fit so the user isn't left staring at an empty region.
+    // Expanding (or revealing more) keeps the current zoom/pan so drilling down stays put.
+    const collapsing = kind === 'header' && (endpointBatch.get(injectorId) ?? 0) > 0;
     setEndpointBatch((prev) => {
       const next = new Map(prev);
       const current = prev.get(injectorId) ?? 0;
@@ -392,7 +395,10 @@ const SimulationAttackPath = () => {
       }
       return next;
     });
-  }, []);
+    if (collapsing) {
+      setFitNonce(n => n + 1);
+    }
+  }, [endpointBatch]);
 
   // injector id -> refs of the endpoints it reached (asset ref or id), for the bounded finding fetch.
   const injectorEndpointRefs = useMemo(() => {
@@ -466,10 +472,6 @@ const SimulationAttackPath = () => {
   // next batch. The cluster carries its own key; an endpoint ref scopes the fetch to that host.
   const onFindingClusterClick = useCallback(
     (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow') => {
-      // In the focused finding-path view, any expand/collapse re-lays out the sub-graph, so refit it.
-      if (pathFinding) {
-        setFitNonce(n => n + 1);
-      }
       if (kind === 'overflow') {
         setFindingBatch(prev => new Map(prev).set(clusterId, (prev.get(clusterId) ?? 0) + FINDING_BATCH_SIZE));
         return;
@@ -482,6 +484,8 @@ const SimulationAttackPath = () => {
         });
         setSelectedFindingId(null);
         setFindingDetail(null);
+        // Collapsing removes nodes: refit so the layout stays readable. Expanding keeps the view.
+        setFitNonce(n => n + 1);
         return;
       }
       setExpandedFindingClusters(prev => new Set(prev).add(clusterId));
@@ -1772,7 +1776,6 @@ const SimulationAttackPath = () => {
                     onInjectorSelect={onInjectorSelect}
                     focusRequest={focusRequest}
                     fitRequest={fitNonce}
-                    fitOnNodesChange={!pathFinding}
                     showMiniMap={!pathFinding && nodes.length > 40}
                   />
                   <AttackPathLegend collapseSignal={legendCollapseNonce} />

@@ -10,7 +10,7 @@ import {
   useNodesState,
   useReactFlow,
 } from '@xyflow/react';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 
 import { AP_FLOW_NODE_TYPE, type AttackPathFlowEdge, type AttackPathFlowNode, type AttackPathFlowNodeData } from './attack-path-flow-helpers';
 import edgeTypes from './edges';
@@ -38,10 +38,6 @@ interface AttackPathFlowProps {
   focusRequest?: AttackPathFocusRequest | null;
   // A bump to fit the whole graph in view (used when switching to the focused finding-path view).
   fitRequest?: number;
-  // Re-fit the graph whenever the set of nodes changes (expand/collapse/batch reveal). Enabled in the
-  // clustered view so newly revealed nodes are always framed; off in the focused path view (fitRequest
-  // drives that one) to avoid fighting the single-node cross-focus.
-  fitOnNodesChange?: boolean;
   // Show the minimap (only worth it on large graphs; hidden in the focused finding-path view).
   showMiniMap?: boolean;
 }
@@ -59,7 +55,6 @@ const AttackPathFlow = ({
   onInjectorSelect,
   focusRequest,
   fitRequest,
-  fitOnNodesChange = false,
   showMiniMap = true,
 }: AttackPathFlowProps) => {
   const theme = useTheme();
@@ -97,23 +92,6 @@ const AttackPathFlow = ({
     }
     return undefined;
   }, [fitRequest, reactFlow]);
-
-  // Auto-fit after expand/collapse/batch-reveal in the clustered view: the node id set changes, so
-  // frame the new layout. Skips the first render (the ReactFlow `fitView` prop already frames the
-  // initial graph) to avoid a redundant animation on mount.
-  const nodesSignature = nodes.map(n => n.id).join('|');
-  const firstFitSkipped = useRef(false);
-  useEffect(() => {
-    if (!fitOnNodesChange) {
-      return undefined;
-    }
-    if (!firstFitSkipped.current) {
-      firstFitSkipped.current = true;
-      return undefined;
-    }
-    const id = window.setTimeout(() => reactFlow.fitView({ duration: 400 }), 60);
-    return () => window.clearTimeout(id);
-  }, [nodesSignature, fitOnNodesChange, reactFlow]);
 
   return (
     <ReactFlow
