@@ -45,6 +45,7 @@ class WorkflowServiceTest {
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private StepService stepService;
   @Mock private StepDelayQueueService stepDelayQueueService;
+  @Mock private SimulationRateLimitService simulationRateLimitService;
   @Mock private WorkflowStateService workflowStateService;
   @Mock private ScopeMetricCollector scopeMetricCollector;
   @Mock private ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
@@ -129,7 +130,7 @@ class WorkflowServiceTest {
       assertEquals(exercise, savedWorkflow.getSimulation());
       // Configuration defaults stored inline on the workflow row
       assertFalse(savedWorkflow.isRateLimitEnabled());
-      assertFalse(savedWorkflow.isTimeoutEnabled());
+      assertTrue(savedWorkflow.isTimeoutEnabled());
       assertEquals(
           WorkflowService.DEFAULT_TIMEOUT_SECONDS,
           savedWorkflow.getTimeoutSeconds(),
@@ -153,7 +154,7 @@ class WorkflowServiceTest {
       assertEquals(WorkflowStatus.TEMPLATE, savedWorkflow.getStatus());
       assertEquals(scenario, savedWorkflow.getScenario());
       assertFalse(savedWorkflow.isRateLimitEnabled());
-      assertFalse(savedWorkflow.isTimeoutEnabled());
+      assertTrue(savedWorkflow.isTimeoutEnabled());
       assertEquals(
           WorkflowService.DEFAULT_TIMEOUT_SECONDS,
           savedWorkflow.getTimeoutSeconds(),
@@ -735,6 +736,7 @@ class WorkflowServiceTest {
               previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
+              simulationRateLimitService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
@@ -950,6 +952,7 @@ class WorkflowServiceTest {
               previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
+              simulationRateLimitService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
@@ -1130,6 +1133,7 @@ class WorkflowServiceTest {
               previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
+              simulationRateLimitService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
@@ -1271,7 +1275,7 @@ class WorkflowServiceTest {
           .thenReturn(List.of(stepTemplate));
       // Active steps (RUN or READY) exist
       when(stepService.countActiveSteps(workflowRunId)).thenReturn(2L);
-      when(stepService.createReadySteps(stepTemplate, workflowRun, null))
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
           .thenReturn(Collections.emptyList());
 
       // Act
@@ -1306,7 +1310,7 @@ class WorkflowServiceTest {
           .thenReturn(List.of(stepTemplate));
       // No active steps
       when(stepService.countActiveSteps(workflowRunId)).thenReturn(0L);
-      when(stepService.createReadySteps(stepTemplate, workflowRun, null))
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
           .thenReturn(Collections.emptyList());
       // Delay queue has entries
       StepDelayQueue delayedEntry = mock(StepDelayQueue.class);
@@ -1346,7 +1350,7 @@ class WorkflowServiceTest {
       // No pre-existing active steps
       when(stepService.countActiveSteps(workflowRunId)).thenReturn(0L);
       // But createReadySteps produces a new ready step
-      when(stepService.createReadySteps(stepTemplate, workflowRun, null))
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
           .thenReturn(List.of(stepReady));
 
       // Act
@@ -1382,7 +1386,7 @@ class WorkflowServiceTest {
           .thenReturn(List.of(stepTemplate));
       // No active steps
       when(stepService.countActiveSteps(workflowRunId)).thenReturn(0L);
-      when(stepService.createReadySteps(stepTemplate, workflowRun, null))
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
           .thenReturn(Collections.emptyList());
       // Delay queue is empty
       when(stepDelayQueueService.findAllByWorkflowRun(workflowRun))

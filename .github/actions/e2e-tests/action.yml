@@ -17,6 +17,23 @@ inputs:
   browser:
     description: "Browser name (chrome, chromium, webkit, or firefox) — used for artifact naming and browser install."
     required: true
+  artifact-name-prefix:
+    description: >
+      Base name for the uploaded Playwright report artifact. Override
+      per caller when the matrix does NOT vary on `browser` (e.g.
+      e2e-infra-tests varies on `arch` instead, with `browser` fixed to
+      `chromium`), so the two callers' artifacts stay visually distinct
+      in the Actions UI.
+    required: false
+    default: "playwright-report"
+  artifact-suffix:
+    description: >
+      Suffix appended to the report artifact name to keep it unique per
+      matrix leg when `browser` alone doesn't vary across the matrix
+      (e.g. matrix.arch for e2e-infra-tests). Leave empty when `browser`
+      already uniquely identifies the leg (e.g. e2e-tests).
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -65,7 +82,7 @@ runs:
         java-version: "21"
         distribution: temurin
     - name: Set up Node.js 22.11
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: "22.23.1"
     - name: Install corepack
@@ -243,7 +260,7 @@ runs:
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v7
       with:
-        name: playwright-report-${{ inputs.browser }}
+        name: ${{ inputs.artifact-name-prefix }}-${{ inputs.browser }}${{ inputs.artifact-suffix != '' && format('-{0}', inputs.artifact-suffix) || '' }}
         path: openaev-front/test-results/
     - name: Upload E2E coverage report (${{ inputs.browser }})
       if: ${{ !cancelled() && inputs.browser == 'chrome' }}

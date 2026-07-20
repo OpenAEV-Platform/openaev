@@ -476,7 +476,7 @@ public class AttackPathGraphService {
   }
 
   /**
-   * Collapsed rebuild for a large simulation (issue 6647, ADR-002): the same {@link AttackPathDTO}
+   * Collapsed rebuild for a large simulation (issue 6647, ADR-003): the same {@link AttackPathDTO}
    * with {@code mode = collapsed}, built entirely from DB aggregations, so the per-execution and
    * per-finding rows are never materialized. Nodes are the injectors and one node per endpoint
    * (carrying its status and a per-type finding-count summary); edges are grouped; the

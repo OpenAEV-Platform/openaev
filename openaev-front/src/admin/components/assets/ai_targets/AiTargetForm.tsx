@@ -8,6 +8,7 @@ import TagField from '../../../../components/fields/TagField';
 import { useFormatter } from '../../../../components/i18n';
 import { type AiTargetInput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
+import { CRITICALITY_OPTIONS, humanizeEnum } from '../asset-categories';
 
 interface Props {
   onSubmit: SubmitHandler<AiTargetInput>;
@@ -27,9 +28,33 @@ const PROVIDERS = [
   'CUSTOM_HTTP',
   'MCP_SERVER',
   'AGENT_HTTP',
+  'XTM_ONE',
 ] as const;
 
+// Provider names are proper nouns - displayed as-is, never passed through t().
+const PROVIDER_LABELS: Record<(typeof PROVIDERS)[number], string> = {
+  OPENAI_COMPATIBLE: 'OpenAI-compatible',
+  ANTHROPIC: 'Anthropic',
+  AZURE_OPENAI: 'Azure OpenAI',
+  AWS_BEDROCK: 'AWS Bedrock',
+  GOOGLE_VERTEX: 'Google Vertex',
+  HUGGINGFACE: 'Hugging Face',
+  OLLAMA: 'Ollama',
+  CUSTOM_HTTP: 'Custom HTTP',
+  MCP_SERVER: 'MCP server',
+  AGENT_HTTP: 'Agent HTTP',
+  XTM_ONE: 'XTM One',
+};
+
 const MODALITIES = ['TEXT', 'VISION', 'AUDIO', 'MULTIMODAL'] as const;
+
+// i18n keys (Text / Vision / Audio / Multimodal) for the modality enum values.
+const MODALITY_LABEL_KEYS: Record<(typeof MODALITIES)[number], string> = {
+  TEXT: 'Text',
+  VISION: 'Vision',
+  AUDIO: 'Audio',
+  MULTIMODAL: 'Multimodal',
+};
 
 const AiTargetForm: FunctionComponent<Props> = ({
   onSubmit,
@@ -42,7 +67,8 @@ const AiTargetForm: FunctionComponent<Props> = ({
     ai_target_endpoint: '',
     ai_target_model: '',
     ai_target_system_prompt: '',
-    ai_target_api_key_variable: '',
+    ai_target_token: '',
+    asset_criticality: 'UNKNOWN',
     asset_description: '',
     asset_tags: [],
     asset_external_reference: undefined,
@@ -65,8 +91,9 @@ const AiTargetForm: FunctionComponent<Props> = ({
         ai_target_endpoint: z.string().optional().nullable(),
         ai_target_model: z.string().optional().nullable(),
         ai_target_system_prompt: z.string().optional().nullable(),
-        ai_target_api_key_variable: z.string().optional().nullable(),
+        ai_target_token: z.string().optional().nullable(),
         ai_target_configuration: z.record(z.string(), z.unknown()).optional(),
+        asset_criticality: z.enum(['VERY_HIGH', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']).optional(),
         asset_description: z.string().optional(),
         asset_tags: z.string().array().optional(),
         asset_external_reference: z.string().optional(),
@@ -105,7 +132,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
             required
           >
             {PROVIDERS.map(provider => (
-              <MenuItem key={provider} value={provider}>{t(provider)}</MenuItem>
+              <MenuItem key={provider} value={provider}>{PROVIDER_LABELS[provider]}</MenuItem>
             ))}
           </TextField>
         )}
@@ -126,7 +153,28 @@ const AiTargetForm: FunctionComponent<Props> = ({
             {...register('ai_target_modality')}
           >
             {MODALITIES.map(modality => (
-              <MenuItem key={modality} value={modality}>{t(modality)}</MenuItem>
+              <MenuItem key={modality} value={modality}>{t(MODALITY_LABEL_KEYS[modality])}</MenuItem>
+            ))}
+          </TextField>
+        )}
+      />
+      <Controller
+        control={control}
+        name="asset_criticality"
+        render={({ field }) => (
+          <TextField
+            select
+            variant="standard"
+            fullWidth
+            value={field.value ?? 'UNKNOWN'}
+            label={t('Criticality')}
+            style={{ marginTop: 20 }}
+            error={!!errors.asset_criticality}
+            helperText={errors.asset_criticality?.message}
+            {...register('asset_criticality')}
+          >
+            {CRITICALITY_OPTIONS.map(criticality => (
+              <MenuItem key={criticality} value={criticality}>{t(humanizeEnum(criticality))}</MenuItem>
             ))}
           </TextField>
         )}
@@ -165,15 +213,15 @@ const AiTargetForm: FunctionComponent<Props> = ({
       <TextField
         variant="standard"
         fullWidth
-        label={t('API key variable')}
-        placeholder="OPENAI_API_KEY"
+        type="password"
+        label={t('API token (optional)')}
         style={{ marginTop: 20 }}
-        error={!!errors.ai_target_api_key_variable}
+        error={!!errors.ai_target_token}
         helperText={
-          errors.ai_target_api_key_variable?.message
-          ?? t('Name of the injector config / environment variable holding the credential. The secret value is never stored by the platform.')
+          errors.ai_target_token?.message
+          ?? t('Credential used to reach the target. Leave empty for targets that require no authentication.')
         }
-        {...register('ai_target_api_key_variable')}
+        {...register('ai_target_token')}
       />
       <TextField
         variant="standard"

@@ -12,6 +12,51 @@
 
 type UtilRequiredKeys<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 
+export interface AdHocWidgetInput {
+  pagination?: Pagination;
+  parameters?: Record<string, string>;
+  widget_config:
+    | AverageConfiguration
+    | DateHistogramWidget
+    | FlatConfiguration
+    | ListConfiguration
+    | StructuralHistogramWidget;
+}
+
+export interface AdHocWidgetToEntitiesInput {
+  /** Key-value pairs for filtering entities, where the key is the field name and the value is the filter criterion */
+  filter_values_map?: Record<string, string[]>;
+  /** Pagination for the widget */
+  pagination?: Pagination;
+  /** Additional parameters for the widget */
+  parameters?: Record<string, string>;
+  /**
+   * The index of the series to filter by, if applicable, otherwise 0
+   * @format int32
+   */
+  series_index?: number;
+  widget_config:
+    | AverageConfiguration
+    | DateHistogramWidget
+    | FlatConfiguration
+    | ListConfiguration
+    | StructuralHistogramWidget;
+  widget_type:
+    | "vertical-barchart"
+    | "horizontal-barchart"
+    | "security-coverage"
+    | "line"
+    | "donut"
+    | "list"
+    | "attack-path"
+    | "number"
+    | "average"
+    | "exposure-score"
+    | "posture-radar"
+    | "command-center"
+    | "resilience-gauge";
+}
+
 export interface Agent {
   agent_active?: boolean;
   agent_asset: string;
@@ -186,6 +231,12 @@ export interface AiAttack {
   ai_attack_success_detector?: Record<string, any>;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -275,147 +326,7 @@ export interface AiResult {
   chunk_id?: string;
 }
 
-export interface AiTarget {
-  ai_target_api_key_variable?: string;
-  ai_target_configuration?: Record<string, any>;
-  ai_target_endpoint?: string;
-  ai_target_modality: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
-  ai_target_model?: string;
-  ai_target_provider:
-    | "OPENAI_COMPATIBLE"
-    | "ANTHROPIC"
-    | "AZURE_OPENAI"
-    | "AWS_BEDROCK"
-    | "GOOGLE_VERTEX"
-    | "HUGGINGFACE"
-    | "OLLAMA"
-    | "CUSTOM_HTTP"
-    | "MCP_SERVER"
-    | "AGENT_HTTP";
-  ai_target_system_prompt?: string;
-  asset_category?:
-    | "HOST"
-    | "CONTAINER_WORKLOAD"
-    | "CLOUD_RESOURCE"
-    | "WEB_APPLICATION"
-    | "NETWORK_DEVICE"
-    | "MOBILE_DEVICE"
-    | "IOT_OT_DEVICE"
-    | "IDENTITY"
-    | "SAAS_APPLICATION"
-    | "AI_TARGET"
-    | "SECURITY_PLATFORM"
-    | "GENERIC_ASSET";
-  asset_cloud_native_type?: string;
-  asset_cloud_provider?:
-    | "AWS"
-    | "AZURE"
-    | "GCP"
-    | "OCI"
-    | "ALIBABA"
-    | "KUBERNETES"
-    | "OTHER";
-  asset_cloud_region?: string;
-  /** @format date-time */
-  asset_created_at: string;
-  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
-  asset_description?: string;
-  asset_external_reference?: string;
-  /** @minLength 1 */
-  asset_id: string;
-  asset_internet_facing?: boolean;
-  asset_linked_person?: string;
-  asset_metadata?: Record<string, any>;
-  /** @minLength 1 */
-  asset_name: string;
-  asset_subcategory?:
-    | "SERVER"
-    | "WORKSTATION"
-    | "LAPTOP"
-    | "VIRTUAL_MACHINE"
-    | "HYPERVISOR"
-    | "MAINFRAME"
-    | "THIN_CLIENT"
-    | "CONTAINER"
-    | "CONTAINER_IMAGE"
-    | "KUBERNETES_POD"
-    | "KUBERNETES_CLUSTER"
-    | "KUBERNETES_NODE"
-    | "SERVERLESS_FUNCTION"
-    | "COMPUTE"
-    | "STORAGE"
-    | "DATABASE"
-    | "NETWORKING"
-    | "SERVERLESS"
-    | "CONTAINER_REGISTRY"
-    | "KUBERNETES"
-    | "IAM_PRINCIPAL"
-    | "SECRETS_KEY_MGMT"
-    | "MESSAGING_QUEUE"
-    | "ANALYTICS_DATA"
-    | "AI_ML_SERVICE"
-    | "IAC_TEMPLATE"
-    | "CLOUD_OTHER"
-    | "WEBSITE"
-    | "WEB_API"
-    | "SINGLE_PAGE_APP"
-    | "GRAPHQL_API"
-    | "WEB_SERVICE"
-    | "MICROSERVICE"
-    | "ROUTER"
-    | "SWITCH"
-    | "FIREWALL"
-    | "LOAD_BALANCER"
-    | "VPN_GATEWAY"
-    | "WIRELESS_AP"
-    | "PROXY"
-    | "DNS_SERVER"
-    | "DHCP_SERVER"
-    | "SAN_NAS"
-    | "NETWORK_OTHER"
-    | "SMARTPHONE"
-    | "TABLET"
-    | "IOT_SENSOR"
-    | "IP_CAMERA"
-    | "GATEWAY"
-    | "POINT_OF_SALE"
-    | "MEDIA_DEVICE"
-    | "PLC"
-    | "RTU"
-    | "HMI"
-    | "SCADA_HISTORIAN"
-    | "MEDICAL_DEVICE"
-    | "PRINTER_PERIPHERAL"
-    | "BUILDING_MGMT"
-    | "USER_ACCOUNT"
-    | "SERVICE_ACCOUNT"
-    | "GROUP"
-    | "ROLE"
-    | "SHARED_MAILBOX"
-    | "NON_HUMAN_IDENTITY"
-    | "SAAS_APP"
-    | "SAAS_TENANT"
-    | "LLM_MODEL"
-    | "AI_AGENT"
-    | "MCP_SERVER"
-    | "RAG_PIPELINE"
-    | "EDR"
-    | "XDR"
-    | "SIEM"
-    | "SOAR"
-    | "NDR"
-    | "ISPM"
-    | "LLM_FIREWALL"
-    | "AI_GATEWAY";
-  asset_tags?: string[];
-  asset_type?: string;
-  /** @format date-time */
-  asset_updated_at: string;
-  listened?: boolean;
-}
-
 export interface AiTargetInput {
-  ai_target_api_key_variable?: string | null;
   ai_target_configuration?: Record<string, any>;
   ai_target_endpoint?: string | null;
   ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
@@ -430,13 +341,56 @@ export interface AiTargetInput {
     | "OLLAMA"
     | "CUSTOM_HTTP"
     | "MCP_SERVER"
-    | "AGENT_HTTP";
+    | "AGENT_HTTP"
+    | "XTM_ONE";
   ai_target_system_prompt?: string | null;
+  ai_target_token?: string | null;
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
   /** @minLength 1 */
   asset_name: string;
   asset_tags?: string[];
+}
+
+export interface AiTargetTarget {
+  target_detection_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_execution_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_human_response_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @minLength 1 */
+  target_id: string;
+  target_name?: string;
+  target_prevention_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_subtype?: string;
+  /** @uniqueItems true */
+  target_tags?: string[];
+  target_type?: string;
+  target_vulnerability_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
 }
 
 export interface ArgumentTypeOutput {
@@ -532,6 +486,153 @@ export interface ArticleUpdateInput {
   article_published?: boolean;
   /** @format int32 */
   article_shares?: number;
+}
+
+export interface Asset {
+  ai_target_configuration?: Record<string, any>;
+  ai_target_endpoint?: string;
+  ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
+  ai_target_model?: string;
+  ai_target_provider?:
+    | "OPENAI_COMPATIBLE"
+    | "ANTHROPIC"
+    | "AZURE_OPENAI"
+    | "AWS_BEDROCK"
+    | "GOOGLE_VERTEX"
+    | "HUGGINGFACE"
+    | "OLLAMA"
+    | "CUSTOM_HTTP"
+    | "MCP_SERVER"
+    | "AGENT_HTTP"
+    | "XTM_ONE";
+  ai_target_system_prompt?: string;
+  ai_target_token?: string;
+  asset_category?:
+    | "HOST"
+    | "CONTAINER_WORKLOAD"
+    | "CLOUD_RESOURCE"
+    | "WEB_APPLICATION"
+    | "NETWORK_DEVICE"
+    | "MOBILE_DEVICE"
+    | "IOT_OT_DEVICE"
+    | "IDENTITY"
+    | "SAAS_APPLICATION"
+    | "AI_TARGET"
+    | "SECURITY_PLATFORM"
+    | "GENERIC_ASSET";
+  asset_cloud_native_type?: string;
+  asset_cloud_provider?:
+    | "AWS"
+    | "AZURE"
+    | "GCP"
+    | "OCI"
+    | "ALIBABA"
+    | "KUBERNETES"
+    | "OTHER";
+  asset_cloud_region?: string;
+  /** @format date-time */
+  asset_created_at: string;
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+  asset_description?: string;
+  asset_external_reference?: string;
+  asset_hostname?: string;
+  /** @minLength 1 */
+  asset_id: string;
+  asset_internet_facing?: boolean;
+  asset_ips?: string[];
+  asset_linked_person?: string;
+  asset_mac_addresses?: string[];
+  asset_metadata?: Record<string, any>;
+  /** @minLength 1 */
+  asset_name: string;
+  asset_seen_ip?: string;
+  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
+  asset_subcategory?:
+    | "SERVER"
+    | "WORKSTATION"
+    | "LAPTOP"
+    | "VIRTUAL_MACHINE"
+    | "HYPERVISOR"
+    | "MAINFRAME"
+    | "THIN_CLIENT"
+    | "CONTAINER"
+    | "CONTAINER_IMAGE"
+    | "KUBERNETES_POD"
+    | "KUBERNETES_CLUSTER"
+    | "KUBERNETES_NODE"
+    | "SERVERLESS_FUNCTION"
+    | "COMPUTE"
+    | "STORAGE"
+    | "DATABASE"
+    | "NETWORKING"
+    | "SERVERLESS"
+    | "CONTAINER_REGISTRY"
+    | "KUBERNETES"
+    | "IAM_PRINCIPAL"
+    | "SECRETS_KEY_MGMT"
+    | "MESSAGING_QUEUE"
+    | "ANALYTICS_DATA"
+    | "AI_ML_SERVICE"
+    | "IAC_TEMPLATE"
+    | "CLOUD_OTHER"
+    | "WEBSITE"
+    | "WEB_API"
+    | "SINGLE_PAGE_APP"
+    | "GRAPHQL_API"
+    | "WEB_SERVICE"
+    | "MICROSERVICE"
+    | "ROUTER"
+    | "SWITCH"
+    | "FIREWALL"
+    | "LOAD_BALANCER"
+    | "VPN_GATEWAY"
+    | "WIRELESS_AP"
+    | "PROXY"
+    | "DNS_SERVER"
+    | "DHCP_SERVER"
+    | "SAN_NAS"
+    | "NETWORK_OTHER"
+    | "SMARTPHONE"
+    | "TABLET"
+    | "IOT_SENSOR"
+    | "IP_CAMERA"
+    | "GATEWAY"
+    | "POINT_OF_SALE"
+    | "MEDIA_DEVICE"
+    | "PLC"
+    | "RTU"
+    | "HMI"
+    | "SCADA_HISTORIAN"
+    | "MEDICAL_DEVICE"
+    | "PRINTER_PERIPHERAL"
+    | "BUILDING_MGMT"
+    | "USER_ACCOUNT"
+    | "SERVICE_ACCOUNT"
+    | "GROUP"
+    | "ROLE"
+    | "SHARED_MAILBOX"
+    | "NON_HUMAN_IDENTITY"
+    | "SAAS_APP"
+    | "SAAS_TENANT"
+    | "LLM_MODEL"
+    | "AI_AGENT"
+    | "MCP_SERVER"
+    | "RAG_PIPELINE"
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
+  asset_tags?: string[];
+  asset_type?: string;
+  /** @format date-time */
+  asset_updated_at: string;
+  asset_url?: string;
+  listened?: boolean;
 }
 
 export interface AssetAgentJob {
@@ -636,6 +737,151 @@ export interface AssetGroupTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+}
+
+export interface AssetOutput {
+  /** AI target provider (AI targets only) */
+  ai_target_provider?:
+    | "OPENAI_COMPATIBLE"
+    | "ANTHROPIC"
+    | "AZURE_OPENAI"
+    | "AWS_BEDROCK"
+    | "GOOGLE_VERTEX"
+    | "HUGGINGFACE"
+    | "OLLAMA"
+    | "CUSTOM_HTTP"
+    | "MCP_SERVER"
+    | "AGENT_HTTP"
+    | "XTM_ONE";
+  /** Asset category */
+  asset_category?:
+    | "HOST"
+    | "CONTAINER_WORKLOAD"
+    | "CLOUD_RESOURCE"
+    | "WEB_APPLICATION"
+    | "NETWORK_DEVICE"
+    | "MOBILE_DEVICE"
+    | "IOT_OT_DEVICE"
+    | "IDENTITY"
+    | "SAAS_APPLICATION"
+    | "AI_TARGET"
+    | "SECURITY_PLATFORM"
+    | "GENERIC_ASSET";
+  /** Asset criticality */
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+  /** Hostname (network-reachable assets) */
+  asset_hostname?: string;
+  /**
+   * Asset Id
+   * @minLength 1
+   */
+  asset_id: string;
+  /**
+   * Asset name
+   * @minLength 1
+   */
+  asset_name: string;
+  /** Asset subcategory */
+  asset_subcategory?:
+    | "SERVER"
+    | "WORKSTATION"
+    | "LAPTOP"
+    | "VIRTUAL_MACHINE"
+    | "HYPERVISOR"
+    | "MAINFRAME"
+    | "THIN_CLIENT"
+    | "CONTAINER"
+    | "CONTAINER_IMAGE"
+    | "KUBERNETES_POD"
+    | "KUBERNETES_CLUSTER"
+    | "KUBERNETES_NODE"
+    | "SERVERLESS_FUNCTION"
+    | "COMPUTE"
+    | "STORAGE"
+    | "DATABASE"
+    | "NETWORKING"
+    | "SERVERLESS"
+    | "CONTAINER_REGISTRY"
+    | "KUBERNETES"
+    | "IAM_PRINCIPAL"
+    | "SECRETS_KEY_MGMT"
+    | "MESSAGING_QUEUE"
+    | "ANALYTICS_DATA"
+    | "AI_ML_SERVICE"
+    | "IAC_TEMPLATE"
+    | "CLOUD_OTHER"
+    | "WEBSITE"
+    | "WEB_API"
+    | "SINGLE_PAGE_APP"
+    | "GRAPHQL_API"
+    | "WEB_SERVICE"
+    | "MICROSERVICE"
+    | "ROUTER"
+    | "SWITCH"
+    | "FIREWALL"
+    | "LOAD_BALANCER"
+    | "VPN_GATEWAY"
+    | "WIRELESS_AP"
+    | "PROXY"
+    | "DNS_SERVER"
+    | "DHCP_SERVER"
+    | "SAN_NAS"
+    | "NETWORK_OTHER"
+    | "SMARTPHONE"
+    | "TABLET"
+    | "IOT_SENSOR"
+    | "IP_CAMERA"
+    | "GATEWAY"
+    | "POINT_OF_SALE"
+    | "MEDIA_DEVICE"
+    | "PLC"
+    | "RTU"
+    | "HMI"
+    | "SCADA_HISTORIAN"
+    | "MEDICAL_DEVICE"
+    | "PRINTER_PERIPHERAL"
+    | "BUILDING_MGMT"
+    | "USER_ACCOUNT"
+    | "SERVICE_ACCOUNT"
+    | "GROUP"
+    | "ROLE"
+    | "SHARED_MAILBOX"
+    | "NON_HUMAN_IDENTITY"
+    | "SAAS_APP"
+    | "SAAS_TENANT"
+    | "LLM_MODEL"
+    | "AI_AGENT"
+    | "MCP_SERVER"
+    | "RAG_PIPELINE"
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
+  /**
+   * Tags
+   * @uniqueItems true
+   */
+  asset_tags?: string[];
+  /** Asset type discriminator (Asset / Endpoint / SecurityPlatform) */
+  asset_type?: string;
+  /** Platform (endpoints only) */
+  endpoint_platform?:
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Android"
+    | "iOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown";
+  /** Whether the asset belongs to the asset group statically or dynamically */
+  is_static?: boolean;
 }
 
 export interface AtomicInjectorContractOutput {
@@ -984,6 +1230,12 @@ type BaseInjectorContractBaseOutputInjectorContractHasFullDetailsMapping<
 interface BasePayload {
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -1554,6 +1806,12 @@ export interface Command {
   command_executor: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -2341,6 +2599,12 @@ export interface DnsResolution {
   dns_resolution_hostname: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -2477,6 +2741,24 @@ export interface DomainBaseInput {
 }
 
 export interface Endpoint {
+  ai_target_configuration?: Record<string, any>;
+  ai_target_endpoint?: string;
+  ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
+  ai_target_model?: string;
+  ai_target_provider?:
+    | "OPENAI_COMPATIBLE"
+    | "ANTHROPIC"
+    | "AZURE_OPENAI"
+    | "AWS_BEDROCK"
+    | "GOOGLE_VERTEX"
+    | "HUGGINGFACE"
+    | "OLLAMA"
+    | "CUSTOM_HTTP"
+    | "MCP_SERVER"
+    | "AGENT_HTTP"
+    | "XTM_ONE";
+  ai_target_system_prompt?: string;
+  ai_target_token?: string;
   asset_agents?: Agent[];
   asset_category?:
     | "HOST"
@@ -2506,13 +2788,19 @@ export interface Endpoint {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
+  asset_hostname?: string;
   /** @minLength 1 */
   asset_id: string;
   asset_internet_facing?: boolean;
+  asset_ips?: string[];
   asset_linked_person?: string;
+  asset_mac_addresses?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
+  asset_seen_ip?: string;
+  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"
@@ -2596,11 +2884,9 @@ export interface Endpoint {
   asset_type?: string;
   /** @format date-time */
   asset_updated_at: string;
+  asset_url?: string;
   endpoint_arch?: "x86_64" | "arm64" | "Unknown";
-  endpoint_hostname?: string;
-  endpoint_ips?: string[];
   endpoint_is_eol?: boolean;
-  endpoint_mac_addresses?: string[];
   endpoint_platform?:
     | "Linux"
     | "Windows"
@@ -2612,8 +2898,6 @@ export interface Endpoint {
     | "Generic"
     | "Internal"
     | "Unknown";
-  endpoint_seen_ip?: string;
-  endpoint_url?: string;
   listened?: boolean;
 }
 
@@ -2644,8 +2928,11 @@ export interface EndpointInput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
+  asset_hostname?: string;
   asset_internet_facing?: boolean | null;
+  asset_ips?: string[];
   asset_linked_person?: string | null;
+  asset_mac_addresses?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -2729,13 +3016,11 @@ export interface EndpointInput {
     | "LLM_FIREWALL"
     | "AI_GATEWAY";
   asset_tags?: string[];
+  asset_url?: string | null;
   endpoint_agent_version?: string;
   endpoint_arch?: "x86_64" | "arm64" | "Unknown";
-  endpoint_hostname?: string;
-  endpoint_ips?: string[];
   /** True if the endpoint is in an End of Life state */
   endpoint_is_eol?: boolean;
-  endpoint_mac_addresses?: string[];
   endpoint_platform?:
     | "Linux"
     | "Windows"
@@ -2747,7 +3032,6 @@ export interface EndpointInput {
     | "Generic"
     | "Internal"
     | "Unknown";
-  endpoint_url?: string | null;
 }
 
 export interface EndpointOutput {
@@ -2913,6 +3197,27 @@ export interface EndpointOutput {
 }
 
 export interface EndpointOverviewOutput {
+  /** AI target endpoint URL (AI targets only) */
+  ai_target_endpoint?: string;
+  /** AI target modality (AI targets only) */
+  ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
+  /** AI target model (AI targets only) */
+  ai_target_model?: string;
+  /** AI target provider (AI targets only) */
+  ai_target_provider?:
+    | "OPENAI_COMPATIBLE"
+    | "ANTHROPIC"
+    | "AZURE_OPENAI"
+    | "AWS_BEDROCK"
+    | "GOOGLE_VERTEX"
+    | "HUGGINGFACE"
+    | "OLLAMA"
+    | "CUSTOM_HTTP"
+    | "MCP_SERVER"
+    | "AGENT_HTTP"
+    | "XTM_ONE";
+  /** AI target system prompt (AI targets only) */
+  ai_target_system_prompt?: string;
   /**
    * List of primary agents
    * @uniqueItems true
@@ -2949,6 +3254,8 @@ export interface EndpointOverviewOutput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   /** Asset description */
   asset_description?: string;
+  /** Hostname */
+  asset_hostname?: string;
   /**
    * Asset Id
    * @minLength 1
@@ -2956,8 +3263,18 @@ export interface EndpointOverviewOutput {
   asset_id: string;
   /** Whether the asset is internet-facing */
   asset_internet_facing?: boolean;
+  /**
+   * List IPs
+   * @uniqueItems true
+   */
+  asset_ips?: string[];
   /** Linked person (user id) for identity assets */
   asset_linked_person?: string;
+  /**
+   * List of MAC addresses
+   * @uniqueItems true
+   */
+  asset_mac_addresses?: string[];
   /** Free-form category-specific attributes */
   asset_metadata?: Record<string, any>;
   /**
@@ -2965,6 +3282,8 @@ export interface EndpointOverviewOutput {
    * @minLength 1
    */
   asset_name: string;
+  /** Seen IP */
+  asset_seen_ip?: string;
   /** Asset subcategory */
   asset_subcategory?:
     | "SERVER"
@@ -3050,22 +3369,12 @@ export interface EndpointOverviewOutput {
    * @uniqueItems true
    */
   asset_tags?: string[];
+  /** URL */
+  asset_url?: string;
   /** Architecture */
   endpoint_arch?: "x86_64" | "arm64" | "Unknown";
-  /** Hostname */
-  endpoint_hostname?: string;
-  /**
-   * List IPs
-   * @uniqueItems true
-   */
-  endpoint_ips?: string[];
   /** True if the endpoint is in an End of Life state */
   endpoint_is_eol?: boolean;
-  /**
-   * List of MAC addresses
-   * @uniqueItems true
-   */
-  endpoint_mac_addresses?: string[];
   /** Platform */
   endpoint_platform?:
     | "Linux"
@@ -3078,10 +3387,6 @@ export interface EndpointOverviewOutput {
     | "Generic"
     | "Internal"
     | "Unknown";
-  /** Seen IP */
-  endpoint_seen_ip?: string;
-  /** URL */
-  endpoint_url?: string;
 }
 
 export interface EndpointRegisterInput {
@@ -3117,8 +3422,11 @@ export interface EndpointRegisterInput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference: string;
+  asset_hostname?: string;
   asset_internet_facing?: boolean | null;
+  asset_ips?: string[];
   asset_linked_person?: string | null;
+  asset_mac_addresses?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -3202,14 +3510,12 @@ export interface EndpointRegisterInput {
     | "LLM_FIREWALL"
     | "AI_GATEWAY";
   asset_tags?: string[];
+  asset_url?: string | null;
   elevated?: boolean;
   endpoint_agent_version?: string;
   endpoint_arch?: "x86_64" | "arm64" | "Unknown";
-  endpoint_hostname?: string;
-  endpoint_ips?: string[];
   /** True if the endpoint is in an End of Life state */
   endpoint_is_eol?: boolean;
-  endpoint_mac_addresses?: string[];
   endpoint_platform?:
     | "Linux"
     | "Windows"
@@ -3221,7 +3527,6 @@ export interface EndpointRegisterInput {
     | "Generic"
     | "Internal"
     | "Unknown";
-  endpoint_url?: string | null;
   seenIp?: string;
   service?: boolean;
 }
@@ -3285,20 +3590,20 @@ export interface EndpointTargetOutput {
    * @uniqueItems true
    */
   asset_agents?: AgentOutput[];
+  /** Hostname */
+  asset_hostname?: string;
   /**
    * Asset Id
    * @minLength 1
    */
   asset_id: string;
-  /** Hostname */
-  endpoint_hostname?: string;
   /**
    * List IPs
    * @uniqueItems true
    */
-  endpoint_ips?: string[];
+  asset_ips?: string[];
   /** Seen IP */
-  endpoint_seen_ip?: string;
+  asset_seen_ip?: string;
 }
 
 export interface EngineSortField {
@@ -3420,6 +3725,7 @@ export interface EsEndpoint {
   /** @format date-time */
   base_updated_at?: string;
   endpoint_arch?: string;
+  endpoint_category?: string;
   endpoint_description?: string;
   endpoint_external_reference?: string;
   endpoint_hostname?: string;
@@ -3462,7 +3768,8 @@ export interface EsFinding {
   /** @format date-time */
   base_created_at?: string;
   base_dependencies?: string[];
-  base_endpoint_side?: string;
+  /** @uniqueItems true */
+  base_endpoint_side?: string[];
   base_entity?: string;
   base_id?: string;
   base_inject_side?: string;
@@ -3775,6 +4082,12 @@ export interface Executable {
   executable_file: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -4175,6 +4488,12 @@ export interface FileDrop {
   file_drop_file: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -5172,6 +5491,7 @@ export type InjectTarget = BaseInjectTarget &
     | BaseInjectTargetTargetTypeMapping<"TEAMS", TeamTarget>
     | BaseInjectTargetTargetTypeMapping<"PLAYERS", PlayerTarget>
     | BaseInjectTargetTargetTypeMapping<"AGENT", AgentTarget>
+    | BaseInjectTargetTargetTypeMapping<"AI_TARGETS", AiTargetTarget>
   );
 
 export interface InjectTeamsInput {
@@ -5251,6 +5571,10 @@ export interface InjectorContract {
   injector_contract_manual?: boolean;
   injector_contract_needs_executor?: boolean;
   injector_contract_payload?: Payload;
+  injector_contract_payload_author?: string;
+  injector_contract_payload_author_organization?: Organization;
+  injector_contract_payload_author_team?: Team;
+  injector_contract_payload_author_user?: User;
   injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   injector_contract_platforms?: (
     | "Linux"
@@ -5289,6 +5613,20 @@ export interface InjectorContractAddInput {
   /** @minLength 1 */
   injector_id: string;
   is_atomic_testing?: boolean;
+}
+
+export interface InjectorContractAuthorCountOutput {
+  /** Author id (user, team or organization) */
+  author?: string;
+  /** Author display name */
+  author_name?: string;
+  /** Author type: user, team or organization */
+  author_type?: string;
+  /**
+   * Number of contracts authored by this author under the current filters
+   * @format int64
+   */
+  count?: number;
 }
 
 export type InjectorContractBaseOutput = BaseInjectorContractBaseOutput &
@@ -5481,6 +5819,7 @@ export interface InjectorContractUpdateMappingInput {
 }
 
 export interface InjectorCreateInput {
+  injector_author?: string;
   injector_category?: string;
   injector_contracts?: InjectorContractInput[];
   injector_custom_contracts?: boolean;
@@ -6029,6 +6368,12 @@ export interface NetworkTraffic {
   network_traffic_port_src: number;
   network_traffic_protocol: string;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -6223,8 +6568,8 @@ export interface PageAggregatedFindingOutput {
   totalPages?: number;
 }
 
-export interface PageAiTarget {
-  content?: AiTarget[];
+export interface PageAsset {
+  content?: Asset[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -6244,6 +6589,25 @@ export interface PageAiTarget {
 
 export interface PageAssetGroupOutput {
   content?: AssetGroupOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageAssetOutput {
+  content?: AssetOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -7357,6 +7721,8 @@ export interface PlatformSettings {
   default_mailer_name?: string;
   /** Reply to mail to use by default for injects */
   default_reply_to?: string;
+  /** UUID of the default tenant */
+  default_tenant_id?: string;
   /** List of enabled dev features */
   enabled_dev_features?: (
     | "_RESERVED"
@@ -7450,6 +7816,21 @@ export interface PlatformSettings {
   platform_openid_providers?: OAuthProvider[];
   /** Policies of the platform */
   platform_policies?: PolicyInput;
+  /**
+   * Idle timeout in milliseconds before the UI locks the screen (0 = disabled). Read-only, driven by server configuration
+   * @format int64
+   */
+  platform_session_idle_timeout?: number;
+  /**
+   * Maximum number of concurrent sessions per user (0 = unlimited)
+   * @format int32
+   */
+  platform_session_max_concurrent?: number;
+  /**
+   * Rolling session timeout in milliseconds (every request extends the session by this duration). Read-only, driven by server configuration
+   * @format int64
+   */
+  platform_session_timeout?: number;
   /**
    * Theme of the platform
    * @minLength 1
@@ -8422,6 +8803,24 @@ export interface SearchTerm {
 }
 
 export interface SecurityPlatform {
+  ai_target_configuration?: Record<string, any>;
+  ai_target_endpoint?: string;
+  ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
+  ai_target_model?: string;
+  ai_target_provider?:
+    | "OPENAI_COMPATIBLE"
+    | "ANTHROPIC"
+    | "AZURE_OPENAI"
+    | "AWS_BEDROCK"
+    | "GOOGLE_VERTEX"
+    | "HUGGINGFACE"
+    | "OLLAMA"
+    | "CUSTOM_HTTP"
+    | "MCP_SERVER"
+    | "AGENT_HTTP"
+    | "XTM_ONE";
+  ai_target_system_prompt?: string;
+  ai_target_token?: string;
   asset_category?:
     | "HOST"
     | "CONTAINER_WORKLOAD"
@@ -8450,13 +8849,19 @@ export interface SecurityPlatform {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
+  asset_hostname?: string;
   /** @minLength 1 */
   asset_id: string;
   asset_internet_facing?: boolean;
+  asset_ips?: string[];
   asset_linked_person?: string;
+  asset_mac_addresses?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
+  asset_seen_ip?: string;
+  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"
@@ -8540,6 +8945,7 @@ export interface SecurityPlatform {
   asset_type?: string;
   /** @format date-time */
   asset_updated_at: string;
+  asset_url?: string;
   listened?: boolean;
   security_platform_logo_dark?: string;
   security_platform_logo_light?: string;
@@ -8598,6 +9004,28 @@ export interface Series {
   name?: string;
 }
 
+export interface SessionOutput {
+  /**
+   * Session creation time
+   * @format date-time
+   */
+  session_created_at?: string;
+  /**
+   * Time at which the session expires if it stays idle
+   * @format date-time
+   */
+  session_expires_at?: string;
+  /** Identifier of the session */
+  session_id?: string;
+  /**
+   * Last time the session was used
+   * @format date-time
+   */
+  session_last_access_at?: string;
+  /** Identifier of the user owning the session */
+  session_user_id?: string;
+}
+
 export interface SettingsChatbotAiCguUpdateInput {
   /**
    * Chatbot AI CGU acceptance status: pending, enabled, or disabled
@@ -8618,6 +9046,15 @@ export interface SettingsPlatformWhitemarkUpdateInput {
    * @minLength 1
    */
   platform_whitemark: string;
+}
+
+export interface SettingsSessionsUpdateInput {
+  /**
+   * Maximum number of concurrent sessions per user (0 = unlimited)
+   * @format int32
+   * @min 0
+   */
+  platform_session_max_concurrent: number;
 }
 
 export interface SimulationChallengesReader {
@@ -8909,6 +9346,7 @@ export interface TargetSimple {
     | "AGENTS"
     | "ASSETS"
     | "ASSETS_GROUPS"
+    | "AI_TARGETS"
     | "PLAYERS"
     | "TEAMS"
     | "ENDPOINTS";
@@ -9194,6 +9632,12 @@ export interface ThreatArsenalAction {
    * @uniqueItems true
    */
   action_attack_patterns_ids: string[];
+  /** Author id (user, team or organization) */
+  action_author?: string;
+  /** Author display name */
+  action_author_name?: string;
+  /** Author type: user, team or organization */
+  action_author_type?: string;
   /**
    * Domain IDs
    * @minItems 1
@@ -9469,6 +9913,16 @@ export interface ThreatArsenalActionWithContentOutput {
   injector_contract_updated_at: string;
 }
 
+export interface ThreatArsenalBulkDeleteOutput {
+  /**
+   * Number of actions that were actually deleted
+   * @format int32
+   */
+  deleted_count?: number;
+  /** Ids of the actions that were actually deleted */
+  deleted_ids?: string[];
+}
+
 export interface Token {
   listened?: boolean;
   /** @format date-time */
@@ -9535,6 +9989,7 @@ export interface UpdateProfileInput {
   user_email: string;
   /** @minLength 1 */
   user_firstname: string;
+  user_home_dashboard?: string;
   /** @minLength 1 */
   user_lang: string;
   /** @minLength 1 */
@@ -9663,6 +10118,8 @@ export interface User {
   /** Gravatar of the user */
   user_gravatar?: string;
   user_groups?: string[];
+  /** Preferred home dashboard of the user; overrides the tenant home dashboard setting */
+  user_home_dashboard?: string;
   /**
    * User ID
    * @minLength 1
@@ -10010,7 +10467,11 @@ export interface Widget {
     | "list"
     | "attack-path"
     | "number"
-    | "average";
+    | "average"
+    | "exposure-score"
+    | "posture-radar"
+    | "command-center"
+    | "resilience-gauge";
   /** @format date-time */
   widget_updated_at: string;
 }
@@ -10056,7 +10517,11 @@ export interface WidgetInput {
     | "list"
     | "attack-path"
     | "number"
-    | "average";
+    | "average"
+    | "exposure-score"
+    | "posture-radar"
+    | "command-center"
+    | "resilience-gauge";
 }
 
 export interface WidgetLayout {

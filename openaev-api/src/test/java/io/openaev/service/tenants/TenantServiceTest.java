@@ -40,7 +40,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.hibernate.Session;
-import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -111,7 +110,10 @@ class TenantServiceTest extends IntegrationTest {
     assertThat(domainRepository.findAll()).hasSize(10);
     // Verify datapack
     assertThat(vulnerabilityRepository.findAll()).hasSize(7);
-    assertThat(cweRepository.findAll()).hasSize(7);
+    // cwes is on v2 isolation (no v1 @Filter anymore): assert by explicit tenant attribution.
+    assertThat(cweRepository.findAll())
+        .filteredOn(cwe -> created.getId().equals(cwe.getTenant().getId()))
+        .hasSize(7);
     List<Role> roles = roleService.findAll(created.getId());
     assertThat(roles).extracting(Role::getName).contains("Admin", "Manager", "Observer");
     assertThat(roles).hasSizeGreaterThanOrEqualTo(3);
@@ -197,12 +199,47 @@ class TenantServiceTest extends IntegrationTest {
     TenantInput duplicateNameInput = new TenantInput("Tenant A", null);
 
     // -- ACT & ASSERT --
-    assertThatThrownBy(
-            () -> {
-              tenantService.update(tenantB.getId(), duplicateNameInput);
-              entityManager.flush();
-            })
-        .isInstanceOf(ConstraintViolationException.class);
+    assertThatThrownBy(() -> tenantService.update(tenantB.getId(), duplicateNameInput))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("Tenant name already used");
+  }
+
+  @Test
+  void should_update_tenant_to_same_name_without_error() {
+    // -- ARRANGE --
+    Tenant existing = getTenant("Tenant Same");
+    tenantComposer.forTenant(existing).persist();
+
+    // -- ACT --
+    TenantInput sameNameInput = new TenantInput("Tenant Same", null);
+    Tenant updated = tenantService.update(existing.getId(), sameNameInput);
+
+    // -- ASSERT --
+    assertThat(updated.getName()).isEqualTo("Tenant Same");
+  }
+
+  @Test
+  void should_update_default_tenant_to_unique_name() {
+    // -- ACT --
+    TenantInput input = new TenantInput("Renamed Default", null);
+    Tenant updated = tenantService.update(DEFAULT_TENANT_UUID, input);
+
+    // -- ASSERT --
+    assertThat(updated.getName()).isEqualTo("Renamed Default");
+  }
+
+  @Test
+  void should_fail_when_updating_default_tenant_to_existing_name() {
+    // -- ARRANGE --
+    Tenant other = getTenant("Existing Name");
+    tenantComposer.forTenant(other).persist();
+
+    TenantInput input = new TenantInput("Existing Name", null);
+
+    // -- ACT & ASSERT --
+    assertThatThrownBy(() -> tenantService.update(DEFAULT_TENANT_UUID, input))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("Tenant name already used");
   }
 
   @Test
@@ -308,7 +345,10 @@ class TenantServiceTest extends IntegrationTest {
     assertThat(domainRepository.findAll()).isEmpty();
     // Verify datapack
     assertThat(vulnerabilityRepository.findAll()).isEmpty();
-    assertThat(cweRepository.findAll()).isEmpty();
+    // cwes is on v2 isolation (no v1 @Filter anymore): assert by explicit tenant attribution.
+    assertThat(cweRepository.findAll())
+        .filteredOn(cwe -> tenantExpired.getId().equals(cwe.getTenant().getId()))
+        .isEmpty();
     assertThat(roleService.findAll(tenantExpired.getId())).isEmpty();
     assertThat(groupRepository.findAllByTenantId(tenantExpired.getId())).isEmpty();
   }

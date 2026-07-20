@@ -16,6 +16,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.export.WorkflowExportInitializer;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -89,6 +90,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private ScenarioMapper scenarioMapper;
 
   @Mock private WorkflowService workflowService;
+  @Mock private WorkflowExportInitializer workflowExportInitializer;
   @Autowired private PreviewFeatureService previewFeatureService;
 
   @Mock private LicenseCacheManager licenseCacheManager;
@@ -130,7 +132,8 @@ class ScenarioServiceTest extends IntegrationTest {
             tagRepository,
             healthCheckUtils,
             scenarioMapper,
-            workflowService);
+            workflowService,
+            workflowExportInitializer);
   }
 
   @AfterAll

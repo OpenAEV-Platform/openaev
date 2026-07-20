@@ -212,6 +212,7 @@ public class InjectExecutionStep implements ActionStep {
       // executableInject.addDirectAttachment(inject.getDocuments());
 
       executor.directExecute(executableInject);
+
       return Optional.of(readyStep);
     } catch (Exception e) {
       throw new ChainingException(

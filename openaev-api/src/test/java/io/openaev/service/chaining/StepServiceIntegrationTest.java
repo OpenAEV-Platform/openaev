@@ -2,6 +2,7 @@ package io.openaev.service.chaining;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -76,7 +77,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
     doReturn(new User()).when(userService).currentUser();
     doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
-    doReturn(new ArrayList<>()).when(assetService).assets(any());
+    doReturn(new ArrayList<>()).when(assetService).assets(anyList());
     doReturn(new HashSet<>()).when(tagService).tagSet(any());
     doReturn(null).when(documentService).document(any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());

@@ -10,7 +10,7 @@ architectures. This table below summarizes the information about each agent.
 
 | Executor                           | Type          | Installation mode                                 | Installation type | Run As                                 | Threat arsenal action execution                | Multi agents for an endpoint                     |
 |:-----------------------------------|:--------------|:--------------------------------------------------|:------------------|:---------------------------------------|:-----------------------------------------------|:-------------------------------------------------|
-| **OpenAEV Agent (native/default)** | Open source   | As a user session, user service or system service | Script            | A standard or admin background process | As a user standard, user admin or system admin | Yes, depending on the user and installation mode |
+| **OpenAEV Agent (native/default)** | Open source   | Windows/Linux: user session, user service or system service<br/>macOS (temporary): system service only | Script            | A standard or admin background process | As a user standard, user admin or system admin | Yes, depending on the user and installation mode |
 | **Tanium Agent**                   | Under license | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |                              
 | **CrowdStrike Falcon Agent**       | Under license | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |                              
 | **SentinelOne Agent**              | Under license | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |
@@ -60,6 +60,7 @@ to be imported into the Tanium platform.
 
     📜 Scripts to attach in the package configuration into files section:   
     - [Windows TTR script](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-ttr.ps1)  
+    - [Linux & macOS TTR script](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-ttr.sh)  
 
 | Package type                | Recommended use case                  | Characteristics                                            |
 |-----------------------------|---------------------------------------|------------------------------------------------------------|

@@ -10,7 +10,7 @@
 
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>2.260710.0</version>
+    <version>2.260717.0</version>
     <packaging>pom</packaging>
 
     <name>OpenAEV platform</name>
@@ -30,10 +30,10 @@
         <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
         <pyroscope.version>2.8.0</pyroscope.version>
         <spring-security-crypto.version>6.5.11</spring-security-crypto.version>
-        <bouncycastle.version>1.84</bouncycastle.version>
+        <bouncycastle.version>1.85</bouncycastle.version>
         <netty.version>4.1.135.Final</netty.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
-        <tools-jackson-core.version>3.2.0</tools-jackson-core.version>
+        <tools-jackson-core.version>3.2.1</tools-jackson-core.version>
         <tomcat.version>10.1.55</tomcat.version>
     </properties>
 

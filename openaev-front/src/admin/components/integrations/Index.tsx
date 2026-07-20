@@ -8,13 +8,12 @@ import NotFound from '../../../components/NotFound';
 import ConnectorDetails from './common/ConnectorDetails';
 import InjectorPage from './injectors/InjectorPage';
 
-const Catalog = lazy(() => import('./catalog_connectors/Catalog'));
+const Integrations = lazy(() => import('./Integrations'));
 const CatalogLayout = lazy(() => import('./catalog_connectors/CatalogLayout'));
 
 const InjectorsLayout = lazy(() => import('./injectors/InjectorsLayout'));
 const ExecutorsLayout = lazy(() => import('./executors/ExecutorsLayout'));
 const CollectorsLayout = lazy(() => import('./collectors/CollectorsLayout'));
-const ConnectorList = lazy(() => import('./common/ConnectorList'));
 const ConnectorPage = lazy(() => import('./common/ConnectorPage'));
 
 const useStyles = makeStyles()(() => ({ root: { flexGrow: 1 } }));
@@ -25,27 +24,32 @@ const Index = () => {
     <div className={classes.root}>
       <Suspense fallback={<Loader />}>
         <Routes>
-          <Route path="" element={<Navigate to="catalog" replace={true} />} />
+          <Route path="" element={<Navigate to="deployed" replace={true} />} />
 
+          {/* Detail pages keep their historical URLs; the old list URLs
+              redirect to the corresponding tab of the merged page. */}
           <Route path="catalog" element={errorWrapper(CatalogLayout)()}>
-            <Route index element={<Catalog />} />
+            <Route index element={<Navigate to="../available" replace={true} />} />
             <Route path=":catalogConnectorId" element={<ConnectorDetails />} />
           </Route>
 
           <Route path="injectors" element={errorWrapper(InjectorsLayout)()}>
-            <Route index element={<ConnectorList />} />
+            <Route index element={<Navigate to="../deployed" replace={true} />} />
             <Route path=":injectorId" element={<InjectorPage />} />
           </Route>
 
           <Route path="collectors" element={errorWrapper(CollectorsLayout)()}>
-            <Route index element={<ConnectorList />} />
+            <Route index element={<Navigate to="../deployed" replace={true} />} />
             <Route path=":collectorId" element={<ConnectorPage />} />
           </Route>
 
           <Route path="executors" element={errorWrapper(ExecutorsLayout)()}>
-            <Route index element={<ConnectorList />} />
+            <Route index element={<Navigate to="../deployed" replace={true} />} />
             <Route path=":executorId" element={<ConnectorPage />} />
           </Route>
+
+          {/* deployed / available tabs of the merged integrations page */}
+          <Route path=":tab" element={errorWrapper(Integrations)()} />
 
           {/* Not found */}
           <Route path="*" element={<NotFound />} />

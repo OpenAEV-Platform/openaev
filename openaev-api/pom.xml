@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>2.260710.0</version>
+        <version>2.260717.0</version>
     </parent>
 
     <artifactId>openaev-api</artifactId>
@@ -20,7 +20,7 @@
         <cron-utils.version>9.2.1</cron-utils.version>
         <apache-poi.version>5.5.1</apache-poi.version>
         <opencsv-version>5.12.0</opencsv-version>
-        <opentelemetry.version>1.63.0</opentelemetry.version>
+        <opentelemetry.version>1.64.0</opentelemetry.version>
         <elasticsearch.version>8.19.18</elasticsearch.version>
         <opentelemetry-semconv.version>1.43.0</opentelemetry-semconv.version>
         <!-- Not managed by the Spring Boot BOM; pinned here. Apache-2.0. -->
@@ -49,7 +49,7 @@
         <dependency>
             <groupId>io.openaev</groupId>
             <artifactId>openaev-framework</artifactId>
-            <version>2.260710.0</version>
+            <version>2.260717.0</version>
         </dependency>
         <dependency>
             <groupId>co.elastic.clients</groupId>
@@ -76,6 +76,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-freemarker</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.session</groupId>
+            <artifactId>spring-session-jdbc</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

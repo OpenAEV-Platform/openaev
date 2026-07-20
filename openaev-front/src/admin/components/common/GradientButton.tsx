@@ -7,6 +7,7 @@ type GradientVariant = 'default';
 interface GradientButtonProps extends ButtonProps {
   gradientVariant?: GradientVariant;
   target?: string;
+  rel?: string;
 }
 
 const GradientButton = ({

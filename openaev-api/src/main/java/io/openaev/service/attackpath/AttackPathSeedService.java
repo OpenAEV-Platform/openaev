@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Bulk generator for the attack-path POC tables (issue 6647), used to prove the model scales.
  *
- * <p><b>Why this bypasses the tenant inspector (ADR-002).</b> The rest of the POC goes through
+ * <p><b>Why this bypasses the tenant inspector (ADR-003).</b> The rest of the POC goes through
  * Hibernate so the {@code TenantStatementInspector} filters every statement. The seed deliberately
  * does not: it writes with batched, multi-row raw JDBC on the transaction's own connection, which
  * the inspector never sees. Two facts make this correct rather than a hole:
@@ -47,7 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @AllowRawJdbc(
     reason =
-        "seed generator bypasses the inspector on purpose (ADR-002): batched raw JDBC with tenant_id"
+        "seed generator bypasses the inspector on purpose (ADR-003): batched raw JDBC with tenant_id"
             + " set explicitly on every row; the inspector adds no guarantee to a VALUES insert and"
             + " is ~17x slower. Admin-only, flag-gated, isolated to this service.")
 public class AttackPathSeedService {
@@ -466,7 +466,7 @@ public class AttackPathSeedService {
 
   /**
    * Accumulates rows for one table and flushes them as a single multi-row {@code INSERT} on the
-   * transaction's connection. Raw JDBC on purpose (ADR-002): it bypasses the tenant inspector,
+   * transaction's connection. Raw JDBC on purpose (ADR-003): it bypasses the tenant inspector,
    * whose per-statement parse otherwise caps bulk writes; {@code tenant_id} is set explicitly, so
    * no tenant guarantee is lost.
    */

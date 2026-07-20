@@ -16,11 +16,11 @@ public class EndpointExportImport {
   @CsvBindByPosition(position = 1)
   private String description;
 
-  @CsvBindByName(column = "endpoint_hostname", required = true)
+  @CsvBindByName(column = "asset_hostname", required = true)
   @CsvBindByPosition(position = 2)
   private String hostname;
 
-  @CsvBindByName(column = "endpoint_ips", required = true)
+  @CsvBindByName(column = "asset_ips", required = true)
   @CsvBindByPosition(position = 3)
   private String ips;
 
@@ -32,7 +32,7 @@ public class EndpointExportImport {
   @CsvBindByPosition(position = 5)
   private Endpoint.PLATFORM_ARCH arch;
 
-  @CsvBindByName(column = "endpoint_mac_addresses", required = true)
+  @CsvBindByName(column = "asset_mac_addresses", required = true)
   @CsvBindByPosition(position = 6)
   private String macAddresses;
 

@@ -3,6 +3,10 @@ import type { SearchPaginationInput } from '../../utils/api-types';
 
 const ORGANIZATION_URI = '/api/organizations';
 
+export const fetchOrganization = (organizationId: string) => {
+  return simpleCall(`${ORGANIZATION_URI}/${organizationId}`);
+};
+
 export const searchOrganizations = (paginationInput: SearchPaginationInput) => {
   const data = paginationInput;
   const uri = `${ORGANIZATION_URI}/search`;

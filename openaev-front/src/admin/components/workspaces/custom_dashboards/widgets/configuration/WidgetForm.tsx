@@ -150,7 +150,7 @@ const WidgetForm: FunctionComponent<Props> = ({
     mode: 'onTouched',
     resolver: zodResolver(
       zodImplement<WidgetInputWithoutLayout>().with({
-        widget_type: z.enum(['vertical-barchart', 'horizontal-barchart', 'security-coverage', 'line', 'donut', 'list', 'attack-path', 'number', 'average']),
+        widget_type: z.enum(['vertical-barchart', 'horizontal-barchart', 'security-coverage', 'line', 'donut', 'list', 'attack-path', 'number', 'average', 'exposure-score', 'posture-radar', 'command-center', 'resilience-gauge']),
         widget_config: widgetConfigSchema,
       }),
     ),

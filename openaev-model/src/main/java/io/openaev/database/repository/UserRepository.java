@@ -94,6 +94,11 @@ public interface UserRepository
   List<RawUser> rawAllInTenant(@Param("tenantId") String tenantId);
 
   @Query(
+      value = "select ut.user_id from users_tenants ut where ut.tenant_id = :tenantId",
+      nativeQuery = true)
+  List<String> findUserIdsByTenantId(@Param("tenantId") String tenantId);
+
+  @Query(
       value =
           "SELECT "
               + "us.user_id AS user_id, "

@@ -78,6 +78,7 @@ public class AppSecurityConfig {
   private final SecurityService securityService;
   private final UserEventService userEventService;
   private final UserMappingService userMappingService;
+  private final SessionManager sessionManager;
 
   private final Optional<AuditLogger> auditLogger;
 
@@ -178,7 +179,10 @@ public class AppSecurityConfig {
                               });
                         })
                     .invalidateHttpSession(true)
-                    .deleteCookies("JSESSIONID", openAEVConfig.getCookieName())
+                    .deleteCookies(
+                        "JSESSIONID",
+                        SpringSessionConfig.SESSION_COOKIE_NAME,
+                        openAEVConfig.getCookieName())
                     .logoutSuccessUrl(
                         openAEVConfig.getFrontendUrl() + openAEVConfig.getLogoutSuccessUrl()));
 
@@ -192,7 +196,8 @@ public class AppSecurityConfig {
                               authorizationRequestResolver(
                                   http.getSharedObject(ClientRegistrationRepository.class))))
                   .successHandler(
-                      new SsoRefererAuthenticationSuccessHandler(this.auditLogger.orElse(null)))
+                      new SsoRefererAuthenticationSuccessHandler(
+                          this.auditLogger.orElse(null), this.sessionManager))
                   .failureHandler(
                       new SsoRefererAuthenticationFailureHandler(
                           this.userEventService, this.auditLogger.orElse(null))));
