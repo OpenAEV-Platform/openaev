@@ -179,7 +179,7 @@ class TenantActiveTableAccessArchTest {
               // Explicit tenantId param threaded from the caller (native DELETE ... AND
               // tenant_id = ?), not inspector-scoped: safe regardless of activation:
               ConnectorInstanceService.class,
-              // Documented degraded background reader (telemetry counts read 0 rows unscoped):
+              // Background telemetry reader scoped via tenantTx.execute(TxCtx.allTenants()):
               InventoryMetricCollector.class)
           .should()
           .dependOnClassesThat()
