@@ -4,7 +4,6 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Executor;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
@@ -74,9 +73,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   @Override
   protected Executor getConnectorById(String executorId) {
-    return executorRepository
-        .findByIdAndTenantId(executorId, TenantContext.getCurrentTenant())
-        .orElse(null);
+    return executorRepository.findById(executorId).orElse(null);
   }
 
   @Override
@@ -112,7 +109,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    */
   public Executor executor(String id) throws ElementNotFoundException {
     return executorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findById(id)
         .orElseThrow(() -> new ElementNotFoundException("Executor not found with id: " + id));
   }
 
@@ -142,11 +139,12 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    * @return an Optional containing the executor if found, empty otherwise
    */
   public Optional<Executor> executorByType(String type) {
-    return this.executorRepository.findByTypeAndTenantId(type, TenantContext.getCurrentTenant());
+    return this.executorRepository.findByType(type);
   }
 
   @Transactional
   public Executor register(
+      String tenantId,
       String id,
       String type,
       String name,
@@ -157,11 +155,21 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       String[] platforms)
       throws Exception {
     return register(
-        id, type, name, documentationUrl, backgroundColor, iconData, bannerData, platforms, true);
+        tenantId,
+        id,
+        type,
+        name,
+        documentationUrl,
+        backgroundColor,
+        iconData,
+        bannerData,
+        platforms,
+        true);
   }
 
   @Transactional
   public Executor register(
+      String tenantId,
       String id,
       String type,
       String name,
@@ -185,12 +193,11 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       fileService.uploadStream(EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
     }
 
-    Executor executor =
-        executorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+    Executor executor = executorRepository.findById(id).orElse(null);
     if (executor == null) {
       executor = new Executor();
       executor.setId(id);
-      executor.setTenantId(TenantContext.getCurrentTenant());
+      executor.setTenantId(tenantId);
     }
 
     executor.setName(name);
@@ -206,10 +213,10 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   @Transactional
   public void remove(String id) {
     executorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findById(id)
         .ifPresent(
             executor -> {
-              endpointService.removeSourceTagsForExecutor(id, TenantContext.getCurrentTenant());
+              endpointService.removeSourceTagsForExecutor(id, executor.getTenantId());
               executorRepository.delete(executor);
             });
   }

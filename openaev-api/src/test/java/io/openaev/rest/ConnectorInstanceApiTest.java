@@ -554,6 +554,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       executor.setType(catalogConnector.getSlug());
       executor.setCreatedAt(Instant.now());
       executor.setUpdatedAt(Instant.now());
+      executor.setTenantId(TenantContext.getCurrentTenant());
       executorComposer.forExecutor(executor).persist();
 
       ConnectorInstanceConfiguration executorIdConfig =
@@ -575,10 +576,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
 
       // Assert
       assertFalse(connectorInstanceRepository.findById(connectorInstance.getId()).isPresent());
-      assertFalse(
-          executorRepository
-              .findByIdAndTenantId(executor.getId(), TenantContext.getCurrentTenant())
-              .isPresent());
+      assertFalse(executorRepository.findById(executor.getId()).isPresent());
     }
 
     @Test

@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetAgentJob;
@@ -57,6 +58,7 @@ public class EndpointApi extends RestBehavior {
   private final InjectStatusService injectStatusService;
   private final EndpointRepository endpointRepository;
   private final AssetAgentJobRepository assetAgentJobRepository;
+  private final io.openaev.config.TenantWriteScopeResolver writeScopeResolver;
 
   private final EndpointMapper endpointMapper;
 
@@ -77,10 +79,11 @@ public class EndpointApi extends RestBehavior {
   @PostMapping({ENDPOINT_URI + "/register", TENANT_ENDPOINT_URI + "/register"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.AGENT)
   @Transactional(rollbackFor = Exception.class)
-  public Endpoint upsertEndpoint(@Valid @RequestBody final EndpointRegisterInput input)
+  public Endpoint upsertEndpoint(TxCtx ctx, @Valid @RequestBody final EndpointRegisterInput input)
       throws IOException {
     input.setSeenIp(HttpReqRespUtils.getClientIpAddressIfServletRequestExist());
-    return this.endpointService.register(input, TenantContext.getCurrentTenant());
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return this.endpointService.register(input, tenantId);
   }
 
   @LogExecutionTime

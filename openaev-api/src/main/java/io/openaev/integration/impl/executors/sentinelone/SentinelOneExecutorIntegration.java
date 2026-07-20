@@ -120,6 +120,7 @@ public class SentinelOneExecutorIntegration extends Integration {
 
     Executor executor =
         executorService.register(
+            getTenantId(),
             executorId,
             SENTINELONE_EXECUTOR_TYPE,
             executorName,

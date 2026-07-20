@@ -520,7 +520,7 @@ public class EndpointService implements AuditLoggedService {
   @Transactional
   public Endpoint register(final EndpointRegisterInput input, @NotNull final String tenantId)
       throws IOException {
-    AgentRegisterInput agentInput = toAgentEndpoint(input, tenantId);
+    AgentRegisterInput agentInput = toAgentEndpoint(input);
     Agent agent;
     // Check if agents exist (because we can find X openaev agent on an endpoint)
     List<Agent> existingAgents =
@@ -839,11 +839,9 @@ public class EndpointService implements AuditLoggedService {
     agent.setTenant(new Tenant(input.getExecutor().getTenantId()));
   }
 
-  private AgentRegisterInput toAgentEndpoint(
-      EndpointRegisterInput input, @NotNull String tenantId) {
+  private AgentRegisterInput toAgentEndpoint(EndpointRegisterInput input) {
     AgentRegisterInput agentInput = new AgentRegisterInput();
-    agentInput.setExecutor(
-        executorRepository.findByIdAndTenantId(OPENAEV_EXECUTOR_ID, tenantId).orElse(null));
+    agentInput.setExecutor(executorRepository.findById(OPENAEV_EXECUTOR_ID).orElse(null));
     agentInput.setLastSeen(Instant.now());
     agentInput.setExternalReference(input.getExternalReference());
     agentInput.setIps(input.getIps());

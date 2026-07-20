@@ -11,12 +11,15 @@ import com.tngtech.archunit.lang.ArchRule;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CweRepository;
+import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
 import io.openaev.database.repository.MitigationRepository;
+import io.openaev.executors.ExecutorService;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.rest.collector.CollectorApi;
 import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.rest.executor.ExecutorApi;
 import io.openaev.rest.exercise.ExerciseImportApi;
 import io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi;
 import io.openaev.rest.lessons.ExerciseLessonsApi;
@@ -26,6 +29,7 @@ import io.openaev.rest.mapper.MapperApi;
 import io.openaev.rest.mitigation.MitigationApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.service.EndpointService;
 import io.openaev.service.InjectExpectationTraceService;
 import io.openaev.service.MapperService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -65,7 +69,8 @@ class TenantActiveTableAccessArchTest {
 
   /** Tables guarded by this test. Must cover every entry of the production allowlist. */
   private static final Set<String> GUARDED_TABLES =
-      Set.of("import_mappers", "lessons_templates", "cwes", "mitigations", "collectors");
+      Set.of(
+          "import_mappers", "lessons_templates", "cwes", "collectors", "mitigations", "executors");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -186,5 +191,43 @@ class TenantActiveTableAccessArchTest {
           .areAssignableTo(CollectorRepository.class)
           .because(
               "collectors is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule mitigations_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoint, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              MitigationApi.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(MitigationRepository.class)
+          .because(
+              "mitigations is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule executors_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoint, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              ExecutorApi.class,
+              // Service behind the handler; every caller is a wired handler:
+              ExecutorService.class,
+              // Explicit tenantId param threaded from the caller (native DELETE ... AND
+              // tenant_id = ?), not inspector-scoped: safe regardless of activation:
+              ConnectorInstanceService.class,
+              // EndpointService: reads executors via inspector-scoped findById (caller EndpointApi
+              // carries TxCtx):
+              EndpointService.class,
+              // Background telemetry reader scoped via tenantTx.execute(TxCtx.allTenants()):
+              InventoryMetricCollector.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(ExecutorRepository.class)
+          .because(
+              "executors is tenant-active: an accessor without a tenant scope silently reads zero"
                   + " rows. New accessors must carry a scope and be allowlisted here");
 }
