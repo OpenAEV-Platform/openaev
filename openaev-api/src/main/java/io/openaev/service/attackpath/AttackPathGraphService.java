@@ -12,9 +12,11 @@ import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
 import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.expectation.ExpectationType;
+import io.openaev.rest.payload.form.DetectionRemediationOutput;
 import io.openaev.service.attackpath.dto.AttackPathAttackPatternDTO;
 import io.openaev.service.attackpath.dto.AttackPathCounters;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
@@ -26,6 +28,7 @@ import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingItemDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
+import io.openaev.utils.mapper.PayloadMapper;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -82,6 +85,8 @@ public class AttackPathGraphService {
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathFindingRepository findingRepository;
   private final InjectorContractRepository injectorContractRepository;
+  private final PayloadRepository payloadRepository;
+  private final PayloadMapper payloadMapper;
 
   /**
    * Above this many executions a simulation is served collapsed by default. Tied to the front
@@ -206,6 +211,17 @@ public class AttackPathGraphService {
                                   new AttackPathAttackPatternDTO(
                                       pattern.getExternalId(), pattern.getName()))));
     }
+    // Detection remediations of the payload that actually ran (the frozen payload id, not the
+    // inject's current one). The mapper carries the EE gate: an inactive licence yields an empty
+    // list, which is exactly what the drawer already renders.
+    List<DetectionRemediationOutput> detectionRemediations =
+        e.getPayloadId() == null
+            ? List.of()
+            : payloadMapper.toDetectionRemediationOutputs(
+                payloadRepository
+                    .findById(e.getPayloadId())
+                    .map(p -> p.getDetectionRemediations())
+                    .orElse(List.of()));
     return new AttackPathExecutionDetailDTO(
         e.getPayloadName(),
         e.getInjectId(),
@@ -213,6 +229,7 @@ public class AttackPathGraphService {
         e.getAgentName(),
         e.getAgentPrivilege(),
         attackPatterns,
+        detectionRemediations,
         e.getTargetKey(),
         e.getTargetHostname(),
         e.getTargetIp(),

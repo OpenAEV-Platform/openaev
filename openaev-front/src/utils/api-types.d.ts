@@ -728,6 +728,7 @@ export interface AttackPathExecutionDetailDTO {
   agentPrivilege?: string;
   attackPatterns?: AttackPathAttackPatternDTO[];
   command?: string;
+  detectionRemediations?: DetectionRemediationOutput[];
   detectionStatus?: string;
   endpointKey?: string;
   executedAt?: string;
