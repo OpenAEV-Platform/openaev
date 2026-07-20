@@ -10,7 +10,11 @@ public class BannerMessage {
     SAFE_MODE_ENABLED(
         "safe_mode_enabled",
         BANNER_LEVEL.WARN,
-        "Safe mode is active: background processing is disabled.");
+        "Safe mode is active: background processing is disabled."),
+    AUDIT_LOG_NO_ENTERPRISE_LICENSE(
+        "audit_log_no_enterprise_license",
+        BANNER_LEVEL.WARN,
+        "Audit logging is inactive: an Enterprise Edition license is required to enable this feature.");
 
     private final String key;
     private final BANNER_LEVEL level;
