@@ -260,11 +260,16 @@ public class TenantStatementInspector implements StatementInspector {
    * rejected.
    */
   private FromItem filterFromItem(FromItem item) {
-    // Sub-selects, table functions (e.g. jsonb_array_elements), and lateral sub-selects are never
-    // real tables; they do not need tenant filtering.
-    if (item instanceof ParenthesedSelect
-        || item instanceof TableFunction
-        || item instanceof LateralSubSelect) {
+    // Sub-selects and lateral sub-selects are never real tables; they do not need tenant
+    // filtering. A LATERAL table function (e.g. "LEFT JOIN LATERAL jsonb_array_elements(...)")
+    // unnests a column of the row already being joined, never a whole table, so it is safe too.
+    // A non-lateral table function (e.g. "CROSS JOIN generate_series(1, 10)") is NOT unnesting an
+    // existing row and is not a shape this rewriter has reviewed; it stays rejected.
+    if (item instanceof ParenthesedSelect || item instanceof LateralSubSelect) {
+      return item;
+    }
+    if (item instanceof TableFunction tableFunction
+        && "LATERAL".equalsIgnoreCase(tableFunction.getPrefix())) {
       return item;
     }
     if (item instanceof ParenthesedFromItem group) {
