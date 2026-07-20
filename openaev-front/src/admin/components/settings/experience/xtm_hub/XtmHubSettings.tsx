@@ -64,33 +64,44 @@ const XtmHubSettings: React.FC = () => {
         >
           {t('XTM Hub')}
         </Typography>
-        {
-          isXTMHubAccessible && settings.xtm_hub_reachable && (
-            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-              <XtmHubTab />
-            </Can>
-          )
-        }
       </div>
       <Paper
         style={{
-          padding: theme.spacing(2),
+          padding: theme.spacing(3),
           borderRadius: 4,
-          flexGrow: 1,
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.border.primary}`,
         }}
         className="paper-for-grid"
-        variant="outlined"
+        elevation={0}
       >
-        <Typography variant="h6" style={{ marginBottom: theme.spacing(2) }}>
-          {t('Experiment valuable threat management resources in the XTM Hub')}
-        </Typography>
-        <Typography style={{ marginBottom: theme.spacing(2) }}>
-          {t('XTM Hub is a central forum to access resources, share tradecraft, and optimize the use of Filigran\'s products, fostering collaboration and empowering the community.')}
-        </Typography>
+        {isXTMHubRegistered && isXTMHubAccessible && settings.xtm_hub_reachable && (
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+            <XtmHubTab
+              renderTrigger={handleOpen => (
+                <XtmHubRegisteredSection onDisconnect={handleOpen} />
+              )}
+            />
+          </Can>
+        )}
 
-        {!isXTMHubRegistered && <XtmHubUnregisteredSection />}
+        {isXTMHubRegistered && (!isXTMHubAccessible || !settings.xtm_hub_reachable) && (
+          <XtmHubRegisteredSection />
+        )}
 
-        {isXTMHubRegistered && <XtmHubRegisteredSection />}
+        {!isXTMHubRegistered && isXTMHubAccessible && settings.xtm_hub_reachable && (
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+            <XtmHubTab
+              renderTrigger={handleOpen => (
+                <XtmHubUnregisteredSection onConnect={handleOpen} />
+              )}
+            />
+          </Can>
+        )}
+
+        {!isXTMHubRegistered && (!isXTMHubAccessible || !settings.xtm_hub_reachable) && (
+          <XtmHubUnregisteredSection />
+        )}
       </Paper>
     </>
   );
