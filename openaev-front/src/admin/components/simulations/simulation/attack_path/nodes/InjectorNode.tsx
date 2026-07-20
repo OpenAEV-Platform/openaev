@@ -2,10 +2,11 @@ import { BoltOutlined } from '@mui/icons-material';
 import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Handle, type NodeProps, Position } from '@xyflow/react';
-import { memo, useState } from 'react';
+import { memo } from 'react';
 
 import { buildTenantApiPath } from '../../../../../../utils/url-helper';
 import { type AttackPathFlowNode } from '../attack-path-flow-helpers';
+import ImageWithFallback from '../ImageWithFallback';
 import { AP_INJECTOR_SIZE } from './node-sizes';
 
 // The injector (source) node: a diamond carrying the injector's own catalog icon (falls back to a
@@ -13,7 +14,6 @@ import { AP_INJECTOR_SIZE } from './node-sizes';
 // below the diamond (not truncated). Source of the execution edges.
 const InjectorNode = ({ data }: NodeProps<AttackPathFlowNode>) => {
   const theme = useTheme();
-  const [imgError, setImgError] = useState(false);
   // The injector image endpoint expects the full injector slug (e.g. "openaev_netexec"). The graph
   // node carries the short tool name, so map it to the slug (with a small alias for renamed tools).
   // TODO(#6647): have the backend expose the injector type/slug on the node instead of guessing.
@@ -40,15 +40,21 @@ const InjectorNode = ({ data }: NodeProps<AttackPathFlowNode>) => {
           clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
         }}
       >
-        {raw && !imgError
+        {raw
           ? (
-              <img
+              <ImageWithFallback
                 src={buildTenantApiPath(`/api/injectors/${injectorSlug}/image`)}
-                alt={data.label}
+                alt={data.label ?? ''}
                 width={40}
                 height={40}
-                onError={() => setImgError(true)}
                 style={{ objectFit: 'contain' }}
+                fallback={(
+                  <BoltOutlined sx={{
+                    fontSize: 34,
+                    color: theme.palette.text.secondary,
+                  }}
+                  />
+                )}
               />
             )
           : (

@@ -16,6 +16,7 @@ import type { AttackPathExecutionDetailDTO } from '../../../../../utils/api-type
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import expectationIconByType from '../../../common/ExpectationIconByType';
 import { mitreForPayloadName } from './attack-path-mitre';
+import ImageWithFallback from './ImageWithFallback';
 
 // A detection remediation surfaced per security platform (how to detect what was missed). Shape kept
 // local and loose because the backend does not expose it on the attack-path execution yet.
@@ -68,20 +69,16 @@ const PlatformLogo = ({ type, label }: {
   type: string;
   label: string;
 }) => {
-  const [failed, setFailed] = useState(false);
   const size = {
     width: 20,
     height: 20,
     borderRadius: 4,
   };
-  if (failed) {
-    return <ShieldOutlined style={size} />;
-  }
   return (
-    <img
+    <ImageWithFallback
       src={buildTenantApiPath(`/api/collectors/${type}/image`)}
       alt={label}
-      onError={() => setFailed(true)}
+      fallback={<ShieldOutlined style={size} />}
       style={size}
     />
   );
@@ -94,7 +91,7 @@ const SecurityPlatformItem = ({ platform, alerts }: {
   alerts: PlatformAlert[];
 }) => {
   const theme = useTheme();
-  const { t } = useFormatter();
+  const { t, fldt } = useFormatter();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const alertCount = alerts.length;
   const alertLabel = `${alertCount} ${alertCount === 1 ? t('alert') : t('alerts')}`;
@@ -163,7 +160,7 @@ const SecurityPlatformItem = ({ platform, alerts }: {
               }}
             >
               <Typography variant="body2">{a.title}</Typography>
-              {a.date && <Typography variant="caption" color="text.secondary">{a.date}</Typography>}
+              {a.date && <Typography variant="caption" color="text.secondary">{fldt(a.date)}</Typography>}
             </div>
           ))}
         </div>
