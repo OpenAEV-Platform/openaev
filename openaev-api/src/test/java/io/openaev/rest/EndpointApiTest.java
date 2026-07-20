@@ -23,11 +23,13 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exercise.service.ExerciseService;
@@ -80,10 +82,16 @@ class EndpointApiTest extends IntegrationTest {
   @MockitoSpyBean private AssetAgentJobRepository assetAgentJobRepository;
   @MockitoSpyBean private InjectStatusService injectStatusService;
   @Autowired private AssetGroupRepository assetGroupRepository;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private io.openaev.utils.mockUser.TestUserHolder testUserHolder;
 
   @BeforeEach
   public void setup() {
     executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+    // Link mock user to the default tenant so TxCtx resolves a valid write scope
+    if (testUserHolder.get() != null) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
   }
 
   @DisplayName("Given valid input, should create an endpoint agentless successfully")

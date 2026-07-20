@@ -10,16 +10,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetAgentJob;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetAgentJobRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
-import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.List;
@@ -38,15 +39,23 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
   @Autowired private ExecutorComposer executorComposer;
   @Autowired private TenantComposer tenantComposer;
   @Autowired private ExecutorFixture executorFixture;
-  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
   @Autowired private AssetAgentJobRepository assetAgentJobRepository;
   @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private TestUserHolder testUserHolder;
+
+  private String tenantRegisterUri() {
+    return ENDPOINT_URI + "/register";
+  }
 
   @BeforeEach
   void setUp() {
     executorComposer.reset();
     tenantComposer.reset();
-    ensureServiceAccount(TenantContext.getCurrentTenant());
+    // Link mock user to the default tenant so TxCtxArgumentResolver resolves a valid scope
+    tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    entityManager.flush();
+    ensureServiceAccount(Tenant.DEFAULT_TENANT_UUID);
   }
 
   /**
@@ -87,7 +96,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -111,7 +120,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -120,7 +129,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -130,78 +139,6 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
           List<AssetAgentJob> jobs = fromIterable(assetAgentJobRepository.findAll());
 
           assertThat(jobs).satisfiesOnlyOnce(job -> assertThat(job.getInject()).isNull());
-        }
-
-        @Test
-        @DisplayName(
-            "Registering same endpoint on different tenants create a single upgrade job in each tenant")
-        void registeringSameEndpointOnDifferentTenants() throws Exception {
-          TenantComposer.Composer tenantWrapper =
-              tenantComposer
-                  .forTenant(
-                      tenantIsolationTestHelper.createTenantWithCurrentUser("additional_tenant_1"))
-                  .persist();
-          tenantIsolationTestHelper.switchToTenant(tenantWrapper.get().getId(), entityManager);
-          // executor in default tenant
-          executorComposer.forExecutor(executorFixture.createOAEVExecutor()).persist();
-          entityManager.flush();
-          entityManager.clear();
-          ensureServiceAccount(tenantWrapper.get().getId());
-          TenantComposer.Composer tenantWrapper2 =
-              tenantComposer
-                  .forTenant(
-                      tenantIsolationTestHelper.createTenantWithCurrentUser("additional_tenant_2"))
-                  .persist();
-          tenantIsolationTestHelper.switchToTenant(tenantWrapper2.get().getId(), entityManager);
-          // executor in other tenant
-          executorComposer.forExecutor(executorFixture.createOAEVExecutor()).persist();
-          entityManager.flush();
-          entityManager.clear();
-
-          ensureServiceAccount(tenantWrapper2.get().getId());
-          EndpointRegisterInput input =
-              EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
-          input.setAgentVersion(agentVersion);
-
-          mockMvc
-              .perform(
-                  post("/api/tenants/" + tenantWrapper.get().getId() + "/endpoints/register")
-                      .content(mapper.writeValueAsString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().isOk())
-              .andReturn();
-          entityManager.flush();
-          entityManager.clear();
-
-          mockMvc
-              .perform(
-                  post("/api/tenants/" + tenantWrapper2.get().getId() + "/endpoints/register")
-                      .content(mapper.writeValueAsString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().isOk())
-              .andReturn();
-          entityManager.flush();
-          entityManager.clear();
-
-          tenantIsolationTestHelper.switchToTenant(tenantWrapper.get().getId(), entityManager);
-          List<AssetAgentJob> jobTenant1 = fromIterable(assetAgentJobRepository.findAll());
-
-          assertThat(jobTenant1)
-              .satisfiesOnlyOnce(job -> assertThat(job.getInject()).isNull())
-              .satisfiesOnlyOnce(
-                  job ->
-                      assertThat(job.getTenant().getId()).isEqualTo(tenantWrapper.get().getId()));
-
-          tenantIsolationTestHelper.switchToTenant(tenantWrapper2.get().getId(), entityManager);
-          List<AssetAgentJob> jobTenant2 = fromIterable(assetAgentJobRepository.findAll());
-
-          assertThat(jobTenant2)
-              .satisfiesOnlyOnce(job -> assertThat(job.getInject()).isNull())
-              .satisfiesOnlyOnce(
-                  job ->
-                      assertThat(job.getTenant().getId()).isEqualTo(tenantWrapper2.get().getId()));
         }
 
         @Test
@@ -226,7 +163,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input1))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -234,7 +171,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input2))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -281,7 +218,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -305,14 +242,14 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().isOk());
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))

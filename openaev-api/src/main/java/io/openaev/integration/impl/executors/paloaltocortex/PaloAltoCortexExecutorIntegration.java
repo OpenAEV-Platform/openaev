@@ -120,6 +120,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
 
     Executor executor =
         executorService.register(
+            getTenantId(),
             executorId,
             PALOALTOCORTEX_EXECUTOR_TYPE,
             executorName,

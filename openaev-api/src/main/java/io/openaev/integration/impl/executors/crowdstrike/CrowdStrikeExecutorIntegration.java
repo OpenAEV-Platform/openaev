@@ -122,6 +122,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
 
     Executor executor =
         executorService.register(
+            getTenantId(),
             executorId,
             CROWDSTRIKE_EXECUTOR_TYPE,
             executorName,

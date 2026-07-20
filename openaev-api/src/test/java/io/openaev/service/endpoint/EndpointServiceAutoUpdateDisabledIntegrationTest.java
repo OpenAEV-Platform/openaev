@@ -12,15 +12,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetAgentJob;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetAgentJobRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.List;
@@ -48,12 +50,17 @@ class EndpointServiceAutoUpdateDisabledIntegrationTest extends IntegrationTest {
   @Autowired private ExecutorFixture executorFixture;
   @Autowired private AssetAgentJobRepository assetAgentJobRepository;
   @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private TestUserHolder testUserHolder;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   @BeforeEach
   void setUp() {
     executorComposer.reset();
-    ensureServiceAccount(TenantContext.getCurrentTenant());
+    // Link mock user to the default tenant so TxCtx resolves a valid write scope
+    tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    entityManager.flush();
+    ensureServiceAccount(Tenant.DEFAULT_TENANT_UUID);
   }
 
   private void ensureServiceAccount(String tenantId) {

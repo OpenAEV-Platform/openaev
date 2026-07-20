@@ -71,8 +71,7 @@ public class InventoryMetricCollector {
       Supplier<? extends Iterable<? extends BaseConnectorEntity>> entitiesSupplier) {
     try {
       return tenantTx.execute(
-          TxCtx.allTenants(),
-          () -> collectInventoryScoped(connectorType, entitiesSupplier));
+          TxCtx.allTenants(), () -> collectInventoryScoped(connectorType, entitiesSupplier));
     } catch (Exception e) {
       log.error("Telemetry - Failed to collect connector inventory metrics", e);
       return Map.of();

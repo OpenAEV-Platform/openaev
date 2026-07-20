@@ -119,6 +119,7 @@ public class TaniumExecutorIntegration extends Integration {
 
     Executor executor =
         executorService.register(
+            getTenantId(),
             executorId,
             TANIUM_EXECUTOR_TYPE,
             executorName,

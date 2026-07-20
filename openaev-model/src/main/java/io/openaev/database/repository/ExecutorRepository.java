@@ -13,10 +13,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ExecutorRepository extends CrudRepository<Executor, ConnectorCompositeId> {
 
-  Optional<Executor> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+  Optional<Executor> findById(@NotNull String id);
 
-  @NotNull
-  Optional<Executor> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
+  Optional<Executor> findByType(@NotNull String type);
 
   @Modifying
   @Query(

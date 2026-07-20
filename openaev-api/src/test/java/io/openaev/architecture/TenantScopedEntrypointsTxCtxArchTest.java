@@ -85,7 +85,15 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.mitigation.MitigationApi#createMitigation",
           "io.openaev.rest.mitigation.MitigationApi#updateMitigation",
           "io.openaev.rest.mitigation.MitigationApi#upsertMitigation",
-          "io.openaev.rest.mitigation.MitigationApi#deleteMitigation");
+          "io.openaev.rest.mitigation.MitigationApi#deleteMitigation",
+          // executors: all read/write endpoints wired with TxCtx
+          "io.openaev.rest.executor.ExecutorApi#executors",
+          "io.openaev.rest.executor.ExecutorApi#getExecutor",
+          "io.openaev.rest.executor.ExecutorApi#getExecutorRelatedIds",
+          "io.openaev.rest.executor.ExecutorApi#updateExecutor",
+          "io.openaev.rest.executor.ExecutorApi#deleteExecutor",
+          "io.openaev.rest.executor.ExecutorApi#registerExecutor",
+          "io.openaev.rest.asset.endpoint.EndpointApi#upsertEndpoint");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =

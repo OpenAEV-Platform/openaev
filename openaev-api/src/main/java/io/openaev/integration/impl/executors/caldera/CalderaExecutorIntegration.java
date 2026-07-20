@@ -104,6 +104,7 @@ public class CalderaExecutorIntegration extends Integration {
 
     Executor executor =
         executorService.register(
+            getTenantId(),
             executorId,
             CALDERA_EXECUTOR_TYPE,
             executorName,
