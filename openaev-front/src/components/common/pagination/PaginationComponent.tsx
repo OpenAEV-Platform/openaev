@@ -54,6 +54,9 @@ interface Props<T> {
   // Creation button rendered at the top right of the header row
   // (OpenCTI-aligned placement), after export / view controls.
   createButton?: ReactElement | null;
+  // Extra control rendered in the top-right bar, between the pagination arrows
+  // and the export button (e.g. a cards/list view switcher).
+  topRightSlot?: ReactElement | null;
 }
 
 /**
@@ -71,6 +74,7 @@ const PaginationComponent = <T extends object>({
   attackPatterns,
   children,
   createButton,
+  topRightSlot,
 }: Props<T>) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -176,24 +180,25 @@ const PaginationComponent = <T extends object>({
             </>
           )}
         </div>
-        {(!disablePagination || createButton) && (
+        {(!disablePagination || topRightSlot || createButton) && (
           <div className={classes.container} style={{ gap: 8 }}>
             {!disablePagination && (
-              <>
-                <TablePagination
-                  component="div"
-                  rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
-                  count={totalElements}
-                  page={page}
-                  onPageChange={handleChangePage}
-                  rowsPerPage={rowsPerPage}
-                  onRowsPerPageChange={handleChangeRowsPerPage}
-                />
-                <ToggleButtonGroup value="fake" exclusive>
-                  {exportProps && <ExportButton totalElements={totalElements} exportProps={exportProps} />}
-                  {!!component && component}
-                </ToggleButtonGroup>
-              </>
+              <TablePagination
+                component="div"
+                rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+                count={totalElements}
+                page={page}
+                onPageChange={handleChangePage}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+              />
+            )}
+            {topRightSlot}
+            {!disablePagination && (
+              <ToggleButtonGroup value="fake" exclusive>
+                {exportProps && <ExportButton totalElements={totalElements} exportProps={exportProps} />}
+                {!!component && component}
+              </ToggleButtonGroup>
             )}
             {createButton}
           </div>

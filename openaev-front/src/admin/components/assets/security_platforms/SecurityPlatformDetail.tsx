@@ -9,7 +9,7 @@ import { fetchSecurityPlatform } from '../../../../actions/assets/securityPlatfo
 import { adHocEntities, adHocSeries } from '../../../../actions/dashboards/dashboard-action';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import Chart from '../../../../components/Chart';
-import { DetailHero, Field, InformationGrid, MetricGrid, MetricTile, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -368,30 +368,34 @@ const SecurityPlatformDetail: FunctionComponent = () => {
         iconNode={logo}
         title={platform.asset_name}
         chips={<ItemSecurityPlatformType type={platform.security_platform_type} size="medium" />}
+        stats={(
+          <>
+            <HeroStat
+              icon={ShieldOutlined}
+              label={t('Prevention rate')}
+              value={kpis.preventionRate === null ? '-' : `${kpis.preventionRate}%`}
+              color={theme.palette.success.main}
+            />
+            <HeroStat
+              icon={GppMaybeOutlined}
+              label={t('Detection rate')}
+              value={kpis.detectionRate === null ? '-' : `${kpis.detectionRate}%`}
+              color={theme.palette.primary.main}
+            />
+            <HeroStat
+              icon={TrackChangesOutlined}
+              label={t('Expectations tested')}
+              value={kpis.tested}
+            />
+            <HeroStat
+              icon={BlockOutlined}
+              label={t('Missed expectations')}
+              value={kpis.missedCount}
+              color={theme.palette.warning.main}
+            />
+          </>
+        )}
       />
-
-      <MetricGrid>
-        <MetricTile
-          icon={ShieldOutlined}
-          label={t('Prevention rate')}
-          value={kpis.preventionRate === null ? '-' : `${kpis.preventionRate}%`}
-        />
-        <MetricTile
-          icon={GppMaybeOutlined}
-          label={t('Detection rate')}
-          value={kpis.detectionRate === null ? '-' : `${kpis.detectionRate}%`}
-        />
-        <MetricTile
-          icon={TrackChangesOutlined}
-          label={t('Expectations tested')}
-          value={kpis.tested}
-        />
-        <MetricTile
-          icon={BlockOutlined}
-          label={t('Missed expectations')}
-          value={kpis.missedCount}
-        />
-      </MetricGrid>
 
       <InformationGrid title={t('Information')}>
         <Field label={t('Type')}>

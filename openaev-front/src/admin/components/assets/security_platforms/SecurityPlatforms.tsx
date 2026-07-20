@@ -192,20 +192,13 @@ const SecurityPlatforms = () => {
         searchPaginationInput={searchPaginationInput}
         setContent={setSecurityPlatforms}
         exportProps={exportProps}
+        topRightSlot={viewSwitcher}
         createButton={(
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.SECURITY_PLATFORMS}>
             <SecurityPlatformCreation onCreate={result => setSecurityPlatforms([result, ...securityPlatforms])} />
           </Can>
         )}
       />
-      <Box sx={{
-        display: 'flex',
-        justifyContent: 'flex-end',
-        marginBottom: 1,
-      }}
-      >
-        {viewSwitcher}
-      </Box>
       {viewMode === 'cards' && renderCards()}
       {viewMode === 'list' && (
         <List>

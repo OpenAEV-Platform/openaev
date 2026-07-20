@@ -128,89 +128,6 @@ export const SectionBlock = ({ title, children, disablePadding }: {
   </div>
 );
 
-// A compact KPI grid: as many metric tiles as fit, each a small square with a
-// big number. Use for entity overview headline metrics (players, injects,
-// findings, scores, ...).
-export const MetricGrid = ({ children }: { children: ReactNode }) => (
-  <Box sx={{
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-    gap: 1.5,
-  }}
-  >
-    {children}
-  </Box>
-);
-
-// A single KPI tile. When `to` is set the whole tile becomes a pivot link.
-export const MetricTile = ({ icon: Icon, label, value, to }: {
-  icon?: ComponentType<{
-    color?: 'primary';
-    sx?: object;
-  }>;
-  label: string;
-  value: ReactNode;
-  to?: string;
-}) => {
-  const theme = useTheme();
-  const tile = (
-    <Paper
-      variant="outlined"
-      sx={{
-        padding: 1.5,
-        borderRadius: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 0.5,
-        height: '100%',
-        ...(to
-          ? {
-              'transition': 'border-color 120ms, background-color 120ms',
-              '&:hover': {
-                borderColor: alpha(theme.palette.primary.main, 0.5),
-                backgroundColor: alpha(theme.palette.primary.main, 0.04),
-              },
-            }
-          : {}),
-      }}
-    >
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 0.75,
-      }}
-      >
-        {Icon && <Icon color="primary" sx={{ fontSize: 16 }} />}
-        <Typography
-          sx={{
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: 'text.secondary',
-          }}
-        >
-          {label}
-        </Typography>
-      </Box>
-      <Typography variant="h2" sx={{ margin: 0 }}>{value}</Typography>
-    </Paper>
-  );
-  return to
-    ? (
-        <Link
-          to={to}
-          style={{
-            textDecoration: 'none',
-            color: 'inherit',
-          }}
-        >
-          {tile}
-        </Link>
-      )
-    : tile;
-};
-
 // A single headline stat rendered in the entity hero, mirroring the custom
 // dashboard NumberWidget look & feel: a tinted rounded icon box next to a big
 // Geologica number with an uppercase caption beneath it. When `to` is set the
@@ -311,8 +228,11 @@ export const HeroStats = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// The hero header shared by all Security detail pages.
-export const DetailHero = ({ icon: Icon, iconNode, title, chips, action }: {
+// The hero header shared by all Security detail pages. When `stats` is set, the
+// headline metrics render as a second row of tiny HeroStats inside the hero
+// (mirroring the scenario / simulation overviews) instead of a separate tile
+// grid below it.
+export const DetailHero = ({ icon: Icon, iconNode, title, chips, action, stats }: {
   icon?: ComponentType<{
     color?: 'primary';
     sx?: object;
@@ -322,6 +242,8 @@ export const DetailHero = ({ icon: Icon, iconNode, title, chips, action }: {
   title: string;
   chips?: ReactNode;
   action?: ReactNode;
+  /** Tiny headline stats rendered as a second hero row (wrap in HeroStat). */
+  stats?: ReactNode;
 }) => {
   const theme = useTheme();
   const accent = theme.palette.primary.main;
@@ -330,60 +252,68 @@ export const DetailHero = ({ icon: Icon, iconNode, title, chips, action }: {
       variant="outlined"
       sx={{
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: 'column',
         gap: 2,
         padding: 2,
         borderRadius: 1,
         background: `linear-gradient(135deg, ${alpha(accent, 0.08)}, transparent 60%)`,
       }}
     >
-      <Box
-        sx={{
-          width: 52,
-          height: 52,
-          borderRadius: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          backgroundColor: alpha(accent, 0.12),
-          border: `1px solid ${alpha(accent, 0.3)}`,
-        }}
-      >
-        {iconNode ?? (Icon ? <Icon color="primary" /> : null)}
-      </Box>
       <Box sx={{
-        minWidth: 0,
-        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
       }}
       >
-        <Tooltip title={title}>
-          <Typography
-            variant="h1"
-            sx={{
-              margin: 0,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {title}
-          </Typography>
-        </Tooltip>
-        {chips && (
-          <Box sx={{
+        <Box
+          sx={{
+            width: 52,
+            height: 52,
+            borderRadius: 1,
             display: 'flex',
             alignItems: 'center',
-            gap: 1,
-            marginTop: 0.5,
-            flexWrap: 'wrap',
+            justifyContent: 'center',
+            flexShrink: 0,
+            backgroundColor: alpha(accent, 0.12),
+            border: `1px solid ${alpha(accent, 0.3)}`,
           }}
-          >
-            {chips}
-          </Box>
-        )}
+        >
+          {iconNode ?? (Icon ? <Icon color="primary" /> : null)}
+        </Box>
+        <Box sx={{
+          minWidth: 0,
+          flex: 1,
+        }}
+        >
+          <Tooltip title={title}>
+            <Typography
+              variant="h1"
+              sx={{
+                margin: 0,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {title}
+            </Typography>
+          </Tooltip>
+          {chips && (
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              marginTop: 0.5,
+              flexWrap: 'wrap',
+            }}
+            >
+              {chips}
+            </Box>
+          )}
+        </Box>
+        {action}
       </Box>
-      {action}
+      {stats && <HeroStats>{stats}</HeroStats>}
     </Paper>
   );
 };

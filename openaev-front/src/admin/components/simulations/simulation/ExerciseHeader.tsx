@@ -8,8 +8,9 @@ import {
   PlayCircleOutlineOutlined,
   RestartAltOutlined,
   TrackChangesOutlined,
+  TuneOutlined,
 } from '@mui/icons-material';
-import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, Paper, Tooltip, Typography } from '@mui/material';
+import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -19,6 +20,7 @@ import { createCustomDashboard } from '../../../../actions/custom_dashboards/cus
 import { searchExerciseHealthchecks, updateExercise, updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import { HeroStat, HeroStats } from '../../../../components/common/detail/EntityDetailCommon';
+import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCategory from '../../../../components/ItemCategory';
@@ -35,6 +37,7 @@ import DashboardCreationDrawer from '../../workspaces/custom_dashboards/Dashboar
 import ExerciseDatePopover from './ExerciseDatePopover';
 import ExercisePopover, { type ExerciseActionPopover } from './ExercisePopover';
 import ExerciseStatus from './ExerciseStatus';
+import SimulationConfiguration from './SimulationConfiguration';
 
 const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing }: {
   exerciseId: Exercise['exercise_id'];
@@ -246,6 +249,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
 
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
   const [openCreateDashboard, setOpenCreateDashboard] = useState(false);
+  const [openConfiguration, setOpenConfiguration] = useState(false);
 
   const isScopeMissing = isSimulationChaining
     && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
@@ -384,10 +388,20 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
           </Box>
 
           <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            flexWrap: 'wrap',
+            'display': 'flex',
+            'alignItems': 'center',
+            'gap': 1,
+            'flexWrap': 'wrap',
+            // Uniform 32px height for every hero action (text buttons - even
+            // Tooltip/span-wrapped ones - and the kebab) so the top-right row
+            // lines up perfectly. The icon toolbar cluster sizes its own
+            // IconButtons below (its border is part of the 32px). Popover/drawer
+            // actions render in portals, so they are unaffected.
+            '& .MuiButton-root': { height: 32 },
+            '& .MuiToggleButton-root': {
+              width: 32,
+              height: 32,
+            },
           }}
           >
             {permissions.canManage && (
@@ -421,12 +435,24 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                 'display': 'flex',
                 'alignItems': 'center',
                 'marginLeft': 0.5,
+                'height': 32,
                 'borderRadius': 1,
                 'border': `1px solid ${theme.palette.divider}`,
                 'overflow': 'hidden',
-                '& .MuiIconButton-root': { borderRadius: 0 },
+                '& .MuiIconButton-root': {
+                  borderRadius: 0,
+                  height: 30,
+                },
+                '& .MuiIconButton-root:not(:first-of-type)': { borderLeft: `1px solid ${theme.palette.divider}` },
               }}
               >
+                {!isSimulationChaining && (
+                  <Tooltip title={t('Configuration')}>
+                    <IconButton size="small" onClick={() => setOpenConfiguration(true)}>
+                      <TuneOutlined fontSize="small" color="primary" />
+                    </IconButton>
+                  </Tooltip>
+                )}
                 <ExerciseDatePopover exercise={exercise} />
               </Box>
             )}
@@ -462,6 +488,13 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
         </HeroStats>
       </Paper>
 
+      <Drawer
+        open={openConfiguration}
+        handleClose={() => setOpenConfiguration(false)}
+        title={t('Simulation configuration')}
+      >
+        <SimulationConfiguration />
+      </Drawer>
       <DashboardCreationDrawer
         open={openCreateDashboard}
         onClose={() => setOpenCreateDashboard(false)}

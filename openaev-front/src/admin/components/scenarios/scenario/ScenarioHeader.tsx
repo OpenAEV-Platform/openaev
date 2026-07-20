@@ -297,10 +297,20 @@ const ScenarioHeader = ({
           </Box>
 
           <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            flexWrap: 'wrap',
+            'display': 'flex',
+            'alignItems': 'center',
+            'gap': 1,
+            'flexWrap': 'wrap',
+            // Uniform 32px height for every hero action (text buttons - even
+            // Tooltip/span-wrapped ones - and the kebab) so the top-right row
+            // lines up perfectly. The icon toolbar cluster sizes its own
+            // IconButtons below (its border is part of the 32px). Popover/drawer
+            // actions render in portals, so they are unaffected.
+            '& .MuiButton-root': { height: 32 },
+            '& .MuiToggleButton-root': {
+              width: 32,
+              height: 32,
+            },
           }}
           >
             {/* Discrete configuration nudge, kept out of the way top-right. */}
@@ -378,10 +388,14 @@ const ScenarioHeader = ({
                 'display': 'flex',
                 'alignItems': 'center',
                 'marginLeft': 0.5,
+                'height': 32,
                 'borderRadius': 1,
                 'border': `1px solid ${theme.palette.divider}`,
                 'overflow': 'hidden',
-                '& .MuiIconButton-root': { borderRadius: 0 },
+                '& .MuiIconButton-root': {
+                  borderRadius: 0,
+                  height: 30,
+                },
                 '& .MuiIconButton-root:not(:first-of-type)': { borderLeft: `1px solid ${theme.palette.divider}` },
               }}
               >
