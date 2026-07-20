@@ -193,4 +193,21 @@ public class PlatformSettings extends PublicPlatformSettings {
   @JsonProperty("platform_license")
   @Schema(description = "Platform licensing information")
   private License platformLicense;
+
+  // SESSION MANAGEMENT
+  @JsonProperty("platform_session_timeout")
+  @Schema(
+      description =
+          "Rolling session timeout in milliseconds (every request extends the session by this duration). Read-only, driven by server configuration")
+  private Long platformSessionTimeout;
+
+  @JsonProperty("platform_session_idle_timeout")
+  @Schema(
+      description =
+          "Idle timeout in milliseconds before the UI locks the screen (0 = disabled). Read-only, driven by server configuration")
+  private Long platformSessionIdleTimeout;
+
+  @JsonProperty("platform_session_max_concurrent")
+  @Schema(description = "Maximum number of concurrent sessions per user (0 = unlimited)")
+  private Integer platformSessionMaxConcurrent;
 }

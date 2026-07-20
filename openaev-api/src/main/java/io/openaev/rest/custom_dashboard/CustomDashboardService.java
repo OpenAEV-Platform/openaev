@@ -199,6 +199,10 @@ public class CustomDashboardService {
    * @return list of {@link FilterUtilsJpa.Option} objects
    */
   public List<FilterUtilsJpa.Option> findAllByIdsAsOptions(final List<String> ids) {
+    // A null / empty id list would make findAllById(null) throw "Ids must not be null".
+    if (ids == null || ids.isEmpty()) {
+      return List.of();
+    }
     return fromIterable(customDashboardRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();

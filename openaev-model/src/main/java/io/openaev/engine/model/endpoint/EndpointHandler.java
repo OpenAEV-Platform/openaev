@@ -40,6 +40,7 @@ public class EndpointHandler implements Handler<EsEndpoint> {
               esEndpoint.setEndpoint_name(endpoint.getAsset_name());
               esEndpoint.setEndpoint_description(endpoint.getAsset_description());
               esEndpoint.setEndpoint_external_reference(endpoint.getAsset_external_reference());
+              esEndpoint.setEndpoint_category(endpoint.getAsset_category());
               esEndpoint.setEndpoint_ips(endpoint.getEndpoint_ips());
               esEndpoint.setEndpoint_hostname(endpoint.getEndpoint_hostname());
               esEndpoint.setEndpoint_platform(endpoint.getEndpoint_platform());

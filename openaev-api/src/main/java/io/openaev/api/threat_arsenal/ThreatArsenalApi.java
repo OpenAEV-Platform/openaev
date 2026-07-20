@@ -9,6 +9,7 @@ import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
+import io.openaev.rest.injector_contract.output.InjectorContractAuthorCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.schema.model.PropertySchemaDTO;
@@ -68,6 +69,17 @@ public class ThreatArsenalApi {
   public List<InjectorContractDomainCountOutput> getDomainCounts(
       @RequestBody @Valid final SearchPaginationInput input) {
     return threatArsenalService.getDomainCounts(input);
+  }
+
+  @PostMapping({
+    THREAT_ARSENAL_URL + "/author-counts",
+    TENANT_THREAT_ARSENAL_URL + "/author-counts"
+  })
+  @Transactional
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  public List<InjectorContractAuthorCountOutput> getAuthorCounts(
+      @RequestBody @Valid final SearchPaginationInput input) {
+    return threatArsenalService.getAuthorCounts(input);
   }
 
   @Operation(summary = "Search threat arsenal")
@@ -171,5 +183,14 @@ public class ThreatArsenalApi {
       resourceType = ResourceType.THREAT_ARSENAL)
   public void deleteAction(@PathVariable String actionId) {
     threatArsenalService.delete(actionId);
+  }
+
+  @Operation(summary = "Bulk delete threat arsenal actions")
+  @PostMapping({THREAT_ARSENAL_URL + "/bulk-delete", TENANT_THREAT_ARSENAL_URL + "/bulk-delete"})
+  @Transactional
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.THREAT_ARSENAL)
+  public ThreatArsenalBulkDeleteOutput bulkDeleteActions(
+      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+    return ThreatArsenalBulkDeleteOutput.of(threatArsenalService.bulkDelete(input));
   }
 }

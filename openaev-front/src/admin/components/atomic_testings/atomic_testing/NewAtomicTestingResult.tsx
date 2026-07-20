@@ -1,4 +1,3 @@
-import { BugReportOutlined, SensorOccupiedOutlined, ShieldOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
@@ -6,6 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type InjectTarget } from '../../../../utils/api-types';
+import { expectationTypeIcon } from '../../common/ExpectationIconByType';
 
 const useStyles = makeStyles()(() => ({
   inline: {
@@ -17,6 +17,11 @@ const useStyles = makeStyles()(() => ({
 }));
 
 interface Props { target: InjectTarget }
+
+const PreventionIcon = expectationTypeIcon('PREVENTION');
+const DetectionIcon = expectationTypeIcon('DETECTION');
+const VulnerabilityIcon = expectationTypeIcon('VULNERABILITY');
+const HumanResponseIcon = expectationTypeIcon('HUMAN_RESPONSE');
 
 const NewAtomicTestingResult: FunctionComponent<Props> = ({ target }) => {
   const { t } = useFormatter();
@@ -38,7 +43,7 @@ const NewAtomicTestingResult: FunctionComponent<Props> = ({ target }) => {
     <div className={classes.inline}>
       {'target_prevention_status' in target && (
         <Tooltip title={t('Prevention')}>
-          <ShieldOutlined
+          <PreventionIcon
             style={{
               color: getColor(target.target_prevention_status),
               marginRight: theme.spacing(2),
@@ -49,7 +54,7 @@ const NewAtomicTestingResult: FunctionComponent<Props> = ({ target }) => {
       )}
       {'target_detection_status' in target && (
         <Tooltip title={t('Detection')}>
-          <TrackChangesOutlined
+          <DetectionIcon
             style={{
               color: getColor(target.target_detection_status),
               marginRight: theme.spacing(2),
@@ -60,7 +65,7 @@ const NewAtomicTestingResult: FunctionComponent<Props> = ({ target }) => {
       )}
       {'target_vulnerability_status' in target && (
         <Tooltip title={t('Vulnerability')}>
-          <BugReportOutlined
+          <VulnerabilityIcon
             style={{
               color: getColor(target.target_vulnerability_status),
               marginRight: theme.spacing(2),
@@ -71,7 +76,7 @@ const NewAtomicTestingResult: FunctionComponent<Props> = ({ target }) => {
       )}
       {'target_human_response_status' in target && (
         <Tooltip title={t('Human Response')}>
-          <SensorOccupiedOutlined
+          <HumanResponseIcon
             style={{
               color: getColor(target.target_human_response_status),
               marginRight: theme.spacing(2),

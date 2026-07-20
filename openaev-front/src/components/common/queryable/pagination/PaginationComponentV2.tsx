@@ -53,6 +53,7 @@ interface Props<T> {
   availableFilterNames?: string[];
   queryableHelpers: QueryableHelpers;
   topBarButtons?: ReactElement | null;
+  leftSlot?: ReactElement | null;
   attackPatterns?: AttackPattern[];
   reloadContentCount?: number;
   contextId?: string;
@@ -72,6 +73,7 @@ const PaginationComponentV2 = <T extends object>({
   queryableHelpers,
   attackPatterns,
   topBarButtons,
+  leftSlot,
   reloadContentCount = 0,
   contextId,
   topPagination = false,
@@ -161,6 +163,7 @@ const PaginationComponentV2 = <T extends object>({
           alignItems: 'center',
         }}
         >
+          {leftSlot}
           {searchEnable && (
             <TextSearchComponent
               textSearch={searchPaginationInput.textSearch}
@@ -173,7 +176,7 @@ const PaginationComponentV2 = <T extends object>({
               helpers={queryableHelpers.filterHelpers}
               options={options}
               setPristine={setPristine}
-              style={{ marginLeft: searchEnable ? 10 : 0 }}
+              style={{ marginLeft: (searchEnable || leftSlot) ? 10 : 0 }}
             />
           ) }
 

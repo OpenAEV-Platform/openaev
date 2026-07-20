@@ -22,8 +22,8 @@ import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import FiligranAiCguDialog from '../../../ariane/FiligranAiCguDialog';
 import AssetGroupPopover from '../../../assets/asset_groups/AssetGroupPopover';
 import AssetGroupsList from '../../../assets/asset_groups/AssetGroupsList';
-import EndpointPopover from '../../../assets/endpoints/EndpointPopover';
-import EndpointsList from '../../../assets/endpoints/EndpointsList';
+import AssetPopover from '../../../assets/endpoints/AssetPopover';
+import AssetsList from '../../../assets/endpoints/AssetsList';
 import EEChip from '../../../common/entreprise_edition/EEChip';
 import InjectAddAssetGroups from '../../../simulations/simulation/injects/asset_groups/InjectAddAssetGroups';
 import InjectAddEndpoints from '../../../simulations/simulation/injects/endpoints/InjectAddEndpoints';
@@ -189,12 +189,12 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
             </Typography>
             <div>
               <Typography variant="h3">{t('Assets')}</Typography>
-              <EndpointsList
+              <AssetsList
                 endpoints={endpoints}
-                renderActions={endpoint => (
-                  <EndpointPopover
+                renderActions={asset => (
+                  <AssetPopover
                     inline
-                    endpoint={endpoint}
+                    endpoint={asset}
                     removeFromContextLabel="Remove"
                     onRemoveFromContext={removeAsset}
                   />

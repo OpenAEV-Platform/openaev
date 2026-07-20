@@ -7,7 +7,7 @@ import {
 } from '@mui/icons-material';
 import { Box, darken, IconButton, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useContext } from 'react';
+import { type ReactNode, useContext } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import { type Widget } from '../../../../../utils/api-types';
@@ -23,9 +23,11 @@ interface WidgetTitleProps {
   handleWidgetUpdate: (widget: Widget) => void;
   handleWidgetDelete: (widgetId: string) => void;
   vizData: WidgetVizData;
+  /** Extra content rendered at the right end of the title row (e.g. list pagination). */
+  rightSlot?: ReactNode;
 }
 
-const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, handleWidgetDelete, vizData }: WidgetTitleProps) => {
+const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, handleWidgetDelete, vizData, rightSlot }: WidgetTitleProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const darkerInfoStyle = darken(theme.palette.info.main, 0.7);
@@ -122,6 +124,7 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
         alignItems: 'center',
         marginBottom: 10,
         height: 22,
+        gap: 8,
       }}
     >
       <Typography
@@ -129,17 +132,22 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
         gutterBottom={false}
         style={{
           margin: 0,
-          fontSize: 12,
-          fontWeight: 500,
+          lineHeight: 1,
+          fontSize: 11,
+          fontWeight: 600,
+          fontFamily: '"Geologica", sans-serif',
+          letterSpacing: '0.08em',
           textTransform: 'uppercase',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           flex: 1,
+          opacity: 0.85,
         }}
       >
         {widgetTitle}
       </Typography>
+      {rightSlot}
       {isNumberWidget && numberTooltipContent && (
         <Tooltip
           title={numberTooltipContent}

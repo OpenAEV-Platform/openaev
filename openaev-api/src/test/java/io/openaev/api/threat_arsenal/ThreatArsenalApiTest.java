@@ -1326,7 +1326,9 @@ public class ThreatArsenalApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON))
           .andExpect(status().isNotFound())
           .andExpect(
-              content().string(containsString("Only payload-based actions can be deleted.")));
+              content()
+                  .string(
+                      containsString("Only payload-based or orphaned actions can be deleted.")));
     }
 
     @Test

@@ -1,12 +1,10 @@
-import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useSearchParams } from 'react-router';
 
 import Breadcrumbs, { type BreadcrumbsElement } from '../../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../../components/i18n';
 import type { Exercise as ExerciseType, InjectResultOverviewOutput } from '../../../../../utils/api-types';
-import AtomicTestingTitle from '../../../atomic_testings/atomic_testing/AtomicTestingTitle';
-import ResponsePie from '../../../common/injects/ResponsePie';
+import InjectHero from '../../../atomic_testings/atomic_testing/InjectHero';
 import InjectIndexTabs from './InjectIndexTabs';
 
 interface Props {
@@ -45,37 +43,22 @@ const InjectIndexHeader = ({ injectResultOverview, exercise }: Props) => {
   });
 
   return (
-    <Box
-      sx={{
-        borderBottom: 1,
-        borderColor: 'divider',
-        marginBottom: 2,
-      }}
+    <header style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: theme.spacing(1),
+      marginBottom: theme.spacing(2),
+    }}
     >
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr auto',
-        gap: theme.spacing(2),
-        alignItems: 'start',
-      }}
-      >
-        <Box display="flex" flexDirection="column" justifyContent="left" alignItems="flex-start">
-          <Breadcrumbs variant="object" elements={breadcrumbs} />
-          <AtomicTestingTitle injectResultOverview={injectResultOverview} />
-          <InjectIndexTabs
-            injectResultOverview={injectResultOverview}
-            exercise={exercise}
-            backlabel={backlabel}
-            backuri={backuri}
-          />
-        </Box>
-        <ResponsePie
-          hasTitles={false}
-          forceSize={112}
-          expectationResultsByTypes={injectResultOverview.inject_expectation_results}
-        />
-      </div>
-    </Box>
+      <Breadcrumbs variant="object" elements={breadcrumbs} />
+      <InjectHero injectResultOverview={injectResultOverview} />
+      <InjectIndexTabs
+        injectResultOverview={injectResultOverview}
+        exercise={exercise}
+        backlabel={backlabel}
+        backuri={backuri}
+      />
+    </header>
   );
 };
 

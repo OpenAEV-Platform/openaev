@@ -651,6 +651,21 @@ public class InjectApi extends RestBehavior {
     return this.injectService.getInjectStatusWithGlobalExecutionTraces(injectId);
   }
 
+  @Operation(
+      description =
+          "Get InjectStatus with the complete execution log (orchestration traces plus every"
+              + " agent's traces)")
+  @Transactional
+  @GetMapping({INJECT_URI + "/status-all-traces", TENANT_INJECT_URI + "/status-all-traces"})
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
+  @LogExecutionTime
+  public InjectStatusOutput getInjectStatusWithAllExecutionTraces(@RequestParam String injectId) {
+    return this.injectService.getInjectStatusWithAllExecutionTraces(injectId);
+  }
+
   @Operation(description = "Get detection remediation by inject based on the payload definition")
   @Transactional
   @GetMapping({

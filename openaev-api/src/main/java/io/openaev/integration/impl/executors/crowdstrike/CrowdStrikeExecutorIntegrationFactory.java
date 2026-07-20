@@ -115,13 +115,11 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
     connector.setSlug(CROWDSTRIKE_EXECUTOR_TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
-        """
-            CrowdStrike Falcon Intelligence is an integral threat intelligence module within the Falcon platform, crafted to enhance the speed and effectiveness of threat detection, investigation, and response. It equips SOC teams to work more swiftly and intelligently, leveraging automation, enrichment, and high-fidelity data to optimize their cybersecurity operations.
-
-            With Crowdstrike executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Crowdstrike instance.
-            """);
-    connector.setShortDescription(
-        "Enable execution of OpenAEV scenarios through your Crowdstrike instance.");
+        "Register your CrowdStrike Falcon-managed hosts as OpenAEV executors and run"
+            + " simulated attacks directly on them through the Falcon platform, so you can"
+            + " validate detection and prevention on real endpoints without deploying the"
+            + " OpenAEV agent.");
+    connector.setShortDescription("Run OpenAEV simulations on your CrowdStrike Falcon endpoints.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("https://www.crowdstrike.com");
     connector.setContainerType(ConnectorType.EXECUTOR);

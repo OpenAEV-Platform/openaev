@@ -44,7 +44,7 @@ const InjectIcon: FunctionComponent<Props> = ({
       cursor: onClick ? 'pointer' : 'default',
       filter: `${done ? 'filter:hue-rotate(100deg)' : `brightness(${disabled ? '30%' : '100%'})`}`,
     };
-    if (!type || type.endsWith('_dummy')) {
+    if (!type) {
       return (
         <HelpOutlineOutlined onClick={onClick} style={style} />
       );

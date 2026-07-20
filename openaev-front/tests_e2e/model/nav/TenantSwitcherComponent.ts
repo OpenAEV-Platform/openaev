@@ -10,12 +10,16 @@ import { TIMEOUT } from '../../utils/constants';
 class TenantSwitcherComponent {
   constructor(private page: Page) {}
 
+  get switcher() {
+    return this.page.getByTestId('tenant-switcher');
+  }
+
   /**
    * Opens the tenant-switcher popover by clicking the icon-based menu item.
    * Works regardless of whether the left bar is expanded or collapsed.
    */
   async openSwitcher(_currentTenantName?: string): Promise<void> {
-    const switcher = this.page.getByTestId('tenant-switcher');
+    const switcher = this.switcher;
 
     await switcher.waitFor({
       state: 'visible',
