@@ -8,9 +8,9 @@ import { useFormatter } from '../../../../../components/i18n';
 import PlatformIcon from '../../../../../components/PlatformIcon';
 import { useHelper } from '../../../../../store';
 import { type AttackPattern, type Domain, type InjectorContractFullOutput } from '../../../../../utils/api-types';
+import { getIconByDomain } from '../../../../../utils/domains/domainIcons';
 import { TO_CLASSIFY } from '../../../../../utils/domains/domainUtils';
 import { isNotEmptyField } from '../../../../../utils/utils';
-import { getIconByDomain } from '../../../workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
 import InjectIcon from '../InjectIcon';
 
 interface Props {

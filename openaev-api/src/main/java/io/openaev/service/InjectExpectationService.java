@@ -1207,9 +1207,12 @@ public class InjectExpectationService {
       @NotBlank final String agentId,
       @NotBlank final Instant date,
       @NotBlank final String signatureType) {
-    // Load all expectations for the inject/agent, append the signature, then persist the changes.
-    List<BaseInjectExpectation> injectExpectations =
-        injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
+    // Load the technical expectations for the inject/agent, append the signature, then persist
+    // the changes. Agent rows can also carry MANUAL expectations, which must not receive
+    // start/end date signatures (they are matched against technical detection/prevention data).
+    List<TechnicalInjectExpectation> injectExpectations =
+        filterTechnicalExpectations(
+            injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId));
     if (!injectExpectations.isEmpty()) {
       injectExpectations.forEach(
           injectExpectation -> {

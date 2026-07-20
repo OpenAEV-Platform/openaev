@@ -4,9 +4,9 @@ import { useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type DomainHelper } from '../actions/domains/domain-helper';
-import { getIconByDomain } from '../admin/components/workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
 import { useHelper } from '../store';
 import { type Domain } from '../utils/api-types';
+import { getIconByDomain } from '../utils/domains/domainIcons';
 import { TO_CLASSIFY } from '../utils/domains/domainUtils';
 import { getLabelOfRemainingItems, truncate } from '../utils/String';
 
