@@ -196,7 +196,8 @@ public class PayloadService {
     ContractAsset assetField = assetField(Multiple);
     ContractAssetGroup assetGroupField = assetGroupField(Multiple);
     ContractExpectations expectationsField =
-        createContractExpectationsBasedOnPayload(payload.getExpectations(), payload.getExpectedSecurityPlatforms());
+        createContractExpectationsBasedOnPayload(
+            payload.getExpectations(), payload.getExpectedSecurityPlatforms());
     ContractDef builder = contractBuilder();
     builder.mandatoryGroup(assetField, assetGroupField);
 
@@ -236,11 +237,22 @@ public class PayloadService {
   private ContractExpectations createContractExpectationsBasedOnPayload(
       BaseInjectExpectation.EXPECTATION_TYPE[] expectationTypes,
       Map<BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
-              expectedSecurityPlatforms) {
-    Expectation preventionExpectation = this.expectationBuilderService.buildPreventionExpectation();
-    Expectation detectionExpectation = this.expectationBuilderService.buildDetectionExpectation();
+          expectedSecurityPlatforms) {
+    Expectation preventionExpectation =
+        withExpectedSecurityPlatforms(
+            this.expectationBuilderService.buildPreventionExpectation(),
+            BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+            expectedSecurityPlatforms);
+    Expectation detectionExpectation =
+        withExpectedSecurityPlatforms(
+            this.expectationBuilderService.buildDetectionExpectation(),
+            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+            expectedSecurityPlatforms);
     Expectation vulnerableExpectation =
-        this.expectationBuilderService.buildVulnerabilityExpectation();
+        withExpectedSecurityPlatforms(
+            this.expectationBuilderService.buildVulnerabilityExpectation(),
+            BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
+            expectedSecurityPlatforms);
 
     for (BaseInjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
       switch (type) {
