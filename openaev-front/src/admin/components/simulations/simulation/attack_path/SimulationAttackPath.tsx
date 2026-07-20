@@ -1246,6 +1246,9 @@ const SimulationAttackPath = () => {
     ref: string;
     label: string;
   }) => {
+    // Ensure the graph is showing: the strip chip and the popover card are reachable from the table
+    // view too, and the focused path only renders in the graph view.
+    setView('graph');
     setChokepointsAnchor(null);
     setActiveCard(null);
     setDrawerCategory(null);
@@ -1574,8 +1577,9 @@ const SimulationAttackPath = () => {
       </div>
 
       {/* Persistent "fix first" strip: the ranked chokepoints are visible on landing without a click,
-          each chip focuses that endpoint's path. Complements the summary card + popover above. */}
-      {!pathFinding && chokepoints.length > 0 && (
+          each chip focuses that endpoint's path. Complements the summary card + popover above.
+          Hidden in the table view, which already lists (and ranks) the same endpoints. */}
+      {view === 'graph' && !pathFinding && chokepoints.length > 0 && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -1640,10 +1644,7 @@ const SimulationAttackPath = () => {
               rows={endpointRows}
               typeColumns={endpointTypeColumns}
               chokepointTopN={CHOKEPOINT_TOP_N}
-              onRowFocus={(row) => {
-                setView('graph');
-                focusChokepoint(row);
-              }}
+              onRowFocus={row => focusChokepoint(row)}
             />
           </Paper>
         )}

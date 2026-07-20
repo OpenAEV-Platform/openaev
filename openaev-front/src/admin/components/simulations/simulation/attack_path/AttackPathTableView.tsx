@@ -68,6 +68,14 @@ const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: 
     return sorted;
   }, [rows, sortKey, sortDir]);
 
+  // Stable chokepoint rank (by score desc), independent of the current display sort, so the exported
+  // "Rank" column always means the exposure rank — not the current row position.
+  const rankByNodeId = useMemo(() => {
+    const m = new Map<string, number>();
+    [...rows].sort((a, b) => b.score - a.score).forEach((r, i) => m.set(r.nodeId, i + 1));
+    return m;
+  }, [rows]);
+
   const onSort = (key: SortKey) => {
     if (key === sortKey) {
       setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
@@ -80,8 +88,8 @@ const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: 
 
   const exportCsv = () => {
     const header = [t('Rank'), t('Endpoint'), t('IP'), t('Total findings'), ...typeColumns];
-    const body = sortedRows.map((r, i) => [
-      i + 1,
+    const body = sortedRows.map(r => [
+      rankByNodeId.get(r.nodeId) ?? 0,
       r.label,
       r.ip ?? '',
       r.score,
