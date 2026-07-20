@@ -30,7 +30,7 @@ const CreateRole = ({ onCreate }: CreateRoleProps) => {
 
   return (
     <>
-      <ButtonCreate onClick={() => setOpen(true)} style={{ right: 230 }} />
+      <ButtonCreate onClick={() => setOpen(true)} />
       <Drawer
         open={open}
         handleClose={() => setOpen(false)}

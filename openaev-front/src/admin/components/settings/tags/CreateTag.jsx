@@ -1,23 +1,13 @@
-import { Add } from '@mui/icons-material';
-import { Fab } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
-import { withStyles } from 'tss-react/mui';
 
 import { addTag } from '../../../../actions/tags/tag-action';
+import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Drawer from '../../../../components/common/Drawer';
 import inject18n from '../../../../components/i18n';
 import TagForm from './TagForm';
-
-const styles = () => ({
-  createButton: {
-    position: 'fixed',
-    bottom: 30,
-    right: 230,
-  },
-});
 
 class CreateTagComponent extends Component {
   constructor(props) {
@@ -46,17 +36,10 @@ class CreateTagComponent extends Component {
   }
 
   render() {
-    const { classes, t } = this.props;
+    const { t } = this.props;
     return (
       <>
-        <Fab
-          onClick={this.handleOpen.bind(this)}
-          color="primary"
-          aria-label="Add"
-          className={classes.createButton}
-        >
-          <Add />
-        </Fab>
+        <ButtonCreate onClick={this.handleOpen.bind(this)} />
         <Drawer
           open={this.state.open}
           handleClose={this.handleClose.bind(this)}
@@ -74,7 +57,6 @@ class CreateTagComponent extends Component {
 
 CreateTagComponent.propTypes = {
   t: PropTypes.func,
-  classes: PropTypes.object,
   addTag: PropTypes.func,
   onCreate: PropTypes.func,
 };
@@ -82,7 +64,6 @@ CreateTagComponent.propTypes = {
 const CreateTag = R.compose(
   connect(null, { addTag }),
   inject18n,
-  Component => withStyles(Component, styles),
 )(CreateTagComponent);
 
 export default CreateTag;

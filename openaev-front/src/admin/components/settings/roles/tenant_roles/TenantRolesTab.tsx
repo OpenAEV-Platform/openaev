@@ -53,6 +53,11 @@ const TenantRolesTab = () => {
         entityPrefix={ENTITY_TENANT_ROLE_PREFIX}
         availableFilterNames={TENANT_ROLE_FILTERS}
         queryableHelpers={queryableHelpers}
+        topBarButtons={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+            <CreateRole onCreate={addRole} />
+          </Can>
+        )}
       />
       <List>
         <ListItem
@@ -92,9 +97,6 @@ const TenantRolesTab = () => {
               />
             )}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-        <CreateRole onCreate={addRole} />
-      </Can>
     </>
   );
 };

@@ -1,24 +1,16 @@
-import { Add, SmartButtonOutlined } from '@mui/icons-material';
-import { Fab, List, ListItemButton, ListItemIcon, ListItemText, Step, StepLabel, Stepper } from '@mui/material';
+import { SmartButtonOutlined } from '@mui/icons-material';
+import { List, ListItemButton, ListItemIcon, ListItemText, Step, StepLabel, Stepper } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
-import { withStyles } from 'tss-react/mui';
 import { v4 as uuid } from 'uuid';
 
 import { addInjectorContract } from '../../../../../actions/InjectorContracts.ts';
+import ButtonCreate from '../../../../../components/common/ButtonCreate';
 import Drawer from '../../../../../components/common/Drawer';
 import inject18n from '../../../../../components/i18n';
 import InjectorContractCustomForm from './InjectorContractCustomForm';
-
-const styles = () => ({
-  createButton: {
-    position: 'fixed',
-    bottom: 30,
-    right: 30,
-  },
-});
 
 class CreateInjectorContractComponent extends Component {
   constructor(props) {
@@ -137,18 +129,11 @@ class CreateInjectorContractComponent extends Component {
   }
 
   render() {
-    const { classes, t, injectorContracts } = this.props;
+    const { t, injectorContracts } = this.props;
     const { open, activeStep, selectedInjectorContract } = this.state;
     return (
       <>
-        <Fab
-          onClick={this.handleOpen.bind(this)}
-          color="primary"
-          aria-label="Add"
-          className={classes.createButton}
-        >
-          <Add />
-        </Fab>
+        <ButtonCreate onClick={this.handleOpen.bind(this)} />
         <Drawer
           open={open}
           handleClose={this.handleClose.bind(this)}
@@ -193,7 +178,6 @@ CreateInjectorContractComponent.propTypes = {
 const CreateInjectorContract = R.compose(
   connect(null, { addInjectorContract }),
   inject18n,
-  Component => withStyles(Component, styles),
 )(CreateInjectorContractComponent);
 
 export default CreateInjectorContract;

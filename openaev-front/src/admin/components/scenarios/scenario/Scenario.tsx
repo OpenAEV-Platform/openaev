@@ -1,5 +1,5 @@
 import { PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
-import { Avatar, Box, Button, Chip, Paper, Tooltip, Typography } from '@mui/material';
+import { Avatar, Box, Button, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type Dispatch, type SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
@@ -15,6 +15,7 @@ import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import { searchScenarioExercises, searchScenarioHealthcheks } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { Field, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
+import KillChainTimeline from '../../../../components/common/detail/KillChainTimeline';
 import PostureGauges from '../../../../components/common/detail/PostureGauges';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -45,7 +46,6 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isEmptyField, isFeatureEnabled } from '../../../../utils/utils';
-import Healthchecks from '../../common/healthchecks/Healthchecks';
 import MitreCoverageMatrix from '../../common/matrix/MitreCoverageMatrix';
 import ExercisePopover from '../../simulations/simulation/ExercisePopover';
 import SimulationList from '../../simulations/SimulationList';
@@ -276,13 +276,6 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
       paddingBottom: theme.spacing(5),
     }}
     >
-      {!!healthchecks?.length && (
-        <Healthchecks
-          healthchecks={healthchecks}
-          scenarioId={scenarioId}
-        />
-      )}
-
       {isSample && (
         <Paper
           variant="outlined"
@@ -364,8 +357,11 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
             </Field>
             <Box sx={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-              gap: 1.5,
+              gridTemplateColumns: {
+                xs: 'repeat(2, minmax(0, 1fr))',
+                md: 'repeat(3, minmax(0, 1fr))',
+              },
+              columnGap: 3,
               rowGap: 2,
             }}
             >
@@ -389,29 +385,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               </Field>
               <Box sx={{ gridColumn: '1 / -1' }}>
                 <Field label={t('Kill Chain Phases')}>
-                  {killChainPhases.length === 0 ? '-' : (
-                    <Box sx={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: 0.5,
-                    }}
-                    >
-                      {killChainPhases.map(killChainPhase => (
-                        <Chip
-                          key={killChainPhase.phase_id}
-                          variant="outlined"
-                          color="error"
-                          size="small"
-                          sx={{
-                            borderRadius: 1,
-                            textTransform: 'uppercase',
-                            fontSize: 11,
-                          }}
-                          label={killChainPhase.phase_name}
-                        />
-                      ))}
-                    </Box>
-                  )}
+                  <KillChainTimeline phases={killChainPhases} />
                 </Field>
               </Box>
               {!isScenarioChaining && hasExternalUrl && (

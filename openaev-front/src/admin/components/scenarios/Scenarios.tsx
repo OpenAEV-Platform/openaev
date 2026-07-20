@@ -1,4 +1,4 @@
-import { MovieFilterOutlined } from '@mui/icons-material';
+import { RouteOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButtonGroup } from '@mui/material';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -173,7 +173,7 @@ const Scenarios = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1}>
+          <Box display="flex" gap={1} alignItems="center">
             {
               isXTMHubAccessible && (
                 <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
@@ -190,6 +190,9 @@ const Scenarios = () => {
                 <ImportUploaderScenario />
               </Can>
             </ToggleButtonGroup>
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
+              <ScenarioCreation />
+            </Can>
           </Box>
         )}
       />
@@ -212,7 +215,7 @@ const Scenarios = () => {
         </ListItem>
         {
           loading
-            ? <PaginatedListLoader Icon={MovieFilterOutlined} headers={headers} headerStyles={inlineStyles} />
+            ? <PaginatedListLoader Icon={RouteOutlined} headers={headers} headerStyles={inlineStyles} />
             : scenarios.map((scenario: Scenario) => {
                 return (
                   <ListItem
@@ -244,7 +247,7 @@ const Scenarios = () => {
                       classes={{ root: classes.item }}
                     >
                       <ListItemIcon>
-                        <MovieFilterOutlined color="primary" />
+                        <RouteOutlined color="primary" />
                       </ListItemIcon>
                       <ListItemText
                         primary={(
@@ -269,9 +272,6 @@ const Scenarios = () => {
               })
         }
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-        <ScenarioCreation />
-      </Can>
     </>
   );
 };

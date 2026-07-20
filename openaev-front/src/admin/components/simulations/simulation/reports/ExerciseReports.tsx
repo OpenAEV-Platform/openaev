@@ -1,10 +1,10 @@
-import { Add } from '@mui/icons-material';
-import { Fab } from '@mui/material';
+import { Box } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { addReportForExercise, deleteReportForExercise, fetchReportsForExercise, updateReportForExercise } from '../../../../../actions/reports/report-actions';
 import { type ReportsHelper } from '../../../../../actions/reports/report-helper';
+import ButtonCreate from '../../../../../components/common/ButtonCreate';
 import Dialog from '../../../../../components/common/dialog/Dialog';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
@@ -58,21 +58,19 @@ const ExerciseReports: FunctionComponent<ReportListProps> = ({ exerciseId, exerc
 
   return (
     <ReportContext.Provider value={context}>
+      {permissions.canManage && (
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          marginBottom: 1,
+        }}
+        >
+          <ButtonCreate onClick={handleOpenCreate} />
+        </Box>
+      )}
       <Reports reports={reports} navigateToReportPage={navigateToReportPage} />
       {permissions.canManage && (
         <>
-          <Fab
-            onClick={handleOpenCreate}
-            color="primary"
-            aria-label="Add"
-            sx={{
-              position: 'fixed',
-              bottom: '30px',
-              right: '30px',
-            }}
-          >
-            <Add />
-          </Fab>
           <Dialog
             title={t('Create a new report')}
             open={openCreate}

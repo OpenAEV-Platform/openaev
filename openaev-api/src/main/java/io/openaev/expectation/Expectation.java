@@ -1,6 +1,8 @@
 package io.openaev.expectation;
 
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.SecurityPlatform;
+import java.util.List;
 
 /**
  * Interface representing an expectation that must be fulfilled during an injection.
@@ -67,4 +69,17 @@ public interface Expectation {
    * @return expiration time in seconds from creation, or null if no expiration
    */
   Long getExpirationTime();
+
+  /**
+   * Returns the security platform types expected to fulfil this expectation.
+   *
+   * <p>When non-empty, the platform focuses detection/prevention on collectors of those types only.
+   * An empty list means "any security platform" (legacy behaviour), and is typical for human /
+   * manual expectations.
+   *
+   * @return the expected security platform types, never null
+   */
+  default List<SecurityPlatform.SECURITY_PLATFORM_TYPE> getExpectedSecurityPlatformTypes() {
+    return List.of();
+  }
 }

@@ -73,6 +73,10 @@ public class PayloadCreateInput {
   private EXPECTATION_TYPE[] expectations =
       new EXPECTATION_TYPE[] {EXPECTATION_TYPE.PREVENTION, EXPECTATION_TYPE.DETECTION};
 
+  @JsonProperty("payload_expected_security_platforms")
+  private java.util.Map<EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+      expectedSecurityPlatforms = new java.util.HashMap<>();
+
   @JsonProperty("payload_description")
   private String description;
 

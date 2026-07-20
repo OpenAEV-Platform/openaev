@@ -194,6 +194,18 @@ public class BaseInjectExpectation implements Base, Cloneable {
   @JsonProperty("inject_expectation_group")
   private boolean expectationGroup;
 
+  /**
+   * Security platform types expected to fulfil this (technical) expectation. When non-empty, only
+   * collectors of those types are pre-seeded as pending results and considered for scoring. Empty
+   * or null means "any security platform" (legacy behaviour).
+   */
+  @Setter
+  @Type(JsonType.class)
+  @Column(name = "inject_expectation_expected_security_platforms", columnDefinition = "jsonb")
+  @JsonProperty("inject_expectation_expected_security_platforms")
+  private List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedSecurityPlatforms =
+      new ArrayList<>();
+
   @Setter
   @Column(name = "inject_expectation_signatures_initialized")
   @JsonIgnore

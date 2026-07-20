@@ -1,24 +1,14 @@
-import { Add } from '@mui/icons-material';
-import { Fab } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
-import { withStyles } from 'tss-react/mui';
 
 import { addKillChainPhase } from '../../../../actions/KillChainPhase';
 import { storeHelper } from '../../../../actions/Schema';
+import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Drawer from '../../../../components/common/Drawer';
 import inject18n from '../../../../components/i18n';
 import KillChainPhaseForm from './KillChainPhaseForm';
-
-const styles = () => ({
-  createButton: {
-    position: 'fixed',
-    bottom: 30,
-    right: 230,
-  },
-});
 
 class CreateKillChainPhaseComponent extends Component {
   constructor(props) {
@@ -47,17 +37,10 @@ class CreateKillChainPhaseComponent extends Component {
   }
 
   render() {
-    const { classes, t } = this.props;
+    const { t } = this.props;
     return (
       <>
-        <Fab
-          onClick={this.handleOpen.bind(this)}
-          color="primary"
-          aria-label="Add"
-          className={classes.createButton}
-        >
-          <Add />
-        </Fab>
+        <ButtonCreate onClick={this.handleOpen.bind(this)} />
         <Drawer
           open={this.state.open}
           handleClose={this.handleClose.bind(this)}
@@ -88,7 +71,6 @@ const select = (state) => {
 const CreateKillChainPhase = R.compose(
   connect(select, { addKillChainPhase }),
   inject18n,
-  Component => withStyles(Component, styles),
 )(CreateKillChainPhaseComponent);
 
 export default CreateKillChainPhase;
