@@ -1,6 +1,6 @@
 import { ArrowBackOutlined } from '@mui/icons-material';
 import { Box, Button } from '@mui/material';
-import { type FunctionComponent, useEffect, useState } from 'react';
+import { type FunctionComponent, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 
 import { type AttackPatternHelper } from '../../../../../actions/attack_patterns/attackpattern-helper';
@@ -54,6 +54,25 @@ const InjectCreationConfig: FunctionComponent<Props> = ({
   const { t, tPick } = useFormatter();
   const dispatch = useAppDispatch();
   const { contractId } = useParams() as { contractId: string };
+
+  // InjectForm always calls handleClose() after a successful submit. On this
+  // full page the submit callback navigates to the created entity, so the
+  // close-to-picker navigation must be skipped or it clobbers the redirect.
+  const submittedRef = useRef(false);
+  const handleSubmit = async (data: InjectInput | AtomicTestingInput) => {
+    submittedRef.current = true;
+    try {
+      await onCreateInject(data);
+    } catch (error) {
+      submittedRef.current = false;
+      throw error;
+    }
+  };
+  const handleClose = () => {
+    if (!submittedRef.current) {
+      onBack();
+    }
+  };
 
   useDataLoader(() => {
     dispatch(fetchAttackPatterns());
@@ -131,7 +150,7 @@ const InjectCreationConfig: FunctionComponent<Props> = ({
         content={tPick(contract.injector_contract_labels)}
       />
       <InjectForm
-        handleClose={onBack}
+        handleClose={handleClose}
         isAtomic={isAtomic}
         isCreation
         defaultInject={{
@@ -155,7 +174,7 @@ const InjectCreationConfig: FunctionComponent<Props> = ({
           inject_content: { expectations: parsedContent?.fields?.find(f => f.type == 'expectation')?.predefinedExpectations },
         }}
         injectorContractContent={parsedContent}
-        onSubmitInject={onCreateInject}
+        onSubmitInject={handleSubmit}
         articlesFromExerciseOrScenario={articlesFromExerciseOrScenario}
         uriVariable={uriVariable}
         variablesFromExerciseOrScenario={variablesFromExerciseOrScenario}
