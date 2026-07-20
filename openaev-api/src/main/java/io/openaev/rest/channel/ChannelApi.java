@@ -69,7 +69,7 @@ public class ChannelApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.CHANNEL)
   public Channel channel(@PathVariable String channelId) {
-    return channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
+    return channelService.channel(channelId);
   }
 
   @PutMapping({CHANNEL_URI + "/{channelId}", TENANT_CHANNEL_URI + "/{channelId}"})
@@ -126,7 +126,7 @@ public class ChannelApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.CHANNEL)
   public void deleteChannel(@PathVariable String channelId) {
-    channelRepository.deleteById(channelId);
+    channelService.deleteChannel(channelId);
   }
 
   @GetMapping({
@@ -179,7 +179,10 @@ public class ChannelApi extends RestBehavior {
       @RequestParam Optional<String> userId)
       throws AuthenticationError {
     final User user = impersonateUser(userRepository, userId);
-    return channelService.validateArticles(exerciseId, channelId, user);
+    // TenantContext resolved here (API layer) and passed explicitly to the service, per review
+    // feedback on keeping tenant resolution out of the Service layer.
+    return channelService.validateArticles(
+        exerciseId, channelId, user, TenantContext.getCurrentTenant());
   }
 
   // -- EXERCISES --

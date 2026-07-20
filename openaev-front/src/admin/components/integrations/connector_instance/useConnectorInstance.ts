@@ -20,16 +20,23 @@ const useConnectorInstanceForm = (
   const [initialValues, setInitialValues] = useState<ConfigurationInput[]>([] as ConfigurationInput[]);
 
   useEffect(() => {
-    if (!open || !catalogConnectorId) return;
+    if (!open || !catalogConnectorId) return undefined;
+
+    // Guard against out-of-order responses: when the user switches connectors
+    // quickly, a slower earlier fetch must not overwrite the current one's state.
+    let cancelled = false;
+    // Reset immediately so the form for the previous connector cannot linger
+    // (it is gated on `!loading`), then repopulate once the new data arrives.
+    setLoading(true);
 
     const loadConfigurations = async () => {
-      setLoading(true);
       const [catalogConfigResponse, instanceConfigResponse] = await Promise.all([
         fetchCatalogConnectorConfigurations(catalogConnectorId),
         isEditing && connectorInstanceId
           ? fetchConnectorInstanceConfigurations(connectorInstanceId)
           : Promise.resolve({ data: [] }),
       ]);
+      if (cancelled) return;
       const definition: CatalogConnectorConfiguration[] = catalogConfigResponse.data ?? [];
       const instanceConfigs: ConnectorInstanceConfiguration[] = instanceConfigResponse.data ?? [];
       const defMap = Object.fromEntries(
@@ -52,7 +59,10 @@ const useConnectorInstanceForm = (
     };
 
     loadConfigurations();
-  }, [open, catalogConnectorId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [open, catalogConnectorId, isEditing, connectorInstanceId]);
 
   return {
     loading,

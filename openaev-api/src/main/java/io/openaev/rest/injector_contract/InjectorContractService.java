@@ -15,6 +15,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionWithContentOutput;
+import io.openaev.config.OpenAEVAnonymous;
+import io.openaev.config.SessionHelper;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInjectorsContracts;
@@ -36,6 +38,7 @@ import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.form.*;
+import io.openaev.rest.injector_contract.output.InjectorContractAuthorCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
@@ -214,6 +217,12 @@ public class InjectorContractService implements DependenciesManager {
   public InjectorContract createNewInjectorContract(InjectorContractAddInput input) {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setCustom(true);
+    // A custom contract is authored by whoever creates it; system-driven
+    // creations (startup datapacks, schedulers) have no authenticated user and
+    // stay authorless.
+    if (!(SessionHelper.currentUser() instanceof OpenAEVAnonymous)) {
+      injectorContract.setAuthorUser(userService.currentUser());
+    }
     injectorContract.setUpdateAttributes(input);
     List<AttackPattern> aps = new ArrayList<>();
     if (!input.getAttackPatternsExternalIds().isEmpty()) {
@@ -676,6 +685,48 @@ public class InjectorContractService implements DependenciesManager {
       @NotNull final Root<InjectorContract> injectorContractRoot) {
     InjectorContractQueryContext ctx = buildCommonInjectorContractContext(cb, injectorContractRoot);
 
+    // The author is polymorphic (user / team / organization) and stored both on
+    // the contract (built-in => Filigran, custom => creator) and, for payload
+    // contracts, on the payload. Resolve the id, a display label and a type by
+    // coalescing contract-level author first, then payload-level author, so the
+    // Threat Arsenal shows and filters by author in a single field.
+    Join<InjectorContract, User> cAuthorUserJoin =
+        injectorContractRoot.join("authorUser", JoinType.LEFT);
+    Join<InjectorContract, Team> cAuthorTeamJoin =
+        injectorContractRoot.join("authorTeam", JoinType.LEFT);
+    Join<InjectorContract, Organization> cAuthorOrgJoin =
+        injectorContractRoot.join("authorOrganization", JoinType.LEFT);
+    Join<Payload, User> authorUserJoin = ctx.payloadJoin().join("authorUser", JoinType.LEFT);
+    Join<Payload, Team> authorTeamJoin = ctx.payloadJoin().join("authorTeam", JoinType.LEFT);
+    Join<Payload, Organization> authorOrgJoin =
+        ctx.payloadJoin().join("authorOrganization", JoinType.LEFT);
+
+    Expression<String> authorId =
+        cb.<String>coalesce()
+            .value(cAuthorUserJoin.get("id"))
+            .value(cAuthorTeamJoin.get("id"))
+            .value(cAuthorOrgJoin.get("id"))
+            .value(authorUserJoin.get("id"))
+            .value(authorTeamJoin.get("id"))
+            .value(authorOrgJoin.get("id"));
+    Expression<String> authorName =
+        cb.<String>coalesce()
+            .value(cAuthorUserJoin.get("email"))
+            .value(cAuthorTeamJoin.get("name"))
+            .value(cAuthorOrgJoin.get("name"))
+            .value(authorUserJoin.get("email"))
+            .value(authorTeamJoin.get("name"))
+            .value(authorOrgJoin.get("name"));
+    Expression<String> authorType =
+        cb.<String>selectCase()
+            .when(cb.isNotNull(cAuthorUserJoin.get("id")), cb.literal("user"))
+            .when(cb.isNotNull(cAuthorTeamJoin.get("id")), cb.literal("team"))
+            .when(cb.isNotNull(cAuthorOrgJoin.get("id")), cb.literal("organization"))
+            .when(cb.isNotNull(authorUserJoin.get("id")), cb.literal("user"))
+            .when(cb.isNotNull(authorTeamJoin.get("id")), cb.literal("team"))
+            .when(cb.isNotNull(authorOrgJoin.get("id")), cb.literal("organization"))
+            .otherwise(cb.nullLiteral(String.class));
+
     cq.multiselect(
         injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
         injectorContractRoot.get("externalId").alias("injector_contract_external_id"),
@@ -689,9 +740,25 @@ public class InjectorContractService implements DependenciesManager {
         ctx.payloadJoin().get("status").alias("payload_status"),
         ctx.payloadJoin().get("id").alias("payload_id"),
         ctx.attackPatternIdsExpression().alias("injector_contract_attack_patterns"),
-        injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"));
+        injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
+        authorId.alias("injector_contract_payload_author"),
+        authorName.alias("injector_contract_payload_author_name"),
+        authorType.alias("injector_contract_payload_author_type"));
 
-    cq.groupBy(getCommonGroupBy(injectorContractRoot, ctx));
+    List<Expression<?>> groupBy = new ArrayList<>(getCommonGroupBy(injectorContractRoot, ctx));
+    groupBy.add(cAuthorUserJoin.get("id"));
+    groupBy.add(cAuthorUserJoin.get("email"));
+    groupBy.add(cAuthorTeamJoin.get("id"));
+    groupBy.add(cAuthorTeamJoin.get("name"));
+    groupBy.add(cAuthorOrgJoin.get("id"));
+    groupBy.add(cAuthorOrgJoin.get("name"));
+    groupBy.add(authorUserJoin.get("id"));
+    groupBy.add(authorUserJoin.get("email"));
+    groupBy.add(authorTeamJoin.get("id"));
+    groupBy.add(authorTeamJoin.get("name"));
+    groupBy.add(authorOrgJoin.get("id"));
+    groupBy.add(authorOrgJoin.get("name"));
+    cq.groupBy(groupBy);
   }
 
   private void selectForInjectorContractThreatArsenalContent(
@@ -739,7 +806,10 @@ public class InjectorContractService implements DependenciesManager {
         tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
         tuple.get("injector_contract_tags", String[].class),
         payload,
-        tuple.get("injector_contract_attack_patterns", String[].class));
+        tuple.get("injector_contract_attack_patterns", String[].class),
+        tuple.get("injector_contract_payload_author", String.class),
+        tuple.get("injector_contract_payload_author_name", String.class),
+        tuple.get("injector_contract_payload_author_type", String.class));
   }
 
   private ThreatArsenalActionWithContentOutput mapThreatArsenalContent(Tuple tuple) {
@@ -842,6 +912,73 @@ public class InjectorContractService implements DependenciesManager {
     qDirect.groupBy(domainsJoin.get("id"));
 
     return entityManager.createQuery(qDirect).getResultList();
+  }
+
+  /**
+   * Distinct authors (with per-author contract counts) matching the given filters, resolving the
+   * polymorphic author contract-first then payload (same coalesce as the Threat Arsenal
+   * projection). Authorless contracts are excluded here - the UI exposes them via a dedicated "No
+   * author" facet.
+   */
+  public List<InjectorContractAuthorCountOutput> getAuthorCounts(SearchPaginationInput input) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+    Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
+    Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
+    Specification<InjectorContract> accessSpec =
+        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
+    Specification<InjectorContract> baseSpec =
+        Specification.<InjectorContract>unrestricted()
+            .and(filterSpec)
+            .and(searchSpec)
+            .and(accessSpec);
+
+    CriteriaQuery<InjectorContractAuthorCountOutput> q =
+        cb.createQuery(InjectorContractAuthorCountOutput.class);
+    Root<InjectorContract> root = q.from(InjectorContract.class);
+    Join<InjectorContract, User> cAuthorUserJoin = root.join("authorUser", JoinType.LEFT);
+    Join<InjectorContract, Team> cAuthorTeamJoin = root.join("authorTeam", JoinType.LEFT);
+    Join<InjectorContract, Organization> cAuthorOrgJoin =
+        root.join("authorOrganization", JoinType.LEFT);
+    Join<InjectorContract, Payload> payloadJoin = root.join("payload", JoinType.LEFT);
+    Join<Payload, User> pAuthorUserJoin = payloadJoin.join("authorUser", JoinType.LEFT);
+    Join<Payload, Team> pAuthorTeamJoin = payloadJoin.join("authorTeam", JoinType.LEFT);
+    Join<Payload, Organization> pAuthorOrgJoin =
+        payloadJoin.join("authorOrganization", JoinType.LEFT);
+
+    Expression<String> authorId =
+        cb.<String>coalesce()
+            .value(cAuthorUserJoin.get("id"))
+            .value(cAuthorTeamJoin.get("id"))
+            .value(cAuthorOrgJoin.get("id"))
+            .value(pAuthorUserJoin.get("id"))
+            .value(pAuthorTeamJoin.get("id"))
+            .value(pAuthorOrgJoin.get("id"));
+    Expression<String> authorName =
+        cb.<String>coalesce()
+            .value(cAuthorUserJoin.get("email"))
+            .value(cAuthorTeamJoin.get("name"))
+            .value(cAuthorOrgJoin.get("name"))
+            .value(pAuthorUserJoin.get("email"))
+            .value(pAuthorTeamJoin.get("name"))
+            .value(pAuthorOrgJoin.get("name"));
+    Expression<String> authorType =
+        cb.<String>selectCase()
+            .when(cb.isNotNull(cAuthorUserJoin.get("id")), cb.literal("user"))
+            .when(cb.isNotNull(cAuthorTeamJoin.get("id")), cb.literal("team"))
+            .when(cb.isNotNull(cAuthorOrgJoin.get("id")), cb.literal("organization"))
+            .when(cb.isNotNull(pAuthorUserJoin.get("id")), cb.literal("user"))
+            .when(cb.isNotNull(pAuthorTeamJoin.get("id")), cb.literal("team"))
+            .when(cb.isNotNull(pAuthorOrgJoin.get("id")), cb.literal("organization"))
+            .otherwise(cb.nullLiteral(String.class));
+
+    Predicate predicate = baseSpec.toPredicate(root, q, cb);
+    Predicate hasAuthor = cb.isNotNull(authorId);
+    q.where(predicate != null ? cb.and(predicate, hasAuthor) : hasAuthor);
+    q.multiselect(authorId, authorName, authorType, cb.countDistinct(root));
+    q.groupBy(authorId, authorName, authorType);
+
+    return entityManager.createQuery(q).getResultList();
   }
 
   @Override

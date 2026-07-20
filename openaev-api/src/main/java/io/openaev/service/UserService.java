@@ -9,6 +9,7 @@ import static java.time.Instant.now;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.DefaultOpenAEVPrincipal;
+import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.SessionManager;
@@ -244,6 +245,21 @@ public class UserService {
     return savedUser;
   }
 
+  /** Changes the password of any user (platform-level administrative operation). */
+  @Transactional(rollbackFor = Exception.class)
+  public User changePassword(String userId, ChangePasswordInput input)
+      throws InputValidationException {
+    if (!input.getPassword().equals(input.getPasswordValidation())) {
+      throw new InputValidationException("password_validation", "Bad password validation");
+    }
+    User existing = user(userId);
+    existing.setPassword(this.encodeUserPassword(input.getPassword()));
+    User savedUser = userRepository.save(existing);
+    // Security: an administrative password change kills every live session of the user
+    sessionManager.invalidateUserSession(userId);
+    return savedUser;
+  }
+
   /**
    * Saves a user entity directly. For internal/technical use only (SSO provisioning, connector
    * management, group mapping).
@@ -356,6 +372,8 @@ public class UserService {
     synchronized (resetTokenMap) {
       resetTokenMap.remove(userId);
     }
+    // Security: a password reset kills every live session of the user
+    sessionManager.invalidateUserSession(userId);
     return savedUser;
   }
 
@@ -447,6 +465,19 @@ public class UserService {
 
   public Optional<User> findByToken(@NotBlank final String token) {
     return this.userRepository.findByToken(token);
+  }
+
+  /**
+   * Returns the currently authenticated user, or {@code null} when the execution context has no
+   * authenticated user (startup datapacks, scenario imports, scheduled jobs). Use this instead of
+   * {@link #currentUser()} in code paths that may run outside an authenticated request.
+   */
+  public User currentUserOrNull() {
+    OpenAEVPrincipal principal = SessionHelper.currentUser();
+    if (principal instanceof OpenAEVAnonymous) {
+      return null;
+    }
+    return this.userRepository.findById(principal.getId()).orElse(null);
   }
 
   public User currentUser() {

@@ -118,6 +118,18 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.updateSettingsPlatformWhitemark(input);
   }
 
+  @PutMapping("/sessions")
+  @Transactional
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
+  @Operation(
+      summary = "Update session settings",
+      description = "Update the session management settings (max concurrent sessions per user)")
+  public PlatformSettings updateSettingsSessions(
+      @Valid @RequestBody SettingsSessionsUpdateInput input) {
+    return platformSettingsService.updateSettingsSessions(input);
+  }
+
   @PutMapping("/theme/light")
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)

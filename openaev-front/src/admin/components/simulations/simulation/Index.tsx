@@ -1,5 +1,5 @@
 import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
-import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -249,8 +249,14 @@ const Index = () => {
     });
   }, [exerciseId]);
 
+  // Fetch the scenario only once per simulation id: the exercise object gets a
+  // new identity on every Redux update (e.g. SSE), which used to re-trigger
+  // this effect and re-fetch the scenario redundantly.
+  const scenarioRequestedForRef = useRef<ExerciseType['exercise_id'] | undefined>(undefined);
   useEffect(() => {
     if (!exercise) return;
+    if (scenarioRequestedForRef.current === exercise.exercise_id) return;
+    scenarioRequestedForRef.current = exercise.exercise_id;
     setLoading(true);
     if (!exercise.exercise_scenario) {
       setPristine(false);
@@ -262,7 +268,7 @@ const Index = () => {
           setLoading(false);
         });
     }
-  }, [exercise]);
+  }, [exercise, dispatch]);
 
   const exerciseInjectContext = injectContextForExercise(exercise);
 

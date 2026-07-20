@@ -17,9 +17,11 @@ import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.rest.user.form.player.PlayerOutput;
 import io.openaev.service.UserService;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -99,5 +101,36 @@ public class PlayerApi extends RestBehavior {
       resourceType = ResourceType.PLAYER)
   public void deletePlayer(@PathVariable String userId) {
     userService.delete(userId);
+  }
+
+  // -- OPTIONS (for the shared filter autocomplete: id + display name) --
+
+  private static final int OPTIONS_LIMIT = 50;
+
+  @GetMapping({PLAYER_URI + "/options", TENANT_PLAYER_URI + "/options"})
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
+  public List<FilterUtilsJpa.Option> optionsByName(
+      @RequestParam(required = false) final String searchText) {
+    String search = searchText == null ? "" : searchText.toLowerCase();
+    return fromIterable(userRepository.findAll()).stream()
+        .filter(
+            user ->
+                search.isEmpty()
+                    || user.getNameOrEmail().toLowerCase().contains(search)
+                    || user.getEmail().toLowerCase().contains(search))
+        .sorted(Comparator.comparing(User::getNameOrEmail, String.CASE_INSENSITIVE_ORDER))
+        .limit(OPTIONS_LIMIT)
+        .map(user -> new FilterUtilsJpa.Option(user.getId(), user.getNameOrEmail()))
+        .toList();
+  }
+
+  @PostMapping({PLAYER_URI + "/options", TENANT_PLAYER_URI + "/options"})
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
+  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+    return fromIterable(userRepository.findAllById(ids)).stream()
+        .map(user -> new FilterUtilsJpa.Option(user.getId(), user.getNameOrEmail()))
+        .toList();
   }
 }

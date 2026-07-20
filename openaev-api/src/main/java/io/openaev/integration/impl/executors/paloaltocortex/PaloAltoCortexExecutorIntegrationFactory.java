@@ -3,6 +3,7 @@ package io.openaev.integration.impl.executors.paloaltocortex;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -14,7 +15,11 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
-import io.openaev.service.*;
+import io.openaev.integration.migration.PaloAltoCortexExecutorConfigurationMigration;
+import io.openaev.service.AgentService;
+import io.openaev.service.AssetGroupService;
+import io.openaev.service.EndpointService;
+import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.List;
@@ -40,12 +45,16 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
   private final ConnectorInstanceService connectorInstanceService;
   private final CatalogConnectorService catalogConnectorService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  private final OpenAEVConfig openAEVConfig;
+  private final PaloAltoCortexExecutorConfigurationMigration
+      paloAltoCortexExecutorConfigurationMigration;
 
   public PaloAltoCortexExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
       ExecutorService executorService,
       ComponentRequestEngine componentRequestEngine,
+      PaloAltoCortexExecutorConfigurationMigration paloAltoCortexExecutorConfigurationMigration,
       AgentService agentService,
       EndpointService endpointService,
       AssetGroupService assetGroupService,
@@ -54,12 +63,15 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      OpenAEVConfig openAEVConfig) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
     this.catalogConnectorService = catalogConnectorService;
+    this.paloAltoCortexExecutorConfigurationMigration =
+        paloAltoCortexExecutorConfigurationMigration;
     this.agentService = agentService;
     this.endpointService = endpointService;
     this.assetGroupService = assetGroupService;
@@ -68,6 +80,7 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+    this.openAEVConfig = openAEVConfig;
   }
 
   @Override
@@ -77,7 +90,10 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
 
   @Override
   protected void runMigrations() throws Exception {
-    // No
+    // Seed the built-in Palo Alto Cortex executor instance like the other
+    // built-in executors (Caldera, SentinelOne, CrowdStrike, Tanium) so its
+    // catalog card behaves consistently (a deployed instance to configure and start).
+    paloAltoCortexExecutorConfigurationMigration.migrate();
   }
 
   private String getLogoFilename() {
@@ -105,11 +121,11 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
     connector.setSlug(PALOALTOCORTEX_EXECUTOR_TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
-        """
-        With Palo Alto Cortex executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Palo Alto Cortex instance.
-        """);
+        "Register your Palo Alto Cortex XDR-managed endpoints as OpenAEV executors and run"
+            + " simulated attacks on them through Cortex, so you can validate detection and"
+            + " prevention on real endpoints without deploying the OpenAEV agent.");
     connector.setShortDescription(
-        "Enable execution of OpenAEV scenarios through your Palo Alto Cortex instance.");
+        "Run OpenAEV simulations on your Palo Alto Cortex XDR endpoints.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("https://www.paloaltonetworks.com/cortex/cortex-xdr");
     connector.setContainerType(ConnectorType.EXECUTOR);
@@ -132,6 +148,7 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
         executorService,
         taskScheduler,
         baseIntegrationConfigurationBuilder,
-        httpClientFactory);
+        httpClientFactory,
+        openAEVConfig);
   }
 }

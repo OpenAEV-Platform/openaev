@@ -12,11 +12,13 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.model.Expectation;
+import io.openaev.expectation.Expectation;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.*;
@@ -142,6 +144,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       assertEquals(null, injectExpectations.getFirst().getScore());
 
       // -- EXECUTE --
+      expireExpectationsInDbByInjectId(savedInject.getId());
       expectationsExpirationManagerService.computeExpectations();
 
       // -- ASSERT --
@@ -227,6 +230,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       assertEquals(null, injectExpectations.getFirst().getScore());
 
       // -- EXECUTE --
+      expireExpectationsInDbByInjectId(savedInject.getId());
       expectationsExpirationManagerService.computeExpectations();
 
       // -- ASSERT --
@@ -320,6 +324,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       assertEquals(null, injectExpectations.getFirst().getScore());
 
       // -- EXECUTE --
+      expireExpectationsInDbByInjectId(savedInject.getId());
       expectationsExpirationManagerService.computeExpectations();
 
       // -- ASSERT --
@@ -390,6 +395,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       assertEquals(null, injectExpectations.getFirst().getScore());
 
       // -- EXECUTE --
+      expireExpectationsInDbByInjectId(savedInject.getId());
       expectationsExpirationManagerService.computeExpectations();
 
       // -- ASSERT --
@@ -428,6 +434,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       assertEquals(null, injectExpectations.getFirst().getScore());
 
       // -- EXECUTE --
+      expireExpectationsInDbByInjectId(savedInject.getId());
       expectationsExpirationManagerService.computeExpectations();
 
       // -- ASSERT --
@@ -442,6 +449,18 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
   }
 
   // -- PRIVATE HELPERS --
+
+  /** Backdates all expectations for the given inject so the SQL expiration filter picks them up. */
+  private void expireExpectationsInDbByInjectId(String injectId) {
+    em.flush();
+    em.createNativeQuery(
+            "UPDATE injects_expectations SET inject_expectation_created_at = :past WHERE inject_id = :injectId")
+        .setParameter("past", Instant.now().minus(1, ChronoUnit.HOURS))
+        .setParameter("injectId", injectId)
+        .executeUpdate();
+    em.flush();
+    em.clear();
+  }
 
   private ExecutableInject newExecutableInjectWithTargets() {
     return new ExecutableInject(

@@ -154,7 +154,7 @@ public class ExerciseFileExport extends FileExportBase {
       List<Document> docs = new ArrayList<>();
       docs.addAll(this.exercise.getDocuments());
       docs.addAll(
-          this.exercise.getInjects().stream()
+          this.getInjects().stream()
               .flatMap(
                   inject -> {
                     if (inject.getPayload().isEmpty()) {
@@ -246,6 +246,9 @@ public class ExerciseFileExport extends FileExportBase {
     }
     return variables;
   }
+
+  @JsonProperty("exercise_workflow")
+  private Workflow workflow;
 
   @JsonIgnore
   public List<String> getAllDocumentIds() {

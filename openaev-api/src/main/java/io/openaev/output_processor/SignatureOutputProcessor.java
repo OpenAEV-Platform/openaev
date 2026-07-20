@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
-import io.openaev.database.model.InjectExpectationSignature;
+import io.openaev.expectation.ExpectationSignature;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.settings.PreviewFeature;
@@ -73,8 +73,7 @@ public class SignatureOutputProcessor extends AbstractOutputProcessor {
           continue;
         }
 
-        List<InjectExpectationSignature> signatures =
-            extractSignatures(signatureValueNode.path(VALUES));
+        List<ExpectationSignature> signatures = extractSignatures(signatureValueNode.path(VALUES));
         injectExpectationService.appendExpectationSignatures(
             injectId, agentId, assetId, assetGroupId, expectationType.get(), signatures);
       }
@@ -93,21 +92,21 @@ public class SignatureOutputProcessor extends AbstractOutputProcessor {
     }
   }
 
-  private List<InjectExpectationSignature> extractSignatures(JsonNode valuesNode) {
+  private List<ExpectationSignature> extractSignatures(JsonNode valuesNode) {
     if (!valuesNode.isArray()) {
-      return List.of();
+      return new ArrayList<>();
     }
     return StreamSupport.stream(valuesNode.spliterator(), false)
         .map(
             valueNode ->
-                new InjectExpectationSignature(
+                new ExpectationSignature(
                     readText(valueNode, SIGNATURE_TYPE, "type"),
                     readText(valueNode, SIGNATURE_VALUE, "value")))
         .filter(
             signature ->
                 StringUtils.hasText(signature.getType())
                     && StringUtils.hasText(signature.getValue()))
-        .toList();
+        .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
   }
 
   private String readText(JsonNode node, String... keys) {

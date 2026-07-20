@@ -32,7 +32,7 @@ import ItemCategory from '../../../../components/ItemCategory';
 import ItemMainFocus from '../../../../components/ItemMainFocus';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import ItemTags from '../../../../components/ItemTags';
-import PlatformIcon from '../../../../components/PlatformIcon';
+import PlatformIconGroup from '../../../../components/PlatformIconGroup';
 import TypeAffinityChip from '../../../../components/TypeAffinityChip';
 import octiDark from '../../../../static/images/xtm/octi_dark.png';
 import octiLight from '../../../../static/images/xtm/octi_light.png';
@@ -145,7 +145,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
     <ExercisePopover
       // @ts-expect-error: should pass Exercise model IF we have update as action
       exercise={exercise}
-      actions={isScenarioChaining ? ['Delete'] : ['Duplicate', 'Export', 'Delete']}
+      actions={isScenarioChaining ? ['Export', 'Delete'] : ['Duplicate', 'Export', 'Delete']}
       onDelete={result => setExercises(exercises.filter(e => (e.exercise_id !== result)))}
       inList
     />
@@ -277,19 +277,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               >
                 {t('Platforms')}
               </Typography>
-              {(scenario.scenario_platforms ?? []).length === 0 ? (
-                <PlatformIcon platform={t('No inject in this scenario')} tooltip width={25} />
-              ) : scenario.scenario_platforms.map(
-                (platform: string) => (
-                  <PlatformIcon
-                    key={platform}
-                    platform={platform}
-                    tooltip
-                    width={25}
-                    marginRight={theme.spacing(2)}
-                  />
-                ),
-              )}
+              <PlatformIconGroup platforms={scenario.scenario_platforms} width={25} />
             </GridLegacy>
             <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
               <Typography

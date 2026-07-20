@@ -53,10 +53,14 @@ public class ExpectationsExpirationManagerJob implements Runnable, BuiltinTenant
           // Bridge: set TenantContext so that the v1 Hibernate @Filter (enabled by
           // HibernateFilterTransactionAspect) keeps working for tables not yet on v2.
           // Once all tables touched by this job are activated on v2, remove this line.
-          TenantContext.setCurrentTenant(((TxCtx.Restricted) scope).tenantIds().getFirst());
+          String tenantId = ((TxCtx.Restricted) scope).tenantIds().getFirst();
+          TenantContext.setCurrentTenant(tenantId);
           try {
             // Detection & Prevention expectation expiration
             this.fakeDetectorService.computeExpectations();
+            // Heartbeat: surface the run as the collector's last execution so the UI
+            // shows a truthful liveliness signal for this built-in collector.
+            this.collectorService.updateLastExecution(config.getId(), tenantId);
           } finally {
             TenantContext.clearCurrentTenant();
           }

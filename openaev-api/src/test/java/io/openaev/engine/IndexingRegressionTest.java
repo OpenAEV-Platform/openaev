@@ -6,6 +6,8 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.engine.model.endpoint.EndpointHandler;
 import io.openaev.engine.model.endpoint.EsEndpoint;
+import io.openaev.engine.model.finding.EsFinding;
+import io.openaev.engine.model.finding.FindingHandler;
 import io.openaev.engine.model.inject.EsInject;
 import io.openaev.engine.model.inject.InjectHandler;
 import io.openaev.engine.model.injectexpectation.EsInjectExpectation;
@@ -56,6 +58,7 @@ class IndexingRegressionTest extends IntegrationTest {
   @Autowired private ScenarioHandler scenarioHandler;
   @Autowired private InjectExpectationHandler injectExpectationHandler;
   @Autowired private VulnerableEndpointHandler vulnerableEndpointHandler;
+  @Autowired private FindingHandler findingHandler;
 
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
@@ -66,6 +69,8 @@ class IndexingRegressionTest extends IntegrationTest {
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private FindingComposer findingComposer;
+  @Autowired private TeamComposer teamComposer;
+  @Autowired private UserComposer userComposer;
 
   /** A point in time used as the {@code :from} parameter — 1 hour ago. */
   private static final Instant FROM = Instant.now().minus(1, ChronoUnit.HOURS);
@@ -84,6 +89,8 @@ class IndexingRegressionTest extends IntegrationTest {
     collectorComposer.reset();
     securityPlatformComposer.reset();
     findingComposer.reset();
+    teamComposer.reset();
+    userComposer.reset();
   }
 
   // ---------------------------------------------------------------------------
@@ -268,6 +275,65 @@ class IndexingRegressionTest extends IntegrationTest {
 
       // Assert — every inject was indexed exactly once
       assertThat(collectedIds).containsExactlyInAnyOrderElementsOf(expectedIds);
+    }
+
+    @Test
+    @DisplayName(
+        "Cursor advances when dependency triggers parent inclusion (stuck cursor regression)")
+    void cursor_advances_when_dependency_triggers_parent() {
+      // If a dependency row is updated, the parent inject is included in changed_injects.
+      // Without the WHERE GREATEST(...) > :from fix, parent's own GREATEST could be <= cursor.
+      // This test ensures the cursor always advances even in this scenario.
+
+      int total = 4;
+      int batchSize = 2;
+      ScenarioComposer.Composer scenarioWrapper =
+          scenarioComposer.forScenario(ScenarioFixture.createDefaultIncidentResponseScenario());
+      Set<String> injectIds = new HashSet<>();
+      for (int i = 0; i < total; i++) {
+        InjectComposer.Composer inj = injectComposer.forInject(InjectFixture.getDefaultInject());
+        scenarioWrapper.withInject(inj);
+      }
+      scenarioWrapper.persist();
+      entityManager.flush();
+
+      // Assign distinct timestamps AFTER :from so they are indexable and cursor advances
+      List<?> ids =
+          entityManager
+              .createNativeQuery(
+                  "SELECT inject_id FROM injects WHERE inject_scenario = :sid ORDER BY inject_id")
+              .setParameter("sid", scenarioWrapper.get().getId())
+              .getResultList();
+      Instant base = FROM.plusSeconds(1);
+      for (int i = 0; i < ids.size(); i++) {
+        String id = ids.get(i).toString();
+        entityManager
+            .createNativeQuery("UPDATE injects SET inject_updated_at = :ts WHERE inject_id = :id")
+            .setParameter("ts", base.plusSeconds(i))
+            .setParameter("id", id)
+            .executeUpdate();
+        injectIds.add(id);
+      }
+      entityManager.flush();
+      entityManager.clear();
+
+      // Simulate cursor loop and verify advancement
+      Set<String> collectedIds = new HashSet<>();
+      Instant cursor = FROM;
+      int iterations = 0;
+      while (iterations < total + 3) {
+        List<EsInject> batch = injectHandler.fetch(cursor, batchSize);
+        if (batch.isEmpty()) break;
+        for (EsInject es : batch) {
+          collectedIds.add(es.getBase_id());
+        }
+        Instant newCursor = batch.getLast().getBase_updated_at();
+        assertThat(newCursor).as("Cursor must advance (iteration %d)", iterations).isAfter(cursor);
+        cursor = newCursor;
+        iterations++;
+      }
+
+      assertThat(collectedIds).containsAll(injectIds);
     }
   }
 
@@ -675,6 +741,125 @@ class IndexingRegressionTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Per-player expectations are excluded, the team-level row is indexed")
+    void given_perPlayerExpectation_should_indexOnlyTeamLevelRow() {
+      // Per-player rows (user_id NOT NULL) double-counted every manual expectation: the
+      // team-level row already represents the players, so only it must be indexed.
+      TeamComposer.Composer teamWrapper = teamComposer.forTeam(TeamFixture.getDefaultTeam());
+      UserComposer.Composer userWrapper = userComposer.forUser(UserFixture.getUser());
+
+      ManualInjectExpectation teamExpectation =
+          InjectExpectationFixture.createManualInjectExpectation(null, null);
+      InjectExpectationComposer.Composer teamExpectationWrapper =
+          injectExpectationComposer.forExpectation(teamExpectation).withTeam(teamWrapper);
+
+      ManualInjectExpectation playerExpectation =
+          InjectExpectationFixture.createManualInjectExpectation(null, null);
+      InjectExpectationComposer.Composer playerExpectationWrapper =
+          injectExpectationComposer
+              .forExpectation(playerExpectation)
+              .withTeam(teamWrapper)
+              .withUser(userWrapper);
+
+      InjectComposer.Composer injectWrapper =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withExpectation(teamExpectationWrapper)
+              .withExpectation(playerExpectationWrapper);
+      scenarioComposer
+          .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+          .withInject(injectWrapper)
+          .persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      List<EsInjectExpectation> results = injectExpectationHandler.fetch(null, 5000);
+
+      assertThat(results)
+          .as("the team-level expectation must be indexed")
+          .anyMatch(es -> es.getBase_id().equals(teamExpectation.getId()));
+      assertThat(results)
+          .as("the per-player expectation must NOT be indexed (double-counting)")
+          .noneMatch(es -> es.getBase_id().equals(playerExpectation.getId()));
+    }
+
+    @Test
+    @DisplayName(
+        "Security platform attribution ignores agent-level children of a different expectation"
+            + " type")
+    void given_agentChildOfDifferentType_should_notAttributeItsPlatformsToParent() {
+      // The agent_security_platforms CTE is scoped to the SAME expectation type as the parent:
+      // a platform that DETECTED must not be blamed on (or credited to) a PREVENTION doc of the
+      // same inject.
+      SecurityPlatformComposer.Composer securityPlatform =
+          securityPlatformComposer
+              .forSecurityPlatform(SecurityPlatformFixture.createDefault("EDR scoping", "EDR"))
+              .persist();
+      Collector collector =
+          collectorComposer
+              .forCollector(CollectorFixture.createDefaultCollector("collector-edr-scoping"))
+              .withSecurityPlatform(securityPlatform)
+              .persist()
+              .get();
+
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      endpointWrapper.persist();
+
+      BaseInjectExpectation agentlessDetection =
+          InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+      InjectExpectationComposer.Composer agentlessDetectionWrapper =
+          injectExpectationComposer
+              .forExpectation(agentlessDetection)
+              .withEndpoint(endpointWrapper);
+
+      Agent agent = AgentFixture.createDefaultAgentService();
+      agent.setAsset(endpointWrapper.get());
+      entityManager.persist(agent);
+      entityManager.flush();
+      Agent persistedAgent = entityManager.getReference(Agent.class, agent.getId());
+
+      // Agent-level child of a DIFFERENT type (prevention) carrying the collector result
+      PreventionInjectExpectation agentPrevention =
+          InjectExpectationFixture.createPreventionInjectExpectation(null, persistedAgent);
+      agentPrevention.setAsset(endpointWrapper.get());
+      agentPrevention.setResults(
+          List.of(
+              InjectExpectationResult.builder()
+                  .sourceId(collector.getId())
+                  .sourceType("collector")
+                  .sourceName(collector.getName())
+                  .result("prevented")
+                  .score(100.0)
+                  .build()));
+      InjectExpectationComposer.Composer agentPreventionWrapper =
+          injectExpectationComposer.forExpectation(agentPrevention).withEndpoint(endpointWrapper);
+
+      InjectComposer.Composer injectWrapper =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withExpectation(agentlessDetectionWrapper)
+              .withExpectation(agentPreventionWrapper);
+      scenarioComposer
+          .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+          .withInject(injectWrapper)
+          .persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      List<EsInjectExpectation> results = injectExpectationHandler.fetch(FROM, 5000);
+
+      assertThat(results)
+          .filteredOn(es -> es.getBase_id().equals(agentlessDetection.getId()))
+          .singleElement()
+          .satisfies(
+              es ->
+                  assertThat(es.getBase_security_platforms_side())
+                      .as("a prevention child's platform must not leak into the detection doc")
+                      .doesNotContain(securityPlatform.get().getId()));
+    }
+
+    @Test
     @DisplayName("Agent-level expectations are excluded by the CTE filter")
     void agent_expectations_are_excluded() {
       EndpointComposer.Composer endpointWrapper =
@@ -769,12 +954,124 @@ class IndexingRegressionTest extends IntegrationTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Finding
+  // ---------------------------------------------------------------------------
+
+  @Nested
+  @DisplayName("FindingHandler.findForIndexing")
+  class FindingIndexing {
+
+    @Test
+    @DisplayName("Multi-asset finding is indexed as ONE doc aggregating ALL asset ids")
+    void given_findingOnSeveralAssets_should_indexSingleDocWithAllAssets() {
+      // The previous per-(finding, asset) rows shared the same base_id: each bulk upsert
+      // overwrote the previous row, so only one arbitrary asset survived (last-asset-wins).
+      EndpointComposer.Composer endpointOne =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      EndpointComposer.Composer endpointTwo =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      FindingComposer.Composer findingWrapper =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
+              .withEndpoint(endpointOne)
+              .withEndpoint(endpointTwo);
+      InjectComposer.Composer injectWrapper =
+          injectComposer.forInject(InjectFixture.getDefaultInject()).withFinding(findingWrapper);
+      exerciseComposer
+          .forExercise(ExerciseFixture.createDefaultExercise())
+          .withInject(injectWrapper)
+          .persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      List<EsFinding> results = findingHandler.fetch(FROM, 5000);
+
+      String findingId = findingWrapper.get().getId();
+      assertThat(results)
+          .filteredOn(es -> es.getBase_id().equals(findingId))
+          .as("exactly ONE doc per finding (no per-asset row fan-out)")
+          .singleElement()
+          .satisfies(
+              es ->
+                  assertThat(es.getBase_endpoint_side())
+                      .as("base_endpoint_side must aggregate ALL linked assets")
+                      .containsExactlyInAnyOrder(
+                          endpointOne.get().getId(), endpointTwo.get().getId()));
+    }
+
+    @Test
+    @DisplayName("Finding without assets is indexed with an empty endpoint side")
+    void given_findingWithoutAssets_should_indexWithEmptyEndpointSide() {
+      FindingComposer.Composer findingWrapper =
+          findingComposer.forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle());
+      InjectComposer.Composer injectWrapper =
+          injectComposer.forInject(InjectFixture.getDefaultInject()).withFinding(findingWrapper);
+      exerciseComposer
+          .forExercise(ExerciseFixture.createDefaultExercise())
+          .withInject(injectWrapper)
+          .persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      List<EsFinding> results = findingHandler.fetch(FROM, 5000);
+
+      String findingId = findingWrapper.get().getId();
+      assertThat(results)
+          .filteredOn(es -> es.getBase_id().equals(findingId))
+          .singleElement()
+          .satisfies(es -> assertThat(es.getBase_endpoint_side()).isEmpty());
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // VulnerableEndpoint
   // ---------------------------------------------------------------------------
 
   @Nested
   @DisplayName("VulnerableEndpointHandler.findForIndexing")
   class VulnerableEndpointIndexing {
+
+    @Test
+    @DisplayName(
+        "VulnerableEndpoint appears when only its CVE finding was updated after :from"
+            + " (finding_updated_at cursor branch)")
+    void given_onlyFindingRecentlyUpdated_should_reindexVulnerableEndpoint() {
+      // Regression for the dashboard KPI stuck at 0: a new CVE finding must create/refresh the
+      // vulnerable-endpoint doc even when neither the asset nor the exercise row was touched.
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      FindingComposer.Composer findingWrapper =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
+              .withEndpoint(endpointWrapper);
+      InjectComposer.Composer injectWrapper =
+          injectComposer.forInject(InjectFixture.getDefaultInject()).withFinding(findingWrapper);
+      Exercise exercise =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(injectWrapper)
+              .persist()
+              .get();
+      entityManager.flush();
+
+      // Push asset and exercise into the past: the ONLY recent row is the finding itself
+      pushEndpointToPast(endpointWrapper.get().getId());
+      pushExerciseToPast(exercise.getId());
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_updated_at = now() WHERE finding_id = :id")
+          .setParameter("id", findingWrapper.get().getId())
+          .executeUpdate();
+      entityManager.flush();
+      entityManager.clear();
+
+      List<EsVulnerableEndpoint> results = vulnerableEndpointHandler.fetch(FROM, 5000);
+
+      String expectedBaseId = endpointWrapper.get().getId() + "_" + exercise.getId();
+      assertThat(results)
+          .as("the vulnerable-endpoint doc must be produced from the finding timestamp alone")
+          .anyMatch(es -> es.getBase_id().equals(expectedBaseId));
+    }
 
     @Test
     @DisplayName("VulnerableEndpoint appears when its exercise was updated after :from")

@@ -1,6 +1,5 @@
 package io.openaev.integration.impl.injectors.openaev;
 
-import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
@@ -19,7 +18,6 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
 
   private final InjectorService injectorService;
   private final OpenAEVImplantContract openAEVImplantContract;
-  private final OpenAEVConfig openAEVConfig;
   private final InjectorContext injectorContext;
   private final InjectExpectationService injectExpectationService;
   private final InjectService injectService;
@@ -33,14 +31,12 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
       ConnectorInstanceService connectorInstanceService,
       InjectorService injectorService,
       OpenAEVImplantContract openAEVImplantContract,
-      OpenAEVConfig openAEVConfig,
       InjectorContext injectorContext,
       InjectExpectationService injectExpectationService,
       InjectService injectService) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.injectorService = injectorService;
     this.openAEVImplantContract = openAEVImplantContract;
-    this.openAEVConfig = openAEVConfig;
     this.injectorContext = injectorContext;
     this.injectExpectationService = injectExpectationService;
     this.injectService = injectService;

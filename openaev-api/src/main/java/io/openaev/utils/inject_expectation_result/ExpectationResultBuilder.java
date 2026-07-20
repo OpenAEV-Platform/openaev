@@ -79,7 +79,53 @@ public final class ExpectationResultBuilder {
       return null;
     }
 
-    return Collections.max(results.stream().map(InjectExpectationResult::getScore).toList());
+    return maxScore(results);
+  }
+
+  /**
+   * Evaluate overall status from per-source results.
+   *
+   * <p>* SUCCESS if any expected source reports expectedScore
+   *
+   * <p>* NO_DATA if no success and at least one expected source is missing
+   *
+   * <p>* ERROR if no success and all expected sources reported but none matched
+   */
+  public static Double computeResultsScore(@NotNull final List<InjectExpectationResult> results) {
+    if (hasNoResults(results) || hasAnyEmptyResult(results)) {
+      return null;
+    }
+
+    return maxScore(results);
+  }
+
+  /**
+   * Highest non-null score across results, or {@code null} when none carries a score. A result may
+   * legitimately have text but no score (e.g. an expired or NO_DATA result), so the null scores are
+   * skipped instead of feeding {@link Collections#max} a null that would NPE.
+   */
+  private static Double maxScore(@NotNull final List<InjectExpectationResult> results) {
+    List<Double> scores =
+        results.stream()
+            .map(InjectExpectationResult::getScore)
+            .filter(java.util.Objects::nonNull)
+            .toList();
+    return scores.isEmpty() ? null : Collections.max(scores);
+  }
+
+  /**
+   * Ensures the expectation's results list is a mutable {@link java.util.ArrayList}. JSON
+   * deserialization can produce an immutable list and a persisted row can have a null column,
+   * either of which breaks a subsequent {@code add} (the null case NPEs inside the copy
+   * constructor).
+   */
+  private static void ensureMutableResults(@NotNull final BaseInjectExpectation expectation) {
+    List<InjectExpectationResult> current = expectation.getResults();
+    if (current == null) {
+      expectation.setResults(new java.util.ArrayList<>());
+    } else if (!(current instanceof java.util.ArrayList)) {
+      expectation.setResults(new java.util.ArrayList<>(current));
+    }
   }
 
   // -- SETUP --
@@ -120,11 +166,7 @@ public final class ExpectationResultBuilder {
       @NotNull final BaseInjectExpectation baseInjectExpectation,
       @NotNull final ExpectationUpdateInput input,
       @NotNull final String resultMsg) {
-    // Ensure results list is mutable (JSON deserialization may produce an immutable list)
-    if (!(baseInjectExpectation.getResults() instanceof java.util.ArrayList)) {
-      baseInjectExpectation.setResults(
-          new java.util.ArrayList<>(baseInjectExpectation.getResults()));
-    }
+    ensureMutableResults(baseInjectExpectation);
 
     InjectExpectationResult existing =
         findResultBySourceId(baseInjectExpectation.getResults(), input.getSourceId());
@@ -154,11 +196,7 @@ public final class ExpectationResultBuilder {
     final double score =
         InjectExpectationUtils.computeScore(baseInjectExpectation, input.getIsSuccess());
 
-    // Ensure results list is mutable (JSON deserialization may produce an immutable list)
-    if (!(baseInjectExpectation.getResults() instanceof java.util.ArrayList)) {
-      baseInjectExpectation.setResults(
-          new java.util.ArrayList<>(baseInjectExpectation.getResults()));
-    }
+    ensureMutableResults(baseInjectExpectation);
 
     InjectExpectationResult existing =
         findResultBySourceId(baseInjectExpectation.getResults(), collector.getId());
@@ -283,9 +321,12 @@ public final class ExpectationResultBuilder {
   // -- CLOSE --
 
   public static void expireEmptyResults(
-      @NotNull final List<InjectExpectationResult> results,
-      final Double score,
-      final String result) {
+      final List<InjectExpectationResult> results, final Double score, final String result) {
+    // An expectation that never received any result has a null results list; there is nothing to
+    // expire in that case, so no-op instead of throwing (ExpectationsExpirationManagerJob NPE).
+    if (results == null) {
+      return;
+    }
     results.stream()
         .filter(r -> !hasText(r.getResult()))
         .forEach(

@@ -60,22 +60,30 @@ test.describe('Catalog — external executor deployment', () => {
     }
   });
 
-  test('should install Tanium executor with name only and show it deployed', async ({ page }) => {
+  test('should install Tanium executor and show it deployed', async ({ page }) => {
     expect(newTenantId).not.toBeNull();
 
-    // Step: deploy Tanium from catalog with only display name
+    // Step: deploy Tanium from catalog, filling its mandatory configuration
+    // (API URL, API key and package ids are required, so they render at the top
+    // of the form rather than under "Advanced options").
     const catalogPage = new CatalogPage(page);
-    await page.goto(tenantUrl('/admin/integrations/catalog', newTenantId!));
+    await page.goto(tenantUrl('/admin/integrations/available', newTenantId!));
     await catalogPage.waitForLoad();
 
     await catalogPage.searchConnector('Tanium');
-    await catalogPage.clickDeployOnConnector('Tanium');
+    // "Tanium" also matches the "Tanium Threat Response" collector; the catalog
+    // sections collectors before executors, so target the exact executor title.
+    await catalogPage.clickDeployOnConnector('Tanium Executor');
     await catalogPage.fillDisplayName(TANIUM_DISPLAY_NAME);
+    await catalogPage.fillConfigurationField('Executor Tanium Api Url', 'https://tanium.e2e.invalid');
+    await catalogPage.fillConfigurationField('Executor Tanium Api Key', 'e2e-api-key');
+    await catalogPage.fillConfigurationField('Executor Tanium Windows Package Id', '1');
+    await catalogPage.fillConfigurationField('Executor Tanium Unix Package Id', '2');
     await catalogPage.submitInstall();
 
     // Step: verify Tanium is installed on executors list
-    await page.goto(tenantUrl('/admin/integrations/executors', newTenantId!));
-    await page.waitForURL('**/integrations/executors**');
+    await page.goto(tenantUrl('/admin/integrations/deployed', newTenantId!));
+    await page.waitForURL('**/integrations/deployed**');
 
     const taniumCard = page.locator('.MuiCard-root').filter({ hasText: TANIUM_DISPLAY_NAME }).first();
     await expect(

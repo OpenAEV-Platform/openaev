@@ -275,6 +275,17 @@ export const ASSET_CATEGORY_DEFS: Record<string, AssetCategoryDef> = {
       }],
     },
   },
+  AI_TARGET: {
+    value: 'AI_TARGET',
+    label: 'AI target',
+    description: 'LLM endpoint, AI agent, MCP server or RAG pipeline to red-team.',
+    domain: 'Artificial Intelligence',
+    subcategories: ['LLM_MODEL', 'AI_AGENT', 'MCP_SERVER', 'RAG_PIPELINE'],
+    subcategoryRequired: false,
+    // AI targets are created through the dedicated AiTargetForm (provider / endpoint /
+    // model / token), not the network-field carrier, so no generic fields are shown here.
+    fields: { ...noFields },
+  },
   GENERIC_ASSET: {
     value: 'GENERIC_ASSET',
     label: 'Generic asset',
@@ -303,6 +314,7 @@ export const ASSET_FORM_CATEGORIES: AssetCategory[] = [
   'IOT_OT_DEVICE',
   'IDENTITY',
   'SAAS_APPLICATION',
+  'AI_TARGET',
   'GENERIC_ASSET',
 ];
 

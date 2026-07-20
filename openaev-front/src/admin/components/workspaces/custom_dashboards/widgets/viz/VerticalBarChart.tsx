@@ -8,6 +8,9 @@ import type { DateHistogramWidget, StructuralHistogramWidget, Widget } from '../
 import { verticalBarsChartOptions } from '../../../../../../utils/Charts';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
 import { type SerieData } from '../WidgetViz';
+import seriesSemanticColors from './chartColorUtils';
+import { isApexSeriesEmpty, samplePlatformsSeries, sampleTemporalSeries, toApexSeries } from './sample/sampleData';
+import SamplePreview from './sample/SamplePreview';
 
 interface Props {
   widgetId: string;
@@ -18,7 +21,7 @@ interface Props {
 
 const useStyles = makeStyles()(() => ({ barChartContainer: { '& .apexcharts-bar-area': { cursor: 'pointer' } } }));
 
-const VerticalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, series, errorMessage }) => {
+const VerticalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, series: realSeries, errorMessage }) => {
   const theme = useTheme();
   const { classes } = useStyles();
   const { t, fld } = useFormatter();
@@ -30,6 +33,18 @@ const VerticalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, se
     }
     return 'structural';
   }, [widgetConfig]);
+
+  const isSample = errorMessage.length === 0 && isApexSeriesEmpty(realSeries);
+  const series = useMemo(() => {
+    if (!isSample) return realSeries;
+    const sample = widgetMode === 'temporal'
+      ? sampleTemporalSeries(
+          String(realSeries[0]?.name ?? 'Series 1'),
+          realSeries.length > 1 ? String(realSeries[1]?.name ?? 'Series 2') : undefined,
+        )
+      : samplePlatformsSeries;
+    return toApexSeries(sample);
+  }, [isSample, realSeries, widgetMode]);
 
   const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
 
@@ -56,6 +71,12 @@ const VerticalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, se
     [errorMessage, t],
   );
 
+  // Semantic series colors (successes green, misses red)
+  const chartColors = useMemo(
+    () => seriesSemanticColors(theme, series.map(s => (typeof s.name === 'string' ? s.name : ''))) ?? undefined,
+    [theme, series],
+  );
+
   // Memoize chart options
   const options = useMemo(
     () => verticalBarsChartOptions({
@@ -67,19 +88,22 @@ const VerticalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, se
       isResult: true,
       emptyChartText,
       onBarClick,
+      chartColors,
     }),
-    [theme, widgetMode, fld, emptyChartText, onBarClick],
+    [theme, widgetMode, fld, emptyChartText, onBarClick, chartColors],
   );
 
   return (
-    <Chart
-      options={options}
-      series={series}
-      type="bar"
-      width="100%"
-      height="100%"
-      className={classes.barChartContainer}
-    />
+    <SamplePreview active={isSample}>
+      <Chart
+        options={options}
+        series={series}
+        type="bar"
+        width="100%"
+        height="100%"
+        className={classes.barChartContainer}
+      />
+    </SamplePreview>
   );
 };
 
