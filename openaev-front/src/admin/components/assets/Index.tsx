@@ -10,10 +10,10 @@ import ProtectedRoute from '../../../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 const Endpoints = lazy(() => import('./endpoints/Endpoints'));
-const IndexEndpoint = lazy(() => import('./endpoints/endpoint/Index'));
+const AssetDetail = lazy(() => import('./asset/AssetDetail'));
 const AssetGroups = lazy(() => import('./asset_groups/AssetGroups'));
+const AssetGroupDetail = lazy(() => import('./asset_groups/AssetGroupDetail'));
 const SecurityPlatforms = lazy(() => import('./security_platforms/SecurityPlatforms'));
-const AiTargets = lazy(() => import('./ai_targets/AiTargets'));
 
 const useStyles = makeStyles()(() => ({ root: { flexGrow: 1 } }));
 
@@ -38,8 +38,23 @@ const Index = () => {
               />
             )}
           />
-          {/* Back-compat alias for the previous Endpoints list route. */}
+          {/* Back-compat aliases for the previous Endpoints / AI targets list routes. */}
           <Route path="endpoints" element={<Navigate to="../inventory" replace={true} />} />
+          <Route path="ai_targets" element={<Navigate to="../inventory" replace={true} />} />
+          {/* Generic asset detail page for every asset type. The legacy endpoints/:endpointId path
+              renders the same page (id resolved from either param) so existing deep links keep working. */}
+          <Route
+            path="details/:assetId/*"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.ASSETS,
+                }]}
+                Component={errorWrapper(AssetDetail)()}
+              />
+            )}
+          />
           <Route
             path="endpoints/:endpointId/*"
             element={(
@@ -48,7 +63,7 @@ const Index = () => {
                   action: ACTIONS.ACCESS,
                   subject: SUBJECTS.ASSETS,
                 }]}
-                Component={errorWrapper(IndexEndpoint)()}
+                Component={errorWrapper(AssetDetail)()}
               />
             )}
           />
@@ -65,6 +80,18 @@ const Index = () => {
             )}
           />
           <Route
+            path="asset_groups/:assetGroupId/*"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.ASSETS,
+                }]}
+                Component={errorWrapper(AssetGroupDetail)()}
+              />
+            )}
+          />
+          <Route
             path="security_platforms"
             element={(
               <ProtectedRoute
@@ -73,18 +100,6 @@ const Index = () => {
                   subject: SUBJECTS.SECURITY_PLATFORMS,
                 }]}
                 Component={errorWrapper(SecurityPlatforms)()}
-              />
-            )}
-          />
-          <Route
-            path="ai_targets"
-            element={(
-              <ProtectedRoute
-                checks={[{
-                  action: ACTIONS.ACCESS,
-                  subject: SUBJECTS.ASSETS,
-                }]}
-                Component={errorWrapper(AiTargets)()}
               />
             )}
           />

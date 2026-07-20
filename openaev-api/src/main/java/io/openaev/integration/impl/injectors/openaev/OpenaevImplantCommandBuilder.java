@@ -31,31 +31,31 @@ final class OpenaevImplantCommandBuilder {
       String maxSizeVar,
       String unsecuredCertificateVar,
       String withProxyVar) {
-    CommandVars(OpenAEVConfig cfg) {
+    CommandVars() {
       this(
           "token=\"#{token}\"",
-          "server=\"" + cfg.getBaseUrlForAgent() + "\"",
-          "max_size=\"" + cfg.getLogsMaxSize() + "\"",
-          "unsecured_certificate=\"" + cfg.isUnsecuredCertificate() + "\"",
-          "with_proxy=\"" + cfg.isWithProxy() + "\"");
+          "server=\"#{baseUrl}\"",
+          "max_size=\"#{maxSize}\"",
+          "unsecured_certificate=\"#{unsecuredCertificate}\"",
+          "with_proxy=\"#{withProxy}\"");
     }
   }
 
-  static Map<String, String> buildExecutorCommands(OpenAEVConfig cfg) {
+  static Map<String, String> buildExecutorCommands() {
     Map<String, String> commands = new HashMap<>();
-    CommandVars vars = new CommandVars(cfg);
+    CommandVars vars = new CommandVars();
     // --- PALO ALTO WINDOWS SPECIFIC ---
-    buildPaloAltoWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, cfg, commands, vars);
-    buildPaloAltoWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, cfg, commands, vars);
+    buildPaloAltoWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars);
+    buildPaloAltoWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars);
     // --- WINDOWS ---
-    buildGenericWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, cfg, commands, vars);
-    buildGenericWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, cfg, commands, vars);
+    buildGenericWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars);
+    buildGenericWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars);
     // --- LINUX ---
-    buildGenericLinuxCommand(Endpoint.PLATFORM_ARCH.x86_64, cfg, commands, vars);
-    buildGenericLinuxCommand(Endpoint.PLATFORM_ARCH.arm64, cfg, commands, vars);
+    buildGenericLinuxCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars);
+    buildGenericLinuxCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars);
     // --- MACOS ---
-    buildGenericMacOSCommand(Endpoint.PLATFORM_ARCH.x86_64, cfg, commands, vars);
-    buildGenericMacOSCommand(Endpoint.PLATFORM_ARCH.arm64, cfg, commands, vars);
+    buildGenericMacOSCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars);
+    buildGenericMacOSCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars);
     return commands;
   }
 
@@ -84,10 +84,9 @@ final class OpenaevImplantCommandBuilder {
 
   // --- Private helpers ---
 
-  private static String dlUri(OpenAEVConfig cfg, String platform, String arch) {
+  private static String dlUri(String platform, String arch) {
     return "\""
-        + cfg.getBaseUrlForAgent()
-        + "/api/tenants/#{tenant}/implant/openaev/"
+        + "#{baseUrl}/api/tenants/#{tenant}/implant/openaev/"
         + platform
         + "/"
         + arch
@@ -95,10 +94,9 @@ final class OpenaevImplantCommandBuilder {
   }
 
   @SuppressWarnings("SameParameterValue")
-  private static String dlVar(OpenAEVConfig cfg, String platform, String arch) {
+  private static String dlVar(String platform, String arch) {
     return "$url=\""
-        + cfg.getBaseUrl()
-        + "/api/tenants/#{tenant}/implant/openaev/"
+        + "#{baseUrl}/api/tenants/#{tenant}/implant/openaev/"
         + platform
         + "/"
         + arch
@@ -107,10 +105,7 @@ final class OpenaevImplantCommandBuilder {
   }
 
   private static void buildPaloAltoWindowsCommand(
-      Endpoint.PLATFORM_ARCH arch,
-      OpenAEVConfig cfg,
-      Map<String, String> commands,
-      CommandVars vars) {
+      Endpoint.PLATFORM_ARCH arch, Map<String, String> commands, CommandVars vars) {
     commands.put(
         PALOALTOCORTEX_EXECUTOR_NAME
             + "."
@@ -128,7 +123,7 @@ final class OpenaevImplantCommandBuilder {
             + ";$"
             + vars.maxSizeVar()
             + ";"
-            + dlVar(cfg, "windows", arch.name())
+            + dlVar("windows", arch.name())
             + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;"
             + "$taskName = 'OpenAEV-Inject-#{inject}-Agent-#{agent}';"
             + "$taskDescription = 'OpenAEV EDR validation task - inject #{inject} - agent #{agent} - safe to ignore - will self-delete after execution';"
@@ -151,10 +146,7 @@ final class OpenaevImplantCommandBuilder {
   }
 
   private static void buildGenericWindowsCommand(
-      Endpoint.PLATFORM_ARCH arch,
-      OpenAEVConfig cfg,
-      Map<String, String> commands,
-      CommandVars vars) {
+      Endpoint.PLATFORM_ARCH arch, Map<String, String> commands, CommandVars vars) {
     commands.put(
         Endpoint.PLATFORM_TYPE.Windows.name() + "." + arch.name(),
         "[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
@@ -168,15 +160,12 @@ final class OpenaevImplantCommandBuilder {
             + ";$"
             + vars.maxSizeVar()
             + ";"
-            + dlVar(cfg, "windows", arch.name())
+            + dlVar("windows", arch.name())
             + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Start-Process -FilePath \"$location\\$filename\" -ArgumentList \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant}\" -WindowStyle hidden;");
   }
 
   private static void buildGenericLinuxCommand(
-      Endpoint.PLATFORM_ARCH arch,
-      OpenAEVConfig cfg,
-      Map<String, String> commands,
-      CommandVars vars) {
+      Endpoint.PLATFORM_ARCH arch, Map<String, String> commands, CommandVars vars) {
     commands.put(
         Endpoint.PLATFORM_TYPE.Linux.name() + "." + arch.name(),
         "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");filename=oaev-implant-#{inject}-agent-#{agent};"
@@ -190,15 +179,12 @@ final class OpenaevImplantCommandBuilder {
             + ";"
             + vars.maxSizeVar()
             + ";curl -s -X GET "
-            + dlUri(cfg, "linux", arch.name())
+            + dlUri("linux", arch.name())
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant} &");
   }
 
   private static void buildGenericMacOSCommand(
-      Endpoint.PLATFORM_ARCH arch,
-      OpenAEVConfig cfg,
-      Map<String, String> commands,
-      CommandVars vars) {
+      Endpoint.PLATFORM_ARCH arch, Map<String, String> commands, CommandVars vars) {
     commands.put(
         Endpoint.PLATFORM_TYPE.MacOS.name() + "." + arch.name(),
         "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");filename=oaev-implant-#{inject}-agent-#{agent};"
@@ -214,7 +200,7 @@ final class OpenaevImplantCommandBuilder {
                 : ";$") // TODO: Should find a way to test on an x86 mac if the diff is necessary
             + vars.maxSizeVar()
             + ";curl -s -X GET "
-            + dlUri(cfg, "macos", arch.name())
+            + dlUri("macos", arch.name())
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant} &");
   }
 }

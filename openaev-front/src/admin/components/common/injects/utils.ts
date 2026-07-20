@@ -81,6 +81,7 @@ export const getValidatingRule = (field: ContractElement, t: Translate) => {
     case 'select':
     case 'choice':
     case 'dependency-select':
+    case 'ai-target':
       rule = z.string().min(1, { message: t('Required') });
       break;
 

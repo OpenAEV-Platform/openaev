@@ -1,8 +1,6 @@
 package io.openaev.collectors.expectations_expiration_manager.service;
 
-import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.computeFailedMessage;
-import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.computeSuccessMessage;
-import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.isExpired;
+import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.*;
 import static io.openaev.service.InjectExpectationUtils.FAILED_SCORE_VALUE;
 import static io.openaev.utils.ExpectationUtils.HUMAN_EXPECTATION;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.expireEmptyResults;
@@ -23,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,23 +35,17 @@ public class ExpectationsExpirationManagerService {
 
   public static final String EXPIRED = "Expired";
 
+  private static final int BATCH_SIZE = 1000;
+
   @Transactional(rollbackFor = Exception.class)
   public void computeExpectations() {
     Collector collector = this.collectorService.collector(config.getId());
-    // Get all the expectations we will update (max of 10k)
-    Page<BaseInjectExpectation> expectations = this.injectExpectationService.expectationsNotFill();
-    // We're making a loop on 10 calls max to avoid staying in an infinite loop
-    for (int i = 1; i < 10 && expectations.getTotalElements() > 0; i++) {
-      List<BaseInjectExpectation> updated = new ArrayList<>();
-      this.processAgentExpectations(expectations.toList(), collector);
-      this.processRemainingExpectations(expectations.toList(), collector, updated);
-
-      // Updating all the expectations following the process
-      this.injectExpectationService.updateAll(updated);
-
-      // Get the next expectations that need to be processed (still max of 10k)
-      expectations = this.injectExpectationService.expectationsNotFill();
-    }
+    List<BaseInjectExpectation> expectations =
+        this.injectExpectationService.expectationsNotFillAndExpired(BATCH_SIZE);
+    List<BaseInjectExpectation> updated = new ArrayList<>();
+    this.processAgentExpectations(expectations, collector);
+    this.processRemainingExpectations(expectations, collector, updated);
+    this.injectExpectationService.updateAll(updated);
   }
 
   // -- PRIVATE --
@@ -64,8 +55,7 @@ public class ExpectationsExpirationManagerService {
     Map<String, InjectExpectationUpdateInput> inputsById = new LinkedHashMap<>();
     for (BaseInjectExpectation expectation : expectations) {
       if (!(expectation instanceof TechnicalInjectExpectation technicalExpectation)
-          || !ExpectationUtils.isAgentExpectation(technicalExpectation)
-          || !isExpired(expectation)) {
+          || !ExpectationUtils.isAgentExpectation(technicalExpectation)) {
         continue;
       }
       InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
@@ -95,20 +85,18 @@ public class ExpectationsExpirationManagerService {
         expectations.stream().filter(exp -> exp.getScore() == null).toList();
     remainingExpectations.forEach(
         expectation -> {
-          if (isExpired(expectation)) {
-            InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
-            input.setIsSuccess(false);
-            input.setResult(computeFailedMessage(expectation.getType()));
-            expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
-            if (HUMAN_EXPECTATION.contains(expectation.getType())) {
-              updated.add(
-                  injectExpectationService.computeInjectExpectationForHumanResponse(
-                      expectation, input, collector));
-            } else if (expectation instanceof TechnicalInjectExpectation technicalExpectation) {
-              updated.add(
-                  injectExpectationService.computeInjectExpectationForAgentOrAssetAgentless(
-                      technicalExpectation, input, collector));
-            }
+          InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
+          input.setIsSuccess(false);
+          input.setResult(computeFailedMessage(expectation.getType()));
+          expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
+          if (HUMAN_EXPECTATION.contains(expectation.getType())) {
+            updated.add(
+                injectExpectationService.computeInjectExpectationForHumanResponse(
+                    expectation, input, collector));
+          } else if (expectation instanceof TechnicalInjectExpectation technicalExpectation) {
+            updated.add(
+                injectExpectationService.computeInjectExpectationForAgentOrAssetAgentless(
+                    technicalExpectation, input, collector));
           }
         });
   }

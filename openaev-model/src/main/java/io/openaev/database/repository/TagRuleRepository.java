@@ -15,7 +15,9 @@ public interface TagRuleRepository
     extends CrudRepository<TagRule, String>, JpaSpecificationExecutor<TagRule> {
 
   @NotNull
-  Optional<TagRule> findById(@NotNull String id);
+  Optional<TagRule> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   @NotNull
   Optional<TagRule> findTagRuleByTagName(@NotNull String name);

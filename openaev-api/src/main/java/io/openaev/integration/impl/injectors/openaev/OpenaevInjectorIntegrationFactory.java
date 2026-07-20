@@ -2,7 +2,6 @@ package io.openaev.integration.impl.injectors.openaev;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
-import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.InjectorContext;
@@ -27,7 +26,6 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
   private final ConnectorInstanceService connectorInstanceService;
   private final InjectorService injectorService;
   private final OpenAEVImplantContract openAEVImplantContract;
-  private final OpenAEVConfig openAEVConfig;
   private final InjectorContext injectorContext;
   private final InjectExpectationService injectExpectationService;
   private final InjectService injectService;
@@ -37,7 +35,6 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
       ConnectorInstanceService connectorInstanceService,
       InjectorService injectorService,
       OpenAEVImplantContract openAEVImplantContract,
-      OpenAEVConfig openAEVConfig,
       CatalogConnectorService catalogConnectorService,
       HttpClientFactory httpClientFactory,
       InjectorContext injectorContext,
@@ -48,7 +45,6 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
     this.connectorInstanceService = connectorInstanceService;
     this.injectorService = injectorService;
     this.openAEVImplantContract = openAEVImplantContract;
-    this.openAEVConfig = openAEVConfig;
     this.injectorContext = injectorContext;
     this.injectExpectationService = injectExpectationService;
     this.injectService = injectService;
@@ -91,7 +87,6 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
         connectorInstanceService,
         injectorService,
         openAEVImplantContract,
-        openAEVConfig,
         injectorContext,
         injectExpectationService,
         injectService);
@@ -99,8 +94,7 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
 
   @Override
   public void registerConnectorForTenant(String tenantId) throws Exception {
-    Map<String, String> executorCommands =
-        OpenaevImplantCommandBuilder.buildExecutorCommands(openAEVConfig);
+    Map<String, String> executorCommands = OpenaevImplantCommandBuilder.buildExecutorCommands();
     Map<String, String> executorClearCommands =
         OpenaevImplantCommandBuilder.buildExecutorClearCommands();
     injectorService.registerBuiltinInjector(

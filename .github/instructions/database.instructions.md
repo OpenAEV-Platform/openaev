@@ -13,6 +13,7 @@ description: "Database conventions: schema naming, Flyway migrations, PostgreSQL
 - FK to tenant: `tenant_id VARCHAR(255)` — `NOT NULL` for tenant-only entities, **`NULLABLE`** for dual-scope entities (Settings, User, Role, Group) + `ON DELETE CASCADE`
 - Always add index on `tenant_id` for tenant-scoped and dual-scope tables
 - Join tables: `{table1}_{table2}` with composite PK + FKs `ON DELETE CASCADE`
+- **Every FK column must have a supporting index** (for composite FKs, index the same column set). PostgreSQL does not index FK columns automatically, and `ON DELETE CASCADE`/`SET NULL` checks run **once per deleted parent row** — an unindexed FK turns each parent delete into a full sequential scan of the child table (cause of the boot crash-loop in #6780)
 
 ## Business Keys & Unique Constraints
 

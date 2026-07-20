@@ -167,14 +167,37 @@ public class XtmComposerService {
   public void throwIfXtmComposerNotReachable() throws BadRequestException {
     Map<String, Setting> xtmComposerInformation = this.getXtmComposerSettings();
 
-    if (xtmComposerInformation.get(XTM_COMPOSER_ID.key()) == null
-        || xtmComposerInformation.get(XTM_COMPOSER_ID.key()).getValue() == null) {
+    Setting composerId = xtmComposerInformation.get(XTM_COMPOSER_ID.key());
+    if (composerId == null || composerId.getValue() == null) {
       throw new BadRequestException("XTM Composer is not configured in the platform settings");
     }
-    if (xtmComposerInformation.get(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()).getValue() == null
-        || isLastConnectivityCheckTooOld(
-            xtmComposerInformation.get(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()).getValue())) {
+    Setting lastCheck = xtmComposerInformation.get(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key());
+    if (lastCheck == null
+        || lastCheck.getValue() == null
+        || isLastConnectivityCheckTooOld(lastCheck.getValue())) {
       throw new BadRequestException("XTM Composer is not reachable");
     }
+  }
+
+  /**
+   * Non-throwing reachability probe. Mirrors {@link #throwIfXtmComposerNotReachable()} but returns
+   * a boolean instead of throwing. Callers that only need a yes/no answer MUST use this: throwing a
+   * {@link BadRequestException} from inside this {@code @Transactional} service marks the shared
+   * transaction rollback-only, so a caller that catches the exception still fails at commit with an
+   * {@code UnexpectedRollbackException}.
+   *
+   * @return true if XTM Composer is configured and its last connectivity check is recent enough
+   */
+  public boolean isXtmComposerReachable() {
+    Map<String, Setting> xtmComposerInformation = this.getXtmComposerSettings();
+
+    Setting composerId = xtmComposerInformation.get(XTM_COMPOSER_ID.key());
+    if (composerId == null || composerId.getValue() == null) {
+      return false;
+    }
+    Setting lastCheck = xtmComposerInformation.get(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key());
+    return lastCheck != null
+        && lastCheck.getValue() != null
+        && !isLastConnectivityCheckTooOld(lastCheck.getValue());
   }
 }

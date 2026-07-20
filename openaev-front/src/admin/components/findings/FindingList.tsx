@@ -1,5 +1,5 @@
-import { HubOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -139,7 +139,7 @@ const FindingList = ({ searchFindings, searchDistinctFindings, filterLocalStorag
             )}
           />
         </ListItem>
-        {loading ? <PaginatedListLoader Icon={HubOutlined} headers={headers} headerStyles={inlineStyles} /> : findings.map(finding => (
+        {loading ? <PaginatedListLoader Icon={Binoculars} headers={headers} headerStyles={inlineStyles} /> : findings.map(finding => (
           <ListItem
             key={finding.finding_id}
             classes={{ root: classes.item }}

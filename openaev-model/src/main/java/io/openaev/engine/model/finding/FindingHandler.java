@@ -1,6 +1,7 @@
 package io.openaev.engine.model.finding;
 
 import static io.openaev.engine.EsUtils.buildRestrictions;
+import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.database.raw.RawFindingIndexing;
@@ -9,6 +10,7 @@ import io.openaev.engine.Handler;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -61,11 +63,11 @@ public class FindingHandler implements Handler<EsFinding> {
               } else {
                 esFinding.setBase_scenario_side(null);
               }
-              if (hasText(finding.getAsset_id())) {
-                dependencies.add(finding.getAsset_id());
-                esFinding.setBase_endpoint_side(finding.getAsset_id());
+              if (!isEmpty(finding.getAsset_ids())) {
+                dependencies.addAll(finding.getAsset_ids());
+                esFinding.setBase_endpoint_side(finding.getAsset_ids());
               } else {
-                esFinding.setBase_endpoint_side(null);
+                esFinding.setBase_endpoint_side(Set.of());
               }
               esFinding.setBase_dependencies(dependencies);
               return esFinding;

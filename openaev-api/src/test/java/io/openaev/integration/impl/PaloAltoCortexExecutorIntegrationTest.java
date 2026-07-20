@@ -5,8 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.database.model.*;
+import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstanceInMemory;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -19,6 +23,7 @@ import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration;
 import io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegrationFactory;
+import io.openaev.integration.migration.PaloAltoCortexExecutorConfigurationMigration;
 import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -57,8 +62,12 @@ public class PaloAltoCortexExecutorIntegrationTest {
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   @Autowired private PreviewFeatureService previewFeatureService;
   @Autowired private EncryptionFactory encryptionFactory;
+  @Autowired private OpenAEVConfig openAEVConfig;
 
   @Autowired private FileService fileService;
+
+  @Autowired
+  private PaloAltoCortexExecutorConfigurationMigration paloAltoCortexExecutorConfigurationMigration;
 
   private PaloAltoCortexExecutorIntegrationFactory getFactory() {
     return new PaloAltoCortexExecutorIntegrationFactory(
@@ -66,6 +75,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
         catalogConnectorService,
         executorService,
         componentRequestEngine,
+        paloAltoCortexExecutorConfigurationMigration,
         agentService,
         endpointService,
         assetGroupService,
@@ -74,12 +84,13 @@ public class PaloAltoCortexExecutorIntegrationTest {
         taskScheduler,
         fileService,
         baseIntegrationConfigurationBuilder,
-        httpClientFactory);
+        httpClientFactory,
+        openAEVConfig);
   }
 
   /**
-   * PaloAlto has no ConfigurationMigration, so we manually create a persisted instance with the
-   * default configuration set attached to the catalog connector.
+   * Manually create a persisted instance with the default configuration set attached to the catalog
+   * connector, so the test controls the exact instance under test.
    */
   private ConnectorInstancePersisted createInstanceForCatalog(CatalogConnector catalogConnector) {
     ConnectorInstancePersisted instance = new ConnectorInstancePersisted();
@@ -161,7 +172,8 @@ public class PaloAltoCortexExecutorIntegrationTest {
                     executorService,
                     taskScheduler,
                     null,
-                    httpClientFactory))
+                    httpClientFactory,
+                    openAEVConfig))
         .isInstanceOf(ExecutorException.class)
         .hasMessageContaining("Error during initialization of the Executor");
   }

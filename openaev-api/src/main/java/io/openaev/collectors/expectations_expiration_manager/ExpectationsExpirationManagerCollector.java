@@ -22,7 +22,7 @@ public class ExpectationsExpirationManagerCollector {
     if (this.config.isEnable()) {
       this.taskScheduler.scheduleAtFixedRate(
           job,
-          Instant.now().plus(1, ChronoUnit.MINUTES),
+          Instant.now().plus(30, ChronoUnit.SECONDS),
           Duration.ofSeconds(this.config.getInterval()));
     }
   }

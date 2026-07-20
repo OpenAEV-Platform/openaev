@@ -11,6 +11,7 @@ import io.openaev.injectors.channel.ChannelContract;
 import io.openaev.injectors.channel.model.ChannelContent;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.service.settings.TenantSettingsService;
+import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.CopyObjectListUtils;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -43,6 +44,7 @@ public class ScenarioToExerciseService {
   private final GrantService grantService;
   private final TenantSettingsService tenantSettingsService;
   private final CustomDashboardService customDashboardService;
+  private final ActionMetricCollector actionMetricCollector;
   @Resource protected ObjectMapper mapper;
 
   @Transactional(rollbackFor = Exception.class)
@@ -82,6 +84,7 @@ public class ScenarioToExerciseService {
             .orElse(null));
 
     Exercise exerciseSaved = this.exerciseRepository.save(exercise);
+    this.actionMetricCollector.addSimulationCreatedCount();
 
     // Grants
     List<Grant> exerciseGrants =

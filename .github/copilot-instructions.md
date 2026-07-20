@@ -72,47 +72,7 @@ CI runs on GitHub Actions (see `.github/workflows/`):
 
 ## Project Structure
 
-### Root Files
-
-- `pom.xml` - Parent Maven POM
-- `.github/workflows/` - CI/CD pipelines (GitHub Actions)
-- `docker-compose.yml` - Dev services (in `openaev-dev/`)
-- `Dockerfile` / `Dockerfile_ga` - Production / GitHub Actions images
-
-### Backend
-
-```
-openaev-model/       # Domain models, entities, DTOs
-openaev-framework/   # ⚠️ DEPRECATED — will be removed (see Architecture section above)
-openaev-api/         # REST API, main application
-  src/main/java/io/openaev/
-    api/             # REST controllers (new code goes here)
-    rest/            # ⚠️ LEGACY controllers — will be migrated to api/. Never add new code here.
-    injectors/       # Integration modules
-    service/         # Business logic
-    OpenAevApplication.java
-  src/main/resources/
-    application.properties  # 352 lines
-    db/migration/    # Flyway migrations
-```
-
-### Frontend
-
-```
-openaev-front/
-  src/
-    actions/         # Redux actions
-    admin/           # Admin UI
-    components/      # Reusable components
-    utils/           # Utilities, API types
-  builder/prod/      # Production build (esbuild)
-  package.json
-```
-
-### Config Files
-
-- **Backend**: `pom.xml` (spotless-maven-plugin, Google Java Format)
-- **Frontend**: `eslint.config.js`, `tsconfig.json`, `vite.config.ts`
+See the domain-specific instruction files in `.github/instructions/` for detailed package structure, layering rules, and conventions. The "Code Conventions" table below links each domain to its instruction file.
 
 ## Common Issues & Workarounds
 
@@ -122,81 +82,14 @@ openaev-front/
 **Service Errors**: Ensure Docker services running; CI waits 60s for readiness
 **Memory**: Use `NODE_OPTIONS=--max_old_space_size=8192` for frontend tests
 
-## Commit Message Format
-
-**ALL commit messages MUST follow Conventional Commits format:**
-
-```
-<type>(<scope>)?: <short description> (#<issue-number>)?
-```
-
-**Examples:**
-
-- `feat(auth): add JWT authentication (#123)`
-- `fix(ui): resolve button alignment issue`
-- `chore: update README with setup instructions`
-
-**Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-
-## PR Title Format
-
-PR titles follow the same Conventional Commits format as commit messages:
-
-```
-<type>(<scope>)?: <short description> (#<issue-number>)?
-```
-
-> ⚠️ The `openaev-pr-checks` GitHub App validates PR titles against this pattern. Titles with extra prefixes
-> (e.g. `[backend]`) will be rejected.
-
 ## Pre-PR Checklist
 
 Before creating a pull request, validate locally:
 
 1. **Formatting**: `mvn spotless:check` (or via Docker: `docker run --rm -v $(pwd):/app -w /app maven:3.9-eclipse-temurin-21 mvn spotless:check`)
-2. **PR title**: Must match `type(scope?): description (#issue)` — no `[context]` prefix
+2. **PR title**: Must match `type(scope?): description (#issue)` — no `[context]` prefix. The `openaev-pr-checks` GitHub App validates this pattern; titles with extra prefixes (e.g. `[backend]`) will be rejected.
 3. **Compile**: `mvn compile -DskipTests` (or via Docker)
 4. **Frontend** (if changed): `cd openaev-front && yarn check-ts && yarn lint`
-
-## Key Commands Reference
-
-### Backend
-
-```bash
-mvn spotless:check              # Check formatting
-mvn spotless:apply              # Fix formatting
-mvn clean install -DskipTests   # Build without tests
-mvn test                        # Run tests
-mvn jacoco:check                # Verify coverage
-```
-
-### Migration Versioning
-
-- Naming: `V{major}_{NN}__Description.java`
-- Sequence: `NN` runs from `01` to `99`
-- Rollover: when `NN` would exceed `99`, increment `major` and restart at `01`
-- Examples: `V4_99` -> `V5_01`, `V5_99` -> `V6_01`
-
-### Frontend
-
-```bash
-yarn install                    # Install dependencies
-yarn build                      # Production build
-yarn start                      # Dev server (Vite)
-yarn lint                       # ESLint check
-yarn check-ts                   # TypeScript check
-yarn i18n-checker               # Validate translations
-yarn test                       # Run unit tests
-yarn test:e2e                   # Run E2E tests
-yarn generate-types-from-api    # Generate TypeScript types from API
-```
-
-**Checklist:**
-
-- Formatting: `mvn spotless:check` (backend), `yarn lint` (frontend)
-- Type safety: `yarn check-ts` (frontend only)
-- Tests: Ensure existing tests pass, add tests for new functionality
-- Coverage: Maintain 50% line, 30% branch coverage (backend)
 
 ## Code Conventions
 
@@ -253,6 +146,7 @@ Examples:
 7. **Node.js version**: Check `openaev-front/package.json` engines field for the minimum required version.
 8. **API types**: After API changes, run `yarn generate-types-from-api` in frontend to update TypeScript types.
 9. **Coverage enforcement**: Backend tests must maintain 50% line coverage, 30% branch coverage.
+10. **Scope confirmation**: For multi-file or cross-layer changes (entity + migration + service + controller + frontend), state which files you plan to modify and why, then wait for confirmation before writing code.
 
 
 <!-- filigran-conventions:start -->

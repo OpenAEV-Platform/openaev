@@ -25,6 +25,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
@@ -104,16 +105,17 @@ public class ChallengeApi extends RestBehavior {
     challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
     challenge.setDocuments(fromIterable(documentRepository.findAllById(input.documentIds())));
     List<ChallengeFlag> challengeFlags =
-        input.flags().stream()
-            .map(
-                flagInput -> {
-                  ChallengeFlag challengeFlag = new ChallengeFlag();
-                  challengeFlag.setType(FLAG_TYPE.valueOf(flagInput.getType()));
-                  challengeFlag.setValue(flagInput.getValue());
-                  challengeFlag.setChallenge(challenge);
-                  return challengeFlag;
-                })
-            .toList();
+        new ArrayList<>(
+            input.flags().stream()
+                .map(
+                    flagInput -> {
+                      ChallengeFlag challengeFlag = new ChallengeFlag();
+                      challengeFlag.setType(FLAG_TYPE.valueOf(flagInput.getType()));
+                      challengeFlag.setValue(flagInput.getValue());
+                      challengeFlag.setChallenge(challenge);
+                      return challengeFlag;
+                    })
+                .toList());
     challenge.setFlags(challengeFlags);
     return challengeRepository.save(challenge);
   }
@@ -125,7 +127,9 @@ public class ChallengeApi extends RestBehavior {
       resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
   public void deleteChallenge(@PathVariable String challengeId) {
-    challengeRepository.deleteById(challengeId);
+    Challenge challenge =
+        challengeRepository.findById(challengeId).orElseThrow(ElementNotFoundException::new);
+    challengeRepository.delete(challenge);
   }
 
   @PostMapping({CHALLENGE_URI + "/{challengeId}/try", TENANT_CHALLENGE_URI + "/{challengeId}/try"})

@@ -11,6 +11,8 @@ export interface Option {
   id: string;
   label: string;
   color?: string;
+  /** Renders the option label in italic (e.g. hardcoded "Platform default"). */
+  italic?: boolean;
 }
 
 export interface GroupOption extends Option { group: string }

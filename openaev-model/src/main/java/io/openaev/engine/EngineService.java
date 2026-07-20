@@ -44,6 +44,15 @@ public interface EngineService {
   void bulkDelete(List<String> ids);
 
   /**
+   * Deletes every document belonging to the given tenants across all indexes, in a single
+   * delete-by-query. Used when tenants are permanently purged: tenant data is removed via native
+   * SQL (no JPA lifecycle events), so the engine must be cleaned explicitly by tenant id.
+   *
+   * @param tenantIds the tenants whose documents must be removed
+   */
+  void deleteByTenants(List<String> tenantIds);
+
+  /**
    * Count using parameters
    *
    * @param user the user to use

@@ -1,6 +1,5 @@
 import { MovieFilterOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButtonGroup } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -19,7 +18,7 @@ import ItemCategory from '../../../components/ItemCategory';
 import ItemSeverity from '../../../components/ItemSeverity';
 import ItemTags from '../../../components/ItemTags';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
-import PlatformIcon from '../../../components/PlatformIcon';
+import PlatformIconGroup from '../../../components/PlatformIconGroup';
 import { type Scenario, type SearchPaginationInput } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import { Can } from '../../../utils/permissions/permissionsContext';
@@ -51,11 +50,10 @@ const Scenarios = () => {
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
-  const theme = useTheme();
   const { isXTMHubAccessible } = useAuth();
+  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   const [loading, setLoading] = useState<boolean>(true);
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   // Headers
   const headers = useMemo(() => [
@@ -99,27 +97,9 @@ const Scenarios = () => {
       field: 'scenario_platforms',
       label: 'Platforms',
       isSortable: false,
-      value: (scenario: Scenario) => {
-        const platforms = scenario.scenario_platforms ?? [];
-        if (platforms.length === 0) {
-          return <PlatformIcon platform={t('No inject in this scenario')} tooltip width={25} />;
-        }
-        return (
-          <>
-            {platforms.map(
-              (platform: string) => (
-                <PlatformIcon
-                  key={platform}
-                  platform={platform}
-                  tooltip
-                  width={20}
-                  marginRight={theme.spacing(2)}
-                />
-              ),
-            )}
-          </>
-        );
-      },
+      value: (scenario: Scenario) => (
+        <PlatformIconGroup platforms={scenario.scenario_platforms} />
+      ),
     },
     {
       field: 'scenario_tags',
@@ -241,7 +221,11 @@ const Scenarios = () => {
                     secondaryAction={(
                       <ScenarioPopover
                         scenario={scenario}
-                        actions={isChainingFeatureEnabled && !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id ? ['Delete'] : ['Duplicate', 'Export', 'Delete']}
+                        actions={
+                          isChainingFeatureEnabled && !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id
+                            ? ['Export', 'Delete']
+                            : ['Duplicate', 'Export', 'Delete']
+                        }
                         onDelete={(result) => {
                           setScenarios(scenarios.filter(e => (e.scenario_id !== result)));
                           setSearchPaginationInput(prev => ({

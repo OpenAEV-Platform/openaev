@@ -7,6 +7,7 @@ import static org.springframework.security.saml2.provider.service.authentication
 
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.OpenAEVSaml2User;
+import io.openaev.config.SessionManager;
 import io.openaev.database.model.User;
 import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
 import io.openaev.service.UserMappingService;
@@ -45,6 +46,7 @@ public class OpenSamlConfig {
   private final Environment env;
   private final SecurityService securityService;
   private final UserMappingService userMappingService;
+  private final SessionManager sessionManager;
 
   @Autowired(required = false)
   private RelyingPartyRegistrationRepository relyingPartyRegistrationRepository;
@@ -70,7 +72,8 @@ public class OpenSamlConfig {
                 saml2Login
                     .authenticationManager(new ProviderManager(authenticationProvider))
                     .successHandler(
-                        new SsoRefererAuthenticationSuccessHandler(this.auditLogger.orElse(null))));
+                        new SsoRefererAuthenticationSuccessHandler(
+                            this.auditLogger.orElse(null), this.sessionManager)));
   }
 
   // -- PRIVATE --
