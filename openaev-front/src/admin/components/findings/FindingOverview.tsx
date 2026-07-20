@@ -55,34 +55,56 @@ const FindingOverview = () => {
       }
     : null), [finding]);
 
-  // Count occurrences and impacted endpoints across the whole platform.
+  // Count occurrences and impacted endpoints across the whole platform. The
+  // endpoint count needs every occurrence's assets, so page through the
+  // occurrences (bounded, to stay cheap on pathological findings) and dedupe.
   useEffect(() => {
-    if (!finding) return;
+    if (!finding) return undefined;
+    let cancelled = false;
+    const pageSize = 500;
+    const maxPages = 10;
     const baseFilters = {
       mode: 'and' as const,
       filters: [
         buildFilter('finding_value', [finding.finding_value], 'eq'),
+        // The values must match the backend enum names (EnumType.STRING
+        // column), which the display mapping mirrors - not the raw JSON keys.
         buildFilter('finding_type', [ContractOutputElementType[finding.finding_type] ?? finding.finding_type], 'eq'),
       ],
     };
-    searchFindings(buildSearchPagination({
-      page: 0,
-      size: 1,
+    const fetchPage = (page: number) => searchFindings(buildSearchPagination({
+      page,
+      size: pageSize,
       filterGroup: baseFilters,
-    }))
-      .then((response: { data: { totalElements?: number } }) => setOccurrences(response.data.totalElements ?? 0))
-      .catch(() => setOccurrences(0));
-    searchFindings(buildSearchPagination({
-      page: 0,
-      size: 200,
-      filterGroup: baseFilters,
-    }))
-      .then((response: { data: { content?: RelatedFindingOutput[] } }) => {
+    })) as Promise<{
+      data: {
+        totalElements?: number;
+        totalPages?: number;
+        content?: RelatedFindingOutput[];
+      };
+    }>;
+    (async () => {
+      try {
         const ids = new Set<string>();
-        (response.data.content ?? []).forEach(row => (row.finding_assets ?? []).forEach(asset => ids.add(asset.asset_id)));
-        setEndpointCount(ids.size);
-      })
-      .catch(() => setEndpointCount(null));
+        const collect = (rows?: RelatedFindingOutput[]) =>
+          (rows ?? []).forEach(row => (row.finding_assets ?? []).forEach(asset => ids.add(asset.asset_id)));
+        const first = await fetchPage(0);
+        if (!cancelled) setOccurrences(first.data.totalElements ?? 0);
+        collect(first.data.content);
+        const totalPages = Math.min(first.data.totalPages ?? 1, maxPages);
+        const rest = await Promise.all(Array.from({ length: Math.max(totalPages - 1, 0) }, (_, index) => fetchPage(index + 1)));
+        rest.forEach(page => collect(page.data.content));
+        if (!cancelled) setEndpointCount(ids.size);
+      } catch {
+        if (!cancelled) {
+          setOccurrences(0);
+          setEndpointCount(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [finding]);
 
   const additionalHeaders = useMemo(() => [

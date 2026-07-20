@@ -9,7 +9,7 @@ import { searchDistinctFindings } from '../../../../actions/findings/finding-act
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
 import { fetchOrganizations } from '../../../../actions/Organization';
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
-import { fetchTeam, fetchTeamPlayers, updateTeamPlayers } from '../../../../actions/teams/team-actions';
+import { fetchTeam, fetchTeamPlayers, searchTeams, updateTeamPlayers } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { DetailHero, DetailSections, Field, InformationGrid, MetricGrid, MetricTile, Section, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
@@ -97,8 +97,8 @@ const TeamDetail = () => {
     onRemoveUsersTeam(id: Team['team_id'], userIds: string[]): Promise<void> {
       return dispatch(updateTeamPlayers(id, { team_users: (team?.team_users ?? []).filter((u: string) => !userIds.includes(u)) }));
     },
-    searchTeams(_: SearchPaginationInput): Promise<{ data: Page<TeamOutput> }> {
-      return new Promise<{ data: Page<TeamOutput> }>(() => {});
+    searchTeams(input: SearchPaginationInput): Promise<{ data: Page<TeamOutput> }> {
+      return searchTeams(input) as Promise<{ data: Page<TeamOutput> }>;
     },
   }), [dispatch, team]);
 
