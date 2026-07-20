@@ -100,7 +100,7 @@ public class WorkflowService {
 
   /**
    * Creates a new workflow template for a simulation with safe defaults for the inline
-   * configuration (rate-limit and timeout disabled, safe-mode enabled).
+   * configuration (rate-limit disabled, timeout enabled to 1 hour, safe-mode enabled).
    *
    * @param simulation the simulation to create the workflow for
    */
@@ -111,7 +111,7 @@ public class WorkflowService {
             .status(WorkflowStatus.TEMPLATE)
             .simulation(simulation)
             .rateLimitEnabled(false)
-            .timeoutEnabled(false)
+            .timeoutEnabled(true)
             .timeoutSeconds(DEFAULT_TIMEOUT_SECONDS)
             .safeModeEnabled(true)
             .build();
@@ -130,7 +130,7 @@ public class WorkflowService {
             .status(WorkflowStatus.TEMPLATE)
             .scenario(scenario)
             .rateLimitEnabled(false)
-            .timeoutEnabled(false)
+            .timeoutEnabled(true)
             .timeoutSeconds(DEFAULT_TIMEOUT_SECONDS)
             .safeModeEnabled(true)
             .build();
