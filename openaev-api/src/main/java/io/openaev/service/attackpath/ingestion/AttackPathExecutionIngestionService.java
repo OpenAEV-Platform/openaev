@@ -40,7 +40,10 @@ public class AttackPathExecutionIngestionService {
       String stepTemplateId,
       String injectExecId,
       Instant executedAt,
-      String payloadName) {}
+      String payloadName,
+      String contractExternalId,
+      String payloadId,
+      String injectorType) {}
 
   @Transactional
   public void createRows(ExecutionContext ctx, List<ResolvedExecutionEdge> edges) {
@@ -63,6 +66,12 @@ public class AttackPathExecutionIngestionService {
     row.setStepTemplateId(ctx.stepTemplateId());
     row.setExecutedAt(ctx.executedAt());
     row.setPayloadName(ctx.payloadName());
+    // The run's injector contract, so the read can resolve its ATT&CK techniques.
+    row.setContractExternalId(ctx.contractExternalId());
+    // The run's payload (so the read can resolve its detection remediations) and injector type (so
+    // the graph can label the injector node with its real type).
+    row.setPayloadId(ctx.payloadId());
+    row.setInjectorType(ctx.injectorType());
     row.setSourceKind(edge.sourceKind());
     row.setSourceInjector(edge.sourceInjector());
     row.setSourceAssetId(edge.sourceAssetId());
@@ -109,7 +118,10 @@ public class AttackPathExecutionIngestionService {
         step.getStepTemplate() != null ? step.getStepTemplate().getId() : null,
         inject.getId(),
         Instant.now(),
-        payload != null ? payload.getName() : null);
+        payload != null ? payload.getName() : null,
+        contract.getExternalId(),
+        payload != null ? payload.getId() : null,
+        inject.getInjector() != null ? inject.getInjector().getType() : null);
   }
 
   private ResolutionInput resolutionInput(Inject inject, InjectorContract contract) {

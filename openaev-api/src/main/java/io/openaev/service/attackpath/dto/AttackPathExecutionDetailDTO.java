@@ -1,5 +1,6 @@
 package io.openaev.service.attackpath.dto;
 
+import io.openaev.rest.payload.form.DetectionRemediationOutput;
 import java.util.List;
 
 /**
@@ -11,8 +12,12 @@ import java.util.List;
 public record AttackPathExecutionDetailDTO(
     // header
     String payloadName,
+    String injectId,
+    String payloadId,
     String agentName,
     String agentPrivilege,
+    List<AttackPathAttackPatternDTO> attackPatterns,
+    List<DetectionRemediationOutput> detectionRemediations,
     // result
     String endpointKey,
     String targetHostname,

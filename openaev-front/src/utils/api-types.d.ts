@@ -718,14 +718,23 @@ export interface AttackPathEndpointRelationsDTO {
   executions?: AttackPathNodeDTO[];
 }
 
+export interface AttackPathAttackPatternDTO {
+  externalId?: string;
+  name?: string;
+}
+
 export interface AttackPathExecutionDetailDTO {
   agentName?: string;
   agentPrivilege?: string;
+  attackPatterns?: AttackPathAttackPatternDTO[];
   command?: string;
+  detectionRemediations?: DetectionRemediationOutput[];
   detectionStatus?: string;
   endpointKey?: string;
   executedAt?: string;
   findings?: AttackPathExecutionFindingItemDTO[];
+  injectId?: string;
+  payloadId?: string;
   payloadName?: string;
   preventionStatus?: string;
   targetHostname?: string;

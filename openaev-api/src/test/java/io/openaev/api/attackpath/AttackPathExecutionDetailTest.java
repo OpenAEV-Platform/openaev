@@ -1,16 +1,32 @@
 package io.openaev.api.attackpath;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Payload;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
 import io.openaev.database.model.attackpath.AttackPathFinding;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.dto.AttackPathExecutionDetailDTO;
+import io.openaev.utils.fixtures.CollectorTypeFixture;
+import io.openaev.utils.fixtures.DetectionRemediationFixture;
+import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.PayloadFixture;
+import io.openaev.utils.fixtures.composers.AttackPatternComposer;
+import io.openaev.utils.fixtures.composers.CollectorTypeComposer;
+import io.openaev.utils.fixtures.composers.DetectionRemediationComposer;
+import io.openaev.utils.fixtures.composers.InjectorContractComposer;
+import io.openaev.utils.fixtures.composers.PayloadComposer;
+import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
@@ -18,6 +34,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -36,17 +53,62 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
   @Autowired private AttackPathGraphService graphService;
   @Autowired private AttackPathExecutionRepository executionRepository;
   @Autowired private AttackPathFindingRepository findingRepository;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private AttackPatternComposer attackPatternComposer;
+  @Autowired private InjectorFixture injectorFixture;
+  @Autowired private PayloadComposer payloadComposer;
+  @Autowired private DetectionRemediationComposer detectionRemediationComposer;
+  @Autowired private CollectorTypeComposer collectorTypeComposer;
+
+  // The remediation mapping is Enterprise-gated. The test environment has no active licence, so the
+  // gate is driven explicitly here: that is the only way to exercise the resolution itself rather
+  // than the degraded empty-list path.
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   private Tenant tenant;
   private String executionId;
+  private String payloadId;
 
   @BeforeEach
   void seed() {
     tenant = tenantRepository.save(TenantFixture.getTenant("ap-detail-tenant"));
 
+    // A real injector contract carrying an ATT&CK technique, referenced by the row's external id:
+    // the read resolves the techniques from it for the drawer's chips.
+    InjectorContract contract =
+        injectorContractComposer
+            .forInjectorContract(
+                InjectorContractFixture.createDefaultInjectorContractWithExternalId(
+                    "contract-ext-1"))
+            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+            .withAttackPattern(
+                attackPatternComposer.forAttackPattern(
+                    AttackPatternFixture.createAttackPatternsWithExternalId("T1046")))
+            .persist()
+            .get();
+
     AttackPathExecution e = new AttackPathExecution();
     e.setTenant(tenant);
     e.setSimulationId(SIM);
+    e.setInjectId("inject-detail-1");
+    // A real payload carrying a detection remediation: the read resolves the remediations from the
+    // payload that actually ran (the frozen payload id), for the drawer's Remediation tab.
+    Payload payload =
+        payloadComposer
+            .forPayload(PayloadFixture.createDefaultCommand())
+            .withDetectionRemediation(
+                detectionRemediationComposer
+                    .forDetectionRemediation(
+                        DetectionRemediationFixture.createDefaultDetectionRemediation())
+                    .withCollectorType(
+                        collectorTypeComposer.forCollectorType(
+                            CollectorTypeFixture.createDefaultCollectorType())))
+            .persist()
+            .get();
+    payloadId = payload.getId();
+
+    e.setContractExternalId(contract.getExternalId());
+    e.setPayloadId(payloadId);
     e.setSourceKind("INJECTOR");
     e.setSourceInjector("hydra");
     e.setTargetKind("ASSET");
@@ -94,7 +156,12 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
 
     assertThat(d).isNotNull();
     // header
+    assertThat(d.injectId()).isEqualTo("inject-detail-1");
     assertThat(d.payloadName()).isEqualTo("hydra-payload");
+    assertThat(d.payloadId()).isEqualTo(payloadId);
+    // the run's contract resolves to its ATT&CK techniques (the drawer's chips)
+    assertThat(d.attackPatterns()).hasSize(1);
+    assertThat(d.attackPatterns().get(0).externalId()).isEqualTo("T1046");
     assertThat(d.agentName()).isEqualTo("agent-1");
     assertThat(d.agentPrivilege()).isEqualTo("user");
     // result
@@ -124,5 +191,26 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
   void unknownExecutionOrSimulationIsNull() {
     assertThat(graphService.executionDetail(SIM, "does-not-exist")).isNull();
     assertThat(graphService.executionDetail("OTHER-SIM", executionId)).isNull();
+  }
+
+  @Test
+  @DisplayName(
+      "with an active Enterprise licence, the remediations of the payload that ran are returned")
+  void returnsDetectionRemediationsWhenEnterpriseActive() {
+    when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+
+    AttackPathExecutionDetailDTO d = graphService.executionDetail(SIM, executionId);
+
+    assertThat(d.detectionRemediations()).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("without an active Enterprise licence, the remediations are omitted")
+  void omitsDetectionRemediationsWhenEnterpriseInactive() {
+    when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
+
+    AttackPathExecutionDetailDTO d = graphService.executionDetail(SIM, executionId);
+
+    assertThat(d.detectionRemediations()).isEmpty();
   }
 }
