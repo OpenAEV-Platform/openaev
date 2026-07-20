@@ -3,6 +3,7 @@ import { DeleteOutline, DragHandleOutlined, InfoOutlined } from '@mui/icons-mate
 import {
   Box,
   FormControl,
+  FormHelperText,
   IconButton,
   InputLabel,
   MenuItem,
@@ -17,13 +18,13 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
+import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 import ActionTypeIcon from '../ActionTypeIcon';
 import { useOutputProviders } from '../useOutputProviders';
 import {
   CASE_SENSITIVE_OPERATORS,
   COMPARISON_OPERATORS,
   type ComparisonOperator,
-  CONDITION_KEY_TYPES,
   type ConditionKeyType,
   type EventCondition,
   formatConditionKeyLabel,
@@ -48,6 +49,9 @@ const EventConditionRow: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const { argumentTypes, isLoading: isLoadingArgumentTypes, error: argumentTypesError } = useArgumentTypes();
+  const conditionKeyTypes = argumentTypes;
+  const isArgumentTypesUnavailable = isLoadingArgumentTypes || !!argumentTypesError || conditionKeyTypes.length === 0;
   const { providers } = useOutputProviders();
 
   /**
@@ -152,9 +156,16 @@ const EventConditionRow: FunctionComponent<Props> = ({
           label={t('Field to Check')}
           value={condition.field}
           onChange={handleFieldChange}
+          disabled={isArgumentTypesUnavailable}
           renderValue={val => formatConditionKeyLabel(val)}
         >
-          {CONDITION_KEY_TYPES.map((key) => {
+          {isLoadingArgumentTypes && (
+            <MenuItem disabled>{t('Loading argument types...')}</MenuItem>
+          )}
+          {!isLoadingArgumentTypes && argumentTypesError && (
+            <MenuItem disabled>{t('Failed to load argument types')}</MenuItem>
+          )}
+          {!isLoadingArgumentTypes && !argumentTypesError && conditionKeyTypes.map((key) => {
             const keyProviders = providers[key] ?? [];
             return (
               <MenuItem
@@ -184,6 +195,12 @@ const EventConditionRow: FunctionComponent<Props> = ({
             );
           })}
         </Select>
+        {isLoadingArgumentTypes && (
+          <FormHelperText>{t('Loading argument types...')}</FormHelperText>
+        )}
+        {!isLoadingArgumentTypes && argumentTypesError && (
+          <FormHelperText error>{t('Failed to load argument types')}</FormHelperText>
+        )}
       </FormControl>
 
       {/* Operator */}

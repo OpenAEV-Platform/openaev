@@ -1,11 +1,12 @@
-package io.openaev.api.payload;
+package io.openaev.api.threat_arsenal;
 
 import static io.openaev.rest.settings.PreviewFeature.INJECT_CHAINING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import io.openaev.database.model.ArgumentType;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,40 +16,33 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("Payload argument type API")
-class PayloadArgumentApiTest {
+@DisplayName("Threat arsenal argument types API")
+class ThreatArsenalArgumentTypesApiTest {
 
+  @Mock private ThreatArsenalService threatArsenalService;
   @Mock private PreviewFeatureService previewFeatureService;
 
-  @InjectMocks private PayloadArgumentApi payloadArgumentApi;
+  @InjectMocks private ThreatArsenalApi threatArsenalApi;
 
   @Test
-  @DisplayName("Should return only text/document when chaining is disabled")
+  @DisplayName("Should return text/document/targeted-asset when chaining is disabled")
   void given_chainingDisabled_should_returnCoreTypesOnly() {
-    // Arrange
     when(previewFeatureService.isFeatureEnabled(INJECT_CHAINING)).thenReturn(false);
 
-    // Act
-    List<ArgumentTypeOutput> body = payloadArgumentApi.getArgumentTypes().getBody();
-    assertThat(body).isNotNull();
-    List<ArgumentType> types = body.stream().map(ArgumentTypeOutput::type).toList();
+    List<PrimitiveType> types = threatArsenalApi.getArgumentTypes();
 
-    // Assert
-    assertThat(types).containsExactly(ArgumentType.Text, ArgumentType.Document);
+    assertThat(types)
+        .containsExactly(PrimitiveType.Text, PrimitiveType.Document, PrimitiveType.TargetedAsset);
   }
 
   @Test
   @DisplayName("Should return all argument types when chaining is enabled")
   void given_chainingEnabled_should_returnAllTypes() {
-    // Arrange
     when(previewFeatureService.isFeatureEnabled(INJECT_CHAINING)).thenReturn(true);
 
-    // Act
-    List<ArgumentTypeOutput> body = payloadArgumentApi.getArgumentTypes().getBody();
-    assertThat(body).isNotNull();
-    List<ArgumentType> types = body.stream().map(ArgumentTypeOutput::type).toList();
+    List<PrimitiveType> types = threatArsenalApi.getArgumentTypes();
 
-    // Assert
-    assertThat(types).containsExactly(ArgumentType.values());
+    assertThat(types).containsExactly(PrimitiveType.values());
+    assertThat(types).contains(PrimitiveType.AssetId, PrimitiveType.AssetGroupId);
   }
 }

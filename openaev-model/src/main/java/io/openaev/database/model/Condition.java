@@ -7,7 +7,6 @@ import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -46,18 +45,9 @@ public class Condition implements Base {
 
   @Column(name = "condition_key_type")
   @Enumerated(EnumType.STRING)
-  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @JsonProperty("condition_key_type")
   @Schema(description = "Key type")
-  private ConditionKeyType keyType;
-
-  @Column(name = "condition_key_subtype")
-  @Nullable
-  @Enumerated(EnumType.STRING)
-  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-  @JsonProperty("condition_key_subtype")
-  @Schema(description = "Key subtype")
-  private ConditionKeySubtype keySubtype;
+  private PrimitiveType keyType;
 
   @Column(name = "condition_type")
   @Enumerated(EnumType.STRING)

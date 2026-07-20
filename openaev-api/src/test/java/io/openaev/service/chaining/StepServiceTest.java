@@ -129,7 +129,7 @@ class StepServiceTest {
     void given_conditionInputs_should_buildConditionTreeCorrectly(
         String description,
         List<ConditionCreateInput> inputs,
-        Map<ConditionKeyType, Optional<ConditionKeyType>> expectedParentMap)
+        Map<PrimitiveType, Optional<PrimitiveType>> expectedParentMap)
         throws ChainingException {
 
       // Arrange
@@ -192,7 +192,7 @@ class StepServiceTest {
       // Assert
       verify(conditionService).createConditionTree(eq(inputs), any(), any(), any(), isNull());
 
-      Map<ConditionKeyType, Condition> byKey =
+      Map<PrimitiveType, Condition> byKey =
           producedConditions.stream().collect(Collectors.toMap(Condition::getKeyType, c -> c));
 
       expectedParentMap.forEach(
@@ -214,26 +214,26 @@ class StepServiceTest {
       return Stream.of(
           Arguments.of(
               "Single root condition",
-              List.of(mockCondition("ROOT", ConditionKeyType.Text, null)),
-              Map.of(ConditionKeyType.Text, Optional.empty())),
+              List.of(mockCondition("ROOT", PrimitiveType.Text, null)),
+              Map.of(PrimitiveType.Text, Optional.empty())),
           Arguments.of(
               "Root with one child",
               List.of(
-                  mockCondition("ROOT", ConditionKeyType.Text, null),
-                  mockCondition("CHILD", ConditionKeyType.Number, "ROOT")),
+                  mockCondition("ROOT", PrimitiveType.Text, null),
+                  mockCondition("CHILD", PrimitiveType.Number, "ROOT")),
               Map.of(
-                  ConditionKeyType.Text, Optional.empty(),
-                  ConditionKeyType.Number, Optional.of(ConditionKeyType.Text))),
+                  PrimitiveType.Text, Optional.empty(),
+                  PrimitiveType.Number, Optional.of(PrimitiveType.Text))),
           Arguments.of(
               "Root with two-level tree",
               List.of(
-                  mockCondition("ROOT", ConditionKeyType.Text, null),
-                  mockCondition("A", ConditionKeyType.Port, "ROOT"),
-                  mockCondition("B", ConditionKeyType.IPv4, "A")),
+                  mockCondition("ROOT", PrimitiveType.Text, null),
+                  mockCondition("A", PrimitiveType.Port, "ROOT"),
+                  mockCondition("B", PrimitiveType.IPv4, "A")),
               Map.of(
-                  ConditionKeyType.Text, Optional.empty(),
-                  ConditionKeyType.Port, Optional.of(ConditionKeyType.Text),
-                  ConditionKeyType.IPv4, Optional.of(ConditionKeyType.Port))));
+                  PrimitiveType.Text, Optional.empty(),
+                  PrimitiveType.Port, Optional.of(PrimitiveType.Text),
+                  PrimitiveType.IPv4, Optional.of(PrimitiveType.Port))));
     }
   }
 
@@ -251,11 +251,11 @@ class StepServiceTest {
               StepActionClass.INJECT_EXECUTION,
               List.of(
                   ConditionCreateInput.builder()
-                      .keyType(ConditionKeyType.Text)
+                      .keyType(PrimitiveType.Text)
                       .temporaryIdConditionParent(null)
                       .build(),
                   ConditionCreateInput.builder()
-                      .keyType(ConditionKeyType.Number)
+                      .keyType(PrimitiveType.Number)
                       .temporaryIdConditionParent(null)
                       .build()));
 
@@ -278,7 +278,7 @@ class StepServiceTest {
       // Arrange
       ConditionCreateInput conditionCreateInput =
           ConditionCreateInput.builder()
-              .keyType(ConditionKeyType.Text)
+              .keyType(PrimitiveType.Text)
               .temporaryIdConditionParent("X")
               .build();
       StepsCreateInput.StepInput stepInput =
@@ -893,7 +893,7 @@ class StepServiceTest {
   }
 
   private static ConditionCreateInput mockCondition(
-      String temporaryId, ConditionKeyType keyType, String parentTempId) {
+      String temporaryId, PrimitiveType keyType, String parentTempId) {
 
     ConditionCreateInput c = mock(ConditionCreateInput.class);
 

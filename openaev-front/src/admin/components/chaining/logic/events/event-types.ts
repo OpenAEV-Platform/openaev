@@ -1,19 +1,9 @@
 import type { ConditionCreateInput } from '../../../../../utils/api-types';
-
-export const CONDITION_KEY_TYPES = [
-  'text', 'number', 'status', 'port', 'portscan',
-  'ipv4', 'ipv6', 'credentials', 'cve', 'username',
-  'share', 'admin_username', 'group', 'computer',
-  'password_policy', 'delegation', 'sid', 'vulnerability',
-  'account_with_password_not_required', 'asreproastable_account',
-  'kerberoastable_account', 'asset',
-] as const;
-
-export type ConditionKeyType = typeof CONDITION_KEY_TYPES[number];
+export type ConditionKeyType = string;
 
 /** 'admin_username' → 'Admin username' */
 export const formatConditionKeyLabel = (value: string): string => value
-  .replace(/_/g, ' ')
+  .replace(/[_-]/g, ' ')
   .replace(/^./, c => c.toUpperCase());
 
 // -- Operators available for conditions --
@@ -121,7 +111,7 @@ export const conditionGroupsToApi = (
         condition_temporary_id: nextTempId(),
         condition_temporary_id_condition_parent: groupTempId,
         condition_type: cond.operator as ConditionCreateInput['condition_type'],
-        condition_key_type: cond.field,
+        condition_key_type: cond.field as ConditionCreateInput['condition_key_type'],
         // Unary operators (IS_NULL / IS_NOT_NULL) need no value
         condition_value: UNARY_OPERATORS.includes(cond.operator) ? undefined : cond.value,
         condition_case_sensitive: cond.caseSensitive,

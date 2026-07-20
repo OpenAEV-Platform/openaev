@@ -22,8 +22,7 @@ import {
   type PayloadArgument,
   type PayloadPrerequisite,
 } from '../../../utils/api-types';
-import { emptyFilled } from '../../../utils/String';
-import { isFeatureEnabled } from '../../../utils/utils';
+import { emptyFilled, formatPrimitiveTypeLabel } from '../../../utils/String';
 import DocumentType from '../components/documents/DocumentType';
 
 const useStyles = makeStyles()(theme => ({
@@ -80,7 +79,6 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
-  const isChainingEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   const { attackPatternsMap }: { attackPatternsMap: ReturnType<AttackPatternHelper['getAttackPatternsMap']> } = useHelper((helper: AttackPatternHelper) => ({ attackPatternsMap: helper.getAttackPatternsMap() }));
   const getAttackCommand = (payload: PayloadType | null): string => {
@@ -112,7 +110,6 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
       .map(id => attackPatternsMap[id])
       .filter(Boolean) as AttackPattern[];
   }, [attackPatternsMap, attackPatternIds]);
-
   return (
     <div className={classes.payloadContainer}>
       <Typography variant="h2" gutterBottom>{selectedPayload?.payload_name}</Typography>
@@ -324,7 +321,6 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                       }}
                       >
                         <TableCell>{t('Type')}</TableCell>
-                        {isChainingEnabled && <TableCell>{t('Subtype')}</TableCell>}
                         <TableCell>{t('Key')}</TableCell>
                         <TableCell>{t('Default value')}</TableCell>
                       </TableRow>
@@ -335,9 +331,8 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                           <Fragment key={argument.key}>
                             <TableRow>
                               <TableCell>
-                                {argument.type}
+                                {formatPrimitiveTypeLabel(argument.type)}
                               </TableCell>
-                              {isChainingEnabled && <TableCell>{argument.subtype ?? '-'}</TableCell>}
                               <TableCell>
                                 {argument.key}
                               </TableCell>

@@ -247,14 +247,14 @@ class StepServiceIntegrationTest extends IntegrationTest {
     root1.setTemporaryId("tmp-1");
     root1.setTemporaryIdConditionParent(null); // root
     root1.setType(ConditionType.EQ);
-    root1.setKeyType(ConditionKeyType.Status);
+    root1.setKeyType(PrimitiveType.Text);
     root1.setValue("A");
 
     ConditionCreateInput root2 = new ConditionCreateInput();
     root2.setTemporaryId("tmp-2");
     root2.setTemporaryIdConditionParent(null); // second root → BOOM
     root2.setType(ConditionType.EQ);
-    root2.setKeyType(ConditionKeyType.Status);
+    root2.setKeyType(PrimitiveType.Text);
     root2.setValue("B");
 
     stepInput.setConditions(List.of(root1, root2));
@@ -270,14 +270,14 @@ class StepServiceIntegrationTest extends IntegrationTest {
     root1.setTemporaryId("tmp-1");
     root1.setTemporaryIdConditionParent(null); // root
     root1.setType(ConditionType.EQ);
-    root1.setKeyType(ConditionKeyType.Status);
+    root1.setKeyType(PrimitiveType.Text);
     root1.setValue("A");
 
     ConditionCreateInput root2 = new ConditionCreateInput();
     root2.setTemporaryId("tmp-2");
     root2.setTemporaryIdConditionParent("tmp-1"); // root
     root2.setType(ConditionType.EQ);
-    root2.setKeyType(ConditionKeyType.Status);
+    root2.setKeyType(PrimitiveType.Text);
     root2.setValue("B");
 
     stepInput.setConditions(List.of(root1, root2));

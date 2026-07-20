@@ -1,10 +1,9 @@
 import { simpleCall } from '../../utils/Action';
-import { type ArgumentTypeOutput } from '../../utils/api-types';
 
-const PAYLOAD_ARGUMENTS_URI = '/api/payload-arguments';
+const THREAT_ARSENAL_URI = '/api/threat_arsenals';
 
-const fetchArgumentTypes = async (): Promise<ArgumentTypeOutput[]> => {
-  const result = await simpleCall(`${PAYLOAD_ARGUMENTS_URI}/types`);
+const fetchArgumentTypes = async (): Promise<string[]> => {
+  const result = await simpleCall(`${THREAT_ARSENAL_URI}/argument-types/`);
   return result.data;
 };
 
