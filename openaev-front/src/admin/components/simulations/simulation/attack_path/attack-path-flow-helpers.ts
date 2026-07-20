@@ -343,6 +343,7 @@ const pushFindingColumn = (
         endpointRef,
         clusterKind: 'header',
         expanded: e.isExpanded,
+        status: e.typeStatus,
       },
     });
     edges.push({
@@ -369,6 +370,7 @@ const pushFindingColumn = (
           label: f.value ?? f.label,
           typeFindings: e.type,
           assetNodeId: f.assetNodeId ?? endpointNodeId,
+          status: e.typeStatus,
         },
       });
       edges.push({
@@ -705,6 +707,9 @@ export const buildFindingPathFlow = (
   const injectors = dtoNodes.filter(n => n.type === 'INJECTOR' && n.id && injectorIds.has(n.id as string));
 
   const endpointCounts = endpoint?.findingCounts ?? {};
+  // The focused endpoint's verdict, applied to its finding clusters/edges so they carry the
+  // prevention/detection colour (green/orange/red) — blue is reserved for the actively selected path.
+  const endpointStatus = endpoint?.status;
   // Endpoint focus (no specific finding, e.g. from a chokepoint click): show the whole endpoint —
   // injector(s) -> endpoint -> one cluster per finding type on it — instead of a single finding path.
   const endpointFocus = !finding.type;
@@ -744,8 +749,7 @@ export const buildFindingPathFlow = (
       type: AP_FLOW_EDGE_TYPE,
       data: {
         count: 1,
-        // Focused path is intentionally highlighted in blue.
-        status: undefined,
+        status: endpointStatus,
         label: contractLabelByInjector?.[inj.id as string] || finding.contractLabel || inj.label,
       },
       selected: true,
@@ -812,6 +816,7 @@ export const buildFindingPathFlow = (
     top: number,
     clusterX: number = CTX_CLUSTER_X,
     childX: number = CTX_CHILD_X,
+    status: string | undefined = endpointStatus,
   ): number => {
     const isExpanded = findingExpansion?.expanded.has(id) ?? false;
     const list = isExpanded ? (findingExpansion?.findingsByCluster.get(id) ?? []) : [];
@@ -835,6 +840,7 @@ export const buildFindingPathFlow = (
         endpointRef: finding.endpointKey,
         clusterKind: 'header',
         expanded: isExpanded,
+        status,
       },
       selected: true,
     });
@@ -845,7 +851,7 @@ export const buildFindingPathFlow = (
       type: AP_FLOW_EDGE_TYPE,
       data: {
         count,
-        status: undefined,
+        status,
         label: edgeLabel,
       },
       selected: true,
@@ -862,6 +868,7 @@ export const buildFindingPathFlow = (
         data: {
           label: f.value ?? f.label,
           typeFindings: f.typeFindings,
+          status,
         },
       });
       edges.push({
@@ -871,7 +878,7 @@ export const buildFindingPathFlow = (
         type: AP_FLOW_EDGE_TYPE,
         data: {
           count: 1,
-          status: undefined,
+          status,
         },
       });
     });

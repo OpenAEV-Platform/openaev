@@ -4,6 +4,7 @@ import { Handle, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
 import FindingIcon from '../../../../../../components/FindingIcon';
+import attackPathStatusColor from '../attack-path-colors';
 import { type AttackPathFlowNode } from '../attack-path-flow-helpers';
 
 // An aggregate finding cluster. As a "header" (one per injector + finding type) it shows the type
@@ -14,7 +15,9 @@ const FindingClusterNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) =
   const isOverflow = data.clusterKind === 'overflow';
   const expanded = data.expanded ?? false;
   const active = selected || expanded;
-  const color = active ? theme.palette.primary.main : theme.palette.divider;
+  // Verdict colour (green/orange/red) by default; blue only when this node is the selected path.
+  const verdict = data.status ? attackPathStatusColor(theme, data.status) : theme.palette.divider;
+  const color = selected ? theme.palette.primary.main : verdict;
   return (
     <div style={{
       display: 'flex',
@@ -34,7 +37,7 @@ const FindingClusterNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) =
           borderRadius: 20,
           border: `${active ? 2 : 1}px ${isOverflow ? 'dashed' : 'solid'} ${color}`,
           background: theme.palette.background.paper,
-          boxShadow: active ? `0 0 0 3px ${alpha(theme.palette.primary.main, 0.3)}` : 'none',
+          boxShadow: selected ? `0 0 0 3px ${alpha(theme.palette.primary.main, 0.3)}` : 'none',
         }}
       >
         <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
