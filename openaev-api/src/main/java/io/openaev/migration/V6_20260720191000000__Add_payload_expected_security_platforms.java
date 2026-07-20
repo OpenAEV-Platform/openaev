@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20260720110000000__Add_payload_expected_security_platforms
+public class V6_20260720191000000__Add_payload_expected_security_platforms
     extends BaseJavaMigration {
 
   @Override
