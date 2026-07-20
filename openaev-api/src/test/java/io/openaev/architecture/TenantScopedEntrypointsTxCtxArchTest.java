@@ -72,6 +72,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.collector.CollectorApi#getCollectorImageById",
           "io.openaev.rest.collector.CollectorApi#updateCollector",
           "io.openaev.rest.collector.CollectorApi#registerCollector",
+          "io.openaev.rest.collector.CollectorApi#deleteCollector",
           // inject_expectation_traces: reads collectors via the service
           "io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi#createInjectExpectationTraceForCollector",
           "io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi#bulkInsertInjectExpectationTraceForCollector",
