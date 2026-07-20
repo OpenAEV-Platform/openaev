@@ -776,7 +776,6 @@ public class ConditionService {
    *
    * @param inputs flat list of condition inputs
    * @return list of root {@link ConditionCreateInput}s
-   * @throws IllegalArgumentException if no root is found
    */
   public List<ConditionCreateInput> findRootConditionInputs(List<ConditionCreateInput> inputs) {
     List<ConditionCreateInput> roots =
@@ -784,6 +783,29 @@ public class ConditionService {
     if (roots.isEmpty()) {
       throw new IllegalArgumentException(
           "New step (TEMPLATE): At least 1 condition must be a root (no parent)");
+    }
+    return roots;
+  }
+
+  /**
+   * Returns all root {@link Condition} entities from the given list and validates root rules:
+   * at-least-one root overall and at-most-one non-MAPPER root.
+   *
+   * @param conditions flat list of conditions linked to a step
+   * @return all root conditions (including MAPPER roots)
+   * @throws IllegalArgumentException if no root exists or more than one non-MAPPER root exists
+   */
+  public List<Condition> findRootConditions(List<Condition> conditions) {
+    List<Condition> roots =
+        conditions.stream().filter(condition -> condition.getConditionParent() == null).toList();
+    if (roots.isEmpty()) {
+      throw new IllegalArgumentException(
+          "New step (TEMPLATE): At least 1 condition must be a root (no parent)");
+    }
+    long nonMapperRootCount =
+        roots.stream().filter(condition -> condition.getType() != ConditionType.MAPPER).count();
+    if (nonMapperRootCount > 1) {
+      throw new IllegalArgumentException("New step (TEMPLATE): Only 1 condition can be first parent");
     }
     return roots;
   }

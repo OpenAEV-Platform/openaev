@@ -16,7 +16,6 @@ import io.openaev.rest.inject.service.InjectService;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.math.NumberUtils;
@@ -85,8 +84,7 @@ public class StepService {
   public void copyStepTemplate(Workflow workflowTemplateFrom, Workflow workflowTemplateTo) {
     List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplateFrom.getId());
 
-    // Copy steps template & Conditions
-    // Todo add condition not linked to a step
+    // Copy steps template and linked conditions.
     List<Step> stepsTemplateCopy = copyStepsTemplate(stepsTemplate, workflowTemplateTo);
     saveSteps(stepsTemplateCopy);
   }
@@ -367,82 +365,106 @@ public class StepService {
     if (conditions == null || conditions.isEmpty()) {
       return;
     }
-    List<Condition> rootConditions =
-        conditions.stream().filter(condition -> condition.getConditionParent() == null).toList();
+    List<Condition> rootConditions = conditionService.findRootConditions(conditions);
+    String newWorkflowId = stepCopied.getWorkflow().getId();
 
-    if (rootConditions.isEmpty()) {
-      throw new IllegalArgumentException(
-          "New step (TEMPLATE): At least 1 condition must be a root (no parent)");
-    }
+    Map<String, List<Condition>> childrenByParentId = buildChildrenMap(conditions, rootConditions);
+    Map<String, Condition> sourceIdToSaved = new HashMap<>();
 
-    // Multiple roots are only allowed when all roots are MAPPER conditions
-    if (rootConditions.size() > 1) {
-      boolean allMapper =
-          rootConditions.stream().allMatch(c -> c.getType() == ConditionType.MAPPER);
-      if (!allMapper) {
-        throw new IllegalArgumentException(
-            "New step (TEMPLATE): Only 1 condition can be first parent");
-      }
-    }
-
-    Map<String, Condition> temporaryIdAndSaveId = new HashMap<>();
-
-    for (Condition firstCondition : rootConditions) {
+    for (Condition source : rootConditions) {
       Step stepFrom =
-          firstCondition.getStepFrom() == null
-              ? null
-              : findStepFromCondition(firstCondition.getStepFrom().getId());
+          source.getStepFrom() == null ? null : findStepFromCondition(source.getStepFrom().getId());
 
-      Condition first =
+      Condition copy =
           Condition.builder()
-              .type(firstCondition.getType())
-              .key(firstCondition.getKey())
-              .value(firstCondition.getValue())
+              .type(source.getType())
+              .key(source.getKey())
+              .value(source.getValue())
+              .keyType(source.getKeyType())
+              .mappingType(source.getMappingType())
+              .name(source.getName())
+              .description(source.getDescription())
+              .caseSensitive(source.isCaseSensitive())
+              .workflowId(newWorkflowId)
               .stepFrom(stepFrom)
               .build();
 
-      conditionService.linkToStep(first, stepCopied, true);
-      first = conditionService.saveCondition(first);
-
-      temporaryIdAndSaveId.put(firstCondition.getId(), first);
+      conditionService.linkToStep(copy, stepCopied, true);
+      copy = conditionService.saveCondition(copy);
+      sourceIdToSaved.put(source.getId(), copy);
     }
 
-    Map<String, List<Condition>> temporaryConditions =
-        conditions.stream()
-            .filter(condition -> condition.getConditionParent() != null)
-            .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
+    Queue<String> queue = new LinkedList<>();
+    rootConditions.forEach(rootCondition -> queue.add(rootCondition.getId()));
 
-    Queue<String> currentId = new LinkedList<>();
-    rootConditions.forEach(rc -> currentId.add(rc.getId()));
+    while (!queue.isEmpty()) {
+      String parentSourceId = queue.poll();
 
-    while (!currentId.isEmpty()) {
-      String currentTemporaryId = currentId.poll();
+      for (Condition child : childrenByParentId.getOrDefault(parentSourceId, List.of())) {
+        Step stepFromChild =
+            child.getStepFrom() == null ? null : findStepFromCondition(child.getStepFrom().getId());
 
-      List<Condition> conditionsTemplate =
-          temporaryConditions.getOrDefault(currentTemporaryId, new ArrayList<>());
-
-      for (Condition condition : conditionsTemplate) {
-        Step stepFromCondition =
-            condition.getStepFrom() == null
-                ? null
-                : findStepFromCondition(condition.getStepFrom().getId());
-
-        Condition current =
+        Condition copiedChild =
             Condition.builder()
-                .type(condition.getType())
-                .key(condition.getKey())
-                .value(condition.getValue())
-                .conditionParent(temporaryIdAndSaveId.get(condition.getConditionParent().getId()))
-                .stepFrom(stepFromCondition)
+                .type(child.getType())
+                .key(child.getKey())
+                .value(child.getValue())
+                .keyType(child.getKeyType())
+                .mappingType(child.getMappingType())
+                .name(child.getName())
+                .description(child.getDescription())
+                .caseSensitive(child.isCaseSensitive())
+                .workflowId(newWorkflowId)
+                .conditionParent(sourceIdToSaved.get(child.getConditionParent().getId()))
+                .stepFrom(stepFromChild)
                 .build();
 
-        conditionService.linkToStep(current, stepCopied, false);
-        current = conditionService.saveCondition(current);
-
-        temporaryIdAndSaveId.put(condition.getId(), current);
-
-        currentId.add(condition.getId());
+        conditionService.linkToStep(copiedChild, stepCopied, false);
+        copiedChild = conditionService.saveCondition(copiedChild);
+        sourceIdToSaved.put(child.getId(), copiedChild);
+        queue.add(child.getId());
       }
+    }
+  }
+
+  /**
+   * Builds a parent-id to children map for condition copy.
+   *
+   * <p>Conditions linked through the join table are included from {@code allLinked}. For event
+   * roots where only the root is linked to the step, descendants are loaded through {@code
+   * conditionChildren}.
+   */
+  private Map<String, List<Condition>> buildChildrenMap(
+      List<Condition> allLinked, List<Condition> rootConditions) {
+    Map<String, List<Condition>> childrenByParentId = new HashMap<>();
+
+    allLinked.stream()
+        .filter(condition -> condition.getConditionParent() != null)
+        .forEach(
+            condition ->
+                childrenByParentId
+                    .computeIfAbsent(condition.getConditionParent().getId(), ignored -> new ArrayList<>())
+                    .add(condition));
+
+    for (Condition root : rootConditions) {
+      if (!childrenByParentId.containsKey(root.getId())) {
+        collectChildrenIntoMap(root, childrenByParentId);
+      }
+    }
+
+    return childrenByParentId;
+  }
+
+  /** Recursively adds condition descendants to the parent-id map. */
+  private void collectChildrenIntoMap(
+      Condition parent, Map<String, List<Condition>> childrenByParentId) {
+    List<Condition> children = parent.getConditionChildren();
+    if (children == null || children.isEmpty()) {
+      return;
+    }
+    childrenByParentId.put(parent.getId(), new ArrayList<>(children));
+    for (Condition child : children) {
+      collectChildrenIntoMap(child, childrenByParentId);
     }
   }
 

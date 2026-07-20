@@ -2,6 +2,7 @@ package io.openaev.service.chaining;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -56,6 +57,7 @@ class StepServiceTest {
   @Captor private ArgumentCaptor<String> workflowTemplateIdCaptor;
   @Captor private ArgumentCaptor<Step> stepCaptor;
   @Captor private ArgumentCaptor<Workflow> workflowCaptor;
+  @Captor private ArgumentCaptor<Condition> conditionCaptor;
   @Captor private ArgumentCaptor<List<Condition>> conditionsCaptor;
   @Captor private ArgumentCaptor<String> stepIdCaptor;
 
@@ -860,6 +862,75 @@ class StepServiceTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> stepService.createStepTemplates(localWorkflow, List.of(input)));
+  }
+
+  @Nested
+  class CopyStepConditionTemplate {
+
+    @Test
+    void given_eventRootAndMapperRoot_shouldCopyAllConditionsWithEventChildrenToTargetWorkflow() {
+      Step sourceStep = new Step();
+      sourceStep.setId("step-source");
+
+      Workflow targetWorkflow = new Workflow();
+      targetWorkflow.setId("wf-target");
+      Step targetStep = new Step();
+      targetStep.setId("step-target");
+      targetStep.setWorkflow(targetWorkflow);
+
+      Condition eventRoot = new Condition();
+      eventRoot.setId("event-root");
+      eventRoot.setType(ConditionType.AND);
+      eventRoot.setName("event-name");
+      eventRoot.setDescription("event-desc");
+      eventRoot.setCaseSensitive(false);
+      eventRoot.setKeyType(PrimitiveType.Text);
+
+      Condition eventChild = new Condition();
+      eventChild.setId("event-child");
+      eventChild.setType(ConditionType.EQ);
+      eventChild.setConditionParent(eventRoot);
+      eventChild.setKey("status");
+      eventChild.setValue("ok");
+      eventChild.setCaseSensitive(true);
+      eventChild.setKeyType(PrimitiveType.Text);
+      eventRoot.setConditionChildren(List.of(eventChild));
+
+      Condition mapperRoot = new Condition();
+      mapperRoot.setId("mapper-root");
+      mapperRoot.setType(ConditionType.MAPPER);
+      mapperRoot.setMappingType(MappingType.LOCAL);
+      mapperRoot.setKey("target_ip");
+      mapperRoot.setValue("$.ipv4");
+      mapperRoot.setCaseSensitive(true);
+      mapperRoot.setKeyType(PrimitiveType.IPv4);
+
+      List<Condition> linkedConditions = List.of(eventRoot, mapperRoot);
+      when(conditionService.findAllConditionsByStepId(sourceStep.getId())).thenReturn(linkedConditions);
+      when(conditionService.findRootConditions(linkedConditions)).thenReturn(List.of(eventRoot, mapperRoot));
+      when(conditionService.saveCondition(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+
+      verify(conditionService, times(3)).saveCondition(conditionCaptor.capture());
+      List<Condition> saved = conditionCaptor.getAllValues();
+
+      assertEquals(3, saved.size());
+      assertTrue(saved.stream().allMatch(condition -> "wf-target".equals(condition.getWorkflowId())));
+      assertEquals(1, saved.stream().filter(condition -> condition.getType() == ConditionType.MAPPER).count());
+      assertEquals(1, saved.stream().filter(condition -> condition.getType() == ConditionType.AND).count());
+      assertEquals(1, saved.stream().filter(condition -> condition.getType() == ConditionType.EQ).count());
+
+      Condition copiedEventChild =
+          saved.stream().filter(condition -> condition.getType() == ConditionType.EQ).findFirst().orElseThrow();
+      assertNotNull(copiedEventChild.getConditionParent());
+      assertEquals(ConditionType.AND, copiedEventChild.getConditionParent().getType());
+
+      verify(conditionService, times(3)).linkToStep(any(Condition.class), eq(targetStep), anyBoolean());
+      verify(conditionService, times(2)).linkToStep(any(Condition.class), eq(targetStep), eq(true));
+      verify(conditionService, times(1)).linkToStep(any(Condition.class), eq(targetStep), eq(false));
+    }
   }
 
   /* ============================================================
