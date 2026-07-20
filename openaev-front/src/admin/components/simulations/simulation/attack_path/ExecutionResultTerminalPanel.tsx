@@ -319,6 +319,29 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap, 
           <Typography variant="caption" color="text.secondary">
             {[detail?.agentName, detail?.agentPrivilege].filter(Boolean).join(' · ')}
           </Typography>
+          {/* Path story: injector -> endpoint -> finding type, resolved for this execution. Finding
+              values are omitted here (they can be secrets); only the type is shown. */}
+          {(() => {
+            const crumb = [
+              detail?.payloadName,
+              detail?.targetHostname || detail?.endpointKey,
+              detail?.findings?.[0]?.type,
+            ].filter(Boolean);
+            return crumb.length > 1 && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  display: 'block',
+                  mt: 0.25,
+                }}
+                title={crumb.join(' › ')}
+                noWrap
+              >
+                {crumb.join('  ›  ')}
+              </Typography>
+            );
+          })()}
           {/* MITRE ATT&CK technique(s) this action maps to (front-only static lookup for the POC). */}
           {mitreForPayloadName(detail?.payloadName).length > 0 && (
             <div style={{

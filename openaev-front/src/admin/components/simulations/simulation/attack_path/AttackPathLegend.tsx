@@ -35,7 +35,7 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
   }[] = [
     {
       shape: 'diamond',
-      label: t('Injector (attack source)'),
+      label: t('Injector — click for the executed action'),
     },
     {
       shape: 'dashedCircle',
@@ -43,11 +43,11 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
     },
     {
       shape: 'pill',
-      label: t('Finding cluster (type + count)'),
+      label: t('Finding cluster — click to expand'),
     },
     {
       shape: 'circle',
-      label: t('Finding (value)'),
+      label: t('Finding — click for details'),
     },
   ];
 

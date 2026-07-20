@@ -1,11 +1,12 @@
-import { BugReportOutlined, Close, DnsOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LocalFireDepartment, VpnKeyOutlined } from '@mui/icons-material';
-import { Alert, Autocomplete, Box, ButtonBase, Chip, Drawer, IconButton, Paper, Popover, TextField, Tooltip, Typography } from '@mui/material';
+import { BugReportOutlined, DnsOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LocalFireDepartment, VpnKeyOutlined } from '@mui/icons-material';
+import { Alert, Autocomplete, Box, ButtonBase, Chip, Paper, Popover, TextField, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchExecutionDetail, fetchFindingsByCategory, fetchSimulationsMetaById } from '../../../../../actions/attack-path/attack-path-actions';
+import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
@@ -13,6 +14,7 @@ import attackPathStatusColor, { attackPathChokepointColor } from './attack-path-
 import { AP_ALL_ENDPOINTS, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFindingFilter, buildClusteredAttackPathFlow, buildFindingPathFlow, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
+import EndpointDetailPanel from './EndpointDetailPanel';
 import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
 import FindingDetailPanel, { type FindingExpectations, type ProducingAction } from './FindingDetailPanel';
 
@@ -1642,139 +1644,27 @@ const SimulationAttackPath = () => {
         )}
 
         {!findingDetail && selectedNodeId && (
-          <Paper
-            variant="outlined"
-            sx={{
-              width: 340,
-              overflow: 'auto',
-              padding: 2,
+          <EndpointDetailPanel
+            endpointLabel={selectedLabel || t('Endpoint')}
+            findingsLoading={endpointFindingsLoading}
+            findingGroups={endpointFindingGroups}
+            executions={executions}
+            execDisplayCap={EXEC_DISPLAY_CAP}
+            highlightedExecutionIds={highlightedExecutionIds}
+            registerRow={(id, el) => {
+              if (el) {
+                feedRowRefs.current.set(id, el);
+              } else {
+                feedRowRefs.current.delete(id);
+              }
             }}
-          >
-            <Typography variant="h6" gutterBottom>{selectedLabel || t('Endpoint')}</Typography>
-
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              {t('Findings')}
-            </Typography>
-            {endpointFindingsLoading && (
-              <Box sx={{ minHeight: 60 }}>
-                <Loader variant="inElement" size="sm" />
-              </Box>
-            )}
-            {!endpointFindingsLoading && endpointFindingGroups.length === 0 && (
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{
-                  display: 'block',
-                  mb: 1,
-                }}
-              >
-                {t('No findings on this endpoint')}
-              </Typography>
-            )}
-            {!endpointFindingsLoading && endpointFindingGroups.map(g => (
-              <Box key={g.type} sx={{ mb: 1 }}>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    display: 'block',
-                    fontWeight: 600,
-                    color: 'text.secondary',
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.4,
-                  }}
-                >
-                  {`${g.type} (${g.values.length})`}
-                </Typography>
-                {g.values.map((v, i) => (
-                  <Typography key={`${g.type}-${i}`} variant="body2" noWrap title={v}>
-                    {v}
-                  </Typography>
-                ))}
-              </Box>
-            ))}
-
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 1 }}>
-              {`${t('Executions')} (${executions.length})`}
-            </Typography>
-            {executions.slice(0, EXEC_DISPLAY_CAP).map((e) => {
-              const status = t(statusLabelKey(e.status));
-              const highlighted = !!e.ref && highlightedExecutionIds.has(e.ref);
-              return (
-                <Box
-                  key={e.id}
-                  ref={(el: HTMLDivElement | null) => {
-                    if (!e.id) {
-                      return;
-                    }
-                    if (el) {
-                      feedRowRefs.current.set(e.id, el);
-                    } else {
-                      feedRowRefs.current.delete(e.id);
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => e.ref && openExecutionDetail(e.ref)}
-                  onKeyDown={(ev) => {
-                    if (e.ref && (ev.key === 'Enter' || ev.key === ' ')) {
-                      ev.preventDefault();
-                      openExecutionDetail(e.ref);
-                    }
-                  }}
-                  sx={{
-                    'display': 'flex',
-                    'alignItems': 'center',
-                    'gap': 1,
-                    'py': 0.5,
-                    'px': 0.5,
-                    'borderRadius': 1,
-                    'borderBottom': `1px solid ${theme.palette.divider}`,
-                    'backgroundColor': highlighted ? 'action.selected' : undefined,
-                    // A left accent so the finding's producing execution stands out in the feed.
-                    'borderLeft': highlighted ? `2px solid ${theme.palette.primary.main}` : '2px solid transparent',
-                    'cursor': 'pointer',
-                    '&:hover': { backgroundColor: 'action.hover' },
-                    '&:focus-visible': {
-                      outline: `2px solid ${theme.palette.primary.main}`,
-                      outlineOffset: -2,
-                    },
-                  }}
-                >
-                  <span
-                    role="img"
-                    aria-label={status}
-                    title={status}
-                    style={{
-                      flex: '0 0 auto',
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: attackPathStatusColor(theme, e.status),
-                    }}
-                  />
-                  <div style={{ minWidth: 0 }}>
-                    <Typography variant="body2" noWrap>{e.payloadName || e.label}</Typography>
-                    <Typography variant="caption" color="text.secondary" noWrap>
-                      {[status, e.agentName, e.privilege].filter(Boolean).join(' · ')}
-                    </Typography>
-                  </div>
-                </Box>
-              );
-            })}
-            {executions.length > EXEC_DISPLAY_CAP && (
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{
-                  display: 'block',
-                  pt: 1,
-                }}
-              >
-                {`+${executions.length - EXEC_DISPLAY_CAP} ${t('more')}`}
-              </Typography>
-            )}
-          </Paper>
+            onSelectExecution={openExecutionDetail}
+            execStatusLabel={status => t(statusLabelKey(status))}
+            onClose={() => {
+              setSelectedNodeId(null);
+              setDetailExecutionId(null);
+            }}
+          />
         )}
 
         {detailExecutionId && (
@@ -1796,125 +1686,100 @@ const SimulationAttackPath = () => {
       </div>
 
       <Drawer
-        anchor="right"
         open={drawerCategory !== null}
-        onClose={() => setDrawerCategory(null)}
-        elevation={1}
+        handleClose={() => setDrawerCategory(null)}
+        title={`${drawerLabel} (${drawerFilteredItems.length})`}
       >
-        <Box
-          role="presentation"
-          sx={{ width: 360 }}
-        >
-          {/* Clear the fixed app header, like the app's other contextual drawers/menus. */}
-          <Box sx={theme.mixins.toolbar} />
-          <Box sx={{
-            px: 3,
-            pt: 1.5,
-            pb: 2.5,
-          }}
+        <>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              display: 'block',
+              mb: 1.5,
+            }}
           >
+            {t('Click any item to highlight it on the attack map and focus the producing action in the feed.')}
+          </Typography>
+          <TextField
+            size="small"
+            fullWidth
+            value={drawerSearch}
+            onChange={(e) => {
+              setDrawerSearch(e.target.value);
+              setDrawerPage(0);
+            }}
+            placeholder={t('Search')}
+            sx={{ mb: 1.5 }}
+          />
+          {findingsLoading && (
+            <Box sx={{ minHeight: 120 }}>
+              <Loader variant="inElement" size="sm" />
+            </Box>
+          )}
+          {!findingsLoading && drawerFilteredItems.length === 0 && (
+            <Alert severity="info">{t('No findings')}</Alert>
+          )}
+          {!findingsLoading && drawerPageItems.map((item, index) => (
+            <Box
+              key={`${item.endpointKey}-${item.value}-${index}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => onFindingItemClick(item)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onFindingItemClick(item);
+                }
+              }}
+              sx={{
+                'py': 0.75,
+                'px': 0.5,
+                'borderRadius': 1,
+                'borderBottom': `1px solid ${theme.palette.divider}`,
+                'cursor': 'pointer',
+                '&:hover': { backgroundColor: 'action.hover' },
+                '&:focus-visible': {
+                  backgroundColor: 'action.hover',
+                  outline: `2px solid ${theme.palette.primary.main}`,
+                  outlineOffset: -2,
+                },
+              }}
+            >
+              <Typography variant="body2" title={maskFindingValue(item.type, item.value)} sx={{ wordBreak: 'break-all' }}>{maskFindingValue(item.type, item.value)}</Typography>
+              <Typography variant="caption" color="text.secondary" noWrap title={item.endpointKey}>
+                {item.endpointKey}
+              </Typography>
+            </Box>
+          ))}
+          {!findingsLoading && drawerFilteredItems.length > DRAWER_PAGE_SIZE && (
             <Box sx={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              mb: 1,
+              pt: 1.5,
             }}
             >
-              <Typography variant="h6">{`${drawerLabel} (${drawerFilteredItems.length})`}</Typography>
-              <IconButton size="small" aria-label={t('Close')} onClick={() => setDrawerCategory(null)}>
-                <Close />
-              </IconButton>
+              <Chip
+                size="small"
+                variant="outlined"
+                label={t('Previous')}
+                disabled={drawerSafePage <= 0}
+                onClick={() => setDrawerPage(p => Math.max(0, p - 1))}
+              />
+              <Typography variant="caption" color="text.secondary">
+                {`${drawerSafePage + 1} / ${drawerPageCount}`}
+              </Typography>
+              <Chip
+                size="small"
+                variant="outlined"
+                label={t('Next')}
+                disabled={drawerSafePage >= drawerPageCount - 1}
+                onClick={() => setDrawerPage(p => Math.min(drawerPageCount - 1, p + 1))}
+              />
             </Box>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{
-                display: 'block',
-                mb: 1.5,
-              }}
-            >
-              {t('Click any item to highlight it on the attack map and focus the producing action in the feed.')}
-            </Typography>
-            <TextField
-              size="small"
-              fullWidth
-              value={drawerSearch}
-              onChange={(e) => {
-                setDrawerSearch(e.target.value);
-                setDrawerPage(0);
-              }}
-              placeholder={t('Search')}
-              sx={{ mb: 1.5 }}
-            />
-            {findingsLoading && (
-              <Box sx={{ minHeight: 120 }}>
-                <Loader variant="inElement" size="sm" />
-              </Box>
-            )}
-            {!findingsLoading && drawerFilteredItems.length === 0 && (
-              <Alert severity="info">{t('No findings')}</Alert>
-            )}
-            {!findingsLoading && drawerPageItems.map((item, index) => (
-              <Box
-                key={`${item.endpointKey}-${item.value}-${index}`}
-                role="button"
-                tabIndex={0}
-                onClick={() => onFindingItemClick(item)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onFindingItemClick(item);
-                  }
-                }}
-                sx={{
-                  'py': 0.75,
-                  'px': 0.5,
-                  'borderRadius': 1,
-                  'borderBottom': `1px solid ${theme.palette.divider}`,
-                  'cursor': 'pointer',
-                  '&:hover': { backgroundColor: 'action.hover' },
-                  '&:focus-visible': {
-                    backgroundColor: 'action.hover',
-                    outline: `2px solid ${theme.palette.primary.main}`,
-                    outlineOffset: -2,
-                  },
-                }}
-              >
-                <Typography variant="body2" title={maskFindingValue(item.type, item.value)} sx={{ wordBreak: 'break-all' }}>{maskFindingValue(item.type, item.value)}</Typography>
-                <Typography variant="caption" color="text.secondary" noWrap title={item.endpointKey}>
-                  {item.endpointKey}
-                </Typography>
-              </Box>
-            ))}
-            {!findingsLoading && drawerFilteredItems.length > DRAWER_PAGE_SIZE && (
-              <Box sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                pt: 1.5,
-              }}
-              >
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  label={t('Previous')}
-                  disabled={drawerSafePage <= 0}
-                  onClick={() => setDrawerPage(p => Math.max(0, p - 1))}
-                />
-                <Typography variant="caption" color="text.secondary">
-                  {`${drawerSafePage + 1} / ${drawerPageCount}`}
-                </Typography>
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  label={t('Next')}
-                  disabled={drawerSafePage >= drawerPageCount - 1}
-                  onClick={() => setDrawerPage(p => Math.min(drawerPageCount - 1, p + 1))}
-                />
-              </Box>
-            )}
-          </Box>
-        </Box>
+          )}
+        </>
       </Drawer>
     </div>
   );

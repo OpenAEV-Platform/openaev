@@ -49,6 +49,13 @@ vi.mock('../../../../../../admin/components/simulations/simulation/attack_path/A
   },
 }));
 
+// The shared Drawer pulls in useAuth (needs a user context we do not set up here); stub it to render
+// its title and children when open so the findings drawer stays testable.
+vi.mock('../../../../../../components/common/Drawer', () => ({
+  default: ({ open, title, children }: { open: boolean; title: string; children: ReactNode }) =>
+    (open ? <div data-testid="shared-drawer"><span>{title}</span>{children}</div> : null),
+}));
+
 vi.mock('react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof ReactRouter>();
   return {
