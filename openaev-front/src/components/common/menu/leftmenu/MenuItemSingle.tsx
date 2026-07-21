@@ -24,7 +24,7 @@ const MenuItemSingle: FunctionComponent<Props> = ({ navOpen, item }) => {
     || (item.path !== '/admin' && location.pathname.startsWith(`${item.path}/`));
 
   return (
-    <StyledTooltip title={navOpen ? '' : t(item.label)} placement="right">
+    <StyledTooltip title={navOpen ? false : t(item.label)} placement="right">
       <MenuItem
         aria-label={t(item.label)}
         component={Link}
