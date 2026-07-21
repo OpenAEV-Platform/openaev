@@ -289,7 +289,7 @@ public class WorkflowStateService {
           for (PrimitiveType primitiveType : primitiveTypes) {
             if (PrimitiveValueValidator.isAcceptedForPrimitiveType(
                 primitiveType, val, validationContext)) {
-              recordValue(primitiveType.name(), val, entries, parsedByType);
+              recordValue(primitiveType.name(), val, entries, parsedByType, typeMappings);
             }
           }
         } else if (element.isJsonObject() && isComplex) {
@@ -303,15 +303,36 @@ public class WorkflowStateService {
 
   /**
    * Records a validated primitive value into both the global state entries and the by-type
-   * accumulator used for local-state propagation.
+   * accumulator used for local-state propagation. When the value is genuinely new, triggers
+   * cartesian correlation generation for any active complex-type recipe that includes this key.
    */
   private void recordValue(
       String key,
       String value,
       WorkflowStateEntries entries,
-      Map<String, List<String>> parsedByType) {
-    entries.getInputByKey(key).getValues().add(value);
+      Map<String, List<String>> parsedByType,
+      Map<String, ChainingMappedType> typeMappings) {
+    boolean added = entries.getInputByKey(key).getValues().add(value);
     parsedByType.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
+    // TODO(B2): cartesian generation is asset-blind in V1 — see GLOBAL_PARTITION.
+    if (added) {
+      for (List<String> recipeKeys : activeRecipeKeys(typeMappings)) {
+        entries.generateCorrelatedForRecipe(key, value, recipeKeys);
+      }
+    }
+  }
+
+  /**
+   * Extracts the recipe key lists from all complex mapped types that have a multi-key recipe (size
+   * > 1). These are the recipes for which cartesian correlation generation is needed.
+   */
+  private List<List<String>> activeRecipeKeys(Map<String, ChainingMappedType> typeMappings) {
+    return typeMappings.values().stream()
+        .filter(mt -> mt.kind() == ChainingTypeKind.COMPLEX)
+        .map(mt -> mt.primitiveTypes().stream().map(PrimitiveType::name).toList())
+        .filter(keys -> keys.size() > 1)
+        .distinct()
+        .toList();
   }
 
   /**
