@@ -1499,7 +1499,13 @@ public class InjectExpectationService {
                 .collect(Collectors.toList());
       }
       injectExpectations.addAll(injectExpectationsByUserAndTeam);
-    } else if (!assets.isEmpty() || !assetGroups.isEmpty()) {
+    } else if (!assets.isEmpty() || !assetGroups.isEmpty() || !expectations.isEmpty()) {
+      // The computed expectations already carry their own asset / asset group (they were built from
+      // the resolved AssetToExecute list, which includes content-referenced AI targets that are NOT
+      // attached to the inject as an asset / asset group relation). Gating only on the inject's
+      // asset / group relations dropped every AI Red Team expectation on the floor - an AI target
+      // reached through content.ai_target produced zero expectation rows. Convert whenever we have
+      // computed expectations, regardless of how the target was attached.
       injectExpectations =
           expectations.stream()
               .map(
