@@ -69,7 +69,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
   const { executors } = useHelper((helper: ExecutorHelper) => ({ executors: helper.getExecutorsIncludingPending() }));
   const { injectors } = useHelper((helper: InjectorHelper) => ({ injectors: helper.getInjectorsIncludingPending() }));
   const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectorsIncludingPending() }));
-  const { secretsProviders } = useHelper((helper: SecretsProviderHelper) => ({ collectors: helper.getSecretsProvidersIncludingPending() }));
+  const { secretsProviders } = useHelper((helper: SecretsProviderHelper) => ({ secretsProviders: helper.getSecretsProvidersIncludingPending() }));
 
   const { items, metaById } = useMemo(() => {
     const catalogById = new Map(catalogConnectors.map(connector => [connector.catalog_connector_id, connector]));
