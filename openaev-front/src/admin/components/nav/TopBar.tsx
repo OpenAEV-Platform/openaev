@@ -16,6 +16,7 @@ import AskArianeButton from '../ariane/AskArianeButton';
 import AskArianePanel from '../ariane/AskArianePanel';
 import CtemCommandCenterButton from '../ariane/CtemCommandCenterButton';
 import { useChatbot } from '../ariane/useChatbotHooks';
+import TopBarNotifications from './TopBarNotifications';
 
 // Drawer widths shared with the left menu (OpenCTI: OPEN_BAR_WIDTH / SMALL_BAR_WIDTH).
 export const OPEN_BAR_WIDTH = 180;
@@ -161,6 +162,7 @@ const TopBar: FunctionComponent = () => {
               {settings.platform_license?.license_type === 'nfr' && (
                 <ItemBoolean variant="large" label="EE DEV LICENSE" status={false} />
               )}
+              <TopBarNotifications iconButtonSx={topBarIconButtonSx} />
               <Tooltip title={t('Install simulation agents')}>
                 <IconButton
                   aria-haspopup="true"

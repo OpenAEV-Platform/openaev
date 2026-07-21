@@ -37,7 +37,10 @@ public class PermissionService {
           ResourceType.ORGANIZATION,
           // INJECTOR is open for READ/SEARCH because multiple views (e.g. threat arsenal)
           // need to list injectors for filtering, and injector names are not sensitive.
-          ResourceType.INJECTOR);
+          ResourceType.INJECTOR,
+          // NOTIFIER is open for READ/SEARCH so any user can pick notifiers when creating
+          // notification triggers; write operations stay gated by tenant settings capabilities.
+          ResourceType.NOTIFIER);
 
   private static final EnumSet<ResourceType> RESOURCES_MANAGED_BY_GRANTS =
       EnumSet.of(

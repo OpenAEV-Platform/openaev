@@ -6344,6 +6344,123 @@ export interface NotificationRuleOutput {
   notification_rule_trigger?: string;
 }
 
+export interface NotificationOutput {
+  /** Content groups: [{title, events: [{operation, message, ...}]}] */
+  notification_content?: Record<string, any>[];
+  /** Creation date */
+  notification_created_at?: string;
+  /** ID of the notification */
+  notification_id: string;
+  /** Whether the notification has been read */
+  notification_is_read?: boolean;
+  /** Name of the trigger that produced the notification */
+  notification_name?: string;
+  /** Type of the notification (LIVE or DIGEST) */
+  notification_type?: "LIVE" | "DIGEST";
+}
+
+export interface NotificationTriggerInput {
+  /** Composed live trigger ids for a digest */
+  notification_trigger_children?: string[];
+  /** Whether the trigger is enabled */
+  notification_trigger_enabled?: boolean;
+  /** Subscribed lifecycle operations (CREATE, UPDATE, DELETE) */
+  notification_trigger_event_types?: ("CREATE" | "UPDATE" | "DELETE")[];
+  /** Filter group applied to matching entities */
+  notification_trigger_filters?: FilterGroup;
+  /** Entity id for instance triggers */
+  notification_trigger_instance_id?: string;
+  /**
+   * Name of the notification trigger
+   * @minLength 1
+   */
+  notification_trigger_name: string;
+  /** Notifier ids used for delivery */
+  notification_trigger_notifiers?: string[];
+  /** Digest period (HOUR, DAY, WEEK, MONTH) */
+  notification_trigger_period?: "HOUR" | "DAY" | "WEEK" | "MONTH";
+  /** Targeted recipient group ids (admins only) */
+  notification_trigger_recipient_groups?: string[];
+  /** Targeted recipient user ids (admins only; empty = owner) */
+  notification_trigger_recipient_users?: string[];
+  /** Resource type watched by a live trigger */
+  notification_trigger_resource_type?: string;
+  /** Digest firing time (UTC): DAY=HH:mm, WEEK=<1-7>-HH:mm, MONTH=<1-31>-HH:mm */
+  notification_trigger_time?: string;
+  /** Type of the trigger (LIVE or DIGEST) */
+  notification_trigger_type: "LIVE" | "DIGEST";
+}
+
+export interface NotificationTriggerOutput {
+  /** Composed live trigger ids for a digest */
+  notification_trigger_children?: string[];
+  /** Creation date */
+  notification_trigger_created_at?: string;
+  /** Whether the trigger is enabled */
+  notification_trigger_enabled?: boolean;
+  /** Subscribed lifecycle operations */
+  notification_trigger_event_types?: ("CREATE" | "UPDATE" | "DELETE")[];
+  /** Filter group applied to matching entities */
+  notification_trigger_filters?: FilterGroup;
+  /** ID of the notification trigger */
+  notification_trigger_id: string;
+  /** Entity id for instance triggers */
+  notification_trigger_instance_id?: string;
+  /** Name of the notification trigger */
+  notification_trigger_name?: string;
+  /** Notifier ids used for delivery */
+  notification_trigger_notifiers?: string[];
+  /** Owner user id */
+  notification_trigger_owner?: string;
+  /** Digest period */
+  notification_trigger_period?: "HOUR" | "DAY" | "WEEK" | "MONTH";
+  /** Targeted recipient group ids */
+  notification_trigger_recipient_groups?: string[];
+  /** Targeted recipient user ids */
+  notification_trigger_recipient_users?: string[];
+  /** Resource type watched by a live trigger */
+  notification_trigger_resource_type?: string;
+  /** Digest firing time (UTC) */
+  notification_trigger_time?: string;
+  /** Type of the trigger (LIVE or DIGEST) */
+  notification_trigger_type?: "LIVE" | "DIGEST";
+  /** Last update date */
+  notification_trigger_updated_at?: string;
+}
+
+export interface NotifierInput {
+  /** Type-specific configuration: email = subject/template (FreeMarker), webhook = url/verb/headers/template */
+  notifier_configuration?: Record<string, any>;
+  /** Description of the notifier */
+  notifier_description?: string;
+  /**
+   * Name of the notifier
+   * @minLength 1
+   */
+  notifier_name: string;
+  /** Type of the notifier (UI, EMAIL, WEBHOOK) */
+  notifier_type: "UI" | "EMAIL" | "WEBHOOK";
+}
+
+export interface NotifierOutput {
+  /** Whether the notifier is built-in (read-only) */
+  notifier_built_in?: boolean;
+  /** Type-specific configuration */
+  notifier_configuration?: Record<string, any>;
+  /** Creation date of the notifier */
+  notifier_created_at?: string;
+  /** Description of the notifier */
+  notifier_description?: string;
+  /** ID of the notifier */
+  notifier_id: string;
+  /** Name of the notifier */
+  notifier_name?: string;
+  /** Type of the notifier (UI, EMAIL, WEBHOOK) */
+  notifier_type?: "UI" | "EMAIL" | "WEBHOOK";
+  /** Last update date of the notifier */
+  notifier_updated_at?: string;
+}
+
 export interface OAuthProvider {
   provider_login?: string;
   provider_name?: string;
@@ -6796,6 +6913,63 @@ export interface PageLessonsTemplate {
 
 export interface PageMitigation {
   content?: Mitigation[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageNotificationOutput {
+  content?: NotificationOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageNotificationTriggerOutput {
+  content?: NotificationTriggerOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageNotifierOutput {
+  content?: NotifierOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;

@@ -12,6 +12,9 @@ public enum ResourceType {
   TEAM,
   ATOMIC_TESTING,
   NOTIFICATION_RULE,
+  NOTIFICATION_TRIGGER,
+  NOTIFIER,
+  NOTIFICATION,
   @Deprecated(
       since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
   PAYLOAD,

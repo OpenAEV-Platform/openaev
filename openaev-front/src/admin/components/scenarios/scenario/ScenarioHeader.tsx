@@ -45,6 +45,7 @@ import { type Cron } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
 import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExpressionHandler';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
+import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
@@ -293,6 +294,11 @@ const ScenarioHeader = ({
                       <NotificationsOutlined fontSize="small" color={editNotification ? 'success' : undefined} />
                     </IconButton>
                   </Tooltip>
+                  <TriggerSubscribeButton
+                    resourceType="SCENARIO"
+                    resourceId={scenarioId}
+                    resourceName={scenario.scenario_name}
+                  />
                   <Tooltip title={t('Scheduling')}>
                     <IconButton size="small" color="primary" onClick={() => setOpenScenarioRecurringFormDialog(true)}>
                       <UpdateOutlined fontSize="small" />

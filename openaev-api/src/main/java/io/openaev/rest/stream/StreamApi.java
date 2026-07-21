@@ -19,6 +19,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
 import io.openaev.database.model.TenantIdBase;
 import io.openaev.database.model.User;
+import io.openaev.database.model.UserScoped;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
@@ -104,6 +105,15 @@ public class StreamApi extends RestBehavior {
     consumers.forEach(
         (key, consumer) -> {
           if (!isVisibleForTenant(event, consumer.tenantId())) {
+            return;
+          }
+
+          // User-scoped entities (e.g. notifications) are only delivered to their owner,
+          // bypassing the capability-based masking below.
+          if (event.getInstance() instanceof UserScoped userScoped) {
+            if (consumer.principal().getId().equals(userScoped.getOwnerUserId())) {
+              sendStreamEvent(consumer.fluxSink(), event);
+            }
             return;
           }
 

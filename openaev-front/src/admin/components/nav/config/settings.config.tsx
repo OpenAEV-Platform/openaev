@@ -56,6 +56,11 @@ const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
       userRight: canAccessTenantSettings,
     },
     {
+      link: '/admin/settings/notifiers',
+      label: 'Notifiers',
+      userRight: canAccessTenantSettings,
+    },
+    {
       link: '/admin/settings/taxonomies',
       label: 'Taxonomies',
       userRight: canAccessTenantSettings,

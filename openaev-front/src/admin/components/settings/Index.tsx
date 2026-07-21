@@ -10,6 +10,7 @@ import XlsMappers from './data_ingestion/XlsMappers';
 import Experience from './experience/Experience';
 import Groups from './groups/Groups';
 import KillChainPhases from './kill_chain_phases/KillChainPhases';
+import Notifiers from './notifiers/Notifiers';
 import Organizations from './organizations/Organizations';
 import Policies from './policies/Policies';
 import Roles from './roles/Roles';
@@ -78,6 +79,7 @@ const Index = () => {
       <Route path="data_ingestion" element={<Navigate to="xls_mappers" replace={true} />} />
       <Route path="data_ingestion/xls_mappers" element={errorWrapper(XlsMappers)()} />
       <Route path="asset_rules" element={errorWrapper(TagRules)()} />
+      <Route path="notifiers" element={errorWrapper(Notifiers)()} />
       <Route path="experience" element={errorWrapper(Experience)()} />
 
       {/* Not found */}
