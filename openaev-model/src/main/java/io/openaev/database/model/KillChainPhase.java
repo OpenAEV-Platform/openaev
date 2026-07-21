@@ -15,14 +15,13 @@ import java.time.Instant;
 import java.util.Objects;
 import lombok.Data;
 import lombok.Getter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Data
 @Entity
 @Table(name = "kill_chain_phases")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+// kill_chain_phases is fully on v2 (inspector + can_access_tenant); no v1 @Filter.
 public class KillChainPhase implements TenantBase {
 
   @Id
