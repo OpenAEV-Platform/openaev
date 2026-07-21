@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
@@ -59,7 +60,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public InjectExpectationTrace createInjectExpectationTraceForCollector(
-      TxCtx ctx, @Valid @RequestBody InjectExpectationTraceInput input) {
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody InjectExpectationTraceInput input) {
 
     // Call the service directly (not the sibling endpoint below): a self-invocation would bypass
     // the Spring proxy and its own @Transactional, silently relying on this method's transaction
@@ -98,7 +99,8 @@ public class InjectExpectationTraceApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public void bulkInsertInjectExpectationTraceForCollector(
-      TxCtx ctx, @Valid @RequestBody @NotNull InjectExpectationTraceBulkInsertInput inputs) {
+      @RequireTenantSelector TxCtx ctx,
+      @Valid @RequestBody @NotNull InjectExpectationTraceBulkInsertInput inputs) {
     if (inputs.getExpectationTraces().isEmpty()) {
       return;
     }
@@ -111,7 +113,9 @@ public class InjectExpectationTraceApi extends RestBehavior {
   @GetMapping()
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectationTrace> getInjectExpectationTracesFromCollector(
-      TxCtx ctx, @RequestParam String injectExpectationId, @RequestParam String sourceId) {
+      @RequireTenantSelector TxCtx ctx,
+      @RequestParam String injectExpectationId,
+      @RequestParam String sourceId) {
     try {
       Collector collector =
           collectorRepository

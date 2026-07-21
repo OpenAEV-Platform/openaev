@@ -1,6 +1,7 @@
 package io.openaev.rest;
 
 import static io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi.INJECT_EXPECTATION_TRACES_URI;
+import static io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi.TENANT_INJECT_EXPECTATION_TRACES_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static net.javacrumbs.jsonunit.core.Option.IGNORING_ARRAY_ORDER;
@@ -133,7 +134,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
     // --EXECUTE--
     String response =
         mvc.perform(
-                post(INJECT_EXPECTATION_TRACES_URI)
+                post(tenantUri(TENANT_INJECT_EXPECTATION_TRACES_URI))
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -159,7 +160,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
     // --EXECUTE--
     String response =
         mvc.perform(
-                get(INJECT_EXPECTATION_TRACES_URI
+                get(tenantUri(TENANT_INJECT_EXPECTATION_TRACES_URI)
                         + "?injectExpectationId="
                         + savedInjectExpectation.getId()
                         + "&sourceId="
@@ -281,7 +282,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
 
     // --EXECUTE--
     mvc.perform(
-            post(INJECT_EXPECTATION_TRACES_URI + "/bulk")
+            post(tenantUri(TENANT_INJECT_EXPECTATION_TRACES_URI + "/bulk"))
                 .content(asJsonString(inputBulk))
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
@@ -335,7 +336,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
 
     // --EXECUTE--
     mvc.perform(
-            post(INJECT_EXPECTATION_TRACES_URI + "/bulk")
+            post(tenantUri(TENANT_INJECT_EXPECTATION_TRACES_URI + "/bulk"))
                 .content(asJsonString(inputBulk))
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
@@ -384,7 +385,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
 
     // --EXECUTE--
     mvc.perform(
-            post(INJECT_EXPECTATION_TRACES_URI + "/bulk")
+            post(tenantUri(TENANT_INJECT_EXPECTATION_TRACES_URI + "/bulk"))
                 .content(asJsonString(inputBulk))
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
