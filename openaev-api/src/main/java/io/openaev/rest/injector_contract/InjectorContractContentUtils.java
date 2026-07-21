@@ -171,6 +171,70 @@ public class InjectorContractContentUtils {
     return predefinedExpectations.toArray(new BaseInjectExpectation.EXPECTATION_TYPE[0]);
   }
 
+  /** JSON property carrying the expected security platform types of a predefined expectation. */
+  public static final String NODE_EXPECTED_SECURITY_PLATFORM_TYPES =
+      "expectation_expected_security_platform_types";
+
+  /**
+   * Extracts, for each predefined expectation of the contract, the security platform types expected
+   * to fulfil it (e.g. {@code {"DETECTION": ["EDR","SIEM"]}}). Expectations without an explicit
+   * list are omitted, meaning "any security platform".
+   *
+   * @param injectorContract the injector contract to inspect
+   * @return map of expectation type to expected security platform types (never null)
+   */
+  public Map<BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+      getPredefinedExpectedSecurityPlatforms(InjectorContract injectorContract) {
+    Map<BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+        result = new EnumMap<>(BaseInjectExpectation.EXPECTATION_TYPE.class);
+
+    ObjectNode convertedContent = injectorContract.getConvertedContent();
+    if (convertedContent == null
+        || !convertedContent.has(FIELDS)
+        || !convertedContent.get(FIELDS).isArray()) {
+      return result;
+    }
+
+    for (JsonNode field : convertedContent.get(FIELDS)) {
+      JsonNode keyNode = field.get(CONTRACT_ELEMENT_CONTENT_KEY);
+      if (keyNode == null || !CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS.equals(keyNode.asText())) {
+        continue;
+      }
+      JsonNode predefined = field.get(PREDEFINED_EXPECTATIONS);
+      if (predefined == null || !predefined.isArray()) {
+        continue;
+      }
+      for (JsonNode expectation : predefined) {
+        JsonNode typeNode = expectation.get(NODE_EXPECTATION_TYPE);
+        JsonNode platformsNode = expectation.get(NODE_EXPECTED_SECURITY_PLATFORM_TYPES);
+        if (typeNode == null
+            || !typeNode.isTextual()
+            || platformsNode == null
+            || !platformsNode.isArray()
+            || platformsNode.isEmpty()) {
+          continue;
+        }
+        try {
+          BaseInjectExpectation.EXPECTATION_TYPE type =
+              BaseInjectExpectation.EXPECTATION_TYPE.valueOf(typeNode.asText());
+          List<SecurityPlatform.SECURITY_PLATFORM_TYPE> platforms = new ArrayList<>();
+          for (JsonNode platform : platformsNode) {
+            platforms.add(SecurityPlatform.SECURITY_PLATFORM_TYPE.valueOf(platform.asText()));
+          }
+          result.put(type, platforms);
+        } catch (IllegalArgumentException e) {
+          // Legacy or hand-crafted contract content can carry unknown enum values:
+          // skip the entry instead of failing the whole drawer payload.
+          log.warn(
+              "Ignoring predefined expectation with unknown type or security platform type: {}",
+              expectation,
+              e);
+        }
+      }
+    }
+    return result;
+  }
+
   /**
    * Function to find if into the injector contract content a field with a key value exist
    *

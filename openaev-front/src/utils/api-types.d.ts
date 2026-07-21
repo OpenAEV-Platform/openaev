@@ -9715,6 +9715,20 @@ export interface ThreatArsenalActionFullOutput {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  /** Security platform types expected to fulfil each predefined technical expectation (empty or absent = any security platform) */
+  action_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+    )[]
+  >;
   /** External reference identifier */
   action_external_id?: string;
   /**
