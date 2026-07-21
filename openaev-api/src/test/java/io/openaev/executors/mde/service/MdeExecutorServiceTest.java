@@ -18,7 +18,6 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.executors.mde.client.MdeExecutorClient;
 import io.openaev.executors.mde.config.MdeExecutorConfig;
 import io.openaev.executors.mde.model.MdeDevice;
-import io.openaev.executors.mde.model.MdeDeviceGroup;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
@@ -73,9 +72,7 @@ public class MdeExecutorServiceTest {
   @DisplayName("given MDE device group with devices, should sync endpoints and create asset group")
   void test_run_mde() {
     // Arrange
-    MdeDeviceGroup group = MdeDeviceFixture.createDefaultMdeDeviceGroup();
     when(config.getDeviceGroup()).thenReturn(DEVICE_GROUP_ID);
-    when(client.deviceGroups()).thenReturn(List.of(group));
     when(client.devices(DEVICE_GROUP_ID)).thenReturn(List.of(mdeDevice));
     mdeExecutorService.setExecutor(mdeExecutor);
 

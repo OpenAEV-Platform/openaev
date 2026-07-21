@@ -473,11 +473,12 @@ OpenAEV authenticates to the MDE API with the OAuth2 **client credentials** flow
 
     | Permission | Why |
     |------------|-----|
-    | `Machine.Read.All` | List devices / device groups and sync them into OpenAEV |
+    | `Machine.Read.All` | List devices (and read their device-group name/id) and sync them into OpenAEV |
     | `Machine.LiveResponse.All` | Run the Live Response script that launches the implant |
     | `AdvancedQuery.Read.All` | Read near real-time device activity (Advanced Hunting) so only genuinely-reachable machines are marked active — the device inventory `lastSeen` lags by up to a day |
 
     Application permissions (not delegated) are mandatory because OpenAEV runs without a signed-in user.
+
 
 #### 2. Enable Live Response in Microsoft Defender
 
@@ -513,13 +514,68 @@ and execute it). The file names must match what you configure in OpenAEV (defaul
 
 #### 4. (Optional) Scope to a device group
 
-To sync only a subset of devices, note the **device group ID** (`rbacGroupId`) in
-**Settings > Endpoints > Permissions > Device groups**. Leave the field empty in OpenAEV to sync **all** devices.
+To sync only a subset of devices, set the **device group ID** (`rbacGroupId`) in OpenAEV. Leave the field empty to
+sync **all** devices.
+
+!!! warning "The numeric `rbacGroupId` is not shown in the Microsoft Defender UI"
+
+    The Defender portal (**Settings > Endpoints > Permissions > Device groups**) shows device group **names**, not the
+    numeric `rbacGroupId` that OpenAEV needs. The MDE API also exposes no "list device groups" endpoint. The reliable way
+    to map a group **name** to its **id** is to read it from the machines inventory, which returns both `rbacGroupName`
+    and `rbacGroupId` for every device.
+
+
+Run the following (PowerShell) against your tenant — it authenticates with the same Entra app registration and prints
+the `name → id` mapping for every device group that has at least one machine:
+
+```powershell
+$tenant = '<TENANT_ID>'
+$client = '<CLIENT_ID>'
+$secret = '<CLIENT_SECRET>'
+
+$token = (Invoke-RestMethod -Method Post `
+  -Uri "https://login.microsoftonline.com/$tenant/oauth2/v2.0/token" `
+  -Body @{
+    grant_type    = 'client_credentials'
+    client_id     = $client
+    client_secret = $secret
+    scope         = 'https://api.securitycenter.microsoft.com/.default'
+  }).access_token
+
+$machines = Invoke-RestMethod `
+  -Uri 'https://api.securitycenter.microsoft.com/api/machines?$select=rbacGroupId,rbacGroupName' `
+  -Headers @{ Authorization = "Bearer $token" }
+
+$machines.value |
+  Select-Object rbacGroupName, rbacGroupId -Unique |
+  Sort-Object rbacGroupName |
+  Format-Table -AutoSize
+```
+
+Example output:
+
+```text
+rbacGroupName   rbacGroupId
+-------------   -----------
+DEMO                    367
+UnassignedGroup         366
+```
+
+Here, syncing only the **DEMO** group means setting the OpenAEV **Device group** field to `367`. Separate multiple IDs
+with commas (for example `367,366`). `UnassignedGroup` is the default group for machines not assigned to any custom
+group.
+
+!!! note "The `$select` query above requires quoting"
+
+    Keep the URI in **single quotes** so PowerShell does not interpret `$select` as a variable. The app registration
+    needs `Machine.Read.All` (already granted in step 1). A group appears only once it contains at least one machine that
+    MDE has seen.
 
 ### Configure the OpenAEV platform
 
 To configure the MDE executor, navigate to the **Integrations > Executors** section in the OpenAEV menu and fill in the
 Microsoft Defender for Endpoint integration settings directly from the UI.
+
 
 | Field | Required | Description |
 |-------|----------|-------------|
@@ -542,6 +598,7 @@ Once enabled, you should see Microsoft Defender for Endpoint available in your `
 
 The devices in the selected device group(s) should now appear in the endpoints and asset groups sections in OpenAEV
 after the first sync (up to the register interval).
+
 
 !!! note "Where to see executions on the Microsoft side"
 

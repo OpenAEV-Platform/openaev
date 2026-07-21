@@ -10,8 +10,6 @@ import io.openaev.executors.mde.config.MdeExecutorConfig;
 import io.openaev.executors.mde.model.MdeAdvancedQueryResponse;
 import io.openaev.executors.mde.model.MdeAuthentication;
 import io.openaev.executors.mde.model.MdeDevice;
-import io.openaev.executors.mde.model.MdeDeviceGroup;
-import io.openaev.executors.mde.model.MdeDeviceGroupListResponse;
 import io.openaev.executors.mde.model.MdeDeviceListResponse;
 import io.openaev.executors.mde.model.MdeMachineAction;
 import io.openaev.executors.mde.model.MdeMachineActionListResponse;
@@ -50,7 +48,6 @@ public class MdeExecutorClient {
   private static final int AUTH_REFRESH_BEFORE_EXPIRY_SECONDS = 300;
 
   private static final String MACHINES_URI = "/machines";
-  private static final String MACHINE_GROUPS_URI = "/machinegroups";
   private static final String MACHINE_ACTIONS_URI = "/machineactions";
   private static final String ADVANCED_QUERIES_URI = "/advancedqueries/run";
 
@@ -62,20 +59,6 @@ public class MdeExecutorClient {
   private volatile String token;
 
   // -- PUBLIC API --
-
-  /**
-   * Returns all MDE device groups (used to map IDs to names/descriptions for AssetGroup creation).
-   */
-  public List<MdeDeviceGroup> deviceGroups() {
-    try {
-      String json = get(MACHINE_GROUPS_URI);
-      MdeDeviceGroupListResponse response = objectMapper.readValue(json, new TypeReference<>() {});
-      return response.getValue() != null ? response.getValue() : List.of();
-    } catch (Exception e) {
-      log.error("Error fetching MDE machine groups: {}", e.getMessage(), e);
-      throw new ExecutorException(e, e.getMessage(), MDE_EXECUTOR_NAME);
-    }
-  }
 
   /**
    * Returns all active MDE devices without group filter (for tenants with no RBAC device groups).
@@ -284,7 +267,23 @@ public class MdeExecutorClient {
       HttpGet httpGet = new HttpGet(config.getApiUrl() + uri);
       httpGet.addHeader("Authorization", "Bearer " + token);
       httpGet.addHeader("Accept", "application/json");
-      return httpClient.execute(httpGet, response -> EntityUtils.toString(response.getEntity()));
+      return httpClient.execute(
+          httpGet,
+          response -> {
+            int code = response.getCode();
+            String respBody =
+                response.getEntity() != null ? EntityUtils.toString(response.getEntity()) : "";
+            // Surface non-2xx GETs: an empty/error body used to blow up downstream as an opaque
+            // Jackson "No content to map" error, hiding the real HTTP cause (see post() for the
+            // same pattern). Values are inlined so the code/body survive log pipelines that drop
+            // structured SLF4J arguments.
+            if (code < 200 || code >= 300) {
+              String safeBody =
+                  respBody.length() > 500 ? respBody.substring(0, 500) + "…(truncated)" : respBody;
+              log.error("MDE API GET " + uri + " failed: HTTP " + code + " body=" + safeBody);
+            }
+            return respBody;
+          });
     } catch (IOException e) {
       throw new ClientProtocolException("Unexpected response for request on: " + uri, e);
     }

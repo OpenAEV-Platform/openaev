@@ -9,7 +9,6 @@ import io.openaev.database.model.Tenant;
 import io.openaev.executors.mde.client.MdeExecutorClient;
 import io.openaev.executors.mde.config.MdeExecutorConfig;
 import io.openaev.executors.mde.model.MdeDevice;
-import io.openaev.executors.mde.model.MdeDeviceGroup;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
@@ -119,7 +118,6 @@ public class MdeExecutorService implements Runnable {
               .filter(s -> !s.isBlank())
               .distinct()
               .toList();
-      List<MdeDeviceGroup> allGroups = client.deviceGroups();
 
       for (String groupId : deviceGroupIds) {
         List<MdeDevice> devices = client.devices(groupId);
@@ -127,21 +125,21 @@ public class MdeExecutorService implements Runnable {
           log.info("No active MDE devices found for device group id={}", groupId);
           continue;
         }
-        Optional<MdeDeviceGroup> groupMeta =
-            allGroups.stream().filter(g -> String.valueOf(g.getId()).equals(groupId)).findFirst();
+        // Name the AssetGroup after the real device group. MDE exposes no "list machine groups"
+        // endpoint, so the name is taken from the devices themselves — the /machines API returns
+        // rbacGroupName alongside rbacGroupId. Falls back to a generic label if it is absent.
+        String groupName =
+            devices.stream()
+                .map(MdeDevice::getRbacGroupName)
+                .filter(name -> name != null && !name.isBlank())
+                .findFirst()
+                .orElse("MDE Device Group " + groupId);
         Optional<AssetGroup> existingAssetGroup =
             assetGroupService.findByExternalReference(groupId, executor.getTenantId());
         AssetGroup assetGroup = existingAssetGroup.orElseGet(AssetGroup::new);
         assetGroup.setExternalReference(groupId);
         assetGroup.setTenant(new Tenant(executor.getTenantId()));
-        groupMeta.ifPresent(
-            g -> {
-              assetGroup.setName(g.getName());
-              assetGroup.setDescription(g.getDescription());
-            });
-        if (assetGroup.getName() == null) {
-          assetGroup.setName("MDE Device Group " + groupId);
-        }
+        assetGroup.setName(groupName);
         log.info(
             "MDE executor provisioning {} devices for group '{}'",
             devices.size(),
