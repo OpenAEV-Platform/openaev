@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 import type { AssetGroupsHelper } from '../../../actions/asset_groups/assetgroup-helper';
 import type { EndpointHelper } from '../../../actions/assets/asset-helper';
-import { SECTION_LABEL_SX } from '../../../components/common/detail/EntityDetailCommon';
+import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';

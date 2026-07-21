@@ -1,7 +1,7 @@
 import { ContentCopyOutlined, OpenInNewOutlined } from '@mui/icons-material';
 import { Button, IconButton, Tooltip, Typography } from '@mui/material';
 
-import { SECTION_LABEL_SX } from '../../../components/common/detail/EntityDetailCommon';
+import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import Paper from '../../../components/common/Paper';
 import { useFormatter } from '../../../components/i18n';
 import useAuth from '../../../utils/hooks/useAuth';

@@ -4,7 +4,7 @@ import * as R from 'ramda';
 import { useDispatch } from 'react-redux';
 
 import { meTokens, renewToken, updateMeInformation, updateMePassword, updateMeProfile } from '../../../actions/users/User';
-import { SECTION_LABEL_SX } from '../../../components/common/detail/EntityDetailCommon';
+import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import Paper from '../../../components/common/Paper';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';

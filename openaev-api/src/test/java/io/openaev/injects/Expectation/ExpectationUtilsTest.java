@@ -256,7 +256,8 @@ class ExpectationUtilsTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Endpoint with no agent targeted by a non-payload injector needs an agentless expectation")
+  @DisplayName(
+      "Endpoint with no agent targeted by a non-payload injector needs an agentless expectation")
   void given_endpointWithoutAgentAndNonPayloadInjector_should_needAgentlessExpectation() {
     Endpoint endpoint = EndpointFixture.createEndpoint();
     endpoint.setAgents(List.of());

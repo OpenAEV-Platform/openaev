@@ -9,7 +9,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { addLog, fetchLogs } from '../../../../../actions/Log';
 import { fetchExerciseObjectives } from '../../../../../actions/Objective';
-import { SECTION_LABEL_SX } from '../../../../../components/common/detail/EntityDetailCommon';
+import { SECTION_LABEL_SX } from '../../../../../components/common/detail/detailStyles';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
 import { useHelper } from '../../../../../store';

@@ -10,7 +10,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
-import { SECTION_LABEL_SX } from '../../../components/common/detail/EntityDetailCommon';
+import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import { useFormatter } from '../../../components/i18n';
 import {
   type ScopeVariableInput,

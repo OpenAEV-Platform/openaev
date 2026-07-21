@@ -1,7 +1,7 @@
 import { Box, Typography } from '@mui/material';
 import { type FunctionComponent, type ReactNode } from 'react';
 
-import { SECTION_LABEL_SX } from '../../../components/common/detail/EntityDetailCommon';
+import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 
 interface Props {
   title: string;

@@ -3,7 +3,7 @@ import { Box, Button, Chip, IconButton, Paper, Tooltip, Typography } from '@mui/
 import { useTheme } from '@mui/material/styles';
 import { type ChangeEvent, type KeyboardEvent, useMemo, useRef, useState } from 'react';
 
-import { SECTION_LABEL_SX } from '../../../components/common/detail/EntityDetailCommon';
+import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import { useFormatter } from '../../../components/i18n';
 import { MESSAGING$ } from '../../../utils/Environment';
 

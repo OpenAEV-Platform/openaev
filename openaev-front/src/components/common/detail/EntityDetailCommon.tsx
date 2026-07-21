@@ -3,18 +3,9 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
-// Shared section-subtitle style. Exported so section titles that need a custom
-// layout (e.g. a title row with inline actions, like the chaining scope boxes)
-// can adopt the exact same look without the plain SectionLabel wrapper.
-export const SECTION_LABEL_SX = {
-  fontFamily: '"Geologica", sans-serif',
-  fontWeight: 600,
-  fontSize: 11,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase' as const,
-  color: 'text.secondary',
-  marginBottom: 1.5,
-};
+// The shared section-subtitle style lives in a component-free module so it does
+// not trip react-refresh/only-export-components on this component file.
+import { SECTION_LABEL_SX } from './detailStyles';
 
 // A single labelled field inside an information section.
 export const Field = ({ label, children }: {
