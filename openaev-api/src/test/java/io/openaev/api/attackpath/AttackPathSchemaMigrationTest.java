@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import io.openaev.IntegrationTest;
-import io.openaev.migration.V6_20260710120000000__Add_attack_path_tables;
+import io.openaev.migration.V6_20260719200000000__Add_attack_path_tables;
 import io.openaev.utils.mockUser.WithMockUser;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.Context;
@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 class AttackPathSchemaMigrationTest extends IntegrationTest {
 
-  @Autowired private V6_20260710120000000__Add_attack_path_tables migration;
+  @Autowired private V6_20260719200000000__Add_attack_path_tables migration;
 
   private long tableCount(String table) {
     return ((Number)
@@ -84,6 +84,9 @@ class AttackPathSchemaMigrationTest extends IntegrationTest {
     // graph read too, so the single-column index would be redundant.
     assertThat(indexCount("idx_ap_exec_sim")).isZero();
     assertThat(indexCount("idx_ap_exec_sim_targetkey")).isEqualTo(1);
+    // The (inject_id, agent_id) lookup index #204/#202 query by to find a run's rows. Asserted so a
+    // future migration edit cannot drop it unnoticed.
+    assertThat(indexCount("idx_ap_exec_inject_agent")).isEqualTo(1);
     assertThat(indexCount("idx_ap_find_sim")).isEqualTo(1);
     assertThat(indexCount("idx_ap_find_sim_endpointkey_type")).isEqualTo(1);
     assertThat(indexCount("idx_ap_ef_finding")).isEqualTo(1);

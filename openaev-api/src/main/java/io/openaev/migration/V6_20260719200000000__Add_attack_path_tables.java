@@ -20,16 +20,14 @@ import org.springframework.stereotype.Component;
  *       which finding.
  * </ul>
  *
- * <p>Additive only, no change to existing tables. Columns are prefixed by their table per the
- * platform convention; the {@code tenant_id} column keeps its platform-standard name because tenant
- * isolation (MT v2) rewrites reads with {@code can_access_tenant(tenant_id)}. Reference ids
- * (simulation, asset/agent ids, contract) are plain columns, not hard FKs, so the store stays
- * self-contained and droppable. The one real relationship kept is {@code tenant_id → tenants}.
- * Indexes lead with the simulation id; the tenant predicate is the inspector's function, not an
- * index equality.
+ * <p>Consolidated (2026-07-21): this folds the four original POC migrations (the initial tables
+ * plus the inject-id, source-endpoint and payload/injector-type column additions) into one CREATE,
+ * so the long-lived branch carries a single attack-path schema migration dated after the last
+ * release rather than several that sort into the middle of the already-released block. Purely
+ * additive and idempotent (IF NOT EXISTS throughout), so re-running it is a no-op.
  */
 @Component
-public class V6_20260710120000000__Add_attack_path_tables extends BaseJavaMigration {
+public class V6_20260719200000000__Add_attack_path_tables extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -44,15 +42,20 @@ public class V6_20260710120000000__Add_attack_path_tables extends BaseJavaMigrat
                   CONSTRAINT attackpath_execution_tenant_fk
                       REFERENCES tenants (tenant_id) ON DELETE CASCADE,
               attackpath_execution_simulation_id        varchar(255) NOT NULL,
+              attackpath_execution_inject_id            varchar(255),
               attackpath_execution_step_id              varchar(255),
               attackpath_execution_step_template_id     varchar(255),
               attackpath_execution_contract_external_id text,
               attackpath_execution_source_kind          text NOT NULL,
               attackpath_execution_source_asset_id      varchar(255),
+              attackpath_execution_source_hostname      text,
+              attackpath_execution_source_ip            text,
+              attackpath_execution_source_platform      text,
               attackpath_execution_agent_id             varchar(255),
               attackpath_execution_agent_name           text,
               attackpath_execution_agent_privilege      text,
               attackpath_execution_source_injector      text,
+              attackpath_execution_injector_type        varchar(255),
               attackpath_execution_target_kind          text NOT NULL,
               attackpath_execution_target_asset_id      varchar(255),
               attackpath_execution_target_raw_value     text,
@@ -61,6 +64,7 @@ public class V6_20260710120000000__Add_attack_path_tables extends BaseJavaMigrat
               attackpath_execution_target_ip            text,
               attackpath_execution_target_platform      text,
               attackpath_execution_payload_name         text,
+              attackpath_execution_payload_id           varchar(255),
               attackpath_execution_executed_at          timestamp NOT NULL,
               attackpath_execution_prevention_status    text,
               attackpath_execution_detection_status     text,
@@ -68,14 +72,14 @@ public class V6_20260710120000000__Add_attack_path_tables extends BaseJavaMigrat
               attackpath_execution_terminal_output      text
           );
           """);
-      // Composite index leading with the simulation id: covers both the per-simulation graph read
-      // and the per-endpoint relations read, so a single-column simulation-id index is redundant.
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_ap_exec_sim_targetkey "
               + "ON attackpath_execution (attackpath_execution_simulation_id, "
               + "attackpath_execution_target_key);");
-      // Indexes the tenant FK's referencing column so ON DELETE CASCADE does not seq-scan the table
-      // when a tenant is removed. The read path stays on the simulation-id index above.
+      statement.execute(
+          "CREATE INDEX IF NOT EXISTS idx_ap_exec_inject_agent "
+              + "ON attackpath_execution (attackpath_execution_inject_id, "
+              + "attackpath_execution_agent_id);");
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_ap_exec_tenant "
               + "ON attackpath_execution (tenant_id);");
