@@ -7,6 +7,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.expectations.dto.InjectExpectationOutput;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
@@ -41,7 +42,9 @@ public class ExpectationApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @PutMapping({EXPECTATIONS_URI + "/{expectationId}", TENANT_EXPECTATIONS_URI + "/{expectationId}"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
+  // TxCtx scopes the transaction so the collectors table (v2-activated) is visible.
   public InjectExpectationOutput updateInjectExpectation(
+      TxCtx ctx,
       @PathVariable @NotBlank final String expectationId,
       @Valid @RequestBody final ExpectationUpdateInput input) {
     return toOutput(injectExpectationService.updateInjectExpectation(expectationId, input));
@@ -240,7 +243,9 @@ public class ExpectationApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
+  // TxCtx scopes the transaction so the collectors table (v2-activated) is visible.
   public InjectExpectationOutput updateInjectExpectation(
+      TxCtx ctx,
       @PathVariable @NotBlank final String expectationId,
       @Valid @RequestBody @NotNull InjectExpectationUpdateInput input) {
     return toOutput(injectExpectationService.updateInjectExpectation(expectationId, input));
@@ -252,8 +257,9 @@ public class ExpectationApi extends RestBehavior {
   @PutMapping({INJECTS_EXPECTATIONS_URI + "/bulk", TENANT_INJECTS_EXPECTATIONS_URI + "/bulk"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
+  // TxCtx scopes the transaction so the collectors table (v2-activated) is visible.
   public void updateInjectExpectation(
-      @Valid @RequestBody @NotNull InjectExpectationBulkUpdateInput inputs) {
+      TxCtx ctx, @Valid @RequestBody @NotNull InjectExpectationBulkUpdateInput inputs) {
     injectExpectationService.bulkUpdateInjectExpectation(inputs.getInputs());
   }
 }
