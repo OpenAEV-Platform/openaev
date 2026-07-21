@@ -145,19 +145,20 @@ const UserDetail = () => {
                 )}
           />
 
-          <InformationGrid title={t('Information')}>
-            <Field label={t('Email')}>{user.user_email}</Field>
-            <Field label={t('First name')}>{user.user_firstname || '-'}</Field>
-            <Field label={t('Last name')}>{user.user_lastname || '-'}</Field>
-            <Field label={t('Organization')}>{user.user_organization_name || '-'}</Field>
-            <Field label={t('Phone number')}>{user.user_phone || '-'}</Field>
-            <Field label={t('Administrator')}>{user.user_admin ? t('Yes') : t('No')}</Field>
-            <Field label={t('Tags')}>
-              <ItemTags variant="list" tags={user.user_tags ?? []} />
-            </Field>
-          </InformationGrid>
-
+          {/* All short sections share one adaptive grid so the overview stays
+              compact (they stack automatically on narrow viewports). */}
           <DetailSections>
+            <InformationGrid title={t('Information')}>
+              <Field label={t('Email')}>{user.user_email}</Field>
+              <Field label={t('First name')}>{user.user_firstname || '-'}</Field>
+              <Field label={t('Last name')}>{user.user_lastname || '-'}</Field>
+              <Field label={t('Organization')}>{user.user_organization_name || '-'}</Field>
+              <Field label={t('Phone number')}>{user.user_phone || '-'}</Field>
+              <Field label={t('Administrator')}>{user.user_admin ? t('Yes') : t('No')}</Field>
+              <Field label={t('Tags')}>
+                <ItemTags variant="list" tags={user.user_tags ?? []} />
+              </Field>
+            </InformationGrid>
             {!isPlatform && (
               <Section title={t('Groups')}>
                 {memberGroups.length === 0

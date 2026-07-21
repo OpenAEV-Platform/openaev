@@ -113,8 +113,8 @@ const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true,
   return (
     <>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-        <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="large">
-          <MoreVert />
+        <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="small" sx={{ borderRadius: 1 }}>
+          <MoreVert fontSize="small" />
         </IconButton>
       </Can>
       <Menu
@@ -144,8 +144,8 @@ const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true,
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitDelete}>
+          <Button variant="outlined" color="primary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button variant="contained" color="error" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>

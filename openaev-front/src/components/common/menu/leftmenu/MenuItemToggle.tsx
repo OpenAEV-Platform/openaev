@@ -20,6 +20,7 @@ const MenuItemToggle: FunctionComponent<Props> = ({ navOpen, onClick }) => {
       aria-label={navOpen ? 'Collapse menu' : 'Expand menu'}
       dense
       onClick={onClick}
+      sx={leftMenuStyle.menuItemSx}
     >
       <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
         {navOpen ? <ChevronLeft /> : <ChevronRight />}

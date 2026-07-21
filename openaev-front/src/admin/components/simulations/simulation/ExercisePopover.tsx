@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 
 import { deleteExercise, duplicateExercise, updateExercise } from '../../../../actions/Exercise';
 import { checkExerciseTagRules } from '../../../../actions/exercises/exercise-action';
-import ButtonPopover from '../../../../components/common/ButtonPopover';
+import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
 import DialogApplyTagRule from '../../../../components/common/DialogApplyTagRule';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import DialogDuplicate from '../../../../components/common/DialogDuplicate';
@@ -30,6 +30,9 @@ interface ExercisePopoverProps {
   actions: ExerciseActionPopover[];
   onDelete?: (result: string) => void;
   inList?: boolean;
+  /** Extra entries prepended into the same kebab (setup actions from the hero),
+   *  so the header exposes a single overflow menu instead of a row of icons. */
+  leadingEntries?: PopoverEntry[];
 }
 
 const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
@@ -37,6 +40,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
   actions = [],
   onDelete,
   inList = false,
+  leadingEntries = [],
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -117,8 +121,11 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
     handleCloseExport();
   };
 
-  // Button Popover
-  const entries = [];
+  // Button Popover. Setup actions (leadingEntries) come first, then the
+  // lifecycle CRUD actions - a divider on the first CRUD entry keeps the two
+  // groups visually distinct inside the single overflow menu.
+  const entries: PopoverEntry[] = [...leadingEntries];
+  const crudStartIndex = entries.length;
   if (actions.includes('Update')) entries.push({
     label: 'Update',
     action: () => handleOpenEdit(),
@@ -145,6 +152,16 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
     action: () => handleOpenDelete(),
     userRight: permissions.canManage,
   });
+  // Separate the setup group from the CRUD group when both are present. The
+  // divider goes on the first CRUD entry the user can actually see (hidden
+  // entries are filtered out by ButtonPopover).
+  const firstVisibleCrudIndex = entries.findIndex((entry, index) => index >= crudStartIndex && entry.userRight);
+  if (crudStartIndex > 0 && firstVisibleCrudIndex !== -1) {
+    entries[firstVisibleCrudIndex] = {
+      ...entries[firstVisibleCrudIndex],
+      dividerBefore: true,
+    };
+  }
 
   const submitExerciseUpdate = (data: UpdateExerciseInput) => {
     const input = {
@@ -187,7 +204,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
   };
   return (
     <>
-      <ButtonPopover entries={entries} variant={inList ? 'icon' : 'toggle'} />
+      {(actions.length > 0 || leadingEntries.length > 0) && <ButtonPopover entries={entries} variant={inList ? 'icon' : 'toggle'} />}
       <Drawer
         open={openEdit}
         handleClose={handleCloseEdit}

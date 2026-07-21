@@ -1,9 +1,9 @@
-import { Add, ControlPointOutlined } from '@mui/icons-material';
+import { AddOutlined, ControlPointOutlined } from '@mui/icons-material';
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogTitle,
-  IconButton,
   ListItemButton,
   ListItemIcon,
   ListItemText,
@@ -55,14 +55,15 @@ const CreateVariable: FunctionComponent<Props> = ({ inline }) => {
           />
         </ListItemButton>
       ) : (
-        <IconButton
+        <Button
+          variant="contained"
           color="primary"
-          aria-label="Add"
-          onClick={() => setOpen(true)}
           size="small"
+          startIcon={<AddOutlined />}
+          onClick={() => setOpen(true)}
         >
-          <Add fontSize="small" />
-        </IconButton>
+          {t('Add variable')}
+        </Button>
       )}
       <Dialog
         open={open}

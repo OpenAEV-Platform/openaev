@@ -152,6 +152,8 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
           }}
           >
             <Button
+              variant="outlined"
+              color="primary"
               onClick={() => {
                 setShowFormDialog(false);
                 reset();
@@ -159,7 +161,7 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
             >
               {t('Cancel')}
             </Button>
-            <Button type="submit" disabled={!isValid} color="secondary">
+            <Button type="submit" variant="contained" disabled={!isValid} color="primary">
               {t('Validate')}
             </Button>
           </div>

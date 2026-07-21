@@ -8,7 +8,7 @@ import { fetchOrganizationById } from '../../../../actions/security/securityDeta
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { fetchUsers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { DetailHero, Field, InformationGrid, Section } from '../../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, DetailSections, Field, InformationGrid, Section } from '../../../../components/common/detail/EntityDetailCommon';
 import Empty from '../../../../components/Empty';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
@@ -91,37 +91,40 @@ const OrganizationDetail = () => {
             )}
           />
 
-          <InformationGrid title={t('Information')}>
-            <Field label={t('Description')}>
-              <ExpandableMarkdown source={organization.organization_description ?? ''} limit={300} />
-            </Field>
-            <Field label={t('Tags')}>
-              <ItemTags variant="list" tags={organization.organization_tags ?? []} />
-            </Field>
-            <Field label={t('Creation date')}>{fldt(organization.organization_created_at)}</Field>
-            <Field label={t('Update date')}>{fldt(organization.organization_updated_at)}</Field>
-          </InformationGrid>
-
-          <Section title={t('Members')}>
-            {members.length === 0
-              ? <Empty message={t('No member in this organization.')} />
-              : (
-                  <List disablePadding>
-                    {members.map((member) => {
-                      const label = [member.user_firstname, member.user_lastname].filter(Boolean).join(' ').trim()
-                        || member.user_email;
-                      return (
-                        <ListItem key={member.user_id} divider disablePadding>
-                          <ListItemButton component={Link} to={`${USER_BASE_URL}/${member.user_id}`}>
-                            <ListItemIcon sx={{ minWidth: 36 }}><PermIdentityOutlined color="primary" /></ListItemIcon>
-                            <ListItemText primary={label} />
-                          </ListItemButton>
-                        </ListItem>
-                      );
-                    })}
-                  </List>
-                )}
-          </Section>
+          {/* Identity + members side by side: both sections are short, so
+              sharing one grid row keeps the overview compact. */}
+          <DetailSections>
+            <InformationGrid title={t('Information')}>
+              <Field label={t('Description')}>
+                <ExpandableMarkdown source={organization.organization_description ?? ''} limit={300} />
+              </Field>
+              <Field label={t('Tags')}>
+                <ItemTags variant="list" tags={organization.organization_tags ?? []} />
+              </Field>
+              <Field label={t('Creation date')}>{fldt(organization.organization_created_at)}</Field>
+              <Field label={t('Update date')}>{fldt(organization.organization_updated_at)}</Field>
+            </InformationGrid>
+            <Section title={t('Members')}>
+              {members.length === 0
+                ? <Empty message={t('No member in this organization.')} />
+                : (
+                    <List disablePadding>
+                      {members.map((member) => {
+                        const label = [member.user_firstname, member.user_lastname].filter(Boolean).join(' ').trim()
+                          || member.user_email;
+                        return (
+                          <ListItem key={member.user_id} divider disablePadding>
+                            <ListItemButton component={Link} to={`${USER_BASE_URL}/${member.user_id}`}>
+                              <ListItemIcon sx={{ minWidth: 36 }}><PermIdentityOutlined color="primary" /></ListItemIcon>
+                              <ListItemText primary={label} />
+                            </ListItemButton>
+                          </ListItem>
+                        );
+                      })}
+                    </List>
+                  )}
+            </Section>
+          </DetailSections>
         </Box>
       </div>
       <SecurityMenu />

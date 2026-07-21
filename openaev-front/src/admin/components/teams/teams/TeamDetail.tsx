@@ -175,24 +175,26 @@ const TeamDetail = () => {
           )}
         />
 
-        <InformationGrid title={t('Information')}>
-          <Field label={t('Description')}>
-            <ExpandableMarkdown source={team.team_description ?? ''} limit={300} />
-          </Field>
-          <Field label={t('Organization')}>
-            {team.team_organization
-              ? <Link to={`${ORGANIZATION_BASE_URL}/${team.team_organization}`}>{organizationName || team.team_organization}</Link>
-              : '-'}
-          </Field>
-          <Field label={t('Contextual')}>{team.team_contextual ? t('Yes') : t('No')}</Field>
-          <Field label={t('Tags')}>
-            <ItemTags variant="list" tags={team.team_tags ?? []} />
-          </Field>
-          <Field label={t('Creation date')}>{fldt(team.team_created_at)}</Field>
-          <Field label={t('Update date')}>{fldt(team.team_updated_at)}</Field>
-        </InformationGrid>
-
+        {/* Identity + members side by side: both sections are short, so
+            sharing one grid row keeps the overview compact (they stack
+            automatically on narrow viewports). */}
         <DetailSections>
+          <InformationGrid title={t('Information')}>
+            <Field label={t('Description')}>
+              <ExpandableMarkdown source={team.team_description ?? ''} limit={300} />
+            </Field>
+            <Field label={t('Organization')}>
+              {team.team_organization
+                ? <Link to={`${ORGANIZATION_BASE_URL}/${team.team_organization}`}>{organizationName || team.team_organization}</Link>
+                : '-'}
+            </Field>
+            <Field label={t('Contextual')}>{team.team_contextual ? t('Yes') : t('No')}</Field>
+            <Field label={t('Tags')}>
+              <ItemTags variant="list" tags={team.team_tags ?? []} />
+            </Field>
+            <Field label={t('Creation date')}>{fldt(team.team_created_at)}</Field>
+            <Field label={t('Update date')}>{fldt(team.team_updated_at)}</Field>
+          </InformationGrid>
           <Section title={t('Players')}>
             {players.length === 0
               ? <Empty message={t('No player in this team.')} />

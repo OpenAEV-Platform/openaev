@@ -6,6 +6,7 @@ import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchDocumentsChannels, updateChannel, updateChannelLogos } from '../../../../actions/channels/channel-action';
+import { SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -18,10 +19,11 @@ import ChannelOverviewNewspaper from './ChannelOverviewNewspaper';
 import ChannelOverviewTvChannel from './ChannelOverviewTvChannel';
 import ChannelParametersForm from './ChannelParametersForm';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()(theme => ({
   root: {
     flexGrow: 1,
     paddingBottom: 40,
+    marginTop: theme.spacing(3),
   },
   paper: {
     padding: 20,
@@ -78,7 +80,7 @@ const Channel = () => {
     <div className={classes.root}>
       <GridLegacy container={true} spacing={3}>
         <GridLegacy item={true} xs={6} style={{ paddingTop: 10 }}>
-          <Typography variant="h4">{t('Parameters')}</Typography>
+          <SectionLabel>{t('Parameters')}</SectionLabel>
           <Paper variant="outlined" classes={{ root: classes.paper }}>
             <ChannelParametersForm
               onSubmit={submitUpdate}
@@ -86,9 +88,7 @@ const Channel = () => {
               disabled={!ability.can(ACTIONS.MANAGE, SUBJECTS.CHANNELS)}
             />
           </Paper>
-          <Typography variant="h4">
-            {t('Logos')}
-          </Typography>
+          <SectionLabel>{t('Logos')}</SectionLabel>
           <Paper variant="outlined" classes={{ root: classes.paper }}>
             <GridLegacy container={true} spacing={3}>
               <GridLegacy item={true} xs={6}>
@@ -150,7 +150,7 @@ const Channel = () => {
           </Paper>
         </GridLegacy>
         <GridLegacy item={true} xs={6} style={{ paddingTop: 10 }}>
-          <Typography variant="h4">{t('Overview')}</Typography>
+          <SectionLabel>{t('Overview')}</SectionLabel>
           <Paper variant="outlined" classes={{ root: classes.paper }}>
             {channel.channel_type === 'newspaper' && (
               <ChannelOverviewNewspaper channel={enrichedChannel} />

@@ -1,4 +1,4 @@
-import { CloudUploadOutlined, HelpOutlineOutlined } from '@mui/icons-material';
+import { CloudUploadOutlined, HelpOutlineOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButton, Tooltip } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, type ReactElement, useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -299,7 +299,13 @@ const InjectResultList: FunctionComponent<Props> = ({
                 );
               })
         }
-        {!injects ? (<Empty message={t('No data available')} />) : null}
+        {!loading && injects.length === 0 && (
+          <Empty
+            icon={TrackChangesOutlined}
+            message={t('No inject found.')}
+            hint={t('Injects will appear here once they have been played.')}
+          />
+        )}
       </List>
     </>
   );

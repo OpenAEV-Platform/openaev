@@ -29,6 +29,7 @@ const toPayload = (action: ThreatArsenalActionFullOutput): Payload => {
     payload_collector_type: action.action_collector_type,
     payload_detection_remediations: action.action_detection_remediations,
     payload_expectations: action.action_expectations,
+    payload_expected_security_platforms: action.action_expected_security_platforms,
     payload_output_parsers: action.action_output_parsers,
     payload_prerequisites: action.action_prerequisites,
     command_content: action.command_content,
@@ -53,35 +54,32 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   const { t } = useFormatter();
 
   const [loading, setLoading] = useState(false);
-  const [selectedPayload, setSelectedPayload] = useState<Payload | null>(null);
+  const [fullOutput, setFullOutput] = useState<ThreatArsenalActionFullOutput | null>(null);
 
   useEffect(() => {
-    // Reset both states on every (re)entry so a previous in-flight fetch
-    // whose `.finally()` was skipped by the cancellation guard can't leave
-    // the drawer stuck on a spinner when the next opened action has no
-    // payload (early return paths below).
+    // Reset state on every (re)entry so a previous in-flight fetch whose
+    // `.finally()` was skipped by the cancellation guard can't leave the drawer
+    // stuck on a spinner when the next opened action resolves quickly.
     if (!open || !threatArsenalAction) {
       setLoading(false);
-      setSelectedPayload(null);
+      setFullOutput(null);
       return undefined;
     }
 
-    setSelectedPayload(null);
-
-    if (!threatArsenalAction.action_payload) {
-      setLoading(false);
-      return undefined;
-    }
+    setFullOutput(null);
     setLoading(true);
     let cancelled = false;
+    // Always fetch the full details: both payload-based contracts (execution,
+    // arguments, cleanup) and injector-based ones (e.g. AI Red Team) carry
+    // predefined expectations we surface in the drawer.
     fetchThreatArsenalAction(threatArsenalAction.injector_contract_id)
       .then((result) => {
         if (cancelled) return;
-        setSelectedPayload(toPayload(result.data as ThreatArsenalActionFullOutput));
+        setFullOutput(result.data as ThreatArsenalActionFullOutput);
       })
       .catch(() => {
         if (cancelled) return;
-        setSelectedPayload(null);
+        setFullOutput(null);
       })
       .finally(() => {
         // Keep the cancellation guard so a stale finally from a superseded
@@ -94,6 +92,12 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
     };
   }, [open, threatArsenalAction]);
 
+  // Only payload-based contracts produce a payload object (execution/arguments/
+  // cleanup sections). Expectations are passed separately so injector-based
+  // contracts without a payload still display them.
+  const selectedPayload: Payload | null
+    = fullOutput && threatArsenalAction?.action_payload ? toPayload(fullOutput) : null;
+
   return (
     <Drawer
       open={open}
@@ -104,6 +108,8 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
         <ThreatArsenalActionOverview
           action={threatArsenalAction}
           payload={selectedPayload}
+          expectations={fullOutput?.action_expectations}
+          expectedSecurityPlatforms={fullOutput?.action_expected_security_platforms}
           loading={loading}
         />
       )}

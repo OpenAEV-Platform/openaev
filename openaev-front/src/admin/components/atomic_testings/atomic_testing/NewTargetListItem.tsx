@@ -1,15 +1,13 @@
-import { Groups3Outlined, OpenInNewOutlined, PersonOutlined, SmartToyOutlined } from '@mui/icons-material';
-import { Box, IconButton, ListItemButton, Tooltip, Typography } from '@mui/material';
+import { OpenInNewOutlined } from '@mui/icons-material';
+import { IconButton, ListItemButton, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { SelectGroup } from 'mdi-material-ui';
 import { useNavigate } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
-import PlatformIcon from '../../../../components/PlatformIcon';
-import { ASSET_BASE_URL, ASSET_GROUP_BASE_URL } from '../../../../constants/BaseUrls';
 import type { InjectTarget } from '../../../../utils/api-types';
-import { buildTenantApiPath } from '../../../../utils/url-helper';
+import { getTargetOverviewUrl, isAssetGroups } from '../../../../utils/target/TargetUtils';
 import NewAtomicTestingResult from './NewAtomicTestingResult';
+import TargetIcon from './TargetIcon';
 
 interface Props {
   selected?: boolean;
@@ -24,42 +22,9 @@ const NewTargetListItem: React.FC<Props> = ({ onClick, target, selected }) => {
   const handleItemClick = () => {
     onClick(target);
   };
-  const getIcon = (target: InjectTarget) => {
-    const iconMap = {
-      // TODO: for Endpoints and Agents, check the targetSubType attribute
-      ASSETS_GROUPS: <SelectGroup sx={{ fontSize: 18 }} />,
-      ASSETS: <PlatformIcon platform={target?.target_subtype ?? 'Unknown'} width={18} />,
-      TEAMS: <Groups3Outlined sx={{ fontSize: 18 }} />,
-      PLAYERS: <PersonOutlined sx={{ fontSize: 18 }} />,
-      AI_TARGETS: <SmartToyOutlined sx={{ fontSize: 18 }} />,
-      AGENT: (
-        <img
-          src={buildTenantApiPath(`/api/images/executors/icons/${target.target_subtype}`)}
-          alt={target.target_subtype}
-          style={{
-            width: 18,
-            height: 18,
-            borderRadius: 4,
-          }}
-        />
-      ),
-    };
 
-    return iconMap[target.target_type];
-  };
-
-  // Overview pivot only exists for asset-backed targets (AI targets are assets).
-  const overviewUrl = (() => {
-    switch (target.target_type) {
-      case 'ASSETS':
-      case 'AI_TARGETS':
-        return `${ASSET_BASE_URL}/${target.target_id}`;
-      case 'ASSETS_GROUPS':
-        return `${ASSET_GROUP_BASE_URL}/${target.target_id}`;
-      default:
-        return null;
-    }
-  })();
+  const overviewUrl = getTargetOverviewUrl(target);
+  const overviewLabel = isAssetGroups(target) ? t('Open asset group overview') : t('Open asset overview');
 
   const handleOpenOverview = (event: React.MouseEvent) => {
     event.stopPropagation();
@@ -80,24 +45,18 @@ const NewTargetListItem: React.FC<Props> = ({ onClick, target, selected }) => {
         'borderLeft': `2px solid ${selected ? theme.palette.primary.main : 'transparent'}`,
         '&.Mui-selected': { backgroundColor: alpha(theme.palette.primary.main, 0.08) },
         '&.Mui-selected:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.12) },
-        '&:hover .target-open-overview': { opacity: 1 },
+        // The pivot action stays discoverable without relying on hover alone
+        // (hover does not exist on touch): it is revealed on hover, on keyboard
+        // focus, and is always shown on the selected row.
+        '& .target-open-overview': {
+          opacity: 0,
+          transition: 'opacity 0.15s',
+        },
+        '&:hover .target-open-overview, &:focus-within .target-open-overview': { opacity: 1 },
+        '&.Mui-selected .target-open-overview': { opacity: 1 },
       }}
     >
-      <Box
-        aria-hidden
-        sx={{
-          width: 32,
-          height: 32,
-          flexShrink: 0,
-          borderRadius: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: alpha(theme.palette.text.primary, 0.04),
-        }}
-      >
-        {getIcon(target)}
-      </Box>
+      <TargetIcon target={target} />
       <Typography
         sx={{
           flex: 1,
@@ -112,15 +71,12 @@ const NewTargetListItem: React.FC<Props> = ({ onClick, target, selected }) => {
         {target?.target_name}
       </Typography>
       {overviewUrl && (
-        <Tooltip title={t('Open overview')}>
+        <Tooltip title={overviewLabel}>
           <IconButton
             className="target-open-overview"
             size="small"
             onClick={handleOpenOverview}
-            sx={{
-              opacity: 0,
-              transition: 'opacity 0.15s',
-            }}
+            aria-label={overviewLabel}
           >
             <OpenInNewOutlined fontSize="small" />
           </IconButton>

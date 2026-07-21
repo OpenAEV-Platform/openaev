@@ -1,5 +1,5 @@
-import { Add, GroupsOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton } from '@mui/material';
+import { AddOutlined, GroupsOutlined } from '@mui/icons-material';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
 
 import { findTeams } from '../../../../actions/teams/team-actions';
@@ -86,14 +86,15 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
 
   return (
     <>
-      <IconButton
+      <Button
+        variant="contained"
         color="primary"
-        aria-label="Add"
-        onClick={() => setOpen(true)}
         size="small"
+        startIcon={<AddOutlined />}
+        onClick={() => setOpen(true)}
       >
-        <Add fontSize="small" />
-      </IconButton>
+        {t('Add team')}
+      </Button>
       <Dialog
         open={open}
         slots={{ transition: Transition }}
@@ -135,9 +136,9 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>{t('Cancel')}</Button>
+          <Button variant="outlined" color="primary" onClick={handleClose}>{t('Cancel')}</Button>
           {!isLoading && (
-            <Button color="secondary" onClick={handleSubmit}>
+            <Button variant="contained" color="primary" onClick={handleSubmit}>
               {t('Update')}
             </Button>
           )}

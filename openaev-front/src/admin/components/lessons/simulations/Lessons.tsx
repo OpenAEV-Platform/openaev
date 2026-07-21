@@ -486,13 +486,16 @@ const Lessons: FunctionComponent<Props> = ({
           }}
           >
             <Button
+              variant="outlined"
+              color="primary"
               onClick={() => setOpenApplyTemplate(false)}
               style={{ marginRight: 10 }}
             >
               {t('Cancel')}
             </Button>
             <Button
-              color="secondary"
+              variant="contained"
+              color="primary"
               onClick={applyTemplate}
               disabled={templateValue === null}
             >
@@ -513,10 +516,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenResetAnswers(false)}>
+          <Button variant="outlined" color="primary" onClick={() => setOpenResetAnswers(false)}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={resetAnswers}>
+          <Button variant="contained" color="primary" onClick={resetAnswers}>
             {t('Reset')}
           </Button>
         </DialogActions>
@@ -535,10 +538,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenEmptyLessons(false)}>
+          <Button variant="outlined" color="primary" onClick={() => setOpenEmptyLessons(false)}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={emptyLessons}>
+          <Button variant="contained" color="primary" onClick={emptyLessons}>
             {t('Clear out')}
           </Button>
         </DialogActions>
@@ -591,10 +594,10 @@ const Lessons: FunctionComponent<Props> = ({
           </Alert>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenAnonymize(false)}>
+          <Button variant="outlined" color="primary" onClick={() => setOpenAnonymize(false)}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={toggleAnonymize}>
+          <Button variant="contained" color="primary" onClick={toggleAnonymize}>
             {t('Anonymize')}
           </Button>
         </DialogActions>
