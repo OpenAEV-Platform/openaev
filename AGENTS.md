@@ -89,7 +89,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | PR touches frontend (`.tsx`, `.ts`, forms, components) | **Frontend Reviewer** |
 | PR adds a new feature without tests, or coverage is below threshold | **Test Specialist** |
 | PR touches chaining (steps, conditions, workflows, queues, scope, WorkflowState) | **Chaining Engine Reviewer** |
-| PR has functional changes but no `docs/` updates | **Docs Reviewer** (auto-triggered on PR open) |
+| PR has functional changes but no `docs/` updates | **Docs Reviewer** (auto-triggered on PR open via `/review docs` command) |
 | Critical PR (new entities, migrations, auth changes) | **Code Reviewer** + all relevant specialists |
 
 ### Composition Rules

@@ -2,7 +2,7 @@ name: "[OpenAEV] Copilot Docs Review"
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened]
 
 permissions:
   contents: read
@@ -19,11 +19,11 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
-            const { data: files } = await github.rest.pulls.listFiles({
+            const files = await github.paginate(github.rest.pulls.listFiles, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.issue.number,
-              per_page: 300,
+              per_page: 100,
             });
 
             const filenames = files.map(f => f.filename);
@@ -102,14 +102,16 @@ jobs:
             const totalFiles = context.payload.pull_request.changed_files;
 
             const lines = [
-              '📖 **Docs Reviewer** triggered automatically.',
+              '/review docs',
               '',
+              `> 📖 **Docs Reviewer** triggered automatically.`,
+              `>`,
               `> **${totalFiles}** files changed — **${functionalCount}** functional, **${docCount}** documentation.`,
             ];
 
             if (!hasDocs) {
-              lines.push('');
-              lines.push('> ⚠️ No documentation files modified. Agent will check if doc updates are needed.');
+              lines.push(`>`);
+              lines.push(`> ⚠️ No documentation files modified. Agent will check if doc updates are needed.`);
             }
 
             await github.rest.issues.createComment({

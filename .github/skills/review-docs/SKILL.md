@@ -10,7 +10,15 @@ description: >-
 ## Step 1 — Identify all changed files in the PR
 
 ```bash
-git diff --name-only HEAD~1
+# Get all files changed in this PR compared to the base branch
+gh pr diff --name-only
+```
+
+If `gh pr diff` is unavailable (e.g. not in a PR context), fall back to:
+
+```bash
+git fetch origin main
+git diff --name-only $(git merge-base HEAD origin/main)
 ```
 
 Separate the changed files into two categories:
@@ -25,19 +33,19 @@ Remove from the functional files list any files that match these patterns (they 
 
 ```bash
 # Test files
-git diff --name-only HEAD~1 | grep -E "Test\.java$|\.test\.(ts|tsx)$|tests_e2e/"
+gh pr diff --name-only | grep -E "Test\.java$|\.test\.(ts|tsx)$|tests_e2e/"
 
 # CI/Build files
-git diff --name-only HEAD~1 | grep -E "\.github/workflows/|Dockerfile|docker-compose|pom\.xml$|package\.json$|yarn\.lock$"
+gh pr diff --name-only | grep -E "\.github/workflows/|Dockerfile|docker-compose|pom\.xml$|package\.json$|yarn\.lock$"
 
 # Code style / formatting
-git diff --name-only HEAD~1 | grep -E "\.eslintrc|\.prettierrc|spotless|\.editorconfig"
+gh pr diff --name-only | grep -E "\.eslintrc|\.prettierrc|spotless|\.editorconfig"
 
 # Internal dev docs (not user-facing)
-git diff --name-only HEAD~1 | grep -E "\.github/instructions/|\.github/agents/|\.github/skills/|AGENTS\.md|CLAUDE\.md|CONTRIBUTING\.md|copilot-instructions"
+gh pr diff --name-only | grep -E "\.github/instructions/|\.github/agents/|\.github/skills/|AGENTS\.md|CLAUDE\.md|CONTRIBUTING\.md|copilot-instructions"
 
 # Annotation processor / Maven plugin (build tooling)
-git diff --name-only HEAD~1 | grep -E "openaev-annotation-processor/|openaev-maven-plugin/"
+gh pr diff --name-only | grep -E "openaev-annotation-processor/|openaev-maven-plugin/"
 ```
 
 If all functional files are filtered out: output `PASS` and stop.
@@ -47,14 +55,16 @@ If all functional files are filtered out: output `PASS` and stop.
 For each remaining functional file, determine the type of change:
 
 ```bash
+BASE=$(git merge-base HEAD origin/main)
+
 # New files (likely new features)
-git diff --name-only --diff-filter=A HEAD~1 | grep -E "openaev-api/|openaev-model/|openaev-front/src/"
+git diff --name-only --diff-filter=A $BASE | grep -E "^openaev-api/|^openaev-model/|^openaev-front/src/"
 
 # Deleted files (likely removed features)
-git diff --name-only --diff-filter=D HEAD~1 | grep -E "openaev-api/|openaev-model/|openaev-front/src/"
+git diff --name-only --diff-filter=D $BASE | grep -E "^openaev-api/|^openaev-model/|^openaev-front/src/"
 
 # Modified files — check if changes are behavioral
-git diff --name-only --diff-filter=M HEAD~1 | grep -E "openaev-api/|openaev-model/|openaev-front/src/"
+git diff --name-only --diff-filter=M $BASE | grep -E "^openaev-api/|^openaev-model/|^openaev-front/src/"
 ```
 
 For modified files, inspect the diff to determine if changes are:
@@ -63,21 +73,21 @@ For modified files, inspect the diff to determine if changes are:
 
 ```bash
 # Look for new REST endpoints
-git diff HEAD~1 -- "*.java" | grep -E "^\+.*@(Get|Post|Put|Delete|Patch)Mapping"
+gh pr diff -- "*.java" | grep -E "^\+.*@(Get|Post|Put|Delete|Patch)Mapping"
 
 # Look for new configuration properties
-git diff HEAD~1 -- "*.java" "*.properties" "*.yml" | grep -E "^\+.*@Value|^\+.*openaev\."
+gh pr diff -- "*.java" "*.properties" "*.yml" | grep -E "^\+.*@Value|^\+.*openaev\."
 
 # Look for new frontend routes/pages
-git diff HEAD~1 -- "*.tsx" "*.ts" | grep -E "^\+.*Route|^\+.*path:"
+gh pr diff -- "*.tsx" "*.ts" | grep -E "^\+.*Route|^\+.*path:"
 
 # Look for changed/new API input/output DTOs
-git diff HEAD~1 -- "*Input.java" "*Output.java" | grep -E "^\+|^\-" | head -30
+gh pr diff -- "*Input.java" "*Output.java" | grep -E "^\+|^\-" | head -30
 ```
 
 ## Step 4 — Map functional changes to expected doc pages
 
-Using the **Code-to-Doc Mapping** table in `docs-reviewer.agent.md`, determine which doc pages should be impacted.
+Using the **Code-to-Doc Mapping** table in `.github/agents/docs-reviewer.agent.md`, determine which doc pages should be impacted.
 
 For each functional file with behavioral changes:
 1. Match it against the mapping table
@@ -86,7 +96,7 @@ For each functional file with behavioral changes:
 
 ```bash
 # Check if any doc files were changed in this PR
-git diff --name-only HEAD~1 | grep "^docs/"
+gh pr diff --name-only | grep "^docs/"
 ```
 
 ## Step 5 — Cross-reference and identify gaps
@@ -115,7 +125,7 @@ If the PR description or a linked issue mentions a follow-up documentation task:
 ## Step 7 — Compile findings
 
 Generate the Documentation Review Summary following the output format
-defined in `docs-reviewer.agent.md`.
+defined in `.github/agents/docs-reviewer.agent.md`.
 
 For each gap, provide:
 - The specific code file and what changed

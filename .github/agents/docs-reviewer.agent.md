@@ -42,13 +42,13 @@ Heuristic — use judgment for edge cases. The doc tree mirrors the product stru
 
 | Code area | Doc area |
 |---|---|
-| `**/api/**`, `**/rest/**` (controllers, DTOs) | `docs/usage/rest-api.md`, `docs/development/api-usage.md` |
-| `**/injector*/**`, `**/collector*/**`, `**/executor*/**` | `docs/deployment/ecosystem/` + `docs/usage/` (matching section) |
-| `**/scenario/**`, `**/exercise/**`, `**/inject/**` | `docs/usage/` (scenarios, simulations, injects) |
-| `**/config/**`, `application.properties` | `docs/deployment/configuration.md` |
-| `**/auth/**`, `**/security/**`, `**/tenant/**` | `docs/deployment/authentication.md`, `docs/administration/` |
-| `**/migration/**` | `docs/development/database-migrations.md`, `docs/deployment/breaking-changes.md` |
-| `openaev-front/src/**` (new pages/routes) | `docs/usage/` (section matching the feature) |
+| `**/api/**`, `**/rest/**` (controllers, DTOs) | `docs/docs/usage/rest-api.md`, `docs/docs/development/api-usage.md` |
+| `**/injector*/**`, `**/collector*/**`, `**/executor*/**` | `docs/docs/deployment/ecosystem/` + `docs/docs/usage/` (matching section) |
+| `**/scenario/**`, `**/exercise/**`, `**/inject/**` | `docs/docs/usage/` (scenarios, simulations, injects) |
+| `**/config/**`, `application.properties` | `docs/docs/deployment/configuration.md` |
+| `**/auth/**`, `**/security/**`, `**/tenant/**` | `docs/docs/deployment/authentication.md`, `docs/docs/administration/` |
+| `**/migration/**` | `docs/docs/development/database-migrations.md`, `docs/docs/deployment/breaking-changes.md` |
+| `openaev-front/src/**` (new pages/routes) | `docs/docs/usage/` (section matching the feature) |
 
 For anything not in this table, browse `docs/` to find the matching page by domain name.
 
