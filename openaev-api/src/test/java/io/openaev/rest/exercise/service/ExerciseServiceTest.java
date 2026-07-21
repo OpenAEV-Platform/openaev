@@ -15,6 +15,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.*;
 import io.openaev.service.FileService;
 import io.openaev.service.LessonsService;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -91,7 +92,7 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private ApplicationEventPublisher eventPublisher;
 
   @Mock private InjectExpectationMapper injectExpectationMapper;
-
+  @Mock private AttackPathExecutionIngestionService attackPathExecutionService;
   @InjectMocks private ExerciseService mockedExerciseService;
   @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private StepService stepService;
@@ -139,7 +140,8 @@ class ExerciseServiceTest extends IntegrationTest {
             fileService,
             stepService,
             healthCheckUtils,
-            eventPublisher);
+            eventPublisher,
+            attackPathExecutionService);
 
     scenarioComposer.reset();
     exerciseComposer.reset();

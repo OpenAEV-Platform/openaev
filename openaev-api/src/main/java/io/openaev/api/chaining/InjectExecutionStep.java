@@ -18,6 +18,7 @@ import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
@@ -191,7 +192,9 @@ public class InjectExecutionStep implements ActionStep {
                             + readyStep.getId()));
     prepareGetStatusPayloadFromInject(injectorContract);
 
-    recordAttackPathExecution(readyStep, inject, injectorContract);
+    List<AttackPathExecution> attackPathExecutions =
+        attackPathIngestion.getAttackPathExecution(inject, readyStep, this.getCommand(inject));
+    recordAttackPathExecution(attackPathExecutions, inject);
 
     try {
       String data = setInjectId(inject.getId(), readyStep.getData());
@@ -221,17 +224,14 @@ public class InjectExecutionStep implements ActionStep {
     }
   }
 
-  /**
-   * Records the attack-path execution rows at RUN (issue 5048, #203). Flag-gated by {@code
-   * ATTACK_PATH} and guarded: a failure here is logged and never fails the inject execution.
-   */
+
   private void recordAttackPathExecution(
-      Step readyStep, Inject inject, InjectorContract injectorContract) {
+      List<AttackPathExecution> attackPathExecutions, Inject inject) {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
       return;
     }
     try {
-      attackPathIngestion.onRun(readyStep, inject, injectorContract);
+      attackPathIngestion.persistExecution(attackPathExecutions);
     } catch (Exception e) {
       log.warn("Attack-path ingestion skipped for inject {} (non-fatal)", inject.getId(), e);
     }

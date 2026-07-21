@@ -224,4 +224,6 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.sourceKind = 'INJECTOR'")
   List<AttackPathInjectorMetaRow> findInjectorMetadata(@Param("simulationId") String simulationId);
+
+  void deleteAllBySimulationId(String simulationId);
 }

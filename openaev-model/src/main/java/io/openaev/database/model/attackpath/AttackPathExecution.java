@@ -3,19 +3,12 @@ package io.openaev.database.model.attackpath;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.database.audit.TenantBaseListener;
-import io.openaev.database.model.Tenant;
-import io.openaev.database.model.TenantBase;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import java.time.Instant;
+import io.openaev.database.model.*;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.Instant;
 
 /**
  * One row = one attack-path edge (source → target) for a simulation (issue 6647). Carries the run
@@ -56,6 +49,7 @@ public class AttackPathExecution implements TenantBase {
   @Column(name = "attackpath_execution_contract_external_id")
   private String contractExternalId;
 
+  //INJECTOR or AGENT
   @Column(name = "attackpath_execution_source_kind", nullable = false)
   private String sourceKind;
 
@@ -86,6 +80,7 @@ public class AttackPathExecution implements TenantBase {
   @Column(name = "attackpath_execution_injector_type")
   private String injectorType;
 
+  //ASSET or DISCOVERED
   @Column(name = "attackpath_execution_target_kind", nullable = false)
   private String targetKind;
 
@@ -132,4 +127,51 @@ public class AttackPathExecution implements TenantBase {
   /** Heavy; loaded only when a terminal drawer opens, never by the graph read. */
   @Column(name = "attackpath_execution_terminal_output")
   private String terminalOutput;
+
+  public void setGlobalInformation(Step stepExecution, Inject inject) {
+    this.tenant = inject.getTenant();
+    this.simulationId =inject.getExercise().getId();
+    this.injectId = inject.getId();
+    this.stepId = stepExecution.getId();
+    this.stepTemplateId = stepExecution.getStepTemplate().getId();
+    this.payloadName = inject.getTitle();
+    this.executedAt = Instant.now();
+    }
+
+  public void setTargetDiscoveredInformation(String key) {
+    this.targetKind = "DISCOVERED";
+    this.targetKey = key;
+    this.targetRawValue = "";
+    //TODO if type IP or Hostname
+    this.targetHostname = "";
+    this.targetIp = "";
+  }
+
+  public void setTargetAssetInformation(Endpoint endpoint) {
+    this.targetKind = "ASSET";
+    this.targetAssetId = endpoint.getId();
+    this.targetHostname = endpoint.getHostname();
+    this.targetKey = endpoint.getId();
+    this.targetIp = String.join(",", endpoint.getIps());
+    this.targetPlatform = endpoint.getPlatform().name();
+  }
+
+  public void setSourceAgentInformation(Agent agent, Endpoint endpoint) {
+    this.sourceKind ="AGENT";
+    this.sourceAssetId = agent.getAsset().getId();
+    this.sourceHostname = endpoint.getHostname();
+    this.sourceIp = String.join(",", endpoint.getIps());
+    this.sourcePlatform = endpoint.getPlatform().name();
+
+    this.agentId = agent.getId();
+    this.agentName = agent.getExecutor().getName();
+    this.agentPrivilege = agent.getPrivilege().name();
+
+  }
+
+  public void setSourceInjectorInformation(Injector injector) {
+    this.sourceKind ="INJECTOR";
+    this.sourceInjector = injector.getName();
+  }
 }
+

@@ -51,6 +51,7 @@ import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -150,6 +151,8 @@ public class ExerciseService {
   private final HealthCheckUtils healthCheckUtils;
 
   private final ApplicationEventPublisher eventPublisher;
+
+  private final AttackPathExecutionIngestionService attackPathExecutionService;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -634,6 +637,8 @@ public class ExerciseService {
         // DELETE injects
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
+        //Delete attack path execution
+        this.attackPathExecutionService.deleteAllBySimulationId(exercise.getId());
       }
       urlAccessTokenService.revokeAllForExercise(exercise.getId());
     }
