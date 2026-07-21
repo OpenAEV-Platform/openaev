@@ -37,7 +37,7 @@ const PaginatedTargetTab: React.FC<Props> = (props) => {
   const { onTargetsChange } = props;
 
   useEffect(() => {
-    setSearchReloadContentCount(searchReloadContentCount + 1);
+    setSearchReloadContentCount(previous => previous + 1);
   }, [props.reloadContentCount]);
 
   const handleSetTargets = (content: InjectTarget[]) => {
@@ -53,7 +53,7 @@ const PaginatedTargetTab: React.FC<Props> = (props) => {
     if (targets && targets.length > 0 && !targets.find(t => t.target_id === props.selectedTargetId)) {
       props.handleSelectTarget(targets[0]);
     }
-  }, [targets, props.selectedTargetId]);
+  }, [targets, props.selectedTargetId, props.handleSelectTarget]);
 
   return (
     <>
