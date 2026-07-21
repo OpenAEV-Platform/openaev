@@ -72,7 +72,6 @@ const LoginForm = ({ onSubmit, onResetPassword }: LoginFormProps) => {
               variant="contained"
               color="primary"
               disabled={pristine || submitting}
-              onClick={handleSubmit}
             >
               {t('Sign in')}
             </Button>

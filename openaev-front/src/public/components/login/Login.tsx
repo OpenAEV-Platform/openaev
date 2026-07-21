@@ -104,7 +104,7 @@ const Login = () => {
             textAlign="center"
             variant="body2"
             sx={{
-              maxHeight: window.innerHeight * 0.25,
+              maxHeight: '25vh',
               overflowY: 'auto',
               marginBottom: 1,
             }}
