@@ -9,15 +9,23 @@ import { type Exercise, type SimulationDetails } from '../../../../utils/api-typ
 import { useAppDispatch } from '../../../../utils/hooks';
 import ExerciseDateForm from './ExerciseDateForm';
 
-interface Props {
+interface BaseProps {
   exercise: SimulationDetails;
-  // Controlled mode: when `open` / `onOpenChange` are provided the dialog is
-  // driven by the parent (e.g. from a menu item) and the inline icon trigger is
-  // hidden. Left uncontrolled, it renders its own icon button as before.
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
   showTrigger?: boolean;
 }
+
+// Controlled mode: when `open` is provided the dialog is driven by the parent
+// (e.g. from a menu item), so `onOpenChange` is required - without it the
+// dialog could never close. Left uncontrolled, it renders its own icon button.
+type Props = BaseProps & (
+  {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+  } | {
+    open?: undefined;
+    onOpenChange?: undefined;
+  }
+);
 
 const ExerciseDatePopover: FunctionComponent<Props> = ({ exercise, open, onOpenChange, showTrigger = true }) => {
   const [internalOpen, setInternalOpen] = useState(false);
