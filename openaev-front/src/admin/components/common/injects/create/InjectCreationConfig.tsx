@@ -1,7 +1,5 @@
-import { ArrowBackOutlined } from '@mui/icons-material';
-import { Box, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import { type FunctionComponent, useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router';
 
 import { type AttackPatternHelper } from '../../../../../actions/attack_patterns/attackpattern-helper';
 import { fetchAttackPatterns } from '../../../../../actions/AttackPattern';
@@ -30,9 +28,10 @@ import InjectCardComponent from '../InjectCardComponent';
 import InjectIcon from '../InjectIcon';
 
 interface Props {
+  contractId: string;
   isAtomic?: boolean;
   onCreateInject: (data: InjectInput | AtomicTestingInput) => Promise<void>;
-  /** Back to the contract picker (also used as the form cancel). */
+  /** Back to the contract picker (closes the drawer; also the form cancel). */
   onBack: () => void;
   presetInjectDuration?: number;
   articlesFromExerciseOrScenario?: Article[];
@@ -40,9 +39,10 @@ interface Props {
   variablesFromExerciseOrScenario?: Variable[];
 }
 
-// Step 2 of the inject creation page: the selected contract (from the route's
-// :contractId) is fetched and the full configuration form renders full-width.
+// Step 2 of the inject creation flow: the selected contract is fetched and the
+// full configuration form renders inside a drawer over the contract picker.
 const InjectCreationConfig: FunctionComponent<Props> = ({
+  contractId,
   isAtomic = false,
   onCreateInject,
   onBack,
@@ -51,13 +51,12 @@ const InjectCreationConfig: FunctionComponent<Props> = ({
   uriVariable = '',
   variablesFromExerciseOrScenario = [],
 }) => {
-  const { t, tPick } = useFormatter();
+  const { tPick } = useFormatter();
   const dispatch = useAppDispatch();
-  const { contractId } = useParams() as { contractId: string };
 
-  // InjectForm always calls handleClose() after a successful submit. On this
-  // full page the submit callback navigates to the created entity, so the
-  // close-to-picker navigation must be skipped or it clobbers the redirect.
+  // InjectForm always calls handleClose() after a successful submit. Here the
+  // submit callback navigates to the created entity, so the close-to-picker
+  // callback must be skipped or it clobbers the redirect.
   const submittedRef = useRef(false);
   const handleSubmit = async (data: InjectInput | AtomicTestingInput) => {
     submittedRef.current = true;
@@ -122,22 +121,10 @@ const InjectCreationConfig: FunctionComponent<Props> = ({
       display: 'flex',
       flexDirection: 'column',
       gap: 2,
-      maxWidth: 920,
-      margin: '0 auto',
       width: '100%',
       paddingBottom: 4,
     }}
     >
-      <Box>
-        <Button
-          startIcon={<ArrowBackOutlined />}
-          size="small"
-          color="inherit"
-          onClick={onBack}
-        >
-          {t('Back to selection')}
-        </Button>
-      </Box>
       <InjectCardComponent
         avatar={(
           <InjectIcon

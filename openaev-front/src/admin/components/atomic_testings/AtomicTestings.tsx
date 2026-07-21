@@ -33,11 +33,12 @@ const AtomicTestings = () => {
         goTo={injectId => `/admin/atomic_testings/${injectId}`}
         queryableHelpers={queryableHelpers}
         searchPaginationInput={searchPaginationInput}
+        createButton={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
+            <ButtonCreate onClick={() => navigate('/admin/atomic_testings/create')} />
+          </Can>
+        )}
       />
-
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-        <ButtonCreate onClick={() => navigate('/admin/atomic_testings/create')} />
-      </Can>
     </>
   );
 };

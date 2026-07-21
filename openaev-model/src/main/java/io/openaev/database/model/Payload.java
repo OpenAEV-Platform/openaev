@@ -163,6 +163,19 @@ public class Payload implements GrantableBase, TenantBase {
   @JsonProperty("payload_expectations")
   private EXPECTATION_TYPE[] expectations;
 
+  /**
+   * Optional map of expectation type to the security platform types expected to fulfil it (e.g.
+   * {@code {"DETECTION": ["EDR","XDR","SIEM"], "PREVENTION": ["EDR","XDR"]}}). Empty or absent
+   * means "any security platform" (legacy behaviour). Used to pre-seed only the relevant collectors
+   * when this payload's predefined expectations are instantiated on an inject.
+   */
+  @Setter
+  @Type(JsonType.class)
+  @Column(name = "payload_expected_security_platforms", columnDefinition = "jsonb")
+  @JsonProperty("payload_expected_security_platforms")
+  private Map<EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+      expectedSecurityPlatforms = new HashMap<>();
+
   @Setter
   @Queryable(filterable = true)
   @Column(name = "payload_status")

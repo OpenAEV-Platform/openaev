@@ -356,6 +356,7 @@ public class PayloadMapper {
             .externalId(payload.getExternalId())
             .source(payload.getSource())
             .expectations(payload.getExpectations())
+            .expectedSecurityPlatforms(payload.getExpectedSecurityPlatforms())
             .status(payload.getStatus())
             .executionArch(payload.getExecutionArch())
             .collectorType(payload.getCollectorTypeValue())

@@ -138,6 +138,15 @@ const AssetGroupManagement: FunctionComponent<Props> = ({
           entityPrefix="endpoint"
           availableFilterNames={availableFilterNames}
           queryableHelpers={queryableHelpers}
+          topBarButtons={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
+              <AssetGroupAddEndpoints
+                assetGroupId={assetGroup?.asset_group_id}
+                assetGroupEndpointIds={assetGroup?.asset_group_assets ?? []}
+                onUpdate={onUpdateList}
+              />
+            </Can>
+          )}
         />
       </div>
 
@@ -154,13 +163,6 @@ const AssetGroupManagement: FunctionComponent<Props> = ({
           />
         )}
       />
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
-        <AssetGroupAddEndpoints
-          assetGroupId={assetGroup?.asset_group_id}
-          assetGroupEndpointIds={assetGroup?.asset_group_assets ?? []}
-          onUpdate={onUpdateList}
-        />
-      </Can>
     </>
   );
 };

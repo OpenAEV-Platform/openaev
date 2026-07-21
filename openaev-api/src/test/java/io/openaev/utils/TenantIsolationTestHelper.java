@@ -140,4 +140,31 @@ public class TenantIsolationTestHelper {
     Session session = entityManager.unwrap(Session.class);
     session.enableFilter("tenantFilter").setParameter("tenantId", tenantId);
   }
+
+  /**
+   * Removes tenants that were COMMITTED by a non-transactional test class (tests around the
+   * background transaction primitive cannot run inside a test transaction, so nothing rolls back).
+   * Deletes the one tenant child without ON DELETE CASCADE ({@code collector_types}) first; every
+   * other tenant-scoped row cascades with the tenant. Null ids are skipped so a partially failed
+   * setup still cleans what it managed to create. Table-specific rows the caller created (and any
+   * join table without a cascading FK) must be removed by the caller BEFORE this call. External
+   * residue (per-tenant broker queues) cannot be removed here; that is the suite-wide pre-existing
+   * pattern for service-created tenants.
+   */
+  @Transactional
+  public void deleteCommittedTenants(String... tenantIds) {
+    for (String tenantId : tenantIds) {
+      if (tenantId == null) {
+        continue;
+      }
+      entityManager
+          .createNativeQuery("DELETE FROM collector_types WHERE tenant_id = :id")
+          .setParameter("id", tenantId)
+          .executeUpdate();
+      entityManager
+          .createNativeQuery("DELETE FROM tenants WHERE tenant_id = :id")
+          .setParameter("id", tenantId)
+          .executeUpdate();
+    }
+  }
 }

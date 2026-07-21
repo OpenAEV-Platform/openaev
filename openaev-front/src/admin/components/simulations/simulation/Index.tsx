@@ -1,7 +1,6 @@
 import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
 import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { fetchExercise } from '../../../../actions/Exercise';
 import { fetchScenarioFromSimulation } from '../../../../actions/exercises/exercise-action';
@@ -20,14 +19,13 @@ import useSimulationPermissions from '../../../../utils/permissions/useSimulatio
 import { isFeatureEnabled } from '../../../../utils/utils';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import injectContextForExercise from './ExerciseContext';
-import ExerciseDatePopover from './ExerciseDatePopover';
 import ExerciseHeader from './ExerciseHeader';
 
 const Simulation = lazy(() => import('./overview/SimulationComponent'));
+const SimulationDashboard = lazy(() => import('./analysis/SimulationAnalysis'));
 const Lessons = lazy(() => import('./lessons/SimulationLessons'));
 const SimulationFindings = lazy(() => import('./findings/SimulationFindings'));
 const Injects = lazy(() => import('./injects/ExerciseInjects'));
-const InjectCreation = lazy(() => import('./injects/SimulationInjectCreation'));
 const Tests = lazy(() => import('./tests/ExerciseTests'));
 const TimelineOverview = lazy(() => import('./timeline/TimelineOverview'));
 const Mails = lazy(() => import('./mails/Mails'));
@@ -38,20 +36,10 @@ const Validations = lazy(() => import('./validation/Validations'));
 const SimulationScope = lazy(() => import('./scope/SimulationScope'));
 const SimulationLogic = lazy(() => import('./logic/SimulationLogic'));
 
-const useStyles = makeStyles()(() => ({
-  scheduling: {
-    display: 'flex',
-    margin: '-35px 8px 0 0',
-    float: 'right',
-    alignItems: 'center',
-  },
-}));
-
 const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ exercise }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const { t, fldt } = useFormatter();
+  const { t } = useFormatter();
   const location = useLocation();
-  const { classes } = useStyles();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
   // Stable context identities: these providers wrap the whole simulation subtree and a
@@ -183,12 +171,6 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                             />
                           </Tabs>
                         )}
-                    {permissionsContext.permissions.canManage && (
-                      <div className={classes.scheduling}>
-                        <ExerciseDatePopover exercise={exercise} />
-                        {exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
-                      </div>
-                    )}
                   </Box>
                   <Suspense fallback={<Loader />}>
                     <Routes>
@@ -196,8 +178,6 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                       {/* Definition merged into the Injects authoring tab; redirect old links. */}
                       <Route path="definition" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/injects`} replace={true} />} />
                       <Route path="injects" element={errorWrapper(Injects)()} />
-                      <Route path="injects/create" element={errorWrapper(InjectCreation)()} />
-                      <Route path="injects/create/:contractId" element={errorWrapper(InjectCreation)()} />
                       <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
                       <Route path="animation" element={<Navigate to="timeline" replace={true} />} />
                       <Route path="animation/timeline" element={errorWrapper(TimelineOverview)()} />
@@ -208,8 +188,10 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                       <Route path="animation/validations" element={errorWrapper(Validations)()} />
                       <Route path="lessons" element={errorWrapper(Lessons)()} />
                       <Route path="findings" element={errorWrapper(SimulationFindings)()} />
-                      {/* Analysis merged into the Overview dashboard; keep a redirect for old links. */}
-                      <Route path="analysis" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}`} replace />} />
+                      {/* Simulation-scoped custom dashboard, reached from the hero "Analyze" quick action. */}
+                      <Route path="dashboard" element={errorWrapper(SimulationDashboard)()} />
+                      {/* Analysis is no longer a permanent tab; keep a redirect for old links. */}
+                      <Route path="analysis" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/dashboard`} replace />} />
                       <Route path="scope" element={errorWrapper(SimulationScope)()} />
                       <Route path="logic" element={errorWrapper(SimulationLogic)()} />
                       {/* Not found */}

@@ -1,12 +1,13 @@
-import { Alert, Button, InputLabel, MenuItem, Select as MUISelect, TextField as MuiTextField, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, InputLabel, MenuItem, Select as MUISelect, TextField as MuiTextField, TextField, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../components/i18n';
+import ItemSecurityPlatformType from '../../../../../components/ItemSecurityPlatformType';
 import ScaleBar from '../../../../../components/scalebar/ScaleBar';
 import { splitDuration } from '../../../../../utils/Time';
-import { type ExpectationInput, type ExpectationInputForm } from './Expectation';
+import { type ExpectationInput, type ExpectationInputForm, SECURITY_PLATFORM_TYPES } from './Expectation';
 import { formProps, infoMessage } from './ExpectationFormUtils';
 import { isTechnicalExpectation } from './ExpectationUtils';
 import ExpectationGroupField from './field/ExpectationGroupField';
@@ -169,6 +170,54 @@ const ExpectationFormUpdate: FunctionComponent<Props> = ({
           },
         }}
       />
+      {isTechnicalExpectation(getValues().expectation_type) && (
+        <div className={classes.marginTop_2}>
+          <InputLabel id="expected-platforms-label" shrink>
+            {t('Expected security platforms')}
+          </InputLabel>
+          <Controller
+            name="expectation_expected_security_platform_types"
+            control={control}
+            render={({ field }) => (
+              <MUISelect
+                labelId="expected-platforms-label"
+                multiple
+                displayEmpty
+                variant="standard"
+                fullWidth
+                value={field.value ?? []}
+                onChange={event => field.onChange(event.target.value)}
+                renderValue={(selected) => {
+                  const values = selected as string[];
+                  if (values.length === 0) {
+                    return (
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        {t('Any security platform')}
+                      </Typography>
+                    );
+                  }
+                  return (
+                    <Box sx={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 0.5,
+                    }}
+                    >
+                      {values.map(type => <ItemSecurityPlatformType key={type} type={type} />)}
+                    </Box>
+                  );
+                }}
+              >
+                {SECURITY_PLATFORM_TYPES.map(type => (
+                  <MenuItem key={type} value={type}>
+                    <ItemSecurityPlatformType type={type} />
+                  </MenuItem>
+                ))}
+              </MUISelect>
+            )}
+          />
+        </div>
+      )}
       <ExpectationGroupField isTechnicalExpectation={isTechnicalExpectation(getValues().expectation_type)} control={control} />
       <div className={classes.buttons}>
         <Button

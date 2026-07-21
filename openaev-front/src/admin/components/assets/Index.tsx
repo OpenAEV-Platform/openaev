@@ -14,6 +14,7 @@ const AssetDetail = lazy(() => import('./asset/AssetDetail'));
 const AssetGroups = lazy(() => import('./asset_groups/AssetGroups'));
 const AssetGroupDetail = lazy(() => import('./asset_groups/AssetGroupDetail'));
 const SecurityPlatforms = lazy(() => import('./security_platforms/SecurityPlatforms'));
+const SecurityPlatformDetail = lazy(() => import('./security_platforms/SecurityPlatformDetail'));
 
 const useStyles = makeStyles()(() => ({ root: { flexGrow: 1 } }));
 
@@ -100,6 +101,18 @@ const Index = () => {
                   subject: SUBJECTS.SECURITY_PLATFORMS,
                 }]}
                 Component={errorWrapper(SecurityPlatforms)()}
+              />
+            )}
+          />
+          <Route
+            path="security_platforms/:securityPlatformId/*"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.SECURITY_PLATFORMS,
+                }]}
+                Component={errorWrapper(SecurityPlatformDetail)()}
               />
             )}
           />

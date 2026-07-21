@@ -55,6 +55,11 @@ const TenantGroupsTab = () => {
         entityPrefix={ENTITY_TENANT_GROUP_PREFIX}
         availableFilterNames={TENANT_GROUP_FILTERS}
         queryableHelpers={queryableHelpers}
+        topBarButtons={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+            <CreateTenantGroup onCreate={addGroup} />
+          </Can>
+        )}
       />
       <List>
         <ListItem
@@ -96,9 +101,6 @@ const TenantGroupsTab = () => {
               />
             )}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-        <CreateTenantGroup onCreate={addGroup} />
-      </Can>
     </>
   );
 };

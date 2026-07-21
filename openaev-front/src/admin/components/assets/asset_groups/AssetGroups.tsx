@@ -1,5 +1,5 @@
 import { HelpOutlineOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -133,9 +133,14 @@ const AssetGroups = () => {
         entityPrefix="asset_group"
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
-        topBarButtons={
-          <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
-        }
+        topBarButtons={(
+          <Box display="flex" gap={1} alignItems="center">
+            <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
+              <AssetGroupCreation onCreate={result => setAssetGroups([result, ...assetGroups])} />
+            </Can>
+          </Box>
+        )}
       />
       <List>
         <ListItem
@@ -206,9 +211,6 @@ const AssetGroups = () => {
               ))
         }
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
-        <AssetGroupCreation onCreate={result => setAssetGroups([result, ...assetGroups])} />
-      </Can>
     </>
   );
 };

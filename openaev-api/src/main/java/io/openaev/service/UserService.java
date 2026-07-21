@@ -173,8 +173,14 @@ public class UserService {
 
   // -- READ --
 
-  /** Returns a user by ID (platform scope, no tenant filtering). */
-  @Transactional(readOnly = true)
+  /**
+   * Returns a user by ID (platform scope, no tenant filtering).
+   *
+   * <p>No {@code @Transactional} here: the annotation was dead on the only internal caller ({@link
+   * #changePassword}, which self-invokes this method and therefore bypasses the Spring proxy), and
+   * {@code userRepository.findById(...)} already runs under its own Spring Data JPA transaction for
+   * every external caller.
+   */
   public User user(@NotBlank final String userId) {
     return userRepository
         .findById(userId)

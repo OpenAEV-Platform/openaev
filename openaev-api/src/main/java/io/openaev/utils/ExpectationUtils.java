@@ -227,31 +227,43 @@ public class ExpectationUtils {
     return getExpectations(
         assetToExecute,
         executedAgents,
-        (AssetGroup assetGroup) ->
-            preventionExpectationForAsset(
-                expectation.getScore(),
-                expectation.getName(),
-                expectation.getDescription(),
-                assetToExecute.asset(),
-                assetGroup,
-                expectation.getExpirationTime()),
-        (Agent agent, AssetGroup assetGroup) ->
-            preventionExpectationForAgent(
-                expectation.getScore(),
-                expectation.getName(),
-                expectation.getDescription(),
-                OAEV_IMPLANT_CALDERA.equals(implantType) ? agent.getParent() : agent,
-                assetToExecute.asset(),
-                assetGroup,
-                expectation.getExpirationTime(),
-                computeSignatures(
-                    implantType,
-                    OAEV_IMPLANT_CALDERA.equals(implantType) ? agent.getInject().getId() : injectId,
-                    assetToExecute.asset(),
-                    OAEV_IMPLANT_CALDERA.equals(implantType)
-                        ? agent.getParent().getId()
-                        : agent.getId(),
-                    valueTargetedAssetsMap)),
+        (AssetGroup assetGroup) -> {
+          PreventionExpectation preventionExpectation =
+              preventionExpectationForAsset(
+                  expectation.getScore(),
+                  expectation.getName(),
+                  expectation.getDescription(),
+                  assetToExecute.asset(),
+                  assetGroup,
+                  expectation.getExpirationTime());
+          preventionExpectation.setExpectedSecurityPlatformTypes(
+              expectation.getExpectedSecurityPlatformTypes());
+          return preventionExpectation;
+        },
+        (Agent agent, AssetGroup assetGroup) -> {
+          PreventionExpectation preventionExpectation =
+              preventionExpectationForAgent(
+                  expectation.getScore(),
+                  expectation.getName(),
+                  expectation.getDescription(),
+                  OAEV_IMPLANT_CALDERA.equals(implantType) ? agent.getParent() : agent,
+                  assetToExecute.asset(),
+                  assetGroup,
+                  expectation.getExpirationTime(),
+                  computeSignatures(
+                      implantType,
+                      OAEV_IMPLANT_CALDERA.equals(implantType)
+                          ? agent.getInject().getId()
+                          : injectId,
+                      assetToExecute.asset(),
+                      OAEV_IMPLANT_CALDERA.equals(implantType)
+                          ? agent.getParent().getId()
+                          : agent.getId(),
+                      valueTargetedAssetsMap));
+          preventionExpectation.setExpectedSecurityPlatformTypes(
+              expectation.getExpectedSecurityPlatformTypes());
+          return preventionExpectation;
+        },
         isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject));
   }
 
@@ -277,31 +289,43 @@ public class ExpectationUtils {
     return getExpectations(
         assetToExecute,
         executedAgents,
-        (AssetGroup assetGroup) ->
-            detectionExpectationForAsset(
-                expectation.getScore(),
-                expectation.getName(),
-                expectation.getDescription(),
-                assetToExecute.asset(),
-                assetGroup,
-                expectation.getExpirationTime()),
-        (Agent agent, AssetGroup assetGroup) ->
-            detectionExpectationForAgent(
-                expectation.getScore(),
-                expectation.getName(),
-                expectation.getDescription(),
-                OAEV_IMPLANT_CALDERA.equals(implantType) ? agent.getParent() : agent,
-                assetToExecute.asset(),
-                assetGroup,
-                expectation.getExpirationTime(),
-                computeSignatures(
-                    implantType,
-                    OAEV_IMPLANT_CALDERA.equals(implantType) ? agent.getInject().getId() : injectId,
-                    assetToExecute.asset(),
-                    OAEV_IMPLANT_CALDERA.equals(implantType)
-                        ? agent.getParent().getId()
-                        : agent.getId(),
-                    valueTargetedAssetsMap)),
+        (AssetGroup assetGroup) -> {
+          DetectionExpectation detectionExpectation =
+              detectionExpectationForAsset(
+                  expectation.getScore(),
+                  expectation.getName(),
+                  expectation.getDescription(),
+                  assetToExecute.asset(),
+                  assetGroup,
+                  expectation.getExpirationTime());
+          detectionExpectation.setExpectedSecurityPlatformTypes(
+              expectation.getExpectedSecurityPlatformTypes());
+          return detectionExpectation;
+        },
+        (Agent agent, AssetGroup assetGroup) -> {
+          DetectionExpectation detectionExpectation =
+              detectionExpectationForAgent(
+                  expectation.getScore(),
+                  expectation.getName(),
+                  expectation.getDescription(),
+                  OAEV_IMPLANT_CALDERA.equals(implantType) ? agent.getParent() : agent,
+                  assetToExecute.asset(),
+                  assetGroup,
+                  expectation.getExpirationTime(),
+                  computeSignatures(
+                      implantType,
+                      OAEV_IMPLANT_CALDERA.equals(implantType)
+                          ? agent.getInject().getId()
+                          : injectId,
+                      assetToExecute.asset(),
+                      OAEV_IMPLANT_CALDERA.equals(implantType)
+                          ? agent.getParent().getId()
+                          : agent.getId(),
+                      valueTargetedAssetsMap));
+          detectionExpectation.setExpectedSecurityPlatformTypes(
+              expectation.getExpectedSecurityPlatformTypes());
+          return detectionExpectation;
+        },
         isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject));
   }
 
@@ -366,31 +390,43 @@ public class ExpectationUtils {
     return getExpectations(
         assetToExecute,
         executedAgents,
-        (AssetGroup assetGroup) ->
-            vulnerabilityExpectationForAsset(
-                expectation.getScore(),
-                expectation.getName(),
-                expectation.getDescription(),
-                assetToExecute.asset(),
-                assetGroup,
-                expectation.getExpirationTime()),
-        (Agent agent, AssetGroup assetGroup) ->
-            vulnerabilityExpectationForAgent(
-                expectation.getScore(),
-                expectation.getName(),
-                expectation.getDescription(),
-                OAEV_IMPLANT_CALDERA.equals(implantType) ? agent.getParent() : agent,
-                assetToExecute.asset(),
-                assetGroup,
-                expectation.getExpirationTime(),
-                computeSignatures(
-                    implantType,
-                    OAEV_IMPLANT_CALDERA.equals(implantType) ? agent.getInject().getId() : injectId,
-                    assetToExecute.asset(),
-                    OAEV_IMPLANT_CALDERA.equals(implantType)
-                        ? agent.getParent().getId()
-                        : agent.getId(),
-                    valueTargetedAssetsMap)),
+        (AssetGroup assetGroup) -> {
+          VulnerabilityExpectation vulnerabilityExpectation =
+              vulnerabilityExpectationForAsset(
+                  expectation.getScore(),
+                  expectation.getName(),
+                  expectation.getDescription(),
+                  assetToExecute.asset(),
+                  assetGroup,
+                  expectation.getExpirationTime());
+          vulnerabilityExpectation.setExpectedSecurityPlatformTypes(
+              expectation.getExpectedSecurityPlatformTypes());
+          return vulnerabilityExpectation;
+        },
+        (Agent agent, AssetGroup assetGroup) -> {
+          VulnerabilityExpectation vulnerabilityExpectation =
+              vulnerabilityExpectationForAgent(
+                  expectation.getScore(),
+                  expectation.getName(),
+                  expectation.getDescription(),
+                  OAEV_IMPLANT_CALDERA.equals(implantType) ? agent.getParent() : agent,
+                  assetToExecute.asset(),
+                  assetGroup,
+                  expectation.getExpirationTime(),
+                  computeSignatures(
+                      implantType,
+                      OAEV_IMPLANT_CALDERA.equals(implantType)
+                          ? agent.getInject().getId()
+                          : injectId,
+                      assetToExecute.asset(),
+                      OAEV_IMPLANT_CALDERA.equals(implantType)
+                          ? agent.getParent().getId()
+                          : agent.getId(),
+                      valueTargetedAssetsMap));
+          vulnerabilityExpectation.setExpectedSecurityPlatformTypes(
+              expectation.getExpectedSecurityPlatformTypes());
+          return vulnerabilityExpectation;
+        },
         isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject));
   }
 

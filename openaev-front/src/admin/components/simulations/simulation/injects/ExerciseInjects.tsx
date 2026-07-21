@@ -37,7 +37,6 @@ import ExerciseDistributionScoreByTeamInPercentage from '../overview/ExerciseDis
 import ExerciseDistributionScoreOverTimeByInjectorContract from '../overview/ExerciseDistributionScoreOverTimeByInjectorContract';
 import ExerciseDistributionScoreOverTimeByTeam from '../overview/ExerciseDistributionScoreOverTimeByTeam';
 import ExerciseDistributionScoreOverTimeByTeamInPercentage from '../overview/ExerciseDistributionScoreOverTimeByTeamInPercentage';
-import SimulationDefinition from '../SimulationDefinition';
 import teamContextForExercise from '../teams/teamContextForExercise';
 
 const useStyles = makeStyles()(() => ({
@@ -261,9 +260,6 @@ const ExerciseInjects: FunctionComponent = () => {
           </div>
         )}
       </ViewModeContext.Provider>
-      {/* Definition (teams, variables, articles, challenges) merged into the
-          authoring tab, matching the scenario experience. */}
-      <SimulationDefinition />
     </div>
   );
 };

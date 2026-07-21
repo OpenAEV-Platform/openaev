@@ -1,4 +1,6 @@
+import { MenuItem, Select } from '@mui/material';
 import { useCallback, useMemo } from 'react';
+import { useLocalStorage } from 'usehooks-ts';
 
 import { type KillChainPhaseHelper } from '../../../../../actions/kill_chain_phases/killchainphase-helper';
 import { type FacetRow, type FacetSection, FacetSidebar } from '../../../../../components/common/facets/FacetFilters';
@@ -14,6 +16,14 @@ import { type IconBarElement } from '../../domains/IconBar-model';
 const PLATFORM_FILTER_KEY = 'injector_contract_platforms';
 const KILL_CHAIN_FILTER_KEY = 'injector_contract_kill_chain_phases';
 const PLATFORMS = ['Windows', 'Linux', 'MacOS'];
+
+// Well-known kill chains get their official product name; custom ones fall back
+// to their raw name (mirrors the home dashboard MITRE matrix switcher).
+const KILL_CHAIN_LABELS: Record<string, string> = {
+  'mitre-attack': 'MITRE ATT&CK',
+  'mitre-atlas': 'MITRE ATLAS',
+};
+const killChainLabel = (name: string) => KILL_CHAIN_LABELS[name.toLowerCase()] ?? name;
 
 interface Props {
   /** Domain facet rows (with live counts + icons), already ordered. */
@@ -45,6 +55,26 @@ const InjectContractSidebar = ({ domainElements, searchPaginationInput, filterHe
     () => filters.find((f: Filter) => f.key === KILL_CHAIN_FILTER_KEY)?.values ?? [],
     [filters],
   );
+
+  const sortedPhases = useMemo(
+    () => Object.values(killChainPhasesMap).toSorted(sortKillChainPhase),
+    [killChainPhasesMap],
+  );
+  // Distinct kill chains on the platform (e.g. MITRE ATT&CK + MITRE ATLAS). The
+  // facet shows ONE kill chain's phases at a time; a switcher flips between them
+  // when several exist, so unrelated phases never interleave.
+  const killChains = useMemo(
+    () => [...new Set(sortedPhases.map(phase => phase.phase_kill_chain_name))].sort((a, b) => a.localeCompare(b)),
+    [sortedPhases],
+  );
+  const defaultKillChain = useMemo(
+    () => killChains.find(chain => chain.toLowerCase().includes('attack')) ?? killChains[0],
+    [killChains],
+  );
+  const [selectedKillChain, setSelectedKillChain] = useLocalStorage<string | null>('inject-contract-picker-kill-chain', null);
+  const activeKillChain = selectedKillChain != null && killChains.includes(selectedKillChain)
+    ? selectedKillChain
+    : defaultKillChain;
 
   const setFilterValues = useCallback(
     (key: string, values: string[]) => {
@@ -100,14 +130,38 @@ const InjectContractSidebar = ({ domainElements, searchPaginationInput, filterHe
       onToggle: () => toggleValue(PLATFORM_FILTER_KEY, platformValues, platform),
     }));
 
-    const killChainRows: FacetRow[] = Object.values(killChainPhasesMap)
-      .toSorted(sortKillChainPhase)
+    const killChainRows: FacetRow[] = sortedPhases
+      .filter(phase => phase.phase_kill_chain_name === activeKillChain)
       .map(phase => ({
         value: phase.phase_id,
         label: phase.phase_name,
         checked: killChainValues.includes(phase.phase_id),
         onToggle: () => toggleValue(KILL_CHAIN_FILTER_KEY, killChainValues, phase.phase_id),
       }));
+
+    // Only surface the switcher when more than one kill chain exists.
+    const killChainSwitcher = killChains.length > 1
+      ? (
+          <Select
+            size="small"
+            variant="standard"
+            disableUnderline
+            fullWidth
+            value={activeKillChain ?? ''}
+            onChange={e => setSelectedKillChain(e.target.value)}
+            sx={{
+              'fontFamily': '"Geologica", sans-serif',
+              'fontWeight': 600,
+              'fontSize': 13,
+              '& .MuiSelect-select': { paddingBlock: 0.25 },
+            }}
+          >
+            {killChains.map(chain => (
+              <MenuItem key={chain} value={chain}>{killChainLabel(chain)}</MenuItem>
+            ))}
+          </Select>
+        )
+      : undefined;
 
     return [
       {
@@ -124,9 +178,10 @@ const InjectContractSidebar = ({ domainElements, searchPaginationInput, filterHe
         id: 'kill-chain',
         label: t('Kill chain phase'),
         rows: killChainRows,
+        headerAction: killChainSwitcher,
       },
     ].filter(section => section.rows.length > 0);
-  }, [domainElements, platformValues, killChainValues, killChainPhasesMap, toggleValue, t]);
+  }, [domainElements, platformValues, killChainValues, sortedPhases, killChains, activeKillChain, setSelectedKillChain, toggleValue, t]);
 
   const anyActive = platformValues.length > 0
     || killChainValues.length > 0

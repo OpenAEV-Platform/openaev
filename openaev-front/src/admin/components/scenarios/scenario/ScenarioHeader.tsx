@@ -12,13 +12,12 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, Divider, IconButton, Paper, Tooltip, Typography } from '@mui/material';
+import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type Dispatch, type SetStateAction, useContext, useEffect, useState } from 'react';
+import { type Dispatch, type SetStateAction, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { createCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
-import { playInjectsAssistantForScenario } from '../../../../actions/Inject';
 import {
   createRunningExerciseFromScenario,
   searchScenarioHealthcheks,
@@ -28,7 +27,6 @@ import {
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { HeroStat, HeroStats } from '../../../../components/common/detail/EntityDetailCommon';
 import Drawer from '../../../../components/common/Drawer';
-import LoaderDialog from '../../../../components/common/loader/LoaderDialog';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCategory from '../../../../components/ItemCategory';
@@ -39,7 +37,6 @@ import {
   type CustomDashboard,
   type Exercise,
   type HealthCheck,
-  type InjectAssistantInput,
   type Scenario,
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
@@ -50,9 +47,9 @@ import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExp
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
-import { InjectContext } from '../../common/Context';
-import CustomDashboardForm, { type CustomDashboardFormType } from '../../workspaces/custom_dashboards/CustomDashboardForm';
-import ScenarioAssistantDrawer from './scenario_assistant/ScenarioAssistantDrawer';
+import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
+import { type CustomDashboardFormType } from '../../workspaces/custom_dashboards/CustomDashboardForm';
+import DashboardCreationDrawer from '../../workspaces/custom_dashboards/DashboardCreationDrawer';
 import ScenarioConfiguration from './ScenarioConfiguration';
 import ScenarioPopover from './ScenarioPopover';
 import ScenarioRecurringFormDialog from './ScenarioRecurringFormDialog';
@@ -91,15 +88,19 @@ const ScenarioHeader = ({
   const theme = useTheme();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
   const [openScenarioAssistantQueryParam] = useQueryParameter(['openScenarioAssistant']);
-  const { injects, setInjects } = useContext(InjectContext);
   const { canLaunch, canManage } = useScenarioPermissions(scenarioId);
 
-  const [openScenarioAssistant, setOpenScenarioAssistant] = useState(openScenarioAssistantQueryParam === 'true');
   const [openCreateDashboard, setOpenCreateDashboard] = useState(false);
   const [openConfiguration, setOpenConfiguration] = useState(false);
-  const [openLoaderDialog, setOpenLoaderDialog] = useState(false);
-  const [isInjectAssistantLoading, setIsInjectAssistantLoading] = useState(false);
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+
+  // Preserve the deep link that used to open the assistant drawer: it now
+  // routes to the dedicated full-page assistant.
+  useEffect(() => {
+    if (openScenarioAssistantQueryParam === 'true') {
+      navigate(`/admin/scenarios/${scenarioId}/assistant`, { replace: true });
+    }
+  }, [openScenarioAssistantQueryParam, scenarioId]);
   // Fetching data
   const { scenario }: { scenario: Scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
 
@@ -120,10 +121,8 @@ const ScenarioHeader = ({
   const playersCount = scenario.scenario_all_users_number ?? scenario.scenario_users_number ?? 0;
 
   useEffect(() => {
-    if (isChainingFeatureEnabled && scenarioWorkflowId) {
-      searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
-    }
-  }, [scenarioId, scenario, isChainingFeatureEnabled]);
+    searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
+  }, [scenarioId, scenario]);
 
   const onSubmit = (cron: Cron, start: string, end?: string) => {
     dispatch(updateScenarioRecurrence(scenarioId, {
@@ -136,16 +135,6 @@ const ScenarioHeader = ({
       }
     });
     setOpenScenarioRecurringFormDialog(false);
-  };
-
-  const onScenarioInjectAssistantSubmit = (data: InjectAssistantInput) => {
-    setOpenScenarioAssistant(false);
-    setIsInjectAssistantLoading(true);
-    setOpenLoaderDialog(true);
-    playInjectsAssistantForScenario(scenarioId, data).then((results) => {
-      setInjects([...injects, ...results.data]);
-      setIsInjectAssistantLoading(false);
-    }).catch(() => setOpenLoaderDialog(false));
   };
 
   useEffect(() => {
@@ -198,16 +187,23 @@ const ScenarioHeader = ({
     }
   };
 
+  const attachDashboard = async (dashboardId: string) => {
+    setOpenCreateDashboard(false);
+    await dispatch(updateScenario(scenario.scenario_id, {
+      ...scenario,
+      scenario_custom_dashboard: dashboardId,
+    }));
+    navigate(`/admin/scenarios/${scenarioId}/dashboard`);
+  };
+
   const onCreateDashboard = async (data: CustomDashboardFormType) => {
     const response = await createCustomDashboard(data);
     const newDashboardId = (response.data as CustomDashboard | undefined)?.custom_dashboard_id;
-    setOpenCreateDashboard(false);
-    if (!newDashboardId) return;
-    await dispatch(updateScenario(scenario.scenario_id, {
-      ...scenario,
-      scenario_custom_dashboard: newDashboardId,
-    }));
-    navigate(`/admin/scenarios/${scenarioId}/dashboard`);
+    if (!newDashboardId) {
+      setOpenCreateDashboard(false);
+      return;
+    }
+    await attachDashboard(newDashboardId);
   };
 
   const scheduleLabel = cronObject?.isValid() ? humanReadableScheduling() : t('Not scheduled');
@@ -301,27 +297,27 @@ const ScenarioHeader = ({
           </Box>
 
           <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            flexWrap: 'wrap',
+            'display': 'flex',
+            'alignItems': 'center',
+            'gap': 1,
+            'flexWrap': 'wrap',
+            // Uniform 32px height for every hero action (text buttons - even
+            // Tooltip/span-wrapped ones - and the kebab) so the top-right row
+            // lines up perfectly. The icon toolbar cluster sizes its own
+            // IconButtons below (its border is part of the 32px). Popover/drawer
+            // actions render in portals, so they are unaffected.
+            '& .MuiButton-root': { height: 32 },
+            '& .MuiToggleButton-root': {
+              width: 32,
+              height: 32,
+            },
           }}
           >
-            {canManage && !isScenarioChaining && (
-              <Button
-                variant="outlined"
-                color="inherit"
-                size="small"
-                startIcon={<TuneOutlined />}
-                sx={{
-                  lineHeight: 'initial',
-                  borderColor: theme.palette.divider,
-                }}
-                onClick={() => setOpenConfiguration(true)}
-              >
-                {t('Configuration')}
-              </Button>
+            {/* Discrete configuration nudge, kept out of the way top-right. */}
+            {canManage && (
+              <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />
             )}
+            {/* Primary actions: analyze, assist, and the one prominent CTA. */}
             {canManage && (
               <Button
                 variant="outlined"
@@ -340,14 +336,19 @@ const ScenarioHeader = ({
             {canManage && !isScenarioChaining && (
               <Button
                 variant="outlined"
-                color="inherit"
                 size="small"
                 startIcon={<AutoAwesomeOutlined />}
                 sx={{
-                  lineHeight: 'initial',
-                  borderColor: theme.palette.divider,
+                  'lineHeight': 'initial',
+                  'color': theme.palette.ai.main,
+                  'borderColor': alpha(theme.palette.ai.main, 0.5),
+                  'backgroundColor': alpha(theme.palette.ai.main, 0.06),
+                  '&:hover': {
+                    borderColor: theme.palette.ai.main,
+                    backgroundColor: alpha(theme.palette.ai.main, 0.12),
+                  },
                 }}
-                onClick={() => setOpenScenarioAssistant(true)}
+                onClick={() => navigate(`/admin/scenarios/${scenarioId}/assistant`)}
               >
                 {t('Scenario assistant')}
               </Button>
@@ -381,16 +382,30 @@ const ScenarioHeader = ({
                   </span>
                 </Tooltip>
               )}
+            {/* Setup actions grouped into one cohesive icon toolbar. */}
             {canManage && (
-              <>
-                <Divider
-                  orientation="vertical"
-                  flexItem
-                  sx={{
-                    marginX: 0.5,
-                    marginY: 0.5,
-                  }}
-                />
+              <Box sx={{
+                'display': 'flex',
+                'alignItems': 'center',
+                'marginLeft': 0.5,
+                'height': 32,
+                'borderRadius': 1,
+                'border': `1px solid ${theme.palette.divider}`,
+                'overflow': 'hidden',
+                '& .MuiIconButton-root': {
+                  borderRadius: 0,
+                  height: 30,
+                },
+                '& .MuiIconButton-root:not(:first-of-type)': { borderLeft: `1px solid ${theme.palette.divider}` },
+              }}
+              >
+                {!isScenarioChaining && (
+                  <Tooltip title={t('Configuration')}>
+                    <IconButton size="small" onClick={() => setOpenConfiguration(true)}>
+                      <TuneOutlined fontSize="small" color="primary" />
+                    </IconButton>
+                  </Tooltip>
+                )}
                 <Tooltip title={t('Notification rules')}>
                   <IconButton size="small" onClick={() => setOpenScenarioNotificationRuleDrawer(true)}>
                     <NotificationsOutlined fontSize="small" color={editNotification ? 'success' : 'primary'} />
@@ -401,7 +416,7 @@ const ScenarioHeader = ({
                     <UpdateOutlined fontSize="small" color="primary" />
                   </IconButton>
                 </Tooltip>
-              </>
+              </Box>
             )}
             <ScenarioPopover
               scenario={scenario}
@@ -479,11 +494,6 @@ const ScenarioHeader = ({
           </Button>
         </DialogActions>
       </Dialog>
-      <ScenarioAssistantDrawer
-        open={openScenarioAssistant}
-        onClose={() => setOpenScenarioAssistant(false)}
-        onSubmit={(data: InjectAssistantInput) => onScenarioInjectAssistantSubmit(data)}
-      />
       <Drawer
         open={openConfiguration}
         handleClose={() => setOpenConfiguration(false)}
@@ -491,32 +501,14 @@ const ScenarioHeader = ({
       >
         <ScenarioConfiguration />
       </Drawer>
-      <Drawer
+      <DashboardCreationDrawer
         open={openCreateDashboard}
-        handleClose={() => setOpenCreateDashboard(false)}
-        title={t('Create a custom dashboard')}
-      >
-        <CustomDashboardForm
-          onSubmit={onCreateDashboard}
-          handleClose={() => setOpenCreateDashboard(false)}
-          initialValues={{
-            custom_dashboard_name: scenario.scenario_name,
-            custom_dashboard_description: '',
-            custom_dashboard_parameters: [{
-              custom_dashboards_parameter_name: 'scenario',
-              custom_dashboards_parameter_type: 'scenario',
-            }],
-          }}
-        />
-      </Drawer>
-      <LoaderDialog
-        open={openLoaderDialog}
-        isSubmitting={isInjectAssistantLoading}
-        loadMessage={t('Injects generation in progress...')}
-        successMessage={t('Injects successfully generated.')}
-        redirectButtonLabel={t('Access these injects')}
-        redirectLink={`/admin/scenarios/${scenarioId}/injects`}
-        onClose={() => setOpenLoaderDialog(false)}
+        onClose={() => setOpenCreateDashboard(false)}
+        defaultName={scenario.scenario_name}
+        parameterType="scenario"
+        resourceId={scenarioId}
+        onSelectExisting={attachDashboard}
+        onCreateNew={onCreateDashboard}
       />
     </>
   );

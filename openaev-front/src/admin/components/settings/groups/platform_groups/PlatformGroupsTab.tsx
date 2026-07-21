@@ -53,6 +53,11 @@ const PlatformGroupsTab = () => {
         entityPrefix={ENTITY_PLATFORM_GROUP_PREFIX}
         availableFilterNames={PLATFORM_GROUP_FILTERS}
         queryableHelpers={queryableHelpers}
+        topBarButtons={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES}>
+            <PlatformGroupCreate onCreate={addPlatformGroup} />
+          </Can>
+        )}
       />
       <List>
         <ListItem
@@ -94,9 +99,6 @@ const PlatformGroupsTab = () => {
               />
             )}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES}>
-        <PlatformGroupCreate onCreate={addPlatformGroup} />
-      </Can>
     </>
   );
 };

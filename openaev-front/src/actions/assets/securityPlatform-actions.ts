@@ -35,6 +35,10 @@ export const fetchSecurityPlatforms = () => (dispatch: Dispatch) => {
   return getReferential(arrayOfSecurityPlatforms, SECURITY_PLATFORM_URI)(dispatch);
 };
 
+export const fetchSecurityPlatform = (assetId: SecurityPlatform['asset_id']) => {
+  return simpleCall(`${SECURITY_PLATFORM_URI}/${assetId}`);
+};
+
 export const searchSecurityPlatforms = (searchPaginationInput: SearchPaginationInput) => {
   const data = searchPaginationInput;
   const uri = `${SECURITY_PLATFORM_URI}/search`;

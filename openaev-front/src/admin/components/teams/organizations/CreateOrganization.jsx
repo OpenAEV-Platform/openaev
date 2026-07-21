@@ -1,23 +1,13 @@
-import { Add } from '@mui/icons-material';
-import { Fab } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
-import { withStyles } from 'tss-react/mui';
 
 import { addOrganization } from '../../../../actions/Organization';
+import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Drawer from '../../../../components/common/Drawer';
 import inject18n from '../../../../components/i18n';
 import OrganizationForm from './OrganizationForm';
-
-const styles = () => ({
-  createButton: {
-    position: 'fixed',
-    bottom: 30,
-    right: 30,
-  },
-});
 
 class CreateOrganizationComponent extends Component {
   constructor(props) {
@@ -43,17 +33,10 @@ class CreateOrganizationComponent extends Component {
   }
 
   render() {
-    const { classes, t } = this.props;
+    const { t } = this.props;
     return (
       <div>
-        <Fab
-          onClick={this.handleOpen.bind(this)}
-          color="primary"
-          aria-label="Add"
-          className={classes.createButton}
-        >
-          <Add />
-        </Fab>
+        <ButtonCreate onClick={this.handleOpen.bind(this)} />
         <Drawer
           open={this.state.open}
           handleClose={this.handleClose.bind(this)}
@@ -71,7 +54,6 @@ class CreateOrganizationComponent extends Component {
 }
 
 CreateOrganizationComponent.propTypes = {
-  classes: PropTypes.object,
   t: PropTypes.func,
   addOrganization: PropTypes.func,
 };
@@ -79,7 +61,6 @@ CreateOrganizationComponent.propTypes = {
 const CreateOrganization = R.compose(
   connect(null, { addOrganization }),
   inject18n,
-  Component => withStyles(Component, styles),
 )(CreateOrganizationComponent);
 
 export default CreateOrganization;
