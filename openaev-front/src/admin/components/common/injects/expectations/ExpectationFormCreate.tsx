@@ -71,8 +71,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
   };
 
   const computeValuesFromType = (type: string): ExpectationInputForm => {
-    const expectationDefinition = availableExpectations.find(pe => pe.expectation_type === type)
-      ?? availableExpectations.find(pe => pe.expectation_type === type);
+    const expectationDefinition = availableExpectations.find(pe => pe.expectation_type === type);
     if (expectationDefinition) {
       const expirationTime = splitDuration(expectationDefinition.expectation_expiration_time || 0);
       return {
@@ -88,6 +87,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         expiration_time_days: Number.parseInt(expirationTime.days, 10),
         expiration_time_hours: Number.parseInt(expirationTime.hours, 10),
         expiration_time_minutes: Number.parseInt(expirationTime.minutes, 10),
+        expectation_is_predefined: expectationDefinition.expectation_is_predefined,
       };
     }
     const expirationTime = splitDuration(expectationExpirationTime || 0);
@@ -101,6 +101,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
       expiration_time_days: Number.parseInt(expirationTime.days, 10),
       expiration_time_hours: Number.parseInt(expirationTime.hours, 10),
       expiration_time_minutes: Number.parseInt(expirationTime.minutes, 10),
+      expectation_is_predefined: false,
     };
   };
 
