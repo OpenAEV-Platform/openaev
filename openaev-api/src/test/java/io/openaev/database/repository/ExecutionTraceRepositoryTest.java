@@ -70,8 +70,10 @@ class ExecutionTraceRepositoryTest extends IntegrationTest {
 
       executionTraceRepository.saveAll(
           List.of(
-              createTrace(injectStatus, "late", Instant.parse("2026-01-01T10:00:03Z"), agent, List.of()),
-              createTrace(injectStatus, "early", Instant.parse("2026-01-01T10:00:01Z"), agent, List.of()),
+              createTrace(
+                  injectStatus, "late", Instant.parse("2026-01-01T10:00:03Z"), agent, List.of()),
+              createTrace(
+                  injectStatus, "early", Instant.parse("2026-01-01T10:00:01Z"), agent, List.of()),
               createTrace(
                   injectStatus,
                   "middle",
@@ -87,7 +89,9 @@ class ExecutionTraceRepositoryTest extends IntegrationTest {
               injectStatus.getInject().getId(), agent.getId());
 
       // Assert
-      assertThat(traces).extracting(ExecutionTrace::getMessage).containsExactly("early", "middle", "late");
+      assertThat(traces)
+          .extracting(ExecutionTrace::getMessage)
+          .containsExactly("early", "middle", "late");
     }
   }
 
@@ -138,7 +142,9 @@ class ExecutionTraceRepositoryTest extends IntegrationTest {
               injectStatus.getInject().getId(), endpointId);
 
       // Assert
-      assertThat(traces).extracting(ExecutionTrace::getMessage).containsExactly("early", "middle", "late");
+      assertThat(traces)
+          .extracting(ExecutionTrace::getMessage)
+          .containsExactly("early", "middle", "late");
     }
 
     @Test
@@ -183,7 +189,9 @@ class ExecutionTraceRepositoryTest extends IntegrationTest {
               injectStatus.getInject().getId(), assetIdentifier);
 
       // Assert
-      assertThat(traces).extracting(ExecutionTrace::getMessage).containsExactly("early", "middle", "late");
+      assertThat(traces)
+          .extracting(ExecutionTrace::getMessage)
+          .containsExactly("early", "middle", "late");
     }
   }
 
@@ -198,7 +206,12 @@ class ExecutionTraceRepositoryTest extends IntegrationTest {
       InjectStatus injectStatus = createInjectStatus();
 
       var user = userComposer.forUser(getUserWithDefaultEmail()).persist().get();
-      var team = teamComposer.forTeam(getDefaultTeam()).withUser(userComposer.forUser(user)).persist().get();
+      var team =
+          teamComposer
+              .forTeam(getDefaultTeam())
+              .withUser(userComposer.forUser(user))
+              .persist()
+              .get();
 
       executionTraceRepository.saveAll(
           List.of(
@@ -235,7 +248,9 @@ class ExecutionTraceRepositoryTest extends IntegrationTest {
               injectStatus.getInject().getId(), team.getId());
 
       // Assert
-      assertThat(traces).extracting(ExecutionTrace::getMessage).containsExactly("early", "middle", "late");
+      assertThat(traces)
+          .extracting(ExecutionTrace::getMessage)
+          .containsExactly("early", "middle", "late");
     }
   }
 
@@ -285,7 +300,9 @@ class ExecutionTraceRepositoryTest extends IntegrationTest {
               injectStatus.getInject().getId(), playerId);
 
       // Assert
-      assertThat(traces).extracting(ExecutionTrace::getMessage).containsExactly("early", "middle", "late");
+      assertThat(traces)
+          .extracting(ExecutionTrace::getMessage)
+          .containsExactly("early", "middle", "late");
     }
   }
 
@@ -294,7 +311,8 @@ class ExecutionTraceRepositoryTest extends IntegrationTest {
         injectComposer
             .forInject(InjectFixture.getDefaultInject())
             .withInjectStatus(
-                injectStatusComposer.forInjectStatus(InjectStatusFixture.createPendingInjectStatus()))
+                injectStatusComposer.forInjectStatus(
+                    InjectStatusFixture.createPendingInjectStatus()))
             .persist()
             .get();
     return inject.getStatus().orElseThrow();
@@ -322,5 +340,3 @@ class ExecutionTraceRepositoryTest extends IntegrationTest {
         time);
   }
 }
-
-

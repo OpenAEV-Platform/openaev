@@ -22,6 +22,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.aop.WorkflowUpdateEvent;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.specification.InjectExpectationSpecification;
@@ -187,6 +189,22 @@ public class InjectExpectationService {
         .orElseThrow(ElementNotFoundException::new);
   }
 
+  /**
+   * Retrieves all inject expectations for a given inject ID, scoped to the current tenant.
+   *
+   * <p>Pre-loads agent / asset / assetGroup relations of technical expectations via a JOIN FETCH
+   * JPQL query before issuing the native query, so the Hibernate session cache serves already
+   * hydrated instances and avoids N+1 lazy loads when callers access those relations.
+   *
+   * @param injectId the inject ID
+   * @return the list of expectations for the inject
+   */
+  @Transactional(readOnly = true)
+  public List<BaseInjectExpectation> findAllByInjectId(@NotBlank final String injectId) {
+    String tenantId = TenantContext.getCurrentTenant();
+    return this.injectExpectationRepository.findTechnicalByInjectIdWithRelations(injectId, tenantId);
+  }
+
   // -- UPDATE FROM UI --
 
   /**
@@ -197,6 +215,7 @@ public class InjectExpectationService {
    * @return the updated inject expectation
    * @throws IllegalArgumentException if trying to update an Asset Group expectation directly
    */
+  @WorkflowUpdateEvent(expectationIds = "#expectationId")
   public BaseInjectExpectation updateInjectExpectation(
       @NotBlank final String expectationId, @NotNull final ExpectationUpdateInput input) {
     BaseInjectExpectation baseInjectExpectation = this.findInjectExpectation(expectationId);
@@ -499,6 +518,7 @@ public class InjectExpectationService {
    * @param input the update input from the collector
    * @return the updated inject expectation
    */
+  @WorkflowUpdateEvent(expectationIds = "#expectationId")
   public BaseInjectExpectation updateInjectExpectation(
       @NotBlank String expectationId, @Valid @NotNull InjectExpectationUpdateInput input) {
     BaseInjectExpectation baseInjectExpectation = this.findInjectExpectation(expectationId);
@@ -585,6 +605,7 @@ public class InjectExpectationService {
    * @param shouldPropagateLastInjectExpectationResult whether to copy the triggering result to
    *     parents when their score completes
    */
+  @WorkflowUpdateEvent(expectationIds = "#expectations.![id]")
   public void bulkComputeTechnicalExpectations(
       @NotNull final List<TechnicalInjectExpectation> expectations,
       @NotNull final Map<String, InjectExpectationUpdateInput> inputsById,
