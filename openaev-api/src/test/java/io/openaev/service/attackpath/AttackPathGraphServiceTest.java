@@ -175,6 +175,63 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("A source-only endpoint node carries its frozen hostname, ip and platform")
+  void source_only_endpoint_carries_its_frozen_attributes() {
+    // "gw-01" attacks "victim-only" and is itself never a target, so the ASSET pass never fills it;
+    // its attributes must come from the frozen source columns of its own execution.
+    AttackPathExecution e = new AttackPathExecution();
+    e.setTenant(tenant);
+    e.setSimulationId(SIM);
+    e.setSourceKind("AGENT_ASSET");
+    e.setSourceAssetId("gw-01");
+    e.setSourceHostname("GATEWAY-01");
+    e.setSourceIp("10.0.9.1");
+    e.setSourcePlatform("Linux");
+    e.setAgentId("agent-9");
+    e.setAgentName("OpenAEV");
+    e.setTargetKind("ASSET");
+    e.setTargetAssetId("victim-only");
+    e.setTargetKey("victim-only");
+    e.setExecutedAt(at(15));
+    executionRepository.save(e);
+    entityManager.flush();
+
+    AttackPathNodeDTO sourceNode =
+        nodeById(service.buildGraph(SIM), AttackPathIds.endpointNode("gw-01"));
+    assertThat(sourceNode.getHostname()).isEqualTo("GATEWAY-01");
+    assertThat(sourceNode.getIp()).isEqualTo("10.0.9.1");
+    assertThat(sourceNode.getPlatform()).isEqualTo("Linux");
+    assertThat(sourceNode.getLabel()).isEqualTo("GATEWAY-01");
+  }
+
+  @Test
+  @DisplayName("Collapsed mode also renders a source-only endpoint's frozen attributes")
+  void collapsed_source_only_endpoint_carries_its_frozen_attributes() {
+    AttackPathExecution e = new AttackPathExecution();
+    e.setTenant(tenant);
+    e.setSimulationId(SIM);
+    e.setSourceKind("AGENT_ASSET");
+    e.setSourceAssetId("gw-02");
+    e.setSourceHostname("GATEWAY-02");
+    e.setSourceIp("10.0.9.2");
+    e.setSourcePlatform("Windows");
+    e.setAgentId("agent-8");
+    e.setTargetKind("ASSET");
+    e.setTargetAssetId("victim-coll");
+    e.setTargetKey("victim-coll");
+    e.setExecutedAt(at(16));
+    executionRepository.save(e);
+    entityManager.flush();
+
+    AttackPathNodeDTO sourceNode =
+        nodeById(service.buildGraph(SIM, "collapsed"), AttackPathIds.endpointNode("gw-02"));
+    assertThat(sourceNode.getHostname()).isEqualTo("GATEWAY-02");
+    assertThat(sourceNode.getIp()).isEqualTo("10.0.9.2");
+    assertThat(sourceNode.getPlatform()).isEqualTo("Windows");
+    assertThat(sourceNode.getLabel()).isEqualTo("GATEWAY-02");
+  }
+
+  @Test
   @DisplayName("The injector node carries its ATT&CK techniques and real injector type")
   void injector_node_exposes_attack_patterns_and_type() {
     // A real contract with an ATT&CK technique, frozen onto an injector execution by its external

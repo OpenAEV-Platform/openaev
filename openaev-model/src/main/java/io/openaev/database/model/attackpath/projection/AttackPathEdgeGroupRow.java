@@ -7,4 +7,13 @@ package io.openaev.database.model.attackpath.projection;
  * materialized.
  */
 public record AttackPathEdgeGroupRow(
-    String sourceKind, String sourceInjector, String sourceAssetId, String targetKey, long count) {}
+    String sourceKind,
+    String sourceInjector,
+    String sourceAssetId,
+    // Frozen source endpoint attributes, constant per source asset within a simulation, so a
+    // source-only endpoint renders them in collapsed mode too rather than a bare id.
+    String sourceHostname,
+    String sourceIp,
+    String sourcePlatform,
+    String targetKey,
+    long count) {}

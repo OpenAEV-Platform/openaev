@@ -663,9 +663,21 @@ public class AttackPathGraphService {
   }
 
   private AttackPathNodeDTO collapsedSourceNode(AttackPathEdgeGroupRow g, String id) {
-    return SOURCE_INJECTOR.equals(g.sourceKind())
-        ? node(id, TYPE_INJECTOR, g.sourceInjector())
-        : node(id, TYPE_ASSET, g.sourceAssetId());
+    if (SOURCE_INJECTOR.equals(g.sourceKind())) {
+      return node(id, TYPE_INJECTOR, g.sourceInjector());
+    }
+    // Agent/asset source: its frozen attributes, so a source-only endpoint is not a bare id. The
+    // endpoint pass runs first and already put a richer target node for a source that is also a
+    // target, so this computeIfAbsent only ever creates a node for a source-only endpoint.
+    AttackPathNodeDTO sourceEndpoint = new AttackPathNodeDTO();
+    sourceEndpoint.setId(id);
+    sourceEndpoint.setType(TYPE_ASSET);
+    sourceEndpoint.setRef(g.sourceAssetId());
+    sourceEndpoint.setHostname(g.sourceHostname());
+    sourceEndpoint.setIp(g.sourceIp());
+    sourceEndpoint.setPlatform(g.sourcePlatform());
+    sourceEndpoint.setLabel(g.sourceHostname() != null ? g.sourceHostname() : g.sourceAssetId());
+    return sourceEndpoint;
   }
 
   private String sourceNodeId(AttackPathExecutionRow e) {
@@ -687,9 +699,23 @@ public class AttackPathGraphService {
             return injectorNode;
           });
     } else {
-      // Agent/asset source: the source endpoint. A placeholder node, overwritten if it is also a
-      // target (a pivot chain) by the ASSET pass above.
-      nodes.computeIfAbsent(id, key -> node(key, TYPE_ASSET, e.sourceAssetId()));
+      // Agent/asset source: the source endpoint, from its frozen source attributes. If it is also a
+      // target (a pivot chain), the ASSET pass overwrites it with the richer target snapshot; if it
+      // is only ever a source, these frozen values are all it has, so the node is not a bare id.
+      nodes.computeIfAbsent(
+          id,
+          key -> {
+            AttackPathNodeDTO sourceEndpoint = new AttackPathNodeDTO();
+            sourceEndpoint.setId(key);
+            sourceEndpoint.setType(TYPE_ASSET);
+            sourceEndpoint.setRef(e.sourceAssetId());
+            sourceEndpoint.setHostname(e.sourceHostname());
+            sourceEndpoint.setIp(e.sourceIp());
+            sourceEndpoint.setPlatform(e.sourcePlatform());
+            sourceEndpoint.setLabel(
+                e.sourceHostname() != null ? e.sourceHostname() : e.sourceAssetId());
+            return sourceEndpoint;
+          });
     }
     return id;
   }
