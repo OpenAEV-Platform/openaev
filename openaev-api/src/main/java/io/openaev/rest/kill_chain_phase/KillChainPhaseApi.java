@@ -27,9 +27,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -56,9 +54,7 @@ public class KillChainPhaseApi extends RestBehavior {
   public Page<KillChainPhase> killChainPhases(
       TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
-            this.killChainPhaseRepository::findAll,
-        searchPaginationInput,
-        KillChainPhase.class);
+        this.killChainPhaseRepository::findAll, searchPaginationInput, KillChainPhase.class);
   }
 
   @GetMapping("/{killChainPhaseId}")

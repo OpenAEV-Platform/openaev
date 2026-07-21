@@ -53,8 +53,7 @@ class KillChainPhaseTenantIsolationTest extends TenantIsolationIntegrationTest {
     setScope(TENANT_A);
     assertEquals(
         0, deleteRow("kill_chain_phases", "phase_name", PHASE_B), "A cannot delete B's phase");
-    assertEquals(
-        1, deleteRow("kill_chain_phases", "phase_name", PHASE_A), "A can delete its own");
+    assertEquals(1, deleteRow("kill_chain_phases", "phase_name", PHASE_A), "A can delete its own");
 
     setScope(TENANT_B);
     assertEquals(1, countVisible("kill_chain_phases", "phase_name", PHASE_A, PHASE_B));
