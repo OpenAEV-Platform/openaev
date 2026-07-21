@@ -73,7 +73,8 @@ const ThreatArsenalScenarioUpdateComponent = ({ isExclusionMode, selectedElement
           }}
           >
             <Button
-              variant="contained"
+              variant="outlined"
+              color="primary"
               onClick={handleClose}
               style={{ marginRight: theme.spacing(1) }}
               disabled={isSubmitting}
@@ -83,7 +84,7 @@ const ThreatArsenalScenarioUpdateComponent = ({ isExclusionMode, selectedElement
             <Button
               variant="contained"
               type="submit"
-              color="secondary"
+              color="primary"
               disabled={scenarioValues?.length === 0 || isSubmitting}
             >
               {t('Update')}

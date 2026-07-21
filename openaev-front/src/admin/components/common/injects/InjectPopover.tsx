@@ -294,10 +294,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDone}>
+          <Button variant="outlined" color="primary" onClick={handleCloseDone}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitDone}>
+          <Button variant="contained" color="primary" onClick={submitDone}>
             {t('Mark')}
           </Button>
         </DialogActions>
@@ -326,10 +326,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseEnable}>
+          <Button variant="outlined" color="primary" onClick={handleCloseEnable}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitEnable}>
+          <Button variant="contained" color="primary" onClick={submitEnable}>
             {t('Enable')}
           </Button>
         </DialogActions>
@@ -346,10 +346,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDisable}>
+          <Button variant="outlined" color="primary" onClick={handleCloseDisable}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitDisable}>
+          <Button variant="contained" color="primary" onClick={submitDisable}>
             {t('Disable')}
           </Button>
         </DialogActions>
@@ -366,10 +366,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseTrigger}>
+          <Button variant="outlined" color="primary" onClick={handleCloseTrigger}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitTrigger}>
+          <Button variant="contained" color="primary" onClick={submitTrigger}>
             {t('Trigger')}
           </Button>
         </DialogActions>

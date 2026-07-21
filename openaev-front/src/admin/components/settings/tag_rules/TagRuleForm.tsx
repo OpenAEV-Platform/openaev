@@ -139,7 +139,7 @@ const TagRuleForm: FunctionComponent<Props> = ({
       >
         <Button
           variant="contained"
-          color="secondary"
+          color="primary"
           type="submit"
         >
           {editing ? t('Update') : t('Create')}

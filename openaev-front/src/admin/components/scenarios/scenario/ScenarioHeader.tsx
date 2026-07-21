@@ -387,11 +387,12 @@ const ScenarioHeader = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenInstantiateSimulationAndStart(false)}>
+          <Button variant="outlined" color="primary" onClick={() => setOpenInstantiateSimulationAndStart(false)}>
             {t('Cancel')}
           </Button>
           <Button
-            color="secondary"
+            variant="contained"
+            color="primary"
             onClick={async () => {
               setOpenInstantiateSimulationAndStart(false);
               const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;

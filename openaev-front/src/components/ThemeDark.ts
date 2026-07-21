@@ -378,11 +378,14 @@ const ThemeDark = (
   components: {
     MuiAccordion: { defaultProps: { slotProps: { transition: { unmountOnExit: true } } } },
     MuiButton: {
+      defaultProps: { disableElevation: true },
       styleOverrides: {
         root: {
           // Sentence-case buttons everywhere (aligned with OpenCTI), instead of
           // MUI's default ALL-CAPS. Labels render exactly as written.
+          // Weight 600 matches OpenCTI's design-system button typography.
           'textTransform': 'none',
+          'fontWeight': 600,
           [`&.${buttonClasses.outlined}.${buttonClasses.sizeSmall}`]: { padding: '4px 9px' },
           '&.icon-outlined': {
             'borderColor': hexToRGB('#ffffff', 0.15),
@@ -394,6 +397,16 @@ const ThemeDark = (
             },
           },
         },
+        // Outlined primary (used by every Cancel/dismiss button) mirrors OpenCTI's
+        // "secondary" design-system button: neutral grey border + primary-colored
+        // label, not a bright primary-colored border.
+        outlinedPrimary: ({ theme }) => ({
+          'borderColor': theme.palette.border.main,
+          '&:hover': {
+            borderColor: theme.palette.border.main,
+            backgroundColor: alpha(theme.palette.primary.main, 0.15),
+          },
+        }),
       },
     },
     MuiDialog: {
@@ -411,9 +424,12 @@ const ThemeDark = (
     MuiDialogActions: {
       styleOverrides: {
         root: ({ theme }) => ({
+          // Aligned with OpenCTI: even gap between buttons, generous top gap from
+          // the content, and matching right/bottom padding so buttons never sit
+          // flush against the dialog edge.
           'gap': theme.spacing(1),
-          'padding': 0,
-          'marginTop': theme.spacing(4),
+          'padding': theme.spacing(0, 3, 3, 3),
+          'marginTop': theme.spacing(3),
           'marginLeft': 0,
           '& .MuiButton-root': { textTransform: 'none' },
           // Override the default margin-left

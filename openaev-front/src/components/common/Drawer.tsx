@@ -1,6 +1,5 @@
 import { Close } from '@mui/icons-material';
 import { Chip, Drawer as DrawerMUI, IconButton, type PaperProps, Tooltip, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { cloneElement, type CSSProperties, type FunctionComponent, type ReactElement } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -30,17 +29,24 @@ const useStyles = makeStyles()(theme => ({
     }),
     backgroundColor: theme.palette.background.default,
   },
+  // Aligned with OpenCTI's DrawerHeader: title on the left, actions + close on
+  // the right, over the slightly-lighter `background.secondary` surface.
   header: {
-    backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.nav,
-    padding: '10px 0',
+    backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.secondary,
+    padding: theme.spacing(2, 3),
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing(1),
   },
   headerFull: {
-    backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.nav,
+    backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.secondary,
     borderBottom: `1px solid ${theme.palette.divider}`,
-    display: 'inline-flex',
+    padding: theme.spacing(2, 3),
+    display: 'flex',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing(1),
   },
 }));
 
@@ -72,7 +78,6 @@ const Drawer: FunctionComponent<DrawerProps> = ({
   disableEnforceFocus = false,
   containerStyle = {},
 }) => {
-  const theme = useTheme();
   const { settings } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
 
@@ -109,53 +114,45 @@ const Drawer: FunctionComponent<DrawerProps> = ({
       ModalProps={{ disableEnforceFocus }}
     >
       <div className={variant === 'full' ? classes.headerFull : classes.header}>
-        <IconButton
-          aria-label="Close"
-          onClick={handleClose}
-          size="large"
-          color="primary"
-        >
-          <Close fontSize="small" color="primary" />
-        </IconButton>
+        <Tooltip title={title}>
+          <Typography
+            variant="subtitle2"
+            noWrap
+            sx={{
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
+            {title}
+          </Typography>
+        </Tooltip>
         <div style={{
           display: 'flex',
-          justifyContent: 'space-between',
-          flex: 1,
-          minWidth: 0,
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: 10,
         }}
         >
-          <Tooltip title={title}>
-            <Typography
-              variant="subtitle2"
-              noWrap
-            >
-              {title}
-            </Typography>
-          </Tooltip>
-          {(additionalTitle || additionalChipLabel) && (
-            <div style={{
-              display: 'flex',
-              float: 'right',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: 10,
-              paddingRight: theme.spacing(2),
-            }}
-            >
-              {additionalTitle && (<Typography variant="subtitle1">{additionalTitle}</Typography>)}
-              {additionalChipLabel && (
-                <Chip
-                  label={additionalChipLabel}
-                  size="small"
-                  variant="outlined"
-                  sx={{
-                    borderColor: color,
-                    color: color,
-                  }}
-                />
-              )}
-            </div>
+          {additionalTitle && (<Typography variant="subtitle1">{additionalTitle}</Typography>)}
+          {additionalChipLabel && (
+            <Chip
+              label={additionalChipLabel}
+              size="small"
+              variant="outlined"
+              sx={{
+                borderColor: color,
+                color: color,
+              }}
+            />
           )}
+          <IconButton
+            aria-label="Close"
+            onClick={handleClose}
+            size="small"
+            color="primary"
+          >
+            <Close fontSize="small" color="primary" />
+          </IconButton>
         </div>
       </div>
       <div style={{

@@ -264,9 +264,10 @@ class LessonsCategoryAddTeamsComponent extends Component {
             </GridLegacy>
           </DialogContent>
           <DialogActions>
-            <Button onClick={this.handleClose.bind(this)}>{t('Cancel')}</Button>
+            <Button variant="outlined" color="primary" onClick={this.handleClose.bind(this)}>{t('Cancel')}</Button>
             <Button
-              color="secondary"
+              variant="contained"
+              color="primary"
               onClick={this.submitAddTeams.bind(this)}
             >
               {t('Add')}

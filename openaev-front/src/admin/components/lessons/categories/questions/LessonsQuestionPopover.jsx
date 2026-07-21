@@ -89,8 +89,8 @@ const LessonsQuestionPopover = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitDelete}>
+          <Button variant="outlined" color="primary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button variant="contained" color="primary" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>

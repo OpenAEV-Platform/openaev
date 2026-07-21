@@ -130,14 +130,15 @@ const UpdateInjectLogicalChains: FunctionComponent<Props> = ({ inject, handleClo
             }}
             >
               <Button
-                variant="contained"
+                variant="outlined"
+                color="primary"
                 onClick={handleClose}
               >
                 {t('Cancel')}
               </Button>
               <Button
                 variant="contained"
-                color="secondary"
+                color="primary"
                 type="submit"
                 disabled={(errors !== undefined && Object.keys(errors).length > 0) || permissions.readOnly}
               >

@@ -214,7 +214,7 @@ const AvailableVariablesDialog: FunctionComponent<
       </TabContext>
 
       <DialogActions>
-        <Button onClick={handleClose}>{t('Close')}</Button>
+        <Button variant="outlined" color="primary" onClick={handleClose}>{t('Close')}</Button>
       </DialogActions>
     </Dialog>
   );

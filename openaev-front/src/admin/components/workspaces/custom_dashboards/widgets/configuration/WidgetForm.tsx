@@ -29,8 +29,8 @@ const ActionsComponent: FunctionComponent<{
 
   return (
     <>
-      <Button onClick={onCancel}>{t('Cancel')}</Button>
-      <Button color="secondary" onClick={onSubmit} disabled={disabled}>
+      <Button variant="outlined" color="primary" onClick={onCancel}>{t('Cancel')}</Button>
+      <Button variant="contained" color="primary" onClick={onSubmit} disabled={disabled}>
         {editing ? t('Update') : t('Create')}
       </Button>
     </>

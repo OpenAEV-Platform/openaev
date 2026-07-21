@@ -201,11 +201,12 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenChangeStatus(null)}>
+          <Button variant="outlined" color="primary" onClick={() => setOpenChangeStatus(null)}>
             {t('Cancel')}
           </Button>
           <Button
-            color="secondary"
+            variant="contained"
+            color="primary"
             onClick={() => submitUpdateStatus({ exercise_status: openChangeStatus })}
           >
             {t('Confirm')}

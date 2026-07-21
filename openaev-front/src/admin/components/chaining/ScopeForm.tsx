@@ -458,14 +458,15 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
       }}
       >
         <Button
-          variant="contained"
+          variant="outlined"
+          color="primary"
           onClick={onCancel}
         >
           {t('Cancel')}
         </Button>
         <Button
           variant="contained"
-          color="secondary"
+          color="primary"
           onClick={onSubmit}
           disabled={!hasChanges}
         >

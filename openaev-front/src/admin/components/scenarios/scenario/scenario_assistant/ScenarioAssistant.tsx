@@ -548,7 +548,7 @@ const ScenarioAssistant: FunctionComponent = () => {
           </Box>
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             startIcon={<AutoAwesomeOutlined fontSize="small" />}
             onClick={onSubmit}
             sx={{

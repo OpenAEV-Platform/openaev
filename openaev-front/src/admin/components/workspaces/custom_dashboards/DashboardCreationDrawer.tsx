@@ -98,10 +98,10 @@ const DashboardCreationDrawer: FunctionComponent<Props> = ({
                   mt: 2,
                 }}
                 >
-                  <Button variant="contained" onClick={handleClose}>{t('Cancel')}</Button>
+                  <Button variant="outlined" color="primary" onClick={handleClose}>{t('Cancel')}</Button>
                   <Button
                     variant="contained"
-                    color="secondary"
+                    color="primary"
                     disabled={!existingDashboardId}
                     onClick={() => onSelectExisting(existingDashboardId)}
                   >

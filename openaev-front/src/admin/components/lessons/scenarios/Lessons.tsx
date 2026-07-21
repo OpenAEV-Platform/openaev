@@ -313,10 +313,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenEmptyLessons(false)}>
+          <Button variant="outlined" color="primary" onClick={() => setOpenEmptyLessons(false)}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={emptyLessons}>
+          <Button variant="contained" color="primary" onClick={emptyLessons}>
             {t('Clear out')}
           </Button>
         </DialogActions>
@@ -333,10 +333,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenAnonymize(false)}>
+          <Button variant="outlined" color="primary" onClick={() => setOpenAnonymize(false)}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={toggleAnonymize}>
+          <Button variant="contained" color="primary" onClick={toggleAnonymize}>
             {t('Anonymize')}
           </Button>
         </DialogActions>

@@ -114,8 +114,8 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitRemove}>
+          <Button variant="outlined" color="primary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
+          <Button variant="contained" color="primary" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

@@ -524,7 +524,8 @@ const InjectForm = ({
 
         <div className={classes.injectFormButtonsContainer}>
           <Button
-            variant="contained"
+            variant="outlined"
+            color="primary"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -532,7 +533,7 @@ const InjectForm = ({
           </Button>
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             data-testid="inject-form-submit-button"
             onClick={() => {
               onSubmit(getValues());

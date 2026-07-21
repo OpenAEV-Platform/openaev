@@ -138,9 +138,10 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>{t('Cancel')}</Button>
+          <Button variant="outlined" color="primary" onClick={handleCloseDialog}>{t('Cancel')}</Button>
           <Button
-            color="secondary"
+            variant="contained"
+            color="primary"
             onClick={
               injectResultOverviewOutput.inject_ready && !injectResultOverviewOutput.inject_status?.status_id
                 ? submitLaunch
