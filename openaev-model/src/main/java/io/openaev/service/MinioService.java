@@ -191,8 +191,7 @@ public class MinioService implements DependenciesManager {
    * checks) can use a client configured with short timeouts.
    */
   public void isTenantPathExists(MinioClient client) throws Exception {
-    client.statObject(
-        StatObjectArgs.builder().bucket(bucket()).object(getTenantPath("")).build());
+    client.statObject(StatObjectArgs.builder().bucket(bucket()).object(getTenantPath("")).build());
   }
 
   // -- PRIVATE --
