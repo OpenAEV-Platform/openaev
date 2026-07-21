@@ -25,8 +25,8 @@ class ScenarioPage {
     // Scenario configuration drawer (hosts the teams section on its first tab).
     // The teams section has no inner heading anymore (the drawer tab labels it),
     // so target the "Add" trigger inside the promoted configuration action slot.
-    // The hero kebab is the first "More actions" button on the page.
-    this.heroKebabButton = page.getByRole('button', { name: 'More actions' }).first();
+    // Scoped to the hero container so other kebabs on the page can never match.
+    this.heroKebabButton = page.getByTestId('detail-hero').getByRole('button', { name: 'More actions' });
     this.configurationMenuItem = page.getByRole('menuitem', { name: 'Configuration' });
     this.teamAddBtn = page.getByTestId('configuration-fab').getByLabel('Add');
     this.teamListSection = page.getByTestId('teams-list-section');

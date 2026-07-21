@@ -513,7 +513,8 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
           }}
           >
             {expectationTypes.map((type) => {
-              const platforms = expectedPlatforms[type] ?? [];
+              // Distinct name: `platforms` at component level holds the endpoint platforms.
+              const expectedPlatformTypes = expectedPlatforms[type] ?? [];
               const technical = isTechnicalExpectation(type);
               return (
                 <Box
@@ -571,14 +572,14 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                           </Typography>
                         );
                       }
-                      if (platforms.length === 0) {
+                      if (expectedPlatformTypes.length === 0) {
                         return (
                           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                             {t('Any security platform')}
                           </Typography>
                         );
                       }
-                      return platforms.map(platform => (
+                      return expectedPlatformTypes.map(platform => (
                         <ItemSecurityPlatformType key={platform} type={platform} />
                       ));
                     })()}

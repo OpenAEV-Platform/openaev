@@ -35,6 +35,10 @@ public class InjectorContractContentUtils {
   public static final String FIELDS = "fields";
   public static final String MULTIPLE = "n";
 
+  /** JSON property carrying the expected security platform types of a predefined expectation. */
+  public static final String NODE_EXPECTED_SECURITY_PLATFORM_TYPES =
+      "expectation_expected_security_platform_types";
+
   /**
    * Retrieves all contract output elements from the injector contract.
    *
@@ -153,27 +157,33 @@ public class InjectorContractContentUtils {
       return predefinedExpectations.toArray(new BaseInjectExpectation.EXPECTATION_TYPE[0]);
     }
 
-    ArrayNode fieldsArray = (ArrayNode) convertedContent.get(FIELDS);
-    ArrayNode fieldsNode = fieldsArray.deepCopy();
-    for (JsonNode field : fieldsNode) {
-      String key = field.get(CONTRACT_ELEMENT_CONTENT_KEY).asText();
-      if (CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS.equals(key)) {
-        JsonNode predefined = field.get(PREDEFINED_EXPECTATIONS);
-        if (predefined != null && predefined.isArray()) {
-          for (JsonNode expectation : predefined) {
-            predefinedExpectations.add(
-                BaseInjectExpectation.EXPECTATION_TYPE.valueOf(
-                    expectation.get(NODE_EXPECTATION_TYPE).asText()));
-          }
+    for (JsonNode field : convertedContent.get(FIELDS)) {
+      JsonNode keyNode = field.get(CONTRACT_ELEMENT_CONTENT_KEY);
+      if (keyNode == null || !CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS.equals(keyNode.asText())) {
+        continue;
+      }
+      JsonNode predefined = field.get(PREDEFINED_EXPECTATIONS);
+      if (predefined == null || !predefined.isArray()) {
+        continue;
+      }
+      for (JsonNode expectation : predefined) {
+        JsonNode typeNode = expectation.get(NODE_EXPECTATION_TYPE);
+        if (typeNode == null || !typeNode.isTextual()) {
+          continue;
+        }
+        try {
+          predefinedExpectations.add(
+              BaseInjectExpectation.EXPECTATION_TYPE.valueOf(typeNode.asText()));
+        } catch (IllegalArgumentException e) {
+          // Legacy or hand-crafted contract content can carry unknown enum values: skip the
+          // entry instead of failing the whole payload (same policy as
+          // getPredefinedExpectedSecurityPlatforms below).
+          log.warn("Ignoring predefined expectation with unknown type: {}", expectation, e);
         }
       }
     }
     return predefinedExpectations.toArray(new BaseInjectExpectation.EXPECTATION_TYPE[0]);
   }
-
-  /** JSON property carrying the expected security platform types of a predefined expectation. */
-  public static final String NODE_EXPECTED_SECURITY_PLATFORM_TYPES =
-      "expectation_expected_security_platform_types";
 
   /**
    * Extracts, for each predefined expectation of the contract, the security platform types expected

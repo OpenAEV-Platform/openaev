@@ -265,6 +265,7 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
   return (
     <Paper
       variant="outlined"
+      data-testid="detail-hero"
       sx={{
         display: 'flex',
         flexDirection: 'column',

@@ -486,13 +486,16 @@ const Lessons: FunctionComponent<Props> = ({
           }}
           >
             <Button
+              variant="outlined"
+              color="primary"
               onClick={() => setOpenApplyTemplate(false)}
               style={{ marginRight: 10 }}
             >
               {t('Cancel')}
             </Button>
             <Button
-              color="secondary"
+              variant="contained"
+              color="primary"
               onClick={applyTemplate}
               disabled={templateValue === null}
             >

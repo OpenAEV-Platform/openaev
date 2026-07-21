@@ -281,6 +281,8 @@ const Lessons: FunctionComponent<Props> = ({
           }}
           >
             <Button
+              variant="outlined"
+              color="primary"
               onClick={() => setOpenApplyTemplate(false)}
               style={{ marginRight: 10 }}
             >
@@ -288,7 +290,8 @@ const Lessons: FunctionComponent<Props> = ({
             </Button>
             <Can I={ACTIONS.ACCESS} a={SUBJECTS.LESSONS_LEARNED}>
               <Button
-                color="secondary"
+                variant="contained"
+                color="primary"
                 onClick={applyTemplate}
                 disabled={templateValue === null}
               >

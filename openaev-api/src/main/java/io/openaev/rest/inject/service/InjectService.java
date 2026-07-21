@@ -58,6 +58,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.JpaUtils;
 import io.openaev.utils.TargetType;
@@ -424,28 +425,15 @@ public class InjectService {
     return assetToExecutes;
   }
 
-  /** Inject content key holding the referenced AI target id (see the ai-redteam injector). */
-  private static final String AI_TARGET_CONTENT_KEY = "ai_target";
-
   /**
    * Resolve the AI target ({@link Asset} with {@code category = AI_TARGET}) referenced from the
-   * inject content, if any. Mirrors {@code AiTargetSearchAdaptor.contentAiTarget} so display and
-   * execution agree on which AI target the inject targets.
+   * inject content, if any. The key parsing is shared with {@code AiTargetSearchAdaptor} (via
+   * {@link InjectContentUtils}) so display and execution agree on which AI target the inject
+   * targets.
    */
   private Optional<Asset> resolveContentAiTarget(Inject inject) {
-    ObjectNode content = inject.getContent();
-    if (content == null) {
-      return Optional.empty();
-    }
-    JsonNode node = content.get(AI_TARGET_CONTENT_KEY);
-    if (node == null || node.isNull()) {
-      return Optional.empty();
-    }
-    String aiTargetId = StringUtils.trimToNull(node.asText());
-    if (aiTargetId == null) {
-      return Optional.empty();
-    }
-    return aiTargetRepository.findAiTargetById(aiTargetId);
+    return InjectContentUtils.contentAiTargetId(inject.getContent())
+        .flatMap(aiTargetRepository::findAiTargetById);
   }
 
   public void cleanInjectsDocExercise(String exerciseId, String documentId) {
