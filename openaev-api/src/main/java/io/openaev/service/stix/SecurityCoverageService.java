@@ -1,6 +1,8 @@
 package io.openaev.service.stix;
 
 import static io.openaev.helper.CryptoHelper.md5Hex;
+import static io.openaev.helper.UrlHelper.buildFrontScenarioUrl;
+import static io.openaev.helper.UrlHelper.buildFrontSimulationUrl;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
 import static io.openaev.utils.constants.StixConstants.*;
@@ -43,7 +45,6 @@ import io.openaev.utils.ResultUtils;
 import io.openaev.utils.SecurityCoverageUtils;
 import io.openaev.utils.StringUtils;
 import io.openaev.utils.time.TimeUtils;
-import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -77,7 +78,7 @@ public class SecurityCoverageService {
   private final SecurityCoverageRepository securityCoverageRepository;
 
   private final Parser stixParser;
-  @Resource private OpenAEVConfig openAEVConfig;
+  private final OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;
   private final VulnerabilityService vulnerabilityService;
   private final OpenCTIConnectorService openCTIConnectorService;
@@ -366,7 +367,7 @@ public class SecurityCoverageService {
 
     SecurityCoverage coverage = scenario.getSecurityCoverage();
     String externalLink =
-        openAEVConfig.getBaseUrl() + "/" + tenant.getId() + "/admin/scenarios/" + scenario.getId();
+        buildFrontScenarioUrl(openAEVConfig.getBaseUrl(), tenant.getId(), scenario.getId());
 
     DomainObject sdo = (DomainObject) stixParser.parseObject(coverage.getContent());
     sdo.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
@@ -487,18 +488,14 @@ public class SecurityCoverageService {
     String externalLink;
     if (simulation.getScenario() != null) {
       externalLink =
-          openAEVConfig.getBaseUrl()
-              + "/"
-              + simulation.getTenant().getId()
-              + "/admin/scenarios/"
-              + simulation.getScenario().getId();
+          buildFrontScenarioUrl(
+              openAEVConfig.getBaseUrl(),
+              simulation.getTenant().getId(),
+              simulation.getScenario().getId());
     } else {
       externalLink =
-          openAEVConfig.getBaseUrl()
-              + "/"
-              + simulation.getTenant().getId()
-              + "/admin/simulations/"
-              + simulation.getId();
+          buildFrontSimulationUrl(
+              openAEVConfig.getBaseUrl(), simulation.getTenant().getId(), simulation.getId());
     }
 
     coverage.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
