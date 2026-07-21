@@ -17,10 +17,10 @@ import { findEndpoints, searchEndpoints } from '../../../actions/assets/endpoint
 import { fetchExecutors } from '../../../actions/executors/executor-action';
 import type { ExecutorHelper } from '../../../actions/executors/executor-helper';
 import ClickableList, { type ClickableListElements } from '../../../components/common/ClickableList';
+import { SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../components/common/queryable/useQueryableWithLocalStorage';
-import { SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import PlatformIcon from '../../../components/PlatformIcon';

@@ -130,7 +130,7 @@ const ChallengePopover = ({ challenge, onRemoveChallenge, inline, disabled = fal
         </DialogContent>
         <DialogActions>
           <Button variant="outlined" color="primary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button variant="contained" color="primary" onClick={submitDelete}>
+          <Button variant="contained" color="error" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>

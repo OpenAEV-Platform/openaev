@@ -201,7 +201,7 @@ class GroupPopoverComponent extends Component {
             <Button variant="outlined" color="primary" onClick={this.handleCloseDelete.bind(this)}>
               {t('Cancel')}
             </Button>
-            <Button variant="contained" color="primary" onClick={this.submitDelete.bind(this)}>
+            <Button variant="contained" color="error" onClick={this.submitDelete.bind(this)}>
               {t('Delete')}
             </Button>
           </DialogActions>

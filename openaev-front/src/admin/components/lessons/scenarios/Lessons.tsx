@@ -3,8 +3,8 @@ import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText,
 import { type ChangeEvent, type FunctionComponent, useContext, useEffect, useState } from 'react';
 
 import { fetchLessonsTemplates } from '../../../../actions/Lessons';
-import Transition from '../../../../components/common/Transition';
 import { SECTION_LABEL_SX } from '../../../../components/common/detail/EntityDetailCommon';
+import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type LessonsTemplate, type Objective, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -102,8 +102,19 @@ const Lessons: FunctionComponent<Props> = ({
         gridTemplateColumns: '1fr 2fr',
       }}
       >
-        <Typography sx={{ ...SECTION_LABEL_SX, alignContent: 'center', marginBottom: 0 }}>{t('Parameters')}</Typography>
-        <Typography sx={{ ...SECTION_LABEL_SX, marginBottom: 0 }}>
+        <Typography sx={{
+          ...SECTION_LABEL_SX,
+          alignContent: 'center',
+          marginBottom: 0,
+        }}
+        >
+          {t('Parameters')}
+        </Typography>
+        <Typography sx={{
+          ...SECTION_LABEL_SX,
+          marginBottom: 0,
+        }}
+        >
           {t('Objectives')}
           {
             source.isUpdatable && (<CreateObjective />)

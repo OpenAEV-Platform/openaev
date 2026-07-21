@@ -4,8 +4,8 @@ import * as R from 'ramda';
 import { useDispatch } from 'react-redux';
 
 import { meTokens, renewToken, updateMeInformation, updateMePassword, updateMeProfile } from '../../../actions/users/User';
-import Paper from '../../../components/common/Paper';
 import { SECTION_LABEL_SX } from '../../../components/common/detail/EntityDetailCommon';
+import Paper from '../../../components/common/Paper';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
@@ -107,7 +107,10 @@ const Index = () => {
         </Typography>
         <Typography
           gutterBottom={true}
-          sx={{ ...SECTION_LABEL_SX, mt: 2.5 }}
+          sx={{
+            ...SECTION_LABEL_SX,
+            mt: 2.5,
+          }}
         >
           {t('Token key')}
         </Typography>
@@ -122,7 +125,10 @@ const Index = () => {
         </Button>
         <Typography
           gutterBottom={true}
-          sx={{ ...SECTION_LABEL_SX, mt: 2.5 }}
+          sx={{
+            ...SECTION_LABEL_SX,
+            mt: 2.5,
+          }}
         >
           {t('Example')}
         </Typography>

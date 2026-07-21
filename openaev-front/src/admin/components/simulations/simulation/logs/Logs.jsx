@@ -82,7 +82,11 @@ const Logs = () => {
     <div>
       <AnimationMenu exerciseId={exerciseId} />
       <div>
-        <Typography sx={{ ...SECTION_LABEL_SX, float: 'left' }}>
+        <Typography sx={{
+          ...SECTION_LABEL_SX,
+          float: 'left',
+        }}
+        >
           {t('Simulation logs')}
         </Typography>
         {permissions.canManage

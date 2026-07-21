@@ -15,8 +15,8 @@ import type { Header } from '../../../../components/common/SortHeadersList';
 import FindingIcon from '../../../../components/FindingIcon';
 import ItemTargets from '../../../../components/ItemTargets';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import type { AggregatedFindingOutput, FilterGroup, RelatedFindingOutput, SearchPaginationInput, TargetSimple } from '../../../../utils/api-types';
 import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
+import type { AggregatedFindingOutput, FilterGroup, RelatedFindingOutput, SearchPaginationInput, TargetSimple } from '../../../../utils/api-types';
 import ContractOutputElementType from '../../findings/ContractOutputElementType';
 
 const useStyles = makeStyles()(() => ({
