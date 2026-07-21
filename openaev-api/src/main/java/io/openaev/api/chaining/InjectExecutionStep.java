@@ -84,6 +84,7 @@ public class InjectExecutionStep implements ActionStep {
   private final ScopeService scopeService;
   private final PreviewFeatureService previewFeatureService;
   private final AttackPathExecutionIngestionService attackPathIngestion;
+  private final InjectExpectationService injectExpectationService;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -278,16 +279,12 @@ public class InjectExecutionStep implements ActionStep {
     if (injectStatus != null) {
       // FORMAT EXECUTION TRACE TO OUTPUT STEP
       formatExecutionTracesToOutput(injectStatus, output);
+      // FORMAT INJECT STATUS TO OUTPUT STEP
+      formatStatusToOutput(inject, output);
     }
 
-    // TODO FORMAT INJECT STATUS TO OUTPUT STEP
-    formatStatusToOutput(output);
-    // TODO FORMAT COLLECTOR EXPECTATION TO OUTPUT STEP
-    formatCollectorExpectationToOutput(output);
-    // TODO FORMAT EXPIRATION MANAGER TO OUTPUT STEP
-    formatExpirationManagerToOutput(output);
-    // TODO FORMAT MANUAL UPDATE TO OUTPUT STEP
-    formatManualUpdateToOutput(output);
+    // FORMAT EXPECTATION TO OUTPUT STEP
+    formatExpectationToOutput(injectId, output);
 
     // UPDATE step output
     if (!output.isEmpty()) {
@@ -857,13 +854,124 @@ public class InjectExecutionStep implements ActionStep {
     }
   }
 
-  private static void formatStatusToOutput(List<Map<String, JsonElement>> output) {}
+  /**
+   * Formats the inject execution status (name + tracking dates) into the step output.
+   *
+   * @param inject the inject whose status is read
+   * @param output the output list to populate
+   */
+  private static void formatStatusToOutput(Inject inject, List<Map<String, JsonElement>> output) {
+    inject
+        .getStatus()
+        .ifPresent(
+            status -> {
+              Map<String, JsonElement> map = new HashMap<>();
+              map.put(
+                  "inject_status",
+                  gson.toJsonTree(status.getName() != null ? status.getName().name() : null));
+              map.put(
+                  "inject_status_tracking_end_date",
+                  gson.toJsonTree(
+                      status.getTrackingEndDate() != null
+                          ? status.getTrackingEndDate().toString()
+                          : null));
+              output.add(map);
+            });
+  }
 
-  private static void formatCollectorExpectationToOutput(List<Map<String, JsonElement>> output) {}
+  /**
+   * Formats expectations updated by an collector or expiration or manual update into the step
+   * output. Each entry contains the expectation type, name, score, collector source ID, and — when
+   * the expectation is agent-level — the associated agent ID and asset ID.
+   *
+   * Some expectations may not match an actual execution.
+   * We observed duplicate expectation entries returned without an agent_id and only with an asset_id.
+   * These entries do not correspond to real executions; they are duplicated information.
+   *
+   * @param injectId Inject id
+   * @param output the output list to populate
+   */
+  private void formatExpectationToOutput(String injectId, List<Map<String, JsonElement>> output) {
+    List<BaseInjectExpectation> expectations = injectExpectationService.findAllByInjectId(injectId);
+    Inject inject = injectService.inject(injectId);
+    for (BaseInjectExpectation expectation : expectations) {
+      for (InjectExpectationResult result : expectation.getResults()) {
+        Map<String, JsonElement> map = getExpectationOutput(expectation, result);
+        addEndpointContext(inject, expectation, map);
+        //syncAttackPathExecutionStatus(injectId, expectation, result, map);
+        output.add(map);
+      }
+    }
+  }
 
-  private static void formatExpirationManagerToOutput(List<Map<String, JsonElement>> output) {}
+  /**
+   * Enriches an output map entry with endpoint context (agent_id, asset_id, asset_group_id, plus
+   * normalised target_type / target_id) when the expectation is a {@link
+   * TechnicalInjectExpectation} (i.e. PREVENTION or DETECTION).
+   *
+   * <p>Granularity priority:
+   *
+   * <ol>
+   *   <li>Agent-level: {@code agent != null} → target_type=AGENT, target_id=agent.id
+   *   <li>Asset-level (no agent): {@code asset != null} → target_type=ASSET, target_id=asset.id
+   *   <li>Asset-group-level: {@code assetGroup != null} → target_type=ASSET_GROUP,
+   *       target_id=assetGroup.id
+   * </ol>
+   *
+   * @param inject
+   * @param expectation the expectation to inspect
+   * @param map         the output map to enrich
+   */
+  private static void addEndpointContext(
+      Inject inject, BaseInjectExpectation expectation, Map<String, JsonElement> map) {
+    if (!(expectation instanceof TechnicalInjectExpectation technical)) {
+      return;
+    }
+    Agent agent = technical.getAgent();
+    Asset asset = technical.getAsset();
+    AssetGroup assetGroup = technical.getAssetGroup();
 
-  private static void formatManualUpdateToOutput(List<Map<String, JsonElement>> output) {}
+    map.put("agent_id", gson.toJsonTree(agent != null ? agent.getId() : null));
+    map.put("asset_id", gson.toJsonTree(asset != null ? asset.getId() : null));
+    map.put("asset_name", gson.toJsonTree(asset != null ? asset.getName() : null));
+    map.put("asset_group_id", gson.toJsonTree(assetGroup != null ? assetGroup.getId() : null));
+
+    // Normalised target resolution for PREVENTION / DETECTION:
+    // the chaining engine uses target_type + target_id to correlate the result
+    // to the right scope without having to inspect every nullable field.
+    String targetType;
+    String targetId;
+    if (agent != null) {
+      targetType = "AGENT";
+      targetId = agent.getId();
+    } else if (asset != null) {
+      targetType = "ASSET";
+      targetId = asset.getId();
+    } else if (assetGroup != null) {
+      targetType = "ASSET_GROUP";
+      targetId = assetGroup.getId();
+    } else { //TODO
+      targetType = null;
+      targetId = null;
+    }
+    map.put("target_type", gson.toJsonTree(targetType));
+    map.put("target_id", gson.toJsonTree(targetId));
+  }
+
+  private static Map<String, JsonElement> getExpectationOutput(
+      BaseInjectExpectation expectation, InjectExpectationResult result) {
+    Map<String, JsonElement> map = new HashMap<>();
+    map.put("expectation_id", gson.toJsonTree(expectation.getId()));
+    map.put(
+        "expectation_type",
+        gson.toJsonTree(expectation.getType() != null ? expectation.getType().name() : null));
+    map.put("expectation_name", gson.toJsonTree(expectation.getName()));
+    map.put("expectation_score", gson.toJsonTree(expectation.getScore()));
+    map.put("source_type", gson.toJsonTree(result.getSourceType()));
+    map.put("source_name", gson.toJsonTree(result.getSourceName()));
+    map.put("result", gson.toJsonTree(result.getResult()));
+    return map;
+  }
 
   /**
    * Builds the type mapping used by the chaining engine to interpret structured output fields.
