@@ -9,11 +9,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
+import io.openaev.database.repository.FolderRepository;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.rest.document.form.DocumentCreateInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.FileService;
+import io.openaev.service.MalwareSampleService;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import java.io.ByteArrayInputStream;
@@ -43,7 +45,9 @@ public class DocumentService {
   private final ExerciseRepository exerciseRepository;
   private final ScenarioRepository scenarioRepository;
   private final TagRepository tagRepository;
+  private final FolderRepository folderRepository;
   private final FileService fileService;
+  private final MalwareSampleService malwareSampleService;
 
   // -- CRUD --
 
@@ -132,10 +136,7 @@ public class DocumentService {
         document.setTags(tags);
         return save(document);
       } else {
-        fileService.uploadFile(
-            fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
         Document document = new Document();
-        document.setTarget(fileTarget);
         document.setName(fileName);
         document.setDescription(input.getDescription());
         if (!input.getExerciseIds().isEmpty()) {
@@ -148,6 +149,30 @@ public class DocumentService {
         }
         document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
         document.setType(fileContentType);
+        if (input.getFolderId() != null && !input.getFolderId().isBlank()) {
+          folderRepository.findById(input.getFolderId()).ifPresent(document::setFolder);
+        }
+        // Malware samples are re-encrypted at rest as a password-protected zip; the
+        // upstream community repo delivers samples zipped with the well-known "infected"
+        // password, and the openaev collector unzips them before upsert.
+        if ("MALWARE_SAMPLE".equalsIgnoreCase(input.getKind())) {
+          String password = malwareSampleService.generatePassword();
+          byte[] encrypted = malwareSampleService.buildEncryptedZip(fileName, content, password);
+          String encryptedTarget = DigestUtils.md5Hex(encrypted) + ".zip";
+          fileService.uploadFile(
+              encryptedTarget,
+              new ByteArrayInputStream(encrypted),
+              encrypted.length,
+              "application/zip");
+          document.setTarget(encryptedTarget);
+          document.setKind(io.openaev.database.model.FileKind.MALWARE_SAMPLE);
+          document.setEncrypted(true);
+          document.setEncryptionPassword(malwareSampleService.encryptPassword(password));
+        } else {
+          fileService.uploadFile(
+              fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
+          document.setTarget(fileTarget);
+        }
         return save(document);
       }
     }

@@ -39,6 +39,7 @@ public class ExecutableInjectService {
   private final InjectStatusService injectStatusService;
   private final InjectExpectationService injectExpectationService;
   private final PayloadService payloadService;
+  private final io.openaev.service.MalwareSampleService malwareSampleService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -303,6 +304,17 @@ public class ExecutableInjectService {
     // documents before execution; without this override it would download the payload's default
     // document instead of the one configured on the inject.
     resolveDocumentArgumentsFromInjectContent(processed, inject.getContent());
+    // For an encrypted malware sample (FileDrop / Executable), decrypt the stored zip password
+    // and attach it to the per-execution response so the implant can decrypt in memory. This is
+    // the only surface that ever exposes the clear password, over TLS.
+    processed
+        .getAttachedDocument()
+        .filter(Document::isEncrypted)
+        .map(Document::getEncryptionPassword)
+        .filter(hasText -> hasText != null && !hasText.isBlank())
+        .ifPresent(
+            encrypted ->
+                processed.setSampleZipPassword(malwareSampleService.decryptPassword(encrypted)));
     return processed;
   }
 

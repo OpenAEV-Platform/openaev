@@ -2526,9 +2526,12 @@ export interface DnsResolution {
 
 export interface Document {
   document_description?: string;
+  document_encrypted?: boolean;
   document_exercises?: string[];
+  document_folder?: string;
   /** @minLength 1 */
   document_id: string;
+  document_kind?: "DOCUMENT" | "MALWARE_SAMPLE";
   /** @minLength 1 */
   document_name: string;
   document_scenarios?: string[];
@@ -2542,8 +2545,29 @@ export interface Document {
 export interface DocumentCreateInput {
   document_description?: string;
   document_exercises?: string[];
+  document_folder?: string;
+  document_kind?: "DOCUMENT" | "MALWARE_SAMPLE";
   document_scenarios?: string[];
   document_tags?: string[];
+}
+
+export interface Folder {
+  /** @format date-time */
+  folder_created_at?: string;
+  /** @minLength 1 */
+  folder_id: string;
+  /** @minLength 1 */
+  folder_name: string;
+  folder_parent?: string;
+  /** @format date-time */
+  folder_updated_at?: string;
+  listened?: boolean;
+}
+
+export interface FolderInput {
+  /** @minLength 1 */
+  folder_name: string;
+  folder_parent?: string;
 }
 
 export interface DocumentRelationsOutput {
@@ -4184,6 +4208,7 @@ export interface Exercise {
   /** @format int64 */
   exercise_lessons_answers_number?: number;
   exercise_lessons_categories?: string[];
+  exercise_lessons_enabled?: boolean;
   exercise_logo_dark?: string;
   exercise_logo_light?: string;
   /** @format int64 */
@@ -5984,7 +6009,10 @@ export interface LessonsCategoryUpdateInput {
 }
 
 export interface LessonsInput {
+  /** Whether questionnaire answers are anonymized (unchanged when absent) */
   lessons_anonymized?: boolean;
+  /** Whether the lessons learned module is enabled (unchanged when absent) */
+  lessons_enabled?: boolean;
 }
 
 export interface LessonsQuestion {
@@ -8402,6 +8430,7 @@ export interface Scenario {
   scenario_kill_chain_phases?: KillChainPhase[];
   scenario_lessons_anonymized?: boolean;
   scenario_lessons_categories?: string[];
+  scenario_lessons_enabled?: boolean;
   /**
    * @format email
    * @minLength 1
@@ -8528,6 +8557,8 @@ export interface ScenarioOutput {
   scenario_id: string;
   /** @uniqueItems true */
   scenario_kill_chain_phases?: KillChainPhaseOutput[];
+  /** Whether the lessons learned module is enabled for the scenario */
+  scenario_lessons_enabled?: boolean;
   /**
    * From value of the scenario
    * @minLength 1
@@ -9023,6 +9054,7 @@ export interface SimulationDetails {
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;
+  exercise_lessons_enabled?: boolean;
   /** @format int64 */
   exercise_logs_number?: number;
   /** @minLength 1 */

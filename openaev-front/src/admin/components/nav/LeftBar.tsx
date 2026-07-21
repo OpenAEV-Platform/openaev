@@ -161,7 +161,7 @@ const LeftBar = () => {
           subItems: [
             {
               link: '/admin/components/documents',
-              label: 'Documents',
+              label: 'Files',
               icon: () => (<DescriptionOutlined fontSize="small" />),
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DOCUMENTS),
             },

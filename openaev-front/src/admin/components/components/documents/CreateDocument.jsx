@@ -23,12 +23,12 @@ const styles = theme => ({
 });
 
 const CreateDocumentComponent = (props) => {
-  const { classes, t, inline, filters } = props;
+  const { classes, t, inline, filters, folders = [], currentFolderId = null } = props;
   const [open, setOpen] = useState(false);
 
   // Context
   const context = useContext(DocumentContext);
-  const initialValues = context
+  const baseInitialValues = context
     ? context.onInitDocument()
     // TODO: should be platform
     : {
@@ -36,10 +36,18 @@ const CreateDocumentComponent = (props) => {
         document_exercises: [],
         document_scenarios: [],
       };
+  const initialValues = {
+    ...baseInitialValues,
+    document_kind: 'DOCUMENT',
+    document_folder: currentFolderId ?? '',
+  };
   const computeInputValues = data => R.pipe(
     R.assoc('document_tags', R.pluck('id', data.document_tags)),
     R.assoc('document_exercises', R.pluck('id', data.document_exercises)),
     R.assoc('document_scenarios', R.pluck('id', data.document_scenarios)),
+    // Drop the empty-string "Root" sentinel so the backend keeps it at the root.
+    R.assoc('document_folder', data.document_folder || undefined),
+    R.assoc('document_kind', data.document_kind || 'DOCUMENT'),
   )(data);
 
   const onSubmit = (data) => {
@@ -67,7 +75,7 @@ const CreateDocumentComponent = (props) => {
             <ControlPointOutlined color="primary" />
           </ListItemIcon>
           <ListItemText
-            primary={t('Create a new document')}
+            primary={t('Create a new file')}
             classes={{ primary: classes.text }}
           />
         </ListItemButton>
@@ -78,26 +86,28 @@ const CreateDocumentComponent = (props) => {
         <Dialog
           open={open}
           handleClose={() => setOpen(false)}
-          title={t('Create a new document')}
+          title={t('Create a new file')}
         >
           <DocumentForm
             initialValues={initialValues}
             onSubmit={onSubmit}
             handleClose={() => setOpen(false)}
             filters={filters}
+            folders={folders}
           />
         </Dialog>
       ) : (
         <Drawer
           open={open}
           handleClose={() => setOpen(false)}
-          title={t('Create a new document')}
+          title={t('Create a new file')}
         >
           <DocumentForm
             initialValues={initialValues}
             onSubmit={onSubmit}
             handleClose={() => setOpen(false)}
             filters={filters}
+            folders={folders}
           />
         </Drawer>
       )}
@@ -112,6 +122,8 @@ CreateDocumentComponent.propTypes = {
   fetchDocument: PropTypes.func,
   inline: PropTypes.bool,
   filters: PropTypes.array,
+  folders: PropTypes.array,
+  currentFolderId: PropTypes.string,
 };
 
 const CreateDocument = R.compose(

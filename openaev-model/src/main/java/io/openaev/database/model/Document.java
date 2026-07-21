@@ -64,6 +64,31 @@ public class Document implements TenantBase {
   @NotBlank
   private String type;
 
+  // Optional folder this file is organized into (null = root of the tenant tree).
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "document_folder")
+  @JsonSerialize(using = io.openaev.helper.MonoIdSerializer.class)
+  @JsonProperty("document_folder")
+  @Schema(implementation = String.class)
+  private Folder folder;
+
+  // Regular document vs encrypted malware sample (see FileKind).
+  @Enumerated(EnumType.STRING)
+  @Column(name = "document_kind")
+  @JsonProperty("document_kind")
+  @Queryable(filterable = true, sortable = true)
+  private FileKind kind = FileKind.DOCUMENT;
+
+  // True when the stored object is a password-protected zip (malware samples).
+  @Column(name = "document_encrypted")
+  @JsonProperty("document_encrypted")
+  private boolean encrypted = false;
+
+  // Fernet-encrypted zip password; only ever surfaced to the implant over TLS at execution.
+  @Column(name = "document_encryption_password")
+  @JsonIgnore
+  private String encryptionPassword;
+
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(

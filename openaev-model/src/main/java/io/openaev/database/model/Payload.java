@@ -299,6 +299,13 @@ public class Payload implements GrantableBase, TenantBase {
     return PayloadType.fromString(type);
   }
 
+  // Clear zip password for an encrypted malware sample, populated only in the
+  // per-execution executable-payload response delivered to the implant over TLS.
+  // Never persisted and never present in listing/detail serializations.
+  @Transient
+  @JsonProperty("payload_sample_zip_password")
+  private String sampleZipPassword;
+
   @JsonIgnore
   public Optional<Document> getAttachedDocument() {
     return Optional.empty();

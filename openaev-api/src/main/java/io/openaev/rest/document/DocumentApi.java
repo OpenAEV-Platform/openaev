@@ -25,6 +25,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChannelService;
 import io.openaev.service.FileService;
+import io.openaev.service.MalwareSampleService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -58,6 +59,10 @@ public class DocumentApi extends RestBehavior {
 
   public static final String DOCUMENT_API = "/api/documents";
   private static final String TENANT_DOCUMENT_API = TENANT_PREFIX + "/documents";
+  // "files" is the user-facing name; expose it as an alias for the raw file download so the
+  // implant and new clients can use /api/files while existing consumers keep /api/documents.
+  public static final String FILE_API = "/api/files";
+  private static final String TENANT_FILE_API = TENANT_PREFIX + "/files";
   private static final String IMAGES_API = "/api/images";
   private static final String TENANT_IMAGES_API = TENANT_PREFIX + "/images";
   private static final String SECURITY_PLATFORM_IMAGES_API = IMAGES_API + "/security_platforms";
@@ -78,11 +83,41 @@ public class DocumentApi extends RestBehavior {
   private final UserRepository userRepository;
   private final CollectorRepository collectorRepository;
   private final SecurityPlatformRepository securityPlatformRepository;
+  private final FolderRepository folderRepository;
 
   private final DocumentService documentService;
   private final FileService fileService;
   private final InjectService injectService;
   private final ChannelService channelService;
+  private final MalwareSampleService malwareSampleService;
+
+  // Applies the optional folder + file kind, encrypting the stored object as a
+  // password-protected zip when the file is a malware sample. Returns the object
+  // key (target) actually written to storage.
+  private String applyKindFolderAndStore(
+      Document document, DocumentCreateInput input, MultipartFile file, byte[] content)
+      throws Exception {
+    if (input.getFolderId() != null && !input.getFolderId().isBlank()) {
+      folderRepository.findById(input.getFolderId()).ifPresent(document::setFolder);
+    }
+    FileKind kind =
+        "MALWARE_SAMPLE".equalsIgnoreCase(input.getKind())
+            ? FileKind.MALWARE_SAMPLE
+            : FileKind.DOCUMENT;
+    document.setKind(kind);
+    if (kind == FileKind.MALWARE_SAMPLE) {
+      String password = malwareSampleService.generatePassword();
+      byte[] encrypted =
+          malwareSampleService.buildEncryptedZip(file.getOriginalFilename(), content, password);
+      String target = DigestUtils.md5Hex(encrypted) + ".zip";
+      fileService.uploadFile(
+          target, new java.io.ByteArrayInputStream(encrypted), encrypted.length, "application/zip");
+      document.setEncrypted(true);
+      document.setEncryptionPassword(malwareSampleService.encryptPassword(password));
+      return target;
+    }
+    return null;
+  }
 
   @PostMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
@@ -119,9 +154,7 @@ public class DocumentApi extends RestBehavior {
       document.setTags(tags);
       return documentService.save(document);
     } else {
-      fileService.uploadFile(fileTarget, file);
       Document document = new Document();
-      document.setTarget(fileTarget);
       document.setName(file.getOriginalFilename());
       document.setDescription(input.getDescription());
       if (!input.getExerciseIds().isEmpty()) {
@@ -134,6 +167,14 @@ public class DocumentApi extends RestBehavior {
       }
       document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
       document.setType(file.getContentType());
+      // Malware samples are stored as an encrypted zip; regular documents stream as-is.
+      String encryptedTarget = applyKindFolderAndStore(document, input, file, file.getBytes());
+      if (encryptedTarget != null) {
+        document.setTarget(encryptedTarget);
+      } else {
+        fileService.uploadFile(fileTarget, file);
+        document.setTarget(fileTarget);
+      }
       return documentService.save(document);
     }
   }
@@ -285,7 +326,29 @@ public class DocumentApi extends RestBehavior {
     return documentService.save(document);
   }
 
-  @GetMapping({DOCUMENT_API + "/{documentId}/file", TENANT_DOCUMENT_API + "/{documentId}/file"})
+  @Transactional(rollbackFor = Exception.class)
+  @PutMapping({DOCUMENT_API + "/{documentId}/folder", TENANT_DOCUMENT_API + "/{documentId}/folder"})
+  @AccessControl(
+      resourceId = "#documentId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.DOCUMENT)
+  public Document moveDocumentToFolder(
+      @PathVariable String documentId, @RequestParam Optional<String> folderId) {
+    Document document =
+        documentRepository
+            .findById(documentId)
+            .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    document.setFolder(
+        folderId.filter(id -> !id.isBlank()).flatMap(folderRepository::findById).orElse(null));
+    return documentService.save(document);
+  }
+
+  @GetMapping({
+    DOCUMENT_API + "/{documentId}/file",
+    TENANT_DOCUMENT_API + "/{documentId}/file",
+    FILE_API + "/{documentId}/file",
+    TENANT_FILE_API + "/{documentId}/file"
+  })
   @Transactional
   @AccessControl(
       resourceId = "#documentId",

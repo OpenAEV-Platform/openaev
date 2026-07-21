@@ -1,4 +1,5 @@
-import { Button, CircularProgress } from '@mui/material';
+import { LockOutlined } from '@mui/icons-material';
+import { Alert, Button, CircularProgress, FormControl, InputLabel, MenuItem, Select, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { Form } from 'react-final-form';
 
 import ExerciseField from '../../../../components/ExerciseField';
@@ -17,6 +18,7 @@ const DocumentForm = (props) => {
     onSubmit,
     handleClose,
     filters,
+    folders = [],
   } = props;
 
   const validate = (values) => {
@@ -50,6 +52,44 @@ const DocumentForm = (props) => {
     >
       {({ handleSubmit, form, values, submitting, pristine }) => (
         <form id="documentForm" onSubmit={handleSubmit}>
+          {!editing && (
+            <>
+              <Typography variant="h3" style={{ marginTop: 10 }}>
+                {t('File type')}
+              </Typography>
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={values.document_kind ?? 'DOCUMENT'}
+                onChange={(_, value) => {
+                  if (value) form.mutators.setValue('document_kind', value);
+                }}
+                sx={{ '& .MuiToggleButton-root.Mui-selected': { color: 'primary.main' } }}
+              >
+                <ToggleButton value="DOCUMENT">{t('Regular document')}</ToggleButton>
+                <ToggleButton value="MALWARE_SAMPLE">{t('Malware sample')}</ToggleButton>
+              </ToggleButtonGroup>
+              {values.document_kind === 'MALWARE_SAMPLE' && (
+                <Alert severity="warning" icon={<LockOutlined />} style={{ marginTop: 10 }}>
+                  {t('This sample will be stored encrypted as a password-protected archive and decrypted on the fly by the implant at detonation time.')}
+                </Alert>
+              )}
+            </>
+          )}
+          <FormControl variant="standard" fullWidth style={{ marginTop: 20 }}>
+            <InputLabel>{t('Folder')}</InputLabel>
+            <Select
+              value={values.document_folder ?? ''}
+              onChange={event => form.mutators.setValue('document_folder', event.target.value)}
+            >
+              <MenuItem value="">{t('Root')}</MenuItem>
+              {folders.map(folder => (
+                <MenuItem key={folder.folder_id} value={folder.folder_id}>
+                  {folder.folder_name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <OldTextField
             variant="standard"
             name="document_description"
@@ -57,7 +97,7 @@ const DocumentForm = (props) => {
             multiline
             rows={2}
             label={t('Description')}
-            style={{ marginTop: 10 }}
+            style={{ marginTop: 20 }}
           />
           <ExerciseField
             name="document_exercises"

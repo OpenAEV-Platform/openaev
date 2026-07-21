@@ -13,6 +13,7 @@ import io.openaev.utils.base.ExternalServiceBase;
 import jakarta.activation.DataSource;
 import jakarta.annotation.PostConstruct;
 import jakarta.mail.*;
+import jakarta.mail.Folder;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
