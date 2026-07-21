@@ -145,6 +145,9 @@ const Challenges = () => {
             tagsFetched
           />
         </div>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.CHALLENGES}>
+          <CreateChallenge />
+        </Can>
       </div>
       <div className="clearfix" />
       <List>
@@ -301,9 +304,6 @@ const Challenges = () => {
           );
         })}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.CHALLENGES}>
-        <CreateChallenge />
-      </Can>
     </>
   );
 };

@@ -161,7 +161,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     Condition mapperCondition = new Condition();
     mapperCondition.setType(ConditionType.MAPPER);
-    mapperCondition.setKeyType(ConditionKeyType.IPv4);
+    mapperCondition.setKeyType(PrimitiveType.IPv4);
     mapperCondition.setKey("target_ip");
 
     doReturn(List.of(mapperCondition)).when(conditionService).findAllConditionsByStepId("step-1");
@@ -280,7 +280,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -305,8 +305,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
             stepTemplate.getData(), "inject_injector_contract.injector_contract_id"));
     assertEquals("output.message.ip", StepService.getField(stepTemplate.getInput(), "input.path"));
     assertEquals(
-        ConditionKeyType.IPv4.name(),
-        StepService.getField(stepTemplate.getInput(), "input.keyType"));
+        PrimitiveType.IPv4.name(), StepService.getField(stepTemplate.getInput(), "input.keyType"));
   }
 
   /**
@@ -333,7 +332,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -383,7 +382,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -433,7 +432,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -485,7 +484,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -532,7 +531,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -597,7 +596,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -656,7 +655,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -712,7 +711,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
-  public void given_conditionWithKeySubtype_should_includeKeySubtypeInStepInput()
+  public void given_mapperCondition_should_includeKeyTypeInStepInput()
       throws JsonProcessingException, ChainingException {
     // Arrange
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
@@ -720,8 +719,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.Credentials)
-            .keySubtype(ConditionKeySubtype.USERNAME)
+            .keyType(PrimitiveType.Username)
             .key("expectations")
             .value("output.message.credentials")
             .type(ConditionType.MAPPER)
@@ -738,15 +736,12 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Assert
     assertEquals(
-        ConditionKeyType.Credentials.name(),
+        PrimitiveType.Username.name(),
         StepService.getField(stepTemplate.getInput(), "input.keyType"));
-    assertEquals(
-        ConditionKeySubtype.USERNAME.name(),
-        StepService.getField(stepTemplate.getInput(), "input.keySubtype"));
   }
 
   @Test
-  public void given_conditionWithoutKeySubtype_should_haveNullKeySubtypeInStepInput()
+  public void given_mapperConditionWithoutSubtype_should_not_includeKeySubtypeInStepInput()
       throws JsonProcessingException, ChainingException {
     // Arrange
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
@@ -754,7 +749,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .key("target_ip")
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
@@ -771,8 +766,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Assert
     assertEquals(
-        ConditionKeyType.IPv4.name(),
-        StepService.getField(stepTemplate.getInput(), "input.keyType"));
+        PrimitiveType.IPv4.name(), StepService.getField(stepTemplate.getInput(), "input.keyType"));
     assertNull(StepService.getField(stepTemplate.getInput(), "input.keySubtype"));
   }
 

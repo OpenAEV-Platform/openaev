@@ -1,5 +1,6 @@
-import { AssignmentOutlined, GroupsOutlined, MovieFilterOutlined, PersonOutlined, TrackChangesOutlined } from '@mui/icons-material';
+import { AssignmentOutlined, GroupsOutlined, HubOutlined, PersonOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { Box, Chip, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useCallback, useContext, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -12,7 +13,7 @@ import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { fetchTeam, fetchTeamPlayers, searchTeams, updateTeamPlayers } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { DetailHero, DetailSections, Field, InformationGrid, MetricGrid, MetricTile, Section, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, Section, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -66,6 +67,7 @@ const withFilter = (input: SearchPaginationInput, key: string, values: string[])
 const TeamDetail = () => {
   const { t, fldt } = useFormatter();
   const { classes } = useStyles();
+  const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
@@ -161,16 +163,17 @@ const TeamDetail = () => {
               onDelete={() => navigate(TEAM_BASE_URL)}
             />
           )}
+          stats={(
+            <>
+              <HeroStat icon={PersonOutlined} label={t('Players')} value={team.team_users_number ?? players.length} color={theme.palette.success.main} />
+              <HeroStat icon={HubOutlined} label={t('Simulations')} value={team.team_exercises?.length ?? 0} color={theme.palette.primary.main} />
+              <HeroStat icon={AssignmentOutlined} label={t('Scenarios')} value={team.team_scenarios?.length ?? 0} color={theme.palette.secondary.main} />
+              <HeroStat icon={TrackChangesOutlined} label={t('Simulation injects')} value={team.team_exercise_injects_number ?? 0} color={theme.palette.warning.main} />
+              <HeroStat icon={TrackChangesOutlined} label={t('Expectations')} value={team.team_injects_expectations_number ?? 0} />
+              <HeroStat icon={TrackChangesOutlined} label={t('Score')} value={scoreLabel} />
+            </>
+          )}
         />
-
-        <MetricGrid>
-          <MetricTile icon={PersonOutlined} label={t('Players')} value={team.team_users_number ?? players.length} />
-          <MetricTile icon={MovieFilterOutlined} label={t('Simulations')} value={team.team_exercises?.length ?? 0} />
-          <MetricTile icon={AssignmentOutlined} label={t('Scenarios')} value={team.team_scenarios?.length ?? 0} />
-          <MetricTile icon={TrackChangesOutlined} label={t('Simulation injects')} value={team.team_exercise_injects_number ?? 0} />
-          <MetricTile icon={TrackChangesOutlined} label={t('Expectations')} value={team.team_injects_expectations_number ?? 0} />
-          <MetricTile icon={TrackChangesOutlined} label={t('Score')} value={scoreLabel} />
-        </MetricGrid>
 
         <InformationGrid title={t('Information')}>
           <Field label={t('Description')}>

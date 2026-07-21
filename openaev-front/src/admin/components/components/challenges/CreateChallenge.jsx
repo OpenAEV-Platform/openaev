@@ -1,22 +1,18 @@
-import { Add, ControlPointOutlined } from '@mui/icons-material';
-import { Dialog, DialogContent, DialogTitle, Fab, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { ControlPointOutlined } from '@mui/icons-material';
+import { Dialog, DialogContent, DialogTitle, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import * as R from 'ramda';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { makeStyles } from 'tss-react/mui';
 
 import { addChallenge } from '../../../../actions/challenge-action';
+import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ChallengeForm from './ChallengeForm';
 
 const useStyles = makeStyles()(theme => ({
-  createButton: {
-    position: 'fixed',
-    bottom: 30,
-    right: 30,
-  },
   text: {
     fontSize: 15,
     color: theme.palette.primary.main,
@@ -59,14 +55,7 @@ const CreateChallenge = (props) => {
           />
         </ListItemButton>
       ) : (
-        <Fab
-          onClick={handleOpen}
-          color="primary"
-          aria-label="Add"
-          className={classes.createButton}
-        >
-          <Add />
-        </Fab>
+        <ButtonCreate onClick={handleOpen} />
       )}
       {inline ? (
         <Dialog

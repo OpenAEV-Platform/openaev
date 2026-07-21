@@ -46,6 +46,7 @@ import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
+import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
@@ -101,6 +102,7 @@ public class InjectorContractService implements DependenciesManager {
   private final AttackPatternRepository attackPatternRepository;
   private final TagRepository tagRepository;
   private final InjectorService injectorService;
+  private final OrganizationService organizationService;
 
   private final List<String> listDefaultInjectorContract =
       List.of(
@@ -217,12 +219,6 @@ public class InjectorContractService implements DependenciesManager {
   public InjectorContract createNewInjectorContract(InjectorContractAddInput input) {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setCustom(true);
-    // A custom contract is authored by whoever creates it; system-driven
-    // creations (startup datapacks, schedulers) have no authenticated user and
-    // stay authorless.
-    if (!(SessionHelper.currentUser() instanceof OpenAEVAnonymous)) {
-      injectorContract.setAuthorUser(userService.currentUser());
-    }
     injectorContract.setUpdateAttributes(input);
     List<AttackPattern> aps = new ArrayList<>();
     if (!input.getAttackPatternsExternalIds().isEmpty()) {
@@ -246,6 +242,8 @@ public class InjectorContractService implements DependenciesManager {
     // sharing across instances of the same type is only done for builtin contracts
     // during registration (InjectorService.registerBuiltinInjector).
     injectorContract.addInjector(injector);
+
+    applyCustomContractAuthor(injectorContract, injector);
 
     injectorContract.setDomains(
         injector != null && !injector.isPayloads()
@@ -353,8 +351,54 @@ public class InjectorContractService implements DependenciesManager {
     injectorContract.setDomains(
         this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant()));
 
+    healExternalInjectorAuthor(injectorContract);
+
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
+  }
+
+  /**
+   * Attributes a freshly created custom contract to its author.
+   *
+   * <p>Interactive creations (a real session user) are authored by that user. System-driven
+   * creations by an external injector — e.g. the Nuclei per-CVE contract scheduler hitting {@code
+   * POST /injector_contracts} with the injector's token, where there is no session user — are
+   * attributed to the injector's publisher organization (its name, e.g. "Nuclei") so the Threat
+   * Arsenal shows the source instead of "No author". Payload-based contracts resolve their author
+   * from the payload and are left untouched.
+   */
+  private void applyCustomContractAuthor(InjectorContract contract, Injector injector) {
+    if (!(SessionHelper.currentUser() instanceof OpenAEVAnonymous)) {
+      contract.setAuthorUser(userService.currentUser());
+      return;
+    }
+    if (injector != null && injector.isExternal() && contract.getPayload() == null) {
+      contract.setAuthorOrganization(organizationService.findOrCreateByName(injector.getName()));
+    }
+  }
+
+  /**
+   * Heals authorless external-injector contracts on update. The Nuclei/nmap maintenance loops call
+   * {@code updateInjectorContract} on every existing contract each sync cycle, so legacy per-CVE
+   * contracts created before authorship (all author FKs null) get attributed to their injector's
+   * publisher organization here. Only payload-less contracts already carrying no author are
+   * touched, so user-authored and payload-based contracts are never overwritten.
+   */
+  private void healExternalInjectorAuthor(InjectorContract contract) {
+    boolean authorless =
+        contract.getAuthorUser() == null
+            && contract.getAuthorTeam() == null
+            && contract.getAuthorOrganization() == null;
+    if (!authorless || contract.getPayload() != null) {
+      return;
+    }
+    contract.getInjectors().stream()
+        .filter(Injector::isExternal)
+        .findFirst()
+        .ifPresent(
+            injector ->
+                contract.setAuthorOrganization(
+                    organizationService.findOrCreateByName(injector.getName())));
   }
 
   private void setVulnerabilitiesFromExternalOrInternalIds(

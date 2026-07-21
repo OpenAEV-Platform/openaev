@@ -115,6 +115,7 @@ public class InjectExpectationUtils {
         tech.setAgent(e.getAgent());
         tech.setAsset(e.getAsset());
         tech.setAssetGroup(e.getAssetGroup());
+        tech.setExpectedSecurityPlatforms(e.getExpectedSecurityPlatformTypes());
         baseInjectExpectation
             .getSignatures()
             .addAll(
@@ -126,6 +127,7 @@ public class InjectExpectationUtils {
         tech.setAgent(e.getAgent());
         tech.setAsset(e.getAsset());
         tech.setAssetGroup(e.getAssetGroup());
+        tech.setExpectedSecurityPlatforms(e.getExpectedSecurityPlatformTypes());
         baseInjectExpectation
             .getSignatures()
             .addAll(
@@ -137,6 +139,7 @@ public class InjectExpectationUtils {
         tech.setAgent(e.getAgent());
         tech.setAsset(e.getAsset());
         tech.setAssetGroup(e.getAssetGroup());
+        tech.setExpectedSecurityPlatforms(e.getExpectedSecurityPlatformTypes());
         baseInjectExpectation
             .getSignatures()
             .addAll(

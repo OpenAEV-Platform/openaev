@@ -1,5 +1,6 @@
 import { HelpOutlineOutlined } from '@mui/icons-material';
 import {
+  Box,
   List,
   ListItem,
   ListItemButton,
@@ -197,12 +198,17 @@ const Endpoints = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <ToggleButtonGroup value="fake" exclusive>
-            <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
+          <Box display="flex" gap={1} alignItems="center">
+            <ToggleButtonGroup value="fake" exclusive>
+              <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
+              <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
+                <ImportUploaderEndpoints />
+              </Can>
+            </ToggleButtonGroup>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
-              <ImportUploaderEndpoints />
+              <EndpointCreation onCreate={result => setEndpoints([result as EndpointOutput, ...endpoints])} agentless={true} />
             </Can>
-          </ToggleButtonGroup>
+          </Box>
         )}
       />
       <List>
@@ -270,9 +276,6 @@ const Endpoints = () => {
               })
         }
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
-        <EndpointCreation onCreate={result => setEndpoints([result as EndpointOutput, ...endpoints])} agentless={true} />
-      </Can>
     </>
   );
 };

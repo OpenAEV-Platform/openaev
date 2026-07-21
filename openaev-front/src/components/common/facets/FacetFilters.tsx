@@ -18,6 +18,8 @@ export interface FacetSection {
   id: string;
   label: string;
   rows: FacetRow[];
+  /** Optional control rendered under the section title (e.g. a kill chain switcher). */
+  headerAction?: ReactElement;
 }
 
 // Same anatomy as the integrations marketplace CatalogSidebar row: custom
@@ -211,6 +213,15 @@ export const FacetSidebar = ({ sections, anyActive, onClearAll }: FacetSidebarPr
             >
               {section.label}
             </Typography>
+            {section.headerAction && (
+              <Box sx={{
+                paddingInline: 1,
+                paddingBottom: 0.5,
+              }}
+              >
+                {section.headerAction}
+              </Box>
+            )}
             {section.rows.map(row => (
               <FacetRowItem key={row.value} row={row} />
             ))}

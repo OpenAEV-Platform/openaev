@@ -60,6 +60,10 @@ public class DetectionExpectation implements Expectation {
   /** Signatures that can satisfy this detection expectation. */
   private List<ExpectationSignature> expectationSignatures;
 
+  /** Security platform types expected to detect the activity (empty = any platform). */
+  private List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedSecurityPlatformTypes =
+      new java.util.ArrayList<>();
+
   private DetectionExpectation() {}
 
   @Override

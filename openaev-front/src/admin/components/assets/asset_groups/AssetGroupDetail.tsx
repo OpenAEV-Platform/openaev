@@ -74,7 +74,7 @@ const AssetGroupDetail = () => {
       field: 'asset_type',
       label: 'Type',
       isSortable: false,
-      value: (asset: AssetOutput) => <AssetTypeFragment type={asset.asset_type} />,
+      value: (asset: AssetOutput) => <AssetTypeFragment type={asset.asset_type} category={asset.asset_category} />,
     },
     {
       field: 'asset_criticality',

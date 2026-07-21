@@ -13,8 +13,8 @@ import {
 import { type FunctionComponent, useMemo, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
+import { formatPrimitiveTypeLabel } from '../../../../../utils/String';
 import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
-import { CONDITION_KEY_TYPES } from '../events/event-types';
 
 export interface FieldLink {
   outputType: string;
@@ -45,25 +45,14 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
   onToggleLocalScope,
 }) => {
   const { t } = useFormatter();
-  const { subtypesByType } = useArgumentTypes();
+  const { argumentTypes } = useArgumentTypes();
 
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
 
-  // Build flattened menu items: types with subtypes become "type.subtype", others stay as-is
-  const menuItems = useMemo(() => {
-    const items: string[] = [];
-    for (const keyType of CONDITION_KEY_TYPES) {
-      const subtypes = subtypesByType[keyType];
-      if (subtypes && subtypes.length > 0) {
-        for (const sub of subtypes) {
-          items.push(`${keyType}.${sub}`);
-        }
-      } else {
-        items.push(keyType);
-      }
-    }
-    return items;
-  }, [subtypesByType]);
+  const menuItems = useMemo(
+    () => (argumentTypes.length > 0 ? argumentTypes : ['text']),
+    [argumentTypes],
+  );
 
   const handleCloseMenu = () => {
     setMenuAnchor(null);
@@ -112,7 +101,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
             <Typography variant="body2" color="text.secondary">-</Typography>
             <LinkOutlined fontSize="small" color="primary" />
             <Typography variant="body2" color="primary">
-              {link.outputType}
+              {t(formatPrimitiveTypeLabel(link.outputType))}
             </Typography>
           </Box>
 
@@ -190,7 +179,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
             sx={{ gap: 1 }}
           >
             <LinkOutlined fontSize="small" color="primary" />
-            {item}
+            {t(formatPrimitiveTypeLabel(item))}
           </MenuItem>
         ))}
       </Menu>

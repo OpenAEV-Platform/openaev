@@ -53,6 +53,11 @@ const PlatformRolesTab = () => {
         entityPrefix={ENTITY_PLATFORM_ROLE_PREFIX}
         availableFilterNames={PLATFORM_ROLE_FILTERS}
         queryableHelpers={queryableHelpers}
+        topBarButtons={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES}>
+            <PlatformRoleCreate onCreate={addPlatformRole} />
+          </Can>
+        )}
       />
       <List>
         <ListItem
@@ -94,9 +99,6 @@ const PlatformRolesTab = () => {
               />
             )}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES}>
-        <PlatformRoleCreate onCreate={addPlatformRole} />
-      </Can>
     </>
   );
 };

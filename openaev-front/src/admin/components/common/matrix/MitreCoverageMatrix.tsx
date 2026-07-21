@@ -22,8 +22,8 @@ interface Props {
 // The home dashboard's ATT&CK coverage matrix (SecurityCoverageContent) is fed
 // two ES series - successes then failures - keyed by attack-pattern id. Reshape
 // the per-attack-pattern expectation results the scenario/simulation overviews
-// already fetch into that shape so both surfaces share the exact home widget
-// (kill-chain selector, coverage %, All/Covered/Gaps, heat cells).
+// already fetch into that shape so both surfaces share the home widget's
+// rendering (kill-chain selector, heat cells) in covered-only result mode.
 const MitreCoverageMatrix: FunctionComponent<Props> = ({ widgetId, injectResults }) => {
   const dispatch = useAppDispatch();
   useDataLoader(() => {
@@ -75,7 +75,9 @@ const MitreCoverageMatrix: FunctionComponent<Props> = ({ widgetId, injectResults
     [],
   );
 
-  return <SecurityCoverageContent widgetId={widgetId} widgetConfig={widgetConfig} data={data} />;
+  // Overviews are result views: show only techniques actually covered by the
+  // scenario / simulation, without the coverage-planning controls and KPI.
+  return <SecurityCoverageContent widgetId={widgetId} widgetConfig={widgetConfig} data={data} coveredOnly />;
 };
 
 export default MitreCoverageMatrix;

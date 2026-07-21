@@ -1,14 +1,13 @@
-import { GroupsOutlined, PersonOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Box } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { InsightsOutlined } from '@mui/icons-material';
+import { Box, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 
-import { searchExerciseHealthchecks } from '../../../../../actions/Exercise';
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults, searchExerciseInjects } from '../../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import { MetricGrid, MetricTile, SectionBlock } from '../../../../../components/common/detail/EntityDetailCommon';
+import { SectionBlock } from '../../../../../components/common/detail/EntityDetailCommon';
 import PostureGauges from '../../../../../components/common/detail/PostureGauges';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../../components/common/queryable/QueryableUtils';
@@ -16,13 +15,45 @@ import { useQueryableWithLocalStorage } from '../../../../../components/common/q
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { useHelper } from '../../../../../store';
-import { type Exercise, type ExpectationResultsByType, type HealthCheck, type InjectExpectationResultsByAttackPattern } from '../../../../../utils/api-types';
-import { isFeatureEnabled } from '../../../../../utils/utils';
+import { type Exercise, type ExpectationResultsByType, type InjectExpectationResultsByAttackPattern } from '../../../../../utils/api-types';
 import InjectResultList from '../../../atomic_testings/InjectResultList';
-import Healthchecks from '../../../common/healthchecks/Healthchecks';
 import MitreCoverageMatrix from '../../../common/matrix/MitreCoverageMatrix';
 import SimulationMainInformation from '../SimulationMainInformation';
-import ExerciseDistribution from './ExerciseDistribution';
+
+// Empty-state placeholder shown inside a SectionBlock when a simulation has not
+// produced results yet, instead of a raw loader or a stack of blank charts.
+const OverviewPlaceholder = ({ message }: { message: string }) => {
+  const theme = useTheme();
+  return (
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 1,
+      minHeight: 160,
+      height: '100%',
+      textAlign: 'center',
+      color: 'text.secondary',
+    }}
+    >
+      <Box sx={{
+        width: 44,
+        height: 44,
+        borderRadius: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: theme.palette.primary.main,
+        backgroundColor: alpha(theme.palette.primary.main, 0.1),
+      }}
+      >
+        <InsightsOutlined />
+      </Box>
+      <Typography variant="body2" sx={{ maxWidth: 320 }}>{message}</Typography>
+    </Box>
+  );
+};
 
 const SimulationComponent = () => {
   // Standard hooks
@@ -38,18 +69,10 @@ const SimulationComponent = () => {
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
   const [results, setResults] = useState<ExpectationResultsByType[] | null>(null);
   const [injectResults, setInjectResults] = useState<InjectExpectationResultsByAttackPattern[] | null>(null);
-  const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
-
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-  const exerciseWorkflowId = exercise.exercise_workflow_id as string | undefined;
-  const isSimulationChaining = isChainingFeatureEnabled && !!exerciseWorkflowId;
 
   useEffect(() => {
     fetchExerciseExpectationResult(exerciseId).then((result: { data: ExpectationResultsByType[] }) => setResults(result.data));
     fetchExerciseInjectExpectationResults(exerciseId).then((result: { data: InjectExpectationResultsByAttackPattern[] }) => setInjectResults(result.data));
-    if (isSimulationChaining) {
-      searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
-    }
   }, [exerciseId]);
 
   let resultAttackPatternIds = [];
@@ -92,19 +115,6 @@ const SimulationComponent = () => {
       paddingBottom: theme.spacing(5),
     }}
     >
-      {isSimulationChaining && !!healthchecks?.length && (
-        <Healthchecks
-          healthchecks={healthchecks}
-          exerciseId={exerciseId}
-        />
-      )}
-
-      <MetricGrid>
-        <MetricTile icon={TrackChangesOutlined} label={t('Injects')} value={exercise.exercise_injects?.length ?? 0} />
-        <MetricTile icon={GroupsOutlined} label={t('Teams')} value={exercise.exercise_teams?.length ?? 0} />
-        <MetricTile icon={PersonOutlined} label={t('Players')} value={exercise.exercise_all_users_number ?? exercise.exercise_users_number ?? 0} />
-      </MetricGrid>
-
       <Box sx={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
@@ -113,7 +123,7 @@ const SimulationComponent = () => {
       }}
       >
         <SectionBlock title={t('Information')}>
-          <SimulationMainInformation exercise={exercise} />
+          <SimulationMainInformation exercise={exercise} embedded />
         </SectionBlock>
         <SectionBlock title={t('Results')}>
           <Box sx={{
@@ -123,9 +133,13 @@ const SimulationComponent = () => {
             height: '100%',
           }}
           >
-            {!results
-              ? <Loader variant="inElement" />
-              : <PostureGauges expectationResultsByTypes={results} humanValidationLink={`/admin/simulations/${exerciseId}/animation/validations`} />}
+            {(() => {
+              if (!results) return <Loader variant="inElement" />;
+              if (results.length === 0) {
+                return <OverviewPlaceholder message={t('Prevention, detection and vulnerability results will appear here once the simulation runs.')} />;
+              }
+              return <PostureGauges expectationResultsByTypes={results} humanValidationLink={`/admin/simulations/${exerciseId}/animation/validations`} />;
+            })()}
           </Box>
         </SectionBlock>
       </Box>
@@ -134,20 +148,25 @@ const SimulationComponent = () => {
           <MitreCoverageMatrix widgetId={`simulation-mitre-${exerciseId}`} injectResults={injectResults} />
         </SectionBlock>
       )}
-      {exercise.exercise_status !== 'SCHEDULED' && (
-        <div id="injects-results">
-          <SectionBlock title={t('Injects results')}>
-            <InjectResultList
-              fetchInjects={input => searchExerciseInjects(exerciseId, input)}
-              goTo={injectId => `/admin/simulations/${exerciseId}/injects/${injectId}`}
-              queryableHelpers={queryableHelpers}
-              searchPaginationInput={searchPaginationInput}
-              contextId={exercise.exercise_id}
-            />
-          </SectionBlock>
-        </div>
-      )}
-      <ExerciseDistribution exerciseId={exerciseId} />
+      {exercise.exercise_status !== 'SCHEDULED'
+        ? (
+            <div id="injects-results">
+              <SectionBlock title={t('Injects results')}>
+                <InjectResultList
+                  fetchInjects={input => searchExerciseInjects(exerciseId, input)}
+                  goTo={injectId => `/admin/simulations/${exerciseId}/injects/${injectId}`}
+                  queryableHelpers={queryableHelpers}
+                  searchPaginationInput={searchPaginationInput}
+                  contextId={exercise.exercise_id}
+                />
+              </SectionBlock>
+            </div>
+          )
+        : (
+            <SectionBlock title={t('Injects results')}>
+              <OverviewPlaceholder message={t('This simulation is not running yet. Start it to collect inject results, or open the dashboard to build a custom analysis.')} />
+            </SectionBlock>
+          )}
     </Box>
   );
 };

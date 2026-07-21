@@ -20,15 +20,17 @@ class ScenarioPage {
 
   constructor(page: Page) {
     this.page = page;
-    // Scenario configuration drawer (hosts the teams section on its first tab)
+    // Scenario configuration drawer (hosts the teams section on its first tab).
+    // The teams section has no inner heading anymore (the drawer tab labels it),
+    // so target the "Add" trigger inside the promoted configuration action slot.
     this.configurationButton = page.getByRole('button', { name: 'Configuration' });
-    this.teamAddBtn = page.getByRole('heading', { name: 'Teams Add' }).getByLabel('Add');
+    this.teamAddBtn = page.getByTestId('configuration-fab').getByLabel('Add');
     this.teamListSection = page.getByTestId('teams-list-section');
     this.updateTeamDialog = new UpdateTeamDialog(page);
     // Injects tab's locators
     this.injectsTab = page.getByRole('tab', { name: 'Injects' });
     this.injectListSection = page.getByTestId('injects-list-section');
-    this.injectAddBtn = page.getByRole('button', { name: 'Add' });
+    this.injectAddBtn = page.getByTestId('button-create');
 
     this.searchInject = page.getByPlaceholder('Search these results...');
   }
