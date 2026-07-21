@@ -336,7 +336,19 @@ public class WorkflowStateService {
   }
 
   /**
-   * Saves a correlated object (multi-field entry like host+port) into state entries.
+   * Correlation/attachment keys that appear in complex objects but are NOT part of the content
+   * tuple. They serve as correlation anchors (host → asset resolution) or provenance markers
+   * (asset_id) and must be excluded from the content {@code Set<Pair>}.
+   */
+  private static final Set<PrimitiveType> ATTACHMENT_KEYS =
+      Set.of(PrimitiveType.Host, PrimitiveType.AssetId);
+
+  /**
+   * Saves a correlated object (multi-field entry like {username, password}) into state entries.
+   *
+   * <p>JSON field names are normalized to {@link PrimitiveType#name()} (e.g. "username" →
+   * "Username") so that the object path produces the same key convention as the scalar path.
+   * Attachment fields ({@code host}, {@code asset_id}) are excluded from the content pair set.
    *
    * @param entries state entries to update
    * @param obj JSON object whose fields form a correlated pair set
@@ -347,16 +359,32 @@ public class WorkflowStateService {
     obj.entrySet()
         .forEach(
             entry -> {
-              String key = entry.getKey();
+              String jsonKey = entry.getKey();
               JsonElement value = entry.getValue();
 
               if (value == null || value.isJsonNull()) {
                 return;
               }
 
-              // Extract clean string values for the Pair
+              // Resolve the JSON field name to its PrimitiveType via the label mapping
+              Optional<PrimitiveType> primitiveOpt = PrimitiveType.fromLabelOptional(jsonKey);
+              if (primitiveOpt.isEmpty()) {
+                log.trace(
+                    "Skipping unknown field '{}' in correlated object — no PrimitiveType match",
+                    jsonKey);
+                return;
+              }
+
+              PrimitiveType primitiveType = primitiveOpt.get();
+
+              // Exclude attachment/correlation keys from the content pair set
+              if (ATTACHMENT_KEYS.contains(primitiveType)) {
+                return;
+              }
+
+              // Extract clean string values for the Pair, keyed by PrimitiveType.name()
               String valStr = value.isJsonPrimitive() ? value.getAsString() : value.toString();
-              pairSet.add(new WorkflowStateEntries.Pair(key, valStr));
+              pairSet.add(new WorkflowStateEntries.Pair(primitiveType.name(), valStr));
             });
 
     if (pairSet.size() > 1) {

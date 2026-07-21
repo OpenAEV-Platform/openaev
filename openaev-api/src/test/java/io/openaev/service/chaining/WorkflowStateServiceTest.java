@@ -433,4 +433,83 @@ class WorkflowStateServiceTest {
           Set.of(validAssetGroupId), persistedEntries.getInputByKey("AssetGroupId").getValues());
     }
   }
+
+  // ========================================================================
+  // saveCorrelatedObject — key normalization and attachment exclusion
+  // ========================================================================
+  @Nested
+  @DisplayName("syncState - correlated object key normalization")
+  class SaveCorrelatedObjectTests {
+
+    @Test
+    @DisplayName(
+        "complex object {username, password, host, asset_id} should yield Correlated with keys {Username, Password} only")
+    void givenComplexCredentialObject_shouldNormalizeKeysAndExcludeAttachments() {
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = Workflow.builder().id(workflowId).build();
+
+      WorkflowStateEntries initialEntries =
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      WorkflowState globalState =
+          WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
+
+      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
+          .thenReturn(globalState);
+      when(workflowStateRepository.save(any(WorkflowState.class)))
+          .thenAnswer(inv -> inv.getArgument(0));
+
+      PrimitiveValidationContext validationContext =
+          new PrimitiveValidationContext(
+              Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
+              Set.of(), Set.of());
+      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflow)))
+          .thenReturn(validationContext);
+
+      // A complex output field containing an array of credential objects
+      JsonObject dataToSync =
+          JsonParser.parseString(
+                  """
+                  {
+                    "credentials": [
+                      {"username": "admin", "password": "s3cret", "host": "10.0.0.1", "asset_id": "asset-42"}
+                    ]
+                  }
+                  """)
+              .getAsJsonObject();
+
+      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+      typeMappings.put(
+          "credentials",
+          ChainingMappedType.complex(List.of(PrimitiveType.Username, PrimitiveType.Password)));
+
+      workflowStateService.syncState(dataToSync, typeMappings, workflow);
+
+      WorkflowStateEntries persistedEntries =
+          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+
+      // Exactly one Correlated should exist
+      assertEquals(1, persistedEntries.getCorrelated().size());
+
+      Set<WorkflowStateEntries.Pair> pairs =
+          persistedEntries.getCorrelated().getFirst().getValues();
+
+      // Keys must be PrimitiveType.name() (Pascal case), not raw JSON field names
+      assertEquals(
+          Set.of(
+              new WorkflowStateEntries.Pair("Username", "admin"),
+              new WorkflowStateEntries.Pair("Password", "s3cret")),
+          pairs);
+
+      // Attachment keys must NOT be present
+      Set<String> pairKeys =
+          pairs.stream()
+              .map(WorkflowStateEntries.Pair::key)
+              .collect(java.util.stream.Collectors.toSet());
+      assertFalse(pairKeys.contains("host"));
+      assertFalse(pairKeys.contains("Host"));
+      assertFalse(pairKeys.contains("asset_id"));
+      assertFalse(pairKeys.contains("AssetId"));
+    }
+  }
 }
