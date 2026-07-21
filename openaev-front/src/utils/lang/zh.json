@@ -433,6 +433,7 @@
   "AttackPatterns": "攻击模式",
   "Attribute mapping configuration": "属性映射配置",
   "Audio": "音频",
+  "Audit logging is inactive: an Enterprise Edition license is required to enable this feature.": "审计日志功能已禁用：需拥有企业版许可证才能启用此功能。",
   "Auth method": "认证方法",
   "Auth Method": "认证方法",
   "Authenticate with a personal XTM One API key passed as a bearer token. Your endpoint, connection status and ready-to-copy client configuration are available in your XTM One profile.": "使用个人XTM One API密钥作为bearer令牌进行身份验证。您的端点、连接状态和可直接复制的客户端配置均可在XTM One个人资料中找到。",

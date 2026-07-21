@@ -3993,6 +3993,8 @@
   "Your overall evaluation about this question.": "Votre évaluation globale de cette question.",
   "Your threat arsenal is empty": "Votre arsenal est vide",
   "your trial license online": "votre licence d'essai en ligne",
+  "Audit logging is inactive: an Enterprise Edition license is required to enable this feature.": "La journalisation d'audit est inactive : une licence Enterprise Edition est requise pour activer cette fonctionnalit\u00e9.",
+  "The Caldera executor is not responding, your simulations may be impacted.": "L'ex\u00e9cuteur Caldera ne r\u00e9pond pas, vos simulations peuvent \u00eatre affect\u00e9es.",
   "YYYY": "AAAA",
   "Zoom in": "Zoom avant",
   "Zoom out": "Zoom arriere"

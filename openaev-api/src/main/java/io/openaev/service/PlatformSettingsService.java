@@ -9,6 +9,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Optional.ofNullable;
 
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.EngineConfig;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.OpenAEVPrincipal;
@@ -86,13 +87,13 @@ public class PlatformSettingsService {
   @Autowired private LicenseCacheManager licenseCacheManager;
 
   // Setter injection with @Lazy to break the circular dependency:
-  // PlatformSettingsService → AuditLogService → PlatformSettingsService
-  private AuditLogService auditLogService;
+  // PlatformSettingsService → AuditLogger → PlatformSettingsService
+  private AuditLogger auditLogger;
 
   @Autowired
   @Lazy
-  public void setAuditLogService(AuditLogService auditLogService) {
-    this.auditLogService = auditLogService;
+  public void setAuditLogger(AuditLogger auditLogger) {
+    this.auditLogger = auditLogger;
   }
 
   // -- PROVIDERS --
@@ -460,7 +461,9 @@ public class PlatformSettingsService {
     settingsToSave.add(resolveFromMap(dbSettings, PLATFORM_ENTERPRISE_LICENSE.key(), certPem));
     settingRepository.saveAll(settingsToSave);
     licenseCacheManager.refreshLicense();
-    auditLogService.checkLicenseBanner();
+    if (auditLogger != null) {
+      auditLogger.checkLicenseBanner();
+    }
     return findSettings();
   }
 

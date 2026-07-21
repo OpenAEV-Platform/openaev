@@ -433,6 +433,7 @@
   "AttackPatterns": "공격 패턴",
   "Attribute mapping configuration": "어트리뷰트 매핑 구성",
   "Audio": "오디오",
+  "Audit logging is inactive: an Enterprise Edition license is required to enable this feature.": "감사 로깅이 비활성화되어 있습니다. 이 기능을 사용하려면 Enterprise Edition 라이선스가 필요합니다.",
   "Auth method": "인증 방법",
   "Auth Method": "인증 방법",
   "Authenticate with a personal XTM One API key passed as a bearer token. Your endpoint, connection status and ready-to-copy client configuration are available in your XTM One profile.": "개인 XTM One API 키를 베어러 토큰으로 사용해 인증하세요. 엔드포인트, 연결 상태, 바로 복사할 수 있는 클라이언트 설정은 XTM One 프로필에서 확인할 수 있습니다.",

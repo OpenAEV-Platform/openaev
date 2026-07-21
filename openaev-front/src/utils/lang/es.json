@@ -433,6 +433,7 @@
   "AttackPatterns": "Patrones de Ataque",
   "Attribute mapping configuration": "Configuración de asignación de atributos",
   "Audio": "Audio",
+  "Audit logging is inactive: an Enterprise Edition license is required to enable this feature.": "El registro de auditoría está desactivado: se requiere una licencia de la Edición Enterprise para habilitar esta función.",
   "Auth method": "Método de autenticación",
   "Auth Method": "Método de autenticación",
   "Authenticate with a personal XTM One API key passed as a bearer token. Your endpoint, connection status and ready-to-copy client configuration are available in your XTM One profile.": "Autentíquese con una clave API personal de XTM One como token bearer. Su punto de acceso, el estado de conexión y la configuración de cliente lista para copiar están disponibles en su perfil de XTM One.",

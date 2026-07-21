@@ -8,7 +8,6 @@ import static org.mockito.Mockito.*;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Setting;
 import io.openaev.database.repository.SettingRepository;
-import io.openaev.service.AuditLogService;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -19,7 +18,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 class AppTest extends IntegrationTest {
 
   @Mock private SettingRepository settingRepository;
-  @Mock private AuditLogService auditLogService;
   @Autowired private OpenAEVConfig openAEVConfig;
 
   @DisplayName("Should throw an exception when having an incorrect instance id")
@@ -29,7 +27,7 @@ class AppTest extends IntegrationTest {
     when(settingRepository.findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key()))
         .thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> new App(settingRepository, openAEVConfig, auditLogService).init())
+    assertThatThrownBy(() -> new App(settingRepository, openAEVConfig).init())
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("Invalid UUID string: pouet");
     verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key());
@@ -41,7 +39,7 @@ class AppTest extends IntegrationTest {
   void shouldUpdateInstanceIdWithProperty() {
     String uuid = UUID.randomUUID().toString();
     openAEVConfig.setInstanceId(uuid);
-    new App(settingRepository, openAEVConfig, auditLogService).init();
+    new App(settingRepository, openAEVConfig).init();
     verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key());
     verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key());
     verify(settingRepository)
@@ -60,7 +58,7 @@ class AppTest extends IntegrationTest {
     // Mock le repository pour retourner empty
     when(settingRepository.findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key()))
         .thenReturn(Optional.empty());
-    new App(settingRepository, openAEVConfig, auditLogService).init();
+    new App(settingRepository, openAEVConfig).init();
     verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key());
     verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key());
     verify(settingRepository)
@@ -76,7 +74,7 @@ class AppTest extends IntegrationTest {
     openAEVConfig.setInstanceId("");
     when(settingRepository.findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key()))
         .thenReturn(Optional.empty());
-    new App(settingRepository, openAEVConfig, auditLogService).init();
+    new App(settingRepository, openAEVConfig).init();
     verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key());
     verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key());
     verify(settingRepository)
@@ -92,7 +90,7 @@ class AppTest extends IntegrationTest {
     when(settingRepository.findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key()))
         .thenReturn(
             Optional.of(new Setting(PLATFORM_INSTANCE.key(), UUID.randomUUID().toString())));
-    new App(settingRepository, openAEVConfig, auditLogService).init();
+    new App(settingRepository, openAEVConfig).init();
     verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key());
     verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key());
     verifyNoMoreInteractions(settingRepository);
@@ -105,7 +103,7 @@ class AppTest extends IntegrationTest {
     when(settingRepository.findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key()))
         .thenReturn(
             Optional.of(new Setting(PLATFORM_INSTANCE.key(), UUID.randomUUID().toString())));
-    new App(settingRepository, openAEVConfig, auditLogService).init();
+    new App(settingRepository, openAEVConfig).init();
     verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key());
     verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key());
     verifyNoMoreInteractions(settingRepository);
