@@ -9,6 +9,7 @@ import io.openaev.database.model.attackpath.projection.AttackPathExecutionRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingExecutionRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingListRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
+import io.openaev.database.model.attackpath.projection.AttackPathInjectorMetaRow;
 import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -32,8 +33,10 @@ import io.openaev.utils.mapper.PayloadMapper;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -382,12 +385,19 @@ public class AttackPathGraphService {
     Map<String, AttackPathEdges> edges = new LinkedHashMap<>();
     Map<String, AttackPathNodeDTO> feedByExecutionId = new LinkedHashMap<>();
     Map<String, List<AttackPathExecutionRow>> byTarget = new LinkedHashMap<>();
+    // injector node id -> every contract that injector ran, so a node's techniques are their union.
+    Map<String, Set<String>> contractsByInjectorNode = new LinkedHashMap<>();
 
     // Pass over executions: injector/source nodes, grouped execution edges, feed entries.
     for (AttackPathExecutionRow e : executions) {
       byTarget.computeIfAbsent(e.targetKey(), k -> new ArrayList<>()).add(e);
 
       String sourceNodeId = sourceNode(e, nodes);
+      if (SOURCE_INJECTOR.equals(e.sourceKind()) && e.contractExternalId() != null) {
+        contractsByInjectorNode
+            .computeIfAbsent(sourceNodeId, k -> new LinkedHashSet<>())
+            .add(e.contractExternalId());
+      }
       String targetNodeId = AttackPathIds.endpointNode(e.targetKey());
 
       String edgeId = AttackPathIds.executionsEdge(sourceNodeId, targetNodeId);
@@ -465,6 +475,8 @@ public class AttackPathGraphService {
           }
         });
 
+    resolveInjectorAttackPatterns(nodes, contractsByInjectorNode);
+
     AttackPathCounters counters =
         new AttackPathCounters(
             byTarget.size(),
@@ -479,6 +491,68 @@ public class AttackPathGraphService {
         new ArrayList<>(edges.values()),
         counters,
         "full");
+  }
+
+  /**
+   * The collapsed injector nodes get the same type and techniques as the full graph, but their
+   * source rows are never materialized (the edges are grouped), so a small distinct read supplies
+   * the per-injector metadata before the shared technique resolution runs.
+   */
+  private void enrichCollapsedInjectors(String simulationId, Map<String, AttackPathNodeDTO> nodes) {
+    Map<String, Set<String>> contractsByInjectorNode = new LinkedHashMap<>();
+    for (AttackPathInjectorMetaRow meta : executionRepository.findInjectorMetadata(simulationId)) {
+      String nodeId = AttackPathIds.injectorNode(meta.sourceInjector());
+      AttackPathNodeDTO injectorNode = nodes.get(nodeId);
+      if (injectorNode == null) {
+        continue;
+      }
+      if (injectorNode.getInjectorType() == null) {
+        injectorNode.setInjectorType(meta.injectorType());
+      }
+      if (meta.contractExternalId() != null) {
+        contractsByInjectorNode
+            .computeIfAbsent(nodeId, k -> new LinkedHashSet<>())
+            .add(meta.contractExternalId());
+      }
+    }
+    resolveInjectorAttackPatterns(nodes, contractsByInjectorNode);
+  }
+
+  /**
+   * Sets each injector node's ATT&CK techniques from its contracts, in ONE batched query for the
+   * whole graph. A node's techniques are the union across every contract that injector ran, deduped
+   * by technique id, since one injector can run several contracts in a simulation. No injector
+   * contract in scope means no query at all, so a graph without injectors stays at its two reads.
+   */
+  private void resolveInjectorAttackPatterns(
+      Map<String, AttackPathNodeDTO> nodes, Map<String, Set<String>> contractsByInjectorNode) {
+    Set<String> externalIds = new HashSet<>();
+    contractsByInjectorNode.values().forEach(externalIds::addAll);
+    if (externalIds.isEmpty()) {
+      return;
+    }
+    Map<String, List<AttackPathAttackPatternDTO>> patternsByContract = new HashMap<>();
+    injectorContractRepository
+        .findInjectorAttackPatternsByExternalIdIn(externalIds)
+        .forEach(
+            row ->
+                patternsByContract
+                    .computeIfAbsent(row.contractExternalId(), k -> new ArrayList<>())
+                    .add(
+                        new AttackPathAttackPatternDTO(
+                            row.patternExternalId(), row.patternName())));
+    contractsByInjectorNode.forEach(
+        (nodeId, contractIds) -> {
+          Map<String, AttackPathAttackPatternDTO> deduped = new LinkedHashMap<>();
+          for (String contractId : contractIds) {
+            patternsByContract
+                .getOrDefault(contractId, List.of())
+                .forEach(p -> deduped.putIfAbsent(p.externalId(), p));
+          }
+          if (!deduped.isEmpty()) {
+            nodes.get(nodeId).setAttackPatterns(new ArrayList<>(deduped.values()));
+          }
+        });
   }
 
   /**
@@ -539,6 +613,8 @@ public class AttackPathGraphService {
       edge.setCount((int) g.count());
       collapsedEdges.add(edge);
     }
+
+    enrichCollapsedInjectors(simulationId, nodes);
 
     return new AttackPathDTO(
         List.of(),
@@ -601,7 +677,15 @@ public class AttackPathGraphService {
   private String sourceNode(AttackPathExecutionRow e, Map<String, AttackPathNodeDTO> nodes) {
     String id = sourceNodeId(e);
     if (SOURCE_INJECTOR.equals(e.sourceKind())) {
-      nodes.computeIfAbsent(id, key -> node(key, TYPE_INJECTOR, e.sourceInjector()));
+      nodes.computeIfAbsent(
+          id,
+          key -> {
+            AttackPathNodeDTO injectorNode = node(key, TYPE_INJECTOR, e.sourceInjector());
+            // The injector's real type, frozen on the row; attack patterns are resolved once
+            // after the pass, batched, in resolveInjectorAttackPatterns.
+            injectorNode.setInjectorType(e.injectorType());
+            return injectorNode;
+          });
     } else {
       // Agent/asset source: the source endpoint. A placeholder node, overwritten if it is also a
       // target (a pivot chain) by the ASSET pass above.

@@ -996,6 +996,7 @@ export interface AttackPathNodeDTO {
   agents?: string[];
   arguments?: any[];
   assetNodeId?: string;
+  attackPatterns?: AttackPathAttackPatternDTO[];
   command?: string;
   executedAt?: string;
   executionsTraces?: any[];
@@ -1005,6 +1006,7 @@ export interface AttackPathNodeDTO {
   findingsTypeNodeId?: string;
   hostname?: string;
   id?: string;
+  injectorType?: string;
   ip?: string;
   label?: string;
   payloadName?: string;
