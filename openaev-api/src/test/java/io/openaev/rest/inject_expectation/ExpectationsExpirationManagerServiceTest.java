@@ -145,7 +145,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       // -- EXECUTE --
       expireExpectationsInDbByInjectId(savedInject.getId());
-      expectationsExpirationManagerService.computeExpectations();
+      expectationsExpirationManagerService.computeExpectations(TenantContext.getCurrentTenant());
 
       // -- ASSERT --
       // Agent Expectation
@@ -231,7 +231,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       // -- EXECUTE --
       expireExpectationsInDbByInjectId(savedInject.getId());
-      expectationsExpirationManagerService.computeExpectations();
+      expectationsExpirationManagerService.computeExpectations(TenantContext.getCurrentTenant());
 
       // -- ASSERT --
       // Agent Expectation
@@ -325,7 +325,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       // -- EXECUTE --
       expireExpectationsInDbByInjectId(savedInject.getId());
-      expectationsExpirationManagerService.computeExpectations();
+      expectationsExpirationManagerService.computeExpectations(TenantContext.getCurrentTenant());
 
       // -- ASSERT --
       // Agent Expectation
@@ -395,7 +395,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       // -- EXECUTE --
       expireExpectationsInDbByInjectId(savedInject.getId());
-      expectationsExpirationManagerService.computeExpectations();
+      expectationsExpirationManagerService.computeExpectations(TenantContext.getCurrentTenant());
 
       // -- ASSERT --
       // Asset
@@ -434,7 +434,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       // -- EXECUTE --
       expireExpectationsInDbByInjectId(savedInject.getId());
-      expectationsExpirationManagerService.computeExpectations();
+      expectationsExpirationManagerService.computeExpectations(TenantContext.getCurrentTenant());
 
       // -- ASSERT --
       injectExpectations =
