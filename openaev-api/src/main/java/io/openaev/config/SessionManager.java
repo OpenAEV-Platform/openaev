@@ -12,6 +12,7 @@ import io.openaev.service.UserService;
 import io.openaev.service.settings.SettingService;
 import io.openaev.utils.HttpReqRespUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -23,9 +24,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.Bean;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
@@ -40,12 +38,12 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.saml2.provider.service.authentication.Saml2Authentication;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.Session;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * Session registry backed by the PostgreSQL session store (Spring Session JDBC).
@@ -61,8 +59,6 @@ import org.springframework.transaction.annotation.Transactional;
         "reads/deletes spring_session and spring_session_attributes only: Spring Session"
             + " infrastructure tables with no tenant_id column, never tenant business data")
 public class SessionManager {
-
-  private static final Logger log = LoggerFactory.getLogger(SessionManager.class);
 
   /**
    * Session attribute marker set by the logout handler to distinguish explicit logout from timeout.
@@ -109,7 +105,7 @@ public class SessionManager {
         .setAttribute(FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME, userId);
   }
 
-    // -- SESSION REGISTRY --
+  // -- SESSION REGISTRY --
   /**
    * Invalidates the current HTTP session and clears the {@link
    * org.springframework.security.core.context.SecurityContextHolder SecurityContextHolder} so no
