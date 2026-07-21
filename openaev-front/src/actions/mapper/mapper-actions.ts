@@ -2,9 +2,9 @@ import { simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../
 import {
   type ExportMapperInput,
   type ImportMapperAddInput,
+  type ImportMapperSimpleOutput,
   type ImportMapperUpdateInput,
   type InjectsImportTestInput,
-  type RawPaginationImportMapper,
   type SearchPaginationInput,
 } from '../../utils/api-types';
 
@@ -21,7 +21,7 @@ export const fetchMapper = (mapperId: string) => {
   return simpleCall(uri);
 };
 
-export const deleteMapper = (mapperId: RawPaginationImportMapper['import_mapper_id']) => {
+export const deleteMapper = (mapperId: ImportMapperSimpleOutput['import_mapper_id']) => {
   const uri = `${XLS_MAPPER_URI}/${mapperId}`;
   return simpleDelCall(uri);
 };

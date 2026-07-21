@@ -4,10 +4,10 @@ import { createMapper } from '../../../../../actions/mapper/mapper-actions';
 import ButtonCreate from '../../../../../components/common/ButtonCreate';
 import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
-import { type ImportMapperAddInput, type RawPaginationImportMapper } from '../../../../../utils/api-types';
+import { type ImportMapperAddInput, type ImportMapperOutput, type ImportMapperSimpleOutput } from '../../../../../utils/api-types';
 import MapperForm from './MapperForm';
 
-interface Props { onCreate?: (result: RawPaginationImportMapper) => void }
+interface Props { onCreate?: (result: ImportMapperSimpleOutput) => void }
 
 const XlsMapperCreation: FunctionComponent<Props> = ({ onCreate }) => {
   const { t } = useFormatter();
@@ -16,7 +16,7 @@ const XlsMapperCreation: FunctionComponent<Props> = ({ onCreate }) => {
 
   const onSubmit = (data: ImportMapperAddInput) => {
     createMapper(data).then(
-      (result: { data: RawPaginationImportMapper }) => {
+      (result: { data: ImportMapperOutput }) => {
         onCreate?.(result.data);
         return result;
       },

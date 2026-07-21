@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.Data;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
@@ -44,15 +45,20 @@ public class ImportMapper implements TenantBase {
   @NotNull
   private String injectTypeColumn;
 
-  @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+  // -- RELATIONS --
+
+  @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
   @JoinColumn(name = "importer_mapper_id", nullable = false)
   @JsonProperty("import_mapper_inject_importers")
+  @BatchSize(size = 20) // a mapper rarely has more than ~15 importers
   private List<InjectImporter> injectImporters = new ArrayList<>();
 
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
   private Tenant tenant;
+
+  // -- AUDIT --
 
   @CreationTimestamp
   @Column(name = "mapper_created_at")

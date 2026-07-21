@@ -1,4 +1,4 @@
-package io.openaev.rest.mapper.form;
+package io.openaev.api.import_mapper.form;
 
 import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
@@ -10,7 +10,10 @@ import java.util.Map;
 import lombok.Data;
 
 @Data
-public class RuleAttributeAddInput {
+public class RuleAttributeUpdateInput {
+
+  @JsonProperty("rule_attribute_id")
+  private String id;
 
   @NotBlank(message = MANDATORY_MESSAGE)
   @JsonProperty("rule_attribute_name")

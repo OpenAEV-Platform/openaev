@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.Data;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
@@ -37,6 +38,8 @@ public class InjectImporter implements Base {
   @NotBlank
   private String importTypeValue;
 
+  // -- RELATIONS --
+
   @OneToOne
   @JoinColumns({
     @JoinColumn(
@@ -50,10 +53,13 @@ public class InjectImporter implements Base {
   @Schema(implementation = String.class)
   private InjectorContract injectorContract;
 
-  @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+  @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
   @JoinColumn(name = "attribute_inject_importer_id", nullable = false)
   @JsonProperty("inject_importer_rule_attributes")
+  @BatchSize(size = 20) // an importer rarely has more than ~10 rule attributes
   private List<RuleAttribute> ruleAttributes = new ArrayList<>();
+
+  // -- AUDIT --
 
   @CreationTimestamp
   @Column(name = "importer_created_at")

@@ -1,4 +1,4 @@
-package io.openaev.rest.mapper;
+package io.openaev.api.import_mapper;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertFalse;

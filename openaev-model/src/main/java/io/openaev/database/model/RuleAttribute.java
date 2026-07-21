@@ -48,6 +48,8 @@ public class RuleAttribute implements Base {
   @JsonProperty("rule_attribute_additional_config")
   private Map<String, String> additionalConfig;
 
+  // -- AUDIT --
+
   @CreationTimestamp
   @Column(name = "attribute_created_at")
   @JsonProperty("rule_attribute_created_at")

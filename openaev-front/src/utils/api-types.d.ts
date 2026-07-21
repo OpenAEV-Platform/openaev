@@ -5968,19 +5968,6 @@ export interface HealthCheck {
     | "UNKNOWN";
 }
 
-export interface ImportMapper {
-  /** @format date-time */
-  import_mapper_created_at?: string;
-  import_mapper_id: string;
-  import_mapper_inject_importers?: InjectImporter[];
-  import_mapper_inject_type_column: string;
-  /** @minLength 1 */
-  import_mapper_name: string;
-  /** @format date-time */
-  import_mapper_updated_at?: string;
-  listened?: boolean;
-}
-
 export interface ImportMapperAddInput {
   import_mapper_inject_importers: InjectImporterAddInput[];
   /**
@@ -5990,6 +5977,26 @@ export interface ImportMapperAddInput {
   import_mapper_inject_type_column: string;
   /** @minLength 1 */
   import_mapper_name: string;
+}
+
+export interface ImportMapperOutput {
+  /** @format date-time */
+  import_mapper_created_at?: string;
+  import_mapper_id: string;
+  import_mapper_inject_importers: InjectImporterOutput[];
+  import_mapper_inject_type_column: string;
+  import_mapper_name: string;
+  /** @format date-time */
+  import_mapper_updated_at?: string;
+}
+
+export interface ImportMapperSimpleOutput {
+  /** @format date-time */
+  import_mapper_created_at?: string;
+  import_mapper_id: string;
+  import_mapper_name: string;
+  /** @format date-time */
+  import_mapper_updated_at?: string;
 }
 
 export interface ImportMapperUpdateInput {
@@ -6431,25 +6438,23 @@ export interface InjectExportTarget {
   inject_id?: string;
 }
 
-export interface InjectImporter {
-  /** @format date-time */
-  inject_importer_created_at?: string;
-  inject_importer_id: string;
-  inject_importer_injector_contract: string;
-  inject_importer_rule_attributes?: RuleAttribute[];
-  /** @minLength 1 */
-  inject_importer_type_value: string;
-  /** @format date-time */
-  inject_importer_updated_at?: string;
-  listened?: boolean;
-}
-
 export interface InjectImporterAddInput {
   /** @minLength 1 */
   inject_importer_injector_contract: string;
   inject_importer_rule_attributes?: RuleAttributeAddInput[];
   /** @minLength 1 */
   inject_importer_type_value: string;
+}
+
+export interface InjectImporterOutput {
+  /** @format date-time */
+  inject_importer_created_at?: string;
+  inject_importer_id: string;
+  inject_importer_injector_contract: string;
+  inject_importer_rule_attributes: RuleAttributeOutput[];
+  inject_importer_type_value: string;
+  /** @format date-time */
+  inject_importer_updated_at?: string;
 }
 
 export interface InjectImporterUpdateInput {
@@ -8410,6 +8415,25 @@ export interface PageGroup {
   totalPages?: number;
 }
 
+export interface PageImportMapperSimpleOutput {
+  content?: ImportMapperSimpleOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageInjectResultOutput {
   content?: InjectResultOutput[];
   empty?: boolean;
@@ -8735,25 +8759,6 @@ export interface PagePlayerOutput {
 
 export interface PageRawPaginationDocument {
   content?: RawPaginationDocument[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject[];
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
-export interface PageRawPaginationImportMapper {
-  content?: RawPaginationImportMapper[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -10018,16 +10023,6 @@ export interface RawPaginationDocument {
   document_type?: string;
 }
 
-export interface RawPaginationImportMapper {
-  /** @format date-time */
-  import_mapper_created_at?: string;
-  /** @minLength 1 */
-  import_mapper_id: string;
-  import_mapper_name?: string;
-  /** @format date-time */
-  import_mapper_updated_at?: string;
-}
-
 export interface RawPaginationScenario {
   scenario_category?: string;
   scenario_description?: string;
@@ -10453,26 +10448,24 @@ export interface RoleOutput {
   role_updated_at?: string;
 }
 
-export interface RuleAttribute {
-  listened?: boolean;
-  rule_attribute_additional_config?: Record<string, string>;
-  rule_attribute_columns?: string;
-  /** @format date-time */
-  rule_attribute_created_at?: string;
-  rule_attribute_default_value?: string;
-  rule_attribute_id: string;
-  /** @minLength 1 */
-  rule_attribute_name: string;
-  /** @format date-time */
-  rule_attribute_updated_at?: string;
-}
-
 export interface RuleAttributeAddInput {
   rule_attribute_additional_config?: Record<string, string>;
   rule_attribute_columns?: string | null;
   rule_attribute_default_value?: string;
   /** @minLength 1 */
   rule_attribute_name: string;
+}
+
+export interface RuleAttributeOutput {
+  rule_attribute_additional_config?: Record<string, string>;
+  rule_attribute_columns?: string;
+  /** @format date-time */
+  rule_attribute_created_at?: string;
+  rule_attribute_default_value?: string;
+  rule_attribute_id: string;
+  rule_attribute_name: string;
+  /** @format date-time */
+  rule_attribute_updated_at?: string;
 }
 
 export interface RuleAttributeUpdateInput {

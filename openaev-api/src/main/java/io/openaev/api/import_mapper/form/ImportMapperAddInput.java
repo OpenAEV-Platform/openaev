@@ -1,4 +1,4 @@
-package io.openaev.rest.mapper.form;
+package io.openaev.api.import_mapper.form;
 
 import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 

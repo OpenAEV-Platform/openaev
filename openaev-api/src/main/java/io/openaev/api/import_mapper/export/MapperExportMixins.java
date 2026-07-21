@@ -1,4 +1,4 @@
-package io.openaev.rest.mapper.export;
+package io.openaev.api.import_mapper.export;
 
 import com.fasterxml.jackson.annotation.JsonIncludeProperties;
 

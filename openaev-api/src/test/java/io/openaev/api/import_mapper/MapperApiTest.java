@@ -1,4 +1,4 @@
-package io.openaev.rest;
+package io.openaev.api.import_mapper;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -10,14 +10,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.api.import_mapper.form.ImportMapperAddInput;
+import io.openaev.api.import_mapper.form.ImportMapperUpdateInput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.mapper.MapperApi;
-import io.openaev.rest.mapper.form.ImportMapperAddInput;
-import io.openaev.rest.mapper.form.ImportMapperUpdateInput;
 import io.openaev.rest.scenario.form.InjectsImportTestInput;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.InjectImportService;
@@ -144,6 +143,61 @@ public class MapperApiTest extends IntegrationTest {
     // -- ASSERT --
     assertNotNull(response);
     assertEquals(JsonPath.read(response, "$.import_mapper_id"), importMapper.getId());
+  }
+
+  @DisplayName("Test the mapper output payload exposes the whole graph")
+  @Test
+  void getMapperReturnsFullOutputContract() throws Exception {
+    // -- PREPARE --
+    ImportMapper importMapper = MockMapperUtils.createImportMapper();
+    var importer = importMapper.getInjectImporters().getFirst();
+    var ruleAttribute = importer.getRuleAttributes().getFirst();
+    when(importMapperRepository.findById(any())).thenReturn(Optional.of(importMapper));
+
+    // -- EXECUTE --
+    String response =
+        this.mvc
+            .perform(
+                MockMvcRequestBuilders.get("/api/mappers/" + importMapper.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // -- ASSERT --
+    assertEquals(importMapper.getId(), JsonPath.read(response, "$.import_mapper_id"));
+    assertEquals(importMapper.getName(), JsonPath.read(response, "$.import_mapper_name"));
+    assertEquals(
+        importMapper.getInjectTypeColumn(),
+        JsonPath.read(response, "$.import_mapper_inject_type_column"));
+    assertNotNull(JsonPath.read(response, "$.import_mapper_created_at"));
+    assertNotNull(JsonPath.read(response, "$.import_mapper_updated_at"));
+
+    String importerPath = "$.import_mapper_inject_importers[0]";
+    assertEquals(importer.getId(), JsonPath.read(response, importerPath + ".inject_importer_id"));
+    assertEquals(
+        importer.getImportTypeValue(),
+        JsonPath.read(response, importerPath + ".inject_importer_type_value"));
+    assertEquals(
+        importer.getInjectorContract().getId(),
+        JsonPath.read(response, importerPath + ".inject_importer_injector_contract"));
+
+    String attributePath = importerPath + ".inject_importer_rule_attributes[0]";
+    assertEquals(
+        ruleAttribute.getId(), JsonPath.read(response, attributePath + ".rule_attribute_id"));
+    assertEquals(
+        ruleAttribute.getName(), JsonPath.read(response, attributePath + ".rule_attribute_name"));
+    assertEquals(
+        ruleAttribute.getColumns(),
+        JsonPath.read(response, attributePath + ".rule_attribute_columns"));
+    assertEquals(
+        ruleAttribute.getDefaultValue(),
+        JsonPath.read(response, attributePath + ".rule_attribute_default_value"));
+    assertEquals(
+        ruleAttribute.getAdditionalConfig(),
+        JsonPath.read(response, attributePath + ".rule_attribute_additional_config"));
   }
 
   @DisplayName("Test create a mapper")

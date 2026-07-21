@@ -6,16 +6,16 @@ import DialogDelete from '../../../../components/common/DialogDelete';
 import DialogDuplicate from '../../../../components/common/DialogDuplicate';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import { type RawPaginationImportMapper } from '../../../../utils/api-types';
+import { type ImportMapperOutput, type ImportMapperSimpleOutput } from '../../../../utils/api-types';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { download } from '../../../../utils/utils';
 import XlsMapperUpdate from './xls_mapper/XlsMapperUpdate';
 
 interface Props {
-  mapper: RawPaginationImportMapper;
-  onDuplicate?: (result: RawPaginationImportMapper) => void;
-  onUpdate?: (result: RawPaginationImportMapper) => void;
+  mapper: ImportMapperSimpleOutput;
+  onDuplicate?: (result: ImportMapperSimpleOutput) => void;
+  onUpdate?: (result: ImportMapperSimpleOutput) => void;
   onDelete?: (result: string) => void;
   onExport?: (result: string) => void;
 }
@@ -37,7 +37,7 @@ const XlsMapperPopover: FunctionComponent<Props> = ({
   const handleCloseDuplicate = () => setOpenDuplicate(false);
   const submitDuplicate = () => {
     duplicateMapper(mapper.import_mapper_id).then(
-      (result: { data: RawPaginationImportMapper }) => {
+      (result: { data: ImportMapperOutput }) => {
         onDuplicate?.(result.data);
         return result;
       },

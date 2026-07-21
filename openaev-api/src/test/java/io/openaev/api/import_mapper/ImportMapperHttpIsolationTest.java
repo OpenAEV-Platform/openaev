@@ -1,4 +1,4 @@
-package io.openaev.rest.mapper;
+package io.openaev.api.import_mapper;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -14,9 +14,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.rest.mapper.form.ExportMapperInput;
-import io.openaev.rest.mapper.form.ImportMapperAddInput;
-import io.openaev.rest.mapper.form.ImportMapperUpdateInput;
+import io.openaev.api.import_mapper.form.ExportMapperInput;
+import io.openaev.api.import_mapper.form.ImportMapperAddInput;
+import io.openaev.api.import_mapper.form.ImportMapperUpdateInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;

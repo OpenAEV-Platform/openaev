@@ -22,7 +22,7 @@ import { initSorting, type Page } from '../../../../components/common/queryable/
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../../components/i18n';
 import {
-  type ImportMapper,
+  type ImportMapperSimpleOutput,
   type ImportMessage,
   type ImportTestSummary,
   type InjectsImportInput,
@@ -124,7 +124,7 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
       sorts: initSorting('import_mapper_name'),
       textSearch: value,
       size: 10,
-    })).then((result: { data: Page<ImportMapper> }) => {
+    })).then((result: { data: Page<ImportMapperSimpleOutput> }) => {
       const { data } = result;
 
       const options: MapperOption[] = data.content.map(

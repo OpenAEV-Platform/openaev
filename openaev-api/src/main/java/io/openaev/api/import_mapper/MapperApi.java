@@ -1,4 +1,4 @@
-package io.openaev.rest.mapper;
+package io.openaev.api.import_mapper;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
@@ -6,21 +6,20 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.import_mapper.form.ExportMapperInput;
+import io.openaev.api.import_mapper.form.ImportMapperAddInput;
+import io.openaev.api.import_mapper.form.ImportMapperUpdateInput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
-import io.openaev.database.raw.RawPaginationImportMapper;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.FileTooBigException;
 import io.openaev.rest.exception.ImportException;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.mapper.form.ExportMapperInput;
-import io.openaev.rest.mapper.form.ImportMapperAddInput;
-import io.openaev.rest.mapper.form.ImportMapperUpdateInput;
 import io.openaev.rest.scenario.form.InjectsImportTestInput;
 import io.openaev.rest.scenario.response.ImportPostSummary;
 import io.openaev.rest.scenario.response.ImportTestSummary;
@@ -73,11 +72,11 @@ public class MapperApi extends RestBehavior {
   @PostMapping("/search")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MAPPER)
-  public Page<RawPaginationImportMapper> getImportMapper(
+  public Page<ImportMapperSimpleOutput> getImportMapper(
       TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
             this.importMapperRepository::findAll, searchPaginationInput, ImportMapper.class)
-        .map(RawPaginationImportMapper::new);
+        .map(ImportMapperMapper::toSimpleOutput);
   }
 
   @GetMapping("/{mapperId}")
@@ -88,19 +87,21 @@ public class MapperApi extends RestBehavior {
       resourceType = ResourceType.MAPPER)
   // TxCtx is resolved from the request and applied by the transaction aspect; it scopes this read
   // to the caller's tenants. The handler does not use it directly.
-  public ImportMapper getImportMapperById(TxCtx ctx, @PathVariable String mapperId) {
-    return importMapperRepository
-        .findById(UUID.fromString(mapperId))
-        .orElseThrow(ElementNotFoundException::new);
+  public ImportMapperOutput getImportMapperById(TxCtx ctx, @PathVariable String mapperId) {
+    return ImportMapperMapper.toOutput(
+        importMapperRepository
+            .findById(UUID.fromString(mapperId))
+            .orElseThrow(ElementNotFoundException::new));
   }
 
   @PostMapping
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.MAPPER)
-  public ImportMapper createImportMapper(
+  public ImportMapperOutput createImportMapper(
       TxCtx ctx, @RequestBody @Valid final ImportMapperAddInput importMapperAddInput) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    return mapperService.createAndSaveImportMapper(tenantId, importMapperAddInput);
+    return ImportMapperMapper.toOutput(
+        mapperService.createAndSaveImportMapper(tenantId, importMapperAddInput));
   }
 
   @PostMapping(value = "/export")
@@ -174,8 +175,9 @@ public class MapperApi extends RestBehavior {
   // TxCtx scopes the lookup of the source mapper to the caller's tenants; the copy inherits the
   // source's tenant. A source outside the scope is not found, so a cross-tenant duplicate cannot
   // reach it. The handler does not use it directly.
-  public ImportMapper duplicateMapper(TxCtx ctx, @PathVariable @NotBlank final String mapperId) {
-    return mapperService.getDuplicateImportMapper(mapperId);
+  public ImportMapperOutput duplicateMapper(
+      TxCtx ctx, @PathVariable @NotBlank final String mapperId) {
+    return ImportMapperMapper.toOutput(mapperService.getDuplicateImportMapper(mapperId));
   }
 
   @PutMapping("/{mapperId}")
@@ -186,11 +188,12 @@ public class MapperApi extends RestBehavior {
       resourceType = ResourceType.MAPPER)
   // TxCtx scopes the lookup and the update to the caller's tenants; a mapper outside the scope is
   // not found, so a cross-tenant write cannot reach it. The handler does not use it directly.
-  public ImportMapper updateImportMapper(
+  public ImportMapperOutput updateImportMapper(
       TxCtx ctx,
       @PathVariable String mapperId,
       @Valid @RequestBody ImportMapperUpdateInput importMapperUpdateInput) {
-    return mapperService.updateImportMapper(mapperId, importMapperUpdateInput);
+    return ImportMapperMapper.toOutput(
+        mapperService.updateImportMapper(mapperId, importMapperUpdateInput));
   }
 
   @DeleteMapping("/{mapperId}")
