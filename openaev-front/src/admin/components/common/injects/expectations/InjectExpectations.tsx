@@ -58,7 +58,6 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   const [sortBy] = useState<keyof ExpectationInput>('expectation_name');
   const [sortAsc] = useState(true);
 
-
   // Filter contract available expectations already included into current inject expectations.
   // expectation_is_multi_selectable=true means the type can be selected multiple times.
   const addableAvailableExpectations = useMemo(() => {

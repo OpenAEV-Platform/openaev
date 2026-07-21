@@ -158,7 +158,7 @@ const InjectCreationConfig: FunctionComponent<Props> = ({
           inject_assets: [],
           inject_asset_groups: [],
           inject_documents: [],
-          inject_content: { expectations: parsedContent?.fields?.find(f => f.type === 'expectation')?.availableExpectations?.filter(e=> e.expectation_is_predefined) },
+          inject_content: { expectations: parsedContent?.fields?.find(f => f.type === 'expectation')?.availableExpectations?.filter(e => e.expectation_is_predefined) },
         }}
         injectorContractContent={parsedContent}
         onSubmitInject={handleSubmit}

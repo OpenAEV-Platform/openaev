@@ -22,7 +22,7 @@ export const getContractFieldDefaultValue = (field: ContractElement): unknown =>
     if (Array.isArray(field.defaultValue) && field.defaultValue.length > 0) {
       return field.defaultValue;
     }
-    const predefinedExpectations = (field.availableExpectations??[]).filter(e => e.expectation_is_predefined)
+    const predefinedExpectations = (field.availableExpectations ?? []).filter(e => e.expectation_is_predefined);
     if (predefinedExpectations.length > 0) {
       return predefinedExpectations;
     }
