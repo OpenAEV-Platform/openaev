@@ -6,6 +6,7 @@ import { type SyntheticEvent, useMemo, useState } from 'react';
 import { type CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
+import { type SecretsProviderHelper } from '../../../../actions/secrets_providers/secrets-provider-helper';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import type {
@@ -13,7 +14,7 @@ import type {
   Collector,
   CollectorOutput,
   ExecutorOutput,
-  InjectorOutput,
+  InjectorOutput, SecretsProviderOutput,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -28,6 +29,7 @@ import {
   executorConfig,
   injectorConfig,
   isSupportedByFiligran,
+  secretsProviderConfig,
 } from '../common/ConnectorContext';
 import ConnectorStatus from '../common/ConnectorStatus';
 import MigrateButton from '../common/MigrateButton';
@@ -61,11 +63,13 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     dispatch(injectorConfig.apiRequest.fetchAll());
     dispatch(collectorConfig.apiRequest.fetchAll());
     dispatch(executorConfig.apiRequest.fetchAll());
+    dispatch(secretsProviderConfig.apiRequest.fetchAll());
   });
 
   const { executors } = useHelper((helper: ExecutorHelper) => ({ executors: helper.getExecutorsIncludingPending() }));
   const { injectors } = useHelper((helper: InjectorHelper) => ({ injectors: helper.getInjectorsIncludingPending() }));
   const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectorsIncludingPending() }));
+  const { secretsProviders } = useHelper((helper: SecretsProviderHelper) => ({ collectors: helper.getSecretsProvidersIncludingPending() }));
 
   const { items, metaById } = useMemo(() => {
     const catalogById = new Map(catalogConnectors.map(connector => [connector.catalog_connector_id, connector]));
@@ -129,6 +133,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     append<InjectorOutput>(injectors, injectorConfig, 'INJECTOR');
     append<CollectorOutput & Collector>(collectors, collectorConfig, 'COLLECTOR');
     append<ExecutorOutput>(executors, executorConfig, 'EXECUTOR');
+    append<SecretsProviderOutput>(secretsProviders, secretsProviderConfig, 'SECRETS_PROVIDER');
 
     return {
       items: allItems,
@@ -136,7 +141,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     };
     // `t` is a new function every render (see useFormatter); `locale` is the
     // stable signal that the built-in descriptions it produces have changed.
-  }, [injectors, collectors, executors, catalogConnectors, locale]);
+  }, [injectors, collectors, executors, secretsProviders, catalogConnectors, locale]);
 
   // Migrate flow: converts a manually-deployed external connector into a
   // managed instance (same behavior as the legacy per-type pages).
