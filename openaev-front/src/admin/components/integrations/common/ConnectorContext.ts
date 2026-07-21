@@ -156,6 +156,7 @@ export const secretsProviderConfig: ConnectorContextType<SecretsProviderOutput> 
     fetchAll: () => fetchSecretsProviders(true),
     fetchSingle: (id: string) => fetchSecretProvider(id),
     getRelatedIds: (id: string) => fetchSecretsProviderRelatedIds(id),
+    deleteSingle: (id: string) => deleteExecutor(id),
   },
   routes: {
     list: '/admin/integrations/secrets-providers',
