@@ -1,7 +1,7 @@
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { lazy, Suspense, useEffect } from 'react';
-import { Route, Routes, useNavigate } from 'react-router';
+import { Navigate, Route, Routes, useNavigate } from 'react-router';
 import { type CSSObject } from 'tss-react';
 import { makeStyles } from 'tss-react/mui';
 import { useLocalStorage } from 'usehooks-ts';
@@ -47,7 +47,12 @@ const IndexAtomicTesting = lazy(() => import('./components/atomic_testings/atomi
 const Scenarios = lazy(() => import('./components/scenarios/Scenarios'));
 const IndexScenario = lazy(() => import('./components/scenarios/scenario/Index'));
 const Assets = lazy(() => import('./components/assets/Index'));
-const Teams = lazy(() => import('./components/teams/Index'));
+const Persons = lazy(() => import('./components/teams/Players'));
+const PersonDetail = lazy(() => import('./components/teams/persons/PersonDetail'));
+const TeamsList = lazy(() => import('./components/teams/Teams'));
+const TeamDetail = lazy(() => import('./components/teams/teams/TeamDetail'));
+const OrganizationsList = lazy(() => import('./components/teams/OrganizationsList'));
+const OrganizationDetail = lazy(() => import('./components/teams/organizations/OrganizationDetail'));
 const IndexComponents = lazy(() => import('./components/components/Index'));
 const IndexIntegrations = lazy(() => import('./components/integrations/Index'));
 const IndexAgents = lazy(() => import('./components/agents/Agents'));
@@ -290,7 +295,41 @@ const Index = () => {
               )}
             />
             <Route path="assets/*" element={errorWrapper(Assets)()} />
-            <Route path="teams/*" element={errorWrapper(Teams)()} />
+            {/* Persons / Teams / Organizations are top-level sections (no shared
+                "teams" parent segment). Static back-compat aliases below rank
+                above the dynamic ":teamId" route in React Router. */}
+            <Route path="persons" element={errorWrapper(Persons)()} />
+            <Route path="persons/:userId" element={errorWrapper(PersonDetail)()} />
+            <Route path="teams" element={errorWrapper(TeamsList)()} />
+            <Route path="teams/persons" element={<Navigate to="/admin/persons" replace={true} />} />
+            <Route path="teams/players" element={<Navigate to="/admin/persons" replace={true} />} />
+            <Route path="teams/teams" element={<Navigate to="/admin/teams" replace={true} />} />
+            <Route path="teams/organizations" element={<Navigate to="/admin/organizations" replace={true} />} />
+            <Route path="teams/:teamId" element={errorWrapper(TeamDetail)()} />
+            <Route
+              path="organizations"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.TENANT_SETTINGS,
+                  }]}
+                  Component={errorWrapper(OrganizationsList)()}
+                />
+              )}
+            />
+            <Route
+              path="organizations/:organizationId"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.TENANT_SETTINGS,
+                  }]}
+                  Component={errorWrapper(OrganizationDetail)()}
+                />
+              )}
+            />
             <Route path="components/*" element={errorWrapper(IndexComponents)()} />
             <Route
               path="workspaces/custom_dashboards/*"

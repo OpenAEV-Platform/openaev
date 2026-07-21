@@ -115,19 +115,19 @@ const LeftBar = () => {
       userRight: true,
       items: [
         {
-          path: `/admin/teams/persons`,
+          path: `/admin/persons`,
           icon: () => (<PersonOutlined />),
           label: 'Persons',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
         },
         {
-          path: `/admin/teams/teams`,
+          path: `/admin/teams`,
           icon: () => (<GroupsOutlined />),
           label: 'Teams',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
         },
         {
-          path: `/admin/teams/organizations`,
+          path: `/admin/organizations`,
           icon: () => (<DomainOutlined />),
           label: 'Organizations',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
