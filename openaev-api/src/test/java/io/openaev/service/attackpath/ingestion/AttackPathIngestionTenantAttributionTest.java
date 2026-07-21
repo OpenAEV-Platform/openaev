@@ -8,6 +8,8 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
+import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Command;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Exercise;
@@ -19,6 +21,12 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.AgentFixture;
+import io.openaev.utils.fixtures.AssetGroupFixture;
+import io.openaev.utils.fixtures.EndpointFixture;
+import io.openaev.utils.fixtures.composers.AgentComposer;
+import io.openaev.utils.fixtures.composers.AssetGroupComposer;
+import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.nio.file.Files;
@@ -77,6 +85,9 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   @Autowired private PlatformTransactionManager transactionManager;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private AttackPathExecutionRepository executionRepository;
+  @Autowired private AssetGroupComposer assetGroupComposer;
+  @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AgentComposer agentComposer;
 
   private JdbcTemplate jdbc;
   private Tenant tenant;
@@ -166,6 +177,85 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     } catch (Exception e) {
       throw new IllegalStateException("cannot read " + path, e);
     }
+  }
+
+  @Test
+  @DisplayName("an inject targeting an asset group records its member endpoints")
+  void assetGroupMembersAreRecorded() {
+    // Persist a group with one member endpoint (agent-backed), under the tenant, committed so the
+    // run's readOnly resolution sees it.
+    TenantContext.setCurrentTenant(tenant.getId());
+    AssetGroupComposer.Composer groupComposer =
+        assetGroupComposer
+            .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("ap-grp"))
+            .withAsset(
+                endpointComposer
+                    .forEndpoint(EndpointFixture.createEndpoint())
+                    .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentService())));
+    groupComposer.persist();
+    AssetGroup group = groupComposer.get();
+    TenantContext.clearCurrentTenant();
+
+    Inject inject = new Inject();
+    inject.setId(INJECT_ID);
+    Exercise exercise = new Exercise();
+    exercise.setId(SIM);
+    inject.setExercise(exercise);
+    Injector injector = new Injector();
+    injector.setName("OpenAEV Implant");
+    injector.setType("openaev_implant");
+    inject.setInjector(injector);
+    inject.setAssetGroups(java.util.List.of(group)); // group only, no direct assets
+    inject.setTenant(tenant);
+
+    runAsTheExecutorWould(() -> ingestionService.onRun(step(), inject, contract()));
+
+    assertThat(rawRowCountForInject(INJECT_ID))
+        .as("an inject targeting only an asset group must still record its member endpoints")
+        .isPositive();
+  }
+
+  // No test pins the direct+grouped dedup on purpose: the deterministic row id plus ON CONFLICT DO
+  // NOTHING already collapse any duplicate to one row, so the dedup has no observable effect on the
+  // result and a behaviour test cannot distinguish it. It stays in the code as an efficiency
+  // measure
+  // (it avoids building duplicate edges), documented on resolvedEndpoints.
+
+  @Test
+  @DisplayName("a direct asset that is a lazy proxy is unproxied, not dropped")
+  void proxiedDirectAssetIsNotDropped() {
+    TenantContext.setCurrentTenant(tenant.getId());
+    io.openaev.database.model.Endpoint persisted =
+        endpointComposer
+            .forEndpoint(EndpointFixture.createEndpoint())
+            .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentService()))
+            .persist()
+            .get();
+    String endpointId = persisted.getId();
+    TenantContext.clearCurrentTenant();
+
+    runAsTheExecutorWould(
+        () -> {
+          // A reference typed as the Asset base class is a proxy: `instanceof Endpoint` is false on
+          // it until unproxied. This is what the resolver's Hibernate.unproxy guards against.
+          Asset proxy = entityManager.getReference(Asset.class, endpointId);
+          Inject inject = new Inject();
+          inject.setId(INJECT_ID);
+          Exercise exercise = new Exercise();
+          exercise.setId(SIM);
+          inject.setExercise(exercise);
+          Injector injector = new Injector();
+          injector.setName("OpenAEV Implant");
+          injector.setType("openaev_implant");
+          inject.setInjector(injector);
+          inject.setAssets(java.util.List.of(proxy));
+          inject.setTenant(tenant);
+          ingestionService.onRun(step(), inject, contract());
+        });
+
+    assertThat(rawRowCountForInject(INJECT_ID))
+        .as("a proxied endpoint must be recognised and recorded, not dropped by a bare instanceof")
+        .isPositive();
   }
 
   @Test
