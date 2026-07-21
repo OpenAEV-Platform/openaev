@@ -13,11 +13,15 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
-import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.service.attackpath.ingestion.ResolutionInput.Endpoint;
 import io.openaev.service.attackpath.ingestion.ResolutionInput.PayloadKind;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
+import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +44,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AttackPathExecutionIngestionService {
 
-  private final AttackPathExecutionRepository executionRepository;
+  private final EntityManager entityManager;
   private final AttackPathSourceTargetResolver resolver;
   private final TenantScopedTransaction tenantTx;
   private final TenantWriteScopeResolver writeScopeResolver;
@@ -70,9 +74,126 @@ public class AttackPathExecutionIngestionService {
     writeRows(tenantId, ctx, edges);
   }
 
+  /**
+   * One multi-row {@code INSERT ... ON CONFLICT DO NOTHING} for the whole run.
+   *
+   * <p><b>Why not {@code saveAll}.</b> Two reasons, one of correctness and one of cost. The
+   * correctness one is decisive on its own: the row id is assigned (deterministic), so Spring Data
+   * routes every row through {@code merge}, and merge overwrites. A replayed inject run would blank
+   * the columns #204/#202 filled in between, silently erasing their work. {@code DO NOTHING} makes
+   * the create genuinely create-once, so a re-run never touches an existing row. The cost reason is
+   * secondary: merge issues a read per row before writing, which the single insert avoids; measured
+   * at roughly a 10x lower per-row write cost, though both paths are linear in the number of rows.
+   *
+   * <p>Native, but through Hibernate on purpose: the statement inspector sees it and can scope it.
+   * It is fail-closed, so a shape it cannot rewrite breaks the path rather than leaking, which is
+   * why {@code AttackPathIngestionTenantAttributionTest} exercises this statement on every build.
+   * {@code tenant_id} is an explicit column here: the inspector never attributes an insert.
+   */
   private void writeRows(String tenantId, ExecutionContext ctx, List<ResolvedExecutionEdge> edges) {
-    // saveAll batches the run's N rows in one round-trip (an inject can hit N targets).
-    executionRepository.saveAll(edges.stream().map(edge -> toRow(tenantId, ctx, edge)).toList());
+    if (edges.isEmpty()) {
+      return;
+    }
+    List<AttackPathExecution> all = edges.stream().map(edge -> toRow(tenantId, ctx, edge)).toList();
+    // Postgres caps a prepared statement at 65535 parameters, and an inject's fan-out is a product
+    // of its sources and targets, so the row count grows fast: 100 endpoints already means 10000
+    // rows. Batched rather than assumed small, which is how the first version broke.
+    for (int from = 0; from < all.size(); from += BATCH_ROWS) {
+      insertBatch(all.subList(from, Math.min(from + BATCH_ROWS, all.size())));
+    }
+  }
+
+  /** 27 columns per row, so this stays an order of magnitude under the parameter ceiling. */
+  private static final int BATCH_ROWS = 500;
+
+  private void insertBatch(List<AttackPathExecution> rows) {
+    StringBuilder sql = new StringBuilder("INSERT INTO attackpath_execution (");
+    sql.append(String.join(", ", COLUMNS)).append(") VALUES ");
+    for (int row = 0; row < rows.size(); row++) {
+      sql.append(row == 0 ? "" : ", ").append("(");
+      for (int column = 0; column < COLUMNS.length; column++) {
+        sql.append(column == 0 ? "" : ", ").append("?").append(row * COLUMNS.length + column + 1);
+      }
+      sql.append(")");
+    }
+    // The primary key is the deterministic id, so the conflict target is the row we would replace.
+    sql.append(" ON CONFLICT (attackpath_execution_id) DO NOTHING");
+
+    Query insert = entityManager.createNativeQuery(sql.toString());
+    int parameter = 1;
+    for (AttackPathExecution row : rows) {
+      for (Object value : values(row)) {
+        insert.setParameter(parameter++, value);
+      }
+    }
+    insert.executeUpdate();
+  }
+
+  /** Column order shared by the insert and {@link #values}; the two must stay aligned. */
+  private static final String[] COLUMNS = {
+    "attackpath_execution_id",
+    "tenant_id",
+    "attackpath_execution_simulation_id",
+    "attackpath_execution_inject_id",
+    "attackpath_execution_step_id",
+    "attackpath_execution_step_template_id",
+    "attackpath_execution_executed_at",
+    "attackpath_execution_payload_name",
+    "attackpath_execution_payload_id",
+    "attackpath_execution_contract_external_id",
+    "attackpath_execution_injector_type",
+    "attackpath_execution_source_kind",
+    "attackpath_execution_source_injector",
+    "attackpath_execution_source_asset_id",
+    "attackpath_execution_source_hostname",
+    "attackpath_execution_source_ip",
+    "attackpath_execution_source_platform",
+    "attackpath_execution_agent_id",
+    "attackpath_execution_agent_name",
+    "attackpath_execution_agent_privilege",
+    "attackpath_execution_target_kind",
+    "attackpath_execution_target_asset_id",
+    "attackpath_execution_target_raw_value",
+    "attackpath_execution_target_key",
+    "attackpath_execution_target_hostname",
+    "attackpath_execution_target_ip",
+    "attackpath_execution_target_platform"
+  };
+
+  private static Object[] values(AttackPathExecution row) {
+    return new Object[] {
+      row.getId(),
+      row.getTenant().getId(),
+      row.getSimulationId(),
+      row.getInjectId(),
+      row.getStepId(),
+      row.getStepTemplateId(),
+      // Explicitly UTC: the column has no time zone, and Timestamp.from() would bake in the
+      // server's offset, which the ORM path used to handle for us.
+      row.getExecutedAt() == null
+          ? null
+          : Timestamp.valueOf(LocalDateTime.ofInstant(row.getExecutedAt(), ZoneOffset.UTC)),
+      row.getPayloadName(),
+      row.getPayloadId(),
+      row.getContractExternalId(),
+      row.getInjectorType(),
+      row.getSourceKind(),
+      row.getSourceInjector(),
+      row.getSourceAssetId(),
+      row.getSourceHostname(),
+      row.getSourceIp(),
+      row.getSourcePlatform(),
+      row.getAgentId(),
+      row.getAgentName(),
+      row.getAgentPrivilege(),
+      row.getTargetKind(),
+      row.getTargetAssetId(),
+      row.getTargetRawValue(),
+      row.getTargetKey(),
+      row.getTargetHostname(),
+      row.getTargetIp(),
+      row.getTargetPlatform()
+    };
   }
 
   /**
@@ -82,7 +203,8 @@ public class AttackPathExecutionIngestionService {
       String tenantId, ExecutionContext ctx, ResolvedExecutionEdge edge) {
     AttackPathExecution row = new AttackPathExecution();
     // Explicit attribution, so TenantBaseListener never fires for this row: it only fills a null
-    // tenant, and the value set here wins.
+    // tenant, and the value set here wins. Measured: a managed reference via getReference makes no
+    // difference to the write cost, so the runbook's plain `new Tenant(id)` idiom stands.
     row.setTenant(new Tenant(tenantId));
     // Deterministic natural key so #204/#202 (Phase B) and retries converge on this same row.
     row.setId(AttackPathIds.executionNode(ctx.injectExecId(), edge.targetKey(), edge.agentId()));

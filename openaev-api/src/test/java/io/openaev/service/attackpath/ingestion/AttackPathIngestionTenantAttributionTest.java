@@ -21,8 +21,11 @@ import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -124,6 +127,67 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   private List<?> scopedGraphRowsFor(String tenantId) {
     return tenantTx.execute(
         TxCtx.forTenant(tenantId), () -> executionRepository.findGraphRows(SIM));
+  }
+
+  @Test
+  @DisplayName("only the ingestion writer emits a native statement on attackpath_execution")
+  void nativeWritersOnTheTableAreReviewed() throws Exception {
+    // Moving the write from saveAll to createNativeQuery took it out of the repository, so
+    // TenantActiveTableAccessArchTest's repository rule no longer watches this path: its allowlist
+    // entry for this class became dead. A native writer still passes through the inspector, but
+    // nothing structurally forces a new one to be reviewed. This scan restores that: any production
+    // class issuing createNativeQuery against an attack path table must be on this short list, or
+    // the build fails and the review happens.
+    List<Path> nativeWriters;
+    try (Stream<Path> tree = Files.walk(Path.of("src/main/java"))) {
+      nativeWriters =
+          tree.filter(p -> p.toString().endsWith(".java"))
+              .filter(
+                  p -> {
+                    String body = readSource(p);
+                    return body.contains("createNativeQuery")
+                        && (body.contains("attackpath_execution")
+                            || body.contains("attackpath_finding"));
+                  })
+              .toList();
+    }
+    assertThat(nativeWriters)
+        .as("a new native writer on the attack path tables must be reviewed, not appear unseen")
+        .singleElement()
+        .satisfies(
+            p ->
+                assertThat(p.getFileName())
+                    .hasToString("AttackPathExecutionIngestionService.java"));
+  }
+
+  private static String readSource(Path path) {
+    try {
+      return Files.readString(path);
+    } catch (Exception e) {
+      throw new IllegalStateException("cannot read " + path, e);
+    }
+  }
+
+  @Test
+  @DisplayName("a re-run never overwrites what the later phases wrote on the row")
+  void reRunIsCreateOnce() {
+    runAsTheExecutorWould(() -> ingestionService.onRun(step(), inject(), contract()));
+    String rowId = AttackPathIds.executionNode(INJECT_ID, ENDPOINT_ID, AGENT_ID);
+
+    // Phase B (#204/#202) fills its own columns on the row this create left behind. The create must
+    // never touch them again: the deterministic id means a retried or replayed run lands on exactly
+    // this row, and an overwrite would silently erase someone else's work.
+    jdbc.update(
+        "UPDATE attackpath_execution SET attackpath_execution_command = ?"
+            + " WHERE attackpath_execution_id = ?",
+        "whoami /priv",
+        rowId);
+
+    runAsTheExecutorWould(() -> ingestionService.onRun(step(), inject(), contract()));
+
+    assertThat(rawRow(rowId))
+        .as("the second run must leave the Phase B column untouched")
+        .containsEntry("attackpath_execution_command", "whoami /priv");
   }
 
   @Test

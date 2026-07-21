@@ -144,8 +144,9 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     ingestionService.createRows(
         tenant.getId(), ctx, List.of(edge)); // same (execId, target, agent) → same row
 
-    // The deterministic id makes the second write an update, not a new row.
-    assertThat(executionRepository.count()).isEqualTo(1);
+    // Scoped to this simulation, not a global count: other suites commit rows into the same table
+    // and a table-wide count made this assertion depend on what else had run.
+    assertThat(executionRepository.findGraphRows("SIM-IDEM")).hasSize(1);
     assertThat(
             executionRepository.findById(
                 AttackPathIds.executionNode("exec-idem", "victim-1", "agt-1")))
