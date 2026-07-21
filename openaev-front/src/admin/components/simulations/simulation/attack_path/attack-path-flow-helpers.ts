@@ -1,6 +1,6 @@
 import { type Edge, type Node } from '@xyflow/react';
 
-import type { AttackPathDTO, AttackPathEdges, AttackPathNodeDTO } from '../../../../../utils/api-types';
+import type { AttackPathAttackPatternDTO, AttackPathDTO, AttackPathEdges, AttackPathNodeDTO } from '../../../../../utils/api-types';
 
 // Attack-path execution-store POC (issue 6647). Pure mapping of the backend AttackPathDTO onto
 // React Flow nodes and edges, with a manual column layout (no layout lib, mirroring AttackPath.tsx).
@@ -62,6 +62,12 @@ export interface AttackPathFlowNodeData {
   // causal builder can look up execution metadata (dependsOn / consumedFindingKeys) per node. Mirrors
   // AttackPathNodeDTO.stepTemplateId; absent on nodes that have no step template (e.g. findings).
   stepTemplateId?: string;
+  // For an injector node: the real injector type/slug from the backend (AttackPathNodeDTO.injectorType),
+  // used to resolve the catalog icon without guessing from the label. Absent on synthetic seed injectors.
+  injectorType?: string;
+  // For an injector node: the ATT&CK techniques the backend resolved from its contract
+  // (AttackPathNodeDTO.attackPatterns), surfaced on the node so the analyst sees them without a click.
+  attackPatterns?: AttackPathAttackPatternDTO[];
   // For a finding node: the id of the endpoint (ASSET) node it was discovered on, so a direct click
   // on the finding can open its details panel by focusing that endpoint's path.
   assetNodeId?: string;
@@ -112,6 +118,8 @@ const nodeData = (n: AttackPathNodeDTO): AttackPathFlowNodeData => ({
   platform: n.platform,
   agents: n.agents,
   stepTemplateId: n.stepTemplateId,
+  injectorType: n.injectorType,
+  attackPatterns: n.attackPatterns,
 });
 
 const EDGE_EXECUTIONS = 'EDGE_EXECUTIONS';
