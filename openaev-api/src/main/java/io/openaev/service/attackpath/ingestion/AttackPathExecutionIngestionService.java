@@ -23,8 +23,11 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
 /**
@@ -46,6 +49,7 @@ public class AttackPathExecutionIngestionService {
 
   private final EntityManager entityManager;
   private final AttackPathSourceTargetResolver resolver;
+  private final io.openaev.service.AssetGroupService assetGroupService;
   private final TenantScopedTransaction tenantTx;
   private final TenantWriteScopeResolver writeScopeResolver;
 
@@ -253,8 +257,9 @@ public class AttackPathExecutionIngestionService {
    * the run's transaction.
    *
    * <p>Scope and assumptions (agent-based; injector path is TBD): the sources are the inject's
-   * direct asset endpoints and their installed agents (asset-group expansion is a follow-up); the
-   * agent label is the endpoint hostname. Documented, not final.
+   * endpoints and their installed agents, resolved as direct assets plus every asset group's
+   * members (mirroring the engine's own target resolution); the agent label is the endpoint
+   * hostname. Documented, not final.
    */
   public void onRun(Step step, Inject inject, InjectorContract contract) {
     // The attack path is simulation-scoped, so an inject with no simulation records nothing.
@@ -290,46 +295,67 @@ public class AttackPathExecutionIngestionService {
 
   private ResolutionInput resolutionInput(Inject inject, InjectorContract contract) {
     Payload payload = contract.getPayload();
+    // Resolve the inject's endpoints once (direct + groups) and share the list, so the group
+    // expansion's per-group read does not run twice per inject.
+    List<io.openaev.database.model.Endpoint> endpoints = resolvedEndpoints(inject);
     return new ResolutionInput(
         contract.getNeedsExecutorEffective(),
         inject.getInjector() != null ? inject.getInjector().getName() : null,
-        agentEndpoints(inject),
+        agentEndpoints(endpoints),
         payloadKind(payload),
         payload instanceof DnsResolution dns ? dns.getHostname() : null,
         List.of(), // command args — TBD (command retrieval under investigation)
         null, // content selector — injector path TBD
         List.of(), // manual targets — injector path TBD
-        assetEndpoints(inject));
+        assetEndpoints(endpoints));
   }
 
-  /** The inject's asset endpoints as targets (no agent). */
-  private List<Endpoint> assetEndpoints(Inject inject) {
-    List<Endpoint> out = new ArrayList<>();
+  /**
+   * The inject's endpoints, mirroring the engine's target resolution: direct assets plus every
+   * asset group's members (static and dynamic), unproxied and deduplicated by id. The dedup is
+   * efficiency, not correctness: an endpoint in both the direct list and a group would otherwise be
+   * resolved twice and build duplicate edges, but the deterministic row id plus {@code ON CONFLICT
+   * DO NOTHING} collapse them to one row regardless. Resolved once per run and shared by the target
+   * and agent-source views.
+   */
+  private List<io.openaev.database.model.Endpoint> resolvedEndpoints(Inject inject) {
+    Map<String, io.openaev.database.model.Endpoint> byId = new LinkedHashMap<>();
     for (Asset asset : inject.getAssets()) {
-      if (asset instanceof io.openaev.database.model.Endpoint e) {
-        out.add(
-            new Endpoint(e.getId(), e.getHostname(), firstIp(e), platform(e), null, null, null));
+      // Unproxy before the type check: a lazy Asset proxy fails instanceof even for a real
+      // endpoint.
+      if (Hibernate.unproxy(asset) instanceof io.openaev.database.model.Endpoint e) {
+        byId.putIfAbsent(e.getId(), e);
       }
+    }
+    assetGroupService.assetsFromAssetGroupMap(inject.getAssetGroups()).values().stream()
+        .flatMap(List::stream)
+        .forEach(e -> byId.putIfAbsent(e.getId(), e));
+    return new ArrayList<>(byId.values());
+  }
+
+  /** The resolved endpoints as targets (no agent). */
+  private List<Endpoint> assetEndpoints(List<io.openaev.database.model.Endpoint> endpoints) {
+    List<Endpoint> out = new ArrayList<>();
+    for (io.openaev.database.model.Endpoint e : endpoints) {
+      out.add(new Endpoint(e.getId(), e.getHostname(), firstIp(e), platform(e), null, null, null));
     }
     return out;
   }
 
-  /** The agents on the inject's asset endpoints, as the agent-based sources. */
-  private List<Endpoint> agentEndpoints(Inject inject) {
+  /** The agents on the resolved endpoints, as the agent-based sources. */
+  private List<Endpoint> agentEndpoints(List<io.openaev.database.model.Endpoint> endpoints) {
     List<Endpoint> out = new ArrayList<>();
-    for (Asset asset : inject.getAssets()) {
-      if (asset instanceof io.openaev.database.model.Endpoint e) {
-        for (Agent agent : e.getAgents()) {
-          out.add(
-              new Endpoint(
-                  e.getId(),
-                  e.getHostname(),
-                  firstIp(e),
-                  platform(e),
-                  agent.getId(),
-                  e.getHostname(), // assumed agent label = its endpoint hostname (to confirm)
-                  agent.getPrivilege() != null ? agent.getPrivilege().name() : null));
-        }
+    for (io.openaev.database.model.Endpoint e : endpoints) {
+      for (Agent agent : e.getAgents()) {
+        out.add(
+            new Endpoint(
+                e.getId(),
+                e.getHostname(),
+                firstIp(e),
+                platform(e),
+                agent.getId(),
+                e.getHostname(), // assumed agent label = its endpoint hostname (to confirm)
+                agent.getPrivilege() != null ? agent.getPrivilege().name() : null));
       }
     }
     return out;

@@ -26,4 +26,13 @@ public record AttackPathExecutionRow(
     Instant executedAt,
     String preventionStatus,
     String detectionStatus,
-    String stepTemplateId) {}
+    String stepTemplateId,
+    // Injector node enrichment: the frozen contract external id resolves the ATT&CK techniques, and
+    // the injector type labels the node with what actually ran.
+    String contractExternalId,
+    String injectorType,
+    // Source endpoint attributes, frozen at run time, so a source-only endpoint (never a target)
+    // still renders its hostname/ip/platform instead of a bare id.
+    String sourceHostname,
+    String sourceIp,
+    String sourcePlatform) {}

@@ -904,6 +904,11 @@ export interface AtomicTestingUpdateTagsInput {
   atomic_tags?: string[];
 }
 
+export interface AttackPathAttackPatternDTO {
+  externalId?: string;
+  name?: string;
+}
+
 export interface AttackPathCounters {
   /** @format int64 */
   credentials?: number;
@@ -940,11 +945,6 @@ export interface AttackPathEdges {
 export interface AttackPathEndpointRelationsDTO {
   edges?: AttackPathEdges[];
   executions?: AttackPathNodeDTO[];
-}
-
-export interface AttackPathAttackPatternDTO {
-  externalId?: string;
-  name?: string;
 }
 
 export interface AttackPathExecutionDetailDTO {
@@ -996,6 +996,7 @@ export interface AttackPathNodeDTO {
   agents?: string[];
   arguments?: any[];
   assetNodeId?: string;
+  attackPatterns?: AttackPathAttackPatternDTO[];
   command?: string;
   executedAt?: string;
   executionsTraces?: any[];
@@ -1005,6 +1006,7 @@ export interface AttackPathNodeDTO {
   findingsTypeNodeId?: string;
   hostname?: string;
   id?: string;
+  injectorType?: string;
   ip?: string;
   label?: string;
   payloadName?: string;
