@@ -423,6 +423,9 @@ public class AttackPathSeedService {
       random.nextBoolean()
           ? ExpectationType.DETECTION.successLabel
           : ExpectationType.DETECTION.failureLabel,
+      random.nextBoolean()
+          ? ExpectationType.VULNERABILITY.successLabel
+          : ExpectationType.VULNERABILITY.failureLabel,
       command(injector, endpoint, sampleCredential),
       terminalOutput(random, injector, sampleCredential)
     };
