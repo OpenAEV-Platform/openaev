@@ -1,45 +1,93 @@
 import { OpenInNew } from '@mui/icons-material';
 import { Card, CardActionArea, CardContent, Link, Radio, Stack, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
-import chainingIllustrationDark from '../../../static/images/misc/chaining_illustration_dark.png';
-import chainingIllustrationLight from '../../../static/images/misc/chaining_illustration_light.png';
-import timeBasedIllustrationDark from '../../../static/images/misc/time_based_illustration_dark.png';
-import timeBasedIllustrationLight from '../../../static/images/misc/time_based_illustration_light.png';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import EEChip from './entreprise_edition/EEChip';
 
-/**
- * Chaining scenario illustration loaded from a PNG asset.
- */
-const ChainingIllustration: FunctionComponent<{ isDark: boolean }> = ({ isDark }) => (
-  <img
-    src={isDark ? chainingIllustrationDark : chainingIllustrationLight}
-    alt="Chaining illustration"
-    style={{
-      width: 160,
-      height: 60,
-      objectFit: 'contain',
-    }}
-  />
-);
+const DIAGRAM_WIDTH = 176;
+const DIAGRAM_HEIGHT = 60;
 
 /**
- * Time-based scenario illustration loaded from a PNG asset.
+ * Chaining engine illustration: a crisp, theme-aware outlined diagram of an
+ * automated branching flow (start node -> trigger gate -> parallel next steps).
+ * Drawn inline as SVG so it scales sharply and follows the palette / theme mode.
  */
-const TimeBasedIllustration: FunctionComponent<{ isDark: boolean }> = ({ isDark }) => (
-  <img
-    src={isDark ? timeBasedIllustrationDark : timeBasedIllustrationLight}
-    alt="Time-based illustration"
-    style={{
-      width: 160,
-      height: 60,
-      objectFit: 'contain',
-    }}
-  />
-);
+const ChainingDiagram: FunctionComponent = () => {
+  const theme = useTheme();
+  const accent = theme.palette.primary.main;
+  const muted = theme.palette.text.disabled;
+  const nodeFill = alpha(accent, 0.14);
+  return (
+    <svg
+      width={DIAGRAM_WIDTH}
+      height={DIAGRAM_HEIGHT}
+      viewBox={`0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`}
+      fill="none"
+      role="img"
+      aria-label="Chaining flow diagram"
+      style={{ filter: `drop-shadow(0 1px 3px ${alpha(accent, 0.3)})` }}
+    >
+      <defs>
+        <marker id="chaining-arrow" markerWidth="6" markerHeight="6" refX="4.2" refY="3" orient="auto">
+          <path d="M0.5,0.6 L4.6,3 L0.5,5.4" fill="none" stroke={accent} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+        </marker>
+      </defs>
+      {/* Connectors: start -> gate, then gate branches to the two next steps. */}
+      <path d="M37,30 H68" stroke={accent} strokeWidth="1.5" markerEnd="url(#chaining-arrow)" />
+      <path d="M90,25 C110,17 120,13 136,13" stroke={accent} strokeWidth="1.5" markerEnd="url(#chaining-arrow)" />
+      <path d="M90,35 C110,43 120,47 136,47" stroke={accent} strokeWidth="1.5" markerEnd="url(#chaining-arrow)" />
+      {/* Start node + one idle (not-yet-triggered) node below it. */}
+      <rect x="14" y="22" width="23" height="16" rx="4" stroke={accent} strokeWidth="1.6" fill={nodeFill} />
+      <rect x="14" y="41" width="23" height="13" rx="4" stroke={muted} strokeWidth="1.4" strokeDasharray="3 2.5" fill="none" />
+      {/* Trigger gate. */}
+      <circle cx="80" cy="30" r="11" stroke={accent} strokeWidth="1.6" fill={alpha(accent, 0.2)} />
+      <path d="M77,25.5 L84,30 L77,34.5 Z" fill={accent} />
+      {/* Two parallel next steps. */}
+      <rect x="137" y="5" width="24" height="16" rx="4" stroke={accent} strokeWidth="1.6" fill={nodeFill} />
+      <rect x="137" y="39" width="24" height="16" rx="4" stroke={accent} strokeWidth="1.6" fill={nodeFill} />
+    </svg>
+  );
+};
+
+/**
+ * Time-based engine illustration: outlined nodes evenly spaced above a dashed
+ * timeline with tick marks, conveying execution at fixed scheduled intervals.
+ */
+const TimeBasedDiagram: FunctionComponent = () => {
+  const theme = useTheme();
+  const accent = theme.palette.secondary.main;
+  const line = theme.palette.text.disabled;
+  const nodeFill = alpha(accent, 0.14);
+  const xs = [30, 88, 146];
+  return (
+    <svg
+      width={DIAGRAM_WIDTH}
+      height={DIAGRAM_HEIGHT}
+      viewBox={`0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`}
+      fill="none"
+      role="img"
+      aria-label="Time-based schedule diagram"
+      style={{ filter: `drop-shadow(0 1px 3px ${alpha(accent, 0.25)})` }}
+    >
+      {/* Timeline. */}
+      <line x1="12" y1="45" x2="164" y2="45" stroke={line} strokeWidth="1.3" strokeDasharray="3 3" strokeLinecap="round" />
+      {xs.map(x => (
+        <g key={x}>
+          {/* Tick + connector from the node down to the timeline. */}
+          <line x1={x} y1="30" x2={x} y2="41" stroke={accent} strokeWidth="1.3" strokeDasharray="2 2" />
+          <circle cx={x} cy="45" r="2.4" fill={accent} />
+          {/* Scheduled step node. */}
+          <rect x={x - 12} y="11" width="24" height="18" rx="4" stroke={accent} strokeWidth="1.6" fill={nodeFill} />
+          <line x1={x - 5} y1="17" x2={x + 5} y2="17" stroke={accent} strokeWidth="1.3" strokeLinecap="round" />
+          <line x1={x - 5} y1="21" x2={x + 2} y2="21" stroke={accent} strokeWidth="1.3" strokeLinecap="round" />
+        </g>
+      ))}
+    </svg>
+  );
+};
 
 export type EngineType = 'chaining' | 'time-based' | null;
 
@@ -180,11 +228,14 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
                   <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
                     {option.description}
                   </Typography>
-                  {/* Illustrative workflow diagram */}
-                  <Stack sx={{ marginTop: theme.spacing(1) }}>
-                    {isChaining
-                      ? <ChainingIllustration isDark={theme.palette.mode === 'dark'} />
-                      : <TimeBasedIllustration isDark={theme.palette.mode === 'dark'} />}
+                  {/* Illustrative workflow diagram (crisp inline SVG). */}
+                  <Stack sx={{
+                    marginTop: theme.spacing(1),
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  >
+                    {isChaining ? <ChainingDiagram /> : <TimeBasedDiagram />}
                   </Stack>
                 </CardContent>
               </CardActionArea>

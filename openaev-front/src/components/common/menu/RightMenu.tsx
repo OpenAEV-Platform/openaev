@@ -53,7 +53,7 @@ const RightMenu: FunctionComponent<Props> = ({ entries, header }) => {
       <div className={classes.toolbar} />
       <div style={{ marginTop: bannerHeight }}>
         {header}
-        <MenuList component="nav">
+        <MenuList component="nav" sx={{ paddingTop: 0.5 }}>
           {entries.map((entry, idx) => {
             // Highlight the entry on its own route AND on any nested route
             // (e.g. a detail/overview page like ".../users/{id}"), ignoring any
@@ -61,6 +61,10 @@ const RightMenu: FunctionComponent<Props> = ({ entries, header }) => {
             const targetPath = (entry.activePath ?? entry.path).split('?')[0];
             const isCurrentTab = location.pathname === targetPath
               || location.pathname.startsWith(`${targetPath}/`);
+            // Icon styling mirrors OpenCTI's NavToolbarMenu: compact 16px glyph,
+            // muted tertiary color when idle, lighter + full opacity when active.
+            const iconColor = isCurrentTab ? theme.palette.text.light : theme.palette.text.tertiary;
+            const iconOpacity = isCurrentTab ? 1 : 0.5;
             return (
               <MenuItem
                 key={idx}
@@ -74,11 +78,19 @@ const RightMenu: FunctionComponent<Props> = ({ entries, header }) => {
                     }
                   : undefined}
                 sx={{
-                  paddingTop: theme.spacing(1),
-                  paddingBottom: theme.spacing(1),
+                  'paddingRight': 0,
+                  '& .MuiListItemText-primary': { fontSize: 14 },
                 }}
               >
-                <ListItemIcon>
+                <ListItemIcon
+                  sx={{
+                    'minWidth': '0px!important',
+                    'mr': 1,
+                    'opacity': iconOpacity,
+                    'color': iconColor,
+                    '& svg': { fontSize: '16px!important' },
+                  }}
+                >
                   {entry.icon()}
                 </ListItemIcon>
                 <ListItemText primary={isNotEmptyField(entry.number) ? `${t(entry.label)} (${entry.number})` : t(entry.label)} />

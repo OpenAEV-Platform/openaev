@@ -131,7 +131,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
   // filter repeated under every entry).
   const scopeSwitcher = showScopeSwitch
     ? (
-        <Box sx={{ padding: theme.spacing(1.5, 1.5, 0.5, 1.5) }}>
+        <Box sx={{ padding: theme.spacing(1, 1.5, 1, 1.5) }}>
           <ToggleButtonGroup
             exclusive
             size="small"
@@ -141,15 +141,18 @@ const SecurityMenuComponent: FunctionComponent = () => {
               if (value && value !== scope) changeScope(value);
             }}
             sx={{
+              'gap': 1,
               '& .MuiToggleButton-root': {
                 'flexDirection': 'column',
                 'gap': 0.5,
-                'paddingBlock': 1,
+                'paddingBlock': 1.25,
+                'paddingInline': 1.5,
+                'borderRadius': 1,
+                'border': `1px solid ${theme.palette.divider}`,
                 'textTransform': 'none',
                 'fontSize': 11,
                 'fontWeight': 600,
                 'lineHeight': 1.2,
-                'borderColor': theme.palette.divider,
                 'color': theme.palette.text.secondary,
                 '& .MuiSvgIcon-root': { fontSize: 18 },
                 '&.Mui-selected': {

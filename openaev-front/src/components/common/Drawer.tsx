@@ -7,6 +7,13 @@ import { computeBannerSettings } from '../../public/components/systembanners/uti
 import { getSeverityAndColor } from '../../utils/Colors';
 import useAuth from '../../utils/hooks/useAuth';
 
+// Byte-for-byte mirror of OpenCTI's Drawer surfaces (see opencti-front
+// src/private/components/common/drawer/Drawer.tsx):
+//  - the MUI Paper keeps `background.paper` + the elevation-1 overlay,
+//  - the header sits on `background.nav` (the darkest navy band),
+//  - the body container sits on `background.drawer` (the LIGHTER navy blue).
+// The body must be lighter than the header, exactly like OpenCTI - inheriting
+// `background.paper` on the body made it darker than the header before.
 const useStyles = makeStyles()(theme => ({
   drawerPaperHalf: {
     minHeight: '100vh',
@@ -27,26 +34,32 @@ const useStyles = makeStyles()(theme => ({
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.enteringScreen,
     }),
-    backgroundColor: theme.palette.background.default,
   },
   // Aligned with OpenCTI's DrawerHeader: title on the left, actions + close on
-  // the right, over the slightly-lighter `background.secondary` surface.
+  // the right, over the darkest `background.nav` band with a subtle separator.
   header: {
-    backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.secondary,
+    backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.nav,
     padding: theme.spacing(2, 3),
+    borderBottom: `1px solid ${theme.palette.divider}`,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: theme.spacing(1),
   },
   headerFull: {
-    backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.secondary,
+    backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.nav,
     borderBottom: `1px solid ${theme.palette.divider}`,
     padding: theme.spacing(2, 3),
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: theme.spacing(1),
+  },
+  // The scrollable body content: the lighter navy blue OpenCTI uses for drawers.
+  container: {
+    backgroundColor: theme.palette.background.drawer,
+    minHeight: '100%',
+    padding: '10px 20px 20px 20px',
   },
 }));
 
@@ -116,11 +129,12 @@ const Drawer: FunctionComponent<DrawerProps> = ({
       <div className={variant === 'full' ? classes.headerFull : classes.header}>
         <Tooltip title={title}>
           <Typography
-            variant="subtitle2"
+            variant="h5"
             noWrap
             sx={{
               flex: 1,
               minWidth: 0,
+              margin: 0,
             }}
           >
             {title}
@@ -151,15 +165,11 @@ const Drawer: FunctionComponent<DrawerProps> = ({
             size="small"
             color="primary"
           >
-            <Close fontSize="small" color="primary" />
+            <Close color="primary" />
           </IconButton>
         </div>
       </div>
-      <div style={{
-        padding: '10px 20px 20px 20px',
-        ...containerStyle,
-      }}
-      >
+      <div className={classes.container} style={containerStyle}>
         {component}
       </div>
     </DrawerMUI>

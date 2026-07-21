@@ -6,10 +6,9 @@ import { useParams } from 'react-router';
 
 import { fetchFinding, searchFindings } from '../../../actions/findings/finding-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
-import { DetailHero, Field, HeroStat, InformationGrid, SectionBlock } from '../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, Field, HeroStat, InformationGrid, SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
 import { buildFilter } from '../../../components/common/queryable/filter/FilterUtils';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
-import ExpandableMarkdown from '../../../components/ExpandableMarkdown';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
@@ -180,7 +179,24 @@ const FindingOverview = () => {
       <InformationGrid title={t('Information')}>
         <Field label={t('Type')}>{typeLabel}</Field>
         <Field label={t('Value')}>
-          <ExpandableMarkdown source={finding.finding_value} limit={300} />
+          <Box
+            component="pre"
+            sx={{
+              margin: 0,
+              padding: theme.spacing(1, 1.5),
+              borderRadius: 1,
+              backgroundColor: theme.palette.background.accent,
+              border: `1px solid ${theme.palette.divider}`,
+              fontFamily: 'Consolas, monaco, monospace',
+              fontSize: 12.5,
+              lineHeight: 1.5,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              color: theme.palette.text.primary,
+            }}
+          >
+            {finding.finding_value}
+          </Box>
         </Field>
         <Field label={t('Field')}>{emptyFilled(finding.finding_field)}</Field>
         <Field label={t('First seen')}>{fldt(finding.finding_created_at)}</Field>
@@ -190,7 +206,10 @@ const FindingOverview = () => {
         </Field>
       </InformationGrid>
 
-      <SectionBlock title={t('Affected endpoints & context')} disablePadding>
+      {/* Flat list (no surrounding Paper): the section label sits directly above
+          the related-reports list, matching OpenCTI's plain list sections. */}
+      <div>
+        <SectionLabel>{t('Affected endpoints & context')}</SectionLabel>
         <FindingDetail
           searchFindings={searchFindings}
           selectedFinding={aggregated}
@@ -199,7 +218,7 @@ const FindingOverview = () => {
           contextId={findingId}
           onCvssScore={setCvssScore}
         />
-      </SectionBlock>
+      </div>
     </Box>
   );
 };

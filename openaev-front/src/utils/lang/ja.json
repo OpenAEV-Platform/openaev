@@ -507,6 +507,8 @@
   "Conditions": "条件",
   "Configuration": "構成",
   "Configure": "設定する",
+  "Configure the teams, players and audience involved in this simulation": "このシミュレーションに関わるチーム、プレイヤー、対象者を設定します",
+  "Configure the teams, players and audience targeted by this scenario": "このシナリオの対象チーム、プレイヤー、対象者を設定します",
   "Confirm": "確認する",
   "Confirmation": "確認",
   "Connectivity lost": "接続不能",

@@ -124,9 +124,12 @@ const ThemeDark = (
       secondary: paper === THEME_DARK_DEFAULT_PAPER
         ? '#0C1524'
         : (paper ?? '#0C1524'),
-      drawer: nav === THEME_DARK_DEFAULT_NAV
+      // Compare the RESOLVED nav (param is null when no custom theme is set), so
+      // the default install gets the lighter '#0f1d34' drawer blue instead of
+      // darken('#0f1d34', 0.5) - the latter made every drawer body near-black.
+      drawer: (nav ?? THEME_DARK_DEFAULT_NAV) === THEME_DARK_DEFAULT_NAV
         ? '#0f1d34'
-        : (darken(nav ?? '#0f1d34', 0.5)),
+        : darken(nav ?? THEME_DARK_DEFAULT_NAV, 0.5),
       disabled: '#363B46',
       gradient: {
         start: background || THEME_DARK_DEFAULT_BACKGROUND,

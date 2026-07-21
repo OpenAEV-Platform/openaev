@@ -220,14 +220,6 @@ const ScenarioHeader = ({
           action: onDashboardAction,
           userRight: true,
         },
-        ...(!isScenarioChaining
-          ? [{
-              label: 'Configuration',
-              icon: <TuneOutlined fontSize="small" />,
-              action: () => setOpenConfiguration(true),
-              userRight: true,
-            }]
-          : []),
         {
           label: 'Notification rules',
           icon: <NotificationsOutlined fontSize="small" color={editNotification ? 'success' : undefined} />,
@@ -294,6 +286,22 @@ const ScenarioHeader = ({
                 >
                   {t('Scenario assistant')}
                 </Button>
+              )}
+              {/* Configuration promoted to a first-class button (not buried in the
+                  overflow) so teams/players setup is discoverable, with an
+                  explicit tooltip describing what it configures. */}
+              {canManage && !isScenarioChaining && (
+                <Tooltip title={t('Configure the teams, players and audience targeted by this scenario')}>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    startIcon={<TuneOutlined />}
+                    onClick={() => setOpenConfiguration(true)}
+                  >
+                    {t('Configuration')}
+                  </Button>
+                </Tooltip>
               )}
               {/* The single prominent CTA. */}
               {canLaunch && isScheduled && !ended

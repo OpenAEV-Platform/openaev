@@ -307,14 +307,6 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
           action: onDashboardAction,
           userRight: true,
         },
-        ...(!isSimulationChaining
-          ? [{
-              label: 'Configuration',
-              icon: <TuneOutlined fontSize="small" />,
-              action: () => setOpenConfiguration(true),
-              userRight: true,
-            }]
-          : []),
         {
           label: 'Modify the scheduling',
           icon: <UpdateOutlined fontSize="small" />,
@@ -357,6 +349,22 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
               {/* Contextual configuration alert - self-hides when healthy. */}
               {permissions.canManage && (
                 <HealthcheckIndicator healthchecks={healthchecks} exerciseId={exerciseId} />
+              )}
+              {/* Configuration promoted to a first-class button (not buried in the
+                  overflow) so teams/players setup is discoverable, with an
+                  explicit tooltip describing what it configures. */}
+              {permissions.canManage && !isSimulationChaining && (
+                <Tooltip title={t('Configure the teams, players and audience involved in this simulation')}>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    startIcon={<TuneOutlined />}
+                    onClick={() => setOpenConfiguration(true)}
+                  >
+                    {t('Configuration')}
+                  </Button>
+                </Tooltip>
               )}
               {/* Lifecycle CTAs (start / pause / resume / stop / reset). */}
               <Buttons
