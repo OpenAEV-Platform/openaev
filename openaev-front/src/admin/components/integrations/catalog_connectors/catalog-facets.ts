@@ -59,7 +59,7 @@ export const fromCatalogConnector = (connector: CatalogConnectorOutput): Connect
   detailUrl: `/admin/integrations/catalog/${connector.catalog_connector_id}`,
 });
 
-export const CONNECTOR_TYPE_ORDER: ConnectorItemType[] = ['COLLECTOR', 'INJECTOR', 'EXECUTOR'];
+export const CONNECTOR_TYPE_ORDER: ConnectorItemType[] = ['COLLECTOR', 'INJECTOR', 'EXECUTOR', 'SECRETS_PROVIDER'];
 
 // The `verified` boolean now carries support semantics (same as OpenCTI):
 // true = supported by Filigran, false = supported by the community.

@@ -46,6 +46,7 @@ const ConnectorDetailHero = ({
     COLLECTOR: t('Collector'),
     INJECTOR: t('Injector'),
     EXECUTOR: t('Executor'),
+    SECRETS_PROVIDER: t('Secrets Provider'),
   };
 
   const chipSx = {
