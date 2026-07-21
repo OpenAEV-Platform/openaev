@@ -6,10 +6,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import XtmHubTab from '../../../../../../admin/components/settings/experience/xtm_hub/XtmHubTab';
-import {
-  XTM_HUB_AUTO_REGISTER_QUERY_PARAM,
-  XTM_HUB_PRODUCT_NAME_QUERY_PARAM,
-} from '../../../../../../admin/components/xtm_hub/XtmHubRedirect';
+import { XTM_HUB_AUTO_REGISTER_QUERY_PARAM } from '../../../../../../admin/components/xtm_hub/XtmHubRedirect';
 import { type PlatformSettings, type TenantOutput, type User } from '../../../../../../utils/api-types';
 import type * as EnvironmentModule from '../../../../../../utils/Environment';
 import { isDemoInstance, XTM_HUB_DEFAULT_URL } from '../../../../../../utils/Environment';
@@ -412,15 +409,6 @@ describe('XtmHubTab', () => {
         expect(getExternalTabArgs().url).toBe(`https://hub.example.com/redirect/register-openaev?${buildRegistrationParams()}`);
       });
 
-      it('uses auto registration product name as platform_title when present in URL', () => {
-        renderXtmHubTab({
-          registrationStatus: null,
-          route: `/admin/settings/experience?${XTM_HUB_AUTO_REGISTER_QUERY_PARAM}=true&${XTM_HUB_PRODUCT_NAME_QUERY_PARAM}=OpenAEV`,
-        });
-        fireEvent.click(screen.getByText('Continue'));
-        expect(new URL(vi.mocked(useExternalTab).mock.calls.at(-1)![0].url).searchParams.get('platform_title')).toBe('OpenAEV');
-      });
-
       it('platform_url is the full origin + tenant path when a tenant is set', () => {
         renderXtmHubTab({ registrationStatus: null });
         const platformUrl = new URL(getExternalTabArgs().url).searchParams.get('platform_url');
@@ -500,7 +488,7 @@ describe('XtmHubTab', () => {
     it('clears auto-register query params and does not open prompt when already registered', async () => {
       renderXtmHubTab({
         registrationStatus: 'REGISTERED',
-        route: `/admin/settings/experience?${XTM_HUB_AUTO_REGISTER_QUERY_PARAM}=true&${XTM_HUB_PRODUCT_NAME_QUERY_PARAM}=OpenAEV`,
+        route: `/admin/settings/experience?${XTM_HUB_AUTO_REGISTER_QUERY_PARAM}=true`,
       });
 
       await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(
@@ -515,7 +503,7 @@ describe('XtmHubTab', () => {
 
     it('clears auto-register query params in demo mode', async () => {
       vi.mocked(isDemoInstance).mockReturnValue(true);
-      const autoRegisterRoute = `/admin/settings/experience?${XTM_HUB_AUTO_REGISTER_QUERY_PARAM}=true&${XTM_HUB_PRODUCT_NAME_QUERY_PARAM}=OpenAEV`;
+      const autoRegisterRoute = `/admin/settings/experience?${XTM_HUB_AUTO_REGISTER_QUERY_PARAM}=true`;
       const { container } = renderXtmHubTab({ route: autoRegisterRoute });
 
       await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(

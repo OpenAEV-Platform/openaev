@@ -6,7 +6,6 @@ import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 export const XTM_HUB_AUTO_REGISTER_QUERY_PARAM = 'xtmHubAutoRegister';
-export const XTM_HUB_PRODUCT_NAME_QUERY_PARAM = 'productName';
 export const XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM = 'xtmHubPermissionRequired';
 
 const STATIC_PATH_REDIRECTS: Record<string, string> = { 'connect-xtm-hub': '/admin/settings/experience' };

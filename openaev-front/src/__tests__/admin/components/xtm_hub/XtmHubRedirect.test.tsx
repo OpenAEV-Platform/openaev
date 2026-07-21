@@ -8,7 +8,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import XtmHubRedirect, {
   XTM_HUB_AUTO_REGISTER_QUERY_PARAM,
   XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM,
-  XTM_HUB_PRODUCT_NAME_QUERY_PARAM,
 } from '../../../../admin/components/xtm_hub/XtmHubRedirect';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -73,7 +72,7 @@ describe('XtmHubRedirect', () => {
 
   it('redirects unauthorized users to admin home with permission marker', async () => {
     renderWithRouter({
-      route: '/redirect/connect-xtm-hub?productName=OpenAEV',
+      route: '/redirect/connect-xtm-hub?foo=bar',
       canManageTenantSettings: false,
       children: (
         <Routes>
@@ -84,7 +83,7 @@ describe('XtmHubRedirect', () => {
     });
 
     const locationNode = await screen.findByTestId('location');
-    expect(locationNode.textContent).toBe(`/admin?${XTM_HUB_PRODUCT_NAME_QUERY_PARAM}=OpenAEV&${XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM}=true`);
+    expect(locationNode.textContent).toBe(`/admin?foo=bar&${XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM}=true`);
   });
 
   it('renders not found for unknown mapping key', () => {

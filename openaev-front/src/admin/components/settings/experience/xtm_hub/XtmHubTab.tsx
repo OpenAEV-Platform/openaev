@@ -13,15 +13,11 @@ import useAuth from '../../../../../utils/hooks/useAuth';
 import useExternalTab from '../../../../../utils/hooks/useExternalTab';
 import { getCurrentTenantId } from '../../../../../utils/url-helper';
 import GradientButton from '../../../common/GradientButton';
-import {
-  XTM_HUB_AUTO_REGISTER_QUERY_PARAM,
-  XTM_HUB_PRODUCT_NAME_QUERY_PARAM,
-} from '../../../xtm_hub/XtmHubRedirect';
+import { XTM_HUB_AUTO_REGISTER_QUERY_PARAM } from '../../../xtm_hub/XtmHubRedirect';
 import XtmHubConfirmationDialog from './XtmHubConfirmationDialog';
 import XtmHubProcessDialog from './XtmHubProcessDialog';
 import XtmHubProcessInstructions from './XtmHubProcessInstructions';
 import XtmHubProcessLoader from './XtmHubProcessLoader';
-import { getRegistrationPlatformTitle, getXtmHubProductName } from './XtmHubTab.helpers';
 
 enum ProcessSteps {
   INSTRUCTIONS = 'INSTRUCTIONS',
@@ -40,7 +36,6 @@ const XtmHubTab: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isAutoRegistrationPromptOpen, setIsAutoRegistrationPromptOpen] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [autoRegistrationProductName, setAutoRegistrationProductName] = useState<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { settings, currentUserTenant } = useAuth();
@@ -48,11 +43,7 @@ const XtmHubTab: React.FC = () => {
   const isEnterpriseEdition = settings.platform_license?.license_is_validated === true;
   const isDemoMode = isDemoInstance(settings);
   const registrationHubUrl = settings?.xtm_hub_url ?? XTM_HUB_DEFAULT_URL;
-  const fallbackPlatformTitle = settings?.platform_name ?? 'OpenAEV Platform';
-  const registrationPlatformTitle = getRegistrationPlatformTitle({
-    autoRegistrationProductName,
-    fallbackPlatformTitle,
-  });
+  const registrationPlatformTitle = settings?.platform_name ?? 'OpenAEV Platform';
   const [processStep, setProcessStep] = useState<ProcessSteps>(
     ProcessSteps.INSTRUCTIONS,
   );
@@ -145,18 +136,10 @@ const XtmHubTab: React.FC = () => {
 
   const clearAutoRegisterQueryParams = useCallback(() => {
     const searchParams = new URLSearchParams(location.search);
-    let hasChanges = false;
-    if (searchParams.has(XTM_HUB_AUTO_REGISTER_QUERY_PARAM)) {
-      searchParams.delete(XTM_HUB_AUTO_REGISTER_QUERY_PARAM);
-      hasChanges = true;
-    }
-    if (searchParams.has(XTM_HUB_PRODUCT_NAME_QUERY_PARAM)) {
-      searchParams.delete(XTM_HUB_PRODUCT_NAME_QUERY_PARAM);
-      hasChanges = true;
-    }
-    if (!hasChanges) {
+    if (!searchParams.has(XTM_HUB_AUTO_REGISTER_QUERY_PARAM)) {
       return;
     }
+    searchParams.delete(XTM_HUB_AUTO_REGISTER_QUERY_PARAM);
     const targetSearch = searchParams.toString();
     navigate(
       {
@@ -168,7 +151,6 @@ const XtmHubTab: React.FC = () => {
   }, [location.pathname, location.search, navigate]);
 
   const handleCancelAutoRegistration = () => {
-    setAutoRegistrationProductName(null);
     setIsAutoRegistrationPromptOpen(false);
     setProcessStep(ProcessSteps.INSTRUCTIONS);
     setOperationType(null);
@@ -180,7 +162,6 @@ const XtmHubTab: React.FC = () => {
 
   const handleCloseDialog = () => {
     closeTab();
-    setAutoRegistrationProductName(null);
     setIsDialogOpen(false);
     setShowConfirmation(false);
     setProcessStep(ProcessSteps.INSTRUCTIONS);
@@ -207,9 +188,7 @@ const XtmHubTab: React.FC = () => {
     setIsDialogOpen(true);
     handleWaitingHubStep();
   };
-
   const handleOpenDialog = () => {
-    setAutoRegistrationProductName(null);
     setOperationType(
       isRegistered ? OperationType.UNREGISTER : OperationType.REGISTER,
     );
@@ -218,9 +197,7 @@ const XtmHubTab: React.FC = () => {
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
-    const hasAutoRegisterParams = searchParams.has(XTM_HUB_AUTO_REGISTER_QUERY_PARAM)
-      || searchParams.has(XTM_HUB_PRODUCT_NAME_QUERY_PARAM);
-    if (!hasAutoRegisterParams) {
+    if (!searchParams.has(XTM_HUB_AUTO_REGISTER_QUERY_PARAM)) {
       return;
     }
     const shouldAutoRegister = searchParams.get(XTM_HUB_AUTO_REGISTER_QUERY_PARAM) === 'true';
@@ -228,7 +205,6 @@ const XtmHubTab: React.FC = () => {
     if (isDemoMode || isRegistered || !shouldAutoRegister) {
       return;
     }
-    setAutoRegistrationProductName(getXtmHubProductName(location.search));
     setOperationType(OperationType.REGISTER);
     setProcessStep(ProcessSteps.INSTRUCTIONS);
     setIsAutoRegistrationPromptOpen(true);
