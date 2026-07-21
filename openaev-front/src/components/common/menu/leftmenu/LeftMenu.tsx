@@ -37,7 +37,9 @@ const LeftMenu: FunctionComponent<{
   const gradientEnd = theme.palette.background.gradient?.end ?? theme.palette.background.paper;
   const drawerBackground = `linear-gradient(100deg, ${gradientStart} 0%, ${gradientEnd} 100%)`;
   // Subtle section separators matching OpenCTI's LeftBar (designSystem bg2).
-  const separatorSx = { border: `1px solid ${theme.palette.designSystem.background.bg2}` };
+  // Only recolor the hr's own bottom border - setting all four borders would
+  // paint a 2px double line on the zero-height element.
+  const separatorSx = { borderColor: theme.palette.designSystem.background.bg2 };
 
   // The header element (e.g. the tenant switcher) can render nothing (single
   // tenant): only render the header MenuList + its divider when it does, so no

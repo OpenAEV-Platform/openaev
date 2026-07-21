@@ -130,8 +130,7 @@ const UpdateInjectLogicalChains: FunctionComponent<Props> = ({ inject, handleClo
             }}
             >
               <Button
-                variant="outlined"
-                color="inherit"
+                variant="contained"
                 onClick={handleClose}
               >
                 {t('Cancel')}

@@ -86,7 +86,7 @@ const TopBar: FunctionComponent = () => {
   // Full Text search
   const onFullTextSearch = (search?: string) => {
     if (search) {
-      navigate(`/admin/fulltextsearch?search=${search}`);
+      navigate(`/admin/fulltextsearch?search=${encodeURIComponent(search)}`);
     }
   };
   const [searchParams] = useSearchParams();

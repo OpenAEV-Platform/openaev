@@ -34,7 +34,6 @@ const MenuItemLogo: FunctionComponent<Props> = ({ navOpen, onClick }) => {
         <Typography
           component="span"
           sx={{
-            fontFamily: 'IBM Plex Sans',
             fontSize: 10,
             lineHeight: '16px',
             opacity: 0.8,

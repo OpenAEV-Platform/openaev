@@ -125,7 +125,7 @@ const ThemeLight = (
       secondary: paper === THEME_LIGHT_DEFAULT_PAPER
         ? '#FFFFFF'
         : (paper ?? '#FFFFFF'),
-      drawer: nav === THEME_LIGHT_DEFAULT_PAPER
+      drawer: nav === THEME_LIGHT_DEFAULT_NAV
         ? '#FFFFFF'
         : (darken(nav ?? '#FFFFFF', 0.5)),
       disabled: '#DFDFDF',

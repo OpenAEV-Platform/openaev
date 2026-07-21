@@ -7,8 +7,10 @@ class ScenarioPage {
   readonly page: Page;
 
   // Scenario configuration (teams, variables, media pressure, challenges) is
-  // opened from the hero "Configuration" action; teams is its first tab.
-  readonly configurationButton: Locator;
+  // opened from the hero overflow menu ("More actions" kebab > Configuration);
+  // teams is its first tab.
+  readonly heroKebabButton: Locator;
+  readonly configurationMenuItem: Locator;
   readonly teamAddBtn: Locator;
   readonly teamListSection: Locator;
   readonly updateTeamDialog: UpdateTeamDialog;
@@ -23,7 +25,9 @@ class ScenarioPage {
     // Scenario configuration drawer (hosts the teams section on its first tab).
     // The teams section has no inner heading anymore (the drawer tab labels it),
     // so target the "Add" trigger inside the promoted configuration action slot.
-    this.configurationButton = page.getByRole('button', { name: 'Configuration' });
+    // The hero kebab is the first "More actions" button on the page.
+    this.heroKebabButton = page.getByRole('button', { name: 'More actions' }).first();
+    this.configurationMenuItem = page.getByRole('menuitem', { name: 'Configuration' });
     this.teamAddBtn = page.getByTestId('configuration-fab').getByLabel('Add');
     this.teamListSection = page.getByTestId('teams-list-section');
     this.updateTeamDialog = new UpdateTeamDialog(page);
@@ -47,8 +51,10 @@ class ScenarioPage {
 
   // -- Action methods
   async openConfiguration() {
-    await this.configurationButton.waitFor({ state: 'visible' });
-    await this.configurationButton.click();
+    await this.heroKebabButton.waitFor({ state: 'visible' });
+    await this.heroKebabButton.click();
+    await this.configurationMenuItem.waitFor({ state: 'visible' });
+    await this.configurationMenuItem.click();
     await this.teamAddBtn.waitFor({ state: 'visible' });
   }
 

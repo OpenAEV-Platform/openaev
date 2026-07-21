@@ -50,10 +50,10 @@ const PaginatedTargetTab: React.FC<Props> = (props) => {
   // auto-select the first target when the current selection is no longer on the
   // loaded page (e.g. after switching tabs or paginating).
   useEffect(() => {
-    if (targets && targets.length > 0 && !targets.find(t => t.target_id == props.selectedTargetId)) {
+    if (targets && targets.length > 0 && !targets.find(t => t.target_id === props.selectedTargetId)) {
       props.handleSelectTarget(targets[0]);
     }
-  }, [targets]);
+  }, [targets, props.selectedTargetId]);
 
   return (
     <>

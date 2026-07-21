@@ -68,7 +68,14 @@ const Login = () => {
 
   return (
     <LoginLayout>
-      <Stack gap={1} sx={{ width: 500 }}>
+      <Stack
+        gap={1}
+        sx={{
+          width: '100%',
+          maxWidth: 500,
+          paddingInline: 2,
+        }}
+      >
         {isConsentMessage && (
           <Paper
             variant="outlined"

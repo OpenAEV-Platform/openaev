@@ -182,8 +182,10 @@ const SecurityPlatformDetail: FunctionComponent = () => {
   // query scoped to this platform's FAILED expectations.
   const MISSED_COLUMNS = ['inject_title', 'inject_expectation_type', 'inject_expectation_status', 'inject_expectation_score', 'base_created_at'];
   const [missedLoading, setMissedLoading] = useState(true);
+  // Static key (like 'asset-injects' & co): one shared entry instead of an
+  // unbounded localStorage entry per platform ever visited.
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
-    `security-platform-${securityPlatformId}-missed`,
+    'security-platform-missed',
     buildSearchPagination({ sorts: initSorting('base_created_at', 'DESC') }),
   );
 
@@ -248,9 +250,10 @@ const SecurityPlatformDetail: FunctionComponent = () => {
         if (score == null && expected == null) {
           return <>-</>;
         }
+        // A null side means "not scored" - show a dash rather than a fake 0.
         return (
           <span>
-            {Math.round(score ?? 0)}
+            {score != null ? Math.round(score) : '-'}
             {expected != null ? ` / ${Math.round(expected)}` : ''}
           </span>
         );
@@ -534,12 +537,14 @@ const SecurityPlatformDetail: FunctionComponent = () => {
 
       <div>
         <SectionLabel>{t('Latest missed expectations')}</SectionLabel>
+        {/* No status filter offered: the list is missed (FAILED) expectations
+            by definition, and fetchMissed hard-codes that status. */}
         <PaginationComponentV2
           fetch={fetchMissed}
           searchPaginationInput={searchPaginationInput}
           setContent={setMissed}
           entityPrefix="inject_expectation"
-          availableFilterNames={['inject_expectation_type', 'inject_expectation_status']}
+          availableFilterNames={['inject_expectation_type']}
           queryableHelpers={queryableHelpers}
         />
         <List>

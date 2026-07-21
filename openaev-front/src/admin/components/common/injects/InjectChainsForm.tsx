@@ -31,32 +31,37 @@ const useStyles = makeStyles()(theme => ({
     display: 'inline-flex',
     alignItems: 'center',
   },
-  sectionHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: theme.spacing(2),
-    marginTop: theme.spacing(2),
-    marginBottom: theme.spacing(1.5),
-  },
-  sectionTitle: {
-    fontFamily: '"Geologica", sans-serif',
-    fontWeight: 600,
-    fontSize: 11,
-    letterSpacing: '0.12em',
-    textTransform: 'uppercase',
-    color: theme.palette.text.secondary,
-  },
-  sectionHelper: {
-    fontSize: 12,
-    color: theme.palette.text.disabled,
-    marginTop: 2,
-  },
   labelExecutionCondition: {
     color: theme.palette.text.secondary,
     fontSize: 12,
   },
 }));
+
+// New section chrome uses sx (makeStyles above is legacy, kept for the
+// pre-existing classes only).
+const sectionHeaderSx = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 2,
+  marginTop: 2,
+  marginBottom: 1.5,
+};
+
+const sectionTitleSx = {
+  fontFamily: '"Geologica", sans-serif',
+  fontWeight: 600,
+  fontSize: 11,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase' as const,
+  color: 'text.secondary',
+};
+
+const sectionHelperSx = {
+  fontSize: 12,
+  color: 'text.disabled',
+  marginTop: '2px',
+};
 
 interface Props {
   values: Inject & { inject_depends_to: InjectDependency[] };
@@ -853,10 +858,10 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
         {t('Chain this inject to others: a parent runs before it, children run after. Add execution conditions to branch on whether the parent succeeded or failed.')}
       </Alert>
 
-      <div className={classes.sectionHeader}>
+      <Box sx={sectionHeaderSx}>
         <div>
-          <Typography className={classes.sectionTitle}>{t('Parent')}</Typography>
-          <Typography className={classes.sectionHelper}>{t('The inject that must run before this one (at most one).')}</Typography>
+          <Typography sx={sectionTitleSx}>{t('Parent')}</Typography>
+          <Typography sx={sectionHelperSx}>{t('The inject that must run before this one (at most one).')}</Typography>
         </div>
         <Button
           variant="outlined"
@@ -868,7 +873,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
         >
           {t('Add parent')}
         </Button>
-      </div>
+      </Box>
 
       {parents.map((parent, index) => {
         return (
@@ -966,10 +971,10 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
         );
       })}
 
-      <div className={classes.sectionHeader}>
+      <Box sx={sectionHeaderSx}>
         <div>
-          <Typography className={classes.sectionTitle}>{t('Children')}</Typography>
-          <Typography className={classes.sectionHelper}>{t('Injects that run after this one, on the condition you define.')}</Typography>
+          <Typography sx={sectionTitleSx}>{t('Children')}</Typography>
+          <Typography sx={sectionHelperSx}>{t('Injects that run after this one, on the condition you define.')}</Typography>
         </div>
         <Button
           variant="outlined"
@@ -980,7 +985,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
         >
           {t('Add child')}
         </Button>
-      </div>
+      </Box>
       {childrenList.map((children, index) => {
         return (
           <Accordion

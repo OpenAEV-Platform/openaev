@@ -53,6 +53,7 @@ const ButtonPopover: FunctionComponent<Props> = ({
             value="popover"
             size="small"
             color="primary"
+            aria-label={t('More actions')}
             onClick={(ev) => {
               ev.stopPropagation();
               setAnchorEl(ev.currentTarget);

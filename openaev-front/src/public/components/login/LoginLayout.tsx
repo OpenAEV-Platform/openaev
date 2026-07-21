@@ -113,8 +113,14 @@ const LoginLayout: FunctionComponent<Props> = ({ children }) => {
 
   const loginLogo = themeSettings?.logo_login_url;
 
+  // 500px column on desktop; on small viewports the aside is hidden and the
+  // content column takes the full width instead of forcing horizontal overflow.
   const contentSx: SxProps = {
-    minWidth: 500,
+    minWidth: {
+      xs: 0,
+      md: 500,
+    },
+    width: '100%',
     overflow: 'hidden',
     background: theme.palette.background.default,
     boxShadow: '8px 0px 9px 0px #0000002F',
@@ -122,6 +128,10 @@ const LoginLayout: FunctionComponent<Props> = ({ children }) => {
   };
 
   const asideSx: SxProps = {
+    display: {
+      xs: 'none',
+      md: 'block',
+    },
     background: getAsideBackground(),
     backgroundSize: loginAsideType === 'image' ? 'cover' : undefined,
     backgroundPosition: loginAsideType === 'image' ? 'center' : undefined,

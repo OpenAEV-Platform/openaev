@@ -4,7 +4,6 @@ import { type FunctionComponent, type ReactNode } from 'react';
 
 import { DetailHero } from '../../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../../components/i18n';
-import Loader from '../../../../components/Loader';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import type { InjectResultOverviewOutput, InjectStatus as InjectStatusType } from '../../../../utils/api-types';
 import { truncate } from '../../../../utils/String';
@@ -51,10 +50,6 @@ const MetaItem = ({ icon, children }: {
  */
 const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions }) => {
   const { t, tPick, nsdt, du } = useFormatter();
-
-  if (!injectResultOverview) {
-    return <Loader variant="inElement" />;
-  }
 
   const payload = injectResultOverview.inject_injector_contract?.injector_contract_payload;
   const iconType = payload

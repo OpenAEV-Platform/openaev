@@ -1,18 +1,28 @@
 import { Button, Stack } from '@mui/material';
-import * as PropTypes from 'prop-types';
 import { Form } from 'react-final-form';
 
 import OldTextField from '../../../components/fields/OldTextField';
-import inject18n from '../../../components/i18n';
+import { useFormatter } from '../../../components/i18n';
+
+interface LoginFormValues {
+  username: string;
+  password: string;
+}
+
+interface LoginFormProps {
+  onSubmit: (values: LoginFormValues) => void;
+  onResetPassword: () => void;
+}
 
 // Login form aligned with OpenCTI's LoginForm: login + password fields, then
 // a row with the "I forgot my password" text action on the left and the
 // primary "Sign in" button on the right.
-const LoginFormComponent = (props) => {
-  const { t, onSubmit, onResetPassword } = props;
-  const validate = (values) => {
-    const errors = {};
-    const requiredFields = ['username', 'password'];
+const LoginForm = ({ onSubmit, onResetPassword }: LoginFormProps) => {
+  const { t } = useFormatter();
+
+  const validate = (values: LoginFormValues) => {
+    const errors: Partial<Record<keyof LoginFormValues, string>> = {};
+    const requiredFields: (keyof LoginFormValues)[] = ['username', 'password'];
     requiredFields.forEach((field) => {
       if (!values[field]) {
         errors[field] = t('This field is required.');
@@ -20,6 +30,7 @@ const LoginFormComponent = (props) => {
     });
     return errors;
   };
+
   return (
     <Form onSubmit={onSubmit} validate={validate}>
       {({ handleSubmit, submitting, pristine }) => (
@@ -71,15 +82,5 @@ const LoginFormComponent = (props) => {
     </Form>
   );
 };
-
-LoginFormComponent.propTypes = {
-  t: PropTypes.func,
-  error: PropTypes.string,
-  onSubmit: PropTypes.func.isRequired,
-  onResetPassword: PropTypes.func,
-  handleSubmit: PropTypes.func,
-};
-
-const LoginForm = inject18n(LoginFormComponent);
 
 export default LoginForm;

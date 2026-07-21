@@ -62,6 +62,7 @@ const CategoryRail: FunctionComponent<CategoryRailProps> = ({ categories, select
             key={category.clazz}
             role="button"
             tabIndex={0}
+            aria-current={isSelected ? 'true' : undefined}
             onClick={() => onSelect(category.clazz)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
@@ -164,10 +165,10 @@ const ResultsPanel: FunctionComponent<ResultsPanelProps> = ({ clazz, textSearch 
       <PaginationComponent
         fetch={(input) => {
           setLoading(true);
-          return fullTextSearchByClass(clazz, {
-            ...input,
-            ...searchPaginationInput,
-          }).finally(() => setLoading(false));
+          // The engine already merged searchPaginationInput with its own
+          // page/size, so pass its input untouched (re-spreading the memoized
+          // page-0 input here would break pagination).
+          return fullTextSearchByClass(clazz, input).finally(() => setLoading(false));
         }}
         searchPaginationInput={searchPaginationInput}
         setContent={setElements}
@@ -287,11 +288,26 @@ const FullTextSearch = () => {
   const [selected, setSelected] = useState<string | null>(null);
   const [loadingCounts, setLoadingCounts] = useState(true);
 
+  // Keep the local query in sync with the URL, so a search submitted from the
+  // top bar while this page is already mounted refreshes the results.
   useEffect(() => {
+    setSearch(searchParams.get('search') ?? '');
+  }, [searchParams]);
+
+  useEffect(() => {
+    let stale = false;
     setLoadingCounts(true);
     fullTextSearch(search)
-      .then((result: { data: Record<string, FullTextSearchCountResult> }) => setCounts(result.data ?? {}))
-      .finally(() => setLoadingCounts(false));
+      .then((result: { data: Record<string, FullTextSearchCountResult> }) => {
+        if (!stale) setCounts(result.data ?? {});
+      })
+      .finally(() => {
+        if (!stale) setLoadingCounts(false);
+      });
+    // Guard against out-of-order responses when the query changes rapidly.
+    return () => {
+      stale = true;
+    };
   }, [search]);
 
   // Categories sorted by count (most relevant first), so the busiest bucket leads.
@@ -417,7 +433,9 @@ const FullTextSearch = () => {
                 selected={selected}
                 onSelect={setSelected}
               />
-              {selected && <ResultsPanel clazz={selected} textSearch={search} />}
+              {/* Keyed on the category so switching remounts the panel and
+                  refetches (the pagination engine ignores clazz changes). */}
+              {selected && <ResultsPanel key={selected} clazz={selected} textSearch={search} />}
             </Box>
           );
         })()}

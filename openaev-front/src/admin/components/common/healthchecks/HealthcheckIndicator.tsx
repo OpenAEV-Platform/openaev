@@ -176,9 +176,7 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
                 <Button
                   color="primary"
                   size="small"
-                  sx={{
-                    flexShrink: 0,
-                  }}
+                  sx={{ flexShrink: 0 }}
                   onClick={() => goToHealthcheckAction(healthcheck.type!)}
                 >
                   {t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`)}

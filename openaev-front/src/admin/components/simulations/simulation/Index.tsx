@@ -59,7 +59,7 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
   return (
     <PermissionsContext.Provider value={permissionsContext}>
       <DocumentContext.Provider value={documentContext}>
-        <div style={{ paddingRight: ['/results', '/animation'].some(el => location.pathname.includes(el)) ? 200 : 0 }}>
+        <div style={{ paddingRight: location.pathname.includes('/animation') ? 200 : 0 }}>
           <SimulationShell exercise={exercise}>
             <Suspense fallback={<Loader />}>
               <Routes>

@@ -28,8 +28,6 @@ const SimulationShell: FunctionComponent<{
     tabValue = `${base}/injects`;
   } else if (location.pathname.includes(`${base}/animation`)) {
     tabValue = `${base}/animation`;
-  } else if (location.pathname.includes(`${base}/results`)) {
-    tabValue = `${base}/results`;
   } else if (location.pathname.includes(`${base}/tests`)) {
     tabValue = `${base}/tests`;
   }

@@ -106,10 +106,13 @@ const ScenarioPopover: FunctionComponent<Props> = ({
     action: () => handleOpenDelete(),
     userRight: canDelete,
   });
-  // Separate the setup group from the CRUD group when both are present.
-  if (crudStartIndex > 0 && entries[crudStartIndex]) {
-    entries[crudStartIndex] = {
-      ...entries[crudStartIndex],
+  // Separate the setup group from the CRUD group when both are present. The
+  // divider goes on the first CRUD entry the user can actually see (hidden
+  // entries are filtered out by ButtonPopover).
+  const firstVisibleCrudIndex = entries.findIndex((entry, index) => index >= crudStartIndex && entry.userRight);
+  if (crudStartIndex > 0 && firstVisibleCrudIndex !== -1) {
+    entries[firstVisibleCrudIndex] = {
+      ...entries[firstVisibleCrudIndex],
       dividerBefore: true,
     };
   }
