@@ -1,4 +1,4 @@
-package io.openaev.rest.notification.form;
+package io.openaev.api.notification;
 
 import io.openaev.database.model.Notification;
 import org.springframework.stereotype.Component;

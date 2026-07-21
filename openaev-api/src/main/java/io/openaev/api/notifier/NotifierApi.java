@@ -1,4 +1,4 @@
-package io.openaev.rest.notifier;
+package io.openaev.api.notifier;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
@@ -7,9 +7,7 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.notifier.form.NotifierInput;
-import io.openaev.rest.notifier.form.NotifierMapper;
-import io.openaev.rest.notifier.form.NotifierOutput;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.notification.NotifierService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -58,10 +56,17 @@ public class NotifierApi {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.NOTIFIER)
   @Operation(summary = "Get notifier", description = "Get a notifier by id")
   @Transactional
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The notifier")})
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "The notifier"),
+        @ApiResponse(responseCode = "404", description = "Notifier not found")
+      })
   public NotifierOutput notifier(
       @PathVariable @NotBlank @Schema(description = "ID of the notifier") final String notifierId) {
-    return notifierService.findById(notifierId).map(notifierMapper::toNotifierOutput).orElse(null);
+    return notifierService
+        .findById(notifierId)
+        .map(notifierMapper::toNotifierOutput)
+        .orElseThrow(() -> new ElementNotFoundException("Notifier not found: " + notifierId));
   }
 
   @LogExecutionTime

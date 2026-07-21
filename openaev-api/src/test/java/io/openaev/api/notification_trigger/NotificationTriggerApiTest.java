@@ -1,4 +1,4 @@
-package io.openaev.rest.notification_trigger;
+package io.openaev.api.notification_trigger;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -18,7 +18,6 @@ import io.openaev.database.model.NotificationTriggerPeriod;
 import io.openaev.database.model.NotificationTriggerType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.NotificationTriggerRepository;
-import io.openaev.rest.notification_trigger.form.NotificationTriggerInput;
 import io.openaev.service.notification.NotifierService;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;

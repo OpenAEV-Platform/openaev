@@ -38,6 +38,8 @@ public class NotificationTriggerService {
   private final NotificationTriggerCacheService triggerCacheService;
   private final UserService userService;
 
+  // readOnly transaction keeps the session open for the lazy owner access in canAccess
+  @Transactional(readOnly = true)
   public Optional<NotificationTrigger> findById(@NotBlank final String id) {
     return notificationTriggerRepository
         .findByIdAndTenantId(id, TenantContext.getCurrentTenant())

@@ -1,13 +1,11 @@
-package io.openaev.rest.notification_trigger;
+package io.openaev.api.notification_trigger;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
-import io.openaev.rest.notification_trigger.form.NotificationTriggerInput;
-import io.openaev.rest.notification_trigger.form.NotificationTriggerMapper;
-import io.openaev.rest.notification_trigger.form.NotificationTriggerOutput;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.notification.NotificationTriggerService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -51,13 +49,17 @@ public class NotificationTriggerApi {
   @Operation(summary = "Get notification trigger", description = "Get a notification trigger by id")
   @Transactional
   @ApiResponses(
-      value = {@ApiResponse(responseCode = "200", description = "The notification trigger")})
+      value = {
+        @ApiResponse(responseCode = "200", description = "The notification trigger"),
+        @ApiResponse(responseCode = "404", description = "Trigger not found")
+      })
   public NotificationTriggerOutput notificationTrigger(
       @PathVariable @NotBlank @Schema(description = "ID of the trigger") final String triggerId) {
     return notificationTriggerService
         .findById(triggerId)
         .map(notificationTriggerMapper::toNotificationTriggerOutput)
-        .orElse(null);
+        .orElseThrow(
+            () -> new ElementNotFoundException("Notification trigger not found: " + triggerId));
   }
 
   @LogExecutionTime

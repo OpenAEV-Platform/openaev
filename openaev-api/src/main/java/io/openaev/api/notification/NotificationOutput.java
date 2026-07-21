@@ -1,4 +1,4 @@
-package io.openaev.rest.notification.form;
+package io.openaev.api.notification;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.NotificationTriggerType;

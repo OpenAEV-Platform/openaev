@@ -4,9 +4,11 @@ import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { createNotificationTrigger, deleteNotificationTrigger, searchNotificationTriggers } from '../../../../actions/notifications/notification-trigger-actions';
 import { fetchNotifiers } from '../../../../actions/notifications/notifier-actions';
+import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../../components/i18n';
-import { type NotificationTriggerInput, type NotificationTriggerOutput, type NotifierOutput } from '../../../../utils/api-types';
+import { type Filter, type NotificationTriggerInput, type NotificationTriggerOutput, type NotifierOutput } from '../../../../utils/api-types';
+import useAuth from '../../../../utils/hooks/useAuth';
 
 interface Props {
   resourceType: NotificationTriggerInput['notification_trigger_resource_type'];
@@ -26,16 +28,37 @@ const TriggerSubscribeButton: FunctionComponent<Props> = ({
   resourceName,
 }) => {
   const { t } = useFormatter();
+  const { me } = useAuth();
   const [instanceTrigger, setInstanceTrigger] = useState<NotificationTriggerOutput | null>(null);
 
   useEffect(() => {
-    searchNotificationTriggers(buildSearchPagination({ size: 100 }))
+    // Server-side lookup of my instance trigger on this exact entity: the search endpoint
+    // returns every trigger of the tenant for admins, so the owner filter is required.
+    const eqFilter = (key: string, value: string): Filter => ({
+      id: generateFilterId(),
+      key,
+      mode: 'and',
+      operator: 'eq',
+      values: [value],
+    });
+    const filters: Filter[] = [
+      eqFilter('notification_trigger_instance_id', resourceId),
+      eqFilter('notification_trigger_owner', me.user_id),
+    ];
+    if (resourceType) {
+      filters.push(eqFilter('notification_trigger_resource_type', resourceType));
+    }
+    searchNotificationTriggers(buildSearchPagination({
+      size: 1,
+      filterGroup: {
+        mode: 'and',
+        filters,
+      },
+    }))
       .then((result: { data: { content?: NotificationTriggerOutput[] } }) => {
-        const existing = (result.data.content ?? [])
-          .find(trigger => trigger.notification_trigger_instance_id === resourceId);
-        setInstanceTrigger(existing ?? null);
+        setInstanceTrigger(result.data.content?.[0] ?? null);
       });
-  }, [resourceId]);
+  }, [resourceId, resourceType, me.user_id]);
 
   const subscribe = () => {
     fetchNotifiers().then((result: { data: NotifierOutput[] }) => {

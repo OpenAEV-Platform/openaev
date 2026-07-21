@@ -1,12 +1,10 @@
-package io.openaev.rest.notification;
+package io.openaev.api.notification;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
-import io.openaev.rest.notification.form.NotificationMapper;
-import io.openaev.rest.notification.form.NotificationOutput;
 import io.openaev.service.notification.NotificationService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;

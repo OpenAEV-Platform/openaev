@@ -1,4 +1,4 @@
-package io.openaev.rest.notifier;
+package io.openaev.api.notifier;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -16,7 +16,6 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.NotifierType;
 import io.openaev.database.repository.NotifierRepository;
-import io.openaev.rest.notifier.form.NotifierInput;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;

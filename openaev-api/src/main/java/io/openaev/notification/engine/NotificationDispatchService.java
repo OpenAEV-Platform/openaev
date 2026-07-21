@@ -16,6 +16,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -50,6 +51,8 @@ public class NotificationDispatchService {
 
   private final HttpClient httpClient =
       HttpClient.newBuilder().connectTimeout(WEBHOOK_TIMEOUT).build();
+
+  private volatile String cachedDefaultEmailTemplate;
 
   /**
    * Delivers the given content groups to every recipient of the trigger through each of its
@@ -126,10 +129,17 @@ public class NotificationDispatchService {
     mailingService.sendEmail(subject, body, List.of(user), trigger.tenantId());
   }
 
+  // The classpath template is static: read it once (racing threads would just read it twice)
   private String defaultEmailTemplate() {
+    String template = cachedDefaultEmailTemplate;
+    if (template != null) {
+      return template;
+    }
     try (InputStream inputStream =
         resourceLoader.getResource(DEFAULT_EMAIL_TEMPLATE_PATH).getInputStream()) {
-      return new String(inputStream.readAllBytes());
+      template = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+      cachedDefaultEmailTemplate = template;
+      return template;
     } catch (IOException e) {
       throw new IllegalStateException("Failed to read default notification email template", e);
     }

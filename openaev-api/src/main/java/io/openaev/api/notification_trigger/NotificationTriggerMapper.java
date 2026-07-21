@@ -1,6 +1,7 @@
-package io.openaev.rest.notification_trigger.form;
+package io.openaev.api.notification_trigger;
 
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Base;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.NotificationTrigger;
 import io.openaev.database.model.Notifier;
@@ -11,7 +12,10 @@ import io.openaev.database.repository.NotifierRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -36,10 +40,21 @@ public class NotificationTriggerMapper {
     trigger.setInstanceId(input.getInstanceId());
     trigger.setPeriod(input.getPeriod());
     trigger.setTriggerTime(input.getTriggerTime());
-    trigger.setNotifiers(resolveNotifiers(input.getNotifierIds()));
-    trigger.setChildTriggers(resolveChildTriggers(input.getChildTriggerIds()));
-    trigger.setRecipientUsers(resolveUsers(input.getRecipientUserIds()));
-    trigger.setRecipientGroups(resolveGroups(input.getRecipientGroupIds()));
+    String tenantId = TenantContext.getCurrentTenant();
+    trigger.setNotifiers(
+        resolveAll(
+            input.getNotifierIds(),
+            ids -> notifierRepository.findAllByIdInAndTenantId(ids, tenantId),
+            "Notifier"));
+    trigger.setChildTriggers(
+        resolveAll(
+            input.getChildTriggerIds(),
+            ids -> notificationTriggerRepository.findAllByIdInAndTenantId(ids, tenantId),
+            "Notification trigger"));
+    trigger.setRecipientUsers(
+        resolveAll(input.getRecipientUserIds(), userRepository::findAllById, "User"));
+    trigger.setRecipientGroups(
+        resolveAll(input.getRecipientGroupIds(), groupRepository::findAllById, "Group"));
     return trigger;
   }
 
@@ -66,52 +81,26 @@ public class NotificationTriggerMapper {
         .build();
   }
 
-  // All association lists are collected into mutable ArrayLists: Hibernate's merge clears and
-  // refills the incoming collections, which fails on the immutable lists of Stream.toList().
-
-  private List<Notifier> resolveNotifiers(List<String> ids) {
-    return safeIds(ids).stream()
-        .map(
-            id ->
-                notifierRepository
-                    .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
-                    .orElseThrow(() -> new ElementNotFoundException("Notifier not found: " + id)))
-        .collect(Collectors.toCollection(ArrayList::new));
-  }
-
-  private List<NotificationTrigger> resolveChildTriggers(List<String> ids) {
-    return safeIds(ids).stream()
-        .map(
-            id ->
-                notificationTriggerRepository
-                    .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
-                    .orElseThrow(
-                        () ->
-                            new ElementNotFoundException("Notification trigger not found: " + id)))
-        .collect(Collectors.toCollection(ArrayList::new));
-  }
-
-  private List<User> resolveUsers(List<String> ids) {
-    return safeIds(ids).stream()
-        .map(
-            id ->
-                userRepository
-                    .findById(id)
-                    .orElseThrow(() -> new ElementNotFoundException("User not found: " + id)))
-        .collect(Collectors.toCollection(ArrayList::new));
-  }
-
-  private List<Group> resolveGroups(List<String> ids) {
-    return safeIds(ids).stream()
-        .map(
-            id ->
-                groupRepository
-                    .findById(id)
-                    .orElseThrow(() -> new ElementNotFoundException("Group not found: " + id)))
-        .collect(Collectors.toCollection(ArrayList::new));
-  }
-
-  private List<String> safeIds(List<String> ids) {
-    return ids != null ? ids : List.of();
+  /**
+   * Resolves the requested ids with a single batched query and fails when any id is unknown (or,
+   * for tenant-scoped lookups, belongs to another tenant). Results are collected into mutable
+   * ArrayLists: Hibernate's merge clears and refills the incoming collections, which fails on
+   * immutable lists.
+   */
+  private <T extends Base> List<T> resolveAll(
+      List<String> ids, Function<Set<String>, Iterable<T>> batchLookup, String entityLabel) {
+    if (ids == null || ids.isEmpty()) {
+      return new ArrayList<>();
+    }
+    Set<String> uniqueIds = new LinkedHashSet<>(ids);
+    List<T> found = new ArrayList<>();
+    batchLookup.apply(uniqueIds).forEach(found::add);
+    if (found.size() != uniqueIds.size()) {
+      Set<String> foundIds = found.stream().map(Base::getId).collect(Collectors.toSet());
+      String missing =
+          uniqueIds.stream().filter(id -> !foundIds.contains(id)).collect(Collectors.joining(", "));
+      throw new ElementNotFoundException(entityLabel + " not found: " + missing);
+    }
+    return found;
   }
 }

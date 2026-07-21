@@ -1,6 +1,8 @@
 package io.openaev.notification.engine;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -20,6 +22,7 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 @DisplayName("Notification engine live stage")
 class NotificationEngineServiceTest {
@@ -83,7 +86,9 @@ class NotificationEngineServiceTest {
         NotificationTriggerEventType.CREATE,
         "My scenario");
 
-    verify(eventRecordRepository, times(2)).save(any(NotificationEventRecord.class));
+    ArgumentCaptor<List<NotificationEventRecord>> recordsCaptor = ArgumentCaptor.captor();
+    verify(eventRecordRepository, times(1)).saveAll(recordsCaptor.capture());
+    assertEquals(2, recordsCaptor.getValue().size());
     verify(dispatchService)
         .dispatch(
             eq(trigger),
@@ -107,7 +112,7 @@ class NotificationEngineServiceTest {
         "My scenario");
 
     verify(matchingService, never()).matches(any(), any(), anyString());
-    verify(eventRecordRepository, never()).save(any());
+    verify(eventRecordRepository, never()).saveAll(anyCollection());
     verify(dispatchService, never()).dispatch(any(), any(), anyList(), anyList());
   }
 
@@ -143,7 +148,7 @@ class NotificationEngineServiceTest {
         NotificationTriggerEventType.CREATE,
         "My scenario");
 
-    verify(eventRecordRepository, never()).save(any());
+    verify(eventRecordRepository, never()).saveAll(anyCollection());
     verify(dispatchService, never()).dispatch(any(), any(), anyList(), anyList());
   }
 }

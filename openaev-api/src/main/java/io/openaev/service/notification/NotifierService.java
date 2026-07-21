@@ -46,13 +46,13 @@ public class NotifierService {
 
   @Transactional
   public List<Notifier> findAll() {
-    ensureBuiltInNotifiers(TenantContext.getCurrentTenant());
+    seedBuiltInNotifiers(TenantContext.getCurrentTenant());
     return notifierRepository.findAllByTenantId(TenantContext.getCurrentTenant());
   }
 
   @Transactional
   public Page<Notifier> search(@NotNull final SearchPaginationInput searchPaginationInput) {
-    ensureBuiltInNotifiers(TenantContext.getCurrentTenant());
+    seedBuiltInNotifiers(TenantContext.getCurrentTenant());
     return buildPaginationJPA(notifierRepository::findAll, searchPaginationInput, Notifier.class);
   }
 
@@ -128,6 +128,12 @@ public class NotifierService {
   /** Idempotently creates the built-in UI and email notifiers for the given tenant. */
   @Transactional
   public void ensureBuiltInNotifiers(@NotBlank final String tenantId) {
+    seedBuiltInNotifiers(tenantId);
+  }
+
+  // Non-transactional worker so transactional methods of this class can share the logic without
+  // a @Transactional self-invocation (which would bypass the Spring proxy).
+  private void seedBuiltInNotifiers(final String tenantId) {
     if (notifierRepository
         .findFirstByTenantIdAndTypeAndBuiltInTrue(tenantId, NotifierType.UI)
         .isEmpty()) {

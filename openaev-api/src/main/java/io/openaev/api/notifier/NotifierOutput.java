@@ -1,4 +1,4 @@
-package io.openaev.rest.notifier.form;
+package io.openaev.api.notifier;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.NotifierType;

@@ -109,21 +109,26 @@ public class NotificationEngineService {
       String entityId,
       NotificationTriggerEventType eventType,
       String message) {
-    for (String userId : trigger.recipientUserIds()) {
-      NotificationEventRecord record = new NotificationEventRecord();
-      NotificationTrigger triggerReference = new NotificationTrigger();
-      triggerReference.setId(trigger.id());
-      record.setTrigger(triggerReference);
-      User userReference = new User();
-      userReference.setId(userId);
-      record.setUser(userReference);
-      record.setEventType(eventType);
-      record.setMessage(message);
-      record.setResourceTypeValue(entry.getResourceType());
-      record.setResourceId(entityId);
-      record.setTenant(new Tenant(trigger.tenantId()));
-      notificationEventRecordRepository.save(record);
-    }
+    List<NotificationEventRecord> records =
+        trigger.recipientUserIds().stream()
+            .map(
+                userId -> {
+                  NotificationEventRecord record = new NotificationEventRecord();
+                  NotificationTrigger triggerReference = new NotificationTrigger();
+                  triggerReference.setId(trigger.id());
+                  record.setTrigger(triggerReference);
+                  User userReference = new User();
+                  userReference.setId(userId);
+                  record.setUser(userReference);
+                  record.setEventType(eventType);
+                  record.setMessage(message);
+                  record.setResourceTypeValue(entry.getResourceType());
+                  record.setResourceId(entityId);
+                  record.setTenant(new Tenant(trigger.tenantId()));
+                  return record;
+                })
+            .toList();
+    notificationEventRecordRepository.saveAll(records);
   }
 
   private String buildMessage(
