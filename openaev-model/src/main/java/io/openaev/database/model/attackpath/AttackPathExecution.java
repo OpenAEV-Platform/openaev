@@ -125,7 +125,7 @@ public class AttackPathExecution implements TenantBase {
   @Column(name = "attackpath_execution_vulnerability_status")
   private String vulnerabilityStatus;
 
-  /** Heavy; TOAST keeps it off-row and the graph read never selects it. */
+  /** The graph read never selects it; unlike the heavy TOASTed terminal_output it is generally smaller. */
   @Column(name = "attackpath_execution_command")
   private String command;
 

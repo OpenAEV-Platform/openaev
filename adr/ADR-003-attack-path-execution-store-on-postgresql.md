@@ -47,7 +47,7 @@ Leave the data in `step_data` and add expression or GIN indexes to query it.
 
 Model the attack path in three additive, prefixed tables: `attackpath_execution` (one row per source-to-target edge, carrying the run snapshot), `attackpath_finding`, and `attackpath_execution_finding` (the link). Rebuild the graph from two flat indexed reads plus one in-memory pass.
 
-**Pros**: flat, indexed, per-simulation reads; partial reads (the graph read never touches the heavy `command`/`terminal_output` columns, which stay TOASTed off-row); a real join between an execution and its findings; tenant isolation through the existing inspector; no new datastore; aggregation is a plain indexed `GROUP BY`.
+**Pros**: flat, indexed, per-simulation reads; partial reads (the graph read never selects the `command` or `terminal_output` columns; `terminal_output` is the heavy one that stays TOASTed off-row, `command` is generally much smaller); a real join between an execution and its findings; tenant isolation through the existing inspector; no new datastore; aggregation is a plain indexed `GROUP BY`.
 **Cons**: a schema and a migration; for the POC the endpoint status is denormalized onto the execution row; isolation from the engine means no hard foreign keys to the real product tables; rebuilding the whole graph of a very large single simulation is expensive (see the measured numbers below).
 
 ### Option C: Elasticsearch as the source of truth
@@ -80,7 +80,7 @@ erDiagram
         varchar agent_id "ref agents, no FK"
         text target_key
         timestamp executed_at
-        text command "heavy, TOASTed, not read by the graph"
+        text command "the executed command, not read by the graph"
         text terminal_output "heavy, TOASTed, not read by the graph"
     }
     ATTACKPATH_FINDING {
@@ -132,7 +132,7 @@ Read A becomes the edges and the injector and endpoint nodes; Read B becomes the
 
 Measured single-run, on a dev machine, local PostgreSQL. Full detail in the POC `results.md`.
 
-- Per-simulation full rebuild: a typical ~30k-execution simulation is about 0.75 s (p50) at 5M total. The deliberate outliers are about 1.4 s (100k), 3.8 s (300k), and 6.3 s with about 3.2 GB of heap (500k).
+- Per-simulation full rebuild: a ~30k-execution simulation is about 0.75 s (p50) at 5M total. Note ~30k is above the 20k collapse threshold, so the auto mode serves this size *collapsed* (sub-second, see below), not full; the 0.75 s is the full-rebuild cost that auto avoids at this scale. The deliberate outliers are about 1.4 s (100k), 3.8 s (300k), and 6.3 s with about 3.2 GB of heap (500k).
 - The collapsed (aggregated) mode is the lever for large simulations: forcing it on the 500k outlier is about 1.2 s and 16 MB of heap, roughly 5x faster and 200x less heap. Its `GROUP BY` is one indexed scan producing about 2,050 endpoint groups from 500k rows in about 577 ms, so the front renders ~2,050 nodes rather than 500k, and a single endpoint's detail is a bounded read (about 0.18% of the rows, a few milliseconds).
 - The short-column read is worth about 2x: the 500k read is 1.3 s, versus 2.5 s for a `SELECT *` that detoasts the heavy columns.
 - The read plan is a bounded index scan on the `simulation_id` index, no recursion. The single-column `simulation_id` index turned out redundant (the composite `(simulation_id, target_key)` covers the read) and was removed.
@@ -141,7 +141,7 @@ Measured single-run, on a dev machine, local PostgreSQL. Full detail in the POC 
 
 ### Positive
 
-- Flat, indexed, per-simulation reads. The graph read never pays for the heavy `command`/`terminal_output` columns.
+- Flat, indexed, per-simulation reads. The graph read never pays for the `command` or `terminal_output` columns (`terminal_output` is the heavy, TOASTed one).
 - Deterministic, collision-safe node and edge ids computed at read time.
 - Tenant isolation is the platform's, not a bespoke one: entities are `TenantBase`, the tables are in `openaev.tenant.active-tables`, and the inspector rewrites every read with `can_access_tenant`.
 - No new datastore to operate. Aggregation, when needed, is a plain indexed `GROUP BY`.
