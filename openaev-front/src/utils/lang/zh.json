@@ -2233,6 +2233,7 @@
   "Scope definition": "范围定义",
   "Score": "分数",
   "score = breached validations / total validations x 100": "score = breached validations / total validations x 100",
+  "Score degradation": "评分下降",
   "Score details": "分数详情",
   "Score must be a valid number": "分数必须是有效数字",
   "Score must be a whole number": "分数必须是整数",

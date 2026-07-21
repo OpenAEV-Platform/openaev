@@ -81,6 +81,16 @@ export const resourceTypeEntityPrefix = (value?: string) =>
 
 export const TRIGGER_EVENT_TYPES = ['CREATE', 'UPDATE', 'DELETE'] as const;
 
+/** Scenario-only semantic event (successor of the legacy score-degradation notification rule). */
+export const SCENARIO_ONLY_EVENT_TYPES = ['SCORE_DEGRADATION'] as const;
+
+export const eventTypeLabel = (eventType: string) => {
+  if (eventType === 'SCORE_DEGRADATION') {
+    return 'Score degradation';
+  }
+  return eventType.charAt(0) + eventType.slice(1).toLowerCase();
+};
+
 export const DIGEST_PERIODS = ['HOUR', 'DAY', 'WEEK', 'MONTH'] as const;
 
 export const WEEK_DAYS = [

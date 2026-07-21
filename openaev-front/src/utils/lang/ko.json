@@ -2233,6 +2233,7 @@
   "Scope definition": "범위 정의",
   "Score": "점수",
   "score = breached validations / total validations x 100": "score = breached validations / total validations x 100",
+  "Score degradation": "점수 저하",
   "Score details": "점수 세부 정보",
   "Score must be a valid number": "점수는 유효한 숫자여야 합니다",
   "Score must be a whole number": "점수는 정수여야 합니다",

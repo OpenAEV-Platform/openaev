@@ -2233,6 +2233,7 @@
   "Scope definition": "Définition du scope",
   "Score": "Score",
   "score = breached validations / total validations x 100": "score = breached validations / total validations x 100",
+  "Score degradation": "Degradation du score",
   "Score details": "Details des scores",
   "Score must be a valid number": "Le score doit être un nombre valide",
   "Score must be a whole number": "Le score doit être un nombre entier",

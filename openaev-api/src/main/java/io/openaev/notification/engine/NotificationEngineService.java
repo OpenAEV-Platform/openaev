@@ -43,12 +43,25 @@ public class NotificationEngineService {
       String entityTenantId,
       NotificationTriggerEventType eventType,
       String label) {
+    handleEventWithMessage(
+        entry, entityId, entityTenantId, eventType, buildMessage(entry, eventType, label));
+  }
+
+  /**
+   * Processes one event with a pre-built notification message. Used for semantic events (e.g.
+   * scenario score degradation) whose message carries more context than a lifecycle operation.
+   */
+  public void handleEventWithMessage(
+      NotificationResourceCatalog entry,
+      String entityId,
+      String entityTenantId,
+      NotificationTriggerEventType eventType,
+      String message) {
     List<ResolvedNotificationTrigger> triggers =
         triggerCacheService.getLiveTriggers(entry.getResourceType());
     if (triggers.isEmpty()) {
       return;
     }
-    String message = buildMessage(entry, eventType, label);
     for (ResolvedNotificationTrigger trigger : triggers) {
       try {
         if (!trigger.eventTypes().contains(eventType)) {
@@ -120,6 +133,7 @@ public class NotificationEngineService {
           case CREATE -> "created";
           case UPDATE -> "updated";
           case DELETE -> "deleted";
+          case SCORE_DEGRADATION -> "score degraded";
         };
     String resourceLabel = entry.getResourceType().name().toLowerCase().replace('_', ' ');
     return "[" + resourceLabel + "] " + label + " " + operation;

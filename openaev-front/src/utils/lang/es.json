@@ -2233,6 +2233,7 @@
   "Scope definition": "Definición del alcance",
   "Score": "Puntuación",
   "score = breached validations / total validations x 100": "score = breached validations / total validations x 100",
+  "Score degradation": "Degradacion de la puntuacion",
   "Score details": "Detalles de puntuación",
   "Score must be a valid number": "La puntuación debe ser un número válido",
   "Score must be a whole number": "La puntuación debe ser un número entero",

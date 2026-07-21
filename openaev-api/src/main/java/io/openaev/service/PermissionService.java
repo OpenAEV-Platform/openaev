@@ -53,7 +53,6 @@ public class PermissionService {
   private static final EnumSet<ResourceType> RESOURCES_USING_PARENT_PERMISSION =
       EnumSet.of(
           ResourceType.INJECT,
-          ResourceType.NOTIFICATION_RULE,
           ResourceType.INJECTOR_CONTRACT,
           ResourceType.OBJECTIVE,
           ResourceType.EVALUATION,
@@ -63,7 +62,6 @@ public class PermissionService {
 
   private final GrantService grantService;
   private final InjectService injectService;
-  private final NotificationRuleService notificationRuleService;
   private final InjectorContractService injectorContractService;
   private final ObjectiveRepository objectiveRepository;
   private final EvaluationRepository evaluationRepository;
@@ -219,20 +217,6 @@ public class PermissionService {
       // parent action rule: anything non-READ becomes WRITE on the parent
       Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
       return new Target(inject.getParentResourceId(), inject.getParentResourceType(), parentAction);
-    } else if (resourceType == ResourceType.NOTIFICATION_RULE) {
-      // For CREATE, resourceId is the parent scenario ID (notification rule doesn't exist yet)
-      if (Action.CREATE.equals(action)) {
-        return new Target(resourceId, ResourceType.SCENARIO, Action.READ);
-      }
-      NotificationRule notificationRule =
-          notificationRuleService
-              .findById(resourceId)
-              .orElseThrow(
-                  () ->
-                      new ElementNotFoundException(
-                          "NotificationRule not found with id:" + resourceId));
-      Action parentAction = Action.READ; // FIXME permission should be linked to userid
-      return new Target(notificationRule.getResourceId(), ResourceType.SCENARIO, parentAction);
     } else if (resourceType == ResourceType.INJECTOR_CONTRACT) {
       return new Target(resourceId, ResourceType.THREAT_ARSENAL, action);
     } else if (resourceType == ResourceType.OBJECTIVE) {

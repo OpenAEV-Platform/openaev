@@ -7,7 +7,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { type FilterGroup, type NotificationTriggerInput, type NotificationTriggerOutput } from '../../../../utils/api-types';
 import NotifierField from './NotifierField';
 import TriggerFilterField from './TriggerFilterField';
-import { buildTriggerTime, DIGEST_PERIODS, parseTriggerTime, resourceTypeEntityPrefix, TRIGGER_EVENT_TYPES, TRIGGER_RESOURCE_TYPES, WEEK_DAYS } from './triggerUtils';
+import { buildTriggerTime, DIGEST_PERIODS, eventTypeLabel, parseTriggerTime, resourceTypeEntityPrefix, SCENARIO_ONLY_EVENT_TYPES, TRIGGER_EVENT_TYPES, TRIGGER_RESOURCE_TYPES, WEEK_DAYS } from './triggerUtils';
 
 interface Props {
   triggerType: 'LIVE' | 'DIGEST';
@@ -125,6 +125,10 @@ const TriggerForm: FunctionComponent<Props> = ({
             onChange={(e) => {
               setResourceType(e.target.value as NotificationTriggerInput['notification_trigger_resource_type']);
               setFilters(undefined);
+              if (e.target.value !== 'SCENARIO') {
+                // Score degradation is only available for scenarios
+                setEventTypes(existing => existing.filter(eventType => eventType !== 'SCORE_DEGRADATION'));
+              }
             }}
             style={{ marginTop: 20 }}
             disabled={!!initialValues?.notification_trigger_instance_id}
@@ -136,7 +140,11 @@ const TriggerForm: FunctionComponent<Props> = ({
             ))}
           </TextField>
           <FormGroup row style={{ marginTop: 20 }}>
-            {TRIGGER_EVENT_TYPES.map(eventType => (
+            {[
+              ...TRIGGER_EVENT_TYPES,
+              // Score degradation is a scenario-only semantic event
+              ...(resourceType === 'SCENARIO' ? SCENARIO_ONLY_EVENT_TYPES : []),
+            ].map(eventType => (
               <FormControlLabel
                 key={eventType}
                 control={(
@@ -145,7 +153,7 @@ const TriggerForm: FunctionComponent<Props> = ({
                     onChange={() => toggleEventType(eventType)}
                   />
                 )}
-                label={t(eventType.charAt(0) + eventType.slice(1).toLowerCase())}
+                label={t(eventTypeLabel(eventType))}
               />
             ))}
           </FormGroup>

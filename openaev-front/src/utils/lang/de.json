@@ -2233,6 +2233,7 @@
   "Scope definition": "Definition des Anwendungsbereichs",
   "Score": "Ergebnis",
   "score = breached validations / total validations x 100": "score = breached validations / total validations x 100",
+  "Score degradation": "Score-Verschlechterung",
   "Score details": "Details der Bewertung",
   "Score must be a valid number": "Die Punktzahl muss eine gültige Zahl sein",
   "Score must be a whole number": "Die Punktzahl muss eine ganze Zahl sein",

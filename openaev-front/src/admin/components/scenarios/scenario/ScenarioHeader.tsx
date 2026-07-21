@@ -3,7 +3,6 @@ import {
   GroupsOutlined,
   HubOutlined,
   InsertChartOutlined,
-  NotificationsOutlined,
   PersonOutlined,
   PlayArrowOutlined,
   RouteOutlined,
@@ -45,10 +44,10 @@ import { type Cron } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
 import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExpressionHandler';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
-import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
+import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
 import { type CustomDashboardFormType } from '../../workspaces/custom_dashboards/CustomDashboardForm';
 import DashboardCreationDrawer from '../../workspaces/custom_dashboards/DashboardCreationDrawer';
 import ScenarioConfiguration from './ScenarioConfiguration';
@@ -65,8 +64,6 @@ interface ScenarioHeaderProps {
   openScenarioRecurringFormDialog: boolean;
   openInstantiateSimulationAndStart: boolean;
   noRepeat: boolean;
-  editNotification: boolean;
-  setOpenScenarioNotificationRuleDrawer: Dispatch<SetStateAction<boolean>>;
 }
 
 const ScenarioHeader = ({
@@ -79,8 +76,6 @@ const ScenarioHeader = ({
   setOpenScenarioRecurringFormDialog,
   openInstantiateSimulationAndStart,
   setOpenInstantiateSimulationAndStart,
-  editNotification,
-  setOpenScenarioNotificationRuleDrawer,
 }: ScenarioHeaderProps) => {
   // Standard hooks
   const { t, locale, fld } = useFormatter();
@@ -287,11 +282,6 @@ const ScenarioHeader = ({
                   <Tooltip title={hasDashboard ? t('Open dashboard') : t('Create dashboard')}>
                     <IconButton size="small" color="primary" onClick={onDashboardAction}>
                       <InsertChartOutlined fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title={t('Notification rules')}>
-                    <IconButton size="small" color="primary" onClick={() => setOpenScenarioNotificationRuleDrawer(true)}>
-                      <NotificationsOutlined fontSize="small" color={editNotification ? 'success' : undefined} />
                     </IconButton>
                   </Tooltip>
                   <TriggerSubscribeButton

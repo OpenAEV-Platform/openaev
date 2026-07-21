@@ -4,8 +4,10 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.NotificationTrigger;
+import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerPeriod;
 import io.openaev.database.model.NotificationTriggerType;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.NotificationTriggerRepository;
 import io.openaev.notification.engine.NotificationResourceCatalog;
@@ -144,6 +146,12 @@ public class NotificationTriggerService {
       if (trigger.getEventTypes() == null || trigger.getEventTypes().isEmpty()) {
         throw new IllegalArgumentException(
             "Live notification triggers require at least one event type");
+      }
+      // Score degradation is a scenario-only semantic event
+      if (trigger.getEventTypes().contains(NotificationTriggerEventType.SCORE_DEGRADATION)
+          && trigger.getWatchedResourceType() != ResourceType.SCENARIO) {
+        throw new IllegalArgumentException(
+            "The score degradation event type is only supported for scenarios");
       }
     } else if (trigger.getType() == NotificationTriggerType.DIGEST) {
       if (trigger.getPeriod() == null) {

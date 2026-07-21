@@ -166,7 +166,7 @@ public class InjectsExecutionJob implements Job {
                 notificationEventService.sendNotificationEventWithDelay(
                     NotificationEvent.builder()
                         .eventType(NotificationEventType.SIMULATION_COMPLETED)
-                        .resourceType(NotificationRuleResourceType.SCENARIO)
+                        .resourceType(ResourceType.SCENARIO)
                         .resourceId(ex.getScenario().getId())
                         .timestamp(Instant.now())
                         .build(),

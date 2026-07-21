@@ -2144,14 +2144,6 @@ export interface CreateExerciseInput {
   exercise_tags?: string[];
 }
 
-export interface CreateNotificationRuleInput {
-  resource_id: string;
-  resource_type: string;
-  subject: string;
-  trigger: string;
-  type: string;
-}
-
 export interface CustomDashboard {
   /** @format date-time */
   custom_dashboard_created_at: string;
@@ -6347,28 +6339,18 @@ export interface NotificationOutput {
   notification_type?: "LIVE" | "DIGEST";
 }
 
-export interface NotificationRuleOutput {
-  /** ID of the notification rule */
-  notification_rule_id: string;
-  /** Owner of the notification rule */
-  notification_rule_owner?: string;
-  /** Resource id of the resource associated with the rule */
-  notification_rule_resource_id?: string;
-  /** Resource type of the resource associated with the rule */
-  notification_rule_resource_type?: string;
-  /** Subject of the notification rule */
-  notification_rule_subject?: string;
-  /** Event that will trigger the notification */
-  notification_rule_trigger?: string;
-}
-
 export interface NotificationTriggerInput {
   /** Composed live trigger ids for a digest */
   notification_trigger_children?: string[];
   /** Whether the trigger is enabled */
   notification_trigger_enabled?: boolean;
   /** Subscribed lifecycle operations (CREATE, UPDATE, DELETE) */
-  notification_trigger_event_types?: ("CREATE" | "UPDATE" | "DELETE")[];
+  notification_trigger_event_types?: (
+    | "CREATE"
+    | "UPDATE"
+    | "DELETE"
+    | "SCORE_DEGRADATION"
+  )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
   /** Entity id for instance triggers */
@@ -6396,7 +6378,6 @@ export interface NotificationTriggerInput {
     | "USER"
     | "TEAM"
     | "ATOMIC_TESTING"
-    | "NOTIFICATION_RULE"
     | "NOTIFICATION_TRIGGER"
     | "NOTIFIER"
     | "NOTIFICATION"
@@ -6461,7 +6442,12 @@ export interface NotificationTriggerOutput {
   /** Whether the trigger is enabled */
   notification_trigger_enabled?: boolean;
   /** Subscribed lifecycle operations */
-  notification_trigger_event_types?: ("CREATE" | "UPDATE" | "DELETE")[];
+  notification_trigger_event_types?: (
+    | "CREATE"
+    | "UPDATE"
+    | "DELETE"
+    | "SCORE_DEGRADATION"
+  )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
   /** ID of the notification trigger */
@@ -6490,7 +6476,6 @@ export interface NotificationTriggerOutput {
     | "USER"
     | "TEAM"
     | "ATOMIC_TESTING"
-    | "NOTIFICATION_RULE"
     | "NOTIFICATION_TRIGGER"
     | "NOTIFIER"
     | "NOTIFICATION"
@@ -7059,25 +7044,6 @@ export interface PageMitigation {
 
 export interface PageNotificationOutput {
   content?: NotificationOutput[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject[];
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
-export interface PageNotificationRuleOutput {
-  content?: NotificationRuleOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -10236,10 +10202,6 @@ export interface UpdateMePasswordInput {
   user_current_password: string;
   /** @minLength 1 */
   user_plain_password: string;
-}
-
-export interface UpdateNotificationRuleInput {
-  subject: string;
 }
 
 export interface UpdateProfileInput {
