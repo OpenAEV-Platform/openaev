@@ -21,6 +21,7 @@ const makeExpectation = (overrides: Partial<ExpectationInput> = {}): Expectation
   expectation_score: 100,
   expectation_expectation_group: false,
   expectation_expiration_time: 3600,
+  expectation_is_predefined: false,
   ...overrides,
 });
 
