@@ -13,18 +13,8 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
-/**
- * Migration to remove the deprecated "predefinedExpectations" field from injector contract content
- * and merge its entries into "availableExpectations" with "expectation_is_predefined" set to true.
- *
- * <p>After this migration, all expectation definitions live under "availableExpectations" and
- * predefined ones are identified by the boolean flag "expectation_is_predefined".
- *
- * <p>Additionally, contracts linked to a payload are guaranteed to have DETECTION, PREVENTION and
- * VULNERABILITY in their availableExpectations.
- */
 @Component
-public class V6_20260720092541463__Migrate_predefined_to_available_expectations
+public class V6_20260721130050400__Migrate_predefined_to_available_expectations
     extends BaseJavaMigration {
 
   private static final String PREDEFINED_EXPECTATIONS = "predefinedExpectations";
