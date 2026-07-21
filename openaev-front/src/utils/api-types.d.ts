@@ -998,6 +998,8 @@ export interface AttackPathNodeDTO {
   assetNodeId?: string;
   attackPatterns?: AttackPathAttackPatternDTO[];
   command?: string;
+  consumedFindingKeys?: ConsumedFindingKeyDTO[];
+  dependsOn?: string[];
   executedAt?: string;
   executionsTraces?: any[];
   expectations?: any[];
@@ -2108,6 +2110,12 @@ export interface ConnectorInstancePersisted {
   connector_instance_started_at?: string;
   hashIdentity?: string;
   listened?: boolean;
+}
+
+export interface ConsumedFindingKeyDTO {
+  keyType?: string;
+  operator?: string;
+  value?: string;
 }
 
 export interface ContractOutputElement {
