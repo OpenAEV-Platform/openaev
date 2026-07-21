@@ -242,7 +242,7 @@ class WorkflowStateServiceTest {
 
       Map<Set<WorkflowStateEntries.Pair>, WorkflowStateEntries.Correlated> existingIndex =
           new HashMap<>();
-      existingIndex.put(existingPairs, new WorkflowStateEntries.Correlated(existingPairs));
+      existingIndex.put(existingPairs, new WorkflowStateEntries.Correlated(existingPairs, null));
 
       WorkflowStateEntries stateEntries = mock(WorkflowStateEntries.class);
       when(stateEntries.isPathCorrelated(path)).thenReturn(true);
@@ -443,7 +443,7 @@ class WorkflowStateServiceTest {
 
     @Test
     @DisplayName(
-        "complex object {username, password, host, asset_id} should yield Correlated with keys {Username, Password} only")
+        "complex object {username, password, host, asset_id} should yield Correlated with keys {Username, Password, Host} — asset_id excluded")
     void givenComplexCredentialObject_shouldNormalizeKeysAndExcludeAttachments() {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = Workflow.builder().id(workflowId).build();
@@ -481,7 +481,9 @@ class WorkflowStateServiceTest {
       Map<String, ChainingMappedType> typeMappings = new HashMap<>();
       typeMappings.put(
           "credentials",
-          ChainingMappedType.complex(List.of(PrimitiveType.Username, PrimitiveType.Password)));
+          ChainingMappedType.complex(
+              List.of(PrimitiveType.Username, PrimitiveType.Password),
+              ContractOutputType.Credentials));
 
       workflowStateService.syncState(dataToSync, typeMappings, workflow);
 
@@ -494,22 +496,175 @@ class WorkflowStateServiceTest {
       Set<WorkflowStateEntries.Pair> pairs =
           persistedEntries.getCorrelated().getFirst().getValues();
 
-      // Keys must be PrimitiveType.name() (Pascal case), not raw JSON field names
+      // Keys must be PrimitiveType.name() (Pascal case), not raw JSON field names.
+      // Host is now content (not attachment), so it IS present in the pair set.
       assertEquals(
           Set.of(
               new WorkflowStateEntries.Pair("Username", "admin"),
-              new WorkflowStateEntries.Pair("Password", "s3cret")),
+              new WorkflowStateEntries.Pair("Password", "s3cret"),
+              new WorkflowStateEntries.Pair("Host", "10.0.0.1")),
           pairs);
 
-      // Attachment keys must NOT be present
+      // Only asset_id remains excluded as an attachment key
       Set<String> pairKeys =
           pairs.stream()
               .map(WorkflowStateEntries.Pair::key)
               .collect(java.util.stream.Collectors.toSet());
-      assertFalse(pairKeys.contains("host"));
-      assertFalse(pairKeys.contains("Host"));
+      assertTrue(pairKeys.contains("Host"));
       assertFalse(pairKeys.contains("asset_id"));
       assertFalse(pairKeys.contains("AssetId"));
+
+      // Business type must be stamped from the ContractOutputType origin
+      assertEquals("Credentials", persistedEntries.getCorrelated().getFirst().getType());
+    }
+  }
+
+  @Nested
+  @DisplayName("syncState - temporal spread of separate scalar outputs")
+  class TemporalSpreadTests {
+
+    /**
+     * Usernames arrive in execution #1, passwords in a LATER execution #2. Because the global state
+     * is reloaded (Gson round-trip) from the same persisted `globalState` between the two syncState
+     * calls, the late-arriving passwords must cross with every username accumulated earlier —
+     * producing the full N×M cartesian of Correlated Credentials a posteriori.
+     */
+    @Test
+    @DisplayName("usernames in run #1 then passwords in run #2 should produce N×M Correlated")
+    void givenScalarsSpreadOverTwoSyncs_shouldProduceCartesianFromReloadedState() {
+      // Arrange — a single mutable global state shared across both syncState calls,
+      // exactly like the DB row would be (findBy... returns it, setEntries rewrites it).
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = Workflow.builder().id(workflowId).build();
+
+      WorkflowStateEntries initialEntries =
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      WorkflowState globalState =
+          WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
+
+      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
+          .thenReturn(globalState);
+      when(workflowStateRepository.save(any(WorkflowState.class)))
+          .thenAnswer(inv -> inv.getArgument(0));
+
+      // Empty validation context that accepts the (non-validated) Username/Password values.
+      PrimitiveValidationContext validationContext =
+          new PrimitiveValidationContext(
+              Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
+              Set.of(), Set.of());
+      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflow)))
+          .thenReturn(validationContext);
+
+      // Credentials = Username + Password (COMPLEX recipe), same factory as the existing test.
+      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+      typeMappings.put("username_values", ChainingMappedType.primitive(PrimitiveType.Username));
+      typeMappings.put("password_values", ChainingMappedType.primitive(PrimitiveType.Password));
+      typeMappings.put(
+          "credentials",
+          ChainingMappedType.complex(
+              List.of(PrimitiveType.Username, PrimitiveType.Password),
+              ContractOutputType.Credentials));
+
+      // --- Execution #1: only usernames ---
+      JsonObject run1 =
+          JsonParser.parseString("{\"username_values\": [\"alice\", \"bob\"]}").getAsJsonObject();
+      workflowStateService.syncState(run1, typeMappings, workflow);
+
+      // Intermediate assert: no Correlated yet (Password side still empty)
+      WorkflowStateEntries afterRun1 =
+          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+      assertEquals(
+          0,
+          afterRun1.getCorrelated().size(),
+          "No Correlated must exist while only usernames have been received");
+      assertEquals(Set.of("alice", "bob"), afterRun1.getInputByKey("Username").getValues());
+
+      // --- Execution #2 (later): only a password → must cross with the 2 accumulated usernames ---
+      JsonObject run2 =
+          JsonParser.parseString("{\"password_values\": [\"pw1\"]}").getAsJsonObject();
+      workflowStateService.syncState(run2, typeMappings, workflow);
+
+      // Assert — accumulation survived the Gson round-trip and produced 2 × 1 = 2 Correlated
+      WorkflowStateEntries afterRun2 =
+          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+      assertEquals(
+          2,
+          afterRun2.getCorrelated().size(),
+          "The late password must cross with every username accumulated in run #1");
+      assertTrue(hasCredential(afterRun2, "alice", "pw1"));
+      assertTrue(hasCredential(afterRun2, "bob", "pw1"));
+
+      // Scalar path must stamp the business type from the recipe's origin
+      afterRun2.getCorrelated().forEach(c -> assertEquals("Credentials", c.getType()));
+    }
+
+    /** A second password in a THIRD execution must add the missing combinations only (no dup). */
+    @Test
+    @DisplayName("a further password in run #3 should extend the cartesian without duplicating")
+    void givenAdditionalPasswordLater_shouldExtendCartesianIdempotently() {
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = Workflow.builder().id(workflowId).build();
+
+      WorkflowStateEntries initialEntries =
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      WorkflowState globalState =
+          WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
+
+      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
+          .thenReturn(globalState);
+      when(workflowStateRepository.save(any(WorkflowState.class)))
+          .thenAnswer(inv -> inv.getArgument(0));
+      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflow)))
+          .thenReturn(
+              new PrimitiveValidationContext(
+                  Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
+                  Set.of(), Set.of()));
+
+      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+      typeMappings.put("username_values", ChainingMappedType.primitive(PrimitiveType.Username));
+      typeMappings.put("password_values", ChainingMappedType.primitive(PrimitiveType.Password));
+      typeMappings.put(
+          "credentials",
+          ChainingMappedType.complex(
+              List.of(PrimitiveType.Username, PrimitiveType.Password),
+              ContractOutputType.Credentials));
+
+      // Run #1: 2 usernames — Run #2: pw1 → 2 Correlated
+      workflowStateService.syncState(
+          JsonParser.parseString("{\"username_values\": [\"alice\", \"bob\"]}").getAsJsonObject(),
+          typeMappings,
+          workflow);
+      workflowStateService.syncState(
+          JsonParser.parseString("{\"password_values\": [\"pw1\"]}").getAsJsonObject(),
+          typeMappings,
+          workflow);
+
+      // Run #3: pw2 (new) + pw1 (replayed) → must add only alice/bob × pw2 (2 new), no dup for pw1
+      workflowStateService.syncState(
+          JsonParser.parseString("{\"password_values\": [\"pw1\", \"pw2\"]}").getAsJsonObject(),
+          typeMappings,
+          workflow);
+
+      WorkflowStateEntries finalEntries =
+          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+      assertEquals(
+          4,
+          finalEntries.getCorrelated().size(),
+          "2 usernames × 2 passwords = 4 Correlated, with no duplicate from the replayed pw1");
+      assertTrue(hasCredential(finalEntries, "alice", "pw1"));
+      assertTrue(hasCredential(finalEntries, "bob", "pw1"));
+      assertTrue(hasCredential(finalEntries, "alice", "pw2"));
+      assertTrue(hasCredential(finalEntries, "bob", "pw2"));
+    }
+
+    private boolean hasCredential(WorkflowStateEntries entries, String username, String password) {
+      Set<WorkflowStateEntries.Pair> expected =
+          Set.of(
+              new WorkflowStateEntries.Pair("Username", username),
+              new WorkflowStateEntries.Pair("Password", password));
+      return entries.getIndexCorrelatedInput().containsKey(expected);
     }
   }
 }

@@ -51,6 +51,9 @@ public class WorkflowStateEntries {
   @AllArgsConstructor
   public static class Correlated {
     public Set<Pair> values;
+
+    /** Business type name = ContractOutputType.name(), e.g. "PortsScan", "Credentials". */
+    public String type;
   }
 
   public boolean isPathCorrelated(String path) {
@@ -101,13 +104,17 @@ public class WorkflowStateEntries {
    * Materializes all Correlated combinations for a newly received primitive value, bounded to the
    * given recipe. Recipe is supplied by caller — POJO has no registry access.
    *
+   * <p>If two different recipes yield the SAME pairSet, dedup keeps the first one's type (known,
+   * accepted V1 limitation — real recipes have distinct key sets).
+   *
    * @param receivedKey the primitive type name of the received value (e.g. "Username")
    * @param newValue the newly received value
    * @param recipeKeys ordered list of primitive type names composing the recipe (e.g. ["Username",
    *     "Password"])
+   * @param type business type name (ContractOutputType.name()), stamped on each new Correlated
    */
   public void generateCorrelatedForRecipe(
-      String receivedKey, String newValue, List<String> recipeKeys) {
+      String receivedKey, String newValue, List<String> recipeKeys, String type) {
     if (!recipeKeys.contains(receivedKey)) {
       return;
     }
@@ -130,113 +137,13 @@ public class WorkflowStateEntries {
       Set<Pair> pairSet = new HashSet<>(combo);
       pairSet.add(new Pair(receivedKey, newValue));
       if (!index.containsKey(pairSet)) {
-        Correlated newCorrelated = new Correlated(pairSet);
+        Correlated newCorrelated = new Correlated(pairSet, type);
         correlated.add(newCorrelated);
         index.put(pairSet, newCorrelated);
       }
     }
     // TODO(B2): partition pairSet/index by asset_id — Input.values is asset-blind and
     //   currently crosses values from all assets/executions of the run (fantom credentials).
-  }
-
-  // TODO: to delete — WIP stub, superseded by read-time execution pipeline
-  public void testAndSaveCombinationsForCorrelated(Correlated newCorrelated) {
-    List<Map<String, String>> combinations = generateCombinations(this.inputs, newCorrelated);
-
-    for (Map<String, String> combo : combinations) {
-      testAndSaveCombo(combo);
-    }
-  }
-
-  // TODO: to delete — WIP stub, superseded by read-time execution pipeline
-  private void testAndSaveCombo(Map<String, String> combo) {
-    if (!comboContainAllExecutionKeys(executionKeys, combo)) {
-      log.debug("No execution, missing input : {}", combo);
-      return;
-    }
-
-    String hash = hashCombo(combo);
-    if (!hashExecution.contains(hash)) {
-      hashExecution.add(hash);
-      log.debug("New execution : {} -> hash={}", combo, hash);
-      // TODO: lancer l'exécution + persister StepInputBuffer
-    } else {
-      log.debug("Already executed : {}", combo);
-    }
-  }
-
-  // TODO: to delete — WIP stub, superseded by read-time execution pipeline
-  public void testAndSaveCombinationsForInput(Input targetInput, List<String> newValues) {
-    // Separate the target input from the other inputs
-    List<Input> otherInputs =
-        this.inputs.stream().filter(in -> !in.getKey().equals(targetInput.getKey())).toList();
-
-    // Prepare the list of pairs for the other inputs
-    List<List<Pair>> otherPairsList = new ArrayList<>();
-    for (Input in : otherInputs) {
-      List<Pair> pairs = in.getValues().stream().map(v -> new Pair(in.getKey(), v)).toList();
-      otherPairsList.add(pairs);
-    }
-
-    // Cartesian product of the other inputs
-    List<List<Pair>> otherCombinations = cartesianProduct(otherPairsList);
-
-    // For each new value of the target input
-    for (String newValue : newValues) {
-      Pair newPair = new Pair(targetInput.getKey(), newValue);
-
-      // Case without Correlated
-      if (correlated.isEmpty()) {
-        for (List<Pair> comboPairs : otherCombinations) {
-          Map<String, String> combo = new TreeMap<>();
-          for (Pair p : comboPairs) combo.put(p.key(), p.value());
-          combo.put(newPair.key(), newPair.value());
-          testAndSaveCombo(combo);
-        }
-      } else {
-        // Case with Correlated: for each existing Computed
-        for (Correlated comp : correlated) {
-          for (List<Pair> comboPairs : otherCombinations) {
-            Map<String, String> combo = new TreeMap<>();
-            for (Pair p : comboPairs) combo.put(p.key(), p.value());
-            combo.put(newPair.key(), newPair.value());
-            for (Pair p : comp.getValues()) combo.put(p.key(), p.value());
-            testAndSaveCombo(combo);
-          }
-        }
-      }
-    }
-  }
-
-  public List<Map<String, String>> generateCombinations(List<Input> inputs, Correlated comp) {
-    List<Map<String, String>> results = new ArrayList<>();
-
-    // Get all sets of simple values
-    List<List<Pair>> simplePairsList = new ArrayList<>();
-    for (Input in : inputs) {
-      List<Pair> pairs = in.getValues().stream().map(v -> new Pair(in.getKey(), v)).toList();
-      simplePairsList.add(pairs);
-    }
-
-    // Cartesian product of the simple inputs
-    List<List<Pair>> simpleCombinations = cartesianProduct(simplePairsList);
-
-    if (comp != null) {
-      for (List<Pair> simpleCombo : simpleCombinations) {
-        // TreeMap for order
-        Map<String, String> map = new TreeMap<>();
-        for (Pair p : simpleCombo) map.put(p.key(), p.value());
-        for (Pair p : comp.getValues()) map.put(p.key(), p.value());
-        results.add(map);
-      }
-    } else {
-      for (List<Pair> simpleCombo : simpleCombinations) {
-        Map<String, String> map = new TreeMap<>();
-        for (Pair p : simpleCombo) map.put(p.key(), p.value());
-        results.add(map);
-      }
-    }
-    return results;
   }
 
   /**

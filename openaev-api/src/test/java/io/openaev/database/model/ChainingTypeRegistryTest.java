@@ -101,6 +101,7 @@ class ChainingTypeRegistryTest {
     assertThat(mapped.kind()).isEqualTo(ChainingTypeKind.COMPLEX);
     assertThat(mapped.primitiveTypes())
         .isEqualTo(List.of(PrimitiveType.Username, PrimitiveType.Password));
+    assertThat(mapped.origin()).isEqualTo(ContractOutputType.Credentials);
   }
 
   @Test
@@ -110,6 +111,7 @@ class ChainingTypeRegistryTest {
         ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.Text);
     assertThat(mapped.kind()).isEqualTo(ChainingTypeKind.PRIMITIVE);
     assertThat(mapped.primitiveTypes()).containsExactly(PrimitiveType.Text);
+    assertThat(mapped.origin()).isNull();
   }
 
   @Test

@@ -2,7 +2,10 @@ package io.openaev.service.chaining;
 
 import static io.openaev.utils.JsonUtils.gson;
 
-import com.google.gson.*;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.WorkflowStateRepository;
@@ -294,7 +297,8 @@ public class WorkflowStateService {
           }
         } else if (element.isJsonObject() && isComplex) {
           // Complex output (e.g. {port: 22, host: "1.1.1.1"}): store as correlated pairs
-          saveCorrelatedObject(entries, element.getAsJsonObject());
+          String type = mappedType.origin() != null ? mappedType.origin().name() : null;
+          saveCorrelatedObject(entries, element.getAsJsonObject(), type);
         }
       }
     }
@@ -316,21 +320,30 @@ public class WorkflowStateService {
     parsedByType.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
     // TODO(B2): cartesian generation is asset-blind in V1 — see GLOBAL_PARTITION.
     if (added) {
-      for (List<String> recipeKeys : activeRecipeKeys(typeMappings)) {
-        entries.generateCorrelatedForRecipe(key, value, recipeKeys);
+      for (var recipe : activeRecipeKeys(typeMappings)) {
+        entries.generateCorrelatedForRecipe(key, value, recipe.getValue(), recipe.getKey());
       }
     }
   }
 
   /**
    * Extracts the recipe key lists from all complex mapped types that have a multi-key recipe (size
-   * > 1). These are the recipes for which cartesian correlation generation is needed.
+   * > 1), paired with their origin ContractOutputType name. These are the recipes for which
+   * cartesian correlation generation is needed.
+   *
+   * @return list of entries where key = origin type name, value = recipe key list
    */
-  private List<List<String>> activeRecipeKeys(Map<String, ChainingMappedType> typeMappings) {
+  private List<Map.Entry<String, List<String>>> activeRecipeKeys(
+      Map<String, ChainingMappedType> typeMappings) {
     return typeMappings.values().stream()
         .filter(mt -> mt.kind() == ChainingTypeKind.COMPLEX)
-        .map(mt -> mt.primitiveTypes().stream().map(PrimitiveType::name).toList())
-        .filter(keys -> keys.size() > 1)
+        .filter(mt -> mt.origin() != null)
+        .map(
+            mt ->
+                Map.entry(
+                    mt.origin().name(),
+                    mt.primitiveTypes().stream().map(PrimitiveType::name).toList()))
+        .filter(e -> e.getValue().size() > 1)
         .distinct()
         .toList();
   }
@@ -340,20 +353,24 @@ public class WorkflowStateService {
    * tuple. They serve as correlation anchors (host → asset resolution) or provenance markers
    * (asset_id) and must be excluded from the content {@code Set<Pair>}.
    */
-  private static final Set<PrimitiveType> ATTACHMENT_KEYS =
-      Set.of(PrimitiveType.Host, PrimitiveType.AssetId);
+  // TODO(correlation-anchor): asset_id is a coarse approximation. The precise rule is "exclude
+  // anchor-type fields declared required=false on the OutputProcessor" (i.e.: host is content on
+  // PortScan/required=true but provenance on Computer/required=false). We need to implement that
+  // which requires ChainingMappedType to retain its origin ContractOutputType so the processor's
+  // ContractOutputField.required is reachable here.
+  private static final Set<PrimitiveType> ATTACHMENT_KEYS = Set.of(PrimitiveType.AssetId);
 
   /**
    * Saves a correlated object (multi-field entry like {username, password}) into state entries.
    *
    * <p>JSON field names are normalized to {@link PrimitiveType#name()} (e.g. "username" →
    * "Username") so that the object path produces the same key convention as the scalar path.
-   * Attachment fields ({@code host}, {@code asset_id}) are excluded from the content pair set.
+   * Attachment fields ({@code asset_id} only for now) are excluded from the content pair set.
    *
    * @param entries state entries to update
    * @param obj JSON object whose fields form a correlated pair set
    */
-  private void saveCorrelatedObject(WorkflowStateEntries entries, JsonObject obj) {
+  private void saveCorrelatedObject(WorkflowStateEntries entries, JsonObject obj, String type) {
     Set<WorkflowStateEntries.Pair> pairSet = new HashSet<>();
 
     obj.entrySet()
@@ -387,8 +404,16 @@ public class WorkflowStateService {
               pairSet.add(new WorkflowStateEntries.Pair(primitiveType.name(), valStr));
             });
 
+    // A Correlated only makes sense when the object carries at least two correlated primitives
+    // (e.g. Credentials = Username + Password|Hash).
+    // CredentialsOutputProcessor.validate guarantees username + (password|hash), so a valid
+    // Credentials always yields >= 2 content pairs here — this guard never rejects a valid
+    // Credentials.
+    // KNOWN LIMITATION: single-content complex Object types (Username, AdminUsername,
+    // AccountWithPasswordNotRequired) are silently NOT stored as Correlated by this size check.
+    // They are treated as findings, not correlations.
     if (pairSet.size() > 1) {
-      entries.getCorrelated().add(new WorkflowStateEntries.Correlated(pairSet));
+      entries.getCorrelated().add(new WorkflowStateEntries.Correlated(pairSet, type));
     }
   }
 
@@ -507,11 +532,12 @@ public class WorkflowStateService {
       Map<Set<WorkflowStateEntries.Pair>, WorkflowStateEntries.Correlated> index =
           workflowStateEntries.getIndexCorrelatedInput();
       if (!index.containsKey(values)) {
-        WorkflowStateEntries.Correlated newCorrelated = new WorkflowStateEntries.Correlated(values);
+        WorkflowStateEntries.Correlated newCorrelated =
+            // TODO(correlation-type): legacy path, no business type available here.
+            new WorkflowStateEntries.Correlated(values, null);
         workflowStateEntries.getCorrelated().add(newCorrelated);
         // todo test all combination  and launch the ones not executed
         // Todo save this StepInputBuffer
-        workflowStateEntries.testAndSaveCombinationsForCorrelated(newCorrelated);
       }
     } else {
       Set<String> values = getValues(output, path);
@@ -525,10 +551,6 @@ public class WorkflowStateService {
           input.getValues().add(value);
           // todo test all combination and launch the ones not executed
           // Todo save this StepInputBuffer
-
-          if (!newValues.isEmpty()) {
-            workflowStateEntries.testAndSaveCombinationsForInput(input, newValues);
-          }
         }
       }
     }
