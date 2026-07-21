@@ -1,4 +1,4 @@
-import { HubOutlined } from '@mui/icons-material';
+import { PlayCircleOutlineOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 import { Link } from 'react-router';
@@ -181,7 +181,7 @@ const SimulationList: FunctionComponent<Props> = ({
         )}
       {
         loading
-          ? <PaginatedListLoader Icon={HubOutlined} headers={headers} headerStyles={inlineStyles} />
+          ? <PaginatedListLoader Icon={PlayCircleOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
           : exercises.map((exercise: ExerciseSimple) => (
               <ListItem
                 key={exercise.exercise_id}
@@ -195,7 +195,7 @@ const SimulationList: FunctionComponent<Props> = ({
                   to={`/admin/simulations/${exercise.exercise_id}`}
                 >
                   <ListItemIcon>
-                    <HubOutlined color="primary" />
+                    <PlayCircleOutlineOutlined color="primary" />
                   </ListItemIcon>
                   <ListItemText
                     primary={(

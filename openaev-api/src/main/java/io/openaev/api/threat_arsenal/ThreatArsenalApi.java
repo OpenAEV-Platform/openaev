@@ -1,17 +1,22 @@
 package io.openaev.api.threat_arsenal;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.rest.settings.PreviewFeature.INJECT_CHAINING;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.threat_arsenal.dto.*;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.ChainingTypeRegistry;
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
+import io.openaev.rest.injector_contract.output.InjectorContractAuthorCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.schema.model.PropertySchemaDTO;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,6 +40,7 @@ public class ThreatArsenalApi {
   public static final String TENANT_THREAT_ARSENAL_URL = TENANT_PREFIX + "/threat_arsenals";
 
   private final ThreatArsenalService threatArsenalService;
+  private final PreviewFeatureService previewFeatureService;
 
   // -- READ --
 
@@ -46,6 +52,19 @@ public class ThreatArsenalApi {
       resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalActionFullOutput threatArsenal(@PathVariable String actionId) {
     return threatArsenalService.findById(actionId);
+  }
+
+  @Operation(
+      summary = "Get all primitive chaining types",
+      description = "Returns primitive types available for payload arguments.")
+  @GetMapping({
+    THREAT_ARSENAL_URL + "/argument-types/",
+    TENANT_THREAT_ARSENAL_URL + "/argument-types/"
+  })
+  @Transactional
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  public List<PrimitiveType> getArgumentTypes() {
+    return resolveAvailableTypes();
   }
 
   @Operation(summary = "Get filterable property schemas for threat arsenal")
@@ -68,6 +87,17 @@ public class ThreatArsenalApi {
   public List<InjectorContractDomainCountOutput> getDomainCounts(
       @RequestBody @Valid final SearchPaginationInput input) {
     return threatArsenalService.getDomainCounts(input);
+  }
+
+  @PostMapping({
+    THREAT_ARSENAL_URL + "/author-counts",
+    TENANT_THREAT_ARSENAL_URL + "/author-counts"
+  })
+  @Transactional
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  public List<InjectorContractAuthorCountOutput> getAuthorCounts(
+      @RequestBody @Valid final SearchPaginationInput input) {
+    return threatArsenalService.getAuthorCounts(input);
   }
 
   @Operation(summary = "Search threat arsenal")
@@ -128,6 +158,13 @@ public class ThreatArsenalApi {
     return threatArsenalService.getCollectorsForActionRemediation(actionId);
   }
 
+  private List<PrimitiveType> resolveAvailableTypes() {
+    if (!previewFeatureService.isFeatureEnabled(INJECT_CHAINING)) {
+      return List.of(PrimitiveType.Text, PrimitiveType.Document, PrimitiveType.TargetedAsset);
+    }
+    return ChainingTypeRegistry.getPrimitiveTypes();
+  }
+
   // -- CREATE --
 
   @PostMapping({THREAT_ARSENAL_URL, TENANT_THREAT_ARSENAL_URL})
@@ -171,5 +208,14 @@ public class ThreatArsenalApi {
       resourceType = ResourceType.THREAT_ARSENAL)
   public void deleteAction(@PathVariable String actionId) {
     threatArsenalService.delete(actionId);
+  }
+
+  @Operation(summary = "Bulk delete threat arsenal actions")
+  @PostMapping({THREAT_ARSENAL_URL + "/bulk-delete", TENANT_THREAT_ARSENAL_URL + "/bulk-delete"})
+  @Transactional
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.THREAT_ARSENAL)
+  public ThreatArsenalBulkDeleteOutput bulkDeleteActions(
+      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+    return ThreatArsenalBulkDeleteOutput.of(threatArsenalService.bulkDelete(input));
   }
 }

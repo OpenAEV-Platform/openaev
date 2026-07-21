@@ -13,6 +13,13 @@ public interface RawInjectIndexing extends RawTenant {
 
   Instant getInject_updated_at();
 
+  /**
+   * Indexing sort key: GREATEST of the inject, contract, dependency-row and child-contract update
+   * timestamps. Also the cursor value ({@code EsInject.base_updated_at}) so the cursor always
+   * matches the batch order and strictly advances.
+   */
+  Instant getInject_sort_ts();
+
   String getInject_injector_contract();
 
   Instant getInjector_contract_updated_at();

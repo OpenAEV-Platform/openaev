@@ -23,6 +23,7 @@ import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration;
 import io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegrationFactory;
+import io.openaev.integration.migration.PaloAltoCortexExecutorConfigurationMigration;
 import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -65,12 +66,16 @@ public class PaloAltoCortexExecutorIntegrationTest {
 
   @Autowired private FileService fileService;
 
+  @Autowired
+  private PaloAltoCortexExecutorConfigurationMigration paloAltoCortexExecutorConfigurationMigration;
+
   private PaloAltoCortexExecutorIntegrationFactory getFactory() {
     return new PaloAltoCortexExecutorIntegrationFactory(
         connectorInstanceService,
         catalogConnectorService,
         executorService,
         componentRequestEngine,
+        paloAltoCortexExecutorConfigurationMigration,
         agentService,
         endpointService,
         assetGroupService,
@@ -84,8 +89,8 @@ public class PaloAltoCortexExecutorIntegrationTest {
   }
 
   /**
-   * PaloAlto has no ConfigurationMigration, so we manually create a persisted instance with the
-   * default configuration set attached to the catalog connector.
+   * Manually create a persisted instance with the default configuration set attached to the catalog
+   * connector, so the test controls the exact instance under test.
    */
   private ConnectorInstancePersisted createInstanceForCatalog(CatalogConnector catalogConnector) {
     ConnectorInstancePersisted instance = new ConnectorInstancePersisted();

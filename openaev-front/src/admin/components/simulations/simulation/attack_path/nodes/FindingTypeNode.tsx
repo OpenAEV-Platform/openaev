@@ -3,21 +3,24 @@ import { Handle, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
 import FindingIcon from '../../../../../../components/FindingIcon';
+import attackPathStatusColor from '../attack-path-colors';
 import { type AttackPathFlowNode } from '../attack-path-flow-helpers';
-
-export const AP_FINDING_SIZE = 56;
+import { AP_FINDING_SIZE } from './node-sizes';
 
 // A finding-type node (credentials, cve, port, ...) for one endpoint: an icon-only circle. The type is
 // named once, on the edge into it (and on hover via the icon tooltip), so it is not repeated here.
-const FindingTypeNode = ({ data }: NodeProps<AttackPathFlowNode>) => {
+const FindingTypeNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) => {
   const theme = useTheme();
+  // Verdict colour (green/orange/red) by default; blue only when selected.
+  const verdict = data.status ? attackPathStatusColor(theme, data.status) : theme.palette.divider;
+  const color = selected ? theme.palette.primary.main : verdict;
   return (
     <div
       style={{
         width: AP_FINDING_SIZE,
         height: AP_FINDING_SIZE,
         borderRadius: '50%',
-        border: `1px solid ${theme.palette.divider}`,
+        border: `${selected ? 2 : 1}px solid ${color}`,
         background: theme.palette.background.paper,
         display: 'flex',
         alignItems: 'center',

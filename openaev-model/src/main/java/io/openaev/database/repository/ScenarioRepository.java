@@ -49,41 +49,81 @@ public interface ScenarioRepository
     WITH changed_scenarios AS (
         SELECT s.scenario_id FROM scenarios s WHERE s.scenario_updated_at > :from
         UNION
-        SELECT inj.inject_scenario FROM injects inj WHERE inj.inject_updated_at > :from AND inj.inject_scenario IS NOT NULL
+        SELECT inj.inject_scenario FROM injects inj
+          WHERE inj.inject_updated_at > :from AND inj.inject_scenario IS NOT NULL
         UNION
         SELECT inj.inject_scenario FROM injects inj
           JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract
+                                     AND ic.tenant_id = inj.tenant_id
           WHERE ic.injector_contract_updated_at > :from AND inj.inject_scenario IS NOT NULL
     ),
+    scenario_maxes AS (
+        -- One row per changed scenario. Driven from the small changed set so the planner
+        -- uses idx_injects_scenario instead of a full Seq Scan of the injects table.
+        SELECT inj.inject_scenario AS scenario_id,
+               max(inj.inject_updated_at)           AS max_inj,
+               max(ic.injector_contract_updated_at) AS max_ic
+        FROM changed_scenarios cs
+          JOIN injects inj ON inj.inject_scenario = cs.scenario_id
+          LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract
+                                          AND ic.tenant_id = inj.tenant_id
+        GROUP BY inj.inject_scenario
+    ),
     ranked_scenarios AS (
-        SELECT cs.scenario_id FROM changed_scenarios cs
-        JOIN scenarios s ON s.scenario_id = cs.scenario_id
-        LEFT JOIN injects inj ON s.scenario_id = inj.inject_scenario
-        LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract
-        GROUP BY cs.scenario_id, s.scenario_updated_at
-        ORDER BY GREATEST(s.scenario_updated_at, max(inj.inject_updated_at), max(ic.injector_contract_updated_at)) ASC
+        SELECT cs.scenario_id,
+               GREATEST(s.scenario_updated_at, sm.max_inj, sm.max_ic) AS scenario_injects_updated_at
+        FROM changed_scenarios cs
+          JOIN scenarios s ON s.scenario_id = cs.scenario_id
+          LEFT JOIN scenario_maxes sm ON sm.scenario_id = cs.scenario_id
+        ORDER BY scenario_injects_updated_at ASC
         LIMIT :limit
     ),
-    scenario_data AS (
-        SELECT s.scenario_id, s.scenario_name, s.scenario_recurrence, s.scenario_created_at, s.tenant_id,
-          GREATEST(s.scenario_updated_at, max(inj.inject_updated_at), max(ic.injector_contract_updated_at)) as scenario_injects_updated_at,
-          array_agg(DISTINCT st.tag_id) FILTER (WHERE st.tag_id IS NOT NULL) as scenario_tags,
-          array_agg(DISTINCT ste.team_id) FILTER (WHERE ste.team_id IS NOT NULL) as scenario_teams,
-          array_agg(DISTINCT ia.asset_id) FILTER (WHERE ia.asset_id IS NOT NULL) as scenario_assets,
-          array_agg(DISTINCT iag.asset_group_id) FILTER (WHERE iag.asset_group_id IS NOT NULL) as scenario_asset_groups,
-          array_union_agg(ic.injector_contract_platforms) FILTER ( WHERE ic.injector_contract_platforms IS NOT NULL ) as scenario_platforms
-        FROM scenarios s
-        JOIN ranked_scenarios rs ON s.scenario_id = rs.scenario_id
-        LEFT JOIN scenarios_tags st ON st.scenario_id = s.scenario_id
-        LEFT JOIN scenarios_teams ste ON ste.scenario_id = s.scenario_id
-        LEFT JOIN injects inj ON s.scenario_id = inj.inject_scenario
-        LEFT JOIN injects_assets ia ON ia.inject_id = inj.inject_id
-        LEFT JOIN injects_asset_groups iag ON iag.inject_id = inj.inject_id
-        LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract
-        GROUP BY s.scenario_id, s.scenario_name, s.scenario_created_at, s.scenario_updated_at
+    -- Pre-aggregate each child collection to one row per scenario BEFORE joining, so the
+    -- final assembly never fans out (tags x teams x injects x assets x asset_groups).
+    tags_agg AS (
+        SELECT st.scenario_id, array_agg(DISTINCT st.tag_id) AS scenario_tags
+        FROM scenarios_tags st JOIN ranked_scenarios rs ON rs.scenario_id = st.scenario_id
+        GROUP BY st.scenario_id
+    ),
+    teams_agg AS (
+        SELECT ste.scenario_id, array_agg(DISTINCT ste.team_id) AS scenario_teams
+        FROM scenarios_teams ste JOIN ranked_scenarios rs ON rs.scenario_id = ste.scenario_id
+        GROUP BY ste.scenario_id
+    ),
+    assets_agg AS (
+        SELECT inj.inject_scenario AS scenario_id, array_agg(DISTINCT ia.asset_id) AS scenario_assets
+        FROM ranked_scenarios rs
+          JOIN injects inj ON inj.inject_scenario = rs.scenario_id
+          JOIN injects_assets ia ON ia.inject_id = inj.inject_id
+        GROUP BY inj.inject_scenario
+    ),
+    asset_groups_agg AS (
+        SELECT inj.inject_scenario AS scenario_id, array_agg(DISTINCT iag.asset_group_id) AS scenario_asset_groups
+        FROM ranked_scenarios rs
+          JOIN injects inj ON inj.inject_scenario = rs.scenario_id
+          JOIN injects_asset_groups iag ON iag.inject_id = inj.inject_id
+        GROUP BY inj.inject_scenario
+    ),
+    platforms_agg AS (
+        SELECT inj.inject_scenario AS scenario_id,
+               array_union_agg(ic.injector_contract_platforms) FILTER (WHERE ic.injector_contract_platforms IS NOT NULL) AS scenario_platforms
+        FROM ranked_scenarios rs
+          JOIN injects inj ON inj.inject_scenario = rs.scenario_id
+          JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract
+                                     AND ic.tenant_id = inj.tenant_id
+        GROUP BY inj.inject_scenario
     )
-    SELECT * FROM scenario_data sd
-    ORDER BY sd.scenario_injects_updated_at ASC
+    SELECT s.scenario_id, s.scenario_name, s.scenario_recurrence, s.scenario_created_at, s.tenant_id,
+           rs.scenario_injects_updated_at,
+           t.scenario_tags, tm.scenario_teams, a.scenario_assets, ag.scenario_asset_groups, p.scenario_platforms
+    FROM scenarios s
+      JOIN ranked_scenarios rs ON rs.scenario_id = s.scenario_id
+      LEFT JOIN tags_agg         t  ON t.scenario_id  = s.scenario_id
+      LEFT JOIN teams_agg        tm ON tm.scenario_id = s.scenario_id
+      LEFT JOIN assets_agg       a  ON a.scenario_id  = s.scenario_id
+      LEFT JOIN asset_groups_agg ag ON ag.scenario_id = s.scenario_id
+      LEFT JOIN platforms_agg    p  ON p.scenario_id  = s.scenario_id
+    ORDER BY rs.scenario_injects_updated_at ASC
     """,
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> findForIndexing(
@@ -274,6 +314,17 @@ public interface ScenarioRepository
   @Transactional
   void removeTeams(
       @Param("scenarioId") final String scenarioId, @Param("teamIds") final List<String> teamIds);
+
+  /**
+   * Bumps the scenario updated_at so the incremental search-engine indexer picks up denormalized
+   * changes (e.g. join-table mutations done via native queries that bypass JPA timestamps).
+   */
+  @Modifying
+  @Query(
+      value = "UPDATE scenarios SET scenario_updated_at = now() WHERE scenario_id = :scenarioId",
+      nativeQuery = true)
+  @Transactional
+  void touchUpdatedAt(@Param("scenarioId") final String scenarioId);
 
   Optional<Scenario> findByExercises_Id(String exerciseId);
 

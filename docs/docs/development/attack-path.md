@@ -5,7 +5,7 @@
     The attack-path execution store is a proof of concept (issue 6647). It is off by default and gated
     behind the `ATTACK_PATH` preview feature, so its tab and endpoints do not exist unless the flag
     is on. The design rationale and the options weighed are in
-    `adr/ADR-002-attack-path-execution-store-on-postgresql.md` at the repository root; this guide is the
+    `adr/ADR-003-attack-path-execution-store-on-postgresql.md` at the repository root; this guide is the
     hands-on companion for developers building on the POC.
 
 ## 1. The big picture
@@ -420,4 +420,4 @@ Jump → DC"). The graph shows all executions, not a chosen path.
   projections, queries), `io.openaev.migration.V6_2026071…` (the Flyway tables).
 - Front: `openaev-front/src/admin/components/simulations/simulation/attack_path/` (the flow, nodes,
   edges, helpers) and `src/actions/attack-path/`.
-- Benchmark: `AttackPathBenchmark` (env-gated). Design rationale: `adr/ADR-002-…md`.
+- Benchmark: `AttackPathBenchmark` (env-gated). Design rationale: `adr/ADR-003-…md`.

@@ -2,6 +2,7 @@
   <configuration default="false" name="Backend start" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" show_console_on_std_err="true" show_console_on_std_out="true">
     <option name="ACTIVE_PROFILES" value="dev" />
     <module name="openaev-api" />
+    <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
     <option name="SPRING_BOOT_MAIN_CLASS" value="io.openaev.App" />
     <method v="2">
       <option name="Make" enabled="true" />

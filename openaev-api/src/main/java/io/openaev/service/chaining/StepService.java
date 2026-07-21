@@ -33,6 +33,7 @@ public class StepService {
   private final InjectService injectService;
   private final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
+  private final SimulationRateLimitService simulationRateLimitService;
 
   private final StepRepository stepRepository;
 
@@ -92,28 +93,35 @@ public class StepService {
 
   /**
    * Evaluates conditions for a step template and creates READY execution steps for each valid
-   * batch. Returns an empty list when conditions defer execution.
+   * batch. Batches that exceed the configured rate limit are pushed into the delay queue instead of
+   * being executed immediately. Only hashes of actually created steps are committed.
    *
    * @param nextStepTemplateToExecute step template to ready
    * @param workflowRun the running workflow
    * @param input json input for the execution step
-   * @return created ready execution steps
+   * @param pendingCount number of steps already scheduled in the current evaluation cycle but not
+   *     yet reflected in the database
+   * @return created ready execution steps (does not include delayed batches)
    */
+  @Transactional(rollbackFor = Exception.class)
   public List<Step> createReadySteps(
-      Step nextStepTemplateToExecute, Workflow workflowRun, String input) throws ChainingException {
+      Step nextStepTemplateToExecute, Workflow workflowRun, String input, int pendingCount)
+      throws ChainingException {
+
+    // Re-load the step template within this transaction so lazy collections can be initialized.
+    // The parameter may be a detached entity loaded outside any session (e.g. from a Quartz job).
+    Step persistedTemplate =
+        findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
 
     // If no condition mapper and step already executed, we skip the step to avoid to execute it
     // again
-    if (!conditionService.hasConditionMapper(nextStepTemplateToExecute)
-        && isStepAlreadyExecutedOnce(nextStepTemplateToExecute.getId(), workflowRun.getId())) {
+    if (!conditionService.hasConditionMapper(persistedTemplate)
+        && isStepAlreadyExecutedOnce(persistedTemplate.getId(), workflowRun.getId())) {
       return List.of();
     }
 
     ActionStep actionStep =
-        factoryAction(nextStepTemplateToExecute.getStepAction(), nextStepTemplateToExecute.getId());
-
-    Step persistedTemplate =
-        findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
+        factoryAction(persistedTemplate.getStepAction(), persistedTemplate.getId());
 
     List<ConditionService.ExecutionBatch> executionBatches =
         conditionService.checkCondition(persistedTemplate, workflowRun, input);
@@ -123,9 +131,28 @@ public class StepService {
     }
 
     List<Step> stepReadys = new ArrayList<>();
+    Set<String> committedHashes = new HashSet<>();
+    int localPending = pendingCount;
+
     for (ConditionService.ExecutionBatch batch : executionBatches) {
+      // Guard: rate limit — if the rate limit is reached, delay this batch with its
+      // resolved input. The hash is NOT committed so the batch can be retried later.
+      if (simulationRateLimitService.delayIfRateLimitReached(
+          persistedTemplate, batch.inputString(), workflowRun, localPending)) {
+        continue;
+      }
+
       stepReadys.add(createReadyStepFromBatch(actionStep, persistedTemplate, workflowRun, batch));
+
+      if (batch.hash() != null) {
+        committedHashes.add(batch.hash());
+      }
+      localPending++;
     }
+
+    // Commit only the hashes of batches that were actually turned into READY steps.
+    conditionService.commitHashes(persistedTemplate, workflowRun, committedHashes);
+
     return stepReadys;
   }
 

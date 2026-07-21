@@ -236,6 +236,25 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     return collectorRepository.save(collector);
   }
 
+  /**
+   * Stamps the last execution of a collector. Used as a heartbeat by built-in collectors (which run
+   * inside the platform and never go through the external registration ping) so the UI can surface
+   * a truthful liveliness signal.
+   *
+   * @param collectorId collector identifier
+   * @param tenantId tenant the collector belongs to
+   */
+  @Transactional
+  public void updateLastExecution(@NotNull final String collectorId, @NotNull String tenantId) {
+    collectorRepository
+        .findByIdAndTenantId(collectorId, tenantId)
+        .ifPresent(
+            collector -> {
+              collector.setLastExecution(Instant.now());
+              collectorRepository.save(collector);
+            });
+  }
+
   public List<Collector> collectorsForPayload(String payloadId) {
     return collectorRepository.findByPayloadId(payloadId);
   }

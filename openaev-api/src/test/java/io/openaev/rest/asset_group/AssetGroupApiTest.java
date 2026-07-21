@@ -599,11 +599,11 @@ class AssetGroupApiTest extends IntegrationTest {
               List.of(Endpoint.PLATFORM_ARCH.arm64.name()),
               List.of("windowsArm")),
           Arguments.of(
-              "endpoint_hostname",
+              "asset_hostname",
               "contains",
               List.of("win-host"),
               List.of("windowsX86", "windowsArm")),
-          Arguments.of("endpoint_ips", "contains", List.of("10.0.1"), List.of("linuxX86")));
+          Arguments.of("asset_ips", "contains", List.of("10.0.1"), List.of("linuxX86")));
     }
   }
 

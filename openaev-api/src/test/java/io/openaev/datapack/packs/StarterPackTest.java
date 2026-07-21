@@ -387,10 +387,9 @@ public class StarterPackTest extends IntegrationTest {
     assertFalse(injects.isEmpty());
     assertTrue(
         injects.stream()
-            .anyMatch(
-                inject ->
-                    inject.getAssets() != null
-                        && "honey.scanme.sh".equals(inject.getAssets().getFirst().getName())));
+            .filter(inject -> inject.getAssets() != null)
+            .flatMap(inject -> inject.getAssets().stream())
+            .anyMatch(asset -> "honey.scanme.sh".equals(asset.getName())));
   }
 
   @Test
@@ -460,15 +459,17 @@ public class StarterPackTest extends IntegrationTest {
     List<InjectorContract> injectorContracts = Lists.newArrayList(injectorContractsIterable);
     assertEquals(15, injectorContracts.size());
 
-    InjectorContract injectorContractsDummyNuclei =
+    InjectorContract injectorContractsNuclei =
         injectorContracts.stream()
             .filter(c -> "2e7fc079-4531-4444-4444-928fe4a2fc0b".equals(c.getId()))
             .findFirst()
             .orElse(null);
-    assertNotNull(injectorContractsDummyNuclei);
-    assertEquals("Dummy Nuclei", injectorContractsDummyNuclei.getFirstInjector().getName());
-    assertTrue(injectorContractsDummyNuclei.isAtomicTesting());
-    assertFalse(injectorContractsDummyNuclei.getNeedsExecutor());
+    assertNotNull(injectorContractsNuclei);
+    // Imported before the real injector registers: the contract has no injector link yet
+    // (it is adopted by id when the real injector registers).
+    assertTrue(injectorContractsNuclei.getInjectors().isEmpty());
+    assertTrue(injectorContractsNuclei.isAtomicTesting());
+    assertFalse(injectorContractsNuclei.getNeedsExecutor());
 
     InjectorContract injectorContractsBeaconPayload =
         injectorContracts.stream()

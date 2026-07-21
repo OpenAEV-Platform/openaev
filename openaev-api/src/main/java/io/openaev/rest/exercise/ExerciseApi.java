@@ -861,13 +861,18 @@ public class ExerciseApi extends RestBehavior {
       @RequestParam(required = false) final boolean isWithTeams,
       @RequestParam(required = false) final boolean isWithPlayers,
       @RequestParam(required = false) final boolean isWithVariableValues,
+      @RequestParam(required = false, defaultValue = "true") final boolean isWithScopeDefinition,
       HttpServletResponse response)
       throws IOException {
     Exercise exercise = exerciseService.exercise(exerciseId);
     int exportOptionsMask = ExportOptions.mask(isWithPlayers, isWithTeams, isWithVariableValues);
+    boolean isChaining = workflowService.isSimulationChaining(exerciseId);
 
-    byte[] zippedExport = exportService.exportExerciseToZip(exercise, exportOptionsMask);
-    String zipName = exportService.getZipFileName(exercise, exportOptionsMask);
+    byte[] zippedExport =
+        exportService.exportExerciseToZip(exercise, exportOptionsMask, isWithScopeDefinition);
+    String zipName =
+        exportService.getZipFileName(
+            exercise, exportOptionsMask, isChaining, isWithScopeDefinition);
 
     response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
     response.addHeader(HttpHeaders.CONTENT_TYPE, "application/zip");

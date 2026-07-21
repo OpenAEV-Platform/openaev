@@ -37,6 +37,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -89,6 +90,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
 
   @Autowired private WorkflowService workflowService;
   @Autowired private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
+  @Autowired private ApplicationEventPublisher eventPublisher;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -139,7 +141,8 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             pauseExerciseService,
             fileService,
             stepService,
-            healthCheckUtils);
+            healthCheckUtils,
+            eventPublisher);
   }
 
   @AfterAll

@@ -1,5 +1,5 @@
 {
-  "comment": "Exported from Tanium Server 7.8.1.3109 at 2025-08-26T11:42:48",
+  "comment": "OpenAEV TTR package definition — manually maintained, not a Tanium Server export",
   "version": 2,
   "object_list": {
     "package_specs": [
@@ -9,10 +9,19 @@
         },
         "name": "OpenAEV Subprocessor (Unix) TTR",
         "display_name": "OpenAEV Subprocessor (Unix) TTR",
-        "files": [],
+        "files": [
+          {
+            "hash": "da49982e61cb09b562d95d9b53d65e3caf2568ac4a53108499ff3fa9d3cd6617",
+            "name": "openaev-ttr.sh",
+            "source": "",
+            "size": 4667,
+            "download_seconds": 0,
+            "direct_download_flag": false
+          }
+        ],
         "file_templates": [],
-        "command": "/bin/sh -c \"/bin/echo $1 | sed 's#%2b#+#gi' | sed 's#%3d#=#gi' | sed 's#%2f#/#gi' | base64 -d | sh & exit 0\"",
-        "command_timeout": 60,
+        "command": "/bin/sh openaev-ttr.sh $1",
+        "command_timeout": 120,
         "expire_seconds": 660,
         "hidden_flag": 0,
         "process_group_flag": 1,

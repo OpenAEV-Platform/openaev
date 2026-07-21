@@ -104,6 +104,13 @@ const KillChainPhases = () => {
           searchPaginationInput={searchPaginationInput}
           setContent={setKillChainPhases}
           exportProps={exportProps}
+          createButton={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+              <CreateKillChainPhase
+                onCreate={result => setKillChainPhases([result, ...killChainPhases])}
+              />
+            </Can>
+          )}
         />
         <List>
           <ListItem
@@ -194,11 +201,6 @@ const KillChainPhases = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-          <CreateKillChainPhase
-            onCreate={result => setKillChainPhases([result, ...killChainPhases])}
-          />
-        </Can>
       </div>
       <TaxonomiesMenu />
     </div>

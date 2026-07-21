@@ -271,10 +271,16 @@ public class ScenarioApi extends RestBehavior {
       @RequestParam(required = false) final boolean isWithTeams,
       @RequestParam(required = false) final boolean isWithPlayers,
       @RequestParam(required = false) final boolean isWithVariableValues,
+      @RequestParam(required = false, defaultValue = "true") final boolean isWithScopeDefinition,
       HttpServletResponse response)
       throws IOException {
     this.scenarioService.exportScenario(
-        scenarioId, isWithTeams, isWithPlayers, isWithVariableValues, response);
+        scenarioId,
+        isWithTeams,
+        isWithPlayers,
+        isWithVariableValues,
+        isWithScopeDefinition,
+        response);
   }
 
   // -- IMPORT --

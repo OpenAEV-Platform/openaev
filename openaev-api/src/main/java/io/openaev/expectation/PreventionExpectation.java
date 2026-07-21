@@ -7,6 +7,7 @@ import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.InjectExpectationSignature;
+import io.openaev.database.model.SecurityPlatform;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -63,6 +64,10 @@ public class PreventionExpectation implements Expectation {
 
   /** Signatures that can satisfy this prevention expectation. */
   private List<ExpectationSignature> expectationSignatures;
+
+  /** Security platform types expected to prevent the activity (empty = any platform). */
+  private List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedSecurityPlatformTypes =
+      new java.util.ArrayList<>();
 
   private PreventionExpectation() {}
 

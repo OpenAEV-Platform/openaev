@@ -137,7 +137,7 @@ const InjectPopover: FunctionComponent<Props> = ({
   const handleExportOpen = () => setOpenExportDialog(true);
   const handleExportClose = () => setOpenExportDialog(false);
 
-  const handleExportJsonSingle = (withPlayers: boolean, withTeams: boolean, withVariableValues: boolean) => {
+  const handleExportJsonSingle = (withPlayers: boolean, withTeams: boolean, withVariableValues: boolean, _withScopeDefinition: boolean) => {
     const exportData: InjectIndividualExportRequestInput = {
       options: {
         with_players: withPlayers,

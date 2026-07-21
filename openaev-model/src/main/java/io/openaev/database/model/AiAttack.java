@@ -19,10 +19,11 @@ import lombok.EqualsAndHashCode;
 import org.hibernate.annotations.Type;
 
 /**
- * An {@code AiAttack} payload describes an adversarial action executed against an {@link AiTarget}
- * (LLM or AI agent) by the {@code ai-redteam} injector. It is the AI counterpart of {@link Command}
- * / {@link Executable} in the Threat Arsenal and is mapped to MITRE ATLAS ({@code AML.Txxxx}) and
- * OWASP (LLM / Agentic) via the surrounding {@link InjectorContract}.
+ * An {@code AiAttack} payload describes an adversarial action executed against an AI target {@link
+ * Asset} ({@code category = AI_TARGET} - an LLM or AI agent) by the {@code ai-redteam} injector. It
+ * is the AI counterpart of {@link Command} / {@link Executable} in the Threat Arsenal and is mapped
+ * to MITRE ATLAS ({@code AML.Txxxx}) and OWASP (LLM / Agentic) via the surrounding {@link
+ * InjectorContract}.
  *
  * <p>Execution is performed by an external injector calling the model/agent endpoint - never by the
  * implant - so there are no OS-level command fields here.

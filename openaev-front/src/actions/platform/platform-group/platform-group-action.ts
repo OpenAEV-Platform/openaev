@@ -21,6 +21,10 @@ export const addPlatformGroup = (data: PlatformGroupInput) => (dispatch: Dispatc
 
 // -- READ --
 
+export const fetchPlatformGroupById = (platformGroupId: PlatformGroupOutput['platform_group_id']) => {
+  return simpleCall(`${PLATFORM_GROUPS_URI}/${platformGroupId}`);
+};
+
 export const fetchPlatformGroupUserIds = (platformGroupId: PlatformGroupOutput['platform_group_id']) => {
   return simpleCall(`${PLATFORM_GROUPS_URI}/${platformGroupId}/users`);
 };

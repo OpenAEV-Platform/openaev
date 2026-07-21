@@ -4,8 +4,8 @@ import { type NavigateFunction } from 'react-router';
 import { generateFilterId } from '../../../../../../../../components/common/queryable/filter/FilterUtils';
 import { buildSearchPagination } from '../../../../../../../../components/common/queryable/QueryableUtils';
 import {
+  ASSET_BASE_URL,
   ATOMIC_BASE_URL,
-  ENDPOINT_BASE_URL,
   SCENARIO_BASE_URL,
   SIMULATION_BASE_URL,
 } from '../../../../../../../../constants/BaseUrls';
@@ -41,7 +41,7 @@ const getInjectDetailUrl = (injectElement: EsInject): string => {
 
 const navigationHandlers: Record<string, NavigationHandler> = {
   'endpoint': (element, navigate) => {
-    navigate(`${ENDPOINT_BASE_URL}/${element.base_id}`);
+    navigate(`${ASSET_BASE_URL}/${element.base_id}`);
   },
 
   'vulnerable-endpoint': (element, navigate) => {
@@ -62,7 +62,7 @@ const navigationHandlers: Record<string, NavigationHandler> = {
       }),
       key: 'endpoint-findings',
     }, { allowEmptyArrays: true }));
-    navigate(`${ENDPOINT_BASE_URL}/${(element as EsVulnerableEndpoint).vulnerable_endpoint_id}?query=${craftedFilter}`);
+    navigate(`${ASSET_BASE_URL}/${(element as EsVulnerableEndpoint).vulnerable_endpoint_id}?query=${craftedFilter}`);
   },
 
   'scenario': (element, navigate) => {

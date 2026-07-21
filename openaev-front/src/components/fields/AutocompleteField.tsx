@@ -108,6 +108,7 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
               display: 'inline-block',
               flexGrow: 1,
               marginLeft: multiple ? theme.spacing(1) : 0,
+              fontStyle: option.italic ? 'italic' : 'normal',
             }}
           >
             {option.label}

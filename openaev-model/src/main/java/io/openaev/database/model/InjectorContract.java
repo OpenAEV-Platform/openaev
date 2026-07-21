@@ -18,6 +18,7 @@ import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.CompositeIdResolvableI;
 import io.openaev.helper.MonoIdDeserializerHelper;
+import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -152,6 +153,98 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     return ofNullable(getPayload()).map(Payload::getStatus).orElse(null);
   }
 
+  // -- Author (user / team / organization) --
+  // Every injector contract has an author. It is stored directly on the contract
+  // (payload-less built-in contracts are authored by Filigran, custom contracts
+  // by their creator) AND falls back to the underlying payload's author for
+  // payload-based contracts whose author lives on the payload. The three typed
+  // getters are output-only (id per type); a SINGLE filterable getter ORs across
+  // every contract- and payload-level author path so the UI exposes one "Author"
+  // filter (autocomplete grouped by type) rather than several. --
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "injector_contract_author_user")
+  @JsonIgnore
+  private User authorUser;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "injector_contract_author_team")
+  @JsonIgnore
+  private Team authorTeam;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "injector_contract_author_organization")
+  @JsonIgnore
+  private Organization authorOrganization;
+
+  @JsonProperty("injector_contract_payload_author_user")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  public User getPayloadAuthorUser() {
+    if (authorUser != null) {
+      return authorUser;
+    }
+    return ofNullable(getPayload()).map(Payload::getAuthorUser).orElse(null);
+  }
+
+  @JsonProperty("injector_contract_payload_author_team")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  public Team getPayloadAuthorTeam() {
+    if (authorTeam != null) {
+      return authorTeam;
+    }
+    return ofNullable(getPayload()).map(Payload::getAuthorTeam).orElse(null);
+  }
+
+  @JsonProperty("injector_contract_payload_author_organization")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  public Organization getPayloadAuthorOrganization() {
+    if (authorOrganization != null) {
+      return authorOrganization;
+    }
+    return ofNullable(getPayload()).map(Payload::getAuthorOrganization).orElse(null);
+  }
+
+  // Single polymorphic author filter: resolves to the id of whichever author is
+  // set (contract-level first, then payload-level). paths() makes FilterUtilsJpa
+  // OR the predicate across every author FK.
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      paths = {
+        "authorUser.id",
+        "authorTeam.id",
+        "authorOrganization.id",
+        "payload.authorUser.id",
+        "payload.authorTeam.id",
+        "payload.authorOrganization.id"
+      })
+  @JsonProperty("injector_contract_payload_author")
+  public String getPayloadAuthor() {
+    if (authorUser != null) {
+      return authorUser.getId();
+    }
+    if (authorTeam != null) {
+      return authorTeam.getId();
+    }
+    if (authorOrganization != null) {
+      return authorOrganization.getId();
+    }
+    Payload contractPayload = getPayload();
+    if (contractPayload == null) {
+      return null;
+    }
+    if (contractPayload.getAuthorUser() != null) {
+      return contractPayload.getAuthorUser().getId();
+    }
+    if (contractPayload.getAuthorTeam() != null) {
+      return contractPayload.getAuthorTeam().getId();
+    }
+    if (contractPayload.getAuthorOrganization() != null) {
+      return contractPayload.getAuthorOrganization().getId();
+    }
+    return null;
+  }
+
   // NOTE: do NOT add @Fetch(FetchMode.SUBSELECT) to the collections of this entity. Contracts are
   // loaded through Inject's EAGER @JoinColumnsOrFormulas association; subselect-fetching their
   // collections re-renders the loading query's SQL AST and triggers an infinite recursion
@@ -173,9 +266,13 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
 
-  // UpdatedAt now used to sync with linked object
+  // UpdatedAt is synced manually with linked objects because join-table changes do not dirty this
+  // row. Only bump when contents actually change: an unconditional bump forces an UPDATE (and an
+  // SSE restream) on every no-op collector/injector upsert (#6778).
   public void setTags(Set<Tag> tags) {
-    this.updatedAt = now();
+    if (!Base.haveSameIds(this.tags, tags)) {
+      this.updatedAt = now();
+    }
     this.tags = tags;
   }
 
@@ -295,9 +392,11 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @Queryable(searchable = true, filterable = true, path = "attackPatterns.externalId")
   private List<AttackPattern> attackPatterns = new ArrayList<>();
 
-  // UpdatedAt now used to sync with linked object
+  // UpdatedAt synced with linked objects; only bump on real changes (see setTags)
   public void setAttackPatterns(List<AttackPattern> attackPatterns) {
-    this.updatedAt = now();
+    if (!Base.haveSameIds(this.attackPatterns, attackPatterns)) {
+      this.updatedAt = now();
+    }
     this.attackPatterns = attackPatterns;
   }
 
@@ -331,9 +430,11 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @Queryable(searchable = true, filterable = true, path = "vulnerabilities.externalId")
   private Set<Vulnerability> vulnerabilities = new HashSet<>();
 
-  // UpdatedAt now used to sync with linked object
+  // UpdatedAt synced with linked objects; only bump on real changes (see setTags)
   public void setVulnerabilities(Set<Vulnerability> vulnerabilities) {
-    this.updatedAt = now();
+    if (!Base.haveSameIds(this.vulnerabilities, vulnerabilities)) {
+      this.updatedAt = now();
+    }
     this.vulnerabilities = vulnerabilities;
   }
 

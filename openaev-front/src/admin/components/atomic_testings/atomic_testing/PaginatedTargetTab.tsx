@@ -1,4 +1,5 @@
-import { List } from '@mui/material';
+import { Box, List } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 
 import { searchTargets } from '../../../../actions/injects/inject-action';
@@ -19,6 +20,7 @@ interface Props {
 }
 
 const PaginatedTargetTab: React.FC<Props> = (props) => {
+  const theme = useTheme();
   const { t } = useFormatter();
   const pagination = useQueryableWithLocalStorage(props.target_type + '_' + props.inject_id + '_filters', buildSearchPagination({
     filterGroup: {
@@ -59,20 +61,29 @@ const PaginatedTargetTab: React.FC<Props> = (props) => {
         entityPrefix={props.entityPrefix}
         queryableHelpers={pagination.queryableHelpers}
         reloadContentCount={searchReloadContentCount}
-        topPagination={true}
         contextId={props.inject_id}
       />
       {targets && targets.length > 0 ? (
-        <List>
-          {targets.map(target => (
-            <NewTargetListItem
-              onClick={handleSelectTarget}
-              target={target}
-              selected={selectedTarget?.target_id === target.target_id}
-              key={target?.target_id}
-            />
-          ))}
-        </List>
+        <Box
+          sx={{
+            'marginTop': 1,
+            'border': `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+            'borderRadius': 1,
+            'overflow': 'hidden',
+            '& > .MuiList-root > *:not(:first-of-type)': { borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.05)}` },
+          }}
+        >
+          <List disablePadding>
+            {targets.map(target => (
+              <NewTargetListItem
+                onClick={handleSelectTarget}
+                target={target}
+                selected={selectedTarget?.target_id === target.target_id}
+                key={target?.target_id}
+              />
+            ))}
+          </List>
+        </Box>
       ) : (
         <div>
           <Empty message={t('No target configured.')} />

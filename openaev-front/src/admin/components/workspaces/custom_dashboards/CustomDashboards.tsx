@@ -1,5 +1,5 @@
 import { AnalyticsOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButtonGroup } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButtonGroup } from '@mui/material';
 import { type CSSProperties, useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -98,14 +98,19 @@ const CustomDashboards = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <ToggleButtonGroup value="fake" exclusive>
+          <Box display="flex" gap={1} alignItems="center">
+            <ToggleButtonGroup value="fake" exclusive>
+              <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
+                <ImportUploaderJsonApiComponent
+                  title={t('Import a custom dashboard')}
+                  uploadFn={importCustomDashboard}
+                />
+              </Can>
+            </ToggleButtonGroup>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
-              <ImportUploaderJsonApiComponent
-                title={t('Import a custom dashboard')}
-                uploadFn={importCustomDashboard}
-              />
+              <CustomDashboardCreation />
             </Can>
-          </ToggleButtonGroup>
+          </Box>
         )}
       />
       <List>
@@ -177,9 +182,6 @@ const CustomDashboards = () => {
               })
         }
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
-        <CustomDashboardCreation />
-      </Can>
     </>
   );
 };

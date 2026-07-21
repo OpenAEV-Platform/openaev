@@ -36,6 +36,7 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.export.Mixins;
+import io.openaev.export.WorkflowExportInitializer;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
@@ -147,6 +148,7 @@ public class ScenarioService {
 
   private final ScenarioMapper scenarioMapper;
   private final WorkflowService workflowService;
+  private final WorkflowExportInitializer workflowExportInitializer;
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
@@ -509,10 +511,14 @@ public class ScenarioService {
       final boolean isWithTeams,
       final boolean isWithPlayers,
       final boolean isWithVariableValues,
+      final boolean isWithScopeDefinition,
       HttpServletResponse response)
       throws IOException {
     ObjectMapper objectMapper = ObjectMapperHelper.openAEVJsonMapper();
     Scenario scenario = this.scenario(scenarioId);
+    boolean isChaining = workflowService.isScenarioChaining(scenarioId);
+    List<Inject> exportedInjects =
+        isChaining ? new ArrayList<>() : new ArrayList<>(scenario.getInjects());
 
     // Start exporting scenario
     ScenarioFileExport scenarioFileExport = new ScenarioFileExport();
@@ -551,10 +557,10 @@ public class ScenarioService {
     List<Document> documentExports =
         Stream.of(
                 scenario.getDocuments().stream(),
-                scenario.getInjects().stream()
+                exportedInjects.stream()
                     .flatMap(
                         inject -> inject.getDocuments().stream().map(InjectDocument::getDocument)),
-                scenario.getInjects().stream()
+                exportedInjects.stream()
                     .flatMap(
                         inject -> {
                           if (inject.getPayload().isEmpty()) {
@@ -565,7 +571,7 @@ public class ScenarioService {
                               ? Stream.of(pl.getAttachedDocument().get())
                               : Stream.of();
                         }),
-                scenario.getInjects().stream()
+                exportedInjects.stream()
                     .flatMap(
                         inject -> {
                           if (inject.getPayload().isEmpty() || inject.getContent() == null) {
@@ -573,7 +579,7 @@ public class ScenarioService {
                           }
                           ObjectNode content = inject.getContent();
                           return inject.getPayload().get().getArguments().stream()
-                              .filter(arg -> ArgumentType.Document == arg.getType())
+                              .filter(arg -> PrimitiveType.Document == arg.getType())
                               .map(arg -> content.path(arg.getKey()))
                               .filter(node -> node.isTextual() && hasText(node.asText()))
                               .map(node -> documentRepository.findById(node.asText()))
@@ -625,21 +631,19 @@ public class ScenarioService {
 
     // Add Injects
     objectMapper.addMixIn(Inject.class, Mixins.Inject.class);
-    scenarioFileExport.setInjects(scenario.getInjects());
-    scenario
-        .getInjects()
-        .forEach(
-            inject -> {
-              scenarioTags.addAll(inject.getTags());
-              inject
-                  .getInjectorContract()
-                  .ifPresent(
-                      injectorContract -> {
-                        if (injectorContract.getPayload() != null) {
-                          scenarioTags.addAll(injectorContract.getTags());
-                        }
-                      });
-            });
+    scenarioFileExport.setInjects(exportedInjects);
+    exportedInjects.forEach(
+        inject -> {
+          scenarioTags.addAll(inject.getTags());
+          inject
+              .getInjectorContract()
+              .ifPresent(
+                  injectorContract -> {
+                    if (injectorContract.getPayload() != null) {
+                      scenarioTags.addAll(injectorContract.getTags());
+                    }
+                  });
+        });
 
     // Add Articles
     objectMapper.addMixIn(Article.class, Mixins.Article.class);
@@ -672,6 +676,24 @@ public class ScenarioService {
     scenarioFileExport.setTags(scenarioTags.stream().distinct().toList());
     objectMapper.addMixIn(Tag.class, Mixins.Tag.class);
 
+    // Add Workflow (chaining) if present — scope definition is optional
+    Optional<Workflow> workflowOpt =
+        workflowService.findWorkflowTemplateByScenarioIdForExport(scenarioId);
+    workflowOpt.ifPresent(
+        workflow -> {
+          workflowExportInitializer.initialize(workflow, isWithScopeDefinition);
+          scenarioFileExport.setWorkflow(workflow);
+        });
+    objectMapper.addMixIn(
+        Workflow.class,
+        isWithScopeDefinition
+            ? Mixins.WorkflowExport.class
+            : Mixins.WorkflowExportWithoutScope.class);
+    objectMapper.addMixIn(WorkflowScopeRule.class, Mixins.WorkflowScopeRuleExport.class);
+    objectMapper.addMixIn(ScopeVariable.class, Mixins.ScopeVariableExport.class);
+    objectMapper.addMixIn(Step.class, Mixins.StepExport.class);
+    objectMapper.addMixIn(Condition.class, Mixins.ConditionExport.class);
+
     // Add Attackpattern and kill chain phases
     objectMapper.addMixIn(KillChainPhase.class, Mixins.KillChainPhase.class);
     objectMapper.addMixIn(AttackPattern.class, Mixins.AttackPattern.class);
@@ -679,7 +701,7 @@ public class ScenarioService {
     objectMapper.addMixIn(Payload.class, Mixins.Payload.class);
 
     // load the killchainphases
-    scenario.getInjects().stream()
+    exportedInjects.stream()
         .map(Inject::getInjectorContract)
         .filter(Optional::isPresent)
         .map(Optional::get)
@@ -690,14 +712,24 @@ public class ScenarioService {
         .forEach(attackPattern -> Hibernate.initialize(attackPattern.getKillChainPhases()));
 
     // Build the response
-    String infos =
-        "("
-            + (isWithTeams ? "with_teams" : "no_teams")
-            + " & "
-            + (isWithPlayers ? "with_players" : "no_players")
-            + " & "
-            + (isWithVariableValues ? "with_variable_values" : "no_variable_values")
-            + ")";
+    String infos;
+    if (isChaining) {
+      infos =
+          "("
+              + (isWithVariableValues ? "with_variable_values" : "no_variable_values")
+              + " & "
+              + (isWithScopeDefinition ? "with_scope_definition" : "no_scope_definition")
+              + ")";
+    } else {
+      infos =
+          "("
+              + (isWithTeams ? "with_teams" : "no_teams")
+              + " & "
+              + (isWithPlayers ? "with_players" : "no_players")
+              + " & "
+              + (isWithVariableValues ? "with_variable_values" : "no_variable_values")
+              + ")";
+    }
 
     String zipName = (scenario.getName() + "_" + now().toString()) + "_" + infos + ".zip";
     response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
@@ -707,8 +739,10 @@ public class ScenarioService {
     ZipEntry zipEntry = new ZipEntry(scenario.getName() + ".json");
     zipEntry.setComment(EXPORT_ENTRY_SCENARIO);
     zipExport.putNextEntry(zipEntry);
-    zipExport.write(
-        objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(scenarioFileExport));
+    ObjectNode exportNode = objectMapper.valueToTree(scenarioFileExport);
+    workflowExportInitializer.enrichWorkflowStepDataForExport(
+        exportNode, "scenario_workflow", objectMapper);
+    zipExport.write(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(exportNode));
     zipExport.closeEntry();
     // Add the documents
     documentIds.stream()
@@ -747,6 +781,10 @@ public class ScenarioService {
     this.injectRepository.removeTeamsForScenario(scenarioId, teamIds);
     // Remove all association between lessons learned and teams
     this.lessonsCategoryRepository.removeTeamsForScenario(scenarioId, teamIds);
+    // The join-table deletes above are native queries that bypass JPA timestamps: bump the
+    // scenario and its injects so the incremental indexer refreshes the denormalized team sides.
+    this.scenarioRepository.touchUpdatedAt(scenarioId);
+    this.injectRepository.touchUpdatedAtByScenarioId(scenarioId);
     return teamService.find(fromIds(teamIds));
   }
 
@@ -766,6 +804,10 @@ public class ScenarioService {
       this.injectRepository.removeTeamsForScenario(scenarioId, removedTeamIdsList);
       this.lessonsCategoryRepository.removeTeamsForScenario(scenarioId, removedTeamIdsList);
     }
+    // Team changes alter the denormalized inject_teams of the scenario's injects (including
+    // all-teams injects, derived from scenarios_teams): bump the injects so the incremental
+    // indexer refreshes them (the native join-table mutations bypass JPA timestamps).
+    this.injectRepository.touchUpdatedAtByScenarioId(scenarioId);
 
     // Replace teams from a scenario
     List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));

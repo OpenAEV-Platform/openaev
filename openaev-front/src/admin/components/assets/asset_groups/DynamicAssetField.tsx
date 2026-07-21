@@ -31,8 +31,8 @@ const DynamicAssetField: FunctionComponent<Props> = ({
     'asset_cloud_provider',
     'asset_internet_facing',
     'endpoint_arch',
-    'endpoint_hostname',
-    'endpoint_ips',
+    'asset_hostname',
+    'asset_ips',
     'endpoint_platform',
   ];
 

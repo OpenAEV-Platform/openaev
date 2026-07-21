@@ -99,7 +99,7 @@ public class ExecutorApi extends RestBehavior {
   @GetMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
   @Transactional
   @AccessControl(
-      resourceId = "#collectorId",
+      resourceId = "#executorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   public Executor getExecutor(@PathVariable String executorId) {
@@ -150,6 +150,21 @@ public class ExecutorApi extends RestBehavior {
             .orElseThrow(ElementNotFoundException::new);
     return updateExecutor(
         executor, executor.getType(), executor.getName(), executor.getPlatforms());
+  }
+
+  @DeleteMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
+  @AccessControl(
+      resourceId = "#executorId",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.ASSET)
+  @Operation(
+      summary = "Delete an executor",
+      description =
+          "Removes a registered executor. Intended for stopped executors that no longer ping;"
+              + " an active executor re-registers on its next heartbeat.")
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteExecutor(@PathVariable String executorId) {
+    executorService.remove(executorId);
   }
 
   @PostMapping(

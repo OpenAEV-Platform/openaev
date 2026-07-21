@@ -1,7 +1,5 @@
-import { AssignmentTurnedIn, BugReportOutlined, PublishedWithChangesOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { NewspaperVariantMultipleOutline } from 'mdi-material-ui';
-
 import { type InjectExpectationOutput, type InjectExpectationResult } from '../../../../../utils/api-types';
+import expectationIconByType from '../../ExpectationIconByType';
 import { ExpectationType, type InjectExpectationsStore } from './Expectation';
 
 export const FAILED = 'Failed';
@@ -12,21 +10,8 @@ export const isAutomatic = (type: string) => {
   return [ExpectationType.ARTICLE.toString(), ExpectationType.PREVENTION.toString(), ExpectationType.DETECTION.toString(), ExpectationType.VULNERABILITY.toString()].includes(type);
 };
 
-export const typeIcon = (type: string) => {
-  if (type === 'DETECTION') {
-    return <TrackChangesOutlined />;
-  }
-  if (type === 'PREVENTION') {
-    return <PublishedWithChangesOutlined />;
-  }
-  if (type === 'ARTICLE') {
-    return <NewspaperVariantMultipleOutline />;
-  }
-  if (type === 'VULNERABILITY') {
-    return <BugReportOutlined />;
-  }
-  return <AssignmentTurnedIn />;
-};
+// Single source of truth for expectation-type icons (shared coherent set).
+export const typeIcon = (type: string) => expectationIconByType(type);
 
 export const isTechnicalExpectation = (type: string) => {
   return [ExpectationType.PREVENTION.toString(), ExpectationType.DETECTION.toString(), ExpectationType.VULNERABILITY.toString()].includes(type);

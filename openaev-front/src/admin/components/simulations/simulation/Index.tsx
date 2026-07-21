@@ -1,7 +1,6 @@
 import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
-import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { fetchExercise } from '../../../../actions/Exercise';
 import { fetchScenarioFromSimulation } from '../../../../actions/exercises/exercise-action';
@@ -20,14 +19,12 @@ import useSimulationPermissions from '../../../../utils/permissions/useSimulatio
 import { isFeatureEnabled } from '../../../../utils/utils';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import injectContextForExercise from './ExerciseContext';
-import ExerciseDatePopover from './ExerciseDatePopover';
 import ExerciseHeader from './ExerciseHeader';
 
 const Simulation = lazy(() => import('./overview/SimulationComponent'));
+const SimulationDashboard = lazy(() => import('./analysis/SimulationAnalysis'));
 const Lessons = lazy(() => import('./lessons/SimulationLessons'));
 const SimulationFindings = lazy(() => import('./findings/SimulationFindings'));
-const SimulationAnalysis = lazy(() => import('./analysis/SimulationAnalysis'));
-const SimulationDefinition = lazy(() => import('./SimulationDefinition'));
 const Injects = lazy(() => import('./injects/ExerciseInjects'));
 const Tests = lazy(() => import('./tests/ExerciseTests'));
 const TimelineOverview = lazy(() => import('./timeline/TimelineOverview'));
@@ -40,20 +37,10 @@ const SimulationScope = lazy(() => import('./scope/SimulationScope'));
 const SimulationLogic = lazy(() => import('./logic/SimulationLogic'));
 const SimulationAttackPath = lazy(() => import('./attack_path/SimulationAttackPath'));
 
-const useStyles = makeStyles()(() => ({
-  scheduling: {
-    display: 'flex',
-    margin: '-35px 8px 0 0',
-    float: 'right',
-    alignItems: 'center',
-  },
-}));
-
 const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ exercise }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const { t, fldt } = useFormatter();
+  const { t } = useFormatter();
   const location = useLocation();
-  const { classes } = useStyles();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
   const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
@@ -77,8 +64,8 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
   }), [exercise?.exercise_id, exercise?.exercise_name]);
 
   let tabValue = location.pathname;
-  if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/definition`)) {
-    tabValue = `/admin/simulations/${exercise.exercise_id}/definition`;
+  if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/injects`)) {
+    tabValue = `/admin/simulations/${exercise.exercise_id}/injects`;
   } else if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/animation`)) {
     tabValue = `/admin/simulations/${exercise.exercise_id}/animation`;
   } else if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/results`)) {
@@ -166,12 +153,6 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                             />
                             <Tab
                               component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/definition`}
-                              value={`/admin/simulations/${exercise.exercise_id}/definition`}
-                              label={t('Definition')}
-                            />
-                            <Tab
-                              component={Link}
                               to={`/admin/simulations/${exercise.exercise_id}/injects`}
                               value={`/admin/simulations/${exercise.exercise_id}/injects`}
                               label={t('Injects')}
@@ -200,12 +181,6 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                               value={`/admin/simulations/${exercise.exercise_id}/findings`}
                               label={t('Findings')}
                             />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/analysis`}
-                              value={`/admin/simulations/${exercise.exercise_id}/analysis`}
-                              label={t('Analysis')}
-                            />
                             {isAttackPathEnabled && (
                               <Tab
                                 component={Link}
@@ -216,17 +191,12 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                             )}
                           </Tabs>
                         )}
-                    {permissionsContext.permissions.canManage && (
-                      <div className={classes.scheduling}>
-                        <ExerciseDatePopover exercise={exercise} />
-                        {exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
-                      </div>
-                    )}
                   </Box>
                   <Suspense fallback={<Loader />}>
                     <Routes>
                       <Route path="" element={errorWrapper(Simulation)()} />
-                      <Route path="definition" element={errorWrapper(SimulationDefinition)()} />
+                      {/* Definition merged into the Injects authoring tab; redirect old links. */}
+                      <Route path="definition" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/injects`} replace={true} />} />
                       <Route path="injects" element={errorWrapper(Injects)()} />
                       <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
                       <Route path="animation" element={<Navigate to="timeline" replace={true} />} />
@@ -238,7 +208,10 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                       <Route path="animation/validations" element={errorWrapper(Validations)()} />
                       <Route path="lessons" element={errorWrapper(Lessons)()} />
                       <Route path="findings" element={errorWrapper(SimulationFindings)()} />
-                      <Route path="analysis" element={errorWrapper(SimulationAnalysis)()} />
+                      {/* Simulation-scoped custom dashboard, reached from the hero "Analyze" quick action. */}
+                      <Route path="dashboard" element={errorWrapper(SimulationDashboard)()} />
+                      {/* Analysis is no longer a permanent tab; keep a redirect for old links. */}
+                      <Route path="analysis" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/dashboard`} replace />} />
                       <Route path="scope" element={errorWrapper(SimulationScope)()} />
                       <Route path="logic" element={errorWrapper(SimulationLogic)()} />
                       {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(SimulationAttackPath)()} />}
@@ -270,8 +243,14 @@ const Index = () => {
     });
   }, [exerciseId]);
 
+  // Fetch the scenario only once per simulation id: the exercise object gets a
+  // new identity on every Redux update (e.g. SSE), which used to re-trigger
+  // this effect and re-fetch the scenario redundantly.
+  const scenarioRequestedForRef = useRef<ExerciseType['exercise_id'] | undefined>(undefined);
   useEffect(() => {
     if (!exercise) return;
+    if (scenarioRequestedForRef.current === exercise.exercise_id) return;
+    scenarioRequestedForRef.current = exercise.exercise_id;
     setLoading(true);
     if (!exercise.exercise_scenario) {
       setPristine(false);
@@ -283,7 +262,7 @@ const Index = () => {
           setLoading(false);
         });
     }
-  }, [exercise]);
+  }, [exercise, dispatch]);
 
   const exerciseInjectContext = injectContextForExercise(exercise);
 

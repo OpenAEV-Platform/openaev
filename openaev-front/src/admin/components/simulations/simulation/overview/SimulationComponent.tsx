@@ -1,42 +1,62 @@
-import { Paper, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { InsightsOutlined } from '@mui/icons-material';
+import { Box, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
-import { searchExerciseHealthchecks } from '../../../../../actions/Exercise';
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults, searchExerciseInjects } from '../../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
+import { SectionBlock } from '../../../../../components/common/detail/EntityDetailCommon';
+import PostureGauges from '../../../../../components/common/detail/PostureGauges';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { useHelper } from '../../../../../store';
-import { type Exercise, type ExpectationResultsByType, type HealthCheck, type InjectExpectationResultsByAttackPattern } from '../../../../../utils/api-types';
-import { isFeatureEnabled } from '../../../../../utils/utils';
+import { type Exercise, type ExpectationResultsByType, type InjectExpectationResultsByAttackPattern } from '../../../../../utils/api-types';
 import InjectResultList from '../../../atomic_testings/InjectResultList';
-import Healthchecks from '../../../common/healthchecks/Healthchecks';
-import ResponsePie from '../../../common/injects/ResponsePie';
-import MitreMatrix from '../../../common/matrix/MitreMatrix';
+import MitreCoverageMatrix from '../../../common/matrix/MitreCoverageMatrix';
 import SimulationMainInformation from '../SimulationMainInformation';
-import ExerciseDistribution from './ExerciseDistribution';
 
-// Deprecated - https://mui.com/system/styles/basics/
-// Do not use it for new code.
-const useStyles = makeStyles()(theme => ({
-  paper: {
-    height: '100%',
-    minHeight: '100%',
-    padding: theme.spacing(2),
-    borderRadius: 4,
-  },
-}));
+// Empty-state placeholder shown inside a SectionBlock when a simulation has not
+// produced results yet, instead of a raw loader or a stack of blank charts.
+const OverviewPlaceholder = ({ message }: { message: string }) => {
+  const theme = useTheme();
+  return (
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 1,
+      minHeight: 160,
+      height: '100%',
+      textAlign: 'center',
+      color: 'text.secondary',
+    }}
+    >
+      <Box sx={{
+        width: 44,
+        height: 44,
+        borderRadius: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: theme.palette.primary.main,
+        backgroundColor: alpha(theme.palette.primary.main, 0.1),
+      }}
+      >
+        <InsightsOutlined />
+      </Box>
+      <Typography variant="body2" sx={{ maxWidth: 320 }}>{message}</Typography>
+    </Box>
+  );
+};
 
 const SimulationComponent = () => {
   // Standard hooks
-  const { classes } = useStyles();
   const theme = useTheme();
   const { t } = useFormatter();
   const [scrolledToAnchor, setScrolledToAnchor] = useState<boolean>(false);
@@ -49,21 +69,12 @@ const SimulationComponent = () => {
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
   const [results, setResults] = useState<ExpectationResultsByType[] | null>(null);
   const [injectResults, setInjectResults] = useState<InjectExpectationResultsByAttackPattern[] | null>(null);
-  const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
-
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-  const exerciseWorkflowId = exercise.exercise_workflow_id as string | undefined;
-  const isSimulationChaining = isChainingFeatureEnabled && !!exerciseWorkflowId;
 
   useEffect(() => {
     fetchExerciseExpectationResult(exerciseId).then((result: { data: ExpectationResultsByType[] }) => setResults(result.data));
     fetchExerciseInjectExpectationResults(exerciseId).then((result: { data: InjectExpectationResultsByAttackPattern[] }) => setInjectResults(result.data));
-    if (isSimulationChaining) {
-      searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
-    }
   }, [exerciseId]);
 
-  const goToLink = `/admin/simulations/${exerciseId}/injects`;
   let resultAttackPatternIds = [];
   if (injectResults) {
     resultAttackPatternIds = R.uniq(
@@ -97,78 +108,66 @@ const SimulationComponent = () => {
   }, [anchor, injectResults, resultAttackPatternIds, scrolledToAnchor, setScrolledToAnchor]);
 
   return (
-    <div style={{ paddingBottom: theme.spacing(5) }}>
-      {isSimulationChaining && !!healthchecks?.length && (
-        <Healthchecks
-          healthchecks={healthchecks}
-          exerciseId={exerciseId}
-        />
-      )}
-      <div style={{
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 2,
+      paddingBottom: theme.spacing(5),
+    }}
+    >
+      <Box sx={{
         display: 'grid',
-        gap: `0px ${theme.spacing(3)}`,
-        gridTemplateColumns: `calc((100% - ${theme.spacing(3)})/2) calc((100% - ${theme.spacing(3)})/2)`,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+        gap: 2,
+        alignItems: 'stretch',
       }}
       >
-        <Typography variant="h4">{t('Information')}</Typography>
-        <Typography variant="h4">{t('Results')}</Typography>
-        <SimulationMainInformation exercise={exercise} />
-        <Paper
-          variant="outlined"
-          style={{
+        <SectionBlock title={t('Information')}>
+          <SimulationMainInformation exercise={exercise} embedded />
+        </SectionBlock>
+        <SectionBlock title={t('Results')}>
+          <Box sx={{
             display: 'flex',
             alignItems: 'center',
-            height: '100%',
             justifyContent: 'center',
+            height: '100%',
           }}
-        >
-          {!results
-            ? <Loader variant="inElement" />
-            : <ResponsePie expectationResultsByTypes={results} humanValidationLink={`/admin/simulations/${exerciseId}/animation/validations`} />}
-        </Paper>
-      </div>
-      {injectResults && resultAttackPatternIds.length > 0 && (
-        <div style={{
-          display: 'grid',
-          marginTop: theme.spacing(3),
-          gap: `0px ${theme.spacing(3)}`,
-          gridTemplateColumns: '1fr',
-        }}
-        >
-          <Typography variant="h4">{t('MITRE ATT&CK Results')}</Typography>
-          <Paper
-            variant="outlined"
-            classes={{ root: classes.paper }}
-            style={{ minWidth: '100%' }}
           >
-            <MitreMatrix goToLink={goToLink} injectResults={injectResults} />
-          </Paper>
-        </div>
+            {(() => {
+              if (!results) return <Loader variant="inElement" />;
+              if (results.length === 0) {
+                return <OverviewPlaceholder message={t('Prevention, detection and vulnerability results will appear here once the simulation runs.')} />;
+              }
+              return <PostureGauges expectationResultsByTypes={results} humanValidationLink={`/admin/simulations/${exerciseId}/animation/validations`} />;
+            })()}
+          </Box>
+        </SectionBlock>
+      </Box>
+      {injectResults && resultAttackPatternIds.length > 0 && (
+        <SectionBlock title={t('MITRE ATT&CK Results')}>
+          <MitreCoverageMatrix widgetId={`simulation-mitre-${exerciseId}`} injectResults={injectResults} />
+        </SectionBlock>
       )}
-      {exercise.exercise_status !== 'SCHEDULED' && (
-        <div
-          style={{
-            display: 'grid',
-            marginTop: theme.spacing(3),
-            gap: `0px ${theme.spacing(3)}`,
-            gridTemplateColumns: '1fr',
-          }}
-          id="injects-results"
-        >
-          <Typography variant="h4">{t('Injects results')}</Typography>
-          <Paper classes={{ root: classes.paper }} variant="outlined">
-            <InjectResultList
-              fetchInjects={input => searchExerciseInjects(exerciseId, input)}
-              goTo={injectId => `/admin/simulations/${exerciseId}/injects/${injectId}`}
-              queryableHelpers={queryableHelpers}
-              searchPaginationInput={searchPaginationInput}
-              contextId={exercise.exercise_id}
-            />
-          </Paper>
-        </div>
-      )}
-      <ExerciseDistribution exerciseId={exerciseId} />
-    </div>
+      {exercise.exercise_status !== 'SCHEDULED'
+        ? (
+            <div id="injects-results">
+              <SectionBlock title={t('Injects results')}>
+                <InjectResultList
+                  fetchInjects={input => searchExerciseInjects(exerciseId, input)}
+                  goTo={injectId => `/admin/simulations/${exerciseId}/injects/${injectId}`}
+                  queryableHelpers={queryableHelpers}
+                  searchPaginationInput={searchPaginationInput}
+                  contextId={exercise.exercise_id}
+                />
+              </SectionBlock>
+            </div>
+          )
+        : (
+            <SectionBlock title={t('Injects results')}>
+              <OverviewPlaceholder message={t('This simulation is not running yet. Start it to collect inject results, or open the dashboard to build a custom analysis.')} />
+            </SectionBlock>
+          )}
+    </Box>
   );
 };
 

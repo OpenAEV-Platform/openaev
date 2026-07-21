@@ -9,6 +9,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
+import io.openaev.config.SessionManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
@@ -22,6 +23,8 @@ import io.openaev.database.specification.GroupSpecification;
 import io.openaev.database.specification.UserSpecification;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.InputValidationException;
+import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.service.UserService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -47,6 +50,7 @@ public class TenantUserService implements DependenciesManager {
   private final TenantRepository tenantRepository;
   private final GroupRepository groupRepository;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
+  private final SessionManager sessionManager;
   @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
@@ -150,6 +154,27 @@ public class TenantUserService implements DependenciesManager {
     existing.setOrganization(userService.resolveOrganization(input.organizationId()));
     existing.setTags(userService.resolveTags(input.tagIds()));
     User savedUser = userRepository.save(existing);
+    return UserMapper.toOutput(savedUser);
+  }
+
+  /**
+   * Changes the password of a user within the current tenant scope. The tenant membership check
+   * ensures a tenant admin can only reset passwords of its own tenant's users.
+   */
+  public UserOutput updatePassword(@NotBlank String userId, ChangePasswordInput input)
+      throws InputValidationException {
+    if (!input.getPassword().equals(input.getPasswordValidation())) {
+      throw new InputValidationException("password_validation", "Bad password validation");
+    }
+    Specification<User> spec = inTenant(tenantId()).and(UserSpecification.byId(userId));
+    User existing =
+        userRepository
+            .findOne(spec)
+            .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
+    existing.setPassword(userService.encodeUserPassword(input.getPassword()));
+    User savedUser = userRepository.save(existing);
+    // Security: an administrative password change kills every live session of the user
+    sessionManager.invalidateUserSession(userId);
     return UserMapper.toOutput(savedUser);
   }
 

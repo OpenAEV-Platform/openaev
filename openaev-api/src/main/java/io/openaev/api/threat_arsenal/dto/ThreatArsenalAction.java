@@ -48,6 +48,22 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
   @JsonProperty("action_tags_ids")
   private Set<String> tags;
 
+  // Author of the underlying payload (a user, a team or an organization),
+  // surfaced here so the Threat Arsenal can display and filter by author.
+  // Null for contracts whose payload has no author, and for payload-less
+  // built-in contracts (the UI presents those as authored by Filigran).
+  @Schema(description = "Author id (user, team or organization)")
+  @JsonProperty("action_author")
+  private String authorId;
+
+  @Schema(description = "Author display name")
+  @JsonProperty("action_author_name")
+  private String authorName;
+
+  @Schema(description = "Author type: user, team or organization")
+  @JsonProperty("action_author_type")
+  private String authorType;
+
   public ThreatArsenalAction(
       String id,
       String externalId,
@@ -58,7 +74,10 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
       Endpoint.PLATFORM_TYPE[] platforms,
       String[] tags,
       @Nullable PayloadSimple payloadSimple,
-      String[] attackPatterns) {
+      String[] attackPatterns,
+      String authorId,
+      String authorName,
+      String authorType) {
     super(id, externalId, updatedAt);
     this.setLabels(labels);
     this.setInjectorType(injectorType);
@@ -68,5 +87,8 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
     this.setPayload(payloadSimple);
     this.setAttackPatterns(
         attackPatterns != null ? new HashSet<>(Arrays.asList(attackPatterns)) : new HashSet<>());
+    this.setAuthorId(authorId);
+    this.setAuthorName(authorName);
+    this.setAuthorType(authorType);
   }
 }

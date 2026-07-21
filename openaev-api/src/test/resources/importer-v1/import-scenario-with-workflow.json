@@ -1,0 +1,121 @@
+{
+  "scenario_information": {
+    "scenario_id": "cccccccc-0001-0001-0001-000000000001",
+    "scenario_name": "test workflow import",
+    "scenario_description": "",
+    "scenario_subtitle": "",
+    "scenario_category": "attack-scenario",
+    "scenario_main_focus": "incident-response",
+    "scenario_severity": "high",
+    "scenario_message_header": "",
+    "scenario_message_footer": "",
+    "scenario_mail_from": "test@openaev.io",
+    "scenario_tags": [],
+    "scenario_documents": []
+  },
+  "scenario_teams": [],
+  "scenario_users": [],
+  "scenario_organizations": [],
+  "scenario_tags": [],
+  "scenario_injects": [
+    {
+      "inject_id": "cccccccc-0001-0001-0001-000000000099",
+      "inject_title": "chaining step inject",
+      "inject_description": "",
+      "inject_enabled": true,
+      "inject_content": {},
+      "inject_all_teams": false,
+      "inject_depends_on": [],
+      "inject_depends_duration": 0,
+      "inject_injector_contract": {
+        "injector_contract_id": "cccccccc-0001-0001-0001-000000000098",
+        "injector_contract_labels": { "en": "chaining step inject" },
+        "injector_contract_manual": false,
+        "injector_contract_content": "{\"fields\":[]}",
+        "injector_contract_custom": false,
+        "injector_contract_needs_executor": false,
+        "injector_contract_platforms": ["Linux"],
+        "injector_contract_attack_patterns": [],
+        "injector_contract_atomic_testing": false,
+        "injector_contract_import_available": false,
+        "injector_contract_arch": "ALL_ARCHITECTURES",
+        "injector_contract_injector_type": "openaev_implant"
+      },
+      "inject_tags": [],
+      "inject_teams": [],
+      "inject_documents": []
+    }
+  ],
+  "scenario_workflow": {
+    "workflow_version": 2,
+    "workflow_rate_limit_enabled": true,
+    "workflow_max_attempts": 5,
+    "workflow_max_temporal_rate_seconds": 60,
+    "workflow_timeout_enabled": true,
+    "workflow_timeout_seconds": 300,
+    "workflow_safe_mode_enabled": false,
+    "workflow_scope_rules": [
+      {
+        "workflow_scope_rule_selected_mode": "ALLOWLIST",
+        "workflow_scope_rule_source": "MANUAL",
+        "workflow_scope_rule_value": "192.168.1.0/24",
+        "workflow_scope_rule_value_type": "IP_SUBNET"
+      }
+    ],
+    "workflow_scope_variables": [
+      {
+        "scope_variable_key": "target_ip",
+        "scope_variable_type": "text",
+        "scope_variable_value": "192.168.1.1",
+        "scope_variable_description": "Target IP"
+      }
+    ],
+    "workflow_steps": [
+      {
+        "step_id": "step-0001",
+        "step_action_class": "INJECT_EXECUTION",
+        "step_input": "{\"cmd\": \"nmap\"}",
+        "step_limit_execution": 3,
+        "step_conditions": [
+          {
+            "condition_id": "cond-0001",
+            "condition_key": "status",
+            "condition_key_type": "text",
+            "condition_type": "EQ",
+            "condition_value": "SUCCESS",
+            "condition_name": "root",
+            "condition_is_root": true
+          },
+          {
+            "condition_id": "cond-0002",
+            "condition_key": "port",
+            "condition_key_type": "port",
+            "condition_type": "GT",
+            "condition_value": "80",
+            "condition_name": "child",
+            "condition_parent_id": "cond-0001",
+            "condition_is_root": false
+          }
+        ]
+      },
+      {
+        "step_id": "step-0002",
+        "step_action_class": "INJECT_EXECUTION",
+        "step_input": "{\"cmd\": \"exploit\"}",
+        "step_limit_execution": 1,
+        "step_conditions": [
+          {
+            "condition_id": "cond-0003",
+            "condition_key": "status",
+            "condition_key_type": "text",
+            "condition_type": "EQ",
+            "condition_value": "READY",
+            "condition_name": "dep",
+            "condition_step_from_id": "step-0001",
+            "condition_is_root": true
+          }
+        ]
+      }
+    ]
+  }
+}

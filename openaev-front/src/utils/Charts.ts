@@ -296,6 +296,7 @@ interface VerticalBarsChartOptions {
   emptyChartText?: string;
   customTooltip?: CustomTooltipFunction;
   onBarClick?: onBarClickFunction;
+  chartColors?: string[];
 }
 export const verticalBarsChartOptions = ({
   theme,
@@ -312,6 +313,7 @@ export const verticalBarsChartOptions = ({
   emptyChartText = '',
   customTooltip,
   onBarClick,
+  chartColors,
 }: VerticalBarsChartOptions): ApexOptions => ({
   chart: {
     type: 'bar',
@@ -331,7 +333,13 @@ export const verticalBarsChartOptions = ({
   },
   theme: { mode: theme.palette.mode },
   dataLabels: { enabled: false },
-  colors: getColors(theme, isResult, distributed),
+  colors: chartColors && chartColors.length > 0 ? chartColors : getColors(theme, isResult, distributed),
+  // Transparent stroke creates visible gaps between bars within a group.
+  stroke: {
+    show: true,
+    width: 4,
+    colors: ['transparent'],
+  },
   states: {
     hover: { filter: { type: isFakeData ? 'none' : 'lighten' } },
     active: { filter: { type: isFakeData ? 'none' : 'lighten' } },
@@ -372,7 +380,19 @@ export const verticalBarsChartOptions = ({
     },
     axisBorder: { show: false },
   },
-  fill: { opacity: isFakeData ? 0.1 : 1 },
+  fill: isFakeData
+    ? { opacity: 0.1 }
+    : {
+        type: 'gradient',
+        gradient: {
+          shade: theme.palette.mode,
+          type: 'vertical',
+          shadeIntensity: 0.35,
+          opacityFrom: 0.95,
+          opacityTo: 0.65,
+          stops: [0, 100],
+        },
+      },
   yaxis: {
     labels: {
       formatter: (value: number) => (yFormatter ? yFormatter(value) : value.toString()),
@@ -385,6 +405,7 @@ export const verticalBarsChartOptions = ({
     bar: {
       horizontal: false,
       barHeight: '30%',
+      columnWidth: '55%',
       borderRadius: 4,
       borderRadiusApplication: 'end',
       borderRadiusWhenStacked: 'last',
@@ -427,12 +448,29 @@ interface HorizontalBarsChartOptions {
   distributed?: boolean;
   stacked?: boolean;
   total?: boolean;
+  /** End-of-bar value labels. Disable on grouped multi-series charts where adjacent bar labels collide. */
+  showDataLabels?: boolean;
   categories?: string[] | string[][] | null;
   legend?: boolean;
   isFakeData?: boolean;
   emptyChartText?: string;
   onBarClick?: onBarClickFunction;
+  chartColors?: string[];
 }
+
+// Helpers below are used exclusively by horizontalBarsChartOptions.
+
+/** Truncates long category labels so bars keep most of the plot width. */
+const truncateHorizontalBarLabel = (value: string, maxLength = 28): string => (
+  value.length > maxLength ? `${value.slice(0, maxLength - 1).trimEnd()}\u2026` : value
+);
+
+/** Formats the numeric value displayed at the end of each horizontal bar. */
+const horizontalBarValueFormatter = (value: string | number | (number | null)[]): string => {
+  const numeric = Array.isArray(value) ? value[0] : value;
+  return typeof numeric === 'number' ? numeric.toLocaleString() : String(numeric ?? '');
+};
+
 export const horizontalBarsChartOptions = ({
   theme,
   adjustTicks = false,
@@ -441,11 +479,13 @@ export const horizontalBarsChartOptions = ({
   distributed = false,
   stacked = false,
   total = false,
+  showDataLabels = true,
   categories = null,
   legend = false,
   isFakeData = false,
   emptyChartText = '',
   onBarClick,
+  chartColors,
 }: HorizontalBarsChartOptions): ApexOptions => ({
   chart: {
     events: {
@@ -461,29 +501,82 @@ export const horizontalBarsChartOptions = ({
     width: '100%',
     height: '100%',
     zoom: { enabled: !isFakeData },
-    animations: { enabled: !isFakeData },
+    animations: {
+      enabled: !isFakeData,
+      speed: 700,
+    },
   },
   theme: { mode: theme.palette.mode },
-  dataLabels: { enabled: false },
-  colors: [
-    theme.palette.primary.main,
-    ...colors(theme.palette.mode === 'dark' ? 400 : 600),
-  ],
-  states: { hover: { filter: { type: isFakeData ? 'none' : 'lighten' } } },
-  fill: { opacity: isFakeData ? 0.1 : 0.9 },
+  // Value printed just past the rounded end of each bar. Stacked charts keep
+  // per-segment labels off and rely on the optional `total` label instead;
+  // grouped multi-series charts pass showDataLabels=false because the two bars of
+  // a category sit close together and their end labels collide (e.g. 402 vs 422).
+  dataLabels: {
+    enabled: !isFakeData && !stacked && showDataLabels,
+    textAnchor: 'start',
+    offsetX: 8,
+    formatter: horizontalBarValueFormatter,
+    style: {
+      fontSize: '12px',
+      fontWeight: 600,
+      fontFamily: '"Geologica", sans-serif',
+      colors: [theme.palette.text?.primary],
+    },
+    background: { enabled: false },
+    dropShadow: { enabled: false },
+  },
+  colors: chartColors && chartColors.length > 0
+    ? chartColors
+    : [
+        theme.palette.primary.main,
+        ...colors(theme.palette.mode === 'dark' ? 400 : 600),
+      ],
+  states: {
+    hover: { filter: { type: isFakeData ? 'none' : 'lighten' } },
+    active: { filter: { type: isFakeData ? 'none' : 'lighten' } },
+  },
+  // Transparent stroke creates visible gaps between bars within a group.
+  stroke: {
+    show: true,
+    width: 3,
+    colors: ['transparent'],
+  },
+  fill: isFakeData
+    ? { opacity: 0.1 }
+    : {
+        type: 'gradient',
+        gradient: {
+          shade: theme.palette.mode,
+          type: 'horizontal',
+          shadeIntensity: 0.5,
+          opacityFrom: 1,
+          opacityTo: 0.75,
+          stops: [0, 95, 100],
+        },
+      },
   grid: {
     borderColor:
       theme.palette.mode === 'dark'
-        ? 'rgba(255, 255, 255, .1)'
-        : 'rgba(0, 0, 0, .1)',
+        ? 'rgba(255, 255, 255, .08)'
+        : 'rgba(0, 0, 0, .08)',
     strokeDashArray: 3,
+    xaxis: { lines: { show: true } },
+    yaxis: { lines: { show: false } },
+    // Right padding keeps end-of-bar value labels from being clipped.
+    padding: {
+      right: 32,
+      left: 8,
+    },
   },
   legend: {
     show: legend,
+    fontFamily: '"IBM Plex Sans", sans-serif',
     itemMargin: {
       vertical: spacing,
       horizontal: spacingDot5,
     },
+    onItemClick: { toggleDataSeries: !isFakeData },
+    onItemHover: { highlightDataSeries: !isFakeData },
   },
   tooltip: {
     enabled: !isFakeData,
@@ -494,29 +587,38 @@ export const horizontalBarsChartOptions = ({
     categories: categories ?? [],
     labels: {
       formatter: (value: string) => (xFormatter ? xFormatter(value) : value),
-      style: { fontFamily: '"IBM Plex Sans", sans-serif' },
+      style: {
+        fontSize: '11px',
+        fontFamily: '"IBM Plex Sans", sans-serif',
+      },
     },
     axisBorder: { show: false },
+    axisTicks: { show: false },
     tickAmount: adjustTicks ? 1 : undefined,
   },
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-expect-error apexcharts typescript do not handle horizontal bar chart well
   yaxis: {
     labels: {
-      formatter: (value: string) => (yFormatter ? yFormatter(value) : value),
-      style: { fontFamily: '"IBM Plex Sans", sans-serif' },
+      formatter: (value: string) => (yFormatter ? yFormatter(value) : truncateHorizontalBarLabel(String(value))),
+      style: {
+        fontSize: '12px',
+        fontFamily: '"IBM Plex Sans", sans-serif',
+      },
+      maxWidth: 220,
     },
     axisBorder: { show: false },
   },
   plotOptions: {
     bar: {
       horizontal: true,
-      barHeight: '30%',
-      borderRadius: 4,
+      barHeight: '38%',
+      borderRadius: 5,
       borderRadiusApplication: 'end',
       borderRadiusWhenStacked: 'last',
       distributed,
       dataLabels: {
+        position: 'top',
         total: {
           enabled: total,
           offsetX: 0,

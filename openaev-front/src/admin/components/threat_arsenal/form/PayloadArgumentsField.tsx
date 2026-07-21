@@ -1,7 +1,6 @@
 import { DeleteOutlined } from '@mui/icons-material';
 import { IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useEffect, useRef } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import DocumentField from '../../../../components/fields/DocumentField';
@@ -9,7 +8,8 @@ import SelectFieldController from '../../../../components/fields/SelectFieldCont
 import SeparatorFieldController from '../../../../components/fields/SeparatorFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
-import type { ArgumentTypeOutput, PayloadArgument } from '../../../../utils/api-types';
+import type { PayloadArgument } from '../../../../utils/api-types';
+import { formatPrimitiveTypeLabel } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import useArgumentTypes from './useArgumentTypes';
 
@@ -18,22 +18,15 @@ interface Props {
   canSelectTargetAsset: boolean;
   onArgumentRemoveClick: () => void;
 }
+
 const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentRemoveClick }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const { watch, control, setValue } = useFormContext();
+  const { watch, control } = useFormContext();
   const argumentType: PayloadArgument['type'] = watch(`${argumentName}.type`);
   /** Types that require the INJECT_CHAINING feature flag to be selectable. */
   const isChainingEnabled = isFeatureEnabled('INJECT_CHAINING');
-  const { argumentTypes, subtypesByType, structuredTypes, argumentWithDefaultValueTypes } = useArgumentTypes();
-
-  const previousTypeRef = useRef<PayloadArgument['type']>(argumentType);
-  useEffect(() => {
-    if (previousTypeRef.current !== argumentType) {
-      setValue(`${argumentName}.subtype`, undefined);
-    }
-    previousTypeRef.current = argumentType;
-  }, [argumentType, argumentName, setValue]);
+  const { argumentTypes, argumentWithDefaultValueTypes } = useArgumentTypes();
 
   /** Always-available types */
   const alwaysAvailableTypes = new Set(['text', 'document']);
@@ -48,9 +41,9 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
     },
   ];
 
-  const toItem = (at: ArgumentTypeOutput) => ({
-    value: at.argument_type,
-    label: t(at.argument_type.charAt(0).toUpperCase() + at.argument_type.slice(1)),
+  const toItem = (at: string) => ({
+    value: at,
+    label: t(formatPrimitiveTypeLabel(at)),
   });
 
   const argumentTypeItems: {
@@ -66,9 +59,9 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
       : [],
     ...(isChainingEnabled
       ? argumentTypes
-          .filter((at: ArgumentTypeOutput) => !alwaysAvailableTypes.has(at.argument_type)
-            && at.argument_type !== 'targeted-asset')
-          .map((at: ArgumentTypeOutput) => toItem(at))
+          .filter(at => !alwaysAvailableTypes.has(at)
+            && at !== 'targeted-asset')
+          .map(at => toItem(at))
       : []),
   ];
   const targetPropertyItems = [
@@ -85,16 +78,8 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
       label: t('Seen IP'),
     },
   ];
-  const isStructured = structuredTypes.has(argumentType);
-  const subtypeItems = isStructured
-    ? (subtypesByType[argumentType] ?? []).map((sub: string) => ({
-        value: sub,
-        label: t(sub.charAt(0).toUpperCase() + sub.slice(1)),
-      }))
-    : [];
   const columnCount = (() => {
     if (argumentType === 'targeted-asset') return 4;
-    if (isStructured) return 4;
     return 3;
   })();
 
@@ -113,14 +98,7 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
         required
       />
       <TextFieldController name={`${argumentName}.key` as const} label={t('Key')} required />
-      {isChainingEnabled && isStructured && (
-        <SelectFieldController
-          name={`${argumentName}.subtype` as const}
-          label={t('Sub-type')}
-          items={subtypeItems}
-        />
-      )}
-      {argumentWithDefaultValueTypes.has(argumentType) && argumentType !== 'document' && (
+      {argumentWithDefaultValueTypes.has(argumentType) && argumentType !== 'document' && argumentType !== 'targeted-asset' && (
         <TextFieldController
           name={`${argumentName}.default_value` as const}
           label={t('Default Value')}

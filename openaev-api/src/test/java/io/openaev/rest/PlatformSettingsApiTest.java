@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Tenant;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import org.junit.jupiter.api.*;
@@ -40,6 +41,7 @@ class PlatformSettingsApiTest extends IntegrationTest {
           "platform_id",
           "platform_name",
           "platform_base_url",
+          "default_tenant_id",
           // XTM Hub (config-driven, always present)
           "xtm_hub_enable",
           "xtm_hub_url",
@@ -127,6 +129,19 @@ class PlatformSettingsApiTest extends IntegrationTest {
       result.andExpect(status().isOk());
       assertFieldsExist(result, PUBLIC_FIELDS);
       assertFieldsExist(result, PRIVATE_FIELDS);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given authenticated admin should return correct default tenant id")
+    void given_authenticated_admin_should_return_correct_default_tenant_id() throws Exception {
+      // -- ACT --
+      ResultActions result = mvc.perform(get("/api/settings").accept(MediaType.APPLICATION_JSON));
+
+      // -- ASSERT --
+      result
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.default_tenant_id").value(Tenant.DEFAULT_TENANT_UUID));
     }
   }
 }

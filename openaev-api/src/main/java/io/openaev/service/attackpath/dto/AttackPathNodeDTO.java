@@ -23,6 +23,11 @@ public class AttackPathNodeDTO {
   private String label;
   private String status;
 
+  // INJECTOR, from the run snapshot: the injector's real type and the contract's ATT&CK techniques,
+  // resolved once per graph, batched, rather than per node.
+  private String injectorType;
+  private List<AttackPathAttackPatternDTO> attackPatterns;
+
   // ASSET (endpoint), from the run snapshot
   private String hostname;
   private String ip;

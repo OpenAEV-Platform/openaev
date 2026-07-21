@@ -17,6 +17,7 @@ import { searchScenarioSimulationsAsOption } from '../../../../actions/scenarios
 import { searchSimulationAsOptions } from '../../../../actions/simulations/simulation-action';
 import { searchTagAsOption } from '../../../../actions/tags/tag-action';
 import { searchTeamsAsOption } from '../../../../actions/teams/team-actions';
+import { searchPlayersAsOption } from '../../../../actions/users/User';
 import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../../../../admin/components/findings/ContractOutputElementType';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { useFormatter } from '../../../i18n';
@@ -48,6 +49,35 @@ const useSearchOptions = () => {
   const searchOptions = (config: SearchOptionsConfig, search: string = '') => {
     const { filterKey, contextId = '' } = config;
     switch (filterKey) {
+      // Single polymorphic "Author" filter: one autocomplete listing persons,
+      // teams and organizations, grouped by type.
+      case 'action_author':
+        Promise.all([
+          searchPlayersAsOption(search),
+          searchTeamsAsOption(search),
+          searchOrganizationsByNameAsOption(search),
+        ]).then(([players, teams, organizations]) => {
+          const grouped: GroupOption[] = [
+            ...players.data.map((o: Option) => ({
+              ...o,
+              group: t('Persons'),
+            })),
+            ...teams.data.map((o: Option) => ({
+              ...o,
+              group: t('Teams'),
+            })),
+            ...organizations.data.map((o: Option) => ({
+              ...o,
+              group: t('Organizations'),
+            })),
+          ];
+          if (config.defaultValues && config.defaultValues.length > 0) {
+            setOptions([...config.defaultValues, ...grouped]);
+          } else {
+            setOptions(grouped);
+          }
+        });
+        break;
       case SIMULATIONS:
       case 'base_simulation_side':
         searchSimulationAsOptions(search).then((response) => {
@@ -79,6 +109,7 @@ const useSearchOptions = () => {
       case 'action_domains':
       case 'injector_contract_domains':
       case 'inject_contract_domains':
+      case 'base_security_domains_side':
         searchDomainsByNameAsOption(search).then((response) => {
           setOptions(response.data);
         });
@@ -132,6 +163,16 @@ const useSearchOptions = () => {
         break;
       case 'finding_assets':
         searchEndpointLinkedToFindingsAsOption(search, contextId).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'finding_teams':
+        searchTeamsAsOption(search).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'finding_users':
+        searchPlayersAsOption(search).then((response) => {
           setOptions(response.data);
         });
         break;

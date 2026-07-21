@@ -9,11 +9,16 @@ import io.openaev.database.model.attackpath.projection.AttackPathExecutionRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingExecutionRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingListRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
+import io.openaev.database.model.attackpath.projection.AttackPathInjectorMetaRow;
 import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
+import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.expectation.ExpectationType;
+import io.openaev.rest.payload.form.DetectionRemediationOutput;
+import io.openaev.service.attackpath.dto.AttackPathAttackPatternDTO;
 import io.openaev.service.attackpath.dto.AttackPathCounters;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathEdges;
@@ -24,11 +29,14 @@ import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingItemDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
+import io.openaev.utils.mapper.PayloadMapper;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -79,6 +87,9 @@ public class AttackPathGraphService {
 
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathFindingRepository findingRepository;
+  private final InjectorContractRepository injectorContractRepository;
+  private final PayloadRepository payloadRepository;
+  private final PayloadMapper payloadMapper;
 
   /**
    * Above this many executions a simulation is served collapsed by default. Tied to the front
@@ -95,9 +106,11 @@ public class AttackPathGraphService {
    */
   @Transactional(readOnly = true)
   public AttackPathDTO buildGraph(String simulationId, String requestedMode) {
+    // Both branches call the private bodies, never the public transactional twins: an intra-class
+    // call bypasses the Spring proxy, so the inner annotation would be silently inert.
     return resolveCollapsed(simulationId, requestedMode)
-        ? buildCollapsedGraph(simulationId)
-        : buildGraph(simulationId);
+        ? collapsedGraph(simulationId)
+        : fullGraph(simulationId);
   }
 
   private boolean resolveCollapsed(String simulationId, String requestedMode) {
@@ -186,10 +199,42 @@ public class AttackPathGraphService {
         }
       }
     }
+    // ATT&CK techniques of the run's injector contract, for the drawer's technique chips. One
+    // bounded lookup by the frozen contract external id (the accessor matches on id OR external id,
+    // so the external id is passed for both).
+    List<AttackPathAttackPatternDTO> attackPatterns = new ArrayList<>();
+    if (e.getContractExternalId() != null) {
+      injectorContractRepository
+          .findByIdOrExternalId(e.getContractExternalId(), e.getContractExternalId())
+          .ifPresent(
+              contract ->
+                  contract
+                      .getAttackPatterns()
+                      .forEach(
+                          pattern ->
+                              attackPatterns.add(
+                                  new AttackPathAttackPatternDTO(
+                                      pattern.getExternalId(), pattern.getName()))));
+    }
+    // Detection remediations of the payload that actually ran (the frozen payload id, not the
+    // inject's current one). The mapper carries the EE gate: an inactive licence yields an empty
+    // list, which is exactly what the drawer already renders.
+    List<DetectionRemediationOutput> detectionRemediations =
+        e.getPayloadId() == null
+            ? List.of()
+            : payloadMapper.toDetectionRemediationOutputs(
+                payloadRepository
+                    .findById(e.getPayloadId())
+                    .map(p -> p.getDetectionRemediations())
+                    .orElse(List.of()));
     return new AttackPathExecutionDetailDTO(
         e.getPayloadName(),
+        e.getInjectId(),
+        e.getPayloadId(),
         e.getAgentName(),
         e.getAgentPrivilege(),
+        attackPatterns,
+        detectionRemediations,
         e.getTargetKey(),
         e.getTargetHostname(),
         e.getTargetIp(),
@@ -280,6 +325,10 @@ public class AttackPathGraphService {
 
   @Transactional(readOnly = true)
   public AttackPathDTO buildGraph(String simulationId) {
+    return fullGraph(simulationId);
+  }
+
+  private AttackPathDTO fullGraph(String simulationId) {
     List<AttackPathExecutionRow> executions = executionRepository.findGraphRows(simulationId);
     List<AttackPathFindingRow> findings = findingRepository.findGraphRows(simulationId);
     return assemble(executions, findings);
@@ -336,12 +385,19 @@ public class AttackPathGraphService {
     Map<String, AttackPathEdges> edges = new LinkedHashMap<>();
     Map<String, AttackPathNodeDTO> feedByExecutionId = new LinkedHashMap<>();
     Map<String, List<AttackPathExecutionRow>> byTarget = new LinkedHashMap<>();
+    // injector node id -> every contract that injector ran, so a node's techniques are their union.
+    Map<String, Set<String>> contractsByInjectorNode = new LinkedHashMap<>();
 
     // Pass over executions: injector/source nodes, grouped execution edges, feed entries.
     for (AttackPathExecutionRow e : executions) {
       byTarget.computeIfAbsent(e.targetKey(), k -> new ArrayList<>()).add(e);
 
       String sourceNodeId = sourceNode(e, nodes);
+      if (SOURCE_INJECTOR.equals(e.sourceKind()) && e.contractExternalId() != null) {
+        contractsByInjectorNode
+            .computeIfAbsent(sourceNodeId, k -> new LinkedHashSet<>())
+            .add(e.contractExternalId());
+      }
       String targetNodeId = AttackPathIds.endpointNode(e.targetKey());
 
       String edgeId = AttackPathIds.executionsEdge(sourceNodeId, targetNodeId);
@@ -419,6 +475,8 @@ public class AttackPathGraphService {
           }
         });
 
+    resolveInjectorAttackPatterns(nodes, contractsByInjectorNode);
+
     AttackPathCounters counters =
         new AttackPathCounters(
             byTarget.size(),
@@ -436,7 +494,69 @@ public class AttackPathGraphService {
   }
 
   /**
-   * Collapsed rebuild for a large simulation (issue 6647, ADR-002): the same {@link AttackPathDTO}
+   * The collapsed injector nodes get the same type and techniques as the full graph, but their
+   * source rows are never materialized (the edges are grouped), so a small distinct read supplies
+   * the per-injector metadata before the shared technique resolution runs.
+   */
+  private void enrichCollapsedInjectors(String simulationId, Map<String, AttackPathNodeDTO> nodes) {
+    Map<String, Set<String>> contractsByInjectorNode = new LinkedHashMap<>();
+    for (AttackPathInjectorMetaRow meta : executionRepository.findInjectorMetadata(simulationId)) {
+      String nodeId = AttackPathIds.injectorNode(meta.sourceInjector());
+      AttackPathNodeDTO injectorNode = nodes.get(nodeId);
+      if (injectorNode == null) {
+        continue;
+      }
+      if (injectorNode.getInjectorType() == null) {
+        injectorNode.setInjectorType(meta.injectorType());
+      }
+      if (meta.contractExternalId() != null) {
+        contractsByInjectorNode
+            .computeIfAbsent(nodeId, k -> new LinkedHashSet<>())
+            .add(meta.contractExternalId());
+      }
+    }
+    resolveInjectorAttackPatterns(nodes, contractsByInjectorNode);
+  }
+
+  /**
+   * Sets each injector node's ATT&CK techniques from its contracts, in ONE batched query for the
+   * whole graph. A node's techniques are the union across every contract that injector ran, deduped
+   * by technique id, since one injector can run several contracts in a simulation. No injector
+   * contract in scope means no query at all, so a graph without injectors stays at its two reads.
+   */
+  private void resolveInjectorAttackPatterns(
+      Map<String, AttackPathNodeDTO> nodes, Map<String, Set<String>> contractsByInjectorNode) {
+    Set<String> externalIds = new HashSet<>();
+    contractsByInjectorNode.values().forEach(externalIds::addAll);
+    if (externalIds.isEmpty()) {
+      return;
+    }
+    Map<String, List<AttackPathAttackPatternDTO>> patternsByContract = new HashMap<>();
+    injectorContractRepository
+        .findInjectorAttackPatternsByExternalIdIn(externalIds)
+        .forEach(
+            row ->
+                patternsByContract
+                    .computeIfAbsent(row.contractExternalId(), k -> new ArrayList<>())
+                    .add(
+                        new AttackPathAttackPatternDTO(
+                            row.patternExternalId(), row.patternName())));
+    contractsByInjectorNode.forEach(
+        (nodeId, contractIds) -> {
+          Map<String, AttackPathAttackPatternDTO> deduped = new LinkedHashMap<>();
+          for (String contractId : contractIds) {
+            patternsByContract
+                .getOrDefault(contractId, List.of())
+                .forEach(p -> deduped.putIfAbsent(p.externalId(), p));
+          }
+          if (!deduped.isEmpty()) {
+            nodes.get(nodeId).setAttackPatterns(new ArrayList<>(deduped.values()));
+          }
+        });
+  }
+
+  /**
+   * Collapsed rebuild for a large simulation (issue 6647, ADR-003): the same {@link AttackPathDTO}
    * with {@code mode = collapsed}, built entirely from DB aggregations, so the per-execution and
    * per-finding rows are never materialized. Nodes are the injectors and one node per endpoint
    * (carrying its status and a per-type finding-count summary); edges are grouped; the
@@ -445,6 +565,10 @@ public class AttackPathGraphService {
    */
   @Transactional(readOnly = true)
   public AttackPathDTO buildCollapsedGraph(String simulationId) {
+    return collapsedGraph(simulationId);
+  }
+
+  private AttackPathDTO collapsedGraph(String simulationId) {
     List<AttackPathEndpointGroupRow> endpoints =
         executionRepository.findEndpointGroups(simulationId);
     List<AttackPathEdgeGroupRow> edges = executionRepository.findEdgeGroups(simulationId);
@@ -489,6 +613,8 @@ public class AttackPathGraphService {
       edge.setCount((int) g.count());
       collapsedEdges.add(edge);
     }
+
+    enrichCollapsedInjectors(simulationId, nodes);
 
     return new AttackPathDTO(
         List.of(),
@@ -537,9 +663,21 @@ public class AttackPathGraphService {
   }
 
   private AttackPathNodeDTO collapsedSourceNode(AttackPathEdgeGroupRow g, String id) {
-    return SOURCE_INJECTOR.equals(g.sourceKind())
-        ? node(id, TYPE_INJECTOR, g.sourceInjector())
-        : node(id, TYPE_ASSET, g.sourceAssetId());
+    if (SOURCE_INJECTOR.equals(g.sourceKind())) {
+      return node(id, TYPE_INJECTOR, g.sourceInjector());
+    }
+    // Agent/asset source: its frozen attributes, so a source-only endpoint is not a bare id. The
+    // endpoint pass runs first and already put a richer target node for a source that is also a
+    // target, so this computeIfAbsent only ever creates a node for a source-only endpoint.
+    AttackPathNodeDTO sourceEndpoint = new AttackPathNodeDTO();
+    sourceEndpoint.setId(id);
+    sourceEndpoint.setType(TYPE_ASSET);
+    sourceEndpoint.setRef(g.sourceAssetId());
+    sourceEndpoint.setHostname(g.sourceHostname());
+    sourceEndpoint.setIp(g.sourceIp());
+    sourceEndpoint.setPlatform(g.sourcePlatform());
+    sourceEndpoint.setLabel(g.sourceHostname() != null ? g.sourceHostname() : g.sourceAssetId());
+    return sourceEndpoint;
   }
 
   private String sourceNodeId(AttackPathExecutionRow e) {
@@ -551,11 +689,33 @@ public class AttackPathGraphService {
   private String sourceNode(AttackPathExecutionRow e, Map<String, AttackPathNodeDTO> nodes) {
     String id = sourceNodeId(e);
     if (SOURCE_INJECTOR.equals(e.sourceKind())) {
-      nodes.computeIfAbsent(id, key -> node(key, TYPE_INJECTOR, e.sourceInjector()));
+      nodes.computeIfAbsent(
+          id,
+          key -> {
+            AttackPathNodeDTO injectorNode = node(key, TYPE_INJECTOR, e.sourceInjector());
+            // The injector's real type, frozen on the row; attack patterns are resolved once
+            // after the pass, batched, in resolveInjectorAttackPatterns.
+            injectorNode.setInjectorType(e.injectorType());
+            return injectorNode;
+          });
     } else {
-      // Agent/asset source: the source endpoint. A placeholder node, overwritten if it is also a
-      // target (a pivot chain) by the ASSET pass above.
-      nodes.computeIfAbsent(id, key -> node(key, TYPE_ASSET, e.sourceAssetId()));
+      // Agent/asset source: the source endpoint, from its frozen source attributes. If it is also a
+      // target (a pivot chain), the ASSET pass overwrites it with the richer target snapshot; if it
+      // is only ever a source, these frozen values are all it has, so the node is not a bare id.
+      nodes.computeIfAbsent(
+          id,
+          key -> {
+            AttackPathNodeDTO sourceEndpoint = new AttackPathNodeDTO();
+            sourceEndpoint.setId(key);
+            sourceEndpoint.setType(TYPE_ASSET);
+            sourceEndpoint.setRef(e.sourceAssetId());
+            sourceEndpoint.setHostname(e.sourceHostname());
+            sourceEndpoint.setIp(e.sourceIp());
+            sourceEndpoint.setPlatform(e.sourcePlatform());
+            sourceEndpoint.setLabel(
+                e.sourceHostname() != null ? e.sourceHostname() : e.sourceAssetId());
+            return sourceEndpoint;
+          });
     }
     return id;
   }

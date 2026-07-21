@@ -93,13 +93,22 @@ const Drawer: FunctionComponent<DrawerProps> = ({
       open={open}
       anchor="right"
       elevation={variant === 'full' ? 0 : 1}
-      sx={{ zIndex: 1202 }}
+      sx={{
+        // Offset the whole drawer below the top system banner (EE trial, etc.)
+        // so the header sits flush at the drawer top instead of leaving an empty
+        // gap above it.
+        'zIndex': 1202,
+        '& .MuiDrawer-paper': {
+          top: bannerHeightNumber,
+          minHeight: `calc(100vh - ${bannerHeightNumber}px)`,
+        },
+      }}
       classes={{ paper: variant === 'full' ? classes.drawerPaperFull : classes.drawerPaperHalf }}
       onClose={handleClose}
       PaperProps={PaperProps}
       ModalProps={{ disableEnforceFocus }}
     >
-      <div className={variant === 'full' ? classes.headerFull : classes.header} style={{ marginTop: bannerHeightNumber }}>
+      <div className={variant === 'full' ? classes.headerFull : classes.header}>
         <IconButton
           aria-label="Close"
           onClick={handleClose}

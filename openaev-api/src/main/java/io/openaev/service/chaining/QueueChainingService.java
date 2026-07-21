@@ -111,6 +111,19 @@ public class QueueChainingService {
   }
 
   /**
+   * Re-publish an existing ready event back into the ready queue (e.g. after a transactional
+   * failure). The caller is responsible for incrementing the retry count before calling this
+   * method.
+   *
+   * @param event the event to re-publish
+   * @throws IOException in case there is an error while sending the event
+   */
+  public void republishReadyEvent(StepEvent event) throws IOException {
+    log.info("RE-PUBLISH STEP READY (retry {}): {}", event.getRetryCount(), event.getStepId());
+    readyQueueService.publish(event);
+  }
+
+  /**
    * Dynamically set a callback function for the ready queue
    *
    * @param callback function to call when receiving an event

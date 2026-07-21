@@ -173,8 +173,8 @@ class FindingServiceTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Should throw exception when finding node is not correctly formatted")
-  void shouldThrowExceptionWhenFindingNotCorrectlyFormatted() throws Exception {
+  @DisplayName("Should skip malformed finding nodes in a multiple batch instead of throwing")
+  void shouldSkipMalformedFindingNodesInMultipleBatch() throws Exception {
     ObjectMapper mapper = new ObjectMapper();
     ObjectNode convertedContent =
         (ObjectNode)
@@ -192,12 +192,14 @@ class FindingServiceTest extends IntegrationTest {
           ]
         }
         """);
+    // One malformed entry (null) followed by one valid entry: the malformed one is skipped so the
+    // valid one still produces a finding and the execution callback is never aborted mid-batch.
     ObjectNode structuredOutput =
         (ObjectNode)
             mapper.readTree(
                 """
         {
-          "port_scans": [ null ]
+          "port_scans": [ null, { "host": "host A", "port": 443, "service": "https" } ]
         }
         """);
 
@@ -205,6 +207,56 @@ class FindingServiceTest extends IntegrationTest {
         injectorContractContentUtils.getContractOutputs(convertedContent, mapper);
     ContractOutputContext ctx = ContractOutputContext.from(contractOutputs.getFirst());
     JsonNode elementNode = structuredOutput.path("port_scans");
+
+    List<Finding> findings =
+        findingService.buildFindings(
+            elementNode,
+            ctx,
+            node ->
+                node.hasNonNull("host") && node.hasNonNull("port") && node.hasNonNull("service"),
+            node -> node.get("port").asText(),
+            node -> Collections.emptyList(),
+            node -> Collections.emptyList(),
+            node -> Collections.emptyList());
+
+    assertNotNull(findings);
+    assertEquals(1, findings.size());
+    assertEquals("443", findings.getFirst().getValue());
+  }
+
+  @Test
+  @DisplayName("Should throw exception when a single finding node is not correctly formatted")
+  void shouldThrowExceptionWhenSingleFindingNotCorrectlyFormatted() throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+    ObjectNode convertedContent =
+        (ObjectNode)
+            mapper.readTree(
+                """
+        {
+          "outputs": [
+            {
+              "field": "port_scan",
+              "isFindingCompatible": true,
+              "isMultiple": false,
+              "labels": ["nuclei"],
+              "type": "portscan"
+            }
+          ]
+        }
+        """);
+    ObjectNode structuredOutput =
+        (ObjectNode)
+            mapper.readTree(
+                """
+        {
+          "port_scan": { "host": "host A" }
+        }
+        """);
+
+    List<InjectorContractContentOutputElement> contractOutputs =
+        injectorContractContentUtils.getContractOutputs(convertedContent, mapper);
+    ContractOutputContext ctx = ContractOutputContext.from(contractOutputs.getFirst());
+    JsonNode elementNode = structuredOutput.path("port_scan");
 
     assertThrows(
         IllegalArgumentException.class,

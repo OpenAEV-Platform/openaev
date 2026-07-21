@@ -54,6 +54,9 @@ public class ExpectationsExpirationManagerJob implements Runnable, BuiltinTenant
         TenantContext.setCurrentTenant(tenantId);
         // Detection & Prevention
         this.fakeDetectorService.computeExpectations();
+        // Heartbeat: surface the run as the collector's last execution so the UI
+        // shows a truthful liveliness signal for this built-in collector.
+        this.collectorService.updateLastExecution(config.getId(), tenantId);
       } catch (Exception e) {
         log.error("Error running expectations expiration manager for tenant {}", tenantId, e);
       } finally {

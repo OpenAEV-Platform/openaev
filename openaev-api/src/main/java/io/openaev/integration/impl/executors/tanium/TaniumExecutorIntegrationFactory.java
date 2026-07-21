@@ -116,11 +116,10 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
     connector.setSlug(TANIUM_EXECUTOR_TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
-        """
-                With Tanium executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Tanium instance.
-                """);
-    connector.setShortDescription(
-        "Enable execution of OpenAEV scenarios through your Tanium instance.");
+        "Register your Tanium-managed endpoints as OpenAEV executors and run simulated attacks"
+            + " on them through Tanium, so you can validate detection and prevention on real"
+            + " endpoints without deploying the OpenAEV agent.");
+    connector.setShortDescription("Run OpenAEV simulations on your Tanium endpoints.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("https://www.tanium.com");
     connector.setContainerType(ConnectorType.EXECUTOR);

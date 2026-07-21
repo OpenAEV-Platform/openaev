@@ -707,10 +707,10 @@ class InjectApiTest extends IntegrationTest {
       Command payloadCommand = PayloadFixture.createCommand("bash", command, null, null);
       PayloadArgument targetedAssetArgument =
           PayloadFixture.createPayloadArgument(
-              "asset-separate-by-space", ArgumentType.TargetedAsset, "hostname", "-u");
+              "asset-separate-by-space", PrimitiveType.TargetedAsset, "hostname", "-u");
       PayloadArgument targetedAssetArgument2 =
           PayloadFixture.createPayloadArgument(
-              "asset-separate-by-comma", ArgumentType.TargetedAsset, "seen_ip", ",");
+              "asset-separate-by-comma", PrimitiveType.TargetedAsset, "seen_ip", ",");
       payloadCommand.setArguments(List.of(targetedAssetArgument, targetedAssetArgument2));
 
       InjectorContract injectorContract = InjectorContractFixture.createDefaultInjectorContract();
@@ -838,7 +838,7 @@ class InjectApiTest extends IntegrationTest {
       entityManager.clear();
 
       // -- ASSERT --
-      List<TechnicalInjectExpectation> injectExpectationSaved =
+      List<BaseInjectExpectation> injectExpectationSaved =
           injectExpectationRepository.findAllByInjectAndAgent(
               injectWrapper.get().getId(), agentWrapper.get().getId());
 
@@ -999,7 +999,7 @@ class InjectApiTest extends IntegrationTest {
       String payloadDefaultDocumentId = UUID.randomUUID().toString();
       PayloadArgument docArg =
           PayloadFixture.createPayloadArgument(
-              "zip_file", ArgumentType.Document, payloadDefaultDocumentId, null);
+              "zip_file", PrimitiveType.Document, payloadDefaultDocumentId, null);
 
       Command payloadCommand =
           PayloadFixture.createCommand(
@@ -1288,7 +1288,7 @@ class InjectApiTest extends IntegrationTest {
         // -- ASSERT --
         entityManager.flush();
         entityManager.clear();
-        List<TechnicalInjectExpectation> injectExpectationSaved =
+        List<BaseInjectExpectation> injectExpectationSaved =
             injectExpectationRepository.findAllByInjectAndAgent(inject.getId(), agent.getId());
         assertEquals(1, injectExpectationSaved.size());
         List<InjectExpectationSignature> endDatesignatures =

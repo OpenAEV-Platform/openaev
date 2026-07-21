@@ -1,6 +1,7 @@
 package io.openaev.executors.crowdstrike.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.List;
 import lombok.Data;
 
 @Data
@@ -8,4 +9,6 @@ import lombok.Data;
 public class Authentication {
 
   private String access_token;
+
+  private List<CrowdstrikeError> errors;
 }

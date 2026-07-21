@@ -379,7 +379,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(LAST_QUARTER));
@@ -422,7 +426,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(LAST_QUARTER));
@@ -473,7 +481,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(LAST_QUARTER));
@@ -544,7 +556,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(CustomDashboardTimeRange.LAST_SEMESTER));
@@ -571,6 +587,91 @@ class DashboardApiTest extends IntegrationTest {
       assertThatJson(response).node("interval_count").isEqualTo(1);
       assertThatJson(response).node("previous_interval_count").isEqualTo(0);
       assertThatJson(response).node("difference_count").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName(
+        "Count entities with DEFAULT widget and dashboard parameter ALL_TIME should count all"
+            + " entities regardless of age")
+    void countEntitiesWithDefaultWidgetAndDashboardParameterAllTime() throws Exception {
+      // -- ARRANGE --
+      Endpoint endpoint1 =
+          endpointComposer
+              .forEndpoint(
+                  EndpointFixture.createEndpointWithPlatform(
+                      "Endpoint 1", Endpoint.PLATFORM_TYPE.Windows))
+              .persist()
+              .get();
+      Endpoint endpoint2 =
+          endpointComposer
+              .forEndpoint(
+                  EndpointFixture.createEndpointWithPlatform(
+                      "Endpoint 2", Endpoint.PLATFORM_TYPE.Windows))
+              .persist()
+              .get();
+      Endpoint endpoint3 =
+          endpointComposer
+              .forEndpoint(
+                  EndpointFixture.createEndpointWithPlatform(
+                      "Endpoint 3", Endpoint.PLATFORM_TYPE.Linux))
+              .persist()
+              .get();
+
+      // All endpoints are older than a quarter (the DEFAULT fallback window)
+      endpointRepository.setCreationDate(
+          Instant.now().minus(200, ChronoUnit.DAYS), endpoint1.getId());
+      endpointRepository.setCreationDate(
+          Instant.now().minus(300, ChronoUnit.DAYS), endpoint2.getId());
+      endpointRepository.setCreationDate(
+          Instant.now().minus(400, ChronoUnit.DAYS), endpoint3.getId());
+
+      Widget widget =
+          widgetComposer
+              .forWidget(
+                  WidgetFixture.createNumberWidgetWithEntityAndTimeRange(
+                      "endpoint", DEFAULT, "base_created_at"))
+              .withCustomDashboard(
+                  customDashboardComposer.forCustomDashboard(
+                      CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
+              .persist()
+              .get();
+
+      List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
+      String timeRangeParameterId =
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
+
+      Map<String, String> input = new HashMap<>();
+      input.put(timeRangeParameterId, String.valueOf(ALL_TIME));
+
+      // force persistence
+      entityManager.flush();
+      entityManager.clear();
+      engineService.bulkProcessing(engineContext.getModels().stream());
+      // elastic needs to process the data; it does so async, so the method above
+      // completes before the data is available in the system
+      Thread.sleep(1000);
+
+      // -- ACT --
+      String response =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/count/" + widget.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      // ALL_TIME must not apply any date lower bound, so all 3 endpoints are counted
+      assertThatJson(response).node("interval_count").isEqualTo(3);
+      assertThatJson(response).node("previous_interval_count").isEqualTo(0);
+      assertThatJson(response).node("difference_count").isEqualTo(3);
     }
   }
 
@@ -637,7 +738,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(LAST_QUARTER));
@@ -732,7 +837,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(LAST_QUARTER));
@@ -874,7 +983,11 @@ class DashboardApiTest extends IntegrationTest {
       // Build request
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       WidgetToEntitiesInput input =
           createWidgetInput(

@@ -1,4 +1,4 @@
-import { ToggleButtonGroup } from '@mui/material';
+import { Box, ToggleButtonGroup } from '@mui/material';
 import { useState } from 'react';
 
 import { searchExercises } from '../../../actions/Exercise';
@@ -25,6 +25,7 @@ const Simulations = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [exercises, setExercises] = useState<ExerciseSimple[]>([]);
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+
   // Filters
   const availableFilterNames = [
     'exercise_kill_chain_phases',
@@ -57,11 +58,16 @@ const Simulations = () => {
 
   const secondaryAction = (exercise: ExerciseSimple) => {
     const isChaining = isChainingFeatureEnabled && !!(exercise as unknown as Record<string, unknown>).exercise_workflow_id;
+
     return (
       <ExercisePopover
         // @ts-expect-error: should pass Exercise model IF we have update as action
         exercise={exercise}
-        actions={isChaining ? ['Delete'] : ['Duplicate', 'Export', 'Delete']}
+        actions={
+          isChaining
+            ? ['Export', 'Delete']
+            : ['Duplicate', 'Export', 'Delete']
+        }
         onDelete={result => setExercises(exercises.filter(e => (e.exercise_id !== result)))}
         inList
       />
@@ -92,15 +98,20 @@ const Simulations = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <ToggleButtonGroup value="fake" exclusive>
-            <ExportButton
-              totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
-              exportProps={exportProps}
-            />
+          <Box display="flex" gap={1} alignItems="center">
+            <ToggleButtonGroup value="fake" exclusive>
+              <ExportButton
+                totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
+                exportProps={exportProps}
+              />
+              <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
+                <ImportUploaderExercise />
+              </Can>
+            </ToggleButtonGroup>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-              <ImportUploaderExercise />
+              <ExerciseCreation />
             </Can>
-          </ToggleButtonGroup>
+          </Box>
         )}
       />
       <SimulationList
@@ -109,9 +120,6 @@ const Simulations = () => {
         secondaryAction={secondaryAction}
         loading={loading}
       />
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-        <ExerciseCreation />
-      </Can>
     </>
   );
 };

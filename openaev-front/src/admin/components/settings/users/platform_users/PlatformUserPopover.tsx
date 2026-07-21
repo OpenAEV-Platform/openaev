@@ -1,8 +1,7 @@
 import { type FunctionComponent, useCallback } from 'react';
 
-import { deletePlatformUser, updatePlatformUser } from '../../../../../actions/platform/users/platform-user-action';
+import { deletePlatformUser, updatePlatformUser, updatePlatformUserPassword } from '../../../../../actions/platform/users/platform-user-action';
 import { PLATFORM_USER_SCHEMA_KEY } from '../../../../../actions/platform/users/platform-user-schema';
-import { updateUserPassword } from '../../../../../actions/users/User';
 import { useFormatter } from '../../../../../components/i18n';
 import { type ChangePasswordInput, type UserInput, type UserOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -49,7 +48,7 @@ const PlatformUserPopover: FunctionComponent<Props> = ({
   }, [dispatch, platformUser.user_id, onDelete]);
 
   const handlePassword = useCallback((data: ChangePasswordInput) => {
-    dispatch(updateUserPassword(platformUser.user_id, data));
+    dispatch(updatePlatformUserPassword(platformUser.user_id, data));
   }, [dispatch, platformUser.user_id]);
 
   return (

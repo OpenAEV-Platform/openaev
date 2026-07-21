@@ -136,6 +136,17 @@ public class InjectHelper {
     // TODO This is inefficient, we need to refactor this with our own query
     Hibernate.initialize(inject.getTags());
     Hibernate.initialize(inject.getUser());
+    // The contract's attack patterns are fetched eagerly, but their kill chain phases are lazy.
+    // External injectors serialize the whole inject (detached, outside any session) in
+    // Executor.executeExternal, so initialize them here while the session is still open to
+    // avoid a LazyInitializationException on attack_pattern_kill_chain_phases.
+    inject
+        .getInjectorContract()
+        .ifPresent(
+            injectorContract ->
+                injectorContract
+                    .getAttackPatterns()
+                    .forEach(ap -> Hibernate.initialize(ap.getKillChainPhases())));
     return new ExecutableInject(
         true,
         false,

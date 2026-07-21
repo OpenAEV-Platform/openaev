@@ -1,5 +1,5 @@
-import { AccountTree, List, TableChart, VerifiedUser } from '@mui/icons-material';
-import { AlignHorizontalLeft, ChartBar, ChartDonut, ChartLine, Counter } from 'mdi-material-ui';
+import { AccountTree, List, RadarOutlined as RadarIcon, ShieldOutlined, Speed, TableChart, VerifiedUser } from '@mui/icons-material';
+import { AlignHorizontalLeft, ChartBar, ChartDonut, ChartLine, Counter, Radar } from 'mdi-material-ui';
 
 import { generateFilterId } from '../../../../../components/common/queryable/filter/FilterUtils';
 import {
@@ -32,6 +32,26 @@ export const widgetVisualizationTypes: {
   steps?: StepType[];
   limit?: boolean;
 }[] = [
+  {
+    category: 'command-center',
+    seriesLimit: 2,
+    modes: ['structural'],
+  },
+  {
+    category: 'exposure-score',
+    seriesLimit: 2,
+    modes: ['structural'],
+  },
+  {
+    category: 'resilience-gauge',
+    seriesLimit: 1,
+    modes: ['structural'],
+  },
+  {
+    category: 'posture-radar',
+    seriesLimit: 5,
+    modes: ['structural'],
+  },
   {
     category: 'average',
     seriesLimit: 1,
@@ -100,6 +120,14 @@ export const renderWidgetIcon = (type: Widget['widget_type'], fontSize: 'large' 
       return <Counter fontSize={fontSize} color="primary" />;
     case 'average':
       return <VerifiedUser fontSize={fontSize} color="primary" />;
+    case 'exposure-score':
+      return <Speed fontSize={fontSize} color="primary" />;
+    case 'posture-radar':
+      return <Radar fontSize={fontSize} color="primary" />;
+    case 'command-center':
+      return <RadarIcon fontSize={fontSize} color="primary" />;
+    case 'resilience-gauge':
+      return <ShieldOutlined fontSize={fontSize} color="primary" />;
     default:
       return <div />;
   }
@@ -132,6 +160,14 @@ export const getWidgetTitle = (widgetTitle: Widget['widget_config']['title'], ty
     return !widgetTitle ? t('Attack Path') : widgetTitle;
   } else if (type === 'security-coverage') {
     return !widgetTitle ? t('Mitre Coverage') : widgetTitle;
+  } else if (type === 'exposure-score') {
+    return !widgetTitle ? t('Exposure score') : widgetTitle;
+  } else if (type === 'posture-radar') {
+    return !widgetTitle ? t('Posture radar') : widgetTitle;
+  } else if (type === 'command-center') {
+    return !widgetTitle ? t('Exposure command center') : widgetTitle;
+  } else if (type === 'resilience-gauge') {
+    return !widgetTitle ? t('Resilience') : widgetTitle;
   }
   return widgetTitle ?? '';
 };

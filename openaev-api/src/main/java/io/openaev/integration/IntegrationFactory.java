@@ -2,12 +2,14 @@ package io.openaev.integration;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,8 +42,10 @@ public abstract class IntegrationFactory {
   @Transactional(rollbackFor = Exception.class)
   public void initialise() throws Exception {
     String className = this.getClassName();
-    if (catalogConnectorService.findByFactoryClassName(className).isEmpty()) {
+    Optional<CatalogConnector> existing = catalogConnectorService.findByFactoryClassName(className);
+    if (existing.isEmpty()) {
       insertCatalogEntry();
+      existing = catalogConnectorService.findByFactoryClassName(className);
     } else {
       try {
         ensureCatalogLogo();
@@ -49,6 +53,17 @@ public abstract class IntegrationFactory {
         log.warn("Failed to ensure catalog logo for {}: {}", className, e.getMessage());
       }
     }
+
+    // Factory-managed connectors (built-in executors and injectors) are built and
+    // maintained by Filigran: always surface them as verified ("Supported by
+    // Filigran"). Also heals entries created before this rule existed.
+    existing
+        .filter(connector -> !connector.isVerified())
+        .ifPresent(
+            connector -> {
+              connector.setVerified(true);
+              catalogConnectorService.saveAll(List.of(connector));
+            });
 
     runMigrations();
   }

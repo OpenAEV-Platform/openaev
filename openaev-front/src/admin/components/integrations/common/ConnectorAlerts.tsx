@@ -4,19 +4,13 @@ import { type FunctionComponent, useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
-import type { CatalogConnectorOutput } from '../../../../utils/api-types';
 
-interface ConnectorAlertsProps {
-  isEnterpriseEdition: boolean;
-  isXtmComposerUp: boolean;
-  catalogConnector?: CatalogConnectorOutput;
-}
-
-const ConnectorAlerts: FunctionComponent<ConnectorAlertsProps> = ({
-  isEnterpriseEdition,
-  isXtmComposerUp,
-  catalogConnector,
-}) => {
+// Page-level alerts for a deployed connector detail page. The
+// Integration-Manager-unreachable warning is NOT shown here anymore: it lives
+// inside the deployment / update drawer (which also disables the form), so the
+// action buttons stay reachable (OpenCTI pattern). Only the post-migration
+// success confirmation remains at page level.
+const ConnectorAlerts: FunctionComponent = () => {
   const { t } = useFormatter();
   const theme = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -32,21 +26,14 @@ const ConnectorAlerts: FunctionComponent<ConnectorAlertsProps> = ({
     setSearchParams(searchParams, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  const alertStyle = { marginBottom: theme.spacing(2) };
+  if (!showMigrationAlert) {
+    return null;
+  }
 
   return (
-    <>
-      {isEnterpriseEdition && !isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported && (
-        <Alert severity="warning" style={alertStyle}>
-          {t('Xtm composer is not reachable', { catalogType: catalogConnector.catalog_connector_type.toLowerCase() })}
-        </Alert>
-      )}
-      {showMigrationAlert && (
-        <Alert severity="success" onClose={dismissMigrationAlert} style={alertStyle}>
-          {t('This connector has been successfully migrated. You can now stop your manually deployed connector before starting this instance.')}
-        </Alert>
-      )}
-    </>
+    <Alert severity="success" onClose={dismissMigrationAlert} style={{ marginBottom: theme.spacing(2) }}>
+      {t('This connector has been successfully migrated. You can now stop your manually deployed connector before starting this instance.')}
+    </Alert>
   );
 };
 

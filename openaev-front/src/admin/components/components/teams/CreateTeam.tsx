@@ -1,10 +1,11 @@
-import { Add, ControlPointOutlined } from '@mui/icons-material';
-import { Fab, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { ControlPointOutlined } from '@mui/icons-material';
+import { ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type TeamInputForm } from '../../../../actions/teams/Team';
 import { addTeam } from '../../../../actions/teams/team-actions';
+import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Dialog from '../../../../components/common/dialog/Dialog';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
@@ -15,11 +16,6 @@ import { TeamContext } from '../../common/Context';
 import TeamForm from './TeamForm';
 
 const useStyles = makeStyles()(theme => ({
-  createButton: {
-    position: 'fixed',
-    bottom: 30,
-    right: 30,
-  },
   text: {
     fontSize: theme.typography.h2.fontSize,
     color: theme.palette.primary.main,
@@ -78,14 +74,7 @@ const CreateTeam: FunctionComponent<CreateTeamProps> = ({
           />
         </ListItemButton>
       ) : (
-        <Fab
-          onClick={handleOpen}
-          color="primary"
-          aria-label="Add"
-          className={classes.createButton}
-        >
-          <Add />
-        </Fab>
+        <ButtonCreate onClick={handleOpen} />
       )}
       {inline ? (
         <Dialog

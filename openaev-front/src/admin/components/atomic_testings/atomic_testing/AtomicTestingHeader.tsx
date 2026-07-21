@@ -1,13 +1,11 @@
-import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import Breadcrumbs, { type BreadcrumbsElement } from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
 import type { InjectResultOverviewOutput } from '../../../../utils/api-types';
-import ResponsePie from '../../common/injects/ResponsePie';
 import AtomicTestingHeaderActions from './AtomicTestingHeaderActions';
 import AtomicTestingTabs from './AtomicTestingTabs';
-import AtomicTestingTitle from './AtomicTestingTitle';
+import InjectHero from './InjectHero';
 
 interface Props {
   injectResultOverview: InjectResultOverviewOutput;
@@ -30,32 +28,28 @@ const AtomicTestingHeader = ({ injectResultOverview, setInjectResultOverview }: 
   ];
 
   return (
-    <Box
-      sx={{
-        borderBottom: 1,
-        borderColor: 'divider',
-        marginBottom: 2,
-      }}
+    <header style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: theme.spacing(1),
+      marginBottom: theme.spacing(2),
+    }}
     >
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr auto auto',
-        gap: theme.spacing(2),
-        alignItems: 'start',
-      }}
-      >
-        <Box display="flex" flexDirection="column" justifyContent="left" alignItems="flex-start">
-          <Breadcrumbs
-            variant="object"
-            elements={breadcrumbs}
+      <Breadcrumbs
+        variant="object"
+        elements={breadcrumbs}
+      />
+      <InjectHero
+        injectResultOverview={injectResultOverview}
+        actions={(
+          <AtomicTestingHeaderActions
+            injectResultOverview={injectResultOverview}
+            setInjectResultOverview={setInjectResultOverview}
           />
-          <AtomicTestingTitle injectResultOverview={injectResultOverview} />
-          <AtomicTestingTabs injectResultOverview={injectResultOverview} />
-        </Box>
-        <ResponsePie hasTitles={false} forceSize={112} expectationResultsByTypes={injectResultOverview.inject_expectation_results} />
-        <AtomicTestingHeaderActions injectResultOverview={injectResultOverview} setInjectResultOverview={setInjectResultOverview} />
-      </div>
-    </Box>
+        )}
+      />
+      <AtomicTestingTabs injectResultOverview={injectResultOverview} />
+    </header>
   );
 };
 

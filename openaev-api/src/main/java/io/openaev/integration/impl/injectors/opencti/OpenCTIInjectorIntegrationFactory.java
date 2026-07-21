@@ -104,10 +104,9 @@ public class OpenCTIInjectorIntegrationFactory extends IntegrationFactory {
     connector.setSlug(openCTIContract.TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
-        """
-                        Allow OAEV to create report and case based on OpenCTI injector
-                        """);
-    connector.setShortDescription("Allow OAEV to create report and case based on OpenCTI injector");
+        "Create reports and cases in OpenCTI directly from OpenAEV injects, so simulation"
+            + " outcomes can feed your threat intelligence and incident response workflows.");
+    connector.setShortDescription("Create OpenCTI reports and cases from OpenAEV injects.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("https://filigran.io/platforms/opencti/");
     connector.setContainerType(ConnectorType.INJECTOR);

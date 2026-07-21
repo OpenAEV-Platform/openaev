@@ -279,7 +279,7 @@ class PayloadApiTest extends IntegrationTest {
 
       PayloadArgument targetedAssetArgument = new PayloadArgument();
       targetedAssetArgument.setKey("URL");
-      targetedAssetArgument.setType(ArgumentType.TargetedAsset);
+      targetedAssetArgument.setType(PrimitiveType.TargetedAsset);
       targetedAssetArgument.setDefaultValue("hostname");
       targetedAssetArgument.setSeparator("-u");
       input.setArguments(List.of(targetedAssetArgument));
@@ -339,9 +339,8 @@ class PayloadApiTest extends IntegrationTest {
   class PayloadArguments {
 
     /**
-     * All non-targeted-asset argument types (text, number, port, portscan, ipv4, ipv6, credentials,
-     * cve) must generate a {@code text} contract field so they are visible and editable in the
-     * inject form.
+     * Primitive argument types must generate a {@code text} contract field so they are visible and
+     * editable in the inject form.
      */
     @Test
     @DisplayName(
@@ -356,17 +355,17 @@ class PayloadApiTest extends IntegrationTest {
               List.of(domain.getId()));
       input.setArguments(
           List.of(
-              PayloadFixture.createPayloadArgument("arg_text", ArgumentType.Text, "hello", null),
-              PayloadFixture.createPayloadArgument("arg_number", ArgumentType.Number, "42", null),
-              PayloadFixture.createPayloadArgument("arg_port", ArgumentType.Port, "8080", null),
+              PayloadFixture.createPayloadArgument("arg_text", PrimitiveType.Text, "hello", null),
+              PayloadFixture.createPayloadArgument("arg_number", PrimitiveType.Number, "42", null),
+              PayloadFixture.createPayloadArgument("arg_port", PrimitiveType.Port, "8080", null),
+              PayloadFixture.createPayloadArgument("arg_host", PrimitiveType.Host, "srv-01", null),
               PayloadFixture.createPayloadArgument(
-                  "arg_portscan", ArgumentType.PortsScan, "192.168.1.0/24", null),
-              PayloadFixture.createPayloadArgument("arg_ipv4", ArgumentType.IPv4, "10.0.0.1", null),
-              PayloadFixture.createPayloadArgument("arg_ipv6", ArgumentType.IPv6, "::1", null),
+                  "arg_ipv4", PrimitiveType.IPv4, "10.0.0.1", null),
+              PayloadFixture.createPayloadArgument("arg_ipv6", PrimitiveType.IPv6, "::1", null),
               PayloadFixture.createPayloadArgument(
-                  "arg_credentials", ArgumentType.Credentials, "admin:pass", null),
+                  "arg_username", PrimitiveType.Username, "admin", null),
               PayloadFixture.createPayloadArgument(
-                  "arg_cve", ArgumentType.CVE, "CVE-2024-1234", null)));
+                  "arg_cve", PrimitiveType.CVE, "CVE-2024-1234", null)));
 
       // Act
       String response =
@@ -385,10 +384,10 @@ class PayloadApiTest extends IntegrationTest {
       assertEquals("text", JsonPath.read(response, "$.payload_arguments[0].type"));
       assertEquals("number", JsonPath.read(response, "$.payload_arguments[1].type"));
       assertEquals("port", JsonPath.read(response, "$.payload_arguments[2].type"));
-      assertEquals("portscan", JsonPath.read(response, "$.payload_arguments[3].type"));
+      assertEquals("host", JsonPath.read(response, "$.payload_arguments[3].type"));
       assertEquals("ipv4", JsonPath.read(response, "$.payload_arguments[4].type"));
       assertEquals("ipv6", JsonPath.read(response, "$.payload_arguments[5].type"));
-      assertEquals("credentials", JsonPath.read(response, "$.payload_arguments[6].type"));
+      assertEquals("username", JsonPath.read(response, "$.payload_arguments[6].type"));
       assertEquals("cve", JsonPath.read(response, "$.payload_arguments[7].type"));
 
       // Assert — every argument key produces a "text" field in the injector contract
@@ -403,10 +402,10 @@ class PayloadApiTest extends IntegrationTest {
               "arg_text",
               "arg_number",
               "arg_port",
-              "arg_portscan",
+              "arg_host",
               "arg_ipv4",
               "arg_ipv6",
-              "arg_credentials",
+              "arg_username",
               "arg_cve");
       Map<String, String> keyToContractType = new HashMap<>();
       ArrayNode contractFields = (ArrayNode) injectorContract.getConvertedContent().get("fields");
@@ -426,14 +425,10 @@ class PayloadApiTest extends IntegrationTest {
                   "text", type, "Argument '" + key + "' must produce a text contract field"));
     }
 
-    /**
-     * Subtypes are persisted at the payload-argument level and returned verbatim in the response.
-     * Three structured types are covered: portscan/host, credentials/username, cve/severity.
-     */
+    /** Primitive argument types are persisted and returned in the payload response. */
     @Test
-    @DisplayName(
-        "Given arguments with subtypes, should persist and return the correct subtype for each")
-    void given_argumentsWithSubtypes_should_persist_and_return_subtypes() throws Exception {
+    @DisplayName("Given primitive arguments, should persist and return the correct type for each")
+    void given_primitiveArguments_should_persist_and_return_types() throws Exception {
       // Arrange
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
@@ -442,19 +437,11 @@ class PayloadApiTest extends IntegrationTest {
       input.setArguments(
           List.of(
               PayloadFixture.createPayloadArgument(
-                  "scan_host",
-                  ArgumentType.PortsScan,
-                  "192.168.1.0/24",
-                  null,
-                  ArgumentSubType.Host),
+                  "scan_host", PrimitiveType.Host, "192.168.1.10", null),
               PayloadFixture.createPayloadArgument(
-                  "cred_user", ArgumentType.Credentials, "admin", null, ArgumentSubType.Username),
+                  "cred_user", PrimitiveType.Username, "admin", null),
               PayloadFixture.createPayloadArgument(
-                  "cve_severity",
-                  ArgumentType.CVE,
-                  "CVE-2024-1234",
-                  null,
-                  ArgumentSubType.Severity)));
+                  "cve_severity", PrimitiveType.Severity, "high", null)));
 
       // Act
       String response =
@@ -469,23 +456,16 @@ class PayloadApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      // Assert — type and subtype are round-tripped correctly for each argument
-      assertEquals("portscan", JsonPath.read(response, "$.payload_arguments[0].type"));
-      assertEquals("host", JsonPath.read(response, "$.payload_arguments[0].subtype"));
-      assertEquals("credentials", JsonPath.read(response, "$.payload_arguments[1].type"));
-      assertEquals("username", JsonPath.read(response, "$.payload_arguments[1].subtype"));
-      assertEquals("cve", JsonPath.read(response, "$.payload_arguments[2].type"));
-      assertEquals("severity", JsonPath.read(response, "$.payload_arguments[2].subtype"));
+      // Assert — primitive type is round-tripped correctly for each argument
+      assertEquals("host", JsonPath.read(response, "$.payload_arguments[0].type"));
+      assertEquals("username", JsonPath.read(response, "$.payload_arguments[1].type"));
+      assertEquals("severity", JsonPath.read(response, "$.payload_arguments[2].type"));
     }
 
-    /**
-     * An argument with a subtype still produces a plain {@code text} contract field — the subtype
-     * is a payload-level annotation, not a different UI component type.
-     */
+    /** A primitive argument still produces a plain {@code text} contract field. */
     @Test
-    @DisplayName(
-        "Given an argument with a subtype, should still produce a text field in the injector contract")
-    void given_argumentWithSubtype_should_produce_text_field_in_contract() throws Exception {
+    @DisplayName("Given a primitive argument, should produce a text field in the injector contract")
+    void given_primitiveArgument_should_produce_text_field_in_contract() throws Exception {
       // Arrange
 
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
@@ -495,11 +475,7 @@ class PayloadApiTest extends IntegrationTest {
       input.setArguments(
           List.of(
               PayloadFixture.createPayloadArgument(
-                  "scan_result",
-                  ArgumentType.PortsScan,
-                  "10.0.0.0/24",
-                  null,
-                  ArgumentSubType.Host)));
+                  "scan_result", PrimitiveType.Host, "srv-01", null)));
 
       // Act
       String response =
@@ -509,8 +485,7 @@ class PayloadApiTest extends IntegrationTest {
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input)))
               .andExpect(status().is2xxSuccessful())
-              .andExpect(jsonPath("$.payload_arguments[0].type").value("portscan"))
-              .andExpect(jsonPath("$.payload_arguments[0].subtype").value("host"))
+              .andExpect(jsonPath("$.payload_arguments[0].type").value("host"))
               .andReturn()
               .getResponse()
               .getContentAsString();
@@ -532,7 +507,7 @@ class PayloadApiTest extends IntegrationTest {
       }
       assertNotNull(scanField, "Contract must contain a field for 'scan_result'");
       assertEquals("text", scanField.get("type").asText());
-      assertEquals("10.0.0.0/24", scanField.get("defaultValue").asText());
+      assertEquals("srv-01", scanField.get("defaultValue").asText());
     }
   }
 

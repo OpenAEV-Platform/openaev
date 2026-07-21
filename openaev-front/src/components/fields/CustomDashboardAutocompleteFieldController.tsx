@@ -6,12 +6,14 @@ interface Props<T extends FieldValues> {
   name: Path<T>;
   label: string;
   disabled: boolean;
+  withPlatformDefault?: boolean;
 }
 
 const CustomDashboardAutocompleteFieldController = <T extends FieldValues>({
   name,
   label,
   disabled,
+  withPlatformDefault = false,
 }: Props<T>) => {
   const { control } = useFormContext();
 
@@ -25,6 +27,7 @@ const CustomDashboardAutocompleteFieldController = <T extends FieldValues>({
           value={value}
           onChange={onChange}
           disabled={disabled}
+          withPlatformDefault={withPlatformDefault}
         />
       )}
     />

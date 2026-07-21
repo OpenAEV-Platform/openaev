@@ -4,6 +4,7 @@ import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathExecutionRow;
+import io.openaev.database.model.attackpath.projection.AttackPathInjectorMetaRow;
 import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import java.util.List;
 import java.util.Optional;
@@ -143,7 +144,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.stepTemplateId) "
+          + "e.preventionStatus, e.detectionStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId")
   List<AttackPathExecutionRow> findGraphRows(@Param("simulationId") String simulationId);
 
@@ -156,7 +157,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.stepTemplateId) "
+          + "e.preventionStatus, e.detectionStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.targetKey = :targetKey")
   List<AttackPathExecutionRow> findByTarget(
@@ -205,8 +206,22 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow("
-          + "e.sourceKind, e.sourceInjector, e.sourceAssetId, e.targetKey, count(e)) "
+          + "e.sourceKind, e.sourceInjector, e.sourceAssetId, "
+          + "max(e.sourceHostname), max(e.sourceIp), max(e.sourcePlatform), "
+          + "e.targetKey, count(e)) "
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId "
           + "GROUP BY e.sourceKind, e.sourceInjector, e.sourceAssetId, e.targetKey")
   List<AttackPathEdgeGroupRow> findEdgeGroups(@Param("simulationId") String simulationId);
+
+  /**
+   * The distinct injector metadata of a simulation, for the collapsed graph's injector nodes: the
+   * injector name with its frozen contract external id and type. One flat distinct read, since the
+   * collapsed edges are grouped by source and cannot carry these columns.
+   */
+  @Query(
+      "SELECT DISTINCT new io.openaev.database.model.attackpath.projection.AttackPathInjectorMetaRow("
+          + "e.sourceInjector, e.contractExternalId, e.injectorType) "
+          + "FROM AttackPathExecution e "
+          + "WHERE e.simulationId = :simulationId AND e.sourceKind = 'INJECTOR'")
+  List<AttackPathInjectorMetaRow> findInjectorMetadata(@Param("simulationId") String simulationId);
 }

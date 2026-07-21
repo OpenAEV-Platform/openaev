@@ -24,7 +24,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Collapsed graph mode (issue 6647, ADR-002): the DB-aggregated view returned for large
+ * Collapsed graph mode (issue 6647, ADR-003): the DB-aggregated view returned for large
  * simulations, and the automatic full/collapsed switch. Seeds a tiny graph and drives the service
  * directly; the threshold is set low so a small simulation exercises the switch.
  */

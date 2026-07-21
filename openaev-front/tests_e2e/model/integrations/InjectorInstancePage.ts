@@ -17,9 +17,14 @@ class InjectorInstancePage {
     await this.page.waitForURL('**/integrations/injectors/**');
   }
 
-  /** ActionButton "Start" - visible when the instance is not yet starting */
+  /** ActionButton "Start" - visible when the instance is not yet starting.
+   *  exact: true is required: getByRole name matching is a substring match, and
+   *  the deployed-tab connector cards expose "Started" in their accessible name. */
   get startButton(): Locator {
-    return this.page.getByRole('button', { name: 'Start' });
+    return this.page.getByRole('button', {
+      name: 'Start',
+      exact: true,
+    });
   }
 
   /** Status chip showing "Started" */

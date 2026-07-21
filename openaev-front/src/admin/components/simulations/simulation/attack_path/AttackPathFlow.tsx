@@ -3,7 +3,6 @@ import {
   Background,
   Controls,
   type Edge,
-  MarkerType,
   MiniMap,
   type Node,
   ReactFlow,
@@ -32,12 +31,32 @@ interface AttackPathFlowProps {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
   onEndpointClick?: (nodeId: string, ref?: string, label?: string) => void;
+  onClusterClick?: (injectorId: string, kind: 'header' | 'overflow') => void;
+  onFindingClusterClick?: (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow') => void;
+  onFindingSelect?: (nodeId: string, type?: string, value?: string, assetNodeId?: string) => void;
+  onInjectorSelect?: (injectorId: string, label?: string) => void;
   focusRequest?: AttackPathFocusRequest | null;
+  // A bump to fit the whole graph in view (used when switching to the focused finding-path view).
+  fitRequest?: number;
+  // Show the minimap (only worth it on large graphs; hidden in the focused finding-path view).
+  showMiniMap?: boolean;
 }
 
-// Thin ReactFlow wrapper: it renders the nodes/edges the helper produced and reports endpoint
-// clicks up to the page, which loads that endpoint's detail on demand.
-const AttackPathFlow = ({ nodes, edges, onEndpointClick, focusRequest }: AttackPathFlowProps) => {
+// Thin ReactFlow wrapper: it renders the nodes/edges the helper produced and reports node clicks up
+// to the page (endpoint drill-down, cluster expand, finding-type focus, finding path highlight). A
+// finding-item click in the drawer can also request a cross-focus onto an endpoint node.
+const AttackPathFlow = ({
+  nodes,
+  edges,
+  onEndpointClick,
+  onClusterClick,
+  onFindingClusterClick,
+  onFindingSelect,
+  onInjectorSelect,
+  focusRequest,
+  fitRequest,
+  showMiniMap = true,
+}: AttackPathFlowProps) => {
   const theme = useTheme();
   const reactFlow = useReactFlow();
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(nodes);
@@ -63,6 +82,17 @@ const AttackPathFlow = ({ nodes, edges, onEndpointClick, focusRequest }: AttackP
     }
   }, [focusRequest, reactFlow]);
 
+  // Fit the whole graph in view: used when switching to (or clearing) the focused finding-path view,
+  // so the small path — or the restored full graph — is framed. The nonce re-fires on repeat.
+  useEffect(() => {
+    if (fitRequest) {
+      // Let the new nodes mount before measuring, then frame them all.
+      const id = window.setTimeout(() => reactFlow.fitView({ duration: 600 }), 60);
+      return () => window.clearTimeout(id);
+    }
+    return undefined;
+  }, [fitRequest, reactFlow]);
+
   return (
     <ReactFlow
       nodes={flowNodes}
@@ -70,9 +100,17 @@ const AttackPathFlow = ({ nodes, edges, onEndpointClick, focusRequest }: AttackP
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onNodeClick={(_, node) => {
+        const data = node.data as AttackPathFlowNodeData;
         if (node.type === AP_FLOW_NODE_TYPE.asset) {
-          const data = node.data as AttackPathFlowNodeData;
           onEndpointClick?.(node.id, data.ref, data.label);
+        } else if (node.type === AP_FLOW_NODE_TYPE.endpointCluster && data.injectorId) {
+          onClusterClick?.(data.injectorId, data.clusterKind === 'overflow' ? 'overflow' : 'header');
+        } else if (node.type === AP_FLOW_NODE_TYPE.findingCluster && data.clusterId) {
+          onFindingClusterClick?.(data.clusterId, data.typeFindings, data.injectorId, data.endpointRef, data.clusterKind === 'overflow' ? 'overflow' : 'header');
+        } else if (node.type === AP_FLOW_NODE_TYPE.finding) {
+          onFindingSelect?.(node.id, data.typeFindings, data.label, data.assetNodeId);
+        } else if (node.type === AP_FLOW_NODE_TYPE.injector) {
+          onInjectorSelect?.(node.id, data.label);
         }
       }}
       nodeTypes={nodeTypes}
@@ -87,27 +125,25 @@ const AttackPathFlow = ({ nodes, edges, onEndpointClick, focusRequest }: AttackP
       // ones in the viewport to keep pan/zoom responsive.
       onlyRenderVisibleElements
       style={{ background: 'transparent' }}
-      defaultEdgeOptions={{
-        type: 'apGrouped',
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: theme.palette.grey[500],
-        },
-      }}
+      defaultEdgeOptions={{ type: 'apGrouped' }}
     >
       <Background bgColor={theme.palette.background.default} color={theme.palette.divider} gap={24} />
-      <Controls />
-      <MiniMap
-        position="bottom-right"
-        pannable
-        zoomable
-        style={{
-          background: theme.palette.background.paper,
-          border: `1px solid ${theme.palette.divider}`,
-        }}
-        maskColor={`${theme.palette.background.default}80`}
-        nodeColor={theme.palette.primary.main}
-      />
+      <Controls position="top-left" />
+      {showMiniMap && (
+        <MiniMap
+          position="bottom-right"
+          pannable
+          zoomable
+          style={{
+            width: 130,
+            height: 90,
+            background: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          }}
+          maskColor={`${theme.palette.background.default}80`}
+          nodeColor={theme.palette.primary.main}
+        />
+      )}
     </ReactFlow>
   );
 };

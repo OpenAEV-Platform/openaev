@@ -8,7 +8,6 @@ import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createConnector
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultConnectorInstance;
 import static io.openaev.utils.fixtures.InjectorFixture.createDefaultInjector;
 import static io.openaev.utils.fixtures.InjectorFixture.createDefaultInjectorCreateInput;
-import static io.openaev.utils.fixtures.InjectorFixture.createInjector;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -408,35 +407,25 @@ public class InjectorApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Should delete dummy injector and reassign its contracts to the new injector on registration")
-    void shouldDeleteDummyInjectorAndReassignContracts() throws Exception {
+        "Should adopt an injector-less contract (starter-pack import) on injector registration")
+    void shouldAdoptInjectorlessContractOnRegistration() throws Exception {
       // -- ARRANGE --
-      String injectorType = "openaev_dummy_test";
-      String dummyId = injectorType + "_dummy";
-      String dummyType = injectorType + "_dummy";
-
-      // Create a dummy injector (simulating what createOrGetDummyInjector does)
-      Injector dummyInjector = createInjector(dummyId, "Dummy " + injectorType, dummyType);
-      dummyInjector = injectorRepository.save(dummyInjector);
-
-      // Create an injector contract linked to the dummy injector
-      InjectorContract dummyContract = InjectorContractFixture.createDefaultInjectorContract();
-      dummyContract.clearInjectors();
-      dummyContract.addInjector(dummyInjector);
-      em.persist(dummyContract);
-      injectorContractRepository.save(dummyContract);
-      dummyInjector.linkContract(dummyContract);
-      dummyInjector = injectorRepository.save(dummyInjector);
+      // Simulate a starter-pack import: the contract exists without any injector link
+      InjectorContract orphanContract = InjectorContractFixture.createDefaultInjectorContract();
+      orphanContract.clearInjectors();
+      em.persist(orphanContract);
+      injectorContractRepository.save(orphanContract);
       em.flush();
 
-      String dummyContractId = dummyContract.getId();
-      String realInjectorId = "real-injector-for-dummy";
+      String orphanContractId = orphanContract.getId();
+      String realInjectorId = "real-injector-for-orphan";
 
       InjectorCreateInput input = new InjectorCreateInput();
       input.setId(realInjectorId);
       input.setName("Real Injector");
-      input.setType(injectorType);
-      input.setContracts(List.of(buildContractInput("real-contract-1")));
+      input.setType("openaev_orphan_test");
+      // The real injector registers a contract with the SAME id as the imported one
+      input.setContracts(List.of(buildContractInput(orphanContractId)));
 
       // -- ACT --
       mvc.perform(
@@ -448,21 +437,17 @@ public class InjectorApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      assertThat(injectorRepository.findByIdAndTenantId(dummyId, TenantContext.getCurrentTenant()))
-          .isEmpty();
-
       Optional<Injector> realInjector =
           injectorRepository.findByIdAndTenantId(realInjectorId, TenantContext.getCurrentTenant());
       assertThat(realInjector).isPresent();
       assertThat(realInjector.get().isExternal()).isTrue();
 
-      Optional<InjectorContract> reassignedContract =
-          injectorContractRepository.findById(dummyContractId);
-      assertThat(reassignedContract).isPresent();
-      assertThat(reassignedContract.get().getInjectors())
+      Optional<InjectorContract> adoptedContract =
+          injectorContractRepository.findById(orphanContractId);
+      assertThat(adoptedContract).isPresent();
+      assertThat(adoptedContract.get().getInjectors())
           .extracting(Injector::getId)
-          .contains(realInjectorId)
-          .doesNotContain(dummyId);
+          .contains(realInjectorId);
     }
 
     @Test

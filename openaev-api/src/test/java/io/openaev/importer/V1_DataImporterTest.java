@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_METHOD;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -24,6 +26,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_METHOD)
@@ -43,6 +46,9 @@ class V1_DataImporterTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private DomainRepository domainRepository;
+  @Autowired private WorkflowRepository workflowRepository;
+  @Autowired private StepRepository stepRepository;
+  @Autowired private ConditionRepository conditionRepository;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   private JsonNode importNode;
@@ -163,7 +169,7 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   @Transactional
   void
-      testScenario_given_injects_nuclei_without_nuclei_injector_registered_when_starterpack_then_should_create_dummy_injector()
+      testScenario_given_injects_nuclei_without_nuclei_injector_registered_when_starterpack_then_should_create_injectorless_contract()
           throws IOException {
 
     MockitoAnnotations.openMocks(this);
@@ -177,14 +183,17 @@ class V1_DataImporterTest extends IntegrationTest {
     this.importer.importData(
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
-    // dummy injector should be created with 1 associated injector contract
-    Injector dummyInjector =
+    // the contract should be created without any injector link (no placeholder injector):
+    // the real injector adopts it by id when it registers
+    InjectorContract importedContract =
+        this.injectorContractRepository
+            .findById("93d27459-68d0-43b1-ad65-eacc3cfa5cf7")
+            .orElseThrow();
+    assertTrue(importedContract.getInjectors().isEmpty());
+    assertTrue(
         this.injectorRepository
             .findByTypeAndTenantId(NMAP_DUMMY_INJECTOR_TYPE, TenantContext.getCurrentTenant())
-            .orElseThrow();
-    List<InjectorContract> injectorContracts =
-        injectorContractRepository.findByInjectorsContaining(dummyInjector);
-    assertEquals(1, injectorContracts.size());
+            .isEmpty());
   }
 
   @Test
@@ -228,6 +237,27 @@ class V1_DataImporterTest extends IntegrationTest {
 
     assertEquals(1, importDomain.size());
     assertEquals(domainToClassify.getId(), importDomain.stream().findFirst().get().getId());
+  }
+
+  @Test
+  @Transactional
+  void testMergeDomains_givenTextualInjectorContractDomainIds_shouldResolveExistingDomains() {
+    // -- Arrange --
+    Domain existingDomain =
+        domainRepository.findByName(PresetDomain.getToClassify().getName()).orElseThrow();
+    ObjectNode injectorContractNode = new ObjectMapper().createObjectNode();
+    injectorContractNode.set(
+        "injector_contract_domains",
+        new ObjectMapper().createArrayNode().add(existingDomain.getId()));
+
+    // -- Act --
+    Set<Domain> mergedDomains =
+        importer.mergeDomains(
+            new HashMap<>(), injectorContractNode, "injector_contract_", null, null);
+
+    // -- Assert --
+    assertEquals(1, mergedDomains.size());
+    assertEquals(existingDomain.getId(), mergedDomains.stream().findFirst().orElseThrow().getId());
   }
 
   @Test
@@ -301,6 +331,411 @@ class V1_DataImporterTest extends IntegrationTest {
     assertTrue(
         prerequisites == null || prerequisites.isEmpty(),
         "Prerequisites should be empty when field is explicit null in JSON");
+  }
+
+  @Test
+  @Transactional
+  void given_scenarioWithWorkflow_should_importWorkflowStepsAndConditions() throws Exception {
+    // -- Arrange --
+    JsonNode workflowImport =
+        new ObjectMapper()
+            .readTree(
+                Files.readAllBytes(
+                    Paths.get(
+                        "src/test/resources/importer-v1/import-scenario-with-workflow.json")));
+
+    // -- Act --
+    this.importer.importData(
+        workflowImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    Scenario scenario =
+        scenarioRepository.findAll().stream()
+            .filter(s -> expectedName.equals(s.getName()))
+            .findFirst()
+            .orElseThrow();
+    assertTrue(injectRepository.findByScenarioId(scenario.getId()).isEmpty());
+
+    // Workflow
+    List<Workflow> workflows =
+        workflowRepository.findByScenario_IdAndStatus(scenario.getId(), WorkflowStatus.TEMPLATE);
+    assertEquals(1, workflows.size());
+    Workflow workflow = workflows.getFirst();
+    assertEquals(2, workflow.getVersion());
+    assertTrue(workflow.isRateLimitEnabled());
+    assertEquals(5, workflow.getMaxAttempts());
+    assertTrue(workflow.isTimeoutEnabled());
+    assertEquals(300L, workflow.getTimeoutSeconds());
+    assertEquals(1, workflow.getWorkflowScopeRules().size());
+    assertEquals(1, workflow.getWorkflowScopeVariables().size());
+
+    // Steps
+    List<Step> steps = stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(workflow.getId());
+    assertEquals(2, steps.size());
+    assertTrue(steps.stream().allMatch(s -> s.getStatus() == StepStatus.TEMPLATE));
+
+    Step step1 = steps.stream().filter(s -> s.getLimitExecution() == 3).findFirst().orElseThrow();
+    Step step2 = steps.stream().filter(s -> s.getLimitExecution() == 1).findFirst().orElseThrow();
+
+    // Conditions on step 1: linked root
+    List<Condition> conds1 = conditionRepository.findAllLinkedToStepId(step1.getId());
+    assertEquals(1, conds1.size());
+    Condition root = conds1.getFirst();
+    assertNull(root.getConditionParent());
+    assertEquals(ConditionType.EQ, root.getType());
+    assertEquals("SUCCESS", root.getValue());
+
+    Condition child =
+        conditionRepository.findAll().stream()
+            .filter(condition -> workflow.getId().equals(condition.getWorkflowId()))
+            .filter(condition -> condition.getConditionParent() != null)
+            .filter(condition -> root.getId().equals(condition.getConditionParent().getId()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals("child", child.getName());
+
+    // Condition on step 2: references step 1 via stepFrom
+    List<Condition> conds2 = conditionRepository.findAllLinkedToStepId(step2.getId());
+    assertEquals(1, conds2.size());
+    assertEquals(step1.getId(), conds2.getFirst().getStepFrom().getId());
+  }
+
+  @Test
+  @Transactional
+  void given_scenarioWithWorkflowContainingAssetScopeRules_should_importOnlyNonAssetScopeRules()
+      throws Exception {
+    // -- Arrange --
+    ObjectMapper objectMapper = new ObjectMapper();
+    JsonNode workflowImport =
+        objectMapper.readTree(
+            Files.readAllBytes(
+                Paths.get("src/test/resources/importer-v1/import-scenario-with-workflow.json")));
+    ArrayNode scopeRules =
+        (ArrayNode) workflowImport.get("scenario_workflow").get("workflow_scope_rules");
+
+    ObjectNode assetRule = objectMapper.createObjectNode();
+    assetRule.put("workflow_scope_rule_selected_mode", "ALLOWLIST");
+    assetRule.put("workflow_scope_rule_source", "ASSET");
+    assetRule.put("workflow_scope_rule_value", "asset-id-1");
+    assetRule.put("workflow_scope_rule_value_type", "ASSET_ID");
+    scopeRules.add(assetRule);
+
+    ObjectNode assetGroupRule = objectMapper.createObjectNode();
+    assetGroupRule.put("workflow_scope_rule_selected_mode", "ALLOWLIST");
+    assetGroupRule.put("workflow_scope_rule_source", "ASSET_GROUP");
+    assetGroupRule.put("workflow_scope_rule_value", "asset-group-id-1");
+    assetGroupRule.put("workflow_scope_rule_value_type", "ASSET_GROUP_ID");
+    scopeRules.add(assetGroupRule);
+
+    // -- Act --
+    this.importer.importData(
+        workflowImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    Scenario scenario =
+        scenarioRepository.findAll().stream()
+            .filter(s -> expectedName.equals(s.getName()))
+            .findFirst()
+            .orElseThrow();
+    Workflow workflow =
+        workflowRepository
+            .findByScenario_IdAndStatus(scenario.getId(), WorkflowStatus.TEMPLATE)
+            .getFirst();
+
+    assertEquals(1, workflow.getWorkflowScopeRules().size());
+    assertTrue(
+        workflow.getWorkflowScopeRules().stream()
+            .noneMatch(
+                rule ->
+                    ScopeRuleSource.ASSET.equals(rule.getRuleSource())
+                        || ScopeRuleSource.ASSET_GROUP.equals(rule.getRuleSource())));
+  }
+
+  @Test
+  @Transactional
+  void
+      given_stepDataWithObjectContract_when_resolvingMappedContract_should_preserveContractObjectShape() {
+    // -- Arrange --
+    String oldContractId = UUID.randomUUID().toString();
+    String newContractId = UUID.randomUUID().toString();
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode stepNode = objectMapper.createObjectNode();
+    stepNode.put(
+        "step_data",
+        """
+        {
+          "inject_injector_contract": {
+            "injector_contract_id": "%s",
+            "injector_contract_payload": {"payload_type":"COMMAND"}
+          }
+        }
+        """
+            .formatted(oldContractId));
+    Map<String, String> resolvedContracts = Map.of(oldContractId, newContractId);
+    Exercise simulation = new Exercise();
+    simulation.setId("sim-test");
+    Workflow workflow = Workflow.builder().simulation(simulation).build();
+
+    // -- Act --
+    String resolvedStepData =
+        ReflectionTestUtils.invokeMethod(
+            importer, "resolveStepData", stepNode, resolvedContracts, new HashMap<>(), workflow);
+    JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
+
+    // -- Assert --
+    assertTrue(resolvedJson.get("inject_injector_contract").isObject());
+    assertEquals(
+        newContractId,
+        resolvedJson.get("inject_injector_contract").get("injector_contract_id").asText());
+    assertEquals(
+        "COMMAND",
+        resolvedJson
+            .get("inject_injector_contract")
+            .get("injector_contract_payload")
+            .get("payload_type")
+            .asText());
+  }
+
+  @Test
+  @Transactional
+  void
+      given_stepDataWithTextualContract_when_resolvingMappedContract_should_normalizeToContractObject() {
+    // -- Arrange --
+    String oldContractId = UUID.randomUUID().toString();
+    String newContractId = UUID.randomUUID().toString();
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode stepNode = objectMapper.createObjectNode();
+    stepNode.put("step_data", "{\"inject_injector_contract\":\"%s\"}".formatted(oldContractId));
+    Map<String, String> resolvedContracts = Map.of(oldContractId, newContractId);
+    Exercise simulation = new Exercise();
+    simulation.setId("sim-test");
+    Workflow workflow = Workflow.builder().simulation(simulation).build();
+
+    // -- Act --
+    String resolvedStepData =
+        ReflectionTestUtils.invokeMethod(
+            importer, "resolveStepData", stepNode, resolvedContracts, new HashMap<>(), workflow);
+    JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
+
+    // -- Assert --
+    assertTrue(resolvedJson.get("inject_injector_contract").isObject());
+    assertEquals(
+        newContractId,
+        resolvedJson.get("inject_injector_contract").get("injector_contract_id").asText());
+  }
+
+  @Test
+  @Transactional
+  void given_stepDataWithRuntimeReferences_when_resolvingStepData_should_preserveRuntimeFields() {
+    // -- Arrange --
+    String contractId = UUID.randomUUID().toString();
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode stepNode = objectMapper.createObjectNode();
+    stepNode.put(
+        "step_data",
+        """
+        {
+          "inject_id": "old-inject-id",
+          "inject_status": "old-status-id",
+          "inject_depends_on": ["old-parent-id"],
+          "inject_exercise": "old-exercise-id",
+          "inject_scenario": "old-scenario-id",
+          "inject_assets": ["old-asset-id"],
+          "inject_asset_groups": ["old-asset-group-id"],
+          "inject_injector_contract": {
+            "injector_contract_id": "%s"
+          }
+        }
+        """
+            .formatted(contractId));
+    Exercise simulation = new Exercise();
+    simulation.setId("sim-test");
+    Workflow workflow = Workflow.builder().simulation(simulation).build();
+    // -- Act --
+    String resolvedStepData =
+        ReflectionTestUtils.invokeMethod(
+            importer,
+            "resolveStepData",
+            stepNode,
+            new HashMap<String, String>(),
+            new HashMap<>(),
+            workflow);
+    JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
+
+    // -- Assert --
+    assertEquals("old-inject-id", resolvedJson.get("inject_id").asText());
+    assertEquals("old-status-id", resolvedJson.get("inject_status").asText());
+    assertEquals("old-parent-id", resolvedJson.get("inject_depends_on").get(0).asText());
+    assertEquals("sim-test", resolvedJson.get("inject_exercise").asText());
+    assertTrue(resolvedJson.get("inject_scenario").isNull());
+    assertFalse(resolvedJson.has("inject_assets"));
+    assertFalse(resolvedJson.has("inject_asset_groups"));
+    assertEquals(
+        contractId,
+        resolvedJson.get("inject_injector_contract").get("injector_contract_id").asText());
+  }
+
+  @Test
+  @Transactional
+  void given_workflowStandaloneMapperConditions_should_ignoreMapperStandaloneOnImport()
+      throws Exception {
+    // -- Arrange --
+    ObjectMapper objectMapper = new ObjectMapper();
+    JsonNode workflowImport =
+        objectMapper.readTree(
+            Files.readAllBytes(
+                Paths.get("src/test/resources/importer-v1/import-scenario-with-workflow.json")));
+
+    ArrayNode standaloneConditions = objectMapper.createArrayNode();
+    ObjectNode mapperStandalone = objectMapper.createObjectNode();
+    mapperStandalone.put("condition_id", "standalone-mapper-1");
+    mapperStandalone.put("condition_type", "MAPPER");
+    mapperStandalone.put("condition_key", "target_ip");
+    mapperStandalone.put("condition_key_type", "IPv4");
+    mapperStandalone.put("condition_value", "$.output.parsed.ip");
+    mapperStandalone.put("condition_is_root", true);
+    standaloneConditions.add(mapperStandalone);
+
+    ObjectNode validStandalone = objectMapper.createObjectNode();
+    validStandalone.put("condition_id", "standalone-event-1");
+    validStandalone.put("condition_type", "EQ");
+    validStandalone.put("condition_key", "status");
+    validStandalone.put("condition_key_type", "text");
+    validStandalone.put("condition_value", "SUCCESS");
+    validStandalone.put("condition_is_root", true);
+    standaloneConditions.add(validStandalone);
+
+    ((ObjectNode) workflowImport.get("scenario_workflow"))
+        .set("workflow_standalone_conditions", standaloneConditions);
+
+    // -- Act --
+    this.importer.importData(
+        workflowImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    Scenario scenario =
+        scenarioRepository.findAll().stream()
+            .filter(s -> expectedName.equals(s.getName()))
+            .findFirst()
+            .orElseThrow();
+    Workflow workflow =
+        workflowRepository
+            .findByScenario_IdAndStatus(scenario.getId(), WorkflowStatus.TEMPLATE)
+            .getFirst();
+
+    List<Step> steps = stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(workflow.getId());
+    Set<String> linkedRootConditionIds =
+        steps.stream()
+            .flatMap(step -> conditionRepository.findAllLinkedToStepId(step.getId()).stream())
+            .map(Condition::getId)
+            .collect(java.util.stream.Collectors.toSet());
+
+    List<Condition> standaloneRoots =
+        conditionRepository.findAllByWorkflowIdAndConditionParentIsNull(workflow.getId()).stream()
+            .filter(condition -> !linkedRootConditionIds.contains(condition.getId()))
+            .toList();
+
+    assertEquals(1, standaloneRoots.size());
+    assertEquals(ConditionType.EQ, standaloneRoots.getFirst().getType());
+  }
+
+  @Test
+  @Transactional
+  void given_workflowStepConditionsOutOfOrder_when_importing_should_preserveParentChildLinks()
+      throws Exception {
+    // -- Arrange --
+    ObjectMapper objectMapper = new ObjectMapper();
+    JsonNode workflowImport =
+        objectMapper.readTree(
+            Files.readAllBytes(
+                Paths.get("src/test/resources/importer-v1/import-scenario-with-workflow.json")));
+    ObjectNode workflowNode = (ObjectNode) workflowImport.get("scenario_workflow");
+    ArrayNode workflowSteps = (ArrayNode) workflowNode.get("workflow_steps");
+
+    int expectedChildConditions = 0;
+    for (JsonNode stepNode : workflowSteps) {
+      JsonNode stepConditionsNode = stepNode.get("step_conditions");
+      if (!(stepConditionsNode instanceof ArrayNode stepConditions) || stepConditions.isEmpty()) {
+        continue;
+      }
+
+      ArrayNode reversed = objectMapper.createArrayNode();
+      for (int i = stepConditions.size() - 1; i >= 0; i--) {
+        JsonNode conditionNode = stepConditions.get(i);
+        reversed.add(conditionNode);
+        if (conditionNode.has("condition_parent_id")
+            && !conditionNode.get("condition_parent_id").isNull()) {
+          expectedChildConditions++;
+        }
+      }
+      ((ObjectNode) stepNode).set("step_conditions", reversed);
+    }
+
+    assertTrue(
+        expectedChildConditions > 0, "Test fixture must include at least one child condition");
+
+    // -- Act --
+    this.importer.importData(
+        workflowImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    Scenario scenario =
+        scenarioRepository.findAll().stream()
+            .filter(s -> expectedName.equals(s.getName()))
+            .findFirst()
+            .orElseThrow();
+    Workflow workflow =
+        workflowRepository
+            .findByScenario_IdAndStatus(scenario.getId(), WorkflowStatus.TEMPLATE)
+            .getFirst();
+
+    long importedChildConditions =
+        conditionRepository.findAll().stream()
+            .filter(condition -> workflow.getId().equals(condition.getWorkflowId()))
+            .filter(condition -> condition.getConditionParent() != null)
+            .count();
+
+    assertEquals(expectedChildConditions, importedChildConditions);
+  }
+
+  @Test
+  @Transactional
+  void
+      given_existingContractWithoutOutputParsers_andStepDataWithOutputParsers_when_resolvingWorkflowStepData_should_forceContractResolution()
+          throws Exception {
+    // -- Arrange --
+    String existingContractId = UUID.randomUUID().toString();
+    InjectorContract existingContract = new InjectorContract();
+    existingContract.setId(existingContractId);
+    existingContract.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    existingContract.setContent("{}");
+    existingContract.setLabels(Map.of("en", "existing"));
+    existingContract.setCustom(false);
+    existingContract.setManual(false);
+    existingContract.setNeedsExecutor(false);
+    existingContract.setPlatforms(new Endpoint.PLATFORM_TYPE[0]);
+    injectorContractRepository.save(existingContract);
+
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode injectContractNode = objectMapper.createObjectNode();
+    injectContractNode.put("injector_contract_id", existingContractId);
+    ObjectNode payloadNode = objectMapper.createObjectNode();
+    ArrayNode outputParsers = objectMapper.createArrayNode();
+    outputParsers.add(objectMapper.createObjectNode());
+    payloadNode.set("payload_output_parsers", outputParsers);
+    injectContractNode.set("injector_contract_payload", payloadNode);
+
+    // -- Act --
+    Boolean shouldResolve =
+        ReflectionTestUtils.invokeMethod(
+            importer, "shouldResolveContractFromStepData", injectContractNode, existingContractId);
+
+    // -- Assert --
+    assertEquals(Boolean.TRUE, shouldResolve);
   }
 
   // -- UTILS --

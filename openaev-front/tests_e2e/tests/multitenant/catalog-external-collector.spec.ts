@@ -65,7 +65,7 @@ test.describe('Catalog — external collector deployment', () => {
 
     // Step: deploy Atomic Red Team from catalog with only display name
     const catalogPage = new CatalogPage(page);
-    await page.goto(tenantUrl('/admin/integrations/catalog', newTenantId!));
+    await page.goto(tenantUrl('/admin/integrations/available', newTenantId!));
     await catalogPage.waitForLoad();
 
     await catalogPage.searchConnector('Atomic Red Team');
@@ -74,8 +74,8 @@ test.describe('Catalog — external collector deployment', () => {
     await catalogPage.submitInstall();
 
     // Step: verify Atomic Red Team is installed on collectors list
-    await page.goto(tenantUrl('/admin/integrations/collectors', newTenantId!));
-    await page.waitForURL('**/integrations/collectors**');
+    await page.goto(tenantUrl('/admin/integrations/deployed', newTenantId!));
+    await page.waitForURL('**/integrations/deployed**');
 
     const atomicCollectorCard = page.locator('.MuiCard-root').filter({ hasText: ATOMIC_RED_TEAM_DISPLAY_NAME }).first();
     await expect(

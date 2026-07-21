@@ -63,6 +63,11 @@ const Tenants = () => {
           entityPrefix={ENTITY_TENANT_PREFIX}
           availableFilterNames={TENANT_FILTERS}
           queryableHelpers={queryableHelpers}
+          topBarButtons={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANTS}>
+              <TenantCreate onCreate={addTenant} />
+            </Can>
+          )}
         />
         <List>
           <ListItem
@@ -110,9 +115,6 @@ const Tenants = () => {
                 />
               )}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANTS}>
-          <TenantCreate onCreate={addTenant} />
-        </Can>
       </div>
       <SecurityMenu />
     </div>

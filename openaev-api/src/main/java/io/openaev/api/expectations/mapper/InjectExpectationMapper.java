@@ -67,15 +67,18 @@ public final class InjectExpectationMapper {
   }
 
   private static String resolveTargetId(BaseInjectExpectation expectation) {
+    // A target is not guaranteed: agentless DETECTION / PREVENTION expectations (e.g. AI
+    // adversarial injects, or seeded detection/prevention expectations validated by a security
+    // platform / collector) are correlated by source + inject marker rather than by a specific
+    // asset / agent / group, so they legitimately carry no target. Return null in that case
+    // instead of throwing - the DTO's target_id is nullable - so the output mapper never 500s.
     return switch (expectation) {
       case TableTopInjectExpectation e when e.getUser() != null -> e.getUser().getId();
       case TableTopInjectExpectation e when e.getTeam() != null -> e.getTeam().getId();
       case TechnicalInjectExpectation e when e.getAgent() != null -> e.getAgent().getId();
       case TechnicalInjectExpectation e when e.getAsset() != null -> e.getAsset().getId();
       case TechnicalInjectExpectation e when e.getAssetGroup() != null -> e.getAssetGroup().getId();
-      default ->
-          throw new IllegalStateException(
-              "BaseInjectExpectation must have at least one target (user, team, agent, asset, or assetGroup)");
+      default -> null;
     };
   }
 }

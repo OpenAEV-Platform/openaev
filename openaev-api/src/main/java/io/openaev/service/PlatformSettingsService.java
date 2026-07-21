@@ -16,6 +16,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.SettingKeys;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Theme;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.ee.EnterpriseEditionService;
@@ -66,6 +67,9 @@ public class PlatformSettingsService {
   private final EngineService engineService;
   private final XtmHubConnectivityService xtmHubConnectivityService;
   private final XtmOneConfig xtmOneConfig;
+
+  @Value("${server.servlet.session.timeout:1440m}")
+  private java.time.Duration sessionTimeout;
 
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;
@@ -285,6 +289,7 @@ public class PlatformSettingsService {
         ofNullable(dbSettings.get(PLATFORM_INSTANCE.key()))
             .map(Setting::getValue)
             .orElse(PLATFORM_INSTANCE.defaultValue()));
+    platformSettings.setDefaultTenantId(Tenant.DEFAULT_TENANT_UUID);
     platformSettings.setPlatformName(
         ofNullable(dbSettings.get(PLATFORM_NAME.key()))
             .map(Setting::getValue)
@@ -342,6 +347,16 @@ public class PlatformSettingsService {
         ofNullable(dbSettings.get(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key()))
             .map(Setting::getValue)
             .orElse(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.defaultValue()));
+
+    // SESSION MANAGEMENT
+    platformSettings.setPlatformSessionTimeout(sessionTimeout.toMillis());
+    platformSettings.setPlatformSessionIdleTimeout(
+        openAEVConfig.getSessionIdleTimeout().toMillis());
+    platformSettings.setPlatformSessionMaxConcurrent(
+        ofNullable(dbSettings.get(PLATFORM_SESSION_MAX_CONCURRENT.key()))
+            .map(Setting::getValue)
+            .map(Integer::parseInt)
+            .orElse(Integer.parseInt(PLATFORM_SESSION_MAX_CONCURRENT.defaultValue())));
     return platformSettings;
   }
 
@@ -417,6 +432,18 @@ public class PlatformSettingsService {
     List<Setting> settingsToSave = new ArrayList<>();
     settingsToSave.add(
         resolveFromMap(dbSettings, PLATFORM_WHITEMARK.key(), input.getPlatformWhitemark()));
+    settingRepository.saveAll(settingsToSave);
+    return findSettings();
+  }
+
+  public PlatformSettings updateSettingsSessions(SettingsSessionsUpdateInput input) {
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
+    List<Setting> settingsToSave = new ArrayList<>();
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            PLATFORM_SESSION_MAX_CONCURRENT.key(),
+            String.valueOf(input.getPlatformSessionMaxConcurrent())));
     settingRepository.saveAll(settingsToSave);
     return findSettings();
   }

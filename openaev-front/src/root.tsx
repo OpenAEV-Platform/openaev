@@ -16,6 +16,7 @@ import Loader from './components/Loader';
 import Message from './components/Message';
 import NoTenantAlert from './components/NoTenantAlert';
 import NotFound from './components/NotFound';
+import TimeoutLock from './components/TimeoutLock';
 import SystemBanners from './public/components/systembanners/SystemBanners';
 import LicenseBanner from './public/components/trialbanners/LicenseBanner';
 import StartTrialBanner from './public/components/trialbanners/StartTrialBanner';
@@ -137,6 +138,7 @@ const Root = () => {
                 <Message />
                 <ErrorHandler />
                 <EnterpriseEditionAgreementDialog />
+                {(settings.platform_session_idle_timeout ?? 0) > 0 && <TimeoutLock />}
                 <SystemBanners settings={settings} />
                 <LicenseBanner settings={settings} />
                 <StartTrialBanner settings={settings} />

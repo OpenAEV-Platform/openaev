@@ -1,4 +1,4 @@
-import { Tooltip } from '@mui/material';
+import { Chip, Tooltip } from '@mui/material';
 
 import AssetPlatformFragment from '../../../../../../../../components/common/list/fragments/AssetPlatformFragment';
 import AttackPatternFragment from '../../../../../../../../components/common/list/fragments/AttackPatternFragment';
@@ -10,7 +10,6 @@ import EndpointArchFragment from '../../../../../../../../components/common/list
 import InverseBooleanFragment from '../../../../../../../../components/common/list/fragments/InverseBooleanFragment';
 import VulnerableEndpointActionFragment
   from '../../../../../../../../components/common/list/fragments/VulnerableEndpointActionFragment';
-import { useFormatter } from '../../../../../../../../components/i18n';
 import ItemStatus from '../../../../../../../../components/ItemStatus';
 import ItemTags from '../../../../../../../../components/ItemTags';
 import {
@@ -20,7 +19,10 @@ import {
 } from '../../../../../../../../utils/api-types';
 import { computeInjectExpectationLabel } from '../../../../../../../../utils/statusUtils';
 import EndpointListItemFragments from '../../../../../../common/endpoints/EndpointListItemFragments';
+import expectationIconByType from '../../../../../../common/ExpectationIconByType';
 import InjectStatus from '../../../../../../common/injects/status/InjectStatus';
+import ExpectationTypeChip from './ExpectationTypeChip';
+import InjectExpectationSourceFragment from './InjectExpectationSourceFragment';
 
 export type ColumnRenderer = (value: string | string[] | boolean | boolean[], opts: {
   element: EsBase;
@@ -28,8 +30,36 @@ export type ColumnRenderer = (value: string | string[] | boolean | boolean[], op
 }) => React.ReactElement;
 export type RendererMap = Record<string, ColumnRenderer>;
 
+// Stable-ish palette for finding types so each type reads as a distinct chip.
+const FINDING_TYPE_COLORS: Record<string, string> = {
+  CVE: '#f44336',
+  PortsScan: '#0fbcff',
+  IPAddress: '#00bcd4',
+  Hostname: '#9575cd',
+  Text: '#78909c',
+};
+
 const commonColumnsRenderers: RendererMap = {
   ['base_tags_side']: tags => <ItemTags variant="list" tags={tags ?? []} />,
+  ['finding_type']: (value) => {
+    const label = (value as string) ?? '';
+    const color = FINDING_TYPE_COLORS[label] ?? '#607d8b';
+    return (
+      <Chip
+        label={label}
+        size="small"
+        variant="outlined"
+        sx={{
+          height: 20,
+          fontSize: 11,
+          fontWeight: 600,
+          color,
+          borderColor: `${color}66`,
+          backgroundColor: `${color}14`,
+        }}
+      />
+    );
+  },
   ['base_attack_patterns_side']: (attackPatternIds, opts) =>
     <AttackPatternFragment attackPatterns={opts.attackPatterns} attackPatternIds={(attackPatternIds as string[]) ?? []} />,
   ['base_created_at']: value => <DateFragment value={value as string} />,
@@ -57,49 +87,26 @@ const injectColumnsRenderers: RendererMap = {
 
 };
 
-export const getTargetTypeFromInjectExpectation = (expectation: EsInjectExpectation): {
-  label: string;
-  type: string;
-} => {
-  let label = '';
-  let type = '';
-  if (expectation.base_user_side != null) {
-    label = 'player';
-    type = 'PLAYERS';
-  } else if (expectation.base_team_side != null) {
-    label = 'team';
-    type = 'TEAMS';
-  } else if (expectation.base_asset_side != null) {
-    label = 'endpoint';
-    type = 'ASSETS';
-  } else if (expectation.base_asset_group_side != null) {
-    label = 'asset group';
-    type = 'ASSETS_GROUPS';
-  }
-  return {
-    label,
-    type,
-  };
-};
+export { default as getTargetTypeFromInjectExpectation } from './injectExpectationTarget';
 
 const injectExpectationRenderers: RendererMap = {
+  ['inject_expectation_type']: value => <ExpectationTypeChip type={value as string} />,
   ['inject_expectation_status']: (_, { element }) => {
     const expectation = element as EsInjectExpectation;
     const label = computeInjectExpectationLabel(
       expectation.inject_expectation_status,
       expectation.inject_expectation_type,
     ) ?? '';
-    return <ItemStatus label={label} variant="inList" status={label} />;
-  },
-  ['inject_expectation_source']: (_, { element }) => {
-    const { t } = useFormatter();
-    const target = getTargetTypeFromInjectExpectation(element as EsInjectExpectation);
     return (
-      <Tooltip title={target.label} placement="bottom-start">
-        <span>{(t(target.label)).toUpperCase()}</span>
-      </Tooltip>
+      <ItemStatus
+        label={label}
+        variant="inList"
+        status={label}
+        icon={expectationIconByType(expectation.inject_expectation_type, { fontSize: 14 })}
+      />
     );
   },
+  ['inject_expectation_source']: (_, { element }) => <InjectExpectationSourceFragment element={element} />,
 };
 
 export const defaultRenderer: ColumnRenderer = (value) => {

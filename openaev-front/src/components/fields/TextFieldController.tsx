@@ -91,7 +91,6 @@ const TextFieldController = ({
             helperText={!noHelperText && error ? error.message : null}
             multiline={multiline}
             rows={rows}
-            aria-label={label}
             disabled={disabled}
             placeholder={placeholder}
             style={style}

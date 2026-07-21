@@ -150,33 +150,6 @@ class InventoryMetricCollectorTest {
   }
 
   @Test
-  @DisplayName("given a placeholder dummy injector should exclude it from the inventory")
-  void given_placeholderDummyInjector_should_excludeItFromInventory() {
-    // Arrange: dummy injectors are created by the starter-pack import before the real
-    // injector registers; they are not deployed components.
-    when(injectorRepository.findAll())
-        .thenReturn(
-            List.of(
-                injector("openaev_nmap_dummy_tenant-1", "openaev_nmap_dummy"),
-                injector("injector-1", "openaev_email")));
-    when(connectorInstanceRepository.findAllByCatalogConnectorContainerType(ConnectorType.INJECTOR))
-        .thenReturn(List.of());
-
-    // Act
-    Map<Attributes, Long> inventory = capturedInjectorSupplier().get();
-
-    // Assert
-    assertThat(inventory)
-        .containsExactly(
-            Map.entry(
-                Attributes.of(
-                    stringKey("slug"), "openaev_email",
-                    booleanKey("managed"), false,
-                    stringKey("type"), "openaev_email"),
-                1L));
-  }
-
-  @Test
   @DisplayName("given a blank type should skip the component even when catalog-managed")
   void given_blankType_should_skipComponentEvenWhenManaged() {
     // Arrange

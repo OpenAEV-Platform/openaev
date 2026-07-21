@@ -23,6 +23,8 @@ import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.database.audit.IndexEvent;
+import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
@@ -78,6 +80,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -145,6 +148,8 @@ public class ExerciseService {
   private final StepService stepService;
 
   private final HealthCheckUtils healthCheckUtils;
+
+  private final ApplicationEventPublisher eventPublisher;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -555,6 +560,10 @@ public class ExerciseService {
   public void deleteById(String simulationId) {
     existsByIdAndTenantId(simulationId);
     exerciseRepository.deleteById(simulationId);
+    // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
+    // must be notified explicitly or the simulation (and its cascade-deleted injects,
+    // expectations, findings...) would remain in the indexes forever.
+    eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, simulationId));
     log.info("Simulation {} deleted by user {}", simulationId, currentUser().getId());
   }
 
@@ -1035,6 +1044,10 @@ public class ExerciseService {
     this.injectService.removeTeamsForSimulation(exerciseId, teamIds);
     // Remove all association between lessons learned and teams
     this.lessonsService.removeTeamsForSimulation(exerciseId, teamIds);
+    // The join-table deletes above are native queries that bypass JPA timestamps: bump the
+    // exercise and its injects so the incremental indexer refreshes the denormalized team sides.
+    this.exerciseRepository.touchUpdatedAt(exerciseId);
+    this.injectRepository.touchUpdatedAtByExerciseId(exerciseId);
     return teamService.find(fromIds(teamIds));
   }
 
@@ -1054,6 +1067,10 @@ public class ExerciseService {
       this.injectRepository.removeTeamsForExercise(exerciseId, removedTeamIdsList);
       this.lessonsCategoryRepository.removeTeamsForExercise(exerciseId, removedTeamIdsList);
     }
+    // Team changes alter the denormalized inject_teams of the exercise's injects (including
+    // all-teams injects, derived from exercises_teams): bump the injects so the incremental
+    // indexer refreshes them (the native join-table mutations bypass JPA timestamps).
+    this.injectRepository.touchUpdatedAtByExerciseId(exerciseId);
 
     // Replace teams from exercise
     List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));

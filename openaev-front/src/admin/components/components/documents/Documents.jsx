@@ -190,6 +190,13 @@ const Documents = () => {
         searchPaginationInput={searchPaginationInput}
         setContent={setDocuments}
         exportProps={exportProps}
+        createButton={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.DOCUMENTS}>
+            <CreateDocument
+              onCreate={handleCreateDocuments}
+            />
+          </Can>
+        )}
       />
       <List>
         <ListItem
@@ -365,11 +372,6 @@ const Documents = () => {
             },
             )}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.DOCUMENTS}>
-        <CreateDocument
-          onCreate={handleCreateDocuments}
-        />
-      </Can>
     </>
   );
 };

@@ -18,7 +18,10 @@ const MenuItemSingle: FunctionComponent<Props> = ({ navOpen, item }) => {
   const location = useLocation();
   const leftMenuStyle = useLeftMenuStyle();
 
-  const isCurrentTab = location.pathname === item.path;
+  // Highlight on the exact page and on any sub-route (e.g. /admin/integrations/deployed,
+  // /admin/findings/:id). Home ('/admin') is a prefix of every route, so it stays exact-only.
+  const isCurrentTab = location.pathname === item.path
+    || (item.path !== '/admin' && location.pathname.startsWith(`${item.path}/`));
 
   return (
     <StyledTooltip title={t(item.label)} placement="right">

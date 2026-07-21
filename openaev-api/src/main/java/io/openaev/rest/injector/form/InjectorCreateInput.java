@@ -40,6 +40,13 @@ public class InjectorCreateInput {
   @JsonProperty("injector_payloads")
   private Boolean payloads = false;
 
+  // Author/publisher of this injector's contracts, declared in the connector
+  // source code. When absent, the platform falls back to the injector name so a
+  // connector's content is always attributed to the connector (never to a
+  // generic default).
+  @JsonProperty("injector_author")
+  private String author;
+
   public String getId() {
     return id;
   }
@@ -110,5 +117,13 @@ public class InjectorCreateInput {
 
   public void setPayloads(Boolean payloads) {
     this.payloads = payloads;
+  }
+
+  public String getAuthor() {
+    return author;
+  }
+
+  public void setAuthor(String author) {
+    this.author = author;
   }
 }
