@@ -59,6 +59,9 @@ public class RabbitmqService {
   private static final String X_QUEUE_TYPE = "x-queue-type";
   private static final String INJECTOR_PREFIX = "_injector_";
 
+  /** Connection timeout for health check probes, so a degraded broker fails fast. */
+  private static final int HEALTH_CHECK_CONNECTION_TIMEOUT_MS = 5_000;
+
   private final RabbitmqConfig rabbitmqConfig;
   private final ConnectionFactory connectionFactory;
   private final RabbitmqDriver rabbitmqDriver;
@@ -320,11 +323,17 @@ public class RabbitmqService {
    * Checks the health of the RabbitMQ broker by opening and immediately closing a connection and
    * channel.
    *
+   * <p>Uses a dedicated {@link ConnectionFactory} with a short connection timeout instead of the
+   * shared factory (default 60s timeout), so health probes fail fast when the broker is degraded
+   * and never pile up on request threads.
+   *
    * @throws IOException if the broker is unreachable
    * @throws TimeoutException if the connection times out
    */
   public void checkHealth() throws IOException, TimeoutException {
-    try (Connection connection = connectionFactory.newConnection()) {
+    ConnectionFactory healthCheckFactory = rabbitmqDriver.createConnectionFactory();
+    healthCheckFactory.setConnectionTimeout(HEALTH_CHECK_CONNECTION_TIMEOUT_MS);
+    try (Connection connection = healthCheckFactory.newConnection()) {
       connection.createChannel().close();
     }
   }
