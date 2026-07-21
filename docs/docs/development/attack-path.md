@@ -5,7 +5,7 @@
     The attack-path execution store is a proof of concept (issue 6647). It is off by default and gated
     behind the `ATTACK_PATH` preview feature, so its tab and endpoints do not exist unless the flag
     is on. The design rationale and the options weighed are in
-    `adr/ADR-002-attack-path-execution-store-on-postgresql.md` at the repository root; this guide is the
+    `adr/ADR-003-attack-path-execution-store-on-postgresql.md` at the repository root; this guide is the
     hands-on companion for developers building on the POC.
 
 ## 1. The big picture
@@ -54,8 +54,12 @@ erDiagram
         varchar id PK
         varchar tenant_id FK
         varchar simulation_id "ref exercises, no FK"
+        varchar inject_id "ref injects, no FK; #204 per-output lookup key"
         text source_kind "INJECTOR or AGENT_ASSET"
         varchar source_injector
+        varchar source_hostname "agent-based source endpoint, frozen"
+        varchar source_ip
+        varchar source_platform
         varchar target_asset_id "ref assets, no FK"
         text target_key "asset id or raw value"
         varchar target_hostname
@@ -416,4 +420,4 @@ Jump → DC"). The graph shows all executions, not a chosen path.
   projections, queries), `io.openaev.migration.V6_2026071…` (the Flyway tables).
 - Front: `openaev-front/src/admin/components/simulations/simulation/attack_path/` (the flow, nodes,
   edges, helpers) and `src/actions/attack-path/`.
-- Benchmark: `AttackPathBenchmark` (env-gated). Design rationale: `adr/ADR-002-…md`.
+- Benchmark: `AttackPathBenchmark` (env-gated). Design rationale: `adr/ADR-003-…md`.

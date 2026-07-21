@@ -3,9 +3,9 @@ import { type Locator, type Page } from '@playwright/test';
 class TenantsPage {
   constructor(private page: Page) {}
 
-  /** FAB "+ Add" button that opens the create-tenant drawer */
+  /** Top-right "Create" button that opens the create-tenant drawer */
   get createFabButton(): Locator {
-    return this.page.getByRole('button', { name: 'Add' });
+    return this.page.getByTestId('button-create');
   }
 
   /** "Name" text field inside the TenantForm drawer */
@@ -15,7 +15,7 @@ class TenantsPage {
 
   /** "Create" submit button inside the TenantForm drawer */
   get createSubmitButton(): Locator {
-    return this.page.getByRole('button', { name: 'Create' });
+    return this.page.locator('#tenantFormId').getByRole('button', { name: 'Create' });
   }
 
   async waitForLoad(): Promise<void> {

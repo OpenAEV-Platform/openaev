@@ -1,4 +1,4 @@
-import { ListItem, ListItemText, Paper, Switch, TextField, Typography } from '@mui/material';
+import { ListItem, ListItemText, Paper, Switch, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 
@@ -160,9 +160,6 @@ const TenantParameters = () => {
               )}
               bottomContent={(
                 <>
-                  <ListItem divider>
-                    <TextField fullWidth label={t('Filigran support key')} variant="standard" disabled />
-                  </ListItem>
                   <ListItem>
                     <ListItemText primary={(
                       <span style={{

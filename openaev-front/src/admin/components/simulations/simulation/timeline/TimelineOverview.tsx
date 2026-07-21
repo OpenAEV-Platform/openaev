@@ -308,7 +308,7 @@ const TimelineOverview = () => {
                   isAtomic={false}
                   injects={injects}
                   articlesFromExerciseOrScenario={articles}
-                  uriVariable={`/admin/simulations/${exerciseId}/definition`}
+                  uriVariable={`/admin/simulations/${exerciseId}/injects`}
                   variablesFromExerciseOrScenario={variables}
                 />
               </ChallengeContext.Provider>

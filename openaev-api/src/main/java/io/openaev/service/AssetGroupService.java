@@ -10,6 +10,8 @@ import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.specification.EndpointSpecification;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.schema.PropertySchema;
+import io.openaev.schema.SchemaUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.AssetGroupMapper;
 import jakarta.validation.constraints.NotBlank;
@@ -19,6 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hibernate.Hibernate;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -125,17 +128,23 @@ public class AssetGroupService {
 
   @Transactional(readOnly = true)
   public List<Asset> assetsFromAssetGroup(@NotBlank final String assetGroupId) {
-    AssetGroup assetGroup = this.assetGroup(assetGroupId);
+    return assetsFromAssetGroup(this.assetGroup(assetGroupId));
+  }
+
+  /**
+   * Same as {@link #assetsFromAssetGroup(String)} but for a group whose dynamic assets are already
+   * resolved - avoids re-running the (potentially expensive) dynamic resolution.
+   */
+  public List<Asset> assetsFromAssetGroup(@NotNull final AssetGroup assetGroup) {
     List<Asset> assets = new ArrayList<>();
-    List<String> assetIds = new ArrayList<>();
+    // Dedup on getId() (not on the instance) because Hibernate proxies and unproxied
+    // entities of the same row would otherwise both pass an identity-based check.
+    Set<String> assetIds = new HashSet<>();
     Stream.concat(assetGroup.getAssets().stream(), assetGroup.getDynamicAssets().stream())
         .forEach(
             asset -> {
-              // We have to call getId() because some assets are returned null because of Hibernate
-              // unproxy
-              if (!assetIds.contains(asset.getId())) {
+              if (assetIds.add(asset.getId())) {
                 assets.add(asset);
-                assetIds.add(asset.getId());
               }
             });
     return assets;
@@ -152,12 +161,12 @@ public class AssetGroupService {
           if (!isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
             Specification<Endpoint> specification =
                 computeFilterGroupJpa(assetGroup.getDynamicFilter());
-            List<Asset> assets =
-                this.endpointService.endpoints(specification).stream()
-                    .map(Asset.class::cast)
-                    .distinct()
-                    .toList();
-            assetGroup.setDynamicAssets(assets);
+            List<Asset> assets = new ArrayList<>();
+            this.endpointService.endpoints(specification).stream()
+                .map(Asset.class::cast)
+                .forEach(assets::add);
+            assets.addAll(resolveDynamicNonEndpointAssets(assetGroup.getDynamicFilter()));
+            assetGroup.setDynamicAssets(assets.stream().distinct().toList());
           }
         });
     return assetGroups;
@@ -170,13 +179,53 @@ public class AssetGroupService {
     Specification<Endpoint> specification = computeFilterGroupJpa(assetGroup.getDynamicFilter());
     Specification<Endpoint> specification2 =
         EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints();
-    List<Asset> assets =
-        this.endpointService.endpoints(specification.and(specification2)).stream()
-            .map(Asset.class::cast)
-            .distinct()
-            .toList();
-    assetGroup.setDynamicAssets(assets);
+    List<Asset> assets = new ArrayList<>();
+    this.endpointService.endpoints(specification.and(specification2)).stream()
+        .map(Asset.class::cast)
+        .forEach(assets::add);
+    assets.addAll(resolveDynamicNonEndpointAssets(assetGroup.getDynamicFilter()));
+    assetGroup.setDynamicAssets(assets.stream().distinct().toList());
     return assetGroup;
+  }
+
+  /**
+   * Resolve the NON-endpoint assets (AI targets, identities, cloud / web / network / generic
+   * assets, ...) matching a dynamic filter. The endpoint-scoped resolution above only returns
+   * {@code Endpoint} rows, so without this a dynamic group such as {@code Category = AI_TARGET}
+   * would always be empty. The endpoint injectability constraint (agent / agentless) does not apply
+   * to non-endpoint assets, and {@code Endpoint} rows are excluded here to avoid duplicating the
+   * endpoint branch. When the filter references a field that does not exist for the queried assets
+   * (e.g. an endpoint-only {@code platform} rule) the query cannot resolve, which simply means the
+   * group targets no non-endpoint assets and contributes none.
+   */
+  private List<Asset> resolveDynamicNonEndpointAssets(
+      @NotNull final Filters.FilterGroup dynamicFilter) {
+    // The specification is lazy: an unresolvable filter key (e.g. an endpoint-only
+    // "platform" rule) only throws inside the repository call, which marks the
+    // surrounding transaction rollback-only BEFORE the catch below runs - killing
+    // startup when the starter pack seeds endpoint-scoped dynamic groups on a fresh
+    // database. Validate the keys eagerly instead: subtype-only keys cannot match
+    // non-endpoint assets anyway, so such groups simply contribute none.
+    if (!isFilterResolvableForBaseAssets(dynamicFilter)) {
+      return List.of();
+    }
+    // No catch here on purpose: a repository failure inside an active transaction has already
+    // marked it rollback-only, so swallowing the exception would only defer the failure to an
+    // opaque UnexpectedRollbackException at commit. The eager key validation above is the guard.
+    Specification<Asset> filterSpec = computeFilterGroupJpa(dynamicFilter);
+    Specification<Asset> nonEndpoint =
+        (root, query, cb) -> cb.notEqual(root.get("type"), AssetType.Values.ENDPOINT_TYPE);
+    return this.assetService.assets(filterSpec.and(nonEndpoint));
+  }
+
+  /** True when every filter key is a filterable property of the base {@link Asset} type. */
+  private boolean isFilterResolvableForBaseAssets(final Filters.FilterGroup dynamicFilter) {
+    Set<String> filterableKeys =
+        SchemaUtils.getFilterableProperties(SchemaUtils.schema(Asset.class)).stream()
+            .map(PropertySchema::getJsonName)
+            .collect(Collectors.toSet());
+    return Optional.ofNullable(dynamicFilter.getFilters()).orElse(List.of()).stream()
+        .allMatch(filter -> filterableKeys.contains(filter.getKey()));
   }
 
   public List<FilterUtilsJpa.Option> getOptionsByNameLinkedToFindings(
@@ -212,7 +261,15 @@ public class AssetGroupService {
                 group -> group,
                 group ->
                     this.assetsFromAssetGroup(group.getId()).stream()
-                        .map(Endpoint.class::cast)
+                        // A group may now resolve non-endpoint assets (e.g. AI targets); this
+                        // endpoint-scoped view only keeps the endpoints. Unproxy first: a lazy
+                        // proxy typed as Asset would fail the instanceof for a real endpoint.
+                        .map(
+                            asset ->
+                                Hibernate.unproxy(asset) instanceof Endpoint endpoint
+                                    ? endpoint
+                                    : null)
+                        .filter(Objects::nonNull)
                         .toList()));
   }
 

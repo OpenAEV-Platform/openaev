@@ -25,6 +25,11 @@ public class TenantWriteScopeResolver {
         switch (scope) {
           case TxCtx.Missing ignored -> Set.of();
           case TxCtx.Restricted restricted -> Set.copyOf(restricted.tenantIds());
+          // A write is attributed to exactly one tenant; "all tenants" can never attribute a row.
+          case TxCtx.AllTenants ignored ->
+              throw new TenantWriteScopeException(
+                  "A write cannot be attributed to all tenants; provide a single-tenant scope or an"
+                      + " explicit tenant selector.");
         };
 
     if (suppliedTenant != null && !suppliedTenant.isBlank()) {

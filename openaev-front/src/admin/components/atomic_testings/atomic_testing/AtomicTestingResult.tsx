@@ -1,4 +1,3 @@
-import { BugReportOutlined, SensorOccupiedOutlined, ShieldOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
@@ -6,7 +5,19 @@ import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type ExpectationResultsByType, type InjectResultOutput } from '../../../../utils/api-types';
+import { expectationTypeIcon } from '../../common/ExpectationIconByType';
 import { expectationResultTypes } from '../../common/injects/expectations/Expectation';
+
+// Human tooltip label per expectation type (icons come from the shared set).
+const EXPECTATION_TYPE_LABELS: Record<string, string> = {
+  PREVENTION: 'Prevention',
+  DETECTION: 'Detection',
+  VULNERABILITY: 'Vulnerability',
+  HUMAN_RESPONSE: 'Human Response',
+  MANUAL: 'Manual',
+  ARTICLE: 'Article',
+  CHALLENGE: 'Challenge',
+};
 
 const useStyles = makeStyles()(() => ({
   inline: {
@@ -48,28 +59,8 @@ const AtomicTestingResult: FunctionComponent<Props> = ({ expectations, injectId 
     <div className={classes.inline} id={`inject_expectations_${injectId}`}>
       {expectations.sort((a, b) => expectationResultTypes.indexOf(a.type) - expectationResultTypes.indexOf(b.type)).map((expectation, index) => {
         const color = getColor(expectation.avgResult);
-        let IconComponent;
-        let tooltipLabel = '';
-
-        switch (expectation.type) {
-          case 'PREVENTION':
-            tooltipLabel = t('Prevention');
-            IconComponent = ShieldOutlined;
-            break;
-          case 'DETECTION':
-            tooltipLabel = t('Detection');
-            IconComponent = TrackChangesOutlined;
-            break;
-          case 'VULNERABILITY':
-            tooltipLabel = t('Vulnerability');
-            IconComponent = BugReportOutlined;
-            break;
-          case 'HUMAN_RESPONSE':
-          default:
-            tooltipLabel = t('Human Response');
-            IconComponent = SensorOccupiedOutlined;
-            break;
-        }
+        const IconComponent = expectationTypeIcon(expectation.type);
+        const tooltipLabel = t(EXPECTATION_TYPE_LABELS[expectation.type] ?? expectation.type);
 
         return (
           <Tooltip key={index} title={tooltipLabel}>

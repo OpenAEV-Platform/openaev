@@ -2,7 +2,7 @@ package io.openaev.api.chaining.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
-import io.openaev.database.model.ConditionKeyType;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.StepStatus;
 import java.time.Instant;
 import java.util.List;
@@ -29,7 +29,7 @@ public class StepOutput {
   private List<MapperConditionOutput> mapperConditions;
 
   @JsonProperty("step_condition_key_types")
-  private List<ConditionKeyType> conditionKeyTypes;
+  private List<PrimitiveType> conditionKeyTypes;
 
   @JsonProperty("step_output_types")
   private List<String> outputTypes;

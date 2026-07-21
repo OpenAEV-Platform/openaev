@@ -108,9 +108,10 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
     connector.setSlug(CALDERA_EXECUTOR_TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
-        "With Caldera executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Caldera instance.");
-    connector.setShortDescription(
-        "Enable execution of OpenAEV scenarios through your Caldera instance.");
+        "Register hosts managed by your MITRE Caldera instance as OpenAEV executors and run"
+            + " simulated attacks on them through Caldera, so you can validate detection and"
+            + " prevention on real endpoints without deploying the OpenAEV agent.");
+    connector.setShortDescription("Run OpenAEV simulations on hosts managed by MITRE Caldera.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("https://caldera.mitre.org/");
     connector.setContainerType(ConnectorType.EXECUTOR);

@@ -11,9 +11,13 @@ import io.openaev.database.model.attackpath.projection.AttackPathFindingListRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
 import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
+import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.expectation.ExpectationType;
+import io.openaev.rest.payload.form.DetectionRemediationOutput;
+import io.openaev.service.attackpath.dto.AttackPathAttackPatternDTO;
 import io.openaev.service.attackpath.dto.AttackPathCounters;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathEdges;
@@ -24,6 +28,7 @@ import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingItemDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
+import io.openaev.utils.mapper.PayloadMapper;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -79,6 +84,9 @@ public class AttackPathGraphService {
 
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathFindingRepository findingRepository;
+  private final InjectorContractRepository injectorContractRepository;
+  private final PayloadRepository payloadRepository;
+  private final PayloadMapper payloadMapper;
 
   /**
    * Above this many executions a simulation is served collapsed by default. Tied to the front
@@ -95,9 +103,11 @@ public class AttackPathGraphService {
    */
   @Transactional(readOnly = true)
   public AttackPathDTO buildGraph(String simulationId, String requestedMode) {
+    // Both branches call the private bodies, never the public transactional twins: an intra-class
+    // call bypasses the Spring proxy, so the inner annotation would be silently inert.
     return resolveCollapsed(simulationId, requestedMode)
-        ? buildCollapsedGraph(simulationId)
-        : buildGraph(simulationId);
+        ? collapsedGraph(simulationId)
+        : fullGraph(simulationId);
   }
 
   private boolean resolveCollapsed(String simulationId, String requestedMode) {
@@ -186,10 +196,42 @@ public class AttackPathGraphService {
         }
       }
     }
+    // ATT&CK techniques of the run's injector contract, for the drawer's technique chips. One
+    // bounded lookup by the frozen contract external id (the accessor matches on id OR external id,
+    // so the external id is passed for both).
+    List<AttackPathAttackPatternDTO> attackPatterns = new ArrayList<>();
+    if (e.getContractExternalId() != null) {
+      injectorContractRepository
+          .findByIdOrExternalId(e.getContractExternalId(), e.getContractExternalId())
+          .ifPresent(
+              contract ->
+                  contract
+                      .getAttackPatterns()
+                      .forEach(
+                          pattern ->
+                              attackPatterns.add(
+                                  new AttackPathAttackPatternDTO(
+                                      pattern.getExternalId(), pattern.getName()))));
+    }
+    // Detection remediations of the payload that actually ran (the frozen payload id, not the
+    // inject's current one). The mapper carries the EE gate: an inactive licence yields an empty
+    // list, which is exactly what the drawer already renders.
+    List<DetectionRemediationOutput> detectionRemediations =
+        e.getPayloadId() == null
+            ? List.of()
+            : payloadMapper.toDetectionRemediationOutputs(
+                payloadRepository
+                    .findById(e.getPayloadId())
+                    .map(p -> p.getDetectionRemediations())
+                    .orElse(List.of()));
     return new AttackPathExecutionDetailDTO(
         e.getPayloadName(),
+        e.getInjectId(),
+        e.getPayloadId(),
         e.getAgentName(),
         e.getAgentPrivilege(),
+        attackPatterns,
+        detectionRemediations,
         e.getTargetKey(),
         e.getTargetHostname(),
         e.getTargetIp(),
@@ -280,6 +322,10 @@ public class AttackPathGraphService {
 
   @Transactional(readOnly = true)
   public AttackPathDTO buildGraph(String simulationId) {
+    return fullGraph(simulationId);
+  }
+
+  private AttackPathDTO fullGraph(String simulationId) {
     List<AttackPathExecutionRow> executions = executionRepository.findGraphRows(simulationId);
     List<AttackPathFindingRow> findings = findingRepository.findGraphRows(simulationId);
     return assemble(executions, findings);
@@ -436,7 +482,7 @@ public class AttackPathGraphService {
   }
 
   /**
-   * Collapsed rebuild for a large simulation (issue 6647, ADR-002): the same {@link AttackPathDTO}
+   * Collapsed rebuild for a large simulation (issue 6647, ADR-003): the same {@link AttackPathDTO}
    * with {@code mode = collapsed}, built entirely from DB aggregations, so the per-execution and
    * per-finding rows are never materialized. Nodes are the injectors and one node per endpoint
    * (carrying its status and a per-type finding-count summary); edges are grouped; the
@@ -445,6 +491,10 @@ public class AttackPathGraphService {
    */
   @Transactional(readOnly = true)
   public AttackPathDTO buildCollapsedGraph(String simulationId) {
+    return collapsedGraph(simulationId);
+  }
+
+  private AttackPathDTO collapsedGraph(String simulationId) {
     List<AttackPathEndpointGroupRow> endpoints =
         executionRepository.findEndpointGroups(simulationId);
     List<AttackPathEdgeGroupRow> edges = executionRepository.findEdgeGroups(simulationId);

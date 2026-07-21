@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
+import io.openaev.output_processor.FindingCapableOutputProcessor;
 import io.openaev.output_processor.OutputProcessorFactory;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Resource;
@@ -67,10 +69,30 @@ public class InjectorExecutionProcessingHandler extends AbstractExecutionProcess
 
     List<ContractOutputContext> contractOutputContexts =
         injectorContractContentUtils.getAllContractOutputs(injectorContract).stream()
+            .filter(this::shouldDispatch)
             .map(ContractOutputContext::from)
             .toList();
     dispatchToProcessors(executionContext, contractOutputContexts, structuredOutput);
 
     return Optional.of(structuredOutput);
+  }
+
+  /**
+   * Findings are only generated for finding-compatible outputs (mirrors the agent path, which
+   * filters on isFinding). Without this gate a purely informational output (e.g. the ai-redteam
+   * "response", isFindingCompatible=false) would be turned into a finding, and its save can breach
+   * a column constraint and poison the whole callback transaction (rolling back the status trace ->
+   * inject stuck PENDING). Outputs handled by non-finding processors (asset creation, expectation
+   * signatures) are always dispatched: their processors do not create findings, and filtering them
+   * out would silently drop asset discovery and expectation matching.
+   */
+  private boolean shouldDispatch(InjectorContractContentOutputElement element) {
+    if (element.isFindingCompatible()) {
+      return true;
+    }
+    return outputProcessorFactory
+        .getProcessor(element.getType())
+        .map(processor -> !(processor instanceof FindingCapableOutputProcessor))
+        .orElse(false);
   }
 }

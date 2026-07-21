@@ -1,6 +1,5 @@
 import { AttachmentOutlined } from '@mui/icons-material';
 import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, Fragment, type FunctionComponent, useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -10,7 +9,7 @@ import { useFormatter } from '../../../components/i18n';
 import ItemCopy from '../../../components/ItemCopy';
 import ItemDomains from '../../../components/ItemDomains';
 import ItemTags from '../../../components/ItemTags';
-import PlatformIcon from '../../../components/PlatformIcon';
+import PlatformIconGroup from '../../../components/PlatformIconGroup';
 import { useHelper } from '../../../store';
 import {
   type AttackPattern,
@@ -23,8 +22,7 @@ import {
   type PayloadArgument,
   type PayloadPrerequisite,
 } from '../../../utils/api-types';
-import { emptyFilled } from '../../../utils/String';
-import { isFeatureEnabled } from '../../../utils/utils';
+import { emptyFilled, formatPrimitiveTypeLabel } from '../../../utils/String';
 import DocumentType from '../components/documents/DocumentType';
 
 const useStyles = makeStyles()(theme => ({
@@ -81,8 +79,6 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
-  const theme = useTheme();
-  const isChainingEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   const { attackPatternsMap }: { attackPatternsMap: ReturnType<AttackPatternHelper['getAttackPatternsMap']> } = useHelper((helper: AttackPatternHelper) => ({ attackPatternsMap: helper.getAttackPatternsMap() }));
   const getAttackCommand = (payload: PayloadType | null): string => {
@@ -114,7 +110,6 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
       .map(id => attackPatternsMap[id])
       .filter(Boolean) as AttackPattern[];
   }, [attackPatternsMap, attackPatternIds]);
-
   return (
     <div className={classes.payloadContainer}>
       <Typography variant="h2" gutterBottom>{selectedPayload?.payload_name}</Typography>
@@ -133,11 +128,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
           >
             {t('Platforms')}
           </Typography>
-          {(selectedPayload?.payload_platforms ?? []).length === 0 ? (
-            <PlatformIcon platform={t('No inject in this scenario')} tooltip width={25} />
-          ) : selectedPayload?.payload_platforms?.map(
-            platform => <PlatformIcon key={platform} platform={platform} tooltip width={25} marginRight={theme.spacing(2)} />,
-          )}
+          <PlatformIconGroup platforms={selectedPayload?.payload_platforms} width={25} />
         </div>
 
         <div>
@@ -330,7 +321,6 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                       }}
                       >
                         <TableCell>{t('Type')}</TableCell>
-                        {isChainingEnabled && <TableCell>{t('Subtype')}</TableCell>}
                         <TableCell>{t('Key')}</TableCell>
                         <TableCell>{t('Default value')}</TableCell>
                       </TableRow>
@@ -341,9 +331,8 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                           <Fragment key={argument.key}>
                             <TableRow>
                               <TableCell>
-                                {argument.type}
+                                {formatPrimitiveTypeLabel(argument.type)}
                               </TableCell>
-                              {isChainingEnabled && <TableCell>{argument.subtype ?? '-'}</TableCell>}
                               <TableCell>
                                 {argument.key}
                               </TableCell>

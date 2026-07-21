@@ -44,6 +44,9 @@ public class AttackPathExecution implements TenantBase {
   @Column(name = "attackpath_execution_simulation_id", nullable = false)
   private String simulationId;
 
+  @Column(name = "attackpath_execution_inject_id")
+  private String injectId;
+
   @Column(name = "attackpath_execution_step_id")
   private String stepId;
 
@@ -59,6 +62,15 @@ public class AttackPathExecution implements TenantBase {
   @Column(name = "attackpath_execution_source_asset_id")
   private String sourceAssetId;
 
+  @Column(name = "attackpath_execution_source_hostname")
+  private String sourceHostname;
+
+  @Column(name = "attackpath_execution_source_ip")
+  private String sourceIp;
+
+  @Column(name = "attackpath_execution_source_platform")
+  private String sourcePlatform;
+
   @Column(name = "attackpath_execution_agent_id")
   private String agentId;
 
@@ -70,6 +82,9 @@ public class AttackPathExecution implements TenantBase {
 
   @Column(name = "attackpath_execution_source_injector")
   private String sourceInjector;
+
+  @Column(name = "attackpath_execution_injector_type")
+  private String injectorType;
 
   @Column(name = "attackpath_execution_target_kind", nullable = false)
   private String targetKind;
@@ -94,6 +109,9 @@ public class AttackPathExecution implements TenantBase {
 
   @Column(name = "attackpath_execution_payload_name")
   private String payloadName;
+
+  @Column(name = "attackpath_execution_payload_id")
+  private String payloadId;
 
   @Column(name = "attackpath_execution_executed_at", nullable = false)
   private Instant executedAt;

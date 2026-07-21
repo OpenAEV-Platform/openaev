@@ -3,6 +3,7 @@ import { type CSSProperties } from 'react';
 
 import { initSorting } from '../../../../components/common/queryable/Page';
 import type { Header } from '../../../../components/common/SortHeadersList';
+import DangerZone from '../../../../components/common/tag/DangerZone';
 import type { SortField, TenantOutput } from '../../../../utils/api-types';
 import TenantStatus from './TenantStatus';
 
@@ -23,12 +24,26 @@ export const TENANT_INLINE_STYLES: Record<string, CSSProperties> = {
 };
 
 // Headers
-export const getTenantHeaders: (t: (text: string) => string) => Header[] = (t: (text: string) => string) => [
+export const getTenantHeaders: (t: (text: string) => string, defaultTenantId?: string) => Header[] = (t: (text: string) => string, defaultTenantId?: string) => [
   {
     field: FIELD_TENANT_NAME,
     label: t('Tenant name'),
     isSortable: true,
-    value: (tenant: TenantOutput) => tenant.tenant_name,
+    value: (tenant: TenantOutput) =>
+      tenant.tenant_id === defaultTenantId
+        ? createElement(
+            'div',
+            {
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              },
+            },
+            tenant.tenant_name,
+            createElement(DangerZone, { tooltip: t('This is the default tenant. It can be renamed but cannot be deleted.') }),
+          )
+        : tenant.tenant_name,
   },
   {
     field: FIELD_TENANT_DELETED_AT,

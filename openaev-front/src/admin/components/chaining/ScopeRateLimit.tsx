@@ -32,15 +32,29 @@ const ScopeRateLimit = ({ workflowConfiguration, onUpdate }: ScopeRateLimitProps
   const minutes = Math.floor(maxTemporalRateSeconds / 60) || 1;
 
   const handleToggleRateLimit = () => {
-    onUpdate({ workflow_configuration_rate_limit_enabled: !rateLimitEnabled });
+    const enabling = !rateLimitEnabled;
+    onUpdate({
+      workflow_configuration_rate_limit_enabled: enabling,
+      // When enabling, ensure default values are sent so the backend never receives nulls.
+      ...(enabling && {
+        workflow_configuration_max_attempts: maxAttempts,
+        workflow_configuration_max_temporal_rate_seconds: maxTemporalRateSeconds,
+      }),
+    });
   };
 
   const handleMaxAttemptsChange = (event: SelectChangeEvent<number>) => {
-    onUpdate({ workflow_configuration_max_attempts: Number(event.target.value) });
+    onUpdate({
+      workflow_configuration_max_attempts: Number(event.target.value),
+      workflow_configuration_max_temporal_rate_seconds: maxTemporalRateSeconds,
+    });
   };
 
   const handleMinutesChange = (event: SelectChangeEvent<number>) => {
-    onUpdate({ workflow_configuration_max_temporal_rate_seconds: Number(event.target.value) * 60 });
+    onUpdate({
+      workflow_configuration_max_temporal_rate_seconds: Number(event.target.value) * 60,
+      workflow_configuration_max_attempts: maxAttempts,
+    });
   };
 
   return (

@@ -40,7 +40,19 @@ telemetry.enable=true
 server.address=0.0.0.0
 server.port=8080
 server.servlet.context-path=/
+
+# Session management (sessions are persisted in PostgreSQL and survive restarts)
 server.servlet.session.timeout=1440m
+spring.session.timeout=${server.servlet.session.timeout}
+spring.session.jdbc.initialize-schema=never
+spring.session.jdbc.cleanup-cron=-
+## Idle timeout surfaced to the frontend lock screen (0 = disabled)
+openaev.session-idle-timeout=0
+## When true, the session cookie dies when the browser closes
+openaev.session-cookie=false
+## SameSite of the session cookie. Blank omits it (keeps SSO working over the cross-site callback);
+## set "None" (forces Secure) on HTTPS SSO deployments. Accepted: None, Lax, Strict, or blank.
+openaev.session-cookie-same-site=
 server.ssl.enabled=false
 server.http2.enabled=${server.ssl.enabled}
 server.ssl.key-store-type=PKCS12

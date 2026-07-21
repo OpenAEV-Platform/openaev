@@ -21,8 +21,10 @@ import { useHelper } from '../../../../../../../store';
 import {
   type AttackPattern,
   type EsBase,
+  type EsInjectExpectation,
   type ListConfiguration, type Pagination,
 } from '../../../../../../../utils/api-types';
+import { expectationTypeIcon } from '../../../../../common/ExpectationIconByType';
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
 import EndpointElementStyles from './elements/EndpointElementStyles';
@@ -33,9 +35,16 @@ import navigationHandlers from './elements/ListNavigationHandler';
 // estimate so the two stay aligned.
 const ROW_HEIGHT = 50;
 
-const useStyles = makeStyles()(() => ({
-  itemHead: { textTransform: 'uppercase' },
-  item: { height: ROW_HEIGHT },
+const useStyles = makeStyles()(theme => ({
+  item: {
+    'height': ROW_HEIGHT,
+    'borderRadius': theme.shape.borderRadius,
+    'transition': 'background 0.15s, box-shadow 0.15s',
+    '&:hover': {
+      backgroundColor: theme.palette.action.hover,
+      boxShadow: `inset 2px 0 0 0 ${theme.palette.primary.main}`,
+    },
+  },
 }));
 
 // Empty secondary action component to avoid recreation
@@ -60,6 +69,11 @@ const ListWidgetItem = memo<{
   const handleClick = useCallback(() => {
     onItemClick(element);
   }, [element, onItemClick]);
+
+  // Inject-expectation rows lead with the expectation-type icon (shield /
+  // sensor / bug / support agent...) instead of the generic device icon.
+  const expectationType = (element as EsInjectExpectation).inject_expectation_type;
+  const LeadingIcon = expectationType ? expectationTypeIcon(expectationType) : DevicesOtherOutlined;
 
   const renderedColumns = useMemo(() => columns.map((col) => {
     const renderer = listConfigRenderer[col] ?? defaultRenderer;
@@ -93,7 +107,7 @@ const ListWidgetItem = memo<{
         className="noDrag"
       >
         <ListItemIcon>
-          <DevicesOtherOutlined color="primary" />
+          <LeadingIcon color="primary" />
         </ListItemIcon>
         <ListItemText
           primary={(
@@ -116,6 +130,11 @@ type Props = {
   totalElements: number;
   onPaginationChange: (paginationInput: Pagination) => void;
   contentLoading?: boolean;
+  // Render the pagination bar above the list (aligns with the app's list pages) instead of below
+  // (default, used by embedded dashboard widget tiles).
+  paginationAbove?: boolean;
+  // Hide the built-in pagination entirely (the dashboard tile renders it in the widget title row).
+  hidePagination?: boolean;
 };
 
 const ListWidget = ({
@@ -126,6 +145,8 @@ const ListWidget = ({
   totalElements,
   onPaginationChange,
   contentLoading = false,
+  paginationAbove = false,
+  hidePagination = false,
 }: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
@@ -185,6 +206,26 @@ const ListWidget = ({
     return <div>{t('No columns configured for this list.')}</div>;
   }
 
+  const pagination = !hidePagination && elements.length > 0 && totalElements > elementsPerPage
+    ? (
+        <TablePagination
+          component="div"
+          rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+          count={totalElements}
+          page={currentPageNumber}
+          onPageChange={handleChangePage}
+          rowsPerPage={elementsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          sx={{
+            'flexShrink': 0,
+            [paginationAbove ? 'borderBottom' : 'borderTop']: theme => `1px solid ${theme.palette.divider}`,
+            'minHeight': 0,
+            '& .MuiTablePagination-toolbar': { minHeight: 40 },
+          }}
+        />
+      )
+    : null;
+
   return (
     <Box style={{
       height: '100%',
@@ -192,29 +233,7 @@ const ListWidget = ({
       flexDirection: 'column',
     }}
     >
-      {elements.length > 0
-        && (
-          <TablePagination
-            component="div"
-            rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
-            count={totalElements}
-            page={currentPageNumber}
-            onPageChange={handleChangePage}
-            rowsPerPage={elementsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
-        )}
-
-      <MuiList disablePadding>
-        <MuiListItem
-          classes={{ root: classes.itemHead }}
-          style={{ paddingTop: 0 }}
-          secondaryAction={<EmptySecondaryAction />}
-        >
-          <ListItemIcon />
-        </MuiListItem>
-      </MuiList>
-
+      {paginationAbove && pagination}
       {contentLoading && <Loader variant="inElement" />}
       {!contentLoading && elements.length === 0 && (
         <div style={{
@@ -275,6 +294,8 @@ const ListWidget = ({
           </MuiList>
         </div>
       )}
+
+      {!paginationAbove && pagination}
     </Box>
   );
 };

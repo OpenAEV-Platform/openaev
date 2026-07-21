@@ -70,10 +70,11 @@ const ScenarioPopover: FunctionComponent<Props> = ({
   const [exportation, setExportation] = useState(false);
   const handleOpenExport = () => setExportation(true);
   const handleCloseExport = () => setExportation(false);
-  const submitExport = (exportPlayers: boolean, exportTeams: boolean, exportVariableValues: boolean) => {
+  const submitExport = (exportPlayers: boolean, exportTeams: boolean, exportVariableValues: boolean, exportScopeDefinition: boolean) => {
     const link = document.createElement('a');
-    link.href = exportScenarioUri(scenario.scenario_id, exportTeams, exportPlayers, exportVariableValues);
+    link.href = exportScenarioUri(scenario.scenario_id, exportTeams, exportPlayers, exportVariableValues, exportScopeDefinition);
     link.click();
+    handleCloseExport();
   };
 
   // Button Popover
@@ -124,6 +125,7 @@ const ScenarioPopover: FunctionComponent<Props> = ({
           <ExportOptionsDialog
             title={t('Export the scenario')}
             open={exportation}
+            isChaining={!!(scenario as unknown as Record<string, unknown>).scenario_workflow_id}
             onCancel={handleCloseExport}
             onClose={handleCloseExport}
             onSubmit={submitExport}

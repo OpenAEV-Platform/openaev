@@ -28,8 +28,10 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
@@ -80,6 +82,8 @@ public class InjectExecutionStep implements ActionStep {
   private final ConditionService conditionService;
   private final WorkflowStateService workflowStateService;
   private final ScopeService scopeService;
+  private final PreviewFeatureService previewFeatureService;
+  private final AttackPathExecutionIngestionService attackPathIngestion;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -186,6 +190,8 @@ public class InjectExecutionStep implements ActionStep {
                             + readyStep.getId()));
     prepareGetStatusPayloadFromInject(injectorContract);
 
+    recordAttackPathExecution(readyStep, inject, injectorContract);
+
     try {
       String data = setInjectId(inject.getId(), readyStep.getData());
       readyStep.setData(data);
@@ -206,10 +212,27 @@ public class InjectExecutionStep implements ActionStep {
       // executableInject.addDirectAttachment(inject.getDocuments());
 
       executor.directExecute(executableInject);
+
       return Optional.of(readyStep);
     } catch (Exception e) {
       throw new ChainingException(
           "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
+    }
+  }
+
+  /**
+   * Records the attack-path execution rows at RUN (issue 5048, #203). Flag-gated by {@code
+   * ATTACK_PATH} and guarded: a failure here is logged and never fails the inject execution.
+   */
+  private void recordAttackPathExecution(
+      Step readyStep, Inject inject, InjectorContract injectorContract) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
+      return;
+    }
+    try {
+      attackPathIngestion.onRun(readyStep, inject, injectorContract);
+    } catch (Exception e) {
+      log.warn("Attack-path ingestion skipped for inject {} (non-fatal)", inject.getId(), e);
     }
   }
 
@@ -289,48 +312,41 @@ public class InjectExecutionStep implements ActionStep {
    */
   private void processOutputAndStateSync(
       Step stepRun, List<Map<String, JsonElement>> output, Inject inject) {
-    boolean hasParsedData = output.stream().anyMatch(map -> map.containsKey("parsed"));
-
-    if (hasParsedData) {
-      Map<String, List<String>> outputData = extractDataFromParsed(output);
-
-      if (!outputData.isEmpty()) {
-        Workflow workflowRun = stepRun.getWorkflow();
-
-        Map<String, ContractOutputType> fieldTypeMap = buildFieldTypeMapFromInject(inject);
-        // Sync global state with the execution output, which may trigger chained steps to become
-        // READY
-        workflowStateService.syncState(gson.toJsonTree(outputData), fieldTypeMap, workflowRun);
-      }
+    Map<String, List<String>> outputData = extractDataFromParsed(output);
+    if (outputData.isEmpty()) {
+      return;
     }
+
+    Workflow workflowRun = stepRun.getWorkflow();
+    Map<String, ChainingMappedType> outputTypeMappings = buildTypeMappingsFromInject(inject);
+    // Sync global state with execution output values mapped to chaining primitive/complex types.
+    workflowStateService.syncState(gson.toJsonTree(outputData), outputTypeMappings, workflowRun);
   }
 
   /** Extracts key-value pairs from structured "parsed" output entries. */
   private Map<String, List<String>> extractDataFromParsed(List<Map<String, JsonElement>> output) {
     Map<String, List<String>> result = new HashMap<>();
 
-    try {
-      for (Map<String, JsonElement> entry : output) {
-        if (entry.containsKey("parsed")) {
-          JsonObject parsed = entry.get("parsed").getAsJsonObject();
+    for (Map<String, JsonElement> entry : output) {
+      JsonElement parsedElement = entry.get("parsed");
+      if (parsedElement == null || !parsedElement.isJsonObject()) {
+        continue;
+      }
 
-          for (String key : parsed.keySet()) {
-            JsonElement element = parsed.get(key);
-            if (element == null || !element.isJsonArray()) {
-              continue;
-            }
-            JsonArray valuesArray = element.getAsJsonArray();
-            for (JsonElement item : valuesArray) {
-              if (item.isJsonPrimitive()) {
-                result.computeIfAbsent(key, k -> new ArrayList<>()).add(item.getAsString());
-              }
-            }
+      JsonObject parsed = parsedElement.getAsJsonObject();
+      for (Map.Entry<String, JsonElement> parsedEntry : parsed.entrySet()) {
+        JsonElement value = parsedEntry.getValue();
+        if (value == null || !value.isJsonArray()) {
+          continue;
+        }
+        for (JsonElement item : value.getAsJsonArray()) {
+          if (item.isJsonPrimitive()) {
+            result
+                .computeIfAbsent(parsedEntry.getKey(), ignored -> new ArrayList<>())
+                .add(item.getAsString());
           }
         }
       }
-    } catch (Exception e) {
-      log.error("Failed to parse structured output for synchronize global State", e);
-      return Collections.emptyMap();
     }
     return result;
   }
@@ -498,9 +514,6 @@ public class InjectExecutionStep implements ActionStep {
         Map<String, Object> input = new HashMap<>();
         input.put("key", condition.getKey());
         input.put("keyType", condition.getKeyType() != null ? condition.getKeyType().name() : null);
-        input.put(
-            "keySubtype",
-            condition.getKeySubtype() != null ? condition.getKeySubtype().name() : null);
         input.put("path", condition.getValue());
         input.put("mappingType", condition.getMappingType());
         input.put("id_step_from", condition.getStepFrom());
@@ -521,6 +534,73 @@ public class InjectExecutionStep implements ActionStep {
    */
   private String setInjectId(String injectId, String dataStep) {
     return setField(dataStep, "inject_id", injectId);
+  }
+
+  private String getCommand(Inject inject) {
+    if (inject.getStatus().isEmpty()) return "";
+
+    InjectStatus status = inject.getStatus().get();
+    StatusPayload statusPayload = status.getPayloadOutput();
+    if (statusPayload == null || statusPayload.getPayloadCommandBlocks() == null) {
+      return "";
+    }
+    StringBuilder command = new StringBuilder();
+    statusPayload
+        .getPayloadCommandBlocks()
+        .forEach(
+            payloadCommandBlock -> {
+              command.append(payloadCommandBlock.getContent());
+              command.append("\n");
+            });
+    return command.toString();
+  }
+
+  private Map<String, StringBuilder> getExecutionTracesByEndpointIndex(Inject inject) {
+    Map<String, StringBuilder> tracesByEndpointSource = new HashMap<>();
+    if (inject.getStatus().isEmpty()) return tracesByEndpointSource;
+
+    InjectStatus status = inject.getStatus().get();
+    List<ExecutionTrace> executionTraces = status.getTraces();
+
+    if (inject.getInjector() == null) {
+      executionTraces.forEach(
+          executionTrace -> {
+            if (executionTrace.getAgent() == null || executionTrace.getAgent().getAsset() == null) {
+              return;
+            }
+            String agentId =
+                executionTrace.getAgent().getId() + executionTrace.getAgent().getAsset().getId();
+            StringBuilder agentTraces =
+                tracesByEndpointSource.computeIfAbsent(agentId, k -> new StringBuilder());
+            // A trace with no timestamp must not render a literal "null" at the start of the line.
+            if (executionTrace.getTime() != null) {
+              agentTraces.append(executionTrace.getTime()).append(" ");
+            }
+            agentTraces
+                .append(executionTrace.getStatus().name())
+                .append(" ")
+                .append(executionTrace.getMessage())
+                .append("\n");
+          });
+    } else {
+      // TODO BUILD INDEX
+      String injectorId = inject.getInjector().getId();
+      executionTraces.forEach(
+          executionTrace -> {
+            StringBuilder injectorTraces =
+                tracesByEndpointSource.computeIfAbsent(injectorId, k -> new StringBuilder());
+            // A trace with no timestamp must not render a literal "null" at the start of the line.
+            if (executionTrace.getTime() != null) {
+              injectorTraces.append(executionTrace.getTime()).append(" ");
+            }
+            injectorTraces
+                .append(executionTrace.getStatus().name())
+                .append(" ")
+                .append(executionTrace.getMessage())
+                .append("\n");
+          });
+    }
+    return tracesByEndpointSource;
   }
 
   /**
@@ -723,6 +803,10 @@ public class InjectExecutionStep implements ActionStep {
    * @param inputValues the source JSON containing the values to map
    */
   private void applyMapping(ObjectNode contentNode, Condition mapping, JsonNode inputValues) {
+    if (mapping.getKeyType() == null) {
+      log.warn("[Chaining] Skipping mapper condition {} because keyType is null", mapping.getId());
+      return;
+    }
     String inputKey = mapping.getKeyType().name(); // e.g., "IPv4"
     String targetJsonKey = mapping.getKey();
 
@@ -782,23 +866,51 @@ public class InjectExecutionStep implements ActionStep {
   private static void formatManualUpdateToOutput(List<Map<String, JsonElement>> output) {}
 
   /**
-   * Builds a map of output field names to their contract types from the inject's payload or
-   * contract.
+   * Builds the type mapping used by the chaining engine to interpret structured output fields.
+   *
+   * <p>An injector contract (or payload) declares its output fields with a {@link
+   * ContractOutputType}, e.g. field "ports" -> PORT. The chaining engine does not work with
+   * contract types directly. Instead, {@link ChainingTypeRegistry} translates each contract type
+   * into a {@link ChainingMappedType} that tells the engine how to treat the produced values:
+   *
+   * <ul>
+   *   <li>PRIMITIVE: scalar values stored per {@link PrimitiveType} (e.g. PORT ->
+   *       PrimitiveType.Port)
+   *   <li>COMPLEX: JSON objects stored as correlated pairs (e.g. PORTSCAN -> host+port tuples)
+   *   <li>NOT_CHAINABLE: values ignored by the chaining engine entirely
+   * </ul>
+   *
+   * <p>Two sources are supported:
+   *
+   * <ul>
+   *   <li>Payload-based inject: output parsers define the fields and their types
+   *   <li>Contract-based inject: the injector contract defines the fields and their types
+   * </ul>
+   *
+   * @param inject the inject whose output fields are being mapped
+   * @return map of output field name to its resolved chaining type
    */
-  private Map<String, ContractOutputType> buildFieldTypeMapFromInject(Inject inject) {
-    Map<String, ContractOutputType> fieldTypeMap = new HashMap<>();
+  private Map<String, ChainingMappedType> buildTypeMappingsFromInject(Inject inject) {
+    Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+
     if (inject.getPayload().isPresent()) {
       Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
       injectorContractContentUtils
           .getAllContractOutputs(outputParsers)
-          .forEach(out -> fieldTypeMap.put(out.getKey(), out.getType()));
-    } else {
-      if (inject.getInjectorContract().isPresent()) {
-        injectorContractContentUtils
-            .getAllContractOutputs(inject.getInjectorContract().get())
-            .forEach(out -> fieldTypeMap.put(out.getField(), out.getType()));
-      }
+          .forEach(
+              out ->
+                  typeMappings.put(
+                      out.getKey(),
+                      ChainingTypeRegistry.getMappedTypeForContractOutputType(out.getType())));
+    } else if (inject.getInjectorContract().isPresent()) {
+      injectorContractContentUtils
+          .getAllContractOutputs(inject.getInjectorContract().get())
+          .forEach(
+              out ->
+                  typeMappings.put(
+                      out.getField(),
+                      ChainingTypeRegistry.getMappedTypeForContractOutputType(out.getType())));
     }
-    return fieldTypeMap;
+    return typeMappings;
   }
 }

@@ -38,6 +38,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
@@ -87,6 +88,7 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private ExerciseTeamUserService exerciseTeamUserService;
   @Mock private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
   @Mock private UrlAccessTokenService urlAccessTokenService;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
@@ -136,7 +138,8 @@ class ExerciseServiceTest extends IntegrationTest {
             pauseExerciseService,
             fileService,
             stepService,
-            healthCheckUtils);
+            healthCheckUtils,
+            eventPublisher);
 
     scenarioComposer.reset();
     exerciseComposer.reset();

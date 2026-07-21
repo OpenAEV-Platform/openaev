@@ -20,7 +20,8 @@ import lombok.Data;
       TeamTarget.class,
       EndpointTarget.class,
       AgentTarget.class,
-      PlayerTarget.class
+      PlayerTarget.class,
+      AiTargetTarget.class
     },
     discriminatorMapping = {
       @DiscriminatorMapping(value = "ASSETS_GROUPS", schema = AssetGroupTarget.class),
@@ -28,6 +29,7 @@ import lombok.Data;
       @DiscriminatorMapping(value = "TEAMS", schema = TeamTarget.class),
       @DiscriminatorMapping(value = "PLAYERS", schema = PlayerTarget.class),
       @DiscriminatorMapping(value = "AGENT", schema = AgentTarget.class),
+      @DiscriminatorMapping(value = "AI_TARGETS", schema = AiTargetTarget.class),
     })
 @JsonInclude(NON_NULL)
 public abstract class InjectTarget {

@@ -1,4 +1,4 @@
-import { Grid, Paper, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Grid, Paper, Tab, Tabs, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useContext, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -24,8 +24,6 @@ const useStyles = makeStyles()({
     width: 180,
   },
   paper: {
-    height: '100%',
-    minHeight: '100%',
     padding: 15,
     borderRadius: 4,
   },
@@ -37,7 +35,10 @@ const useStyles = makeStyles()({
     height: '99%',
     left: '-10px',
   },
-  tabs: { marginLeft: 'auto' },
+  tabs: {
+    marginLeft: 'auto',
+    marginBottom: 12,
+  },
 });
 
 type TabConfig = {
@@ -62,6 +63,8 @@ const AtomicTesting = () => {
   const [hasEndpointsChecked, setHasEndpointsChecked] = useState(false);
   const [hasAgents, setHasAgents] = useState(false);
   const [hasAgentsChecked, setHasAgentsChecked] = useState(false);
+  const [hasAiTargets, setHasAiTargets] = useState(false);
+  const [hasAiTargetsChecked, setHasAiTargetsChecked] = useState(false);
   const [reloadContentCount, setReloadContentCount] = useState(0);
   const [hasTeams, setHasTeams] = useState(false);
   const [hasTeamsChecked, setHasTeamsChecked] = useState(false);
@@ -122,6 +125,14 @@ const AtomicTesting = () => {
         entityPrefix: 'agent_target',
       });
     }
+    if (hasAiTargets) {
+      tabs.push({
+        key: index++,
+        label: t('AI targets'),
+        type: 'AI_TARGETS',
+        entityPrefix: 'ai_target_target',
+      });
+    }
 
     // tabs visibility may have changed so we reevaluate this structure;
     // figure out which tab to display; if the previously displayed tab
@@ -142,7 +153,7 @@ const AtomicTesting = () => {
     }
 
     return tabs;
-  }, [hasAssetsGroup, hasTeams, hasEndpoints, hasAgents, hasPlayers]);
+  }, [hasAssetsGroup, hasTeams, hasEndpoints, hasAgents, hasPlayers, hasAiTargets]);
 
   const activeTabKey: number = useMemo(() => {
     return activeTab?.key || 0;
@@ -212,6 +223,16 @@ const AtomicTesting = () => {
         setHasAgentsChecked(true);
       });
 
+    searchTargets(injectId, 'AI_TARGETS', searchPaginationInput1Result)
+      .then((response) => {
+        if (response.data.content.length > 0) {
+          setHasAiTargets(true);
+        } else { setHasAiTargets(false); }
+      })
+      .finally(() => {
+        setHasAiTargetsChecked(true);
+      });
+
     setReloadContentCount(reloadContentCount + 1);
   }, [injectResultOverviewOutput]);
 
@@ -252,14 +273,24 @@ const AtomicTesting = () => {
   }
 
   return (
-    <Grid container spacing={3} style={{ marginBottom: theme.spacing(3) }}>
-      <Grid size={6}>
-        <Typography variant="h4" gutterBottom style={{ float: 'left' }} sx={{ mb: theme.spacing(1) }}>
+    <Grid
+      container
+      spacing={3}
+      style={{ marginBottom: theme.spacing(3) }}
+      sx={{ alignItems: 'stretch' }}
+    >
+      <Grid
+        size={6}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <Typography variant="h4" gutterBottom sx={{ mb: theme.spacing(1) }}>
           {t('Targets')}
         </Typography>
-        <div className="clearfix" />
-        <Paper classes={{ root: classes.paper }} variant="outlined">
-          {hasAssetsGroupChecked && hasTeamsChecked && hasEndpointsChecked && hasAgentsChecked && hasPlayersChecked && (
+        <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
+          {hasAssetsGroupChecked && hasTeamsChecked && hasEndpointsChecked && hasAgentsChecked && hasPlayersChecked && hasAiTargetsChecked && (
             <>
               <Tabs
                 value={activeTabKey}
@@ -278,15 +309,30 @@ const AtomicTesting = () => {
           )}
         </Paper>
       </Grid>
-      <Grid size={6}>
+      <Grid
+        size={6}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         <Typography variant="h4" gutterBottom sx={{ mb: theme.spacing(1) }}>
           {t('Results by target')}
         </Typography>
         {selectedTarget && !!injectResultOverviewOutput.inject_type && (
-          <TargetResultsDetail inject={injectResultOverviewOutput} target={selectedTarget} isAgentless={isAgentless(hasAgents, hasTeams)} />
+          <Box
+            sx={{
+              'flex': 1,
+              'display': 'flex',
+              'flexDirection': 'column',
+              '& > .MuiPaper-root': { flex: 1 },
+            }}
+          >
+            <TargetResultsDetail inject={injectResultOverviewOutput} target={selectedTarget} isAgentless={isAgentless(hasAgents, hasTeams)} />
+          </Box>
         )}
         {!selectedTarget && (
-          <Paper classes={{ root: classes.paper }} variant="outlined">
+          <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
             <Empty message={t('No target data available.')} />
           </Paper>
         )}

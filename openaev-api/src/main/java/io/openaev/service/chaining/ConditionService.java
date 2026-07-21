@@ -30,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Transactional(rollbackFor = Exception.class)
 public class ConditionService {
-
   private final WorkflowStateService workflowStateService;
 
   private final ConditionUtils conditionUtils;
@@ -56,7 +55,6 @@ public class ConditionService {
     if (conditionInputs == null || conditionInputs.isEmpty()) {
       throw new BadRequestException("At least one condition is required");
     }
-
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
 
     Condition root =
@@ -66,7 +64,6 @@ public class ConditionService {
             .description(input.getDescription())
             .type(rootInput.getType())
             .keyType(rootInput.getKeyType())
-            .keySubtype(rootInput.getKeySubtype())
             .mappingType(resolveMappingType(rootInput))
             .build();
 
@@ -110,7 +107,6 @@ public class ConditionService {
     if (conditionInputs == null || conditionInputs.isEmpty()) {
       throw new BadRequestException("At least one condition is required");
     }
-
     List<ConditionCreateInput> rootInputs = findRootConditionInputs(conditionInputs);
 
     // Multiple roots are only allowed when all roots are MAPPER conditions
@@ -239,7 +235,6 @@ public class ConditionService {
     if (conditionInputs == null || conditionInputs.isEmpty()) {
       throw new BadRequestException("At least one condition is required");
     }
-
     Condition root = findConditionRootById(conditionRootId);
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
 
@@ -248,7 +243,6 @@ public class ConditionService {
     root.setWorkflowId(input.getWorkflowId());
     root.setType(rootInput.getType());
     root.setKeyType(rootInput.getKeyType());
-    root.setKeySubtype(rootInput.getKeySubtype());
     root.setMappingType(resolveMappingType(rootInput));
 
     if (root.getConditionChildren() != null) {
@@ -449,7 +443,7 @@ public class ConditionService {
 
     // No condition means direct execution:
     if (conditionTemplate == null || conditionTemplate.isEmpty()) {
-      return List.of(new ExecutionBatch(input, new ArrayList<>()));
+      return List.of(new ExecutionBatch(input, new ArrayList<>(), null));
     }
 
     // DEPEND_ON CONDITIONS
@@ -489,7 +483,7 @@ public class ConditionService {
 
     // No mapper means direct execution with the original input
     if (mapperConditions.isEmpty()) {
-      return List.of(new ExecutionBatch(input, new ArrayList<>()));
+      return List.of(new ExecutionBatch(input, new ArrayList<>(), null));
     }
 
     return prepareInputsForStepExecution(nextStepTemplateToExecute, workflowRun, mapperConditions);
@@ -694,16 +688,6 @@ public class ConditionService {
   }
 
   /**
-   * Creates a DEPEND_ON condition for a step template dependency.
-   *
-   * @param idStepFromTemplate identifier of the dependent step template
-   * @return the DEPEND_ON condition
-   */
-  public Condition isDependOn(String idStepFromTemplate) {
-    return ConditionFactory.dependOn(idStepFromTemplate);
-  }
-
-  /**
    * Returns {@code true} if the given step has at least one condition of type {@link
    * ConditionType#MAPPER}.
    *
@@ -881,7 +865,7 @@ public class ConditionService {
 
     // No mappers means a default execution batch
     if (mappers.isEmpty()) {
-      return List.of(new ConditionService.ExecutionBatch(null, List.of()));
+      return List.of(new ConditionService.ExecutionBatch(null, List.of(), null));
     }
 
     // Fetch and Parse State
@@ -898,6 +882,8 @@ public class ConditionService {
     Set<String> requiredKeys = extractRequiredExecutionKeys(mappers);
 
     // Build execution batches which be used as input for the step execution.
+    // Hashes are NOT committed here — the caller commits only the hashes of batches
+    // that actually proceed (i.e. are not rate-limited) via commitHashes().
     List<ExecutionBatch> batches =
         buildExecutionBatches(
             mappers,
@@ -906,7 +892,6 @@ public class ConditionService {
             preparation.staticValues(),
             requiredKeys);
 
-    saveLocalState(context);
     return batches;
   }
 
@@ -934,21 +919,39 @@ public class ConditionService {
     return gson.fromJson(json, WorkflowStateEntries.class);
   }
 
-  /** Syncs the POJO back to the entity and saves it. */
-  private void saveLocalState(WorkflowContext context) {
-    if (context.localStateEntity() == null) {
+  /**
+   * Commits the given execution hashes into the local workflow state for the step template,
+   * preventing those input combinations from being re-executed in the future.
+   *
+   * <p>Only hashes of batches that were actually turned into READY steps should be committed.
+   * Batches that were delayed (e.g. due to rate limiting) must <b>not</b> have their hash committed
+   * so that they can be retried later.
+   *
+   * @param stepTemplate the step template whose local state stores the hash set
+   * @param workflowRun the running workflow
+   * @param hashes the set of hashes to commit
+   */
+  public void commitHashes(Step stepTemplate, Workflow workflowRun, Set<String> hashes) {
+    if (hashes == null || hashes.isEmpty()) {
       return;
     }
-    String json = gson.toJson(context.localEntries());
-    context.localStateEntity().setEntries(json);
-    workflowStateService.save(context.localStateEntity());
+    WorkflowState localState =
+        workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun);
+    if (localState == null) {
+      return;
+    }
+    WorkflowStateEntries entries = deserializeEntries(localState.getEntries());
+    entries.getHashExecution().addAll(hashes);
+    localState.setEntries(gson.toJson(entries));
+    workflowStateService.save(localState);
   }
 
   /** Returns the set of key-type names that must be present in every execution combo. */
   private Set<String> extractRequiredExecutionKeys(List<Condition> mappers) {
     return mappers.stream()
         .filter(mapper -> mapper.getMappingType() != MappingType.DEFAULT)
-        .map(mapper -> mapper.getKeyType().name())
+        .map(this::resolveMapperKey)
+        .filter(Objects::nonNull)
         .collect(Collectors.toSet());
   }
 
@@ -964,7 +967,13 @@ public class ConditionService {
     Map<String, String> staticValues = new HashMap<>();
 
     for (Condition mapper : mappers) {
-      String key = mapper.getKeyType().name();
+      String key = resolveMapperKey(mapper);
+      if (key == null) {
+        log.warn(
+            "[Chaining] Skipping mapper {} because keyType and key are both missing",
+            mapper.getId());
+        return new MapperInputPreparation(List.of(), Map.of(), true);
+      }
 
       if (mapper.getMappingType() == MappingType.DEFAULT) {
         staticValues.put(key, mapper.getValue());
@@ -990,6 +999,10 @@ public class ConditionService {
   /**
    * Computes the Cartesian product of dynamic values, filters duplicates via hash, merges static
    * values, and returns ready-to-run execution batches.
+   *
+   * <p>Hashes are <b>not</b> committed to the persistent state here. Instead, each batch carries
+   * its deduplication hash so the caller can decide which hashes to commit after applying
+   * rate-limit guards.
    */
   private List<ConditionService.ExecutionBatch> buildExecutionBatches(
       List<Condition> mappers,
@@ -1000,6 +1013,7 @@ public class ConditionService {
 
     List<List<WorkflowStateEntries.Pair>> product = localEntries.cartesianProduct(allPairsList);
     List<ConditionService.ExecutionBatch> batches = new ArrayList<>();
+    Set<String> pendingHashes = new HashSet<>();
 
     for (List<WorkflowStateEntries.Pair> comboPairs : product) {
       Map<String, String> comboMap = new TreeMap<>();
@@ -1010,7 +1024,7 @@ public class ConditionService {
       }
 
       String hash = localEntries.hashCombo(comboMap);
-      if (localEntries.getHashExecution().contains(hash)) {
+      if (localEntries.getHashExecution().contains(hash) || pendingHashes.contains(hash)) {
         continue;
       }
 
@@ -1022,8 +1036,9 @@ public class ConditionService {
               .map(mapperTemplate -> toResolvedMapper(mapperTemplate, fullInput))
               .collect(Collectors.toList());
 
-      batches.add(new ConditionService.ExecutionBatch(gson.toJson(fullInput), resolvedMappers));
-      localEntries.getHashExecution().add(hash);
+      batches.add(
+          new ConditionService.ExecutionBatch(gson.toJson(fullInput), resolvedMappers, hash));
+      pendingHashes.add(hash);
     }
 
     return batches;
@@ -1037,13 +1052,18 @@ public class ConditionService {
     resolved.setKeyType(template.getKeyType());
     resolved.setMappingType(template.getMappingType());
     resolved.setDescription(template.getDescription());
-    resolved.setKeySubtype(template.getKeySubtype());
     resolved.setName(template.getName());
     resolved.setWorkflowId(template.getWorkflowId());
     resolved.setCreationDate(Instant.now());
     resolved.setUpdateDate(Instant.now());
-    resolved.setValue(fullInput.get(template.getKeyType().name()));
+    String key = resolveMapperKey(template);
+    resolved.setValue(key != null ? fullInput.get(key) : null);
     return resolved;
+  }
+
+  /** Resolves the mapper input key used in workflow state. */
+  private String resolveMapperKey(Condition mapper) {
+    return mapper.getKeyType() != null ? mapper.getKeyType().name() : null;
   }
 
   /**
@@ -1052,7 +1072,14 @@ public class ConditionService {
    * @param inputString resolved JSON input used to create a READY step
    * @param usedMappers mapper conditions used to build this input
    */
-  public record ExecutionBatch(String inputString, List<Condition> usedMappers) {}
+  /**
+   * Input payload and mapper conditions for one executable data-chaining batch.
+   *
+   * @param inputString resolved JSON input used to create a READY step
+   * @param usedMappers mapper conditions used to build this input
+   * @param hash deduplication hash for this input combination (nullable for non-mapper batches)
+   */
+  public record ExecutionBatch(String inputString, List<Condition> usedMappers, String hash) {}
 
   private record MapperInputPreparation(
       List<List<WorkflowStateEntries.Pair>> dynamicPairs,

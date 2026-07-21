@@ -1,26 +1,42 @@
-import { PlayArrowOutlined, Stop } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip, Typography } from '@mui/material';
+import {
+  AutoAwesomeOutlined,
+  GroupsOutlined,
+  HubOutlined,
+  InsertChartOutlined,
+  NotificationsOutlined,
+  PersonOutlined,
+  PlayArrowOutlined,
+  RouteOutlined,
+  Stop,
+  TrackChangesOutlined,
+  TuneOutlined,
+  UpdateOutlined,
+} from '@mui/icons-material';
+import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type Dispatch, type SetStateAction, useContext, useEffect, useState } from 'react';
+import { type Dispatch, type SetStateAction, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
-import { playInjectsAssistantForScenario } from '../../../../actions/Inject';
+import { createCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
 import {
   createRunningExerciseFromScenario,
   searchScenarioHealthcheks,
+  updateScenario,
   updateScenarioRecurrence,
 } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
-import LoaderDialog from '../../../../components/common/loader/LoaderDialog';
+import { HeroStat, HeroStats } from '../../../../components/common/detail/EntityDetailCommon';
+import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
+import ItemCategory from '../../../../components/ItemCategory';
+import ItemSeverity from '../../../../components/ItemSeverity';
 import { SIMULATION_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import {
+  type CustomDashboard,
   type Exercise,
   type HealthCheck,
-  type InjectAssistantInput,
   type Scenario,
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
@@ -31,39 +47,12 @@ import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExp
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
-import { InjectContext } from '../../common/Context';
-import ScenarioAssistantDrawer from './scenario_assistant/ScenarioAssistantDrawer';
+import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
+import { type CustomDashboardFormType } from '../../workspaces/custom_dashboards/CustomDashboardForm';
+import DashboardCreationDrawer from '../../workspaces/custom_dashboards/DashboardCreationDrawer';
+import ScenarioConfiguration from './ScenarioConfiguration';
 import ScenarioPopover from './ScenarioPopover';
 import ScenarioRecurringFormDialog from './ScenarioRecurringFormDialog';
-
-const useStyles = makeStyles()(() => ({
-  title: {
-    float: 'left',
-    marginRight: 10,
-  },
-  statusScheduled: {
-    float: 'left',
-    margin: '4px 0 0 5px',
-    width: 20,
-    height: 20,
-    borderRadius: '50%',
-    boxShadow: '0px 0px 5px 2px #4caf50',
-    animation: 'pulse-green 1s linear infinite alternate',
-  },
-  statusNotScheduled: {
-    float: 'left',
-    margin: '4px 0 0 5px',
-    width: 20,
-    height: 20,
-    borderRadius: '50%',
-    boxShadow: '0px 0px 5px 2px #f44336',
-  },
-  actions: {
-    margin: '-6px 0 0 0',
-    float: 'right',
-    display: 'flex',
-  },
-}));
 
 interface ScenarioHeaderProps {
   cronObject: PeriodExpressionHandler | null;
@@ -75,6 +64,8 @@ interface ScenarioHeaderProps {
   openScenarioRecurringFormDialog: boolean;
   openInstantiateSimulationAndStart: boolean;
   noRepeat: boolean;
+  editNotification: boolean;
+  setOpenScenarioNotificationRuleDrawer: Dispatch<SetStateAction<boolean>>;
 }
 
 const ScenarioHeader = ({
@@ -87,22 +78,29 @@ const ScenarioHeader = ({
   setOpenScenarioRecurringFormDialog,
   openInstantiateSimulationAndStart,
   setOpenInstantiateSimulationAndStart,
+  editNotification,
+  setOpenScenarioNotificationRuleDrawer,
 }: ScenarioHeaderProps) => {
   // Standard hooks
-  const { t } = useFormatter();
+  const { t, locale, fld } = useFormatter();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { classes } = useStyles();
   const theme = useTheme();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
   const [openScenarioAssistantQueryParam] = useQueryParameter(['openScenarioAssistant']);
-  const { injects, setInjects } = useContext(InjectContext);
   const { canLaunch, canManage } = useScenarioPermissions(scenarioId);
 
-  const [openScenarioAssistant, setOpenScenarioAssistant] = useState(openScenarioAssistantQueryParam === 'true');
-  const [openLoaderDialog, setOpenLoaderDialog] = useState(false);
-  const [isInjectAssistantLoading, setIsInjectAssistantLoading] = useState(false);
+  const [openCreateDashboard, setOpenCreateDashboard] = useState(false);
+  const [openConfiguration, setOpenConfiguration] = useState(false);
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+
+  // Preserve the deep link that used to open the assistant drawer: it now
+  // routes to the dedicated full-page assistant.
+  useEffect(() => {
+    if (openScenarioAssistantQueryParam === 'true') {
+      navigate(`/admin/scenarios/${scenarioId}/assistant`, { replace: true });
+    }
+  }, [openScenarioAssistantQueryParam, scenarioId]);
   // Fetching data
   const { scenario }: { scenario: Scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
 
@@ -114,12 +112,17 @@ const ScenarioHeader = ({
 
   // Local
   const ended = scenario.scenario_recurrence_end && new Date(scenario.scenario_recurrence_end).getTime() < new Date().getTime();
+  const isScheduled = !!scenario.scenario_recurrence;
+
+  // Headline stats surfaced right in the hero so they are visible on every tab.
+  const injectsCount = scenario.scenario_injects?.length ?? 0;
+  const simulationsCount = scenario.scenario_exercises?.length ?? 0;
+  const teamsCount = scenario.scenario_teams?.length ?? 0;
+  const playersCount = scenario.scenario_all_users_number ?? scenario.scenario_users_number ?? 0;
 
   useEffect(() => {
-    if (isChainingFeatureEnabled && scenarioWorkflowId) {
-      searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
-    }
-  }, [scenarioId, scenario, isChainingFeatureEnabled]);
+    searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
+  }, [scenarioId, scenario]);
 
   const onSubmit = (cron: Cron, start: string, end?: string) => {
     dispatch(updateScenarioRecurrence(scenarioId, {
@@ -132,16 +135,6 @@ const ScenarioHeader = ({
       }
     });
     setOpenScenarioRecurringFormDialog(false);
-  };
-
-  const onScenarioInjectAssistantSubmit = (data: InjectAssistantInput) => {
-    setOpenScenarioAssistant(false);
-    setIsInjectAssistantLoading(true);
-    setOpenLoaderDialog(true);
-    playInjectsAssistantForScenario(scenarioId, data).then((results) => {
-      setInjects([...injects, ...results.data]);
-      setIsInjectAssistantLoading(false);
-    }).catch(() => setOpenLoaderDialog(false));
   };
 
   useEffect(() => {
@@ -157,6 +150,7 @@ const ScenarioHeader = ({
       setCronObject(null);
     }
   }, [scenario.scenario_recurrence]);
+
   const stop = () => {
     setCronObject(null);
     dispatch(updateScenarioRecurrence(scenarioId, {
@@ -166,89 +160,302 @@ const ScenarioHeader = ({
     }));
   };
 
+  const humanReadableScheduling = () => {
+    if (!cronObject?.isValid()) {
+      return null;
+    }
+    let sentence = `${cronObject.toTranslatableStringArray(locale).map(element => t(element)).join(' ')}`;
+    if (scenario.scenario_recurrence_end) {
+      sentence += ` ${t('recurrence_from')} ${fld(scenario.scenario_recurrence_start)}`;
+      sentence += ` ${t('recurrence_to')} ${fld(scenario.scenario_recurrence_end)}`;
+    } else {
+      sentence += ` ${t('recurrence_starting_from')} ${fld(scenario.scenario_recurrence_start)}`;
+    }
+    return sentence;
+  };
+
+  const hasDashboard = !!scenario.scenario_custom_dashboard;
+
+  // "Analyze" quick action: an already-attached dashboard opens straight away;
+  // otherwise we create a fresh one (pre-scoped to this scenario), attach it and
+  // jump to the scenario-scoped dashboard view.
+  const onDashboardAction = () => {
+    if (hasDashboard) {
+      navigate(`/admin/scenarios/${scenarioId}/dashboard`);
+    } else {
+      setOpenCreateDashboard(true);
+    }
+  };
+
+  const attachDashboard = async (dashboardId: string) => {
+    setOpenCreateDashboard(false);
+    await dispatch(updateScenario(scenario.scenario_id, {
+      ...scenario,
+      scenario_custom_dashboard: dashboardId,
+    }));
+    navigate(`/admin/scenarios/${scenarioId}/dashboard`);
+  };
+
+  const onCreateDashboard = async (data: CustomDashboardFormType) => {
+    const response = await createCustomDashboard(data);
+    const newDashboardId = (response.data as CustomDashboard | undefined)?.custom_dashboard_id;
+    if (!newDashboardId) {
+      setOpenCreateDashboard(false);
+      return;
+    }
+    await attachDashboard(newDashboardId);
+  };
+
+  const scheduleLabel = cronObject?.isValid() ? humanReadableScheduling() : t('Not scheduled');
+  const accent = theme.palette.primary.main;
+
   return (
     <>
-      <Tooltip title={scenario.scenario_name}>
-        <Typography variant="h1" gutterBottom={true} classes={{ root: classes.title }}>
-          {truncate(scenario.scenario_name, 80)}
-        </Typography>
-      </Tooltip>
-      <div style={{
-        float: 'left',
-        margin: '4px 10px 0 8px',
-        color: theme.palette.text?.disabled,
-        borderLeft: `1px solid ${theme.palette.text?.disabled}`,
-        height: 20,
-      }}
-      />
-      <Tooltip title={t(scenario.scenario_recurrence ? 'Scheduled' : 'Not scheduled')}>
-        <div className={scenario.scenario_recurrence ? classes.statusScheduled : classes.statusNotScheduled} />
-      </Tooltip>
-      <div className={classes.actions}>
-        {canLaunch
-          && scenario.scenario_recurrence && !ended ? (
+      <Paper
+        variant="outlined"
+        sx={{
+          padding: 2,
+          borderRadius: 1,
+          marginBottom: 2,
+          background: `linear-gradient(135deg, ${alpha(accent, 0.08)}, transparent 60%)`,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+        }}
+      >
+        {/* Row 1: identity + actions */}
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 2,
+          flexWrap: 'wrap',
+        }}
+        >
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            minWidth: 0,
+          }}
+          >
+            <Box sx={{
+              width: 52,
+              height: 52,
+              borderRadius: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              color: accent,
+              backgroundColor: alpha(accent, 0.12),
+              border: `1px solid ${alpha(accent, 0.3)}`,
+            }}
+            >
+              <RouteOutlined />
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Tooltip title={scenario.scenario_name}>
+                <Typography
+                  variant="h1"
+                  sx={{
+                    margin: 0,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {truncate(scenario.scenario_name, 80)}
+                </Typography>
+              </Tooltip>
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                marginTop: 0.5,
+                flexWrap: 'wrap',
+              }}
+              >
+                <ItemSeverity severity={scenario.scenario_severity} label={t(scenario.scenario_severity ?? 'Unknown')} />
+                <ItemCategory category={scenario.scenario_category ?? 'Unknown'} label={t(scenario.scenario_category ?? 'Unknown')} />
+                <Tooltip title={scheduleLabel ?? ''}>
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={isScheduled ? t('Scheduled') : t('Not scheduled')}
+                    sx={{
+                      borderRadius: 1,
+                      height: 22,
+                      fontSize: 11,
+                      color: isScheduled ? theme.palette.success.main : theme.palette.text.disabled,
+                      borderColor: isScheduled ? alpha(theme.palette.success.main, 0.4) : theme.palette.divider,
+                    }}
+                  />
+                </Tooltip>
+              </Box>
+            </Box>
+          </Box>
+
+          <Box sx={{
+            'display': 'flex',
+            'alignItems': 'center',
+            'gap': 1,
+            'flexWrap': 'wrap',
+            // Uniform 32px height for every hero action (text buttons - even
+            // Tooltip/span-wrapped ones - and the kebab) so the top-right row
+            // lines up perfectly. The icon toolbar cluster sizes its own
+            // IconButtons below (its border is part of the 32px). Popover/drawer
+            // actions render in portals, so they are unaffected.
+            '& .MuiButton-root': { height: 32 },
+            '& .MuiToggleButton-root': {
+              width: 32,
+              height: 32,
+            },
+          }}
+          >
+            {/* Discrete configuration nudge, kept out of the way top-right. */}
+            {canManage && (
+              <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />
+            )}
+            {/* Primary actions: analyze, assist, and the one prominent CTA. */}
+            {canManage && (
               <Button
-                style={{ marginRight: theme.spacing(1) }}
-                startIcon={<Stop />}
                 variant="outlined"
                 color="inherit"
                 size="small"
-                onClick={stop}
+                startIcon={<InsertChartOutlined />}
+                sx={{
+                  lineHeight: 'initial',
+                  borderColor: theme.palette.divider,
+                }}
+                onClick={onDashboardAction}
               >
-                {t('Stop')}
+                {hasDashboard ? t('Open dashboard') : t('Create dashboard')}
               </Button>
-            )
-          : (
-              <>
-                {canManage && !isScenarioChaining
-                  && (
-                    <Button
-                      style={{
-                        marginRight: theme.spacing(1),
-                        lineHeight: 'initial',
-                        borderColor: theme.palette.divider,
-                      }}
-                      variant="outlined"
-                      color="inherit"
-                      size="small"
-                      onClick={() => setOpenScenarioAssistant(true)}
-                    >
-                      {t('Scenario assistant')}
-                    </Button>
-                  )}
-                {canLaunch
-                  && (
-
-                    <Tooltip
-                      title={isScopeMissing ? t('A Chaining Scenario requires a defined scope.') : ''}
-                    >
-                      <span style={{ display: 'inline-flex' }}>
-                        <Button
-                          style={{
-                            marginRight: theme.spacing(1),
-                            lineHeight: 'initial',
-                          }}
-                          startIcon={<PlayArrowOutlined />}
-                          variant="contained"
-                          color="primary"
-                          size="small"
-                          onClick={() => setOpenInstantiateSimulationAndStart(true)}
-                          disabled={isScopeMissing}
-
-                        >
-                          {t('Launch now')}
-                        </Button>
-                      </span>
-                    </Tooltip>
-                  )}
-              </>
             )}
-        <ScenarioPopover
-          scenario={scenario}
-          actions={isScenarioChaining ? ['Update', 'Delete'] : ['Duplicate', 'Update', 'Delete', 'Export']}
-          onDelete={() => navigate('/admin/scenarios')}
-        />
-      </div>
+            {canManage && !isScenarioChaining && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<AutoAwesomeOutlined />}
+                sx={{
+                  'lineHeight': 'initial',
+                  'color': theme.palette.ai.main,
+                  'borderColor': alpha(theme.palette.ai.main, 0.5),
+                  'backgroundColor': alpha(theme.palette.ai.main, 0.06),
+                  '&:hover': {
+                    borderColor: theme.palette.ai.main,
+                    backgroundColor: alpha(theme.palette.ai.main, 0.12),
+                  },
+                }}
+                onClick={() => navigate(`/admin/scenarios/${scenarioId}/assistant`)}
+              >
+                {t('Scenario assistant')}
+              </Button>
+            )}
+            {canLaunch && isScheduled && !ended
+              ? (
+                  <Button
+                    startIcon={<Stop />}
+                    variant="outlined"
+                    color="inherit"
+                    size="small"
+                    onClick={stop}
+                  >
+                    {t('Stop')}
+                  </Button>
+                )
+              : canLaunch && (
+                <Tooltip title={isScopeMissing ? t('A Chaining Scenario requires a defined scope.') : ''}>
+                  <span style={{ display: 'inline-flex' }}>
+                    <Button
+                      startIcon={<PlayArrowOutlined />}
+                      variant="contained"
+                      color="primary"
+                      size="small"
+                      sx={{ lineHeight: 'initial' }}
+                      onClick={() => setOpenInstantiateSimulationAndStart(true)}
+                      disabled={isScopeMissing}
+                    >
+                      {t('Launch now')}
+                    </Button>
+                  </span>
+                </Tooltip>
+              )}
+            {/* Setup actions grouped into one cohesive icon toolbar. */}
+            {canManage && (
+              <Box sx={{
+                'display': 'flex',
+                'alignItems': 'center',
+                'marginLeft': 0.5,
+                'height': 32,
+                'borderRadius': 1,
+                'border': `1px solid ${theme.palette.divider}`,
+                'overflow': 'hidden',
+                '& .MuiIconButton-root': {
+                  borderRadius: 0,
+                  height: 30,
+                },
+                '& .MuiIconButton-root:not(:first-of-type)': { borderLeft: `1px solid ${theme.palette.divider}` },
+              }}
+              >
+                {!isScenarioChaining && (
+                  <Tooltip title={t('Configuration')}>
+                    <IconButton size="small" onClick={() => setOpenConfiguration(true)}>
+                      <TuneOutlined fontSize="small" color="primary" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                <Tooltip title={t('Notification rules')}>
+                  <IconButton size="small" onClick={() => setOpenScenarioNotificationRuleDrawer(true)}>
+                    <NotificationsOutlined fontSize="small" color={editNotification ? 'success' : 'primary'} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title={cronObject?.isValid() ? `${t('Scheduling')}: ${scheduleLabel}` : t('Set a scheduling')}>
+                  <IconButton size="small" onClick={() => setOpenScenarioRecurringFormDialog(true)}>
+                    <UpdateOutlined fontSize="small" color="primary" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            )}
+            <ScenarioPopover
+              scenario={scenario}
+              actions={isScenarioChaining ? ['Update', 'Delete', 'Export'] : ['Duplicate', 'Update', 'Delete', 'Export']}
+              onDelete={() => navigate('/admin/scenarios')}
+            />
+          </Box>
+        </Box>
+
+        {/* Row 2: headline stats (custom-dashboard NumberWidget look) */}
+        <HeroStats>
+          <HeroStat
+            icon={TrackChangesOutlined}
+            label={t('Injects')}
+            value={injectsCount}
+            color={theme.palette.warning.main}
+            to={`/admin/scenarios/${scenarioId}/injects`}
+          />
+          <HeroStat
+            icon={HubOutlined}
+            label={t('Simulations')}
+            value={simulationsCount}
+            color={theme.palette.primary.main}
+          />
+          <HeroStat
+            icon={GroupsOutlined}
+            label={t('Teams')}
+            value={teamsCount}
+            color={theme.palette.secondary.main}
+          />
+          <HeroStat
+            icon={PersonOutlined}
+            label={t('Players')}
+            value={playersCount}
+            color={theme.palette.success.main}
+          />
+        </HeroStats>
+      </Paper>
+
       <ScenarioRecurringFormDialog
         cronObject={cronObject}
         setCronObject={setCronObject}
@@ -287,20 +494,21 @@ const ScenarioHeader = ({
           </Button>
         </DialogActions>
       </Dialog>
-      <ScenarioAssistantDrawer
-        open={openScenarioAssistant}
-        onClose={() => setOpenScenarioAssistant(false)}
-        onSubmit={(data: InjectAssistantInput) => onScenarioInjectAssistantSubmit(data)}
-      />
-      <div className="clearfix" />
-      <LoaderDialog
-        open={openLoaderDialog}
-        isSubmitting={isInjectAssistantLoading}
-        loadMessage={t('Injects generation in progress...')}
-        successMessage={t('Injects successfully generated.')}
-        redirectButtonLabel={t('Access these injects')}
-        redirectLink={`/admin/scenarios/${scenarioId}/injects`}
-        onClose={() => setOpenLoaderDialog(false)}
+      <Drawer
+        open={openConfiguration}
+        handleClose={() => setOpenConfiguration(false)}
+        title={t('Scenario configuration')}
+      >
+        <ScenarioConfiguration />
+      </Drawer>
+      <DashboardCreationDrawer
+        open={openCreateDashboard}
+        onClose={() => setOpenCreateDashboard(false)}
+        defaultName={scenario.scenario_name}
+        parameterType="scenario"
+        resourceId={scenarioId}
+        onSelectExisting={attachDashboard}
+        onCreateNew={onCreateDashboard}
       />
     </>
   );

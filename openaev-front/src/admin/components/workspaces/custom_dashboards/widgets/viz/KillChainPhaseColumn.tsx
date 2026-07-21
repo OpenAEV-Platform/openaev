@@ -10,6 +10,7 @@ import type { AttackPattern, KillChainPhase, StructuralHistogramWidget } from '.
 import { sortAttackPattern } from '../../../../../../utils/attack_patterns/attack_patterns';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
 import AttackPatternBox from './AttackPatternBox';
+import { type CoverageFilter } from './SecurityCoverageContent';
 import { type ResolvedTTPData } from './securityCoverageUtils';
 
 const useStyles = makeStyles()(theme => ({
@@ -47,10 +48,10 @@ const KillChainPhaseColumn: FunctionComponent<{
   widgetId: string;
   widgetConfig: StructuralHistogramWidget;
   killChainPhase: KillChainPhase;
-  showCoveredOnly: boolean;
+  coverageFilter: CoverageFilter;
   resolvedDataSuccess: ResolvedTTPData[];
   resolvedDataFailure: ResolvedTTPData[];
-}> = ({ widgetId, widgetConfig, killChainPhase, showCoveredOnly, resolvedDataSuccess, resolvedDataFailure }) => {
+}> = ({ widgetId, widgetConfig, killChainPhase, coverageFilter, resolvedDataSuccess, resolvedDataFailure }) => {
   // Standard hooks
   const { classes } = useStyles();
   const theme = useTheme();
@@ -103,11 +104,12 @@ const KillChainPhaseColumn: FunctionComponent<{
     });
   }, [attackPatterns, successIndex, failureIndex]);
 
-  // Filter stats based on showCoveredOnly
+  // Filter stats based on the coverage scope (all / exercised / gaps).
   const filteredStats = useMemo(() => {
-    if (!showCoveredOnly) return attackPatternStats;
-    return attackPatternStats.filter(stat => stat.total > 0);
-  }, [attackPatternStats, showCoveredOnly]);
+    if (coverageFilter === 'covered') return attackPatternStats.filter(stat => stat.total > 0);
+    if (coverageFilter === 'gaps') return attackPatternStats.filter(stat => stat.total === 0);
+    return attackPatternStats;
+  }, [attackPatternStats, coverageFilter]);
 
   const onAttackPatternBoxClick = useCallback((stat: AttackPatternStats) => {
     openWidgetDataDrawer({
@@ -120,8 +122,9 @@ const KillChainPhaseColumn: FunctionComponent<{
   // Memoize title style
   const titleStyle = useMemo(() => ({ marginBottom: theme.spacing(2) }), [theme]);
 
-  // Early return if no data and showCoveredOnly
-  if (resolvedDataSuccess.length === 0 && resolvedDataFailure.length === 0 && showCoveredOnly) {
+  // Hide the whole column when the active coverage scope leaves it empty
+  // (e.g. a fully-covered phase under "Gaps", or an untested phase under "Covered").
+  if (coverageFilter !== 'all' && filteredStats.length === 0) {
     return null;
   }
 

@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.InjectStatus;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -29,11 +30,19 @@ public interface InjectStatusRepository
               + "  ON t.execution_inject_status_id = ins.status_id"
               + "  AND t.execution_agent_id IS NULL"
               + "  AND cardinality(t.execution_context_identifiers) = 0"
-              + " WHERE i.inject_id = :injectId",
+              + " WHERE i.inject_id = :injectId"
+              + " ORDER BY t.execution_time ASC, t.execution_trace_id ASC",
       nativeQuery = true)
   Optional<InjectStatus> findInjectStatusWithGlobalExecutionTraces(String injectId);
 
   @Modifying(clearAutomatically = true)
   @Query("delete from InjectStatus i where i.id in :ids")
   void deleteAllByIds(@Param("ids") List<String> ids);
+
+  @Query(
+      "SELECT COUNT(DISTINCT istatus.inject.id) FROM InjectStatus istatus"
+          + " WHERE istatus.inject.exercise.id = :simulationId"
+          + " AND istatus.trackingSentDate >= :since")
+  long countLaunchedInjectsSince(
+      @Param("simulationId") String simulationId, @Param("since") Instant since);
 }

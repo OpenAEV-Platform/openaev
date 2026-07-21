@@ -40,7 +40,13 @@ public class InjectHandler implements Handler<EsInject> {
               esInject.setBase_representative(inject.getInject_title());
               esInject.setBase_created_at(inject.getInject_created_at());
 
-              if (inject.getInjector_contract_updated_at() != null
+              // The cursor value MUST be the query's sort key (inject / contract / dependency /
+              // child-contract GREATEST): EsIndexingUtils.computeNewCursor advances on the last
+              // row's base_updated_at, so any mismatch with the batch order can stall or regress
+              // the cursor.
+              if (inject.getInject_sort_ts() != null) {
+                esInject.setBase_updated_at(inject.getInject_sort_ts());
+              } else if (inject.getInjector_contract_updated_at() != null
                   && inject
                       .getInjector_contract_updated_at()
                       .isAfter(inject.getInject_updated_at())) {

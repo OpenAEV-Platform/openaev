@@ -92,6 +92,20 @@ public class User implements Base {
     return ofNullable(this.theme).orElse(THEME_DEFAULT);
   }
 
+  @Column(name = "user_home_dashboard")
+  @JsonProperty("user_home_dashboard")
+  @Schema(
+      description =
+          "Preferred home dashboard of the user; overrides the tenant home dashboard setting")
+  private String homeDashboard;
+
+  // The UI sends an empty string to mean "platform default"; normalize it to null so the FK to
+  // custom_dashboards is never violated (profile updates copy this value via BeanUtils).
+  public void setHomeDashboard(final String homeDashboard) {
+    this.homeDashboard =
+        ofNullable(homeDashboard).map(String::trim).filter(v -> !v.isEmpty()).orElse(null);
+  }
+
   @Getter(NONE)
   @Setter(NONE)
   @Column(name = "user_email")

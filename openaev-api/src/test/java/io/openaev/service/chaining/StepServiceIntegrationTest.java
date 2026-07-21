@@ -2,6 +2,7 @@ package io.openaev.service.chaining;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -76,7 +77,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
     doReturn(new User()).when(userService).currentUser();
     doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
-    doReturn(new ArrayList<>()).when(assetService).assets(any());
+    doReturn(new ArrayList<>()).when(assetService).assets(anyList());
     doReturn(new HashSet<>()).when(tagService).tagSet(any());
     doReturn(null).when(documentService).document(any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
@@ -246,14 +247,14 @@ class StepServiceIntegrationTest extends IntegrationTest {
     root1.setTemporaryId("tmp-1");
     root1.setTemporaryIdConditionParent(null); // root
     root1.setType(ConditionType.EQ);
-    root1.setKeyType(ConditionKeyType.Status);
+    root1.setKeyType(PrimitiveType.Text);
     root1.setValue("A");
 
     ConditionCreateInput root2 = new ConditionCreateInput();
     root2.setTemporaryId("tmp-2");
     root2.setTemporaryIdConditionParent(null); // second root → BOOM
     root2.setType(ConditionType.EQ);
-    root2.setKeyType(ConditionKeyType.Status);
+    root2.setKeyType(PrimitiveType.Text);
     root2.setValue("B");
 
     stepInput.setConditions(List.of(root1, root2));
@@ -269,14 +270,14 @@ class StepServiceIntegrationTest extends IntegrationTest {
     root1.setTemporaryId("tmp-1");
     root1.setTemporaryIdConditionParent(null); // root
     root1.setType(ConditionType.EQ);
-    root1.setKeyType(ConditionKeyType.Status);
+    root1.setKeyType(PrimitiveType.Text);
     root1.setValue("A");
 
     ConditionCreateInput root2 = new ConditionCreateInput();
     root2.setTemporaryId("tmp-2");
     root2.setTemporaryIdConditionParent("tmp-1"); // root
     root2.setType(ConditionType.EQ);
-    root2.setKeyType(ConditionKeyType.Status);
+    root2.setKeyType(PrimitiveType.Text);
     root2.setValue("B");
 
     stepInput.setConditions(List.of(root1, root2));

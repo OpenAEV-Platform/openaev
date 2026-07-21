@@ -12,7 +12,9 @@ import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.stix.objects.Bundle;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.DisallowConcurrentExecution;
@@ -39,6 +41,10 @@ public class SecurityCoverageJob implements Job {
     List<SecurityCoverageSendJob> jobs =
         securityCoverageSendJobService.getPendingSecurityCoverageSendJobs();
     List<SecurityCoverageSendJob> successfulJobs = new ArrayList<>();
+    // Tenants without an active Security Coverage connector: skip their jobs upfront (before any
+    // bundle creation) and log a single concise warning per tenant instead of one ERROR with a
+    // full stack trace per pending simulation on every run (log flooding + useless DB load).
+    Set<String> tenantsWithoutConnector = new HashSet<>();
     for (SecurityCoverageSendJob securityCoverageSendJob : jobs) {
       try {
         String tenantId =
@@ -46,6 +52,13 @@ public class SecurityCoverageJob implements Job {
                 .map(Exercise::getTenant)
                 .map(Tenant::getId)
                 .orElseThrow(() -> new IllegalStateException("Simulation or tenant not found"));
+        if (tenantsWithoutConnector.contains(tenantId)) {
+          continue;
+        }
+        if (openCTIConnectorService.getConnectorBase(tenantId).isEmpty()) {
+          tenantsWithoutConnector.add(tenantId);
+          continue;
+        }
         // Set tenant context for downstream Hibernate filters and audit
         TenantContext.setCurrentTenant(tenantId);
         // send bundle
@@ -62,6 +75,11 @@ public class SecurityCoverageJob implements Job {
       } finally {
         TenantContext.clearCurrentTenant();
       }
+    }
+    if (!tenantsWithoutConnector.isEmpty()) {
+      log.warn(
+          "Security coverage bundles not sent: no active Security Coverage connector for tenant(s) {}. Jobs stay pending until a connector is configured.",
+          tenantsWithoutConnector);
     }
     if (!successfulJobs.isEmpty()) {
       securityCoverageSendJobService.consumeJobs(successfulJobs);

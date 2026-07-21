@@ -182,7 +182,17 @@ const Lessons: FunctionComponent<Props> = ({
           source={source}
         />
       </div>
-      <div style={{ marginTop: theme.spacing(2) }}>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          marginTop: theme.spacing(2),
+        }}
+        >
+          <CreateLessonsCategory />
+        </div>
+      </Can>
+      <div style={{ marginTop: theme.spacing(1) }}>
         <LessonsCategories
           lessonsCategories={lessonsCategories}
           lessonsQuestions={lessonsQuestions}
@@ -191,9 +201,6 @@ const Lessons: FunctionComponent<Props> = ({
           isReport={false}
         />
       </div>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
-        <CreateLessonsCategory />
-      </Can>
       <Dialog
         TransitionComponent={Transition}
         keepMounted={false}

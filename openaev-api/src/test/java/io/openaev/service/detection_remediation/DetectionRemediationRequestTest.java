@@ -230,7 +230,7 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
 
   private List<PayloadArgument> getPayloadArguments() {
     PayloadArgument payloadArgumentText =
-        PayloadFixture.createPayloadArgument("guest_user", ArgumentType.Text, "guest", null);
+        PayloadFixture.createPayloadArgument("guest_user", PrimitiveType.Text, "guest", null);
     return new ArrayList<>(List.of(payloadArgumentText));
   }
 

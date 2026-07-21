@@ -31,6 +31,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
 
   private static final Set<String> TX_SCOPED_ENTRYPOINTS =
       Set.of(
+          // import_mappers (v2)
           "io.openaev.rest.mapper.MapperApi#getImportMapper",
           "io.openaev.rest.mapper.MapperApi#getImportMapperById",
           "io.openaev.rest.mapper.MapperApi#createImportMapper",
@@ -49,7 +50,29 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.scenario.ScenarioImportApi#dryRunImportXLSFile",
           "io.openaev.rest.scenario.ScenarioImportApi#validateImportXLSFile",
           "io.openaev.rest.exercise.ExerciseImportApi#dryRunImportXLSFile",
-          "io.openaev.rest.exercise.ExerciseImportApi#validateImportXLSFile");
+          "io.openaev.rest.exercise.ExerciseImportApi#validateImportXLSFile",
+          // cwes: reached through a vulnerability's @ManyToMany, so every vulnerability/CVE
+          // read-or-write entrypoint that maps the association carries the scope.
+          "io.openaev.rest.vulnerability.VulnerabilityApi#searchVulnerabilities",
+          "io.openaev.rest.vulnerability.VulnerabilityApi#getVulnerability",
+          "io.openaev.rest.vulnerability.VulnerabilityApi#getVulnerabilityByExternalId",
+          "io.openaev.rest.vulnerability.VulnerabilityApi#createVulnerability",
+          "io.openaev.rest.vulnerability.VulnerabilityApi#bulkInsertVulnerabilitiesForCollector",
+          "io.openaev.rest.vulnerability.VulnerabilityApi#updateVulnerability",
+          "io.openaev.rest.cve.CveApi#searchCves",
+          "io.openaev.rest.cve.CveApi#getCve",
+          "io.openaev.rest.cve.CveApi#getCvebyExternalId",
+          "io.openaev.rest.cve.CveApi#createCve",
+          "io.openaev.rest.cve.CveApi#bulkInsertCVEsForCollector",
+          "io.openaev.rest.cve.CveApi#updateCve",
+          // mitigations (v2)
+          "io.openaev.rest.mitigation.MitigationApi#mitigations",
+          "io.openaev.rest.mitigation.MitigationApi#mitigation",
+          "io.openaev.rest.mitigation.MitigationApi#injectorContracts",
+          "io.openaev.rest.mitigation.MitigationApi#createMitigation",
+          "io.openaev.rest.mitigation.MitigationApi#updateMitigation",
+          "io.openaev.rest.mitigation.MitigationApi#upsertMitigation",
+          "io.openaev.rest.mitigation.MitigationApi#deleteMitigation");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =

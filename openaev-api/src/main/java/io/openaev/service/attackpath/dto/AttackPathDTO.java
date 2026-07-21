@@ -15,7 +15,7 @@ import java.util.List;
  *   <li>{@code counters} — top-bar counts (D2).
  *   <li>{@code mode} — {@code full} (every node) or {@code collapsed} (DB-aggregated: injector and
  *       endpoint nodes with per-type finding counts, grouped edges, counters; the per-execution and
- *       per-finding lists are empty, and detail is loaded on click). See ADR-002.
+ *       per-finding lists are empty, and detail is loaded on click). See ADR-003.
  * </ul>
  */
 public record AttackPathDTO(

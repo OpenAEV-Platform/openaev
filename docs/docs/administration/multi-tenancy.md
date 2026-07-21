@@ -1,10 +1,5 @@
 # Multi-tenancy
 
-!!! tip "Under construction"
-
-    This feature is under development.
-
-{% if "multi-tenancy" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}
 This page explains how to configure and manage multi-tenancy in OpenAEV, enabling multiple isolated workspaces on a single platform instance.
 
 !!! tip "Enterprise Edition"
@@ -63,6 +58,10 @@ From this page you can create, edit, and delete tenants. When you create a tenan
 
 Tenant deletion is a **soft-delete** operation. The tenant and all its data are retained for **30 days** before permanent purge. During this period, you can reactivate the tenant from the same page.
 
+!!! note "The default tenant cannot be deleted"
+
+    The platform's **default tenant** cannot be deleted. In the tenants list, its delete action is disabled.
+
 !!! danger "Permanent deletion after 30 days"
 
     After 30 days, the tenant and **all its data** (scenarios, simulations, assets, findings, documents) are permanently purged and cannot be recovered.
@@ -107,4 +106,3 @@ OPENAEV_PROVIDER_AZURE_TENANT_ID=<your-tenant-uuid>
 - [Enterprise Edition](enterprise.md) — Activate your EE license
 - [Authentication](../deployment/authentication.md) — Set up SSO providers for tenant mapping
 - [Hub](hub.md) — Manage platform-wide resources shared across tenants
-{% endif %}

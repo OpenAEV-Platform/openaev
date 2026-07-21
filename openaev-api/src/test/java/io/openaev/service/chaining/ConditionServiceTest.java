@@ -160,28 +160,6 @@ public class ConditionServiceTest {
   }
 
   /* ============================================================
-   * isDependOn
-   * ============================================================ */
-  @Nested
-  class IsDependOn {
-
-    @Test
-    void shouldCreateDependOnCondition_withGivenStepTemplateId() {
-      // -------- Prepare --------
-      String stepTemplateId = UUID.randomUUID().toString();
-
-      // -------- Act --------
-      Condition result = conditionService.isDependOn(stepTemplateId);
-
-      // -------- Assert --------
-      assertNotNull(result);
-      assertEquals(ConditionKeyType.STEP_TEMPLATE_ID, result.getKeyType());
-      assertEquals(ConditionType.DEPEND_ON, result.getType());
-      assertEquals(stepTemplateId, result.getValue());
-    }
-  }
-
-  /* ============================================================
    * checkCondition
    * ============================================================ */
   @Nested
@@ -236,7 +214,8 @@ public class ConditionServiceTest {
       when(conditionUtils.isMapperCondition(mapperTemplate)).thenReturn(true);
 
       List<ConditionService.ExecutionBatch> expected =
-          List.of(new ConditionService.ExecutionBatch("{\"IPv4\":\"10.10.10.10\"}", List.of()));
+          List.of(
+              new ConditionService.ExecutionBatch("{\"IPv4\":\"10.10.10.10\"}", List.of(), null));
       doReturn(expected)
           .when(conditionService)
           .prepareInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));
@@ -487,7 +466,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setKeyType(PrimitiveType.IPv4);
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -524,7 +503,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setKeyType(PrimitiveType.IPv4);
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -560,7 +539,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setKeyType(PrimitiveType.IPv4);
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -596,7 +575,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setKeyType(PrimitiveType.IPv4);
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -631,7 +610,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setKeyType(PrimitiveType.IPv4);
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -669,7 +648,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setKeyType(PrimitiveType.IPv4);
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -707,7 +686,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setKeyType(PrimitiveType.IPv4);
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -876,7 +855,7 @@ public class ConditionServiceTest {
       childInput.setTemporaryId("tmp-child");
       childInput.setTemporaryIdConditionParent("tmp-root");
       childInput.setType(ConditionType.EQ);
-      childInput.setKeyType(ConditionKeyType.Portscan);
+      childInput.setKeyType(PrimitiveType.Port);
       childInput.setValue("445");
 
       EventInput input =
@@ -948,7 +927,7 @@ public class ConditionServiceTest {
       childInput.setTemporaryId("tmp-child");
       childInput.setTemporaryIdConditionParent("tmp-root");
       childInput.setType(ConditionType.EQ);
-      childInput.setKeyType(ConditionKeyType.Status);
+      childInput.setKeyType(PrimitiveType.Text);
       childInput.setValue("ok");
 
       EventInput input =

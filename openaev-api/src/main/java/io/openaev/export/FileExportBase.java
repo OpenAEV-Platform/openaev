@@ -48,6 +48,12 @@ public class FileExportBase {
     this.objectMapper.addMixIn(Payload.class, Mixins.Payload.class);
     this.objectMapper.addMixIn(KillChainPhase.class, Mixins.KillChainPhase.class);
 
+    // Workflow (chaining) export mixins — Workflow mixin is set dynamically based on export options
+    this.objectMapper.addMixIn(WorkflowScopeRule.class, Mixins.WorkflowScopeRuleExport.class);
+    this.objectMapper.addMixIn(ScopeVariable.class, Mixins.ScopeVariableExport.class);
+    this.objectMapper.addMixIn(Step.class, Mixins.StepExport.class);
+    this.objectMapper.addMixIn(Condition.class, Mixins.ConditionExport.class);
+
     // default options
     // variables with no value
     this.objectMapper.addMixIn(Variable.class, VariableMixin.class);

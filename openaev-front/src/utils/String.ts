@@ -87,6 +87,10 @@ export const capitalize = (text: string): string => {
   return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 };
 
+export const formatPrimitiveTypeLabel = (value: string): string => value
+  .replace(/[_-]/g, ' ')
+  .replace(/^./, c => c.toUpperCase());
+
 export const formatMacAddress = (mac: string): string => {
   const address = mac.toUpperCase();
   return address.match(/.{1,2}/g)?.join(':') || '-';

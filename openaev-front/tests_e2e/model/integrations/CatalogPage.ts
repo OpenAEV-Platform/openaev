@@ -2,15 +2,15 @@ import { type Locator, type Page } from '@playwright/test';
 class CatalogPage {
   constructor(private page: Page) {}
   async waitForLoad(): Promise<void> {
-    await this.page.waitForURL('**/integrations/catalog**');
+    await this.page.waitForURL('**/integrations/available**');
   }
 
   get searchInput(): Locator {
-    return this.page.getByPlaceholder('Search these results...');
+    return this.page.getByPlaceholder('Search the catalog...');
   }
 
   getConnectorCard(namePattern: string | RegExp): Locator {
-    return this.page.locator('.MuiCard-root').filter({ hasText: namePattern });
+    return this.page.getByTestId('connector-card').filter({ hasText: namePattern });
   }
 
   async searchConnector(text: string): Promise<void> {
@@ -39,6 +39,21 @@ class CatalogPage {
 
   async fillDisplayName(name: string): Promise<void> {
     await this.displayNameInput.fill(name);
+  }
+
+  /**
+   * Fills a required configuration field by its human-readable label. Labels are
+   * derived from the configuration key by the form (e.g. EXECUTOR_TANIUM_API_URL
+   * -> "Executor Tanium Api Url"). Uses a substring match to tolerate the
+   * required-field marker ("*" for text/password, " *" for numbers).
+   */
+  async fillConfigurationField(label: string, value: string): Promise<void> {
+    // Target the actual form control by role (text inputs and number inputs) so we
+    // never resolve to a non-fillable wrapper element that merely carries the label.
+    const control = this.page
+      .getByRole('textbox', { name: label })
+      .or(this.page.getByRole('spinbutton', { name: label }));
+    await control.first().fill(value);
   }
 
   async submitInstall(): Promise<void> {

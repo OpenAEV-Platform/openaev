@@ -2,6 +2,7 @@ package io.openaev.service.targets;
 
 import io.openaev.database.model.*;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
+import io.openaev.service.targets.search.AiTargetSearchAdaptor;
 import io.openaev.service.targets.search.AssetGroupTargetSearchAdaptor;
 import io.openaev.service.targets.search.EndpointTargetSearchAdaptor;
 import io.openaev.service.targets.search.PlayerTargetSearchAdaptor;
@@ -22,6 +23,7 @@ public class TargetService {
   private final TeamTargetSearchAdaptor teamTargetSearchAdaptor;
   private final AgentTargetSearchAdaptor agentTargetSearchAdaptor;
   private final PlayerTargetSearchAdaptor playerTargetSearchAdaptor;
+  private final AiTargetSearchAdaptor aiTargetSearchAdaptor;
 
   public Page<InjectTarget> searchTargets(
       TargetType injectTargetType, Inject inject, SearchPaginationInput input) {
@@ -39,6 +41,7 @@ public class TargetService {
       case TEAMS -> teamTargetSearchAdaptor.search(input, inject);
       case PLAYERS -> playerTargetSearchAdaptor.search(input, inject);
       case AGENT -> agentTargetSearchAdaptor.search(input, inject);
+      case AI_TARGETS -> aiTargetSearchAdaptor.search(input, inject);
       default -> throw new IllegalArgumentException("Unsupported target type: " + injectTargetType);
     };
   }
@@ -51,6 +54,7 @@ public class TargetService {
       case TEAMS -> teamTargetSearchAdaptor.getOptionsForInject(inject, textSearch);
       case PLAYERS -> playerTargetSearchAdaptor.getOptionsForInject(inject, textSearch);
       case AGENT -> agentTargetSearchAdaptor.getOptionsForInject(inject, textSearch);
+      case AI_TARGETS -> aiTargetSearchAdaptor.getOptionsForInject(inject, textSearch);
       default -> throw new IllegalArgumentException("Unsupported target type: " + targetType);
     };
   }
@@ -63,6 +67,7 @@ public class TargetService {
       case TEAMS -> teamTargetSearchAdaptor.getOptionsByIds(ids);
       case AGENT -> agentTargetSearchAdaptor.getOptionsByIds(ids);
       case PLAYERS -> playerTargetSearchAdaptor.getOptionsByIds(ids);
+      case AI_TARGETS -> aiTargetSearchAdaptor.getOptionsByIds(ids);
       default -> throw new IllegalArgumentException("Unsupported target type: " + targetType);
     };
   }

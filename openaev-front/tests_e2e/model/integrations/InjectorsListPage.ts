@@ -6,11 +6,11 @@ class InjectorsListPage {
   constructor(private page: Page) {}
 
   async waitForLoad(): Promise<void> {
-    await this.page.waitForURL('**/integrations/injectors**');
+    await this.page.waitForURL('**/integrations/deployed**');
   }
 
   get searchInput(): Locator {
-    return this.page.getByPlaceholder('Search these results...');
+    return this.page.getByPlaceholder('Search deployed integrations...');
   }
 
   getInjectorCard(namePattern: string | RegExp): Locator {

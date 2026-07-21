@@ -17,6 +17,7 @@ import io.openaev.database.model.DualScopeBase;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
+import io.openaev.database.model.TenantIdBase;
 import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
@@ -168,6 +169,12 @@ public class StreamApi extends RestBehavior {
     if (event.getInstance() instanceof DualScopeBase dualScope) {
       Tenant tenant = dualScope.getTenant();
       return tenant != null && consumerTenantId.equals(tenant.getId());
+    }
+    // Connectors (Collector / Injector / Executor) are TenantIdBase, not TenantBase:
+    // without this branch their create/ping events leaked to every tenant's stream,
+    // causing the connector card to flicker in/out (appearing only on each ping).
+    if (event.getInstance() instanceof TenantIdBase tenantIdScoped) {
+      return consumerTenantId.equals(tenantIdScoped.getTenantId());
     }
     return true;
   }

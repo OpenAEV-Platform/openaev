@@ -12,13 +12,13 @@ import PaginationComponentV2 from '../../../../components/common/queryable/pagin
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useHelper } from '../../../../store';
-import { type AssetGroup, type Endpoint, type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
+import { type AssetGroup, type AssetOutput, type Endpoint, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import EndpointPopover from '../endpoints/EndpointPopover';
-import EndpointsList from '../endpoints/EndpointsList';
+import AssetPopover from '../endpoints/AssetPopover';
+import AssetsList from '../endpoints/AssetsList';
 import AssetGroupAddEndpoints from './AssetGroupAddEndpoints';
 
 const useStyles = makeStyles()(theme => ({
@@ -74,7 +74,7 @@ const AssetGroupManagement: FunctionComponent<Props> = ({
   });
 
   // Pagination
-  const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
+  const [endpoints, setEndpoints] = useState<AssetOutput[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const load = (input: SearchPaginationInput) => {
     setLoading(true);
@@ -88,7 +88,7 @@ const AssetGroupManagement: FunctionComponent<Props> = ({
   ];
   const { queryableHelpers, searchPaginationInput } = useQueryable(buildSearchPagination({}));
 
-  const onRemoveEndpointFromList = (asset: EndpointOutput) => {
+  const onRemoveEndpointFromList = (asset: AssetOutput) => {
     setEndpoints(endpoints.toSpliced(endpoints.findIndex(endpoint => endpoint.asset_id === asset.asset_id), 1));
     if (onRemoveEndpointFromAssetGroup) {
       onRemoveEndpointFromAssetGroup(asset.asset_id);
@@ -99,7 +99,7 @@ const AssetGroupManagement: FunctionComponent<Props> = ({
     if (onUpdate) {
       onUpdate(result);
     }
-    searchEndpointsFromAssetGroup(searchPaginationInput, assetGroupId).then((result: { data: Page<EndpointOutput> }) => {
+    searchEndpointsFromAssetGroup(searchPaginationInput, assetGroupId).then((result: { data: Page<AssetOutput> }) => {
       const { data } = result;
       setEndpoints(data.content);
       queryableHelpers.paginationHelpers.handleChangeTotalElements(data.totalElements);
@@ -138,30 +138,31 @@ const AssetGroupManagement: FunctionComponent<Props> = ({
           entityPrefix="endpoint"
           availableFilterNames={availableFilterNames}
           queryableHelpers={queryableHelpers}
+          topBarButtons={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
+              <AssetGroupAddEndpoints
+                assetGroupId={assetGroup?.asset_group_id}
+                assetGroupEndpointIds={assetGroup?.asset_group_assets ?? []}
+                onUpdate={onUpdateList}
+              />
+            </Can>
+          )}
         />
       </div>
 
-      <EndpointsList
+      <AssetsList
         endpoints={endpoints}
         loading={loading}
-        renderActions={(endpoint: EndpointOutput) => (
-          <EndpointPopover
+        renderActions={(asset: AssetOutput) => (
+          <AssetPopover
             inline
-            agentless={endpoint.asset_agents.length === 0}
-            endpoint={endpoint}
+            endpoint={asset}
             assetGroupId={assetGroup?.asset_group_id}
             assetGroupEndpointIds={assetGroup?.asset_group_assets ?? []}
             onRemoveEndpointFromAssetGroup={onRemoveEndpointFromList}
           />
         )}
       />
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
-        <AssetGroupAddEndpoints
-          assetGroupId={assetGroup?.asset_group_id}
-          assetGroupEndpointIds={assetGroup?.asset_group_assets ?? []}
-          onUpdate={onUpdateList}
-        />
-      </Can>
     </>
   );
 };

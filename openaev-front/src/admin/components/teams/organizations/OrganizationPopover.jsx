@@ -51,7 +51,12 @@ class OrganizationPopoverComponent extends Component {
     )(data);
     return this.props
       .updateOrganization(this.props.organization.organization_id, inputValues)
-      .then(() => this.handleCloseEdit());
+      .then((result) => {
+        if (this.props.onUpdate && result?.result) {
+          this.props.onUpdate(result.entities.organizations[result.result]);
+        }
+        this.handleCloseEdit();
+      });
   }
 
   handleOpenDelete() {
@@ -64,7 +69,11 @@ class OrganizationPopoverComponent extends Component {
   }
 
   submitDelete() {
-    this.props.deleteOrganization(this.props.organization.organization_id);
+    this.props.deleteOrganization(this.props.organization.organization_id).then(() => {
+      if (this.props.onDelete) {
+        this.props.onDelete(this.props.organization.organization_id);
+      }
+    });
     this.handleCloseDelete();
   }
 
@@ -150,6 +159,8 @@ OrganizationPopoverComponent.propTypes = {
   updateOrganization: PropTypes.func,
   deleteOrganization: PropTypes.func,
   openEditOnInit: PropTypes.bool,
+  onUpdate: PropTypes.func,
+  onDelete: PropTypes.func,
 };
 
 const OrganizationPopover = R.compose(

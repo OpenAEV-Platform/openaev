@@ -190,7 +190,7 @@ class AttackPathBenchmark extends IntegrationTest {
   }
 
   /**
-   * The large-simulation lever (ADR-002): the full rebuild (two flat reads plus the in-memory pass
+   * The large-simulation lever (ADR-003): the full rebuild (two flat reads plus the in-memory pass
    * that materializes every node and edge) against the collapsed rebuild (four DB aggregations, no
    * per-row materialization) on the same simulation. Measured on the outliers, where the choice
    * actually matters, with the collapsed total split into its aggregation reads vs the assembly.
@@ -200,7 +200,7 @@ class AttackPathBenchmark extends IntegrationTest {
       AttackPathSeedParams params,
       List<String> targets,
       Map<String, Long> sizes) {
-    line(out, "\n## Full vs collapsed rebuild — the large-simulation lever (ADR-002)");
+    line(out, "\n## Full vs collapsed rebuild — the large-simulation lever (ADR-003)");
     line(
         out,
         "(full forces the two-read + in-memory assembly; collapsed forces the four aggregations. A");

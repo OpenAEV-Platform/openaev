@@ -2,8 +2,11 @@ import { type Theme } from '@mui/material';
 import { describe, expect, it } from 'vitest';
 
 import {
+  calcPercentage,
   colorByAverageForExpectation,
+  colorByLabel,
   EMPTY_DATA,
+  isStatus,
 } from '../../admin/components/workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
 
 const mockTheme = {
@@ -84,5 +87,50 @@ describe('colorByAverageForExpectation', () => {
     it('returns unknown color for 101', () => {
       expect(colorByAverageForExpectation(101, mockTheme)).toBe(colors.unknown);
     });
+  });
+});
+
+describe('isStatus', () => {
+  it('matches statuses case-insensitively (raw ES bucket keys)', () => {
+    expect(isStatus('success', 'SUCCESS')).toBe(true);
+    expect(isStatus('SUCCESS', 'SUCCESS')).toBe(true);
+    expect(isStatus('Failed', 'FAILED')).toBe(true);
+  });
+
+  it('does not match different statuses', () => {
+    expect(isStatus('PENDING', 'SUCCESS')).toBe(false);
+    expect(isStatus('failed', 'SUCCESS')).toBe(false);
+  });
+
+  it('handles null and undefined values', () => {
+    expect(isStatus(null, 'SUCCESS')).toBe(false);
+    expect(isStatus(undefined, 'SUCCESS')).toBe(false);
+    expect(isStatus('', 'SUCCESS')).toBe(false);
+  });
+});
+
+describe('calcPercentage', () => {
+  it('computes the percentage over the given total', () => {
+    expect(calcPercentage(1, 4)).toBe(25);
+    expect(calcPercentage(3, 3)).toBe(100);
+    expect(calcPercentage(0, 5)).toBe(0);
+  });
+
+  it('returns -1 (empty state) when the total is zero, e.g. pending-only domains', () => {
+    expect(calcPercentage(0, 0)).toBe(-1);
+  });
+});
+
+describe('colorByLabel', () => {
+  it('resolves success and failed colors case-insensitively', () => {
+    expect(colorByLabel('success', mockTheme)).toBe(colors.success);
+    expect(colorByLabel('SUCCESS', mockTheme)).toBe(colors.success);
+    expect(colorByLabel('failed', mockTheme)).toBe(colors.failed);
+    expect(colorByLabel('FAILED', mockTheme)).toBe(colors.failed);
+  });
+
+  it('falls back to the pending color for anything else', () => {
+    expect(colorByLabel('PENDING', mockTheme)).toBe(colors.pending);
+    expect(colorByLabel(null, mockTheme)).toBe(colors.pending);
   });
 });

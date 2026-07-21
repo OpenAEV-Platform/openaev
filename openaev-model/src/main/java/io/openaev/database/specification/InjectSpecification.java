@@ -5,9 +5,13 @@ import static io.openaev.database.model.ExerciseStatus.RUNNING;
 import io.openaev.database.model.CollectExecutionStatus;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.Workflow;
+import io.openaev.database.model.WorkflowStatus;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Duration;
 import java.time.Instant;
@@ -118,9 +122,21 @@ public class InjectSpecification {
   public static Specification<Inject> pendingInjectWithThresholdMinutes(int thresholdMinutes) {
     return (root, query, cb) -> {
       Instant thresholdInstant = Instant.now().minus(Duration.ofMinutes(thresholdMinutes));
+
+      // Subquery: simulation IDs that have an active chaining workflow (status = RUN).
+      // The time-based engine must never touch injects owned by the chaining engine.
+      Subquery<String> chainingSimIds = query.subquery(String.class);
+      Root<Workflow> wf = chainingSimIds.from(Workflow.class);
+      chainingSimIds
+          .select(wf.get("simulation").get("id"))
+          .where(cb.equal(wf.get("status"), WorkflowStatus.RUN));
+
       return cb.and(
           cb.equal(root.get("status").get("name"), ExecutionStatus.PENDING),
-          cb.lessThan(root.get("status").get("trackingSentDate"), thresholdInstant));
+          cb.lessThan(root.get("status").get("trackingSentDate"), thresholdInstant),
+          cb.or(
+              cb.isNull(root.get("exercise")),
+              cb.not(root.get("exercise").get("id").in(chainingSimIds))));
     };
   }
 

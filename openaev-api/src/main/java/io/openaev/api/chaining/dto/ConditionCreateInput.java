@@ -1,10 +1,9 @@
 package io.openaev.api.chaining.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.ConditionKeySubtype;
-import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.MappingType;
+import io.openaev.database.model.PrimitiveType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
@@ -32,12 +31,7 @@ public class ConditionCreateInput {
   /** Condition key Type: Path to the value in the output of the step from */
   @Schema(description = "Path to the value in the output of the step from")
   @JsonProperty("condition_key_type")
-  private ConditionKeyType keyType;
-
-  /** Condition key subtype */
-  @Schema(description = "Condition key subtype")
-  @JsonProperty("condition_key_subtype")
-  private ConditionKeySubtype keySubtype;
+  private PrimitiveType keyType;
 
   /** Condition value: Value to be compared */
   @Schema(description = "Value to be compared")

@@ -1,5 +1,6 @@
 package io.openaev.api.attackpath;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -7,10 +8,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
+import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.List;
 import java.util.UUID;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,32 +48,38 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
 
   private static final String SIM = "SIM-ISO";
   private static final String ENDPOINT_KEY = "dc-01";
-  private static final String GRAPH =
-      "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/graph";
-  private static final String EXPAND =
-      "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/endpoint/findings";
-  private static final String RELATIONS =
-      "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/endpoint/relations";
-  private static final String LIST = "/api/tenants/{tenantId}/attack-path/simulations";
-  private static final String FINDINGS =
-      "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/findings";
+  // Both mappings the API declares, derived from its own constants rather than retyped: a route
+  // renamed on the controller must break this test, not silently stop covering it.
+  private static final String SCOPED = TENANT_PREFIX + "/attack-path";
+  private static final String PLAIN = AttackPathApi.ATTACK_PATH_URI;
+
+  private static final String GRAPH = SCOPED + "/simulations/{simulationId}/graph";
+  private static final String EXPAND = SCOPED + "/simulations/{simulationId}/endpoint/findings";
+  private static final String RELATIONS = SCOPED + "/simulations/{simulationId}/endpoint/relations";
+  private static final String LIST = SCOPED + "/simulations";
+  private static final String FINDINGS = SCOPED + "/simulations/{simulationId}/findings";
   private static final String EXECUTION =
-      "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/executions/{executionId}";
+      SCOPED + "/simulations/{simulationId}/executions/{executionId}";
+  // The same handlers without the tenant prefix: here the scope comes from the header.
+  private static final String PLAIN_GRAPH = PLAIN + "/simulations/{simulationId}/graph";
+  private static final String PLAIN_LIST = PLAIN + "/simulations";
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private AttackPathExecutionRepository executionRepository;
+  @Autowired private AttackPathFindingRepository findingRepository;
 
   private String tenantA;
   private String tenantB;
   private String executionId;
+  private String findingId;
 
   @BeforeEach
   void seedGraphUnderTenantA() throws Exception {
     tenantA = tenantHelper.createTenantWithCurrentUser("ap-iso-a").getId();
     tenantB = tenantHelper.createTenantWithCurrentUser("ap-iso-b").getId();
     executionId = seedExecution(tenantA);
-    String findingId = seedFinding(tenantA);
+    findingId = seedFinding(tenantA);
     linkExecutionFinding(executionId, findingId);
   }
 
@@ -198,12 +207,63 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("via the X-Tenant-Ids header (no path tenant): the owner's graph is visible")
+  void graphViaHeaderForOwnerTenantIsVisible() throws Exception {
+    // Second scope-carrying route: the same handlers are also mapped without the tenant prefix, and
+    // the scope then comes from the header instead of the path. Different plumbing, so path
+    // coverage does not imply header coverage.
+    mvc.perform(get(PLAIN_GRAPH, SIM).header("X-Tenant-Ids", tenantA))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.counters.endpoints").value(1))
+        .andExpect(jsonPath("$.attackPathNodes").isNotEmpty());
+  }
+
+  @Test
+  @DisplayName("via the X-Tenant-Ids header: another tenant selected, the graph is empty (no leak)")
+  void graphViaHeaderForOtherTenantIsHidden() throws Exception {
+    mvc.perform(get(PLAIN_GRAPH, SIM).header("X-Tenant-Ids", tenantB))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.attackPathNodes").isEmpty())
+        .andExpect(jsonPath("$.attackPathEdges").isEmpty());
+  }
+
+  @Test
+  @DisplayName("via the X-Tenant-Ids header: the picker lists the selected owner's simulation")
+  void simulationsListViaHeaderForOwnerTenantIsVisible() throws Exception {
+    mvc.perform(get(PLAIN_LIST).header("X-Tenant-Ids", tenantA))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[?(@.simulationId=='" + SIM + "')]").exists());
+  }
+
+  @Test
+  @DisplayName("via the X-Tenant-Ids header: the picker hides another tenant's simulation")
+  void simulationsListViaHeaderForOtherTenantIsHidden() throws Exception {
+    // Deliberately a separate method: the aspect refuses to redefine the scope inside one
+    // transaction, so the two selections cannot share a test.
+    mvc.perform(get(PLAIN_LIST).header("X-Tenant-Ids", tenantB))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[?(@.simulationId=='" + SIM + "')]").doesNotExist());
+  }
+
+  @Test
   @DisplayName("no scope set: the read is empty although the rows exist (fail-closed)")
   void readWithoutScopeIsFailClosed() {
     // No TxCtx in this test transaction, so the aspect never set app.current_tenants and the
     // inspector denies every row. The row exists in the table, it is only hidden.
     assertThat(executionRepository.findGraphRows(SIM)).isEmpty();
     assertThat(rawExecutionCount(executionId)).isEqualTo(1L);
+  }
+
+  @Test
+  @DisplayName("no scope set: the finding-to-execution links are fail-closed like every other read")
+  void linkReadWithoutScopeIsFailClosed() {
+    // The links live in attackpath_execution_finding, a child table with no tenant_id of its own,
+    // so
+    // it is deliberately not tenant-active. That is fine only as long as it is never read on its
+    // own: reached through its guarded parent, it inherits the parent's scope. This pins that
+    // property, so a future query that drops the parent join fails here instead of leaking quietly.
+    assertThat(findingRepository.findExecutionLinks(List.of(findingId))).isEmpty();
+    assertThat(rawLinkCount(findingId)).isEqualTo(1L);
   }
 
   // Native seed, not the API: the setup seeds two tenants, and an explicit tenant_id lets both rows
@@ -268,6 +328,24 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
                   connection.prepareStatement(
                       "SELECT count(*) FROM attackpath_execution WHERE attackpath_execution_id = ?")) {
                 statement.setString(1, id);
+                try (ResultSet rows = statement.executeQuery()) {
+                  rows.next();
+                  return rows.getLong(1);
+                }
+              }
+            });
+  }
+
+  private long rawLinkCount(String finding) {
+    entityManager.flush();
+    return entityManager
+        .unwrap(Session.class)
+        .doReturningWork(
+            connection -> {
+              try (PreparedStatement statement =
+                  connection.prepareStatement(
+                      "SELECT count(*) FROM attackpath_execution_finding WHERE finding_id = ?")) {
+                statement.setString(1, finding);
                 try (ResultSet rows = statement.executeQuery()) {
                   rows.next();
                   return rows.getLong(1);

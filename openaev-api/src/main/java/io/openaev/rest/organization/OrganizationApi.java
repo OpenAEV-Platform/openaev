@@ -54,6 +54,21 @@ public class OrganizationApi extends RestBehavior {
     return this.organizationService.organizationPagination(searchPaginationInput);
   }
 
+  @GetMapping({
+    ORGANIZATION_URI + "/{organizationId}",
+    TENANT_ORGANIZATION_URI + "/{organizationId}"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#organizationId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.ORGANIZATION)
+  public Organization organization(@PathVariable String organizationId) {
+    return organizationRepository
+        .findById(organizationId)
+        .orElseThrow(ElementNotFoundException::new);
+  }
+
   @PostMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ORGANIZATION)
   @Transactional(rollbackFor = Exception.class)

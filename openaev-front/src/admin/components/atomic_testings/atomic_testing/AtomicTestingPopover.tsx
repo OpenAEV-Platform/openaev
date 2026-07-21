@@ -69,7 +69,7 @@ const AtomicTestingPopover: FunctionComponent<Props> = ({
   const [exportOpen, setExportOpen] = useState(false);
   const handleOpenExport = () => setExportOpen(true);
   const handleCloseExport = () => setExportOpen(false);
-  const doExport = (withPlayers: boolean, withTeams: boolean, withVariableValues: boolean) => {
+  const doExport = (withPlayers: boolean, withTeams: boolean, withVariableValues: boolean, _withScopeDefinition: boolean) => {
     const exportData: InjectIndividualExportRequestInput = {
       options: {
         with_players: withPlayers,

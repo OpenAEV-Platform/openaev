@@ -1,12 +1,14 @@
 import { Button } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
+import { addAiTarget } from '../../../../actions/assets/aiTarget-actions';
 import { addEndpointAgentless } from '../../../../actions/assets/endpoint-actions';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import type { Endpoint, EndpointInput } from '../../../../utils/api-types';
+import type { AiTargetInput, Endpoint, EndpointInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
+import AiTargetForm from '../ai_targets/AiTargetForm';
 import { type AssetCategory, getCategoryDef } from '../asset-categories';
 import AssetCategoryPicker from '../AssetCategoryPicker';
 import AssetForm from '../AssetForm';
@@ -49,6 +51,17 @@ const EndpointCreation: FunctionComponent<Props> = ({
     );
   };
 
+  const onSubmitAiTarget = (data: AiTargetInput) => {
+    // AI targets are base Assets, not Endpoints, so they are not prepended to the
+    // (endpoint-shaped) onCreate list here; they surface in the unified asset inventory.
+    dispatch(addAiTarget(data)).then((result: { entities?: unknown }) => {
+      if (result.entities) {
+        handleClose();
+      }
+      return result;
+    });
+  };
+
   return (
     <>
       <ButtonCreate onClick={() => setOpen(true)} />
@@ -64,12 +77,21 @@ const EndpointCreation: FunctionComponent<Props> = ({
                 <Button size="small" onClick={() => setCategory(null)} style={{ alignSelf: 'flex-start' }}>
                   {t('Change category')}
                 </Button>
-                <AssetForm
-                  category={category}
-                  agentless={agentless}
-                  onSubmit={onSubmit}
-                  handleClose={handleClose}
-                />
+                {category === 'AI_TARGET'
+                  ? (
+                      <AiTargetForm
+                        onSubmit={onSubmitAiTarget}
+                        handleClose={handleClose}
+                      />
+                    )
+                  : (
+                      <AssetForm
+                        category={category}
+                        agentless={agentless}
+                        onSubmit={onSubmit}
+                        handleClose={handleClose}
+                      />
+                    )}
               </>
             )}
       </Drawer>

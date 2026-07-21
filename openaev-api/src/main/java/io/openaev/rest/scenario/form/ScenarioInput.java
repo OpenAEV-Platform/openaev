@@ -49,6 +49,14 @@ public class ScenarioInput {
   @JsonProperty("scenario_tags")
   private List<String> tagIds = new ArrayList<>();
 
+  /**
+   * Never return null: the frontend can send {@code "scenario_tags": null}, which Jackson maps to a
+   * null list and would make {@code tagRepository.findAllById(null)} throw "Ids must not be null".
+   */
+  public List<String> getTagIds() {
+    return tagIds == null ? new ArrayList<>() : tagIds;
+  }
+
   @Pattern(regexp = FROM_NAME_PATTERN, message = FROM_NAME_PATTERN_MESSAGE)
   @Size(max = FROM_NAME_MAX_LENGTH, message = FROM_NAME_SIZE_MESSAGE)
   @JsonProperty("scenario_mail_from_name")

@@ -20,6 +20,7 @@ interface Props {
   variant?: VariantButtonPopover;
   disabled?: boolean;
   className?: string;
+  /** @deprecated kept for API compatibility; the icon kebab is always compact now. */
   size?: 'small' | 'medium' | 'large';
 }
 
@@ -29,7 +30,6 @@ const ButtonPopover: FunctionComponent<Props> = ({
   variant = 'toggle',
   disabled = false,
   className,
-  size = 'large',
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -55,11 +55,13 @@ const ButtonPopover: FunctionComponent<Props> = ({
             <MoreVert fontSize="small" color={disabled ? 'disabled' : 'primary'} />
           </ToggleButton>
         )}
+      {/* Inline kebab, aligned with OpenCTI: a small squared (4px radius)
+          transparent button, not a large round IconButton. */}
       {variant === 'icon' && !entries.every(entry => !entry.userRight)
         && (
           <IconButton
             value="popover"
-            size={size}
+            size="small"
             color="primary"
             onClick={(ev) => {
               ev.stopPropagation();
@@ -67,8 +69,9 @@ const ButtonPopover: FunctionComponent<Props> = ({
             }}
             style={{ ...style }}
             disabled={disabled}
+            sx={{ borderRadius: 1 }}
           >
-            <MoreVert fontSize={size === 'small' ? 'small' : 'medium'} color={disabled ? 'disabled' : 'primary'} />
+            <MoreVert fontSize="small" color={disabled ? 'disabled' : 'primary'} />
           </IconButton>
         )}
       <Menu

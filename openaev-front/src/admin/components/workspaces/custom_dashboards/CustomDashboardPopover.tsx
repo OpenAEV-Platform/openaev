@@ -2,7 +2,6 @@ import { type FunctionComponent, useCallback, useContext, useState } from 'react
 
 import { deleteCustomDashboard, exportCustomDashboard, updateCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
 import type { LoggedHelper } from '../../../../actions/helper';
-import { updateTenantSettings } from '../../../../actions/settings/tenant-settings-action';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
@@ -13,7 +12,6 @@ import { AbilityContext } from '../../../../utils/permissions/permissionsContext
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { download } from '../../../../utils/utils';
 import CustomDashboardForm, { type CustomDashboardFormType } from './CustomDashboardForm';
-import updateDefaultDashboardsInParameters from './customDashboardUtils';
 
 interface Props {
   customDashboard: CustomDashboard;
@@ -43,14 +41,13 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
       try {
         const response = await updateCustomDashboard(customDashboard.custom_dashboard_id, data);
         if (response.data) {
-          updateDefaultDashboardsInParameters(response.data.custom_dashboard_id, data, settings, updatedSettings => updateTenantSettings(updatedSettings));
           onUpdate?.(response.data);
         }
       } finally {
         toggleModal(null);
       }
     },
-    [customDashboard.custom_dashboard_id, onUpdate, settings],
+    [customDashboard.custom_dashboard_id, onUpdate],
   );
 
   const submitExport = async () => {
@@ -98,7 +95,6 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
           handleClose={() => toggleModal(null)}
           initialValues={initialValues}
           editing
-          customDashboardId={customDashboard.custom_dashboard_id}
         />
       </Drawer>
       <DialogDelete

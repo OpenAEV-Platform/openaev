@@ -116,11 +116,10 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
     connector.setSlug(SENTINELONE_EXECUTOR_TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
-        """
-                    With SentinelOne executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your SentinelOne instance.
-                    """);
-    connector.setShortDescription(
-        "Enable execution of OpenAEV scenarios through your SentinelOne instance.");
+        "Register your SentinelOne Singularity-managed endpoints as OpenAEV executors and run"
+            + " simulated attacks on them through SentinelOne, so you can validate detection and"
+            + " prevention on real endpoints without deploying the OpenAEV agent.");
+    connector.setShortDescription("Run OpenAEV simulations on your SentinelOne endpoints.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("https://www.sentinelone.com");
     connector.setContainerType(ConnectorType.EXECUTOR);

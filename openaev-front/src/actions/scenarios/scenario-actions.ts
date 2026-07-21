@@ -27,6 +27,7 @@ import {
   type WidgetToEntitiesInput,
 } from '../../utils/api-types';
 import { MESSAGING$ } from '../../utils/Environment';
+import { buildTenantApiPath } from '../../utils/url-helper';
 import * as schema from '../Schema';
 import { arrayOfScenarios, scenario } from './scenario-schema';
 
@@ -78,8 +79,8 @@ export const deleteScenario = (scenarioId: Scenario['scenario_id']) => (dispatch
   return delReferential(uri, scenario.key, scenarioId)(dispatch);
 };
 
-export const exportScenarioUri = (scenarioId: Scenario['scenario_id'], exportTeams: boolean, exportPlayers: boolean, exportVariableValues: boolean) => {
-  return `${SCENARIO_URI}/${scenarioId}/export?isWithTeams=${exportTeams}&isWithPlayers=${exportPlayers}&isWithVariableValues=${exportVariableValues}`;
+export const exportScenarioUri = (scenarioId: Scenario['scenario_id'], exportTeams: boolean, exportPlayers: boolean, exportVariableValues: boolean, exportScopeDefinition: boolean) => {
+  return buildTenantApiPath(`${SCENARIO_URI}/${scenarioId}/export?isWithTeams=${exportTeams}&isWithPlayers=${exportPlayers}&isWithVariableValues=${exportVariableValues}&isWithScopeDefinition=${exportScopeDefinition}`);
 };
 
 export const importScenario = (formData: FormData) => (dispatch: Dispatch) => {

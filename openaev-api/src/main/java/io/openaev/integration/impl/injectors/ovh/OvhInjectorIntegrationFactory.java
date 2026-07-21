@@ -100,12 +100,10 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
     connector.setSlug(ovhSmsContract.getType());
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
-        """
-                    The OVHCloud SMS Platform injector is a built-in injector, meaning it is natively included in the platform.
-
-                    It allows you to send SMS through the OVHCloud SMS services directly in your OpenAEV simulations.
-                """);
-    connector.setShortDescription("Allow OpenAEV to send SMS for table top exercises.");
+        "Send SMS messages through the OVHcloud SMS service directly from OpenAEV injects, to"
+            + " drive realistic notification and crisis-communication steps in table-top"
+            + " exercises. This injector is built into the platform.");
+    connector.setShortDescription("Send SMS via OVHcloud for table-top exercises.");
     connector.setClassName(getClassName());
     connector.setContainerType(ConnectorType.INJECTOR);
     connector.setCatalogConnectorConfigurations(

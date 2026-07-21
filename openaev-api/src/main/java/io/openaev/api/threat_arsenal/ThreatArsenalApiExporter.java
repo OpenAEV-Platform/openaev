@@ -51,6 +51,10 @@ public class ThreatArsenalApiExporter {
       throws IOException {
     Map<String, IncludeOptions.IncludeMode> opts = new HashMap<>();
     opts.put("exclude from action export", IncludeOptions.IncludeMode.FALSE);
+    // Also honor the payload-level exclusions (collector type, author): an
+    // action export embeds the payload, and re-importing an included author
+    // user/organization would duplicate it in the target environment.
+    opts.put("exclude from payload export", IncludeOptions.IncludeMode.FALSE);
     IncludeOptions includeOptions = IncludeOptions.of(opts);
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
     if (injectorContract.getPayload() == null) {
