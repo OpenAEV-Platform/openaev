@@ -32,14 +32,17 @@ public class ShutdownService {
       return;
     }
 
-    Thread shutdownThread =
-        new Thread(
-            () -> {
-              int exitCode = SpringApplication.exit(context);
-              System.exit(exitCode != 0 ? exitCode : 1);
-            },
-            "graceful-shutdown");
+    Thread shutdownThread = new Thread(this::performShutdown, "graceful-shutdown");
     shutdownThread.setDaemon(true);
     shutdownThread.start();
+  }
+
+  /**
+   * Performs the actual shutdown sequence: Spring context close then JVM exit. Package-private so
+   * tests can spy without spawning real shutdown threads.
+   */
+  void performShutdown() {
+    int exitCode = SpringApplication.exit(context);
+    System.exit(exitCode != 0 ? exitCode : 1);
   }
 }

@@ -1,10 +1,14 @@
 package io.openaev.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.openaev.aop.AccessControlAspect;
+import io.openaev.aop.audit_log.AccessControlAuditLogAspect;
 import io.openaev.aop.lock.Lock;
+import io.openaev.aop.lock.LockAspect;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.context.TxCtx;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -23,6 +27,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
+import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.core.annotation.Order;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.BeanFactoryTransactionAttributeSourceAdvisor;
@@ -113,6 +119,33 @@ class TenantScopeLockOrderingIntegrationTest {
         List.of("writer-body", "writer-commit", "reader-body"),
         events,
         "the writer's transaction must commit before the reader enters: the lock wraps the tx");
+  }
+
+  @Test
+  @DisplayName("aspect ordering: Lock < Transaction < Audit < RBAC (no ties)")
+  void given_allAspects_should_respectStrictRelativeOrdering() {
+    // Arrange
+    int lockOrder = getOrderValue(LockAspect.class);
+    int transactionOrder = transactionAdvisor.getOrder();
+    int auditOrder = getOrderValue(AccessControlAuditLogAspect.class);
+    int rbacOrder = getOrderValue(AccessControlAspect.class);
+
+    // Assert — strict ordering (lower value = outer aspect)
+    assertThat(lockOrder)
+        .as("LockAspect must wrap @Transactional (lower order)")
+        .isLessThan(transactionOrder);
+    assertThat(transactionOrder)
+        .as("@Transactional must wrap AuditLogAspect (lower order)")
+        .isLessThan(auditOrder);
+    assertThat(auditOrder)
+        .as("AuditLogAspect must wrap AccessControlAspect (lower order)")
+        .isLessThan(rbacOrder);
+  }
+
+  private static int getOrderValue(Class<?> clazz) {
+    Order order = AnnotationUtils.findAnnotation(clazz, Order.class);
+    assertThat(order).as("@Order must be present on %s", clazz.getSimpleName()).isNotNull();
+    return order.value();
   }
 
   @TestConfiguration
