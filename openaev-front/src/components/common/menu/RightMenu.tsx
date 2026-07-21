@@ -2,15 +2,15 @@ import { Drawer, ListItemIcon, ListItemText, MenuItem, MenuList } from '@mui/mat
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactElement, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
-import { type CSSObject } from 'tss-react';
-import { makeStyles } from 'tss-react/mui';
 
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import useAuth from '../../../utils/hooks/useAuth';
 import { isNotEmptyField } from '../../../utils/utils';
 import { useFormatter } from '../../i18n';
 
-const useStyles = makeStyles()(theme => ({ toolbar: theme.mixins.toolbar as CSSObject }));
+// Height of the top AppBar toolbar (see TopBar.tsx). The right menu paper is
+// offset below it so it never renders over the header.
+const TOPBAR_HEIGHT = 68;
 
 export interface RightMenuEntry {
   path: string;
@@ -31,12 +31,13 @@ interface Props {
 
 const RightMenu: FunctionComponent<Props> = ({ entries, header }) => {
   const location = useLocation();
-  const { classes } = useStyles();
   const theme = useTheme();
   const { t } = useFormatter();
 
   const { settings } = useAuth();
-  const { bannerHeight } = computeBannerSettings(settings);
+  const { bannerHeightNumber } = computeBannerSettings(settings);
+  // The header occupies the top banner (if any) plus the fixed AppBar toolbar.
+  const topOffset = bannerHeightNumber + TOPBAR_HEIGHT;
 
   return (
     <Drawer
@@ -46,12 +47,13 @@ const RightMenu: FunctionComponent<Props> = ({ entries, header }) => {
         'width': 200,
         '& .MuiDrawer-paper': {
           width: 200,
+          top: topOffset,
+          height: `calc(100% - ${topOffset}px)`,
           backgroundColor: theme.palette.background.nav,
         },
       }}
     >
-      <div className={classes.toolbar} />
-      <div style={{ marginTop: bannerHeight }}>
+      <div>
         {header}
         <MenuList component="nav" sx={{ paddingTop: 0.5 }}>
           {entries.map((entry, idx) => {

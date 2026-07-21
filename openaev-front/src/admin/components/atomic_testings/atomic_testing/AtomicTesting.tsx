@@ -1,10 +1,11 @@
-import { Box, Grid, Paper, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Grid, Paper, Tab, Tabs } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useContext, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { searchTargets } from '../../../../actions/injects/inject-action';
+import { SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
@@ -311,9 +312,7 @@ const AtomicTesting = () => {
           flexDirection: 'column',
         }}
       >
-        <Typography variant="h4" gutterBottom sx={{ mb: theme.spacing(1) }}>
-          {t('Targets')}
-        </Typography>
+        <SectionLabel>{t('Targets')}</SectionLabel>
         <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
           {hasAssetsGroupChecked && hasTeamsChecked && hasEndpointsChecked && hasAgentsChecked && hasPlayersChecked && hasAiTargetsChecked && (
             <>
@@ -344,9 +343,7 @@ const AtomicTesting = () => {
           flexDirection: 'column',
         }}
       >
-        <Typography variant="h4" gutterBottom sx={{ mb: theme.spacing(1) }}>
-          {t('Results by target')}
-        </Typography>
+        <SectionLabel>{t('Results by target')}</SectionLabel>
         {selectedTarget && !!injectResultOverviewOutput.inject_type && (
           <Box
             sx={{

@@ -12,7 +12,7 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip } from '@mui/material';
+import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type SetStateAction, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -25,7 +25,6 @@ import {
   updateScenarioRecurrence,
 } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
-import { type PopoverEntry } from '../../../../components/common/ButtonPopover';
 import { DetailHero, HeroStat } from '../../../../components/common/detail/EntityDetailCommon';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
@@ -209,32 +208,6 @@ const ScenarioHeader = ({
 
   const scheduleLabel = cronObject?.isValid() ? humanReadableScheduling() : t('Not scheduled');
 
-  // Setup actions consolidated into the single hero overflow menu, so the action
-  // bar stays to one AI action + one primary CTA + one kebab instead of a row of
-  // loose icons. Each is permission-gated via userRight (ScenarioPopover filters).
-  const setupEntries: PopoverEntry[] = canManage
-    ? [
-        {
-          label: hasDashboard ? 'Open dashboard' : 'Create dashboard',
-          icon: <InsertChartOutlined fontSize="small" />,
-          action: onDashboardAction,
-          userRight: true,
-        },
-        {
-          label: 'Notification rules',
-          icon: <NotificationsOutlined fontSize="small" color={editNotification ? 'success' : undefined} />,
-          action: () => setOpenScenarioNotificationRuleDrawer(true),
-          userRight: true,
-        },
-        {
-          label: 'Scheduling',
-          icon: <UpdateOutlined fontSize="small" />,
-          action: () => setOpenScenarioRecurringFormDialog(true),
-          userRight: true,
-        },
-      ]
-    : [];
-
   return (
     <>
       <Box sx={{ marginBottom: 2 }}>
@@ -303,6 +276,29 @@ const ScenarioHeader = ({
                   </Button>
                 </Tooltip>
               )}
+              {/* Secondary actions surfaced as compact icon buttons (with explicit
+                  tooltips) instead of being buried in the overflow menu. The
+                  dashboard tooltip reflects whether a dashboard is already
+                  attached (open) or still needs to be created. */}
+              {canManage && (
+                <>
+                  <Tooltip title={hasDashboard ? t('Open dashboard') : t('Create dashboard')}>
+                    <IconButton size="small" color="primary" onClick={onDashboardAction}>
+                      <InsertChartOutlined fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={t('Notification rules')}>
+                    <IconButton size="small" color="primary" onClick={() => setOpenScenarioNotificationRuleDrawer(true)}>
+                      <NotificationsOutlined fontSize="small" color={editNotification ? 'success' : undefined} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={t('Scheduling')}>
+                    <IconButton size="small" color="primary" onClick={() => setOpenScenarioRecurringFormDialog(true)}>
+                      <UpdateOutlined fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </>
+              )}
               {/* The single prominent CTA. */}
               {canLaunch && isScheduled && !ended
                 ? (
@@ -337,7 +333,6 @@ const ScenarioHeader = ({
                 scenario={scenario}
                 actions={isScenarioChaining ? ['Update', 'Delete', 'Export'] : ['Duplicate', 'Update', 'Delete', 'Export']}
                 onDelete={() => navigate('/admin/scenarios')}
-                leadingEntries={setupEntries}
               />
             </>
           )}

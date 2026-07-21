@@ -5,6 +5,7 @@ import { useDispatch } from 'react-redux';
 
 import { meTokens, renewToken, updateMeInformation, updateMePassword, updateMeProfile } from '../../../actions/users/User';
 import Paper from '../../../components/common/Paper';
+import { SECTION_LABEL_SX } from '../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
@@ -105,9 +106,8 @@ const Index = () => {
           .
         </Typography>
         <Typography
-          variant="h4"
           gutterBottom={true}
-          style={{ marginTop: 20 }}
+          sx={{ ...SECTION_LABEL_SX, mt: 2.5 }}
         >
           {t('Token key')}
         </Typography>
@@ -121,9 +121,8 @@ const Index = () => {
           {t('RENEW')}
         </Button>
         <Typography
-          variant="h4"
           gutterBottom={true}
-          style={{ marginTop: 20 }}
+          sx={{ ...SECTION_LABEL_SX, mt: 2.5 }}
         >
           {t('Example')}
         </Typography>

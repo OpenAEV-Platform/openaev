@@ -27,11 +27,11 @@ const MetaItem = ({ label, children }: {
     <Typography sx={{
       fontFamily: '"Geologica", sans-serif',
       fontWeight: 600,
-      fontSize: 10,
+      fontSize: 11,
       letterSpacing: '0.1em',
       textTransform: 'uppercase',
       color: 'text.secondary',
-      marginBottom: 0.25,
+      marginBottom: 0.5,
     }}
     >
       {label}
@@ -39,8 +39,8 @@ const MetaItem = ({ label, children }: {
     <Box sx={{
       display: 'flex',
       alignItems: 'center',
-      minHeight: 24,
-      fontSize: 13,
+      minHeight: 28,
+      fontSize: 14,
     }}
     >
       {children}
@@ -71,7 +71,7 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
   return (
     <Box sx={{
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(440px, 1fr))',
       gap: 2,
     }}
     >
@@ -90,10 +90,10 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
             sx={{
               border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
               borderRadius: 1,
-              padding: 1.5,
+              padding: 2,
               display: 'flex',
               flexDirection: 'column',
-              gap: 1.5,
+              gap: 2,
               background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.04)}, transparent 55%)`,
             }}
           >
@@ -105,8 +105,8 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
             }}
             >
               <Box sx={{
-                width: 38,
-                height: 38,
+                width: 44,
+                height: 44,
                 borderRadius: 1,
                 display: 'flex',
                 alignItems: 'center',
@@ -122,13 +122,13 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
                         src={buildTenantApiPath(`/api/images/executors/icons/${executor.executor_type}`)}
                         alt={executor.executor_type}
                         style={{
-                          width: 22,
-                          height: 22,
+                          width: 26,
+                          height: 26,
                           borderRadius: 4,
                         }}
                       />
                     )
-                  : <DevicesOtherOutlined color="primary" sx={{ fontSize: 20 }} />}
+                  : <DevicesOtherOutlined color="primary" sx={{ fontSize: 24 }} />}
               </Box>
               <Box sx={{
                 minWidth: 0,
@@ -137,7 +137,7 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
               >
                 <Tooltip title={agent.agent_executed_by_user ?? ''}>
                   <Typography sx={{
-                    fontSize: 13.5,
+                    fontSize: 15,
                     fontWeight: 600,
                     lineHeight: 1.35,
                     whiteSpace: 'nowrap',
@@ -156,7 +156,7 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
                 }}
                 >
                   <Typography sx={{
-                    fontSize: 12,
+                    fontSize: 13,
                     color: 'text.secondary',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',

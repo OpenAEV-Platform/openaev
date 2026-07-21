@@ -20,6 +20,8 @@ const useStyles = makeStyles()(theme => ({
     width: '50%',
     position: 'fixed',
     overflow: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
     transition: theme.transitions.create('width', {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.enteringScreen,
@@ -30,6 +32,8 @@ const useStyles = makeStyles()(theme => ({
     width: '100vw',
     position: 'fixed',
     overflow: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
     transition: theme.transitions.create('width', {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.enteringScreen,
@@ -45,6 +49,7 @@ const useStyles = makeStyles()(theme => ({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: theme.spacing(1),
+    flexShrink: 0,
   },
   headerFull: {
     backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.nav,
@@ -54,11 +59,15 @@ const useStyles = makeStyles()(theme => ({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: theme.spacing(1),
+    flexShrink: 0,
   },
   // The scrollable body content: the lighter navy blue OpenCTI uses for drawers.
+  // `flex: 1` makes it fill the paper height BELOW the header without adding the
+  // header's height on top of a `100%` min-height (which produced a phantom
+  // scrollbar that scrolled by exactly the header height).
   container: {
     backgroundColor: theme.palette.background.drawer,
-    minHeight: '100%',
+    flex: 1,
     padding: '10px 20px 20px 20px',
   },
 }));

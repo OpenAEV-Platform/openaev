@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
+import { SECTION_LABEL_SX } from '../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../components/i18n';
 import type { WorkflowConfigurationInput, WorkflowConfigurationOutput } from '../../../utils/api-types';
 
@@ -65,8 +66,8 @@ const ScopeRateLimit = ({ workflowConfiguration, onUpdate }: ScopeRateLimitProps
     }}
     >
       <Typography
-        variant="h4"
         sx={{
+          ...SECTION_LABEL_SX,
           display: 'flex',
           alignItems: 'center',
           gap: theme.spacing(1),

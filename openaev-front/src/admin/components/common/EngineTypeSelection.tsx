@@ -1,5 +1,5 @@
-import { OpenInNew } from '@mui/icons-material';
-import { Card, CardActionArea, CardContent, Link, Radio, Stack, Typography } from '@mui/material';
+import { InfoOutlined } from '@mui/icons-material';
+import { Card, CardActionArea, CardContent, Stack, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -139,111 +139,87 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
   };
 
   return (
-    <>
-      <Stack sx={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: theme.spacing(2),
+    <Stack
+      sx={{
+        display: 'grid',
+        gap: theme.spacing(2),
+        gridTemplateColumns: 'repeat(2, 1fr)',
       }}
-      >
-        <Typography variant="body2" color="text.secondary">
-          {t(isSimulation ? 'chaining.select-type-simulation' : 'chaining.select-type')}
-        </Typography>
-        <Link
-          href="https://docs.openaev.io/latest/usage/chaining/"
-          target="_blank"
-          rel="noopener noreferrer"
-          variant="body2"
-          sx={{
-            color: theme.palette.primary.main,
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing(0.5),
-          }}
-        >
-          <OpenInNew sx={{ fontSize: 14 }} />
-          {isSimulation ? t('chaining.doc-link-simulation') : t('chaining.doc-link')}
-        </Link>
-      </Stack>
-      <Stack
-        sx={{
-          display: 'grid',
-          gap: theme.spacing(2),
-          gridTemplateColumns: 'repeat(2, 1fr)',
-        }}
-      >
-        {options.map((option) => {
-          const isChaining = option.type === 'chaining';
-          const isSelected = selected === option.type;
-          const isDisabled = isChaining && !isEnterpriseEdition;
-          return (
-            <Card
-              key={option.type}
-              variant="outlined"
+    >
+      {options.map((option) => {
+        const isChaining = option.type === 'chaining';
+        const isSelected = selected === option.type;
+        const isDisabled = isChaining && !isEnterpriseEdition;
+        return (
+          <Card
+            key={option.type}
+            variant="outlined"
+            sx={{
+              'position': 'relative',
+              'borderColor': isSelected ? theme.palette.primary.main : undefined,
+              'borderWidth': isSelected ? 2 : 1,
+              'opacity': isDisabled ? 0.6 : 1,
+              'transition': 'border-color 0.2s, opacity 0.2s',
+              '&:hover': { borderColor: theme.palette.primary.main },
+            }}
+          >
+            {/* Info affordance: sits above the action area so hovering it shows the
+                explanation without triggering the card selection. */}
+            <Tooltip title={option.description} placement="top">
+              <InfoOutlined
+                sx={{
+                  position: 'absolute',
+                  top: theme.spacing(1),
+                  right: theme.spacing(1),
+                  zIndex: 1,
+                  fontSize: 18,
+                  color: 'text.secondary',
+                  cursor: 'help',
+                }}
+              />
+            </Tooltip>
+            <CardActionArea
+              onClick={() => handleCardClick(option.type)}
               sx={{
-                'borderColor': isSelected ? theme.palette.primary.main : undefined,
-                'borderWidth': isSelected ? 2 : 1,
-                'opacity': isDisabled ? 0.6 : 1,
-                'transition': 'border-color 0.2s, opacity 0.2s',
-                '&:hover': { borderColor: theme.palette.primary.main },
+                height: '100%',
+                padding: theme.spacing(2),
               }}
             >
-              <CardActionArea
-                onClick={() => handleCardClick(option.type)}
-                sx={{
-                  height: '100%',
-                  padding: theme.spacing(2),
-                }}
+              <CardContent sx={{
+                'display': 'flex',
+                'flexDirection': 'column',
+                'alignItems': 'center',
+                'gap': theme.spacing(1),
+                'padding': 0,
+                '&:last-child': { paddingBottom: 0 },
+              }}
               >
-                <CardContent sx={{
-                  'display': 'flex',
-                  'flexDirection': 'column',
-                  'alignItems': 'center',
-                  'gap': theme.spacing(1),
-                  'padding': 0,
-                  '&:last-child': { paddingBottom: 0 },
+                <Stack sx={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: theme.spacing(0.5),
                 }}
                 >
-                  <Stack sx={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: theme.spacing(0.5),
-                  }}
-                  >
-                    <Radio
-                      checked={isSelected}
-                      size="small"
-                      disabled={isDisabled}
-                      sx={{
-                        padding: 0,
-                        color: theme.palette.primary.main,
-                      }}
-                    />
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                      {option.title}
-                    </Typography>
-                    {isChaining && !isEnterpriseEdition && <EEChip clickable />}
-                  </Stack>
-                  <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
-                    {option.description}
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                    {option.title}
                   </Typography>
-                  {/* Illustrative workflow diagram (crisp inline SVG). */}
-                  <Stack sx={{
-                    marginTop: theme.spacing(1),
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                  >
-                    {isChaining ? <ChainingDiagram /> : <TimeBasedDiagram />}
-                  </Stack>
-                </CardContent>
-              </CardActionArea>
-            </Card>
-          );
-        })}
-      </Stack>
-    </>
+                  {isChaining && !isEnterpriseEdition && <EEChip clickable />}
+                </Stack>
+                {/* Illustrative workflow diagram (crisp inline SVG). */}
+                <Stack sx={{
+                  marginTop: theme.spacing(1),
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                >
+                  {isChaining ? <ChainingDiagram /> : <TimeBasedDiagram />}
+                </Stack>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+        );
+      })}
+    </Stack>
   );
 };
 

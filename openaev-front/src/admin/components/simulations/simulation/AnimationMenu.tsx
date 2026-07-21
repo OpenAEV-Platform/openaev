@@ -2,7 +2,6 @@ import { FactCheckOutlined, MailOutlined, NoteAltOutlined, TheatersOutlined } fr
 import { Drawer, ListItemIcon, ListItemText, MenuItem, MenuList } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { Link, useLocation } from 'react-router';
-import { type CSSObject } from 'tss-react';
 import { makeStyles } from 'tss-react/mui';
 
 import type { LoggedHelper } from '../../../../actions/helper';
@@ -11,15 +10,17 @@ import { computeBannerSettings } from '../../../../public/components/systembanne
 import { useHelper } from '../../../../store';
 import { type Exercise } from '../../../../utils/api-types';
 
-const useStyles = makeStyles()(theme => ({
+// Height of the top AppBar toolbar (see TopBar.tsx) - the menu paper starts
+// below it so it never renders over the header.
+const TOPBAR_HEIGHT = 68;
+
+const useStyles = makeStyles()(() => ({
   drawer: {
-    minHeight: '100vh',
     width: 200,
     position: 'fixed',
     overflow: 'auto',
     padding: 0,
   },
-  toolbar: theme.mixins.toolbar as CSSObject,
   item: {
     paddingTop: 10,
     paddingBottom: 10,
@@ -35,18 +36,21 @@ const AnimationMenu: FunctionComponent<Props> = ({ exerciseId }) => {
   const { settings } = useHelper((helper: LoggedHelper) => {
     return { settings: helper.getPlatformSettings() };
   });
-  const { bannerHeight } = computeBannerSettings(settings);
+  const { bannerHeightNumber } = computeBannerSettings(settings);
+  const topOffset = bannerHeightNumber + TOPBAR_HEIGHT;
 
   return (
     <Drawer
       variant="permanent"
       anchor="right"
       classes={{ paper: classes.drawer }}
+      sx={{
+        '& .MuiDrawer-paper': {
+          top: topOffset,
+          height: `calc(100% - ${topOffset}px)`,
+        },
+      }}
     >
-      <div
-        className={classes.toolbar}
-        style={{ marginTop: bannerHeight }}
-      />
       <MenuList component="nav">
         <MenuItem
           component={Link}

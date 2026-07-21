@@ -1,5 +1,5 @@
 import { DevicesOtherOutlined } from '@mui/icons-material';
-import { Box, Button, Tab, Tabs, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Tab, Tabs, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import {
@@ -20,6 +20,7 @@ import ClickableList, { type ClickableListElements } from '../../../components/c
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../components/common/queryable/useQueryableWithLocalStorage';
+import { SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import PlatformIcon from '../../../components/PlatformIcon';
@@ -410,9 +411,7 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
 
       {/* Add section */}
       <Box>
-        <Typography variant="h4">
-          {addLabel}
-        </Typography>
+        <SectionLabel>{addLabel}</SectionLabel>
 
         <Box>
           <Tabs value={currentTab} onChange={handleTabChange}>

@@ -125,9 +125,12 @@ const ThemeLight = (
       secondary: paper === THEME_LIGHT_DEFAULT_PAPER
         ? '#FFFFFF'
         : (paper ?? '#FFFFFF'),
-      drawer: nav === THEME_LIGHT_DEFAULT_NAV
+      // Compare the RESOLVED nav (param is null when no custom theme is set) so
+      // the default install gets a white drawer instead of darken('#FFFFFF', 0.5)
+      // (a mid-grey) - mirrors the dark theme fix.
+      drawer: (nav ?? THEME_LIGHT_DEFAULT_NAV) === THEME_LIGHT_DEFAULT_NAV
         ? '#FFFFFF'
-        : (darken(nav ?? '#FFFFFF', 0.5)),
+        : darken(nav ?? THEME_LIGHT_DEFAULT_NAV, 0.5),
       disabled: '#DFDFDF',
       gradient: {
         start: background || THEME_LIGHT_DEFAULT_BACKGROUND,

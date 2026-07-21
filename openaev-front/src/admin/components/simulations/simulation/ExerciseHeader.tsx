@@ -11,7 +11,7 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip } from '@mui/material';
+import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -20,7 +20,6 @@ import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/w
 import { createCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
 import { searchExerciseHealthchecks, updateExercise, updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
-import { type PopoverEntry } from '../../../../components/common/ButtonPopover';
 import { DetailHero, HeroStat } from '../../../../components/common/detail/EntityDetailCommon';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
@@ -297,26 +296,6 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
     await attachDashboard(newDashboardId);
   };
 
-  // Setup actions consolidated into the single hero overflow menu, so the action
-  // bar stays to the status CTAs + one kebab instead of a row of loose icons.
-  const setupEntries: PopoverEntry[] = permissions.canManage
-    ? [
-        {
-          label: hasDashboard ? 'Open dashboard' : 'Create dashboard',
-          icon: <InsertChartOutlined fontSize="small" />,
-          action: onDashboardAction,
-          userRight: true,
-        },
-        {
-          label: 'Modify the scheduling',
-          icon: <UpdateOutlined fontSize="small" />,
-          action: () => setOpenDateDialog(true),
-          disabled: exercise.exercise_status !== 'SCHEDULED',
-          userRight: true,
-        },
-      ]
-    : [];
-
   return (
     <>
       <Box sx={{ marginBottom: 2 }}>
@@ -366,6 +345,32 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                   </Button>
                 </Tooltip>
               )}
+              {/* Secondary actions surfaced as compact icon buttons (with explicit
+                  tooltips) instead of being buried in the overflow menu. The
+                  dashboard tooltip reflects whether a dashboard is already
+                  attached (open) or still needs to be created. Scheduling can
+                  only be modified while the simulation is still SCHEDULED. */}
+              {permissions.canManage && (
+                <>
+                  <Tooltip title={hasDashboard ? t('Open dashboard') : t('Create dashboard')}>
+                    <IconButton size="small" color="primary" onClick={onDashboardAction}>
+                      <InsertChartOutlined fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={t('Modify the scheduling')}>
+                    <span style={{ display: 'inline-flex' }}>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => setOpenDateDialog(true)}
+                        disabled={exercise.exercise_status !== 'SCHEDULED'}
+                      >
+                        <UpdateOutlined fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </>
+              )}
               {/* Lifecycle CTAs (start / pause / resume / stop / reset). */}
               <Buttons
                 exerciseId={exercise.exercise_id}
@@ -375,12 +380,11 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                 isLoading={isLoading}
                 isScopeMissing={isScopeMissing}
               />
-              {/* Everything else - analyze, setup, scheduling, CRUD - in one menu. */}
+              {/* CRUD + reports in one overflow menu. */}
               <ExercisePopover
                 exercise={exercise}
                 actions={actions}
                 onDelete={() => navigate('/admin/simulations')}
-                leadingEntries={setupEntries}
               />
             </>
           )}

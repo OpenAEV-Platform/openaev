@@ -3,7 +3,10 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
-const SECTION_LABEL_SX = {
+// Shared section-subtitle style. Exported so section titles that need a custom
+// layout (e.g. a title row with inline actions, like the chaining scope boxes)
+// can adopt the exact same look without the plain SectionLabel wrapper.
+export const SECTION_LABEL_SX = {
   fontFamily: '"Geologica", sans-serif',
   fontWeight: 600,
   fontSize: 11,
@@ -314,7 +317,7 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
               {overline}
             </Typography>
           )}
-          <Tooltip title={title}>
+          <Tooltip title={title} placement="bottom-start">
             <Typography
               variant="h1"
               sx={{
@@ -322,6 +325,11 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                // Shrink the anchor to the actual title width (capped at the
+                // column) so the tooltip sits under the text instead of the
+                // center of a full-width block.
+                width: 'fit-content',
+                maxWidth: '100%',
               }}
             >
               {title}

@@ -142,10 +142,14 @@ const SecurityMenuComponent: FunctionComponent = () => {
             }}
             sx={{
               'gap': 1,
+              // The global MuiToggleButtonGroup override pins the group to 36px
+              // (fine for single-line toggles). This switcher stacks an icon over
+              // a label, so let its height grow with the content + padding.
+              'height': 'auto',
               '& .MuiToggleButton-root': {
                 'flexDirection': 'column',
-                'gap': 0.5,
-                'paddingBlock': 1.25,
+                'gap': 0.75,
+                'paddingBlock': 1.75,
                 'paddingInline': 1.5,
                 'borderRadius': 1,
                 'border': `1px solid ${theme.palette.divider}`,
