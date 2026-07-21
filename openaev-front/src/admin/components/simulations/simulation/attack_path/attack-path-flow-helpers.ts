@@ -18,6 +18,10 @@ export const AP_FLOW_NODE_TYPE = {
 
 export const AP_FLOW_EDGE_TYPE = 'apGrouped';
 
+// Kill-chain causal edge kind (issue 6647): additive edges drawn from a producing finding (or a
+// depended-on action) to the execution/injector node that consumes it. Registered in edges/index.ts.
+export const AP_FLOW_CAUSAL_EDGE_TYPE = 'apCausal';
+
 // DTO node type -> React Flow node-type key. EXECUTION is intentionally absent: the feed lists
 // executions, they are not nodes on the map.
 const DTO_TYPE_TO_FLOW: Record<string, string> = {
@@ -54,6 +58,10 @@ export interface AttackPathFlowNodeData {
   ip?: string;
   platform?: string;
   agents?: string[];
+  // For an injector/execution node: the id of the step template it ran. Carried so the kill-chain
+  // causal builder can look up execution metadata (dependsOn / consumedFindingKeys) per node. Mirrors
+  // AttackPathNodeDTO.stepTemplateId; absent on nodes that have no step template (e.g. findings).
+  stepTemplateId?: string;
   // For a finding node: the id of the endpoint (ASSET) node it was discovered on, so a direct click
   // on the finding can open its details panel by focusing that endpoint's path.
   assetNodeId?: string;
@@ -84,6 +92,9 @@ export interface AttackPathFlowEdgeData {
   status?: string;
   label?: string;
   dimmed?: boolean;
+  // Kill-chain causal edges only (type AP_FLOW_CAUSAL_EDGE_TYPE): 'finding' => a produced finding
+  // value feeds the consuming execution (solid); 'depend' => pure dependsOn sequencing (dashed).
+  causalKind?: 'finding' | 'depend';
   [key: string]: unknown;
 }
 
@@ -100,6 +111,7 @@ const nodeData = (n: AttackPathNodeDTO): AttackPathFlowNodeData => ({
   ip: n.ip,
   platform: n.platform,
   agents: n.agents,
+  stepTemplateId: n.stepTemplateId,
 });
 
 const EDGE_EXECUTIONS = 'EDGE_EXECUTIONS';
@@ -1034,4 +1046,184 @@ export const applyFindingFilter = (
     nodes: dimmedNodes,
     edges: dimmedEdges,
   };
+};
+
+// ---------------------------------------------------------------------------
+// Kill-chain causal edges (issue 6647)
+// ---------------------------------------------------------------------------
+// Structural mirror of the future AttackPathNodeDTO kill-chain fields (dependsOn,
+// consumedFindingKeys). Declared locally (not imported from the temporary mock) so the mock module
+// can be deleted 1:1 once the backend exposes these fields, without touching this builder — the
+// accessor passed in is simply repointed at the DTO. The mock's KillChainExecMeta is structurally
+// assignable to this type.
+export interface CausalConsumedKey {
+  keyType: string;
+  operator: string;
+  value: string;
+}
+
+export interface CausalStepMeta {
+  dependsOn: string[];
+  consumedFindingKeys: CausalConsumedKey[];
+}
+
+// The lookup key used to resolve a flow node's kill-chain metadata.
+//
+// ASSUMPTION (documented per task): front injector/execution nodes do NOT reliably expose a
+// stepTemplateId today — nodeData() now forwards AttackPathNodeDTO.stepTemplateId when present, but
+// the clustered/aggregate injector nodes may carry none. So we look up by data.stepTemplateId first
+// (forward-compatible with the real DTO field) and fall back to the node id. Because the mock's keys
+// are placeholders, neither will match real seed data until the mock ids are adapted — until then the
+// accessor returns undefined and NO causal edges are emitted (additive by design).
+const causalLookupKey = (node: AttackPathFlowNode): string =>
+  (typeof node.data.stepTemplateId === 'string' && node.data.stepTemplateId
+    ? node.data.stepTemplateId
+    : node.id);
+
+// Read a finding node's produced value (stored on data.label for finding leaf nodes, with an optional
+// data.value mirror), as a string for comparison against a consumed finding key.
+const findingNodeValue = (node: AttackPathFlowNode): string => {
+  const raw = node.data.value ?? node.data.label;
+  return typeof raw === 'string' ? raw : '';
+};
+
+// Does a produced finding node satisfy a consumed finding key?
+//   - the finding's type (data.typeFindings) must equal key.keyType, and
+//   - EQ => the finding value equals key.value exactly;
+//   - IN => the finding value is one of key.value's comma-separated members (a small, explicit list
+//     semantics; trimmed). Falls back to substring containment for a single-token key.
+// Only EQ and IN are handled now. SKIPPED operators (no edge emitted, no silent cap): NEQ, GT, GTE,
+// LT, LTE, CONTAINS, REGEX, and any other — add them here when the backend needs them.
+const findingMatchesKey = (node: AttackPathFlowNode, key: CausalConsumedKey): boolean => {
+  if (node.type !== AP_FLOW_NODE_TYPE.finding) {
+    return false;
+  }
+  if ((node.data.typeFindings ?? '') !== key.keyType) {
+    return false;
+  }
+  // Guard the real DTO field (the mock is always a string, but the backend value may be null/undefined):
+  // a non-string key value can never match and must not reach key.value.split() below.
+  if (typeof key.value !== 'string') {
+    return false;
+  }
+  const value = findingNodeValue(node);
+  if (key.operator === 'EQ') {
+    return value === key.value;
+  }
+  if (key.operator === 'IN') {
+    const members = key.value.split(',').map(s => s.trim()).filter(Boolean);
+    if (members.length > 1) {
+      return members.includes(value);
+    }
+    return value.includes(key.value);
+  }
+  // Unsupported operator (see list above): ignore, emit nothing.
+  return false;
+};
+
+/**
+ * Build the additive kill-chain causal edges for a set of flow nodes (issue 6647).
+ *
+ * For every execution/injector node that has kill-chain metadata (resolved via {@code getMeta} on the
+ * node's {@link causalLookupKey}):
+ *   - each {@code consumedFindingKey} is matched against the produced FINDING leaf nodes present; every
+ *     match emits a SOLID edge (data.causalKind = 'finding') from the finding node -> the consuming
+ *     node, labelled "<keyType> = <value>";
+ *   - each {@code dependsOn} entry emits a DASHED edge (data.causalKind = 'depend') from the depended
+ *     step's node -> this node, but ONLY when this node produced no finding edge at all. When a finding
+ *     matched, the solid finding edge(s) already express the causal inflow, so the redundant dashed
+ *     sequencing edge is suppressed. (Finding leaf nodes carry no producing-step id in the flow model,
+ *     so a finding edge cannot be attributed to a specific dependsOn entry; this per-node rule is the
+ *     best correlation available until the backend links findings to their producing step.)
+ *
+ * Direction is always producer -> consumer. Missing nodes are skipped, never thrown on. The result is
+ * purely additive: when {@code getMeta} returns undefined for every node (e.g. mock ids not yet
+ * adapted), it returns [] and the existing graph is unchanged.
+ */
+export const buildCausalEdges = (
+  nodes: AttackPathFlowNode[],
+  getMeta: (stepTemplateId?: string) => CausalStepMeta | undefined,
+): AttackPathFlowEdge[] => {
+  // Only injector/execution nodes can carry kill-chain meta and be a dependsOn target.
+  const executionNodes = nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector);
+  if (executionNodes.length === 0) {
+    return [];
+  }
+  const findingNodes = nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.finding);
+  // Map a lookup key -> the execution/injector node id it resolves to, so a dependsOn entry can find
+  // the depended step's node. First writer wins (stable) when several nodes share a key.
+  const nodeByKey = new Map<string, AttackPathFlowNode>();
+  for (const n of executionNodes) {
+    const key = causalLookupKey(n);
+    if (!nodeByKey.has(key)) {
+      nodeByKey.set(key, n);
+    }
+  }
+  // Causal edges are appended after the selection/filter pass has stamped data.dimmed on the base
+  // nodes/edges, so they must inherit the dim state from their endpoints or they would render at full
+  // opacity over an otherwise dimmed graph in the focused/filtered views.
+  const edgeDimmed = (a: AttackPathFlowNode, b: AttackPathFlowNode): boolean =>
+    (a.data.dimmed ?? false) || (b.data.dimmed ?? false);
+
+  const edges: AttackPathFlowEdge[] = [];
+  const seen = new Set<string>();
+  const pushEdge = (edge: AttackPathFlowEdge) => {
+    if (seen.has(edge.id)) {
+      return;
+    }
+    seen.add(edge.id);
+    edges.push(edge);
+  };
+
+  for (const node of executionNodes) {
+    const meta = getMeta(causalLookupKey(node));
+    if (!meta) {
+      continue;
+    }
+    let matchedAnyFinding = false;
+    for (const key of meta.consumedFindingKeys ?? []) {
+      for (const finding of findingNodes) {
+        if (!findingMatchesKey(finding, key)) {
+          continue;
+        }
+        matchedAnyFinding = true;
+        pushEdge({
+          id: `${AP_FLOW_CAUSAL_EDGE_TYPE}-finding-${finding.id}-${node.id}-${key.keyType}-${key.value}`,
+          source: finding.id,
+          target: node.id,
+          type: AP_FLOW_CAUSAL_EDGE_TYPE,
+          data: {
+            count: 1,
+            causalKind: 'finding',
+            // Mask sensitive values (credentials/sid/password_policy) exactly like every other
+            // finding surface — never print a raw secret on the graph.
+            label: `${key.keyType} = ${maskFindingValue(key.keyType, key.value)}`,
+            dimmed: edgeDimmed(finding, node),
+          },
+        });
+      }
+    }
+    // Dashed dependsOn sequencing, only when no finding edge already expresses the inflow.
+    if (!matchedAnyFinding) {
+      for (const depKey of meta.dependsOn ?? []) {
+        const sourceNode = nodeByKey.get(depKey);
+        if (!sourceNode || sourceNode.id === node.id) {
+          continue;
+        }
+        pushEdge({
+          id: `${AP_FLOW_CAUSAL_EDGE_TYPE}-depend-${sourceNode.id}-${node.id}`,
+          source: sourceNode.id,
+          target: node.id,
+          type: AP_FLOW_CAUSAL_EDGE_TYPE,
+          data: {
+            count: 1,
+            causalKind: 'depend',
+            dimmed: edgeDimmed(sourceNode, node),
+          },
+        });
+      }
+    }
+  }
+
+  return edges;
 };
