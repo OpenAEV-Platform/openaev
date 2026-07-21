@@ -72,7 +72,16 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.mitigation.MitigationApi#createMitigation",
           "io.openaev.rest.mitigation.MitigationApi#updateMitigation",
           "io.openaev.rest.mitigation.MitigationApi#upsertMitigation",
-          "io.openaev.rest.mitigation.MitigationApi#deleteMitigation");
+          "io.openaev.rest.mitigation.MitigationApi#deleteMitigation",
+          // kill_chain_phases (v2)
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#killChainPhases",
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#killChainPhase",
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#createKillChainPhase",
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#upsertKillChainPhases",
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#updateKillChainPhase",
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#deleteKillChainPhase",
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#optionsByName",
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#optionsById");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =

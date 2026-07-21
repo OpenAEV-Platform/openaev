@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.KillChainPhase;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.database.specification.KillChainPhaseSpecification;
@@ -261,7 +262,8 @@ public class KillChainPhaseApiTest extends IntegrationTest {
     try (MockedStatic<KillChainPhaseSpecification> mocked =
         Mockito.mockStatic(KillChainPhaseSpecification.class)) {
       when(KillChainPhaseSpecification.byName(SEARCH_INPUT)).thenReturn(spec);
-      List<FilterUtilsJpa.Option> result = killChainPhaseApi.optionsByName(SEARCH_INPUT);
+      List<FilterUtilsJpa.Option> result =
+          killChainPhaseApi.optionsByName(TxCtx.missing(), SEARCH_INPUT);
 
       verify(mockKillChainPhaseRepository).findAll(spec, Sort.by(Sort.Direction.ASC, "order"));
       assertEquals(

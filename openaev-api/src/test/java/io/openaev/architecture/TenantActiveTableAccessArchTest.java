@@ -11,10 +11,15 @@ import com.tngtech.archunit.lang.ArchRule;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.repository.CweRepository;
 import io.openaev.database.repository.ImportMapperRepository;
+import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
 import io.openaev.database.repository.MitigationRepository;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
+import io.openaev.rest.attack_pattern.AttackPatternApi;
+import io.openaev.rest.attack_pattern.service.AttackPatternService;
+import io.openaev.rest.exercise.ExerciseApi;
 import io.openaev.rest.exercise.ExerciseImportApi;
+import io.openaev.rest.kill_chain_phase.KillChainPhaseApi;
 import io.openaev.rest.lessons.ExerciseLessonsApi;
 import io.openaev.rest.lessons.ScenarioLessonsApi;
 import io.openaev.rest.lessons_template.LessonsTemplateApi;
@@ -22,6 +27,7 @@ import io.openaev.rest.mapper.MapperApi;
 import io.openaev.rest.mitigation.MitigationApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.importer.V1_DataImporter;
 import io.openaev.service.MapperService;
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
 import io.openaev.utils.mapper.CveMapper;
@@ -58,7 +64,7 @@ class TenantActiveTableAccessArchTest {
 
   /** Tables guarded by this test. Must cover every entry of the production allowlist. */
   private static final Set<String> GUARDED_TABLES =
-      Set.of("import_mappers", "lessons_templates", "cwes", "mitigations");
+      Set.of("import_mappers", "lessons_templates", "cwes", "mitigations", "kill_chain_phases");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -157,4 +163,28 @@ class TenantActiveTableAccessArchTest {
           .because(
               "mitigations is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule kill_chain_phases_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoint, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              KillChainPhaseApi.class,
+              // Not yet wired to TxCtx; reads kill chain phases as part of attack pattern CRUD
+              // (tracked for v2 migration):
+              AttackPatternApi.class,
+              AttackPatternService.class,
+              // Not yet wired to TxCtx; reads kill chain phases as part of exercise CRUD
+              // (tracked for v2 migration):
+              ExerciseApi.class,
+              // Waived INSERT-only importer using TenantContext attribution (tracked for
+              // conversion):
+              V1_DataImporter.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(KillChainPhaseRepository.class)
+          .because(
+              "kill_chain_phases is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 }
