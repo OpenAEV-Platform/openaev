@@ -25,7 +25,10 @@ class ScenarioPage {
     // overrides its accessible name with the tooltip sentence - so target the
     // stable data-testid rather than the role/name.
     this.configurationButton = page.getByTestId('scenario-configuration-button');
-    this.teamAddBtn = page.getByTestId('configuration-fab').getByLabel('Add');
+    // The configuration drawer's Teams section exposes a single "Add team"
+    // action button (the old floating "configuration-fab" was removed when the
+    // drawer was reworked into the shared ConfigurationSection pattern).
+    this.teamAddBtn = page.getByRole('button', { name: 'Add team' });
     this.teamListSection = page.getByTestId('teams-list-section');
     this.updateTeamDialog = new UpdateTeamDialog(page);
     // Injects tab's locators
