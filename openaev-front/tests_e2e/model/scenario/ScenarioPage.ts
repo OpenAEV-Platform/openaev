@@ -21,10 +21,10 @@ class ScenarioPage {
   constructor(page: Page) {
     this.page = page;
     // Scenario configuration drawer (hosts the teams section on its first tab).
-    // The teams section has no inner heading anymore (the drawer tab labels it),
-    // so target the "Add" trigger inside the promoted configuration action slot.
-    // Scoped to the hero container so a same-named button elsewhere never matches.
-    this.configurationButton = page.getByTestId('detail-hero').getByRole('button', { name: 'Configuration' });
+    // The hero "Configuration" button is wrapped in a MUI Tooltip, which
+    // overrides its accessible name with the tooltip sentence - so target the
+    // stable data-testid rather than the role/name.
+    this.configurationButton = page.getByTestId('scenario-configuration-button');
     this.teamAddBtn = page.getByTestId('configuration-fab').getByLabel('Add');
     this.teamListSection = page.getByTestId('teams-list-section');
     this.updateTeamDialog = new UpdateTeamDialog(page);

@@ -271,6 +271,7 @@ const ScenarioHeader = ({
                     size="small"
                     startIcon={<TuneOutlined />}
                     onClick={() => setOpenConfiguration(true)}
+                    data-testid="scenario-configuration-button"
                   >
                     {t('Configuration')}
                   </Button>
