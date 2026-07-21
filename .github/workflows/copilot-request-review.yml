@@ -30,6 +30,7 @@ jobs:
             */review\ tenancy*)    AGENT="multi-tenancy-reviewer" ;;
             */review\ test*)       AGENT="test-specialist" ;;
             */review\ frontend*)   AGENT="frontend-reviewer" ;;
+            */review\ docs*)       AGENT="docs-reviewer" ;;
             */review\ all*)        AGENT="all" ;;
             *)
               echo "Unknown review command: $COMMENT"
@@ -51,7 +52,8 @@ jobs:
               'multi-tenancy-reviewer': '🏠 Multi-Tenancy Reviewer',
               'test-specialist': '🧪 Test Specialist',
               'frontend-reviewer': '🎨 Frontend Reviewer',
-              'all': '🔒⚡🏠🧪🎨 All Agents',
+              'docs-reviewer': '📖 Docs Reviewer',
+              'all': '🔒⚡🏠🧪🎨📖 All Agents',
             };
 
             await github.rest.reactions.createForIssueComment({
@@ -87,6 +89,7 @@ jobs:
                 '| `/review tenancy` | 🏠 Multi-Tenancy Reviewer |',
                 '| `/review tests` | 🧪 Test Specialist |',
                 '| `/review frontend` | 🎨 Frontend Reviewer |',
+                '| `/review docs` | 📖 Docs Reviewer |',
                 '| `/review all` | All agents |',
               ].join('\n'),
             });

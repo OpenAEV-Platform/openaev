@@ -1,0 +1,120 @@
+name: "[OpenAEV] Copilot Docs Review"
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  docs-review:
+    name: "📖 Documentation gap check"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for functional changes without doc updates
+        id: check
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 300,
+            });
+
+            const filenames = files.map(f => f.filename);
+
+            // Files that are non-user-facing (no doc update needed)
+            const excludePatterns = [
+              /Test\.java$/,
+              /\.test\.(ts|tsx)$/,
+              /tests_e2e\//,
+              /\.github\//,
+              /Dockerfile/,
+              /docker-compose/,
+              /pom\.xml$/,
+              /package\.json$/,
+              /yarn\.lock$/,
+              /\.eslintrc/,
+              /\.prettierrc/,
+              /spotless/,
+              /\.editorconfig/,
+              /AGENTS\.md$/,
+              /CLAUDE\.md$/,
+              /CONTRIBUTING\.md$/,
+              /CODE_OF_CONDUCT\.md$/,
+              /SECURITY\.md$/,
+              /README\.md$/,
+              /openaev-annotation-processor\//,
+              /openaev-maven-plugin\//,
+              /openaev-dev\//,
+            ];
+
+            // Functional source files
+            const functionalPatterns = [
+              /^openaev-api\/src\/main\//,
+              /^openaev-model\/src\/main\//,
+              /^openaev-front\/src\//,
+              /^openaev-framework\/src\/main\//,
+            ];
+
+            const docFiles = filenames.filter(f => f.startsWith('docs/'));
+            const functionalFiles = filenames.filter(f => {
+              if (excludePatterns.some(p => p.test(f))) return false;
+              return functionalPatterns.some(p => p.test(f));
+            });
+
+            const hasFunctionalChanges = functionalFiles.length > 0;
+            const hasDocChanges = docFiles.length > 0;
+
+            core.setOutput('has_functional', hasFunctionalChanges.toString());
+            core.setOutput('has_docs', hasDocChanges.toString());
+            core.setOutput('functional_count', functionalFiles.length.toString());
+            core.setOutput('doc_count', docFiles.length.toString());
+
+            if (!hasFunctionalChanges) {
+              console.log('No functional source changes detected — skipping docs review.');
+              return;
+            }
+
+            if (hasDocChanges) {
+              console.log(`PR includes ${docFiles.length} doc file(s) alongside ${functionalFiles.length} functional file(s) — agent will verify coverage.`);
+            } else {
+              console.log(`PR has ${functionalFiles.length} functional file(s) but 0 doc files — agent review needed.`);
+            }
+
+      - name: Trigger docs reviewer agent
+        if: steps.check.outputs.has_functional == 'true'
+        uses: actions/github-script@v9
+        env:
+          FUNCTIONAL_COUNT: ${{ steps.check.outputs.functional_count }}
+          DOC_COUNT: ${{ steps.check.outputs.doc_count }}
+          HAS_DOCS: ${{ steps.check.outputs.has_docs }}
+        with:
+          script: |
+            const functionalCount = process.env.FUNCTIONAL_COUNT;
+            const docCount = process.env.DOC_COUNT;
+            const hasDocs = process.env.HAS_DOCS === 'true';
+            const totalFiles = context.payload.pull_request.changed_files;
+
+            const lines = [
+              '📖 **Docs Reviewer** triggered automatically.',
+              '',
+              `> **${totalFiles}** files changed — **${functionalCount}** functional, **${docCount}** documentation.`,
+            ];
+
+            if (!hasDocs) {
+              lines.push('');
+              lines.push('> ⚠️ No documentation files modified. Agent will check if doc updates are needed.');
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: lines.join('\n'),
+            });
