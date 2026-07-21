@@ -904,6 +904,11 @@ export interface AtomicTestingUpdateTagsInput {
   atomic_tags?: string[];
 }
 
+export interface AttackPathAttackPatternDTO {
+  externalId?: string;
+  name?: string;
+}
+
 export interface AttackPathCounters {
   /** @format int64 */
   credentials?: number;
@@ -940,11 +945,6 @@ export interface AttackPathEdges {
 export interface AttackPathEndpointRelationsDTO {
   edges?: AttackPathEdges[];
   executions?: AttackPathNodeDTO[];
-}
-
-export interface AttackPathAttackPatternDTO {
-  externalId?: string;
-  name?: string;
 }
 
 export interface AttackPathExecutionDetailDTO {
