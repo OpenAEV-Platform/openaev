@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
  * (once attributed, they no longer match).
  */
 @Component
-public class V6_20260720120000000__Backfill_external_injector_contract_author
+public class V6_20260720192000000__Backfill_external_injector_contract_author
     extends BaseJavaMigration {
 
   @Override
