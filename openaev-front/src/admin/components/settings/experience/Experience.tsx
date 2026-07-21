@@ -37,7 +37,7 @@ const Experience: React.FC = () => {
         }]}
       />
 
-      <Grid container spacing={3}>
+      <Grid container spacing={3} alignItems="stretch">
         {canAccessPlatformSettings && <EnterpriseEditionSettings />}
 
         {canAccessTenantSettings && (

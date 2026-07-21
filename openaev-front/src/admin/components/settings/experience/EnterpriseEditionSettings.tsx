@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, List, ListItem, ListItemText, Paper, Switch, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, List, ListItem, ListItemText, Paper, Switch, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
 import { type ChangeEvent, useContext, useState } from 'react';
@@ -32,6 +32,15 @@ const EnterpriseEditionSettings: React.FC = () => {
 
   const chatbotCguStatus = settings.filigran_chatbot_ai_cgu_status;
   const isCguPending = chatbotCguStatus === 'pending' || chatbotCguStatus === undefined;
+
+  const chipStyle = {
+    fontSize: theme.typography.body2.fontSize,
+    fontWeight: theme.typography.fontWeightBold,
+    borderRadius: `${theme.shape.borderRadius}px`,
+    height: theme.spacing(3),
+    color: theme.palette.common.white,
+    backgroundColor: theme.palette.background.accent,
+  };
 
   const handleCGUStatusChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.checked) {
@@ -135,63 +144,71 @@ const EnterpriseEditionSettings: React.FC = () => {
             variant="outlined"
           >
             <List style={{ padding: 0 }}>
-              <ListItem divider>
-                <ListItemText primary={t('Organization')} />
+              <ListItem divider disableGutters>
+                <ListItemText primary={t('Organisation')} />
                 <ItemBoolean
-                  variant="xlarge"
+                  variant="fit"
                   neutralLabel={settings.platform_license?.license_customer}
-                  status={null}
+                  status="accent"
                 />
               </ListItem>
 
-              <ListItem divider>
+              <ListItem divider disableGutters>
                 <ListItemText primary={t('Scope')} />
                 <ItemBoolean
-                  variant="xlarge"
+                  variant="fit"
                   neutralLabel={settings.platform_license?.license_is_global ? t('Global') : t('Current instance')}
-                  status={null}
+                  status="accent"
                 />
               </ListItem>
               {!settings.platform_license?.license_is_expired && settings.platform_license?.license_is_prevention && (
-                <ListItem>
+                <ListItem disableGutters>
                   <Alert severity="warning" variant="outlined" style={{ width: '100%' }}>
                     {t('Your Enterprise Edition license will expire in less than 3 months.')}
                   </Alert>
                 </ListItem>
               )}
               {!settings.platform_license?.license_is_validated && settings.platform_license?.license_is_valid_cert && (
-                <ListItem>
+                <ListItem disableGutters>
                   <Alert severity="error" variant="outlined" style={{ width: '100%' }}>
                     {t('Your Enterprise Edition license is expired. Please contact your Filigran representative.')}
                   </Alert>
                 </ListItem>
               )}
-              <ListItem divider>
+              <ListItem divider disableGutters>
                 <ListItemText primary={t('Start date')} />
                 <ItemBoolean
-                  variant="xlarge"
+                  variant="fit"
                   label={fldt(settings.platform_license?.license_start_date)}
                   status={!settings.platform_license?.license_is_expired}
+                  styleOverride={{
+                    color: theme.palette.common.white,
+                    fontWeight: theme.typography.fontWeightBold,
+                  }}
                 />
               </ListItem>
-              <ListItem divider>
+              <ListItem divider disableGutters>
                 <ListItemText primary={t('Expiration date')} />
                 <ItemBoolean
-                  variant="xlarge"
+                  variant="fit"
                   label={fldt(settings.platform_license?.license_expiration_date)}
                   status={!settings.platform_license?.license_is_expired}
+                  styleOverride={{
+                    color: theme.palette.common.white,
+                    fontWeight: theme.typography.fontWeightBold,
+                  }}
                 />
               </ListItem>
-              <ListItem divider={!settings.platform_license?.license_is_prevention}>
+              <ListItem divider={!settings.platform_license?.license_is_prevention} disableGutters>
                 <ListItemText primary={t('License type')} />
                 <ItemBoolean
-                  variant="xlarge"
+                  variant="fit"
                   neutralLabel={settings.platform_license?.license_type}
-                  status={null}
+                  status="accent"
                 />
               </ListItem>
               {canManageSettings && (
-                <ListItem divider>
+                <ListItem divider disableGutters>
                   <ListItemText primary={t('XTM One (Agentic IA)')} />
                   {isCguPending
                     ? (
@@ -255,58 +272,55 @@ const EnterpriseEditionSettings: React.FC = () => {
 
           <Paper
             style={{
-              padding: theme.spacing(2),
+              padding: theme.spacing(3),
               borderRadius: 4,
               flexGrow: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.border.primary}`,
             }}
             className="paper-for-grid"
-            variant="outlined"
+            elevation={0}
           >
             <Typography variant="h6" style={{ marginBottom: theme.spacing(2) }}>
-              {t('Enable powerful features with OpenAEV Enterprise Edition')}
+              {t('Unlock powerful capabilities with OpenAEV Enterprise Edition')}
             </Typography>
-            <Typography style={{ marginBottom: theme.spacing(2) }}>{t('OpenAEV Enterprise Edition (EE) provides highly demanding organizations with a version that includes additional and powerful features, which require specific investments in research and development.')}</Typography>
-            <Typography>{t('By taking an Enterprise Edition license, you will be able to use:')}</Typography>
-            <List
-              dense
+            <Typography style={{ marginBottom: theme.spacing(5) }}>
+              {t('Get enterprise-grade automation, remediation, and deployment flexibility - trusted by governments, financial institutions, and global enterprises. Deployment flexibility with SaaS, on-premise, and Bring-Your-Own-Cloud to match your needs.')}
+            </Typography>
+            <div
               style={{
-                listStyle: 'disc',
-                marginLeft: theme.spacing(2),
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: theme.spacing(2),
+                marginBottom: theme.spacing(3),
               }}
             >
-              <ListItem style={{
-                display: 'list-item',
-                paddingLeft: 0,
-                marginLeft: theme.spacing(2),
+              <Chip label={t('AI-powered scenario generation & remediation')} sx={chipStyle} />
+              <Chip label={t('Agentless through your EDR')} sx={chipStyle} />
+              <Chip label={t('SSO')} sx={chipStyle} />
+              <Chip label={t('Multi-Tenancy')} sx={chipStyle} />
+              <Chip label={t('Autonomous scenarios with chaining')} sx={chipStyle} />
+              <Chip label={t('Dedicated technical support')} sx={chipStyle} />
+            </div>
+            <Button
+              size="small"
+              variant="outlined"
+              color="ee"
+              component="a"
+              href="https://filigran.io/services/openaev-enterprise-edition/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                alignSelf: 'flex-start',
+                marginTop: 'auto',
+                textTransform: 'none',
+                fontWeight: theme.typography.fontWeightBold,
               }}
-              >
-                {t('Generative AI (content generation including emails, media pressure articles, scenarios)')}
-              </ListItem>
-              <ListItem style={{
-                display: 'list-item',
-                paddingLeft: 0,
-                marginLeft: theme.spacing(2),
-              }}
-              >
-                {t('CrowdStrike Falcon and Tanium Agent')}
-              </ListItem>
-              <ListItem style={{
-                display: 'list-item',
-                paddingLeft: 0,
-                marginLeft: theme.spacing(2),
-              }}
-              >
-                {t('Remediations in Vulnerabilities')}
-              </ListItem>
-              <ListItem style={{
-                display: 'list-item',
-                paddingLeft: 0,
-                marginLeft: theme.spacing(2),
-              }}
-              >
-                {t('And many more features...')}
-              </ListItem>
-            </List>
+            >
+              {t('Try OpenAEV Enterprise Edition')}
+            </Button>
           </Paper>
         </Grid>
       )}
