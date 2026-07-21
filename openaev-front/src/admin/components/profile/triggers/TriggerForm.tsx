@@ -28,7 +28,9 @@ const TriggerForm: FunctionComponent<Props> = ({
   const initialTime = parseTriggerTime(initialValues?.notification_trigger_time);
 
   const [name, setName] = useState(initialValues?.notification_trigger_name ?? '');
-  const [resourceType, setResourceType] = useState(initialValues?.notification_trigger_resource_type ?? 'SCENARIO');
+  const [resourceType, setResourceType] = useState<NotificationTriggerInput['notification_trigger_resource_type']>(
+    initialValues?.notification_trigger_resource_type ?? 'SCENARIO',
+  );
   const [eventTypes, setEventTypes] = useState<string[]>(initialValues?.notification_trigger_event_types ?? ['CREATE']);
   const [filters, setFilters] = useState<FilterGroup | undefined>(initialValues?.notification_trigger_filters);
   const [notifierIds, setNotifierIds] = useState<string[]>(initialValues?.notification_trigger_notifiers ?? []);
@@ -121,7 +123,7 @@ const TriggerForm: FunctionComponent<Props> = ({
             label={t('Resource type')}
             value={resourceType}
             onChange={(e) => {
-              setResourceType(e.target.value);
+              setResourceType(e.target.value as NotificationTriggerInput['notification_trigger_resource_type']);
               setFilters(undefined);
             }}
             style={{ marginTop: 20 }}

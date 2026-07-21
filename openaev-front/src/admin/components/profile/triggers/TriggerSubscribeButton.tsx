@@ -6,10 +6,10 @@ import { createNotificationTrigger, deleteNotificationTrigger, searchNotificatio
 import { fetchNotifiers } from '../../../../actions/notifications/notifier-actions';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../../components/i18n';
-import { type NotificationTriggerOutput, type NotifierOutput } from '../../../../utils/api-types';
+import { type NotificationTriggerInput, type NotificationTriggerOutput, type NotifierOutput } from '../../../../utils/api-types';
 
 interface Props {
-  resourceType: string;
+  resourceType: NotificationTriggerInput['notification_trigger_resource_type'];
   resourceId: string;
   resourceName: string;
 }

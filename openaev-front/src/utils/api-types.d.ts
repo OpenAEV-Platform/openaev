@@ -6329,6 +6329,24 @@ export interface NetworkTraffic {
     | "AI_ATTACK";
 }
 
+export interface NotificationOutput {
+  /** Content groups: [{title, events: [{operation, message, ...}]}] */
+  notification_content?: Record<string, any>[];
+  /**
+   * Creation date
+   * @format date-time
+   */
+  notification_created_at?: string;
+  /** ID of the notification */
+  notification_id: string;
+  /** Whether the notification has been read */
+  notification_is_read?: boolean;
+  /** Name of the trigger that produced the notification */
+  notification_name?: string;
+  /** Type of the notification (LIVE or DIGEST) */
+  notification_type?: "LIVE" | "DIGEST";
+}
+
 export interface NotificationRuleOutput {
   /** ID of the notification rule */
   notification_rule_id: string;
@@ -6342,21 +6360,6 @@ export interface NotificationRuleOutput {
   notification_rule_subject?: string;
   /** Event that will trigger the notification */
   notification_rule_trigger?: string;
-}
-
-export interface NotificationOutput {
-  /** Content groups: [{title, events: [{operation, message, ...}]}] */
-  notification_content?: Record<string, any>[];
-  /** Creation date */
-  notification_created_at?: string;
-  /** ID of the notification */
-  notification_id: string;
-  /** Whether the notification has been read */
-  notification_is_read?: boolean;
-  /** Name of the trigger that produced the notification */
-  notification_name?: string;
-  /** Type of the notification (LIVE or DIGEST) */
-  notification_type?: "LIVE" | "DIGEST";
 }
 
 export interface NotificationTriggerInput {
@@ -6384,7 +6387,63 @@ export interface NotificationTriggerInput {
   /** Targeted recipient user ids (admins only; empty = owner) */
   notification_trigger_recipient_users?: string[];
   /** Resource type watched by a live trigger */
-  notification_trigger_resource_type?: string;
+  notification_trigger_resource_type?:
+    | "ASSET"
+    | "AGENT"
+    | "SCENARIO"
+    | "SIMULATION"
+    | "PLAYER"
+    | "USER"
+    | "TEAM"
+    | "ATOMIC_TESTING"
+    | "NOTIFICATION_RULE"
+    | "NOTIFICATION_TRIGGER"
+    | "NOTIFIER"
+    | "NOTIFICATION"
+    | "PAYLOAD"
+    | "THREAT_ARSENAL"
+    | "RESOURCE_TYPE"
+    | "SECURITY_PLATFORM"
+    | "DOCUMENT"
+    | "CHANNEL"
+    | "FINDING"
+    | "DASHBOARD"
+    | "PLATFORM_SETTING"
+    | "LESSON_LEARNED"
+    | "CHALLENGE"
+    | "INJECT"
+    | "JOB"
+    | "TAG"
+    | "TAG_RULE"
+    | "KILL_CHAIN_PHASE"
+    | "ATTACK_PATTERN"
+    | "ASSET_GROUP"
+    | "VULNERABILITY"
+    | "USER_GROUP"
+    | "INJECTOR"
+    | "INJECTOR_CONTRACT"
+    | "MAPPER"
+    | "GROUP_ROLE"
+    | "ORGANIZATION"
+    | "COLLECTOR"
+    | "STIX_BUNDLE"
+    | "DOMAIN"
+    | "OBJECTIVE"
+    | "EVALUATION"
+    | "CATALOG"
+    | "CONNECTOR_INSTANCE_LOG"
+    | "TENANT"
+    | "TENANT_SETTING"
+    | "PLATFORM_ROLE"
+    | "PLATFORM_GROUP"
+    | "PLATFORM_USER"
+    | "XTM_HUB_REGISTRATION"
+    | "UNKNOWN"
+    | "SIMULATION_OR_SCENARIO"
+    | "WORKFLOW"
+    | "STEP"
+    | "CONDITION"
+    | "SKIP_RBAC";
   /** Digest firing time (UTC): DAY=HH:mm, WEEK=<1-7>-HH:mm, MONTH=<1-31>-HH:mm */
   notification_trigger_time?: string;
   /** Type of the trigger (LIVE or DIGEST) */
@@ -6394,7 +6453,10 @@ export interface NotificationTriggerInput {
 export interface NotificationTriggerOutput {
   /** Composed live trigger ids for a digest */
   notification_trigger_children?: string[];
-  /** Creation date */
+  /**
+   * Creation date
+   * @format date-time
+   */
   notification_trigger_created_at?: string;
   /** Whether the trigger is enabled */
   notification_trigger_enabled?: boolean;
@@ -6419,12 +6481,71 @@ export interface NotificationTriggerOutput {
   /** Targeted recipient user ids */
   notification_trigger_recipient_users?: string[];
   /** Resource type watched by a live trigger */
-  notification_trigger_resource_type?: string;
+  notification_trigger_resource_type?:
+    | "ASSET"
+    | "AGENT"
+    | "SCENARIO"
+    | "SIMULATION"
+    | "PLAYER"
+    | "USER"
+    | "TEAM"
+    | "ATOMIC_TESTING"
+    | "NOTIFICATION_RULE"
+    | "NOTIFICATION_TRIGGER"
+    | "NOTIFIER"
+    | "NOTIFICATION"
+    | "PAYLOAD"
+    | "THREAT_ARSENAL"
+    | "RESOURCE_TYPE"
+    | "SECURITY_PLATFORM"
+    | "DOCUMENT"
+    | "CHANNEL"
+    | "FINDING"
+    | "DASHBOARD"
+    | "PLATFORM_SETTING"
+    | "LESSON_LEARNED"
+    | "CHALLENGE"
+    | "INJECT"
+    | "JOB"
+    | "TAG"
+    | "TAG_RULE"
+    | "KILL_CHAIN_PHASE"
+    | "ATTACK_PATTERN"
+    | "ASSET_GROUP"
+    | "VULNERABILITY"
+    | "USER_GROUP"
+    | "INJECTOR"
+    | "INJECTOR_CONTRACT"
+    | "MAPPER"
+    | "GROUP_ROLE"
+    | "ORGANIZATION"
+    | "COLLECTOR"
+    | "STIX_BUNDLE"
+    | "DOMAIN"
+    | "OBJECTIVE"
+    | "EVALUATION"
+    | "CATALOG"
+    | "CONNECTOR_INSTANCE_LOG"
+    | "TENANT"
+    | "TENANT_SETTING"
+    | "PLATFORM_ROLE"
+    | "PLATFORM_GROUP"
+    | "PLATFORM_USER"
+    | "XTM_HUB_REGISTRATION"
+    | "UNKNOWN"
+    | "SIMULATION_OR_SCENARIO"
+    | "WORKFLOW"
+    | "STEP"
+    | "CONDITION"
+    | "SKIP_RBAC";
   /** Digest firing time (UTC) */
   notification_trigger_time?: string;
   /** Type of the trigger (LIVE or DIGEST) */
   notification_trigger_type?: "LIVE" | "DIGEST";
-  /** Last update date */
+  /**
+   * Last update date
+   * @format date-time
+   */
   notification_trigger_updated_at?: string;
 }
 
@@ -6447,7 +6568,10 @@ export interface NotifierOutput {
   notifier_built_in?: boolean;
   /** Type-specific configuration */
   notifier_configuration?: Record<string, any>;
-  /** Creation date of the notifier */
+  /**
+   * Creation date of the notifier
+   * @format date-time
+   */
   notifier_created_at?: string;
   /** Description of the notifier */
   notifier_description?: string;
@@ -6457,7 +6581,10 @@ export interface NotifierOutput {
   notifier_name?: string;
   /** Type of the notifier (UI, EMAIL, WEBHOOK) */
   notifier_type?: "UI" | "EMAIL" | "WEBHOOK";
-  /** Last update date of the notifier */
+  /**
+   * Last update date of the notifier
+   * @format date-time
+   */
   notifier_updated_at?: string;
 }
 
@@ -6949,6 +7076,25 @@ export interface PageNotificationOutput {
   totalPages?: number;
 }
 
+export interface PageNotificationRuleOutput {
+  content?: NotificationRuleOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageNotificationTriggerOutput {
   content?: NotificationTriggerOutput[];
   empty?: boolean;
@@ -6970,25 +7116,6 @@ export interface PageNotificationTriggerOutput {
 
 export interface PageNotifierOutput {
   content?: NotifierOutput[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject[];
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
-export interface PageNotificationRuleOutput {
-  content?: NotificationRuleOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
