@@ -319,21 +319,34 @@ public class RabbitmqService {
     return cachedVersion;
   }
 
+  /** Cached factory for health check probes (thread-safe lazy initialization). */
+  private volatile ConnectionFactory healthCheckConnectionFactory;
+
   /**
    * Checks the health of the RabbitMQ broker by opening and immediately closing a connection and
    * channel.
    *
    * <p>Uses a dedicated {@link ConnectionFactory} with a short connection timeout instead of the
    * shared factory (default 60s timeout), so health probes fail fast when the broker is degraded
-   * and never pile up on request threads.
+   * and never pile up on request threads. The factory is created once and reused: with SSL enabled,
+   * factory creation loads the truststore from disk, which should not happen on every probe.
    *
    * @throws IOException if the broker is unreachable
    * @throws TimeoutException if the connection times out
    */
   public void checkHealth() throws IOException, TimeoutException {
-    ConnectionFactory healthCheckFactory = rabbitmqDriver.createConnectionFactory();
-    healthCheckFactory.setConnectionTimeout(HEALTH_CHECK_CONNECTION_TIMEOUT_MS);
-    try (Connection connection = healthCheckFactory.newConnection()) {
+    ConnectionFactory factory = this.healthCheckConnectionFactory;
+    if (factory == null) {
+      synchronized (this) {
+        factory = this.healthCheckConnectionFactory;
+        if (factory == null) {
+          factory = rabbitmqDriver.createConnectionFactory();
+          factory.setConnectionTimeout(HEALTH_CHECK_CONNECTION_TIMEOUT_MS);
+          this.healthCheckConnectionFactory = factory;
+        }
+      }
+    }
+    try (Connection connection = factory.newConnection()) {
       connection.createChannel().close();
     }
   }
