@@ -50,7 +50,7 @@ A user or group can exist at both levels. For example, a platform administrator 
 
 ## Managing tenants
 
-Manage tenants from **Settings → Tenants**. You need the `Manage platform settings` capability (platform administrator).
+Manage tenants from **Settings → Security → Tenants**. You need the `Manage platform settings` capability (platform administrator).
 
 From this page you can create, edit, and delete tenants. When you create a tenant, it is immediately active and all built-in integrations (injectors, collectors) are automatically registered for it.
 
