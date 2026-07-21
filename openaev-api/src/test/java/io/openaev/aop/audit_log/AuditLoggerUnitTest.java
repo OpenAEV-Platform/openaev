@@ -13,9 +13,13 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.ShutdownService;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.LogService;
+import io.openaev.service.PlatformSettingsService;
+import io.openaev.service.PreviewFeatureService;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.logging.Level;
@@ -35,6 +39,11 @@ class AuditLoggerUnitTest {
   @Mock private AuditLogProperties auditLogProperties;
   @Mock private ShutdownService shutdownService;
   @Mock private ObjectMapper objectMapper;
+  // Banner deps — not exercised by these tests but required by the constructor.
+  @Mock private PreviewFeatureService previewFeatureService;
+  @Mock private EnterpriseEditionService enterpriseEditionService;
+  @Mock private LicenseCacheManager licenseCacheManager;
+  @Mock private PlatformSettingsService platformSettingsService;
 
   /** Synchronous executor so tests run deterministically on the calling thread. */
   private final Executor syncExecutor = Runnable::run;
@@ -45,7 +54,15 @@ class AuditLoggerUnitTest {
   void setUp() {
     auditLogger =
         new AuditLogger(
-            shutdownService, auditLogProperties, logService, objectMapper, syncExecutor);
+            shutdownService,
+            auditLogProperties,
+            logService,
+            objectMapper,
+            previewFeatureService,
+            enterpriseEditionService,
+            licenseCacheManager,
+            platformSettingsService,
+            syncExecutor);
     lenient().doReturn(true).when(logService).isEnabled();
     lenient().doReturn(true).when(auditLogProperties).isHaltOnFailure();
   }
