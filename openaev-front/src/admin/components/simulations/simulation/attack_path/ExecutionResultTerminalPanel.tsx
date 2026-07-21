@@ -15,25 +15,7 @@ import { CROWDSTRIKE, SPLUNK } from '../../../../../constants/Entities';
 import type { AttackPathExecutionDetailDTO } from '../../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import expectationIconByType from '../../../common/ExpectationIconByType';
-import { mitreForPayloadName } from './attack-path-mitre';
 import ImageWithFallback from './ImageWithFallback';
-
-// A detection remediation surfaced per security platform (how to detect what was missed). Shape kept
-// local and loose because the backend does not expose it on the attack-path execution yet.
-// TODO(#6647): populate from AttackPathExecutionDetailDTO.detectionRemediations once the backend adds
-// it (resolved from the execution's payload's detection remediations). See the backend requirements.
-interface ExecDetectionRemediation {
-  collectorType?: string;
-  collectorLabel?: string;
-  values?: string;
-}
-
-// The attack-path execution detail, augmented with the fields the backend still has to expose so the
-// Remediation tab and the "Action details" link can use real data (see backend requirements topo).
-type ExecutionDetail = AttackPathExecutionDetailDTO & {
-  detectionRemediations?: ExecDetectionRemediation[];
-  injectId?: string;
-};
 
 interface Props {
   loading: boolean;
@@ -175,8 +157,9 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
   const theme = useTheme();
   const { t } = useFormatter();
   const { currentTab, handleChangeTab } = useTabs(RESULT_TAB);
-  // Detection remediations (per security platform) for this action — pending backend, so empty today.
-  const detectionRemediations = (detail as ExecutionDetail | null)?.detectionRemediations ?? [];
+  // Detection remediations (per security platform) for this action, resolved from the execution's
+  // payload's detection remediations by the backend (empty when the payload has none).
+  const detectionRemediations = detail?.detectionRemediations ?? [];
 
   // Size the Terminal to exactly fill its scroll area so it is the single scroller (no nested
   // scrollbar) and nothing is clipped: measure the content box and track it on resize.
@@ -337,8 +320,9 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
               </Typography>
             );
           })()}
-          {/* MITRE ATT&CK technique(s) this action maps to (front-only static lookup for the POC). */}
-          {mitreForPayloadName(detail?.payloadName).length > 0 && (
+          {/* MITRE ATT&CK technique(s) this action maps to, resolved server-side from the
+              execution's injector contract (AttackPathExecutionDetailDTO.attackPatterns). */}
+          {(detail?.attackPatterns?.length ?? 0) > 0 && (
             <div style={{
               display: 'flex',
               flexWrap: 'wrap',
@@ -346,8 +330,15 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
               marginTop: 6,
             }}
             >
-              {mitreForPayloadName(detail?.payloadName).map(tech => (
-                <AttackPatternChip key={tech.attack_pattern_external_id} attackPattern={tech} />
+              {detail?.attackPatterns?.map(ap => (
+                <AttackPatternChip
+                  key={ap.externalId}
+                  attackPattern={{
+                    attack_pattern_id: ap.externalId ?? '',
+                    attack_pattern_external_id: ap.externalId ?? '',
+                    attack_pattern_name: ap.name ?? '',
+                  }}
+                />
               ))}
             </div>
           )}
@@ -452,7 +443,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
                   </Typography>
                 )}
                 {detectionRemediations.map((rem, index) => (
-                  <div key={rem.collectorType ?? index}>
+                  <div key={rem.detection_remediation_id ?? rem.detection_remediation_collector ?? index}>
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -460,13 +451,13 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
                       marginBottom: 6,
                     }}
                     >
-                      {rem.collectorType && <PlatformLogo type={rem.collectorType} label={rem.collectorLabel ?? rem.collectorType} />}
-                      <Typography variant="subtitle2">{rem.collectorLabel ?? rem.collectorType}</Typography>
+                      {rem.detection_remediation_collector && <PlatformLogo type={rem.detection_remediation_collector} label={rem.detection_remediation_collector} />}
+                      <Typography variant="subtitle2">{rem.detection_remediation_collector}</Typography>
                     </div>
                     {/* Detection rule text is sanitized before rendering — never injected raw. */}
                     <div
                       // eslint-disable-next-line react/no-danger
-                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize((rem.values ?? '').replace(/\n/g, '<br/>')) }}
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize((rem.detection_remediation_values ?? '').replace(/\n/g, '<br/>')) }}
                     />
                   </div>
                 ))}
