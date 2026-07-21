@@ -6,7 +6,7 @@ import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 export const XTM_HUB_AUTO_REGISTER_QUERY_PARAM = 'xtmHubAutoRegister';
-export const XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM = 'xtmHubPermissionRequired';
+export const XTM_HUB_PERMISSION_REQUIRED_STORAGE_KEY = 'xtmHubPermissionRequired';
 
 const STATIC_PATH_REDIRECTS: Record<string, string> = { 'connect-xtm-hub': '/admin/settings/experience' };
 
@@ -20,7 +20,6 @@ const XtmHubRedirect = () => {
   const ability = useContext(AbilityContext);
   const normalizedPathKey = normalizePathKey(pathKey);
   const targetPath = STATIC_PATH_REDIRECTS[normalizedPathKey];
-
   if (!targetPath) {
     return <NotFound />;
   }
@@ -28,13 +27,12 @@ const XtmHubRedirect = () => {
   const searchParams = new URLSearchParams(search);
   const canManageTenantSettings = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
   if (normalizedPathKey === 'connect-xtm-hub' && !canManageTenantSettings) {
-    searchParams.set(XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM, 'true');
-    const targetSearch = searchParams.toString();
+    sessionStorage.setItem(XTM_HUB_PERMISSION_REQUIRED_STORAGE_KEY, 'true');
     return (
       <Navigate
         to={{
           pathname: '/admin',
-          search: targetSearch ? `?${targetSearch}` : '',
+          search,
         }}
         replace={true}
       />
@@ -49,7 +47,7 @@ const XtmHubRedirect = () => {
     <Navigate
       to={{
         pathname: targetPath,
-        search: targetSearch ? `?${targetSearch}` : '',
+        search: targetSearch ? `?${targetSearch}` : undefined,
       }}
       replace={true}
     />

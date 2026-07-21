@@ -5,7 +5,7 @@ import { IntlProvider } from 'react-intl';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM } from '../../../admin/components/xtm_hub/XtmHubRedirect';
+import { XTM_HUB_PERMISSION_REQUIRED_STORAGE_KEY } from '../../../admin/components/xtm_hub/XtmHubRedirect';
 
 const { mockDispatch, mockHelperState } = vi.hoisted(() => ({
   mockDispatch: vi.fn(),
@@ -83,6 +83,7 @@ const renderHome = (route: string) => render(
 describe('Home permission dialog', () => {
   beforeEach(() => {
     mockDispatch.mockClear();
+    sessionStorage.clear();
   });
 
   afterEach(() => {
@@ -106,9 +107,10 @@ describe('Home permission dialog', () => {
       mockHelperState.me = undefined;
     });
 
-    it('opens the permission dialog and removes permission marker from URL', async () => {
+    it('opens the permission dialog from sessionStorage without mutating the URL', async () => {
       // Arrange
-      renderHome(`/admin?${XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM}=true&foo=bar`);
+      sessionStorage.setItem(XTM_HUB_PERMISSION_REQUIRED_STORAGE_KEY, 'true');
+      renderHome('/admin?foo=bar');
 
       // Act
       const title = await screen.findByText('Permission required');
@@ -121,7 +123,8 @@ describe('Home permission dialog', () => {
 
     it('closes the permission dialog when user clicks close', async () => {
       // Arrange
-      renderHome(`/admin?${XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM}=true`);
+      sessionStorage.setItem(XTM_HUB_PERMISSION_REQUIRED_STORAGE_KEY, 'true');
+      renderHome('/admin');
 
       // Act
       const closeButton = await screen.findByRole('button', { name: 'Close' });

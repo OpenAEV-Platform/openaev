@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import XtmHubRedirect, {
   XTM_HUB_AUTO_REGISTER_QUERY_PARAM,
-  XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM,
+  XTM_HUB_PERMISSION_REQUIRED_STORAGE_KEY,
 } from '../../../../admin/components/xtm_hub/XtmHubRedirect';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -52,6 +52,7 @@ const renderWithRouter = ({
 describe('XtmHubRedirect', () => {
   afterEach(() => {
     cleanup();
+    sessionStorage.clear();
   });
 
   it('preserves query params and adds auto-register for mapped redirects', async () => {
@@ -70,7 +71,7 @@ describe('XtmHubRedirect', () => {
     expect(locationNode.textContent).toBe(`/admin/settings/experience?foo=bar&${XTM_HUB_AUTO_REGISTER_QUERY_PARAM}=true`);
   });
 
-  it('redirects unauthorized users to admin home with permission marker', async () => {
+  it('redirects unauthorized users to admin home and sets permission flag in sessionStorage', async () => {
     renderWithRouter({
       route: '/redirect/connect-xtm-hub?foo=bar',
       canManageTenantSettings: false,
@@ -83,7 +84,8 @@ describe('XtmHubRedirect', () => {
     });
 
     const locationNode = await screen.findByTestId('location');
-    expect(locationNode.textContent).toBe(`/admin?foo=bar&${XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM}=true`);
+    expect(locationNode.textContent).toBe('/admin?foo=bar');
+    expect(sessionStorage.getItem(XTM_HUB_PERMISSION_REQUIRED_STORAGE_KEY)).toBe('true');
   });
 
   it('renders not found for unknown mapping key', () => {

@@ -1,33 +1,21 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import type React from 'react';
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 
 import { useFormatter } from '../../../../../components/i18n';
-import { XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM } from '../../XtmHubRedirect';
+import { XTM_HUB_PERMISSION_REQUIRED_STORAGE_KEY } from '../../XtmHubRedirect';
 
 const XtmHubDialogPermissionRequired: React.FC = () => {
   const { t } = useFormatter();
-  const location = useLocation();
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    if (searchParams.get(XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM) !== 'true') {
+    if (sessionStorage.getItem(XTM_HUB_PERMISSION_REQUIRED_STORAGE_KEY) !== 'true') {
       return;
     }
     setOpen(true);
-    searchParams.delete(XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM);
-    const targetSearch = searchParams.toString();
-    navigate(
-      {
-        pathname: location.pathname,
-        search: targetSearch ? `?${targetSearch}` : '',
-      },
-      { replace: true },
-    );
-  }, [location.pathname, location.search, navigate]);
+    sessionStorage.removeItem(XTM_HUB_PERMISSION_REQUIRED_STORAGE_KEY);
+  }, []);
 
   return (
     <Dialog
