@@ -30,9 +30,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * End-to-end proof that, with {@code kill_chain_phases} activated, the tenant scope set from the URL
- * path isolates the table through the real {@link KillChainPhaseApi} endpoints. A user who belongs
- * to two tenants sees a phase only under its own tenant's path, never another tenant's.
+ * End-to-end proof that, with {@code kill_chain_phases} activated, the tenant scope set from the
+ * URL path isolates the table through the real {@link KillChainPhaseApi} endpoints. A user who
+ * belongs to two tenants sees a phase only under its own tenant's path, never another tenant's.
  */
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=kill_chain_phases")
@@ -109,8 +109,7 @@ class KillChainPhaseHttpIsolationTest extends IntegrationTest {
     String storedTenant =
         (String)
             entityManager
-                .createNativeQuery(
-                    "SELECT tenant_id FROM kill_chain_phases WHERE phase_id = ?1")
+                .createNativeQuery("SELECT tenant_id FROM kill_chain_phases WHERE phase_id = ?1")
                 .setParameter(1, createdId)
                 .getSingleResult();
     assertEquals(tenantA, storedTenant, "the created phase must belong to tenant A");
@@ -178,11 +177,9 @@ class KillChainPhaseHttpIsolationTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName(
-      "under tenant A's path: updating B's phase is not found and leaves it untouched")
+  @DisplayName("under tenant A's path: updating B's phase is not found and leaves it untouched")
   void updateUnderTenantAOfBPhaseIsBlocked() throws Exception {
-    String updateInput =
-        "{\"phase_kill_chain_name\":\"mitre-attack\",\"phase_name\":\"hijacked\"}";
+    String updateInput = "{\"phase_kill_chain_name\":\"mitre-attack\",\"phase_name\":\"hijacked\"}";
     mvc.perform(
             put(TENANT_PHASE_BY_ID, tenantA, phaseB)
                 .contentType(MediaType.APPLICATION_JSON)
