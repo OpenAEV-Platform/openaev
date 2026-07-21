@@ -125,7 +125,8 @@ const TechnicalExpectationAsset: FunctionComponent<Props> = ({
               {selected != null
                 && (
                   <Button
-                    variant="contained"
+                    variant="outlined"
+                    color="primary"
                     onClick={() => setSelected(null)}
                   >
                     {t('Back')}
@@ -133,8 +134,8 @@ const TechnicalExpectationAsset: FunctionComponent<Props> = ({
                 )}
             </div>
             <Button
-              color="secondary"
-              variant="contained"
+              color="primary"
+              variant="outlined"
               onClick={() => setOpen(false)}
             >
               {t('Close')}

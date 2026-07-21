@@ -1,5 +1,5 @@
 import { HelpOutlineOutlined, PersonOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -136,8 +136,8 @@ const Players = () => {
     <>
       <Breadcrumbs
         variant="list"
-        elements={[{ label: t('Teams') }, {
-          label: t('Players'),
+        elements={[{
+          label: t('Persons'),
           current: true,
         }]}
       />
@@ -148,9 +148,16 @@ const Players = () => {
         entityPrefix="user"
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
-        topBarButtons={
-          <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
-        }
+        topBarButtons={(
+          <Box display="flex" gap={1} alignItems="center">
+            <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
+              <CreatePlayer
+                onCreate={result => setPlayers([result, ...players])}
+              />
+            </Can>
+          </Box>
+        )}
       />
       <List>
         <ListItem
@@ -209,11 +216,6 @@ const Players = () => {
               </ListItem>
             ))}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
-        <CreatePlayer
-          onCreate={result => setPlayers([result, ...players])}
-        />
-      </Can>
     </>
   );
 };

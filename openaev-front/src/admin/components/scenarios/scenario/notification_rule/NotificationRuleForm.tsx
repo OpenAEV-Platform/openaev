@@ -92,7 +92,7 @@ const NotificationRuleForm: FunctionComponent<Props> = ({
 
           <div style={{ alignSelf: 'flex-end' }}>
             <Button
-              variant="contained"
+              variant={edition ? 'contained' : 'outlined'}
               onClick={edition ? handleOpenDelete : handleClose}
               style={{ marginRight: theme.spacing(1) }}
               disabled={isSubmitting}
@@ -103,7 +103,7 @@ const NotificationRuleForm: FunctionComponent<Props> = ({
 
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={isSubmitting}
             >

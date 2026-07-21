@@ -82,7 +82,7 @@ const AssetsList = <T extends AssetOutput>({
       field: EndpointListItemFragments.ASSET_TYPE,
       label: 'Type',
       isSortable: false,
-      value: (asset: T) => <AssetTypeFragment type={asset.asset_type} />,
+      value: (asset: T) => <AssetTypeFragment type={asset.asset_type} category={asset.asset_category} />,
     },
   ];
 

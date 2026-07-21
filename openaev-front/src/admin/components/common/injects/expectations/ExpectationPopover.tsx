@@ -57,6 +57,9 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
     expectation_score: expectation.expectation_score ?? settings.expectation_manual_default_score_value,
     expectation_expectation_group: expectation.expectation_expectation_group ?? false,
     expectation_expiration_time: getExpirationTime(expectation.expectation_expiration_time),
+    // Carry the existing expected security platforms so the update form pre-fills them instead of
+    // showing "Any security platform" - omitting them here also wiped the selection on save.
+    expectation_expected_security_platform_types: expectation.expectation_expected_security_platform_types ?? [],
   };
 
   // Edition

@@ -11,6 +11,7 @@ import { type UserHelper } from '../../../../../actions/helper';
 import { executeInject, fetchExerciseInjects } from '../../../../../actions/Inject';
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
 import { fetchPlayers } from '../../../../../actions/users/User';
+import { SectionLabel } from '../../../../../components/common/detail/EntityDetailCommon';
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
@@ -186,7 +187,7 @@ const InjectComponent: FunctionComponent = () => {
       <AnimationMenu exerciseId={exerciseId} />
       <Grid container={true} spacing={3}>
         <Grid size={6} className={classes.section}>
-          <Typography variant="h4">{t('Inject context')}</Typography>
+          <SectionLabel>{t('Inject context')}</SectionLabel>
           <Paper variant="outlined" classes={{ root: classes.paper }}>
             <Grid container={true} spacing={3}>
               <Grid size={6}>
@@ -210,7 +211,7 @@ const InjectComponent: FunctionComponent = () => {
         </Grid>
 
         <Grid size={6} className={classes.section}>
-          <Typography variant="h4">{t('Inject details')}</Typography>
+          <SectionLabel>{t('Inject details')}</SectionLabel>
           <Paper variant="outlined" classes={{ root: classes.paper }}>
             <Grid container={true} spacing={3}>
               <Grid size={6}>
@@ -235,7 +236,7 @@ const InjectComponent: FunctionComponent = () => {
       <br />
 
       <div className={classes.mailsSection}>
-        <Typography variant="h4" style={{ float: 'left' }}>{t('Mails')}</Typography>
+        <SectionLabel>{t('Mails')}</SectionLabel>
         <div className="clearfix" />
         {topics.map((topic) => {
           const topicUsers = (topic.communication_users ?? []).map(

@@ -14,12 +14,12 @@ export const ASSET_BASE_URL = '/admin/assets/details';
 export const ASSET_GROUP_BASE_URL = '/admin/assets/asset_groups';
 export const SECURITY_PLATFORM_BASE_URL = '/admin/assets/security_platforms';
 
-// Peoples
-export const PLAYER_BASE_URL = '/admin/teams/players';
-export const PERSON_BASE_URL = '/admin/teams/persons';
-export const TEAM_BASE_URL = '/admin/teams/teams';
+// Peoples - top-level sections (no shared "teams" parent segment).
+export const PLAYER_BASE_URL = '/admin/persons';
+export const PERSON_BASE_URL = '/admin/persons';
+export const TEAM_BASE_URL = '/admin/teams';
 // Business-side organization management (left menu > Organizations).
-export const ORGANIZATION_BASE_URL = '/admin/teams/organizations';
+export const ORGANIZATION_BASE_URL = '/admin/organizations';
 
 // Components
 export const CHANNEL_BASE_URL = '/admin/components/channels';

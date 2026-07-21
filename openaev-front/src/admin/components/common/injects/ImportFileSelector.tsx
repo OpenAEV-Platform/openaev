@@ -94,13 +94,16 @@ const ImportFileSelector: FunctionComponent<Props> = ({
             </div>
             <div className={classes.buttons}>
               <Button
+                variant="outlined"
+                color="primary"
                 onClick={handleClose}
                 disabled={isSubmitting}
               >
                 {t('Cancel')}
               </Button>
               <Button
-                color="secondary"
+                variant="contained"
+                color="primary"
                 type="submit"
                 disabled={!isDirty || isSubmitting}
               >

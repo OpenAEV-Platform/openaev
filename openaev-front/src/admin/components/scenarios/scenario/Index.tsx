@@ -31,6 +31,7 @@ import ScenarioHeader from './ScenarioHeader';
 const ScenarioComponent = lazy(() => import('./Scenario'));
 const Injects = lazy(() => import('./injects/ScenarioInjects'));
 const InjectCreation = lazy(() => import('./injects/ScenarioInjectCreation'));
+const ScenarioAssistant = lazy(() => import('./scenario_assistant/ScenarioAssistant'));
 const Tests = lazy(() => import('./tests/ScenarioTests'));
 const Lessons = lazy(() => import('./lessons/ScenarioLessons'));
 const ScenarioFindings = lazy(() => import('./findings/ScenarioFindings'));
@@ -235,6 +236,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
               <Route path="injects" element={errorWrapper(Injects)()} />
               <Route path="injects/create" element={errorWrapper(InjectCreation)()} />
               <Route path="injects/create/:contractId" element={errorWrapper(InjectCreation)()} />
+              <Route path="assistant" element={errorWrapper(ScenarioAssistant)()} />
               <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
               <Route path="lessons" element={errorWrapper(Lessons)()} />
               <Route path="findings" element={errorWrapper(ScenarioFindings)()} />

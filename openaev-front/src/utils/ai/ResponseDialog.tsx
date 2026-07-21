@@ -449,11 +449,11 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>
+          <Button variant="outlined" color="primary" onClick={handleClose}>
             {t('Close')}
           </Button>
           {isAcceptable && (
-            <LoadingButton loading={effectiveDisabled} color="secondary" disabled={!!agentError} onClick={() => handleAccept(content)}>
+            <LoadingButton loading={effectiveDisabled} variant="contained" color="primary" disabled={!!agentError} onClick={() => handleAccept(content)}>
               {t('Accept')}
             </LoadingButton>
           )}

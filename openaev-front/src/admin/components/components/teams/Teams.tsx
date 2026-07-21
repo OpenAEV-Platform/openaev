@@ -142,8 +142,8 @@ const Teams = () => {
     <>
       <Breadcrumbs
         variant="list"
-        elements={[{ label: t('Teams') }, {
-          label: t('Teams of players'),
+        elements={[{
+          label: t('Teams'),
           current: true,
         }]}
       />
@@ -152,6 +152,11 @@ const Teams = () => {
         searchPaginationInput={searchPaginationInput}
         setContent={setTeams}
         exportProps={exportProps}
+        createButton={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
+            <CreateTeam onCreate={result => setTeams([result, ...teams])} />
+          </Can>
+        )}
       />
       <List>
         <ListItem
@@ -255,9 +260,6 @@ const Teams = () => {
           />
         )}
       </Drawer>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
-        <CreateTeam onCreate={result => setTeams([result, ...teams])} />
-      </Can>
     </>
   );
 };

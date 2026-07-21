@@ -1,6 +1,7 @@
 import { ContentCopyOutlined, OpenInNewOutlined } from '@mui/icons-material';
 import { Button, IconButton, Tooltip, Typography } from '@mui/material';
 
+import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import Paper from '../../../components/common/Paper';
 import { useFormatter } from '../../../components/i18n';
 import useAuth from '../../../utils/hooks/useAuth';
@@ -39,7 +40,13 @@ const XtmOneMcpAccess = () => {
       <Typography variant="body1">
         {t('This platform is connected to XTM One, which natively exposes an MCP (Model Context Protocol) server for OpenAEV. AI clients such as Cursor or Claude Desktop can work with scenarios, simulations, payloads and findings with your own permissions.')}
       </Typography>
-      <Typography variant="h4" gutterBottom style={{ marginTop: 20 }}>
+      <Typography
+        gutterBottom
+        sx={{
+          ...SECTION_LABEL_SX,
+          mt: 2.5,
+        }}
+      >
         {t('MCP endpoint URL')}
       </Typography>
       <div style={{

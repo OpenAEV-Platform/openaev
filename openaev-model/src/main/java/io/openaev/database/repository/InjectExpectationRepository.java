@@ -258,6 +258,18 @@ public interface InjectExpectationRepository
   List<BaseInjectExpectation> findAllByInjectAndAsset(
       @Param("injectId") @NotBlank String injectId, @Param("assetId") @NotBlank String assetId);
 
+  // Agent-level expectation rows of an asset (any technical type). Used to mirror
+  // the agents' security-platform results onto the asset target-results view.
+  @Query(
+      value =
+          "SELECT i FROM InjectExpectation i "
+              + "WHERE i.inject.id = :injectId "
+              + "AND i.asset.id = :assetId "
+              + "AND i.agent IS NOT NULL "
+              + "ORDER BY i.type, i.createdAt")
+  List<BaseInjectExpectation> findAllAgentExpectationsByInjectAndAsset(
+      @Param("injectId") @NotBlank String injectId, @Param("assetId") @NotBlank String assetId);
+
   @Query(
       value =
           "SELECT i FROM InjectExpectation i "

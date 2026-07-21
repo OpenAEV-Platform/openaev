@@ -7,7 +7,7 @@ class ScenarioPage {
   readonly page: Page;
 
   // Scenario configuration (teams, variables, media pressure, challenges) is
-  // opened from the hero "Configuration" action; teams is its first tab.
+  // opened from the hero "Configuration" button; teams is its first tab.
   readonly configurationButton: Locator;
   readonly teamAddBtn: Locator;
   readonly teamListSection: Locator;
@@ -20,15 +20,21 @@ class ScenarioPage {
 
   constructor(page: Page) {
     this.page = page;
-    // Scenario configuration drawer (hosts the teams section on its first tab)
-    this.configurationButton = page.getByRole('button', { name: 'Configuration' });
-    this.teamAddBtn = page.getByRole('heading', { name: 'Teams Add' }).getByLabel('Add');
+    // Scenario configuration drawer (hosts the teams section on its first tab).
+    // The hero "Configuration" button is wrapped in a MUI Tooltip, which
+    // overrides its accessible name with the tooltip sentence - so target the
+    // stable data-testid rather than the role/name.
+    this.configurationButton = page.getByTestId('scenario-configuration-button');
+    // The configuration drawer's Teams section exposes a single "Add team"
+    // action button (the old floating "configuration-fab" was removed when the
+    // drawer was reworked into the shared ConfigurationSection pattern).
+    this.teamAddBtn = page.getByRole('button', { name: 'Add team' });
     this.teamListSection = page.getByTestId('teams-list-section');
     this.updateTeamDialog = new UpdateTeamDialog(page);
     // Injects tab's locators
     this.injectsTab = page.getByRole('tab', { name: 'Injects' });
     this.injectListSection = page.getByTestId('injects-list-section');
-    this.injectAddBtn = page.getByRole('button', { name: 'Add' });
+    this.injectAddBtn = page.getByTestId('button-create');
 
     this.searchInject = page.getByPlaceholder('Search these results...');
   }

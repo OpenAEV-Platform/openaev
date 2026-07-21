@@ -1,4 +1,4 @@
-import { type FunctionComponent, useContext, useMemo } from 'react';
+import { type FunctionComponent, useContext, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { fetchExerciseChallenges } from '../../../../../actions/challenge-action';
@@ -9,6 +9,7 @@ import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-
 import { type ChallengeHelper } from '../../../../../actions/helper';
 import { fetchVariablesForExercise } from '../../../../../actions/variables/variable-actions';
 import { type VariablesHelper } from '../../../../../actions/variables/variable-helper';
+import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import {
@@ -27,8 +28,9 @@ import InjectCreationConfig from '../../../common/injects/create/InjectCreationC
 import articleContextForExercise from '../articles/articleContextForExercise';
 import teamContextForExercise from '../teams/teamContextForExercise';
 
-// Full-page inject creation for simulations: step 1 (no :contractId) is the
-// Threat-Arsenal-style contract picker, step 2 (:contractId) the config form.
+// Full-page inject creation for simulations: the Threat-Arsenal-style contract
+// picker stays on screen; selecting a contract opens the configuration form in
+// a drawer (deep links with a :contractId still open the drawer on load).
 const SimulationInjectCreation: FunctionComponent = () => {
   const { t, tPick } = useFormatter();
   const dispatch = useAppDispatch();
@@ -44,6 +46,15 @@ const SimulationInjectCreation: FunctionComponent = () => {
   const injectContext = useContext(InjectContext);
   const listUrl = `/admin/simulations/${exerciseId}/injects`;
   const pickerUrl = `${listUrl}/create`;
+
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(contractId ?? null);
+  const closeConfig = () => {
+    setSelectedContractId(null);
+    // Normalize deep-linked URLs back to the picker.
+    if (contractId) {
+      navigate(`${pickerUrl}${durationSuffix}`, { replace: true });
+    }
+  };
 
   const { exercise, articles, variables } = useHelper(
     (helper: ExercisesHelper & ArticlesHelper & ChallengeHelper & VariablesHelper) => ({
@@ -83,24 +94,31 @@ const SimulationInjectCreation: FunctionComponent = () => {
       <TeamContext.Provider value={teamContext}>
         <EndpointContext.Provider value={endpointContext}>
           <ChallengeContext.Provider value={challengeContext}>
-            {contractId
-              ? (
-                  <InjectCreationConfig
-                    onCreateInject={onCreateInject}
-                    onBack={() => navigate(`${pickerUrl}${durationSuffix}`)}
-                    presetInjectDuration={presetInjectDuration}
-                    articlesFromExerciseOrScenario={articles}
-                    uriVariable={listUrl}
-                    variablesFromExerciseOrScenario={variables}
-                  />
-                )
-              : (
-                  <InjectContractPicker
-                    title={t('Create a new inject')}
-                    onSelectContract={contract => navigate(`${pickerUrl}/${contract.injector_contract_id}${durationSuffix}`)}
-                    onQuickAdd={onQuickAdd}
-                  />
-                )}
+            <InjectContractPicker
+              title={t('Create a new inject')}
+              onSelectContract={contract => setSelectedContractId(contract.injector_contract_id)}
+              onQuickAdd={onQuickAdd}
+            />
+            <Drawer
+              open={!!selectedContractId}
+              handleClose={closeConfig}
+              title={t('Create a new inject')}
+              disableEnforceFocus
+            >
+              {selectedContractId
+                ? (
+                    <InjectCreationConfig
+                      contractId={selectedContractId}
+                      onCreateInject={onCreateInject}
+                      onBack={closeConfig}
+                      presetInjectDuration={presetInjectDuration}
+                      articlesFromExerciseOrScenario={articles}
+                      uriVariable={listUrl}
+                      variablesFromExerciseOrScenario={variables}
+                    />
+                  )
+                : null}
+            </Drawer>
           </ChallengeContext.Provider>
         </EndpointContext.Provider>
       </TeamContext.Provider>

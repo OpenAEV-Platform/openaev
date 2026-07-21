@@ -46,6 +46,7 @@ These thresholds trigger automatic severity levels regardless of subjective asse
 | **Missing `t()`** | Any user-facing string literal not wrapped in `t()` | 🟡 MEDIUM |
 | **Inline styles** | Any `style={{ ... }}` on a component that has a MUI equivalent | 🟡 MEDIUM |
 | **`@ts-ignore`** | Any `@ts-ignore` without an explanatory comment | 🟡 MEDIUM |
+| **Button convention** | Affirmative confirm not `contained`/`primary`, Cancel not `outlined`/`primary`, or irreversible delete confirm not `contained`/`error` (per `frontend.instructions.md`) | 🟡 MEDIUM |
 | **Props count** | Component with >8 props → suggest decomposition or context | 🟢 LOW |
 
 ## What NOT to Flag

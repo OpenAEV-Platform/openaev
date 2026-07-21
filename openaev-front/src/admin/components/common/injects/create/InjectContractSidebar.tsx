@@ -15,6 +15,22 @@ const PLATFORM_FILTER_KEY = 'injector_contract_platforms';
 const KILL_CHAIN_FILTER_KEY = 'injector_contract_kill_chain_phases';
 const PLATFORMS = ['Windows', 'Linux', 'MacOS'];
 
+// Well-known kill chains get their official product name; custom ones fall back
+// to their raw name (mirrors the home dashboard MITRE matrix labels).
+const KILL_CHAIN_LABELS: Record<string, string> = {
+  'mitre-attack': 'MITRE ATT&CK',
+  'mitre-atlas': 'MITRE ATLAS',
+};
+const killChainLabel = (name: string) => KILL_CHAIN_LABELS[name.toLowerCase()] ?? name;
+
+// ATT&CK first (the most common), then the other kill chains alphabetically.
+const sortKillChains = (a: string, b: string) => {
+  const aAttack = a.toLowerCase().includes('attack');
+  const bAttack = b.toLowerCase().includes('attack');
+  if (aAttack !== bAttack) return aAttack ? -1 : 1;
+  return a.localeCompare(b);
+};
+
 interface Props {
   /** Domain facet rows (with live counts + icons), already ordered. */
   domainElements: IconBarElement[];
@@ -44,6 +60,18 @@ const InjectContractSidebar = ({ domainElements, searchPaginationInput, filterHe
   const killChainValues = useMemo(
     () => filters.find((f: Filter) => f.key === KILL_CHAIN_FILTER_KEY)?.values ?? [],
     [filters],
+  );
+
+  const sortedPhases = useMemo(
+    () => Object.values(killChainPhasesMap).toSorted(sortKillChainPhase),
+    [killChainPhasesMap],
+  );
+  // Distinct kill chains on the platform (e.g. MITRE ATT&CK + MITRE ATLAS).
+  // Each one gets its own titled facet section so unrelated phases never
+  // interleave; ATT&CK always comes first.
+  const killChains = useMemo(
+    () => [...new Set(sortedPhases.map(phase => phase.phase_kill_chain_name))].sort(sortKillChains),
+    [sortedPhases],
   );
 
   const setFilterValues = useCallback(
@@ -100,14 +128,21 @@ const InjectContractSidebar = ({ domainElements, searchPaginationInput, filterHe
       onToggle: () => toggleValue(PLATFORM_FILTER_KEY, platformValues, platform),
     }));
 
-    const killChainRows: FacetRow[] = Object.values(killChainPhasesMap)
-      .toSorted(sortKillChainPhase)
-      .map(phase => ({
-        value: phase.phase_id,
-        label: phase.phase_name,
-        checked: killChainValues.includes(phase.phase_id),
-        onToggle: () => toggleValue(KILL_CHAIN_FILTER_KEY, killChainValues, phase.phase_id),
-      }));
+    // One titled section per kill chain ("MITRE ATT&CK" phases, then
+    // "MITRE ATLAS" phases, ...). With a single kill chain, keep the generic
+    // "Kill chain phase" label.
+    const killChainSections: FacetSection[] = killChains.map(chain => ({
+      id: `kill-chain-${chain}`,
+      label: killChains.length > 1 ? killChainLabel(chain) : t('Kill chain phase'),
+      rows: sortedPhases
+        .filter(phase => phase.phase_kill_chain_name === chain)
+        .map(phase => ({
+          value: phase.phase_id,
+          label: phase.phase_name,
+          checked: killChainValues.includes(phase.phase_id),
+          onToggle: () => toggleValue(KILL_CHAIN_FILTER_KEY, killChainValues, phase.phase_id),
+        })),
+    }));
 
     return [
       {
@@ -120,13 +155,9 @@ const InjectContractSidebar = ({ domainElements, searchPaginationInput, filterHe
         label: t('Platform'),
         rows: platformRows,
       },
-      {
-        id: 'kill-chain',
-        label: t('Kill chain phase'),
-        rows: killChainRows,
-      },
+      ...killChainSections,
     ].filter(section => section.rows.length > 0);
-  }, [domainElements, platformValues, killChainValues, killChainPhasesMap, toggleValue, t]);
+  }, [domainElements, platformValues, killChainValues, sortedPhases, killChains, toggleValue, t]);
 
   const anyActive = platformValues.length > 0
     || killChainValues.length > 0

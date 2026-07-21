@@ -15,6 +15,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -36,6 +37,7 @@ public class ExecutionExecutorService {
   private final EndpointService endpointService;
   private final ConnectorInstanceService connectorInstanceService;
   private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  private final ActionMetricCollector actionMetricCollector;
 
   public void launchExecutorContext(Inject inject) {
     InjectStatus injectStatus =
@@ -126,6 +128,7 @@ public class ExecutionExecutorService {
           executorContextService.launchExecutorSubprocess(inject, assetEndpoint, agent, token);
         }
         atLeastOneExecution.set(true);
+        actionMetricCollector.addExecutorUsedCount(executor.getType());
       } catch (Exception e) {
         log.error(
             "{} (id={}) launchBatchExecutorSubprocess error: {}",

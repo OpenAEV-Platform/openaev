@@ -3,6 +3,7 @@ import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText,
 import { type ChangeEvent, type FunctionComponent, useContext, useEffect, useState } from 'react';
 
 import { fetchLessonsTemplates } from '../../../../actions/Lessons';
+import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type LessonsTemplate, type Objective, type Team } from '../../../../utils/api-types';
@@ -101,8 +102,19 @@ const Lessons: FunctionComponent<Props> = ({
         gridTemplateColumns: '1fr 2fr',
       }}
       >
-        <Typography variant="h4" style={{ alignContent: 'center' }}>{t('Parameters')}</Typography>
-        <Typography variant="h4">
+        <Typography sx={{
+          ...SECTION_LABEL_SX,
+          alignContent: 'center',
+          marginBottom: 0,
+        }}
+        >
+          {t('Parameters')}
+        </Typography>
+        <Typography sx={{
+          ...SECTION_LABEL_SX,
+          marginBottom: 0,
+        }}
+        >
           {t('Objectives')}
           {
             source.isUpdatable && (<CreateObjective />)
@@ -182,7 +194,17 @@ const Lessons: FunctionComponent<Props> = ({
           source={source}
         />
       </div>
-      <div style={{ marginTop: theme.spacing(2) }}>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          marginTop: theme.spacing(2),
+        }}
+        >
+          <CreateLessonsCategory />
+        </div>
+      </Can>
+      <div style={{ marginTop: theme.spacing(1) }}>
         <LessonsCategories
           lessonsCategories={lessonsCategories}
           lessonsQuestions={lessonsQuestions}
@@ -191,9 +213,6 @@ const Lessons: FunctionComponent<Props> = ({
           isReport={false}
         />
       </div>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
-        <CreateLessonsCategory />
-      </Can>
       <Dialog
         TransitionComponent={Transition}
         keepMounted={false}
@@ -274,6 +293,8 @@ const Lessons: FunctionComponent<Props> = ({
           }}
           >
             <Button
+              variant="outlined"
+              color="primary"
               onClick={() => setOpenApplyTemplate(false)}
               style={{ marginRight: 10 }}
             >
@@ -281,7 +302,8 @@ const Lessons: FunctionComponent<Props> = ({
             </Button>
             <Can I={ACTIONS.ACCESS} a={SUBJECTS.LESSONS_LEARNED}>
               <Button
-                color="secondary"
+                variant="contained"
+                color="primary"
                 onClick={applyTemplate}
                 disabled={templateValue === null}
               >
@@ -306,10 +328,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenEmptyLessons(false)}>
+          <Button variant="outlined" color="primary" onClick={() => setOpenEmptyLessons(false)}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={emptyLessons}>
+          <Button variant="contained" color="primary" onClick={emptyLessons}>
             {t('Clear out')}
           </Button>
         </DialogActions>
@@ -326,10 +348,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenAnonymize(false)}>
+          <Button variant="outlined" color="primary" onClick={() => setOpenAnonymize(false)}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={toggleAnonymize}>
+          <Button variant="contained" color="primary" onClick={toggleAnonymize}>
             {t('Anonymize')}
           </Button>
         </DialogActions>

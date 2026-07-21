@@ -131,14 +131,15 @@ const RoleForm: FC<RoleFormProps> = ({
         >
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             type="submit"
             disabled={isSubmitting || !isDirty}
           >
             {editing ? t('Update') : t('Create')}
           </Button>
           <Button
-            variant="contained"
+            variant="outlined"
+            color="primary"
             onClick={handleClose}
             disabled={isSubmitting}
           >

@@ -44,7 +44,12 @@ const useStyles = makeStyles()(() => ({
     cursor: 'pointer',
     paddingLeft: 10,
   },
-  downloadButton: { marginRight: 15 },
+  downloadButton: {
+    marginRight: 15,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+  },
 }));
 
 const inlineStylesHeaders: Record<string, CSSProperties> = {
@@ -171,6 +176,9 @@ const Organizations = () => {
                 <FileDownloadOutlined />
               </IconButton>
             )}
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+              <CreateOrganization />
+            </Can>
           </div>
         </div>
         <div className="clearfix" />
@@ -268,9 +276,6 @@ const Organizations = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-          <CreateOrganization />
-        </Can>
       </div>
       <SecurityMenu />
     </div>

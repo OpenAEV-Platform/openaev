@@ -405,7 +405,8 @@ const ChallengeForm = (props) => {
           }}
           >
             <Button
-              variant="contained"
+              variant="outlined"
+              color="primary"
               onClick={handleClose}
               style={{ marginRight: 10 }}
               disabled={submitting}
@@ -414,7 +415,7 @@ const ChallengeForm = (props) => {
             </Button>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={submitting || Object.keys(errors).length > 0}
             >

@@ -40,6 +40,13 @@ public record ThreatArsenalActionFullOutput(
     @Schema(description = "Expected output types for action execution")
         @JsonProperty("action_expectations")
         BaseInjectExpectation.EXPECTATION_TYPE[] expectations,
+    @Schema(
+            description =
+                "Security platform types expected to fulfil each predefined technical expectation"
+                    + " (empty or absent = any security platform)")
+        @JsonProperty("action_expected_security_platforms")
+        Map<BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+            expectedSecurityPlatforms,
     @Schema(description = "Current action lifecycle status") @NotNull @JsonProperty("action_status")
         Payload.PAYLOAD_STATUS status,
     @Schema(description = "CPU architecture targeted for action execution")

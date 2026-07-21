@@ -191,16 +191,6 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         )}
         actions={(
           <>
-            {canManage && instance?.connector_instance_id && (
-              // Kept openable when the Integration Manager is down: the Update
-              // drawer shows the warning inside and disables the form, so the
-              // action surface stays reachable (OpenCTI pattern).
-              <ConnectorPopover
-                connectorInstanceId={instance.connector_instance_id}
-                connectorName={connector?.name || catalogConnector?.catalog_connector_title || ''}
-                disabled={!isEnterpriseEdition}
-              />
-            )}
             {showMigrateButton && (
               <MigrateButton onMigrateBtnClick={() => createInstanceDrawer.handleOpen()} />
             )}
@@ -209,6 +199,17 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
                 onUpdate={onUpdateRequestedStatusClick}
                 disabled={disabledUpdateButtons}
                 status={instanceRequestedStatus}
+              />
+            )}
+            {/* Kebab always LAST, like every other detail hero in the app. Kept
+                openable when the Integration Manager is down: the Update drawer
+                shows the warning inside and disables the form, so the action
+                surface stays reachable (OpenCTI pattern). */}
+            {canManage && instance?.connector_instance_id && (
+              <ConnectorPopover
+                connectorInstanceId={instance.connector_instance_id}
+                connectorName={connector?.name || catalogConnector?.catalog_connector_title || ''}
+                disabled={!isEnterpriseEdition}
               />
             )}
             {canDeleteConnector && (

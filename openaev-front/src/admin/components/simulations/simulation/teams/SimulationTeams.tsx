@@ -1,5 +1,3 @@
-import { Paper, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext } from 'react';
 import { useParams } from 'react-router';
 
@@ -10,6 +8,7 @@ import { useHelper } from '../../../../../store';
 import { type Exercise, type Team } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import ConfigurationSection from '../../../common/ConfigurationSection';
 import { PermissionsContext, TeamContext } from '../../../common/Context';
 import ContextualTeams from '../../../components/teams/ContextualTeams';
 import UpdateTeams from '../../../components/teams/UpdateTeams';
@@ -22,7 +21,6 @@ const SimulationTeams: FunctionComponent<Props> = ({ exerciseTeamsUsers }) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const { permissions } = useContext(PermissionsContext);
-  const theme = useTheme();
 
   // Fetching data
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
@@ -33,25 +31,17 @@ const SimulationTeams: FunctionComponent<Props> = ({ exerciseTeamsUsers }) => {
 
   return (
     <TeamContext.Provider value={teamContextForExercise(exerciseId, exerciseTeamsUsers)}>
-      <div style={{
-        display: 'grid',
-        gap: `0 ${theme.spacing(3)}`,
-        gridTemplateRows: 'min-content 1fr',
-      }}
+      <ConfigurationSection
+        title={t('Teams')}
+        count={teamsStore.length}
+        action={permissions.canManage && (
+          <UpdateTeams addedTeamIds={teamsStore.map((team: Team) => team.team_id)} />
+        )}
       >
-        <Typography variant="h4">
-          {t('Teams')}
-          {permissions.canManage
-            && (
-              <UpdateTeams
-                addedTeamIds={teamsStore.map((team: Team) => team.team_id)}
-              />
-            )}
-        </Typography>
-        <Paper sx={{ padding: theme.spacing(2) }} variant="outlined">
+        <div data-testid="teams-list-section">
           <ContextualTeams teams={teamsStore} />
-        </Paper>
-      </div>
+        </div>
+      </ConfigurationSection>
     </TeamContext.Provider>
   );
 };

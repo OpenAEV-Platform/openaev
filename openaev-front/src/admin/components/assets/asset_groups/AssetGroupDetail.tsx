@@ -6,7 +6,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { fetchAssetGroup, searchEndpointsFromAssetGroup } from '../../../../actions/asset_groups/assetgroup-action';
 import { type AssetGroupsHelper } from '../../../../actions/asset_groups/assetgroup-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { DetailHero, Field, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, DetailSections, Field, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
 import AssetTypeFragment from '../../../../components/common/list/fragments/AssetTypeFragment';
 import { initSorting } from '../../../../components/common/queryable/Page';
@@ -74,7 +74,7 @@ const AssetGroupDetail = () => {
       field: 'asset_type',
       label: 'Type',
       isSortable: false,
-      value: (asset: AssetOutput) => <AssetTypeFragment type={asset.asset_type} />,
+      value: (asset: AssetOutput) => <AssetTypeFragment type={asset.asset_type} category={asset.asset_category} />,
     },
     {
       field: 'asset_criticality',
@@ -143,20 +143,23 @@ const AssetGroupDetail = () => {
         )}
       />
 
-      <InformationGrid title={t('Information')}>
-        <Field label={t('Description')}>
-          {assetGroup.asset_group_description
-            ? <ExpandableMarkdown source={assetGroup.asset_group_description} limit={300} />
-            : '-'}
-        </Field>
-        <Field label={t('Tags')}>
-          <ItemTags variant="list" tags={assetGroup.asset_group_tags} />
-        </Field>
-      </InformationGrid>
-
-      <SectionBlock title={t('Rules')}>
-        {computeRuleValues(assetGroup, t)}
-      </SectionBlock>
+      {/* Identity + dynamic rules side by side: both sections are short, so
+          sharing one grid row keeps the overview compact. */}
+      <DetailSections>
+        <InformationGrid title={t('Information')}>
+          <Field label={t('Description')}>
+            {assetGroup.asset_group_description
+              ? <ExpandableMarkdown source={assetGroup.asset_group_description} limit={300} />
+              : '-'}
+          </Field>
+          <Field label={t('Tags')}>
+            <ItemTags variant="list" tags={assetGroup.asset_group_tags} />
+          </Field>
+        </InformationGrid>
+        <SectionBlock title={t('Rules')}>
+          {computeRuleValues(assetGroup, t)}
+        </SectionBlock>
+      </DetailSections>
 
       <SectionBlock title={t('Assets')} disablePadding>
         <Box sx={{

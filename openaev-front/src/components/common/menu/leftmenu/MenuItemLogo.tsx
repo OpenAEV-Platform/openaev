@@ -1,55 +1,59 @@
-import { ListItemIcon, MenuItem, Tooltip } from '@mui/material';
+import { MenuItem, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
-import logoFiligranDark from '../../../../static/images/logo_filigran_dark.png';
-import logoFiligranLight from '../../../../static/images/logo_filigran_light.png';
-import logoFiligranTextDark from '../../../../static/images/logo_filigran_text_dark.png';
-import logoFiligranTextLight from '../../../../static/images/logo_filigran_text_light.png';
+import logoFiligran from '../../../../static/images/logo_filigran_full.svg';
 import { fileUri } from '../../../../utils/Environment';
-import useLeftMenuStyle from './useLeftMenuStyle';
+import { useFormatter } from '../../../i18n';
 
 interface Props {
   navOpen: boolean;
   onClick: () => void;
 }
 
-const MenuItemLogo: FunctionComponent<Props> = ({
-  navOpen,
-  onClick,
-}) => {
-  // Standard hooks
-  const leftMenuStyle = useLeftMenuStyle();
+// "Made by Filigran" footer, aligned with OpenCTI's LeftBar bottom block: a
+// compact row with the muted "Made by" label (expanded only) followed by the
+// single Filigran wordmark SVG at 0.8 opacity.
+const MenuItemLogo: FunctionComponent<Props> = ({ navOpen, onClick }) => {
+  const { t } = useFormatter();
   const theme = useTheme();
-  const { palette } = theme;
-  const isDarkMode = palette.mode === 'dark';
 
   return (
     <MenuItem
-      aria-label="Filigran logo menu item"
+      aria-label="By Filigran"
       dense
       onClick={onClick}
+      sx={{
+        'minHeight': 28,
+        'gap': 0.5,
+        'paddingLeft': 2.5,
+        '&:hover': { backgroundColor: theme.palette.leftBar?.hover },
+      }}
     >
-      <Tooltip title="By Filigran">
-        <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
-          <img
-            src={fileUri(isDarkMode ? logoFiligranDark : logoFiligranLight)}
-            alt="logo"
-            width={20}
-          />
-        </ListItemIcon>
-      </Tooltip>
       {navOpen && (
-        <ListItemIcon
-          style={{ padding: `${theme.spacing(0.5)} 0 0 ${theme.spacing(1.3)}` }}
+        <Typography
+          component="span"
+          sx={{
+            fontSize: 10,
+            lineHeight: '16px',
+            opacity: 0.8,
+            color: theme.palette.text.tertiary,
+          }}
         >
-          <img
-            src={fileUri(isDarkMode ? logoFiligranTextDark : logoFiligranTextLight)}
-            alt="logo"
-            width={50}
-          />
-        </ListItemIcon>
+          {t('Made by')}
+        </Typography>
       )}
+      <img
+        alt="Filigran"
+        src={fileUri(logoFiligran)}
+        width={navOpen ? 48 : 12}
+        height={12}
+        style={{
+          opacity: 0.8,
+          objectFit: 'cover',
+          objectPosition: 'left center',
+        }}
+      />
     </MenuItem>
   );
 };

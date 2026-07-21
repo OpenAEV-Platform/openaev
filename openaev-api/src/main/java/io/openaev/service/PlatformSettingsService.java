@@ -401,6 +401,18 @@ public class PlatformSettingsService {
     themeInput.setLogoUrlCollapsed(
         getValueFromMapOfSettings(
             dbSettings, themeType + "." + Theme.THEME_KEYS.LOGO_URL_COLLAPSED.key()));
+    themeInput.setLoginAsideColor(
+        getValueFromMapOfSettings(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_COLOR.key()));
+    themeInput.setLoginAsideGradientStart(
+        getValueFromMapOfSettings(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_START.key()));
+    themeInput.setLoginAsideGradientEnd(
+        getValueFromMapOfSettings(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_END.key()));
+    themeInput.setLoginAsideImage(
+        getValueFromMapOfSettings(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_IMAGE.key()));
     return themeInput;
   }
 
@@ -526,6 +538,26 @@ public class PlatformSettingsService {
             dbSettings,
             themeType + "." + Theme.THEME_KEYS.LOGO_LOGIN_URL.key(),
             input.getLogoLoginUrl()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_COLOR.key(),
+            input.getLoginAsideColor()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_START.key(),
+            input.getLoginAsideGradientStart()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_END.key(),
+            input.getLoginAsideGradientEnd()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_IMAGE.key(),
+            input.getLoginAsideImage()));
 
     List<Setting> update = new ArrayList<>();
     List<String> delete = new ArrayList<>();

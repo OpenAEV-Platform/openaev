@@ -1,19 +1,8 @@
 import { Chip } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { alpha } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../../../../../components/i18n';
-import { expectationTypeIcon } from '../../../../../../common/ExpectationIconByType';
-
-// Stable accent per expectation type, matching the kill-chain / posture colors.
-const EXPECTATION_TYPE_COLORS: Record<string, string> = {
-  PREVENTION: '#0fbcff',
-  DETECTION: '#00f1bd',
-  VULNERABILITY: '#ffa726',
-  HUMAN_RESPONSE: '#9575cd',
-  MANUAL: '#26a96c',
-  ARTICLE: '#26a96c',
-  CHALLENGE: '#ffb300',
-};
+import { expectationTypeColor, expectationTypeIcon } from '../../../../../../common/ExpectationIconByType';
 
 // Human label per expectation type (falls back to the raw value humanized).
 const EXPECTATION_TYPE_LABELS: Record<string, string> = {
@@ -27,13 +16,12 @@ const EXPECTATION_TYPE_LABELS: Record<string, string> = {
 };
 
 const ExpectationTypeChip = ({ type }: { type?: string }) => {
-  const theme = useTheme();
   const { t } = useFormatter();
   if (!type) {
     return <span>-</span>;
   }
   const key = type.toUpperCase();
-  const color = EXPECTATION_TYPE_COLORS[key] ?? theme.palette.primary.main;
+  const color = expectationTypeColor(key);
   const Icon = expectationTypeIcon(key);
   return (
     <Chip

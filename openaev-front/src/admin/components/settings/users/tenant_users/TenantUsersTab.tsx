@@ -55,6 +55,11 @@ const TenantUsersTab = () => {
         entityPrefix={ENTITY_TENANT_USER_PREFIX}
         availableFilterNames={TENANT_USER_FILTERS}
         queryableHelpers={queryableHelpers}
+        topBarButtons={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+            <CreateUser onCreate={addUser} />
+          </Can>
+        )}
       />
       <List>
         <ListItem
@@ -101,9 +106,6 @@ const TenantUsersTab = () => {
               />
             )}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-        <CreateUser onCreate={addUser} />
-      </Can>
     </>
   );
 };

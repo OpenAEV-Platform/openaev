@@ -1,4 +1,4 @@
-import { Add, PersonOutlined } from '@mui/icons-material';
+import { PersonOutlined } from '@mui/icons-material';
 import {
   Avatar,
   Box,
@@ -8,7 +8,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Fab,
   Grid,
   List,
   ListItemButton,
@@ -21,6 +20,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
 import { fetchPlayers } from '../../../../actions/users/User';
+import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
@@ -39,11 +39,6 @@ import CreatePlayer from '../../teams/players/CreatePlayer';
 import { type UserStore } from '../../teams/players/Player';
 
 const useStyles = makeStyles()(theme => ({
-  createButton: {
-    position: 'fixed',
-    bottom: 30,
-    right: 30,
-  },
   box: {
     width: '100%',
     minHeight: '100%',
@@ -125,14 +120,7 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
   return (
     <div>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
-        <Fab
-          onClick={() => setOpen(true)}
-          color="primary"
-          aria-label="Add"
-          className={classes.createButton}
-        >
-          <Add />
-        </Fab>
+        <ButtonCreate onClick={() => setOpen(true)} label={t('Add players in this team')} />
       </Can>
       <Dialog
         open={open}
@@ -244,15 +232,18 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => {
-            setOpen(false);
-            setKeyword('');
-            setUsersIds([]);
-          }}
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={() => {
+              setOpen(false);
+              setKeyword('');
+              setUsersIds([]);
+            }}
           >
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitAddUsers}>
+          <Button variant="contained" color="primary" onClick={submitAddUsers}>
             {t('Add')}
           </Button>
         </DialogActions>
