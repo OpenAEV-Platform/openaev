@@ -409,7 +409,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
     if (inject?.inject_injector_contract !== undefined
       && (inject?.inject_injector_contract.convertedContent as unknown as ConvertedContentType).fields.find(field => field.key === 'expectations')) {
       const predefinedExpectations = (inject.inject_injector_contract.convertedContent as unknown as ConvertedContentType).fields?.find(field => field.key === 'expectations')
-        ?.availableExpectations.filter(e => e.expectation_is_predefined).map(expectation => (expectation.expectation_type === 'MANUAL' ? expectation.expectation_name : capitalize(expectation.expectation_type)));
+        ?.availableExpectations?.filter(e => e.expectation_is_predefined).map(expectation => (expectation.expectation_type === 'MANUAL' ? expectation.expectation_name : capitalize(expectation.expectation_type)));
       if (predefinedExpectations !== undefined) {
         return ['Execution', ...predefinedExpectations];
       }

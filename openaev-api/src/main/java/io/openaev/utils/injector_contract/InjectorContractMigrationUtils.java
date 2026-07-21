@@ -1,4 +1,4 @@
-package io.openaev.rest.injector_contract;
+package io.openaev.utils.injector_contract;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,7 +24,19 @@ public class InjectorContractMigrationUtils {
   /** Converts legacy predefinedExpectations to availableExpectations on the given contract. */
   public static void migratePredefinedExpectations(InjectorContract contract) {
     ObjectNode convertedContent = contract.getConvertedContent();
-    if (convertedContent == null || !convertedContent.has("fields")) {
+    if (convertedContent == null) {
+      try {
+        JsonNode parsed = MAPPER.readTree(contract.getContent());
+        if (!(parsed instanceof ObjectNode parsedObject)) {
+          return;
+        }
+        convertedContent = parsedObject;
+        contract.setConvertedContent(convertedContent);
+      } catch (Exception e) {
+        return;
+      }
+    }
+    if (!convertedContent.has("fields")) {
       return;
     }
 

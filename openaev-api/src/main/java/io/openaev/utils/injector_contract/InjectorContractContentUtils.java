@@ -1,4 +1,4 @@
-package io.openaev.rest.injector_contract;
+package io.openaev.utils.injector_contract;
 
 import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.utils.mapper.InjectExpectationMapper.NODE_EXPECTATION_TYPE;
@@ -113,7 +113,7 @@ public class InjectorContractContentUtils {
         if (CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS.equals(key)) {
           JsonNode available = field.get(AVAILABLE_EXPECTATIONS);
           if (available != null && available.isArray()) {
-            ArrayNode predefined = new ObjectMapper().createArrayNode();
+            ArrayNode predefined = mapper.createArrayNode();
             for (JsonNode exp : available) {
               if (exp.has(IS_PREDEFINED_EXPECTATION)
                   && exp.get(IS_PREDEFINED_EXPECTATION).asBoolean()) {

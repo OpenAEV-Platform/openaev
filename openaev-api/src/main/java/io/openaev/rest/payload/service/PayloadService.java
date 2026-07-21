@@ -254,17 +254,19 @@ public class PayloadService {
             BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
             expectedSecurityPlatforms);
 
-    for (BaseInjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
-      switch (type) {
-        case DETECTION -> detectionExpectation.setPredefined(true);
-        case PREVENTION -> preventionExpectation.setPredefined(true);
-        case VULNERABILITY -> vulnerableExpectation.setPredefined(true);
-        default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
+    if (expectationTypes != null) {
+      for (BaseInjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
+        switch (type) {
+          case DETECTION -> detectionExpectation.setPredefined(true);
+          case PREVENTION -> preventionExpectation.setPredefined(true);
+          case VULNERABILITY -> vulnerableExpectation.setPredefined(true);
+          default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
+        }
       }
     }
 
     return expectationsField(
-        List.of(preventionExpectation, detectionExpectation, vulnerableExpectation));
+        List.of(detectionExpectation, preventionExpectation, vulnerableExpectation));
   }
 
   public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
