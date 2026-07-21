@@ -138,10 +138,16 @@ public class CrowdStrikeExecutorClient {
   }
 
   public ResourcesGroups hostGroup(String hostGroup) {
-    String jsonResponse;
     try {
-      jsonResponse = this.get(HOST_GROUPS_URI + "?ids=" + hostGroup);
-      return this.objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+      String jsonResponse = this.get(HOST_GROUPS_URI + "?ids=" + hostGroup);
+      ResourcesGroups resourcesGroups =
+          this.objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+      throwIfCrowdStrikeErrors(
+          "hostGroup",
+          "hostGroupId=" + hostGroup,
+          resourcesGroups.getErrors(),
+          resourcesGroups.getMeta() == null ? null : resourcesGroups.getMeta().getTraceId());
+      return resourcesGroups;
     } catch (Exception e) {
       log.error(
           String.format(
@@ -255,19 +261,44 @@ public class CrowdStrikeExecutorClient {
               .append(error.getMessage())
               .append(".");
         }
-        log.error(msg.toString());
-        return;
+        throw new ExecutorException(msg.toString(), CROWDSTRIKE_EXECUTOR_NAME);
       }
       if (auth.getAccess_token() == null || auth.getAccess_token().isBlank()) {
-        log.error(
+        throw new ExecutorException(
             "Crowdstrike authentication failed: no access token returned (expired or invalid"
-                + " credentials).");
-        return;
+                + " credentials).",
+            CROWDSTRIKE_EXECUTOR_NAME);
       }
       this.token = auth.getAccess_token();
       this.lastAuthentication = Instant.now();
     } catch (IOException e) {
       throw new ClientProtocolException("Unexpected response", e);
     }
+  }
+
+  private void throwIfCrowdStrikeErrors(
+      String endpoint, String context, List<CrowdstrikeError> errors, String traceId) {
+    if (errors == null || errors.isEmpty()) {
+      return;
+    }
+    StringBuilder message =
+        new StringBuilder(
+            "Crowdstrike API returned business errors for endpoint "
+                + endpoint
+                + " ("
+                + context
+                + ")");
+    if (traceId != null && !traceId.isBlank()) {
+      message.append(" [trace_id=").append(traceId).append("]");
+    }
+    for (CrowdstrikeError error : errors) {
+      message
+          .append("\nCode: ")
+          .append(error.getCode())
+          .append(", message: ")
+          .append(error.getMessage())
+          .append(".");
+    }
+    throw new ExecutorException(message.toString(), CROWDSTRIKE_EXECUTOR_NAME);
   }
 }
