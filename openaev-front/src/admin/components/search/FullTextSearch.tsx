@@ -55,6 +55,7 @@ const CategoryRail: FunctionComponent<CategoryRailProps> = ({ categories, total,
         key={key}
         role="button"
         tabIndex={0}
+        aria-current={isSelected ? 'true' : undefined}
         onClick={() => onSelect(key)}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
@@ -151,8 +152,15 @@ const FullTextSearch = () => {
   const [elements, setElements] = useState<FullTextSearchResult[]>([]);
 
   useEffect(() => {
-    fullTextSearch(search).then((result: { data: Record<string, FullTextSearchCountResult> }) => setCounts(result.data ?? {}));
+    let stale = false;
+    fullTextSearch(search).then((result: { data: Record<string, FullTextSearchCountResult> }) => {
+      if (!stale) setCounts(result.data ?? {});
+    });
     setSelected(ALL);
+    // Guard against out-of-order responses when the query changes rapidly.
+    return () => {
+      stale = true;
+    };
   }, [search]);
 
   const categories: Category[] = useMemo(
@@ -293,7 +301,11 @@ const FullTextSearch = () => {
             }}
             >
               <PaginationComponent
-                key={selected}
+                // Keyed on the category AND the category set: the "All" fetch
+                // fans out over categoryKeys, which only settles after the
+                // counts request resolves - remount then so the merged page is
+                // never built from the previous query's category set.
+                key={`${selected}:${categoryKeys.join(',')}`}
                 fetch={fetch}
                 searchPaginationInput={searchPaginationInput}
                 setContent={setElements}

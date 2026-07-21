@@ -33,9 +33,10 @@ import org.springframework.stereotype.Component;
  *       loss; the original value is recovered);
  *   <li>ADDS a CHECK constraint (via {@code NOT VALID} + {@code VALIDATE}, so validation does not
  *       take an {@code ACCESS EXCLUSIVE} lock for the scan) that forbids the envelope shape from
- *       ever being persisted again, by any code path or client - this is the "cannot insert bad data
- *       anymore" guarantee. The constraint is intentionally narrow (it only rejects the exact {@code
- *       type/value/null} PGobject envelope), so it never rejects legitimate arrays or objects.
+ *       ever being persisted again, by any code path or client - this is the "cannot insert bad
+ *       data anymore" guarantee. The constraint is intentionally narrow (it only rejects the exact
+ *       {@code type/value/null} PGobject envelope), so it never rejects legitimate arrays or
+ *       objects.
  * </ol>
  *
  * <p>Idempotent and re-runnable: the UNWRAP only matches the envelope (gone after the first run),
@@ -70,10 +71,7 @@ public class V6_20260720193000000__Repair_wrapped_json_payload_arguments extends
         "jsonb",
         "iexp_expected_sp_no_json_envelope"),
     new JsonColumn(
-        "steps",
-        "step_condition_key_types",
-        "jsonb",
-        "steps_condition_key_types_no_json_envelope"),
+        "steps", "step_condition_key_types", "jsonb", "steps_condition_key_types_no_json_envelope"),
     new JsonColumn(
         "security_coverages",
         "security_coverage_attack_pattern_refs",
@@ -105,8 +103,8 @@ public class V6_20260720193000000__Repair_wrapped_json_payload_arguments extends
     }
   }
 
-  // Table / column / constraint names are fixed code literals (never user input), so formatting them
-  // into the statements is safe.
+  // Table / column / constraint names are fixed code literals (never user input), so formatting
+  // them into the statements is safe.
   private void repairAndGuard(Statement stmt, JsonColumn c) throws SQLException {
     // Reusable predicate: the value is the exact PGobject JsonType envelope.
     String isEnvelope =

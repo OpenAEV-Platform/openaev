@@ -1,0 +1,8 @@
+fix(frontend): harden reworked search and format guard migration (#6812)
+
+- migration: apply spotless formatting to the JSON-envelope repair/guard
+  migration (three google-java-format violations were failing the check)
+- search: key the pagination engine on the category set as well, so the "All"
+  fan-out never merges results from the previous query's categories; guard the
+  counts fetch against out-of-order responses; restore aria-current on the
+  selected category row
