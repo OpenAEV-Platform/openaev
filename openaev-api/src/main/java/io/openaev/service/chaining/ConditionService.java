@@ -970,9 +970,7 @@ public class ConditionService {
       }
 
       Set<String> values =
-          (mapper.getMappingType() == MappingType.GLOBAL)
-              ? globalEntries.getInputByKey(key).getValues()
-              : localEntries.getInputByKey(key).getValues();
+          resolveValuesByMappingType(key, mapper.getMappingType(), localEntries, globalEntries);
 
       if (values == null || values.isEmpty()) {
         return new MapperInputPreparation(List.of(), Map.of(), Map.of(), true);
@@ -992,7 +990,7 @@ public class ConditionService {
    * <p>Step 1 uses correlated tuples when there are at least 2 dynamic keys. Covered keys come from
    * the tuple. Missing keys are completed from LOCAL or GLOBAL pools based on MappingType.
    *
-   * <p>Step 2 runs the fallback cartesian product only if step 1 produced no batch.
+   * <p>Step 2 runs the fallback cartesian product after step 1. Dedup removes duplicate combos.
    *
    * <p>DEFAULT values are added at the end for every batch. Hashes are not committed here. The
    * caller commits them with {@code commitHashes()}.
@@ -1006,8 +1004,6 @@ public class ConditionService {
 
     List<ConditionService.ExecutionBatch> batches = new ArrayList<>();
     Set<String> pendingHashes = new HashSet<>();
-    boolean hasCorrelatedBatch = false;
-
     // Step 1: correlated-first (useful only with >= 2 dynamic inputs)
     if (requiredKeys.size() >= 2) {
       WorkflowStateEntries correlatedPool =
@@ -1026,9 +1022,7 @@ public class ConditionService {
         for (String uncoveredKey : uncoveredKeys) {
           MappingType source = preparation.keyToMappingType().get(uncoveredKey);
           Set<String> values =
-              (source == MappingType.GLOBAL)
-                  ? globalEntries.getInputByKey(uncoveredKey).getValues()
-                  : localEntries.getInputByKey(uncoveredKey).getValues();
+              resolveValuesByMappingType(uncoveredKey, source, localEntries, globalEntries);
 
           if (values == null || values.isEmpty()) {
             log.warn(
@@ -1053,24 +1047,36 @@ public class ConditionService {
             localEntries.cartesianProduct(uncoveredValueLists)) {
           Map<String, String> combo = new TreeMap<>(covered);
           delta.forEach(pair -> combo.put(pair.key(), pair.value()));
-          int sizeBefore = batches.size();
           tryAddBatch(combo, preparation, localEntries, mappers, pendingHashes, batches);
-          hasCorrelatedBatch = hasCorrelatedBatch || batches.size() > sizeBefore;
         }
       }
     }
 
-    // Step 2: fallback cartesian (only when step 1 produced no batch)
-    if (!hasCorrelatedBatch) {
-      for (List<WorkflowStateEntries.Pair> comboPairs :
-          localEntries.cartesianProduct(preparation.dynamicPairs())) {
-        Map<String, String> combo = new TreeMap<>();
-        comboPairs.forEach(pair -> combo.put(pair.key(), pair.value()));
-        tryAddBatch(combo, preparation, localEntries, mappers, pendingHashes, batches);
-      }
+    // Step 2: fallback cartesian (always runs; dedup skips duplicates from step 1)
+    for (List<WorkflowStateEntries.Pair> comboPairs :
+        localEntries.cartesianProduct(preparation.dynamicPairs())) {
+      Map<String, String> combo = new TreeMap<>();
+      comboPairs.forEach(pair -> combo.put(pair.key(), pair.value()));
+      tryAddBatch(combo, preparation, localEntries, mappers, pendingHashes, batches);
     }
 
     return batches;
+  }
+
+  /**
+   * Resolves input values for a key from the correct state pool based on mapping type.
+   *
+   * <p>GLOBAL values come from workflow global state. LOCAL and other dynamic types are read from
+   * the step local state.
+   */
+  private Set<String> resolveValuesByMappingType(
+      String key,
+      MappingType mappingType,
+      WorkflowStateEntries localEntries,
+      WorkflowStateEntries globalEntries) {
+    return mappingType == MappingType.GLOBAL
+        ? globalEntries.getInputByKey(key).getValues()
+        : localEntries.getInputByKey(key).getValues();
   }
 
   /**

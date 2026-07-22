@@ -273,6 +273,24 @@ public class ConditionServiceTest {
           new ArrayList<>(inputs), new ArrayList<>(correlated), new HashSet<>(), new HashSet<>());
     }
 
+    private WorkflowStateEntries entries(
+        List<WorkflowStateEntries.Input> inputs,
+        List<WorkflowStateEntries.Correlated> correlated,
+        Set<String> hashExecution) {
+      return new WorkflowStateEntries(
+          new ArrayList<>(inputs),
+          new ArrayList<>(correlated),
+          new HashSet<>(hashExecution),
+          new HashSet<>());
+    }
+
+    private String hashCombo(Map<String, String> combo) {
+      WorkflowStateEntries temp =
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      return temp.hashCombo(combo);
+    }
+
     private WorkflowState stateFromEntries(WorkflowStateEntries entries) {
       WorkflowState state = new WorkflowState();
       state.setEntries(gson.toJson(entries));
@@ -362,7 +380,7 @@ public class ConditionServiceTest {
     }
 
     @Test
-    void given_localCorrelatedCoversRequiredKeys_should_notExpandGlobalFallbackValues() {
+    void given_localCorrelatedCoversRequiredKeys_shouldAlsoGenerateBestEffortCombinations() {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
@@ -395,10 +413,69 @@ public class ConditionServiceTest {
           conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
 
       // -------- Assert --------
-      assertEquals(1, batches.size());
-      JsonObject json = inputJson(batches.getFirst());
-      assertEquals("5040", json.get("Port").getAsString());
-      assertEquals("0.0.0.0", json.get("Host").getAsString());
+      assertEquals(4, batches.size());
+      Set<String> hostPorts =
+          batches.stream()
+              .map(
+                  b -> {
+                    JsonObject json = inputJson(b);
+                    return json.get("Host").getAsString() + ":" + json.get("Port").getAsString();
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(
+          Set.of("0.0.0.0:5040", "1.1.1.1:5040", "2.2.2.2:5040", "3.3.3.3:5040"), hostPorts);
+    }
+
+    @Test
+    void given_fullCorrelatedCoverageButAlreadyExecuted_shouldKeepBestEffortCombinations() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-local-priority-executed");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.LOCAL, PrimitiveType.Port, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Host, null));
+
+      Map<String, String> executedCombo = new java.util.TreeMap<>();
+      executedCombo.put("Host", "0.0.0.0");
+      executedCombo.put("Port", "5040");
+      String executedHash = hashCombo(executedCombo);
+
+      WorkflowStateEntries localEntries =
+          entries(
+              List.of(input("Port", "5040")),
+              List.of(
+                  correlated(
+                      "PortsScan",
+                      new WorkflowStateEntries.Pair("Host", "0.0.0.0"),
+                      new WorkflowStateEntries.Pair("Port", "5040"),
+                      new WorkflowStateEntries.Pair("Service", "TCP"))),
+              Set.of(executedHash));
+      WorkflowStateEntries globalEntries =
+          entries(List.of(input("Host", "0.0.0.0", "1.1.1.1", "2.2.2.2", "3.3.3.3")), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-local-priority-executed"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(3, batches.size());
+      Set<String> hostPorts =
+          batches.stream()
+              .map(
+                  b -> {
+                    JsonObject json = inputJson(b);
+                    return json.get("Host").getAsString() + ":" + json.get("Port").getAsString();
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("1.1.1.1:5040", "2.2.2.2:5040", "3.3.3.3:5040"), hostPorts);
     }
 
     @Test
