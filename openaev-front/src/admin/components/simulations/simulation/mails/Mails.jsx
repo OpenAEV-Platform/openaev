@@ -29,7 +29,7 @@ import useSearchAndFilter from '../../../../../utils/SortingFiltering';
 import { PermissionsContext, TeamContext } from '../../../common/Context';
 import TagsFilter from '../../../common/filters/TagsFilter';
 import InjectIcon from '../../../common/injects/InjectIcon';
-import AnimationMenu from '../AnimationMenu';
+import ExecutionMenu from '../ExecutionMenu';
 import CreateQuickInject from '../injects/CreateQuickInject';
 import teamContextForExercise from '../teams/teamContextForExercise';
 import MailDistributionByInject from './MailDistributionByInject';
@@ -221,7 +221,7 @@ const Mails = () => {
   // Rendering
   return (
     <div>
-      <AnimationMenu exerciseId={exerciseId} />
+      <ExecutionMenu exerciseId={exerciseId} />
       <ToggleButtonGroup
         size="small"
         exclusive={true}
@@ -319,6 +319,13 @@ const Mails = () => {
               currentTags={filtering.tags}
             />
           </div>
+          {permissions.canManage && (
+            <div style={{ float: 'right' }}>
+              <TeamContext.Provider value={teamContext}>
+                <CreateQuickInject exercise={exercise} />
+              </TeamContext.Provider>
+            </div>
+          )}
           <div className="clearfix" />
           <List style={{ marginTop: 10 }}>
             <ListItem
@@ -386,7 +393,7 @@ const Mails = () => {
                 <ListItemButton
                   key={inject.inject_id}
                   component={Link}
-                  to={`/admin/simulations/${exerciseId}/animation/mails/${inject.inject_id}`}
+                  to={`/admin/simulations/${exerciseId}/execution/mails/${inject.inject_id}`}
                   classes={{ root: classes.item }}
                   divider={true}
                 >
@@ -448,11 +455,6 @@ const Mails = () => {
               );
             })}
           </List>
-          {permissions.canManage && (
-            <TeamContext.Provider value={teamContext}>
-              <CreateQuickInject exercise={exercise} />
-            </TeamContext.Provider>
-          )}
         </>
       )}
     </div>

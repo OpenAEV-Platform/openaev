@@ -16,6 +16,7 @@ import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
 import DefaultHomeDashboard from './default_dashboard/DefaultHomeDashboard';
 import CustomDashboardWrapper from './workspaces/custom_dashboards/CustomDashboardWrapper';
+import XtmHubDialogPermissionRequired from './xtm_hub/dialog/permission-required/XtmHubDialogPermissionRequired';
 
 const Home = () => {
   const dispatch = useAppDispatch();
@@ -37,7 +38,12 @@ const Home = () => {
   // user preference over the tenant setting for the widget data endpoints.
   const resolvedDashboardId = me?.user_home_dashboard || tenantSettings.platform_home_dashboard;
   if (!resolvedDashboardId) {
-    return <DefaultHomeDashboard />;
+    return (
+      <>
+        <XtmHubDialogPermissionRequired />
+        <DefaultHomeDashboard />
+      </>
+    );
   }
 
   const configuration = {
@@ -53,10 +59,13 @@ const Home = () => {
   };
 
   return (
-    <CustomDashboardWrapper
-      configuration={configuration}
-      noDashboardSlot={<DefaultHomeDashboard />}
-    />
+    <>
+      <XtmHubDialogPermissionRequired />
+      <CustomDashboardWrapper
+        configuration={configuration}
+        noDashboardSlot={<DefaultHomeDashboard />}
+      />
+    </>
   );
 };
 

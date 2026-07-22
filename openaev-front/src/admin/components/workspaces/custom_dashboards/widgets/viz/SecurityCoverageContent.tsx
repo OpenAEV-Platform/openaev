@@ -6,6 +6,7 @@ import { useLocalStorage } from 'usehooks-ts';
 
 import type { AttackPatternHelper } from '../../../../../../actions/attack_patterns/attackpattern-helper';
 import type { KillChainPhaseHelper } from '../../../../../../actions/kill_chain_phases/killchainphase-helper';
+import Empty from '../../../../../../components/Empty';
 import { useFormatter } from '../../../../../../components/i18n';
 import { useHelper } from '../../../../../../store';
 import {
@@ -36,6 +37,13 @@ interface Props {
   widgetId: string;
   widgetConfig: StructuralHistogramWidget;
   data: EsSeries[];
+  /**
+   * Overview mode: focus the matrix on covered techniques only. Forces the
+   * coverage scope to "covered", hides the All/Covered/Gaps segmented control and
+   * the coverage KPI. Used by the scenario / simulation overviews where the
+   * matrix is a result view, not a coverage-planning tool.
+   */
+  coveredOnly?: boolean;
 }
 
 // Well-known kill chain identifiers get their official product name; anything
@@ -58,7 +66,7 @@ const OVERLINE_SX = {
   lineHeight: 1,
 } as const;
 
-const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetConfig, data }) => {
+const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetConfig, data, coveredOnly = false }) => {
   // Standard hooks
   const { classes } = useStyles();
   const theme = useTheme();
@@ -123,7 +131,9 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetCon
     [sortedPhases, activeKillChain],
   );
 
-  const [coverageFilter, setCoverageFilter] = useLocalStorage<CoverageFilter>('widget-' + widgetId + '-coverage-filter', 'all');
+  const [storedCoverageFilter, setCoverageFilter] = useLocalStorage<CoverageFilter>('widget-' + widgetId + '-coverage-filter', 'all');
+  // Overview mode is locked to "covered": the matrix is a result view there.
+  const coverageFilter: CoverageFilter = coveredOnly ? 'covered' : storedCoverageFilter;
 
   const handleCoverageFilterChange = useCallback(
     (_: React.MouseEvent<HTMLElement>, value: CoverageFilter | null) => {
@@ -233,53 +243,55 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetCon
               </Select>
             </Box>
           )}
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 0.75,
-          }}
-          >
-            <Typography sx={OVERLINE_SX}>{t('techniques')}</Typography>
-            <ToggleButtonGroup
-              exclusive
-              size="small"
-              value={coverageFilter}
-              onChange={handleCoverageFilterChange}
-              sx={{
-                '& .MuiToggleButton-root': {
-                  paddingY: 0.25,
-                  paddingX: 1.25,
-                  textTransform: 'none',
-                },
-              }}
+          {!coveredOnly && (
+            <Box sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.75,
+            }}
             >
-              <ToggleButton value="all">{t('All')}</ToggleButton>
-              <ToggleButton value="covered">
-                {t('Covered')}
-                <Box
-                  component="span"
-                  sx={{
-                    marginLeft: 0.75,
-                    color: 'text.secondary',
-                  }}
-                >
-                  {coverageStats.covered}
-                </Box>
-              </ToggleButton>
-              <ToggleButton value="gaps">
-                {t('Gaps')}
-                <Box
-                  component="span"
-                  sx={{
-                    marginLeft: 0.75,
-                    color: 'text.secondary',
-                  }}
-                >
-                  {coverageStats.gaps}
-                </Box>
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </Box>
+              <Typography sx={OVERLINE_SX}>{t('techniques')}</Typography>
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={coverageFilter}
+                onChange={handleCoverageFilterChange}
+                sx={{
+                  '& .MuiToggleButton-root': {
+                    paddingY: 0.25,
+                    paddingX: 1.25,
+                    textTransform: 'none',
+                  },
+                }}
+              >
+                <ToggleButton value="all">{t('All')}</ToggleButton>
+                <ToggleButton value="covered">
+                  {t('Covered')}
+                  <Box
+                    component="span"
+                    sx={{
+                      marginLeft: 0.75,
+                      color: 'text.secondary',
+                    }}
+                  >
+                    {coverageStats.covered}
+                  </Box>
+                </ToggleButton>
+                <ToggleButton value="gaps">
+                  {t('Gaps')}
+                  <Box
+                    component="span"
+                    sx={{
+                      marginLeft: 0.75,
+                      color: 'text.secondary',
+                    }}
+                  >
+                    {coverageStats.gaps}
+                  </Box>
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+          )}
         </Box>
         {/* Right cluster: coverage KPI + success-rate legend */}
         <Box sx={{
@@ -289,54 +301,56 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetCon
           flexWrap: 'wrap',
         }}
         >
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 0.75,
-            minWidth: 132,
-          }}
-          >
-            <Typography sx={OVERLINE_SX}>{t('Coverage')}</Typography>
+          {!coveredOnly && (
             <Box sx={{
               display: 'flex',
-              alignItems: 'baseline',
+              flexDirection: 'column',
               gap: 0.75,
+              minWidth: 132,
             }}
             >
-              <Typography sx={{
-                fontFamily: '"Geologica", sans-serif',
-                fontWeight: 600,
-                fontSize: 18,
-                lineHeight: 1,
-                color: coverageAccent,
+              <Typography sx={OVERLINE_SX}>{t('Coverage')}</Typography>
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: 0.75,
               }}
               >
-                {coveragePct}
-                %
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {t('{covered}/{total} tested', {
-                  covered: coverageStats.covered,
-                  total: coverageStats.total,
-                })}
-              </Typography>
-            </Box>
-            <Box sx={{
-              height: 4,
-              borderRadius: 2,
-              backgroundColor: alpha(theme.palette.text.primary, 0.08),
-              overflow: 'hidden',
-            }}
-            >
+                <Typography sx={{
+                  fontFamily: '"Geologica", sans-serif',
+                  fontWeight: 600,
+                  fontSize: 18,
+                  lineHeight: 1,
+                  color: coverageAccent,
+                }}
+                >
+                  {coveragePct}
+                  %
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {t('{covered}/{total} tested', {
+                    covered: coverageStats.covered,
+                    total: coverageStats.total,
+                  })}
+                </Typography>
+              </Box>
               <Box sx={{
-                width: `${coveragePct}%`,
-                height: '100%',
+                height: 4,
                 borderRadius: 2,
-                backgroundColor: coverageAccent,
+                backgroundColor: alpha(theme.palette.text.primary, 0.08),
+                overflow: 'hidden',
               }}
-              />
+              >
+                <Box sx={{
+                  width: `${coveragePct}%`,
+                  height: '100%',
+                  borderRadius: 2,
+                  backgroundColor: coverageAccent,
+                }}
+                />
+              </Box>
             </Box>
-          </Box>
+          )}
           <Box sx={{
             display: 'flex',
             flexDirection: 'column',
@@ -353,15 +367,7 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetCon
             without this guard a 0-covered / 0-gaps scope renders a blank body. */}
         {((coverageFilter === 'covered' && coverageStats.covered === 0)
           || (coverageFilter === 'gaps' && coverageStats.gaps === 0)) ? (
-              <Typography
-                variant="body2"
-                sx={{
-                  margin: 'auto',
-                  color: 'text.secondary',
-                }}
-              >
-                {t('No data to display')}
-              </Typography>
+              <Empty message={t('No data to display')} />
             ) : visiblePhases.map((phase) => {
               // Use indexed lookups - O(1) instead of O(n) filter
               const resolvedDataSuccessByKillChainPhase = successByPhase.get(phase.phase_external_id) ?? [];

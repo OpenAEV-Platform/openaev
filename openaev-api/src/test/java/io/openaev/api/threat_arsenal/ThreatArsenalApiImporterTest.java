@@ -22,13 +22,13 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.context.TenantContext;
-import io.openaev.database.model.ArgumentType;
 import io.openaev.database.model.ContractOutputElement;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PayloadPrerequisite;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
@@ -251,12 +251,12 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       // payload_arguments and payload_prerequisites must be typed objects,
       // matching the PayloadArgument / PayloadPrerequisite model schema.
       PayloadArgument argument1 = new PayloadArgument();
-      argument1.setType(ArgumentType.Text);
+      argument1.setType(PrimitiveType.Text);
       argument1.setKey("target_host");
       argument1.setDefaultValue("localhost");
 
       PayloadArgument argument2 = new PayloadArgument();
-      argument2.setType(ArgumentType.Text);
+      argument2.setType(PrimitiveType.Text);
       argument2.setKey("port");
       argument2.setDefaultValue("8080");
 
@@ -286,7 +286,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
 
       // Assert argument field values
       assertEquals(2, importedPayload.getArguments().size());
-      assertEquals(ArgumentType.Text, importedPayload.getArguments().get(0).getType());
+      assertEquals(PrimitiveType.Text, importedPayload.getArguments().get(0).getType());
       assertEquals("target_host", importedPayload.getArguments().get(0).getKey());
       assertEquals("localhost", importedPayload.getArguments().get(0).getDefaultValue());
       assertEquals("port", importedPayload.getArguments().get(1).getKey());

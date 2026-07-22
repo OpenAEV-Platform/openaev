@@ -3,6 +3,7 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
+  Alert,
   Box,
   Button,
   FormControl,
@@ -30,12 +31,37 @@ const useStyles = makeStyles()(theme => ({
     display: 'inline-flex',
     alignItems: 'center',
   },
-  importerStyle: {
-    display: 'flex',
-    alignItems: 'center',
+  labelExecutionCondition: {
+    color: theme.palette.text.secondary,
+    fontSize: 12,
   },
-  labelExecutionCondition: { color: theme.palette.text.secondary },
 }));
+
+// New section chrome uses sx (makeStyles above is legacy, kept for the
+// pre-existing classes only).
+const sectionHeaderSx = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 2,
+  marginTop: 2,
+  marginBottom: 1.5,
+};
+
+const sectionTitleSx = {
+  fontFamily: '"Geologica", sans-serif',
+  fontWeight: 600,
+  fontSize: 11,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase' as const,
+  color: 'text.secondary',
+};
+
+const sectionHelperSx = {
+  fontSize: 12,
+  color: 'text.disabled',
+  marginTop: '2px',
+};
 
 interface Props {
   values: Inject & { inject_depends_to: InjectDependency[] };
@@ -828,21 +854,26 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
 
   return (
     <>
-      <div className={classes.importerStyle}>
-        <Typography variant="h2" sx={{ m: 0 }}>
-          {t('Parent')}
-        </Typography>
-        <IconButton
-          color="secondary"
-          aria-label="Add"
-          size="large"
+      <Alert severity="info" variant="outlined" sx={{ marginBottom: 2 }}>
+        {t('Chain this inject to others: a parent runs before it, children run after. Add execution conditions to branch on whether the parent succeeded or failed.')}
+      </Alert>
+
+      <Box sx={sectionHeaderSx}>
+        <div>
+          <Typography sx={sectionTitleSx}>{t('Parent')}</Typography>
+          <Typography sx={sectionHelperSx}>{t('The inject that must run before this one (at most one).')}</Typography>
+        </div>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<Add fontSize="small" />}
           disabled={parents.length > 0
             || injects?.filter(currentInject => currentInject.inject_depends_duration < values.inject_depends_duration).length === 0 || isDisabled}
           onClick={addParent}
         >
-          <Add fontSize="small" />
-        </IconButton>
-      </div>
+          {t('Add parent')}
+        </Button>
+      </Box>
 
       {parents.map((parent, index) => {
         return (
@@ -940,20 +971,21 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
         );
       })}
 
-      <div className={classes.importerStyle}>
-        <Typography variant="h2" sx={{ m: 0 }}>
-          {t('Children')}
-        </Typography>
-        <IconButton
-          color="secondary"
-          aria-label="Add"
-          size="large"
+      <Box sx={sectionHeaderSx}>
+        <div>
+          <Typography sx={sectionTitleSx}>{t('Children')}</Typography>
+          <Typography sx={sectionHelperSx}>{t('Injects that run after this one, on the condition you define.')}</Typography>
+        </div>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<Add fontSize="small" />}
           disabled={addChildrenButtonDisabled || isDisabled}
           onClick={addChildren}
         >
-          <Add fontSize="small" />
-        </IconButton>
-      </div>
+          {t('Add child')}
+        </Button>
+      </Box>
       {childrenList.map((children, index) => {
         return (
           <Accordion

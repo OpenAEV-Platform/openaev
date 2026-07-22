@@ -121,6 +121,13 @@ public interface RawSimulationIndexing extends RawTenant {
   boolean getExercise_lessons_anonymized();
 
   /**
+   * Returns whether the lessons learned module is enabled for this exercise.
+   *
+   * @return {@code true} if the lessons learned module is enabled, {@code false} otherwise
+   */
+  boolean getExercise_lessons_enabled();
+
+  /**
    * Returns the creation timestamp of the exercise.
    *
    * @return the creation timestamp

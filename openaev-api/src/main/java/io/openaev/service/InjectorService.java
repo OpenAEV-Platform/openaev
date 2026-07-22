@@ -24,6 +24,7 @@ import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.service.exception.InjectorRegistrationException;
+import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.InjectorMapper;
 import jakarta.persistence.EntityManager;
@@ -45,6 +46,10 @@ import org.springframework.web.multipart.MultipartFile;
 // TODO needs to be merged with integrations/InjectorService
 public class InjectorService extends AbstractConnectorService<Injector, InjectorOutput> {
 
+  // Built-in injectors (Email, Manual, HTTP query, ...) are shipped by the
+  // platform, so their contracts are authored by Filigran.
+  private static final String BUILTIN_INJECTOR_AUTHOR = "Filigran";
+
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final AttackPatternRepository attackPatternRepository;
@@ -52,6 +57,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   private final FileService fileService;
   private final InjectorContractService injectorContractService;
   private final DomainService domainService;
+  private final OrganizationService organizationService;
 
   private final InjectorMapper injectorMapper;
 
@@ -70,6 +76,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       CatalogConnectorService catalogConnectorService,
       @Lazy InjectorContractService injectorContractService,
       DomainService domainService,
+      OrganizationService organizationService,
       InjectorMapper injectorMapper,
       CatalogConnectorMapper catalogConnectorMapper,
       RabbitmqService rabbitmqService,
@@ -86,6 +93,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     this.fileService = fileService;
     this.injectorContractService = injectorContractService;
     this.domainService = domainService;
+    this.organizationService = organizationService;
     this.injectorMapper = injectorMapper;
     this.rabbitmqService = rabbitmqService;
     this.entityManager = entityManager;
@@ -173,6 +181,11 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             FileService.INJECTORS_IMAGES_BASE_PATH + input.getType() + ".png", file.get());
       }
       String queueName = this.rabbitmqService.registerQueue(input.getId());
+      // Contracts declared by an external injector are attributed to a publisher
+      // organization: the source-declared author when provided, otherwise the
+      // injector's own name (so a connector's content is never left authorless
+      // nor mis-attributed to a generic default).
+      Organization authorOrganization = resolveInjectorAuthor(input.getAuthor(), input.getName());
       // We need to support upsert for registration
       Injector injector =
           injectorRepository
@@ -188,7 +201,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             input.getCategory(),
             input.getExecutorCommands(),
             input.getExecutorClearCommands(),
-            input.getPayloads());
+            input.getPayloads(),
+            authorOrganization);
       } else {
         // save the injector
         Injector newInjector = new Injector();
@@ -207,6 +221,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         List<InjectorContract> injectorContracts =
             input.getContracts().stream()
                 .map(in -> injectorContractService.convertInjectorFromInput(in, savedInjector))
+                .peek(contract -> applyContractAuthor(contract, authorOrganization))
                 .toList();
         injectorContracts = fromIterable(injectorContractRepository.saveAll(injectorContracts));
         // Link managed instances returned by saveAll() via the join entity. Contracts imported by
@@ -229,7 +244,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       String category,
       Map<String, String> executorCommands,
       Map<String, String> executorClearCommands,
-      Boolean payloads) {
+      Boolean payloads,
+      Organization authorOrganization) {
     injector.setUpdatedAt(Instant.now());
     injector.setType(type);
     injector.setName(name);
@@ -249,6 +265,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                   contracts.stream().filter(c -> c.getId().equals(contract.getId())).findFirst();
               if (current.isPresent()) {
                 existing.add(contract.getId());
+                // Re-attribute on every registration so a corrected/late author
+                // declaration heals existing rows (and overwrites the historical
+                // Filigran mis-attribution).
+                applyContractAuthor(contract, authorOrganization);
                 contract.setManual(current.get().isManual());
                 contract.setLabels(current.get().getLabels());
                 contract.setContent(current.get().getContent());
@@ -284,6 +304,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         contracts.stream()
             .filter(c -> !existing.contains(c.getId()))
             .map(in -> injectorContractService.convertInjectorFromInput(in, injector))
+            .peek(contract -> applyContractAuthor(contract, authorOrganization))
             .toList();
     injectorContractRepository.deleteAllByIdAndTenantId(
         toDeletes.toArray(new String[0]), injector.getTenantId());
@@ -296,6 +317,26 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     // Link managed instances returned by saveAll() via the join entity
     toCreates.forEach(injector::linkContract);
     return injectorRepository.save(injector);
+  }
+
+  /**
+   * Resolves the publisher organization for an injector's contracts: the source-declared author
+   * when present, otherwise the injector name (never a generic default).
+   */
+  private Organization resolveInjectorAuthor(String declaredAuthor, String injectorName) {
+    String author =
+        declaredAuthor != null && !declaredAuthor.isBlank() ? declaredAuthor : injectorName;
+    return organizationService.findOrCreateByName(author);
+  }
+
+  /**
+   * Stamps a contract with its publisher organization. Payload-based contracts resolve their author
+   * from the payload, so only payload-less contracts (the norm for external injectors) are stamped.
+   */
+  private void applyContractAuthor(InjectorContract contract, Organization authorOrganization) {
+    if (authorOrganization != null && contract.getPayload() == null) {
+      contract.setAuthorOrganization(authorOrganization);
+    }
   }
 
   // -- BUILT - IN --
@@ -359,6 +400,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
           contractor,
           isCustomizable,
           category,
+          executorCommands,
+          executorClearCommands,
           isPayloads,
           staticContracts);
     } else {
@@ -399,6 +442,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       Contractor contractor,
       Boolean isCustomizable,
       String category,
+      Map<String, String> executorCommands,
+      Map<String, String> executorClearCommands,
       Boolean isPayloads,
       List<Contract> staticContracts) {
 
@@ -408,6 +453,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injector.setExternal(false);
     injector.setCustomContracts(Boolean.TRUE.equals(isCustomizable));
     injector.setPayloads(Boolean.TRUE.equals(isPayloads));
+    // Refresh executor commands so existing deployments pick up new per-executor launch strategies
+    // (e.g. the MDE detached scheduled task) instead of keeping the first-registration values.
+    injector.setExecutorCommands(executorCommands);
+    injector.setExecutorClearCommands(executorClearCommands);
     injectorRepository.save(injector);
 
     // Filter to this tenant's contracts — belt-and-suspenders check since the @JoinTable
@@ -439,6 +488,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     }
 
     // Create new contracts
+    Organization builtinAuthor = organizationService.findOrCreateByName(BUILTIN_INJECTOR_AUTHOR);
     List<InjectorContract> toCreate =
         staticContracts.stream()
             .filter(c -> !existingIds.contains(c.getId()))
@@ -446,7 +496,11 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                 contract ->
                     this.injectorContractService.createBuiltinInjectorContract(
                         contract, injector, isPayloads))
+            .peek(contract -> applyContractAuthor(contract, builtinAuthor))
             .toList();
+    // Re-affirm authorship on refreshed built-in contracts too, so any historical
+    // gap is healed on the next startup registration.
+    toUpdate.forEach(contract -> applyContractAuthor(contract, builtinAuthor));
 
     // Persist changes
     injectorContractRepository.deleteAllByIdAndTenantId(
@@ -494,12 +548,14 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     newInjector.setTenantId(tenantId);
     Injector savedInjector = injectorRepository.save(newInjector);
 
+    Organization builtinAuthor = organizationService.findOrCreateByName(BUILTIN_INJECTOR_AUTHOR);
     List<InjectorContract> injectorContracts =
         staticContracts.stream()
             .map(
                 contract ->
                     this.injectorContractService.createBuiltinInjectorContract(
                         contract, savedInjector, isPayloads))
+            .peek(contract -> applyContractAuthor(contract, builtinAuthor))
             .toList();
     injectorContracts = fromIterable(injectorContractRepository.saveAll(injectorContracts));
     // Link managed contracts via the join entity so Hibernate populates the join table.

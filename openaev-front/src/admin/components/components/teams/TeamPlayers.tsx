@@ -44,6 +44,9 @@ const useStyles = makeStyles()(theme => ({
   parameters: {
     float: 'right',
     marginTop: -8,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
   },
   container: { marginTop: 10 },
   itemHead: {
@@ -273,6 +276,12 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage 
               keyword={keyword}
             />
           </div>
+          {canManage && (
+            <TeamAddPlayers
+              teamId={teamId}
+              addedUsersIds={users.filter(u => !!u).map(u => u.user_id)}
+            />
+          )}
         </div>
         <div className="clearfix" />
       </div>
@@ -412,13 +421,6 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage 
           </ListItem>
         ))}
       </List>
-      {canManage && (
-        <TeamAddPlayers
-          teamId={teamId}
-          addedUsersIds={users.filter(u => !!u).map(u => u.user_id)}
-        />
-      )}
-
     </>
   );
 };

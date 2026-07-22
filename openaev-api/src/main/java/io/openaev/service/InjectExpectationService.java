@@ -71,6 +71,7 @@ public class InjectExpectationService {
   public static final String SUCCESS = "Success";
   public static final String PENDING = "Pending";
   public static final String COLLECTOR = "collector";
+  public static final String SECURITY_PLATFORM = "security-platform";
 
   /**
    * Upper bound for the collector-polled "not filled" queries. Collectors poll periodically (oldest
@@ -1038,7 +1039,10 @@ public class InjectExpectationService {
         case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
         // AI targets are plain assets (asset_category driven), resolved through the asset lookup.
         case ASSETS, AI_TARGETS ->
-            injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
+            enrichAssetExpectationsWithAgentSecurityPlatforms(
+                injectId,
+                targetId,
+                injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId));
         case ASSETS_GROUPS ->
             injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, targetId);
         default ->
@@ -1050,6 +1054,68 @@ public class InjectExpectationService {
     } catch (IllegalArgumentException e) {
       return Collections.emptyList();
     }
+  }
+
+  /**
+   * Makes the endpoint (asset) target-results view show the same security platforms as the agents
+   * view. Asset-level detection/prevention expectations are scored by aggregating their agents and
+   * therefore do not carry the per-security-platform pending/answered result rows that the agent
+   * expectations hold. For display we merge, per expectation type, the union of the child agents'
+   * security-platform (collector) results onto a DETACHED clone of each asset expectation, so the
+   * change never persists. Non-technical or agentless assets are returned unchanged.
+   *
+   * @param injectId the inject ID
+   * @param assetId the asset (endpoint) ID
+   * @param assetExpectations the asset-level expectations for the inject
+   * @return detached asset expectations enriched with their agents' security-platform results
+   */
+  private List<BaseInjectExpectation> enrichAssetExpectationsWithAgentSecurityPlatforms(
+      final String injectId,
+      final String assetId,
+      final List<BaseInjectExpectation> assetExpectations) {
+    List<BaseInjectExpectation> agentExpectations =
+        injectExpectationRepository.findAllAgentExpectationsByInjectAndAsset(injectId, assetId);
+    if (agentExpectations.isEmpty()) {
+      // Agentless asset (AI target, agentless endpoint): the asset expectation is filled directly.
+      return assetExpectations;
+    }
+    // Union of security-platform / collector results per expectation type, de-duplicated by source.
+    Map<BaseInjectExpectation.EXPECTATION_TYPE, List<InjectExpectationResult>> resultsByType =
+        new HashMap<>();
+    for (BaseInjectExpectation agentExpectation : agentExpectations) {
+      List<InjectExpectationResult> platformResults =
+          agentExpectation.getResults().stream()
+              .filter(
+                  r ->
+                      COLLECTOR.equals(r.getSourceType())
+                          || SECURITY_PLATFORM.equals(r.getSourceType()))
+              .toList();
+      resultsByType
+          .computeIfAbsent(agentExpectation.getType(), k -> new ArrayList<>())
+          .addAll(platformResults);
+    }
+    return assetExpectations.stream()
+        .map(
+            expectation -> {
+              List<InjectExpectationResult> platformResults =
+                  resultsByType.get(expectation.getType());
+              if (platformResults == null || platformResults.isEmpty()) {
+                return expectation;
+              }
+              BaseInjectExpectation clone = expectation.clone();
+              Map<String, InjectExpectationResult> bySource = new LinkedHashMap<>();
+              platformResults.forEach(
+                  r ->
+                      bySource.merge(
+                          r.getSourceId() == null ? r.getSourceName() : r.getSourceId(),
+                          r,
+                          (existing, candidate) ->
+                              // Prefer an answered result over a pending one for the same source.
+                              existing.getResult() != null ? existing : candidate));
+              clone.setResults(new ArrayList<>(bySource.values()));
+              return clone;
+            })
+        .toList();
   }
 
   /**
@@ -1170,15 +1236,28 @@ public class InjectExpectationService {
       @Nullable String assetId,
       @Nullable String assetGroupId) {
     if (agentId != null) {
-      return injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
+      return filterTechnicalExpectations(
+          injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId));
     }
     if (assetId != null) {
-      return injectExpectationRepository.findAllByInjectAndAsset(injectId, assetId);
+      return filterTechnicalExpectations(
+          injectExpectationRepository.findAllByInjectAndAsset(injectId, assetId));
     }
     if (assetGroupId != null) {
-      return injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, assetGroupId);
+      return filterTechnicalExpectations(
+          injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, assetGroupId));
     }
     return Collections.emptyList();
+  }
+
+  // Agent/asset targets can also carry manual expectations: keep only the
+  // technical ones for the signature-application paths.
+  private static List<TechnicalInjectExpectation> filterTechnicalExpectations(
+      List<BaseInjectExpectation> expectations) {
+    return expectations.stream()
+        .filter(TechnicalInjectExpectation.class::isInstance)
+        .map(TechnicalInjectExpectation.class::cast)
+        .toList();
   }
 
   /**
@@ -1194,9 +1273,12 @@ public class InjectExpectationService {
       @NotBlank final String agentId,
       @NotBlank final Instant date,
       @NotBlank final String signatureType) {
-    // Load all expectations for the inject/agent, append the signature, then persist the changes.
+    // Load the technical expectations for the inject/agent, append the signature, then persist
+    // the changes. Agent rows can also carry MANUAL expectations, which must not receive
+    // start/end date signatures (they are matched against technical detection/prevention data).
     List<TechnicalInjectExpectation> injectExpectations =
-        injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
+        filterTechnicalExpectations(
+            injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId));
     if (!injectExpectations.isEmpty()) {
       injectExpectations.forEach(
           injectExpectation -> {
@@ -1417,7 +1499,17 @@ public class InjectExpectationService {
                 .collect(Collectors.toList());
       }
       injectExpectations.addAll(injectExpectationsByUserAndTeam);
-    } else if (!assets.isEmpty() || !assetGroups.isEmpty()) {
+    } else if (!assets.isEmpty()
+        || !assetGroups.isEmpty()
+        || expectations.stream().anyMatch(InjectExpectationService::carriesOwnTarget)) {
+      // Technical expectations carry their own asset / asset group (they were built from the
+      // resolved AssetToExecute list, which includes content-referenced AI targets that are NOT
+      // attached to the inject as an asset / asset group relation). Gating only on the inject's
+      // asset / group relations dropped every AI Red Team expectation on the floor - an AI target
+      // reached through content.ai_target produced zero expectation rows. Convert whenever at
+      // least one computed expectation carries a target of its own, regardless of how that target
+      // was attached - but keep skipping target-less expectations (e.g. a manual email expectation
+      // executed directly with no team), which have nothing to attach to.
       injectExpectations =
           expectations.stream()
               .map(
@@ -1432,6 +1524,20 @@ public class InjectExpectationService {
       setupDefaultExpectationResults(injectExpectations, tenantId);
       injectExpectationRepository.saveAll(injectExpectations);
     }
+  }
+
+  /**
+   * Whether a computed expectation carries its own validation target (asset or asset group), i.e.
+   * it can be persisted even when the inject has no asset / asset group relation - the case of
+   * content-referenced AI targets.
+   */
+  private static boolean carriesOwnTarget(Expectation expectation) {
+    return switch (expectation) {
+      case DetectionExpectation e -> e.getAsset() != null || e.getAssetGroup() != null;
+      case PreventionExpectation e -> e.getAsset() != null || e.getAssetGroup() != null;
+      case VulnerabilityExpectation e -> e.getAsset() != null || e.getAssetGroup() != null;
+      default -> false;
+    };
   }
 
   /**
@@ -1462,7 +1568,12 @@ public class InjectExpectationService {
             }
             if (ie instanceof PreventionInjectExpectation
                 || ie instanceof DetectionInjectExpectation) {
-              ie.setResults(setUpFromCollectors(collectors));
+              // Focus the pending results on the collectors of the expected security platform
+              // types only. Empty/null = every connected security platform (legacy behaviour).
+              List<Collector> expectedCollectors =
+                  filterCollectorsForExpectation(collectors, tech.getExpectedSecurityPlatforms());
+              applyExpirationOrderingGuarantee(tech, expectedCollectors);
+              ie.setResults(setUpFromCollectors(expectedCollectors));
             } else if (ie instanceof VulnerabilityInjectExpectation) {
               ie.setResults(List.of(buildDefaultForVulnerabilityManagerInFailed()));
             }
@@ -1482,6 +1593,68 @@ public class InjectExpectationService {
             }
           }
         });
+  }
+
+  /**
+   * Restricts the tenant's security-platform collectors to those matching an expectation's expected
+   * platform types. When the expectation declares no expected type, every collector is kept (legacy
+   * behaviour). Expected types that have no connected collector are logged so the misconfiguration
+   * is visible instead of the expectation silently hanging until expiration.
+   *
+   * @param collectors all connected security-platform collectors of the tenant
+   * @param expectedTypes the expectation's expected security platform types (may be null/empty)
+   * @return the collectors expected to answer this expectation
+   */
+  static List<Collector> filterCollectorsForExpectation(
+      final List<Collector> collectors,
+      final List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedTypes) {
+    if (expectedTypes == null || expectedTypes.isEmpty()) {
+      return collectors;
+    }
+    List<Collector> matching =
+        collectors.stream()
+            .filter(
+                c ->
+                    c.getSecurityPlatform() != null
+                        && expectedTypes.contains(
+                            c.getSecurityPlatform().getSecurityPlatformType()))
+            .toList();
+    Set<SecurityPlatform.SECURITY_PLATFORM_TYPE> connectedTypes =
+        collectors.stream()
+            .map(Collector::getSecurityPlatform)
+            .filter(Objects::nonNull)
+            .map(SecurityPlatform::getSecurityPlatformType)
+            .collect(Collectors.toSet());
+    expectedTypes.stream()
+        .filter(type -> !connectedTypes.contains(type))
+        .forEach(
+            type ->
+                log.warn(
+                    "Expectation expects security platform type {} but no connected collector of that type exists; it will only be finalized by the expiration manager",
+                    type));
+    return matching;
+  }
+
+  /**
+   * Expiration ordering guarantee: when specific security platforms are expected, make sure the
+   * expectation's expiration is long enough for the real collectors to answer first (at least two
+   * of their poll cycles), so the expiration manager only ever acts as a fallback for genuinely
+   * unanswered expectations.
+   *
+   * @param expectation the technical expectation being seeded
+   * @param expectedCollectors the collectors expected to answer it
+   */
+  static void applyExpirationOrderingGuarantee(
+      final TechnicalInjectExpectation expectation, final List<Collector> expectedCollectors) {
+    if (expectedCollectors.isEmpty()) {
+      return;
+    }
+    long maxPeriodSeconds =
+        expectedCollectors.stream().mapToLong(Collector::getPeriod).max().orElse(0L);
+    long floor = maxPeriodSeconds * 2L;
+    if (expectation.getExpirationTime() == null || expectation.getExpirationTime() < floor) {
+      expectation.setExpirationTime(floor);
+    }
   }
 
   /**

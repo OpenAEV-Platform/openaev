@@ -22,6 +22,8 @@ const DeployedConnectors = lazy(() => import('./deployed/DeployedConnectors'));
 const TABS = ['deployed', 'available'] as const;
 type IntegrationsTab = typeof TABS[number];
 
+const INTEGRATION_MANAGER_WARNING_DISMISSED = 'integration_manager_warning_dismissed';
+
 /**
  * The single integrations page: one hero, two tabs. "Deployed" lists every
  * connector currently registered on the platform, "Available" is the full
@@ -34,8 +36,19 @@ const Integrations = () => {
   const { tab } = useParams() as { tab?: string };
 
   const [loading, setLoading] = useState<boolean>(true);
-  const [isXtmComposerUp, setIsXtmComposerUp] = useState<boolean>(false);
+  // null = reachability probe still in flight; the warning must not flash while unknown.
+  const [isXtmComposerUp, setIsXtmComposerUp] = useState<boolean | null>(null);
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
+
+  // The Integration Manager warning is dismissible; the choice is persisted so
+  // it stays hidden across navigations and reloads.
+  const [warningDismissed, setWarningDismissed] = useState<boolean>(
+    () => localStorage.getItem(INTEGRATION_MANAGER_WARNING_DISMISSED) === 'true',
+  );
+  const dismissWarning = () => {
+    localStorage.setItem(INTEGRATION_MANAGER_WARNING_DISMISSED, 'true');
+    setWarningDismissed(true);
+  };
 
   const { catalogConnectors }: { catalogConnectors: CatalogConnectorOutput[] } = useHelper(
     (helper: CatalogConnectorsHelper) => ({ catalogConnectors: helper.getCatalogConnectors() }),
@@ -45,9 +58,9 @@ const Integrations = () => {
     dispatch(fetchCatalogConnectors()).finally(() => setLoading(false));
   });
   useEffect(() => {
-    isXtmComposerIsReachable().then(({ data }) => {
-      setIsXtmComposerUp(data);
-    });
+    isXtmComposerIsReachable()
+      .then(({ data }) => setIsXtmComposerUp(data))
+      .catch(() => setIsXtmComposerUp(false));
   }, []);
 
   const heroItems = useMemo(() => catalogConnectors.map(fromCatalogConnector), [catalogConnectors]);
@@ -61,7 +74,7 @@ const Integrations = () => {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      gap: theme.spacing(2),
+      gap: theme.spacing(3),
     }}
     >
       <Breadcrumbs
@@ -71,14 +84,9 @@ const Integrations = () => {
           current: true,
         }]}
       />
-      <CatalogHero
-        connectors={heroItems}
-        title={t('Integrations')}
-        subtitle={t('Browse, filter and deploy collectors, injectors and executors from the XTM ecosystem.')}
-      />
-      {isEnterpriseEdition && !isXtmComposerUp
+      {isEnterpriseEdition && isXtmComposerUp === false && !warningDismissed
         && (
-          <Alert severity="warning">
+          <Alert severity="warning" onClose={dismissWarning}>
             {t('Some deployment requires the installation of our')}
             &nbsp;
             <a
@@ -90,6 +98,11 @@ const Integrations = () => {
             </a>
           </Alert>
         )}
+      <CatalogHero
+        connectors={heroItems}
+        title={t('Integrations')}
+        subtitle={t('Browse, filter and deploy collectors, injectors and executors from the XTM ecosystem.')}
+      />
       <Tabs
         value={activeTab}
         sx={{
@@ -114,8 +127,8 @@ const Integrations = () => {
       {!loading && (
         <Suspense fallback={<Loader variant="inElement" />}>
           {activeTab === 'available'
-            ? <Catalog catalogConnectors={catalogConnectors} isXtmComposerUp={isXtmComposerUp} />
-            : <DeployedConnectors catalogConnectors={catalogConnectors} isXtmComposerUp={isXtmComposerUp} />}
+            ? <Catalog catalogConnectors={catalogConnectors} isXtmComposerUp={isXtmComposerUp === true} />
+            : <DeployedConnectors catalogConnectors={catalogConnectors} isXtmComposerUp={isXtmComposerUp === true} />}
         </Suspense>
       )}
     </div>

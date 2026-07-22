@@ -122,16 +122,21 @@ const ConnectorCatalogInfo = ({ catalogConnector }: Props) => {
       display: 'grid',
       gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)',
       gap: theme.spacing(3),
-      alignItems: 'start',
+      alignItems: 'stretch',
     }}
     >
-      <section>
-        <Typography sx={SECTION_LABEL_SX}>{t('Overview')}</Typography>
+      <section style={{
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+      >
+        <Typography sx={SECTION_LABEL_SX}>{t('Description')}</Typography>
         <Paper
           variant="outlined"
           sx={{
             padding: 2,
             borderRadius: 1,
+            flex: 1,
           }}
         >
           <Typography
@@ -145,13 +150,18 @@ const ConnectorCatalogInfo = ({ catalogConnector }: Props) => {
           </Typography>
         </Paper>
       </section>
-      <section>
+      <section style={{
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+      >
         <Typography sx={SECTION_LABEL_SX}>{t('Basic Information')}</Typography>
         <Paper
           variant="outlined"
           sx={{
             padding: 2,
             borderRadius: 1,
+            flex: 1,
             display: 'flex',
             flexDirection: 'column',
             gap: 2.5,

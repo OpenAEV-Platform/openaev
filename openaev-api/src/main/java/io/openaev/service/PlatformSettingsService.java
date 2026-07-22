@@ -68,6 +68,9 @@ public class PlatformSettingsService {
   private final XtmHubConnectivityService xtmHubConnectivityService;
   private final XtmOneConfig xtmOneConfig;
 
+  @Value("${server.servlet.session.timeout:1440m}")
+  private java.time.Duration sessionTimeout;
+
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;
 
@@ -344,6 +347,16 @@ public class PlatformSettingsService {
         ofNullable(dbSettings.get(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key()))
             .map(Setting::getValue)
             .orElse(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.defaultValue()));
+
+    // SESSION MANAGEMENT
+    platformSettings.setPlatformSessionTimeout(sessionTimeout.toMillis());
+    platformSettings.setPlatformSessionIdleTimeout(
+        openAEVConfig.getSessionIdleTimeout().toMillis());
+    platformSettings.setPlatformSessionMaxConcurrent(
+        ofNullable(dbSettings.get(PLATFORM_SESSION_MAX_CONCURRENT.key()))
+            .map(Setting::getValue)
+            .map(Integer::parseInt)
+            .orElse(Integer.parseInt(PLATFORM_SESSION_MAX_CONCURRENT.defaultValue())));
     return platformSettings;
   }
 
@@ -388,6 +401,18 @@ public class PlatformSettingsService {
     themeInput.setLogoUrlCollapsed(
         getValueFromMapOfSettings(
             dbSettings, themeType + "." + Theme.THEME_KEYS.LOGO_URL_COLLAPSED.key()));
+    themeInput.setLoginAsideColor(
+        getValueFromMapOfSettings(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_COLOR.key()));
+    themeInput.setLoginAsideGradientStart(
+        getValueFromMapOfSettings(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_START.key()));
+    themeInput.setLoginAsideGradientEnd(
+        getValueFromMapOfSettings(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_END.key()));
+    themeInput.setLoginAsideImage(
+        getValueFromMapOfSettings(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_IMAGE.key()));
     return themeInput;
   }
 
@@ -419,6 +444,18 @@ public class PlatformSettingsService {
     List<Setting> settingsToSave = new ArrayList<>();
     settingsToSave.add(
         resolveFromMap(dbSettings, PLATFORM_WHITEMARK.key(), input.getPlatformWhitemark()));
+    settingRepository.saveAll(settingsToSave);
+    return findSettings();
+  }
+
+  public PlatformSettings updateSettingsSessions(SettingsSessionsUpdateInput input) {
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
+    List<Setting> settingsToSave = new ArrayList<>();
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            PLATFORM_SESSION_MAX_CONCURRENT.key(),
+            String.valueOf(input.getPlatformSessionMaxConcurrent())));
     settingRepository.saveAll(settingsToSave);
     return findSettings();
   }
@@ -501,6 +538,26 @@ public class PlatformSettingsService {
             dbSettings,
             themeType + "." + Theme.THEME_KEYS.LOGO_LOGIN_URL.key(),
             input.getLogoLoginUrl()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_COLOR.key(),
+            input.getLoginAsideColor()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_START.key(),
+            input.getLoginAsideGradientStart()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_END.key(),
+            input.getLoginAsideGradientEnd()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_IMAGE.key(),
+            input.getLoginAsideImage()));
 
     List<Setting> update = new ArrayList<>();
     List<String> delete = new ArrayList<>();

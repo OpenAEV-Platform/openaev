@@ -1,7 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { cloneElement, type FunctionComponent, type ReactElement, type SyntheticEvent } from 'react';
+import { type FunctionComponent, type SyntheticEvent } from 'react';
 import { FormProvider, type Resolver, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -14,22 +13,7 @@ import TenantFieldController from '../../../../../components/fields/TenantFieldC
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
 import { type UserInput } from '../../../../../utils/api-types';
-import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
 import { PHONE_REGEX, zodImplement } from '../../../../../utils/Zod';
-
-const ScopedField: FunctionComponent<{
-  readOnly: boolean;
-  tooltip: string;
-  children: ReactElement<{ disabled?: boolean }>;
-}> = ({ readOnly, tooltip, children }) => {
-  if (!readOnly) return children;
-  const disabledChild = cloneElement(children, { disabled: true });
-  return (
-    <Tooltip title={tooltip} placement="top">
-      <div>{disabledChild}</div>
-    </Tooltip>
-  );
-};
 
 interface UserFormProps {
   onSubmit: (data: UserInput) => void;
@@ -60,7 +44,6 @@ const UserForm: FunctionComponent<UserFormProps> = ({
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const { isValidated: isEE } = useEnterpriseEdition();
 
   const phoneValidation = z
     .string()
@@ -99,9 +82,6 @@ const UserForm: FunctionComponent<UserFormProps> = ({
 
   const { formState: { isSubmitting, isDirty } } = methods;
 
-  const isTenantReadOnly = isEE && type === 'TENANT' && editing;
-  const platformOnlyTooltip = t('This field can only be edited from the platform settings');
-
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -119,14 +99,12 @@ const UserForm: FunctionComponent<UserFormProps> = ({
           gap: theme.spacing(2),
         }}
       >
-        <ScopedField readOnly={isTenantReadOnly} tooltip={platformOnlyTooltip}>
-          <TextFieldController
-            required
-            name="user_email"
-            label={t('Email address')}
-            disabled={initialValues.user_email === 'admin@openaev.io'}
-          />
-        </ScopedField>
+        <TextFieldController
+          required
+          name="user_email"
+          label={t('Email address')}
+          disabled={initialValues.user_email === 'admin@openaev.io'}
+        />
         {!editing && (
           <TextFieldController
             required
@@ -135,24 +113,14 @@ const UserForm: FunctionComponent<UserFormProps> = ({
             type="password"
           />
         )}
-        <ScopedField readOnly={isTenantReadOnly} tooltip={platformOnlyTooltip}>
-          <TextFieldController name="user_firstname" label={t('Firstname')} />
-        </ScopedField>
-        <ScopedField readOnly={isTenantReadOnly} tooltip={platformOnlyTooltip}>
-          <TextFieldController name="user_lastname" label={t('Lastname')} />
-        </ScopedField>
+        <TextFieldController name="user_firstname" label={t('Firstname')} />
+        <TextFieldController name="user_lastname" label={t('Lastname')} />
         {type === 'PLATFORM' && <TenantFieldController name="user_tenants" label="Tenants" />}
         {type !== 'PLATFORM' && <OrganizationFieldController name="user_organization" label={t('Organization')} />}
         {type !== 'PLATFORM' && <TagFieldController name="user_tags" label={t('Tags')} />}
-        <ScopedField readOnly={isTenantReadOnly} tooltip={platformOnlyTooltip}>
-          <TextFieldController name="user_phone" label={t('Phone number (mobile)')} />
-        </ScopedField>
-        <ScopedField readOnly={isTenantReadOnly} tooltip={platformOnlyTooltip}>
-          <TextFieldController name="user_phone2" label={t('Phone number (landline)')} />
-        </ScopedField>
-        <ScopedField readOnly={isTenantReadOnly} tooltip={platformOnlyTooltip}>
-          <TextFieldController name="user_pgp_key" label={t('PGP public key')} multiline rows={5} />
-        </ScopedField>
+        <TextFieldController name="user_phone" label={t('Phone number (mobile)')} />
+        <TextFieldController name="user_phone2" label={t('Phone number (landline)')} />
+        <TextFieldController name="user_pgp_key" label={t('PGP public key')} multiline rows={5} />
         {type === 'PLATFORM' && <SwitchFieldController name="user_admin" label={t('Administrator')} />}
         <div style={{ alignSelf: 'flex-end' }}>
           <ActionButtons

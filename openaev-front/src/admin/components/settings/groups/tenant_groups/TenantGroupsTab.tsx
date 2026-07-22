@@ -1,6 +1,7 @@
 import { GroupsOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router';
 
 import PaginatedList from '../../../../../components/common/list/PaginatedList';
 import PaginationComponentV2 from '../../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -9,6 +10,7 @@ import SortHeadersComponentV2 from '../../../../../components/common/queryable/s
 import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
+import { GROUP_BASE_URL } from '../../../../../constants/BaseUrls';
 import type { Group } from '../../../../../utils/api-types';
 import { Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -26,6 +28,7 @@ import {
 
 const TenantGroupsTab = () => {
   const { t } = useFormatter();
+  const navigate = useNavigate();
 
   const {
     groups,
@@ -52,6 +55,11 @@ const TenantGroupsTab = () => {
         entityPrefix={ENTITY_TENANT_GROUP_PREFIX}
         availableFilterNames={TENANT_GROUP_FILTERS}
         queryableHelpers={queryableHelpers}
+        topBarButtons={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+            <CreateTenantGroup onCreate={addGroup} />
+          </Can>
+        )}
       />
       <List>
         <ListItem
@@ -88,13 +96,11 @@ const TenantGroupsTab = () => {
                 headers={headers}
                 items={groups}
                 rowKey="group_id"
+                onRowClick={group => navigate(`${GROUP_BASE_URL}/${group.group_id}`)}
                 itemWidth={TENANT_GROUP_INLINE_STYLES}
               />
             )}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-        <CreateTenantGroup onCreate={addGroup} />
-      </Can>
     </>
   );
 };

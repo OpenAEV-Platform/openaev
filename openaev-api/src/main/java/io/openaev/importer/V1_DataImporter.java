@@ -148,7 +148,7 @@ public class V1_DataImporter implements Importer {
           }
           List<String> docArgKeys =
               contractOpt.get().getPayload().getArguments().stream()
-                  .filter(arg -> ArgumentType.Document == arg.getType())
+                  .filter(arg -> PrimitiveType.Document == arg.getType())
                   .map(PayloadArgument::getKey)
                   .toList();
           if (docArgKeys.isEmpty()) {
@@ -1886,7 +1886,7 @@ public class V1_DataImporter implements Importer {
                   .type(
                       varNode.has("scope_variable_type")
                               && !varNode.get("scope_variable_type").isNull()
-                          ? ArgumentType.fromLabel(varNode.get("scope_variable_type").asText())
+                          ? PrimitiveType.fromLabel(varNode.get("scope_variable_type").asText())
                           : null)
                   .value(
                       varNode.has("scope_variable_value")
@@ -2063,14 +2063,7 @@ public class V1_DataImporter implements Importer {
                     condNode.has("condition_key_type")
                             && !condNode.get("condition_key_type").isNull()
                         ? mapper.convertValue(
-                            condNode.get("condition_key_type").asText(), ConditionKeyType.class)
-                        : null)
-                .keySubtype(
-                    condNode.has("condition_key_subtype")
-                            && !condNode.get("condition_key_subtype").isNull()
-                        ? mapper.convertValue(
-                            condNode.get("condition_key_subtype").asText(),
-                            ConditionKeySubtype.class)
+                            condNode.get("condition_key_type").asText(), PrimitiveType.class)
                         : null)
                 .type(conditionType)
                 .mappingType(

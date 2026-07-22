@@ -1,9 +1,9 @@
+import { GridViewOutlined } from '@mui/icons-material';
 import { Box, Button, Chip } from '@mui/material';
 import { cloneElement, type ReactElement, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import MitreFilter, { MITRE_FILTER_KEY } from '../../../../admin/components/common/filters/MitreFilter';
-import mitreAttack from '../../../../static/images/misc/attack.png';
 import { type AttackPattern, type Filter, type PropertySchemaDTO, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useFormatter } from '../../../i18n';
 import ClickableModeChip from '../../chips/ClickableModeChip';
@@ -36,7 +36,7 @@ const useStyles = makeStyles<{ topPagination?: boolean }>()((theme, props) => ({
   },
   TTPMitreContainer: {
     padding: theme.spacing(2),
-    overflow: 'scroll',
+    overflow: 'auto',
     height: 'calc(100vh - 65px)', // 65px equal to the header height
   },
 }));
@@ -53,6 +53,7 @@ interface Props<T> {
   availableFilterNames?: string[];
   queryableHelpers: QueryableHelpers;
   topBarButtons?: ReactElement | null;
+  leftSlot?: ReactElement | null;
   attackPatterns?: AttackPattern[];
   reloadContentCount?: number;
   contextId?: string;
@@ -72,6 +73,7 @@ const PaginationComponentV2 = <T extends object>({
   queryableHelpers,
   attackPatterns,
   topBarButtons,
+  leftSlot,
   reloadContentCount = 0,
   contextId,
   topPagination = false,
@@ -124,14 +126,22 @@ const PaginationComponentV2 = <T extends object>({
   const [pristine, setPristine] = useState(true);
   const [openMitreFilter, setOpenMitreFilter] = useState(false);
 
+  // A matrix click filters by a top-level technique AND its sub-techniques (so the
+  // result matches the technique's count). Collapse those external ids back to the
+  // parent technique name(s) so the active-filter chip stays readable.
   const computeAttackPatternNameForFilter = () => {
-    return searchPaginationInput.filterGroup?.filters?.filter(
+    const values = searchPaginationInput.filterGroup?.filters?.filter(
       (f: Filter) => f.key === MITRE_FILTER_KEY,
-    )?.[0]?.values?.map(
-      (externalId: string) => attackPatterns?.find(
-        (a: AttackPattern) => a.attack_pattern_external_id === externalId,
-      )?.attack_pattern_name,
-    );
+    )?.[0]?.values ?? [];
+    const names = values
+      .map((externalId: string) => {
+        const parentExternalId = externalId.split('.')[0];
+        return attackPatterns?.find(
+          (a: AttackPattern) => a.attack_pattern_external_id === parentExternalId,
+        )?.attack_pattern_name;
+      })
+      .filter((name): name is string => !!name);
+    return [...new Set(names)].join(', ');
   };
 
   // TopBarChildren
@@ -161,6 +171,7 @@ const PaginationComponentV2 = <T extends object>({
           alignItems: 'center',
         }}
         >
+          {leftSlot}
           {searchEnable && (
             <TextSearchComponent
               textSearch={searchPaginationInput.textSearch}
@@ -173,23 +184,27 @@ const PaginationComponentV2 = <T extends object>({
               helpers={queryableHelpers.filterHelpers}
               options={options}
               setPristine={setPristine}
-              style={{ marginLeft: searchEnable ? 10 : 0 }}
+              style={{ marginLeft: (searchEnable || leftSlot) ? 10 : 0 }}
             />
           ) }
 
           {queryableHelpers.filterHelpers && availableFilterNames?.includes('injector_contract_attack_patterns') && (
             <>
-              <div style={{ cursor: 'pointer' }} onClick={() => setOpenMitreFilter(true)}>
-                <Button
-                  variant="outlined"
-                  style={{
-                    marginLeft: searchEnable ? 10 : 0,
-                    border: '1px solid #c74227',
-                  }}
-                >
-                  <img src={mitreAttack} alt="MITRE ATT&CK" style={{ width: 60 }} />
-                </Button>
-              </div>
+              <Button
+                variant="outlined"
+                color="inherit"
+                size="small"
+                startIcon={<GridViewOutlined fontSize="small" />}
+                onClick={() => setOpenMitreFilter(true)}
+                sx={{
+                  marginLeft: (searchEnable || leftSlot) ? 1.25 : 0,
+                  borderColor: 'divider',
+                  lineHeight: 'initial',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {t('Matrix')}
+              </Button>
               <Drawer
                 open={openMitreFilter}
                 handleClose={() => setOpenMitreFilter(false)}
@@ -229,7 +244,9 @@ const PaginationComponentV2 = <T extends object>({
           {!isEmptyFilter(searchPaginationInput.filterGroup, MITRE_FILTER_KEY) && (
             <Box
               sx={{
-                padding: '12px 4px',
+                paddingTop: 1,
+                paddingBottom: 0,
+                paddingInline: 0.5,
                 display: 'flex',
                 flexWrap: 'wrap',
                 gap: 1,

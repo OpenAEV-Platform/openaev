@@ -387,10 +387,9 @@ public class StarterPackTest extends IntegrationTest {
     assertFalse(injects.isEmpty());
     assertTrue(
         injects.stream()
-            .anyMatch(
-                inject ->
-                    inject.getAssets() != null
-                        && "honey.scanme.sh".equals(inject.getAssets().getFirst().getName())));
+            .filter(inject -> inject.getAssets() != null)
+            .flatMap(inject -> inject.getAssets().stream())
+            .anyMatch(asset -> "honey.scanme.sh".equals(asset.getName())));
   }
 
   @Test

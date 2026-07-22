@@ -47,11 +47,14 @@ const PaginatedList = <T, >({ Icon, secondaryAction, headers, items, rowKey, onR
             divider
             disablePadding={!!onRowClick}
             secondaryAction={secondaryAction?.(item)}
-            style={{ height: 50 }}
+            // When the row is clickable the fixed height lives on the button so
+            // its hover highlight fills the whole row (no "double line" gap);
+            // otherwise it lives on the item itself.
+            style={onRowClick ? undefined : { height: 50 }}
           >
             {onRowClick
               ? (
-                  <ListItemButton onClick={() => onRowClick(item)}>
+                  <ListItemButton onClick={() => onRowClick(item)} sx={{ height: 50 }}>
                     {rowContent}
                   </ListItemButton>
                 )

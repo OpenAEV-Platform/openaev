@@ -1,16 +1,13 @@
 import { HelpOutlineOutlined } from '@mui/icons-material';
-import { Box, Chip, Drawer as MuiDrawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
-import { type CSSProperties, Fragment, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { type CSSProperties, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { searchAssetGroups } from '../../../../actions/asset_groups/assetgroup-action';
-import { type LoggedHelper } from '../../../../actions/helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import ClickableModeChip from '../../../../components/common/chips/ClickableModeChip';
 import ExportButton from '../../../../components/common/ExportButton';
-import FilterChipValues from '../../../../components/common/queryable/filter/FilterChipValues';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -21,23 +18,17 @@ import { type Header } from '../../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import { computeBannerSettings } from '../../../../public/components/systembanners/utils';
-import { useHelper } from '../../../../store';
+import { ASSET_GROUP_BASE_URL } from '../../../../constants/BaseUrls';
 import { type AssetGroup, type AssetGroupOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import AssetGroupCreation from './AssetGroupCreation';
-import AssetGroupManagement from './AssetGroupManagement';
 import AssetGroupPopover from './AssetGroupPopover';
+import computeRuleValues from './assetGroupRules';
 
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
-  drawerPaper: {
-    minHeight: '100vh',
-    width: '50%',
-    padding: 0,
-  },
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
@@ -47,81 +38,12 @@ const inlineStyles: Record<string, CSSProperties> = {
   asset_group_tags: { width: '25%' },
 };
 
-const computeRuleValues = (assetGroup: AssetGroupOutput, t: (value: string) => string) => {
-  const computeDynamic = () => {
-    if (assetGroup.asset_group_dynamic_filter?.filters && assetGroup.asset_group_dynamic_filter?.filters.length > 0) {
-      return (
-        <>
-          {assetGroup.asset_group_dynamic_filter.filters.map((filter, idx) => (
-            <Fragment key={filter.key}>
-              {idx !== 0 && <ClickableModeChip mode={assetGroup.asset_group_dynamic_filter?.mode} />}
-              <Chip
-                key={filter.key}
-                variant="filled"
-                size="small"
-                sx={{
-                  borderRadius: 1,
-                  height: 20,
-                }}
-                label={<FilterChipValues filter={filter} />}
-              />
-            </Fragment>
-          ))}
-        </>
-      );
-    }
-    return (<>-</>);
-  };
-
-  const computeStatic = () => {
-    if (assetGroup.asset_group_assets && assetGroup.asset_group_assets?.length > 0) {
-      return (
-        <div style={{ alignContent: 'center' }}>
-          {assetGroup.asset_group_assets?.length}
-          {' '}
-          {t('managed assets')}
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const andWord = () => {
-    if (assetGroup.asset_group_dynamic_filter?.filters && assetGroup.asset_group_dynamic_filter?.filters.length > 0
-      && assetGroup.asset_group_assets && assetGroup.asset_group_assets?.length > 0) {
-      return (<div style={{ alignContent: 'center' }}>{t('and')}</div>);
-    }
-    return null;
-  };
-
-  return (
-    <Box
-      sx={{
-        padding: '0px 4px',
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: 1,
-      }}
-    >
-      {computeDynamic()}
-      {andWord()}
-      {computeStatic()}
-    </Box>
-  );
-};
-
 const AssetGroups = () => {
   // Standard hooks
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
-
-  const { settings } = useHelper((helper: LoggedHelper) => {
-    return { settings: helper.getPlatformSettings() };
-  });
-  const { bannerHeight } = computeBannerSettings(settings);
-
-  const [selectedAssetGroupId, setSelectedAssetGroupId] = useState<AssetGroup['asset_group_id'] | undefined>(undefined);
+  const navigate = useNavigate();
 
   // Query param
   const [searchParams] = useSearchParams();
@@ -199,7 +121,7 @@ const AssetGroups = () => {
     <>
       <Breadcrumbs
         variant="list"
-        elements={[{ label: t('Assets') }, {
+        elements={[{
           label: t('Asset groups'),
           current: true,
         }]}
@@ -211,9 +133,14 @@ const AssetGroups = () => {
         entityPrefix="asset_group"
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
-        topBarButtons={
-          <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
-        }
+        topBarButtons={(
+          <Box display="flex" gap={1} alignItems="center">
+            <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
+              <AssetGroupCreation onCreate={result => setAssetGroups([result, ...assetGroups])} />
+            </Can>
+          </Box>
+        )}
       />
       <List>
         <ListItem
@@ -245,7 +172,7 @@ const AssetGroups = () => {
                       onUpdate={onUpdateList}
                       onDelete={result => setAssetGroups(assetGroups.filter(ag => (ag.asset_group_id !== result)))}
                       openEditOnInit={assetGroup.asset_group_id === searchId}
-                      onRemoveEndpointFromAssetGroup={assetId => setAssetGroups(assetGroups.map(ag => (ag.asset_group_id !== selectedAssetGroupId
+                      onRemoveEndpointFromAssetGroup={assetId => setAssetGroups(assetGroups.map(ag => (ag.asset_group_id !== assetGroup.asset_group_id
                         ? ag
                         : {
                             ...ag,
@@ -257,7 +184,7 @@ const AssetGroups = () => {
                 >
                   <ListItemButton
                     classes={{ root: classes.item }}
-                    onClick={() => setSelectedAssetGroupId(assetGroup.asset_group_id)}
+                    onClick={() => navigate(`${ASSET_GROUP_BASE_URL}/${assetGroup.asset_group_id}`)}
                   >
                     <ListItemIcon>
                       <SelectGroup color="primary" />
@@ -284,33 +211,6 @@ const AssetGroups = () => {
               ))
         }
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
-        <AssetGroupCreation onCreate={result => setAssetGroups([result, ...assetGroups])} />
-      </Can>
-      <MuiDrawer
-        open={selectedAssetGroupId !== undefined}
-        keepMounted={false}
-        anchor="right"
-        sx={{ zIndex: 1202 }}
-        classes={{ paper: classes.drawerPaper }}
-        onClose={() => setSelectedAssetGroupId(undefined)}
-        elevation={1}
-        PaperProps={{ style: { marginTop: bannerHeight } }}
-      >
-        {selectedAssetGroupId !== undefined && (
-          <AssetGroupManagement
-            assetGroupId={selectedAssetGroupId}
-            handleClose={() => setSelectedAssetGroupId(undefined)}
-            onUpdate={onUpdateList}
-            onRemoveEndpointFromAssetGroup={assetId => setAssetGroups(assetGroups.map(ag => (ag.asset_group_id !== selectedAssetGroupId
-              ? ag
-              : {
-                  ...ag,
-                  asset_group_assets: ag?.asset_group_assets?.toSpliced(ag?.asset_group_assets?.indexOf(assetId), 1),
-                })))}
-          />
-        )}
-      </MuiDrawer>
     </>
   );
 };

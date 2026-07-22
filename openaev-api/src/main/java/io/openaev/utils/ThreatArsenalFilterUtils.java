@@ -28,14 +28,15 @@ public class ThreatArsenalFilterUtils {
    * injector_contract_*} field names on the JPA entity.
    */
   public static final Map<String, String> ACTION_TO_ENTITY_FIELDS =
-      Map.of(
-          "action_labels", "injector_contract_labels",
-          "action_platforms", "injector_contract_platforms",
-          "action_domains", "injector_contract_domains",
-          "action_tags", "injector_contract_tags",
-          "action_payload_status", "injector_contract_payload_status",
-          "action_injectors", "injector_contract_injectors",
-          "action_updated_at", "injector_contract_updated_at");
+      Map.ofEntries(
+          Map.entry("action_labels", "injector_contract_labels"),
+          Map.entry("action_platforms", "injector_contract_platforms"),
+          Map.entry("action_domains", "injector_contract_domains"),
+          Map.entry("action_tags", "injector_contract_tags"),
+          Map.entry("action_payload_status", "injector_contract_payload_status"),
+          Map.entry("action_injectors", "injector_contract_injectors"),
+          Map.entry("action_updated_at", "injector_contract_updated_at"),
+          Map.entry("action_author", "injector_contract_payload_author"));
 
   /**
    * Reverse mapping from {@code injector_contract_*} field names back to {@code action_*} names.

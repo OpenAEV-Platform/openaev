@@ -8,8 +8,10 @@ class ThreatArsenalListPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.addButton = page.getByRole('button', { name: 'Add' });
-    this.listContainer = page.locator('.MuiListItem-root');
+    this.addButton = page.getByTestId('button-create');
+    this.listContainer = page.getByTestId('threat-arsenal-card');
+    // The redesigned list uses the shared pagination search (SearchFilter),
+    // whose default placeholder is "Search these results...".
     this.searchContainer = page.getByPlaceholder('Search these results...');
   }
 

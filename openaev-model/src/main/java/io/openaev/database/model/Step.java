@@ -91,7 +91,7 @@ public class Step implements Base {
   @Type(JsonType.class)
   @Column(name = "step_condition_key_types", columnDefinition = "jsonb")
   @JsonProperty("step_condition_key_types")
-  private List<ConditionKeyType> conditionKeyTypes;
+  private List<PrimitiveType> conditionKeyTypes;
 
   @Column(name = "step_created_at")
   @JsonProperty("step_created_at")

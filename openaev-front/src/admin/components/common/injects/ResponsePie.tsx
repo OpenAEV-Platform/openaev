@@ -1,4 +1,4 @@
-import { BugReportOutlined, InfoOutlined, SensorOccupiedOutlined, ShieldOutlined, TrackChangesOutlined } from '@mui/icons-material';
+import { InfoOutlined } from '@mui/icons-material';
 import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, memo, useCallback, useMemo } from 'react';
@@ -9,6 +9,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { type ExpectationResultsByType, type ResultDistribution } from '../../../../utils/api-types';
 import { donutChartOptions } from '../../../../utils/Charts';
 import { getStatusColor } from '../../../../utils/statusUtils';
+import { expectationTypeIcon } from '../ExpectationIconByType';
 import { expectationResultTypes } from './expectations/Expectation';
 
 interface Props {
@@ -55,16 +56,8 @@ const ResponsePie: FunctionComponent<Props> = ({
   const pending = useMemo(() => humanResponse?.distribution?.filter(res => res.label === 'Pending' && (res.value ?? 0) > 0) ?? [], [humanResponse]);
   const displayHumanValidationBtn = humanValidationLink && (pending.length > 0);
   const renderIcon = (type: string, hasDistribution: boolean | undefined) => {
-    switch (type) {
-      case 'prevention':
-        return <ShieldOutlined color={hasDistribution ? 'inherit' : 'disabled'} sx={iconOverlay} />;
-      case 'detection':
-        return <TrackChangesOutlined color={hasDistribution ? 'inherit' : 'disabled'} sx={iconOverlay} />;
-      case 'vulnerability':
-        return <BugReportOutlined color={hasDistribution ? 'inherit' : 'disabled'} sx={iconOverlay} />;
-      default:
-        return <SensorOccupiedOutlined color={hasDistribution ? 'inherit' : 'disabled'} sx={iconOverlay} />;
-    }
+    const Icon = expectationTypeIcon(type);
+    return <Icon color={hasDistribution ? 'inherit' : 'disabled'} sx={iconOverlay} />;
   };
 
   const Pie = useCallback(({ title, expectationResultsByType, type }: {

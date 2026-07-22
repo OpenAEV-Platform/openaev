@@ -1,35 +1,44 @@
-import { CancelOutlined, PauseOutlined, PlayArrowOutlined, RestartAltOutlined } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip, Typography } from '@mui/material';
+import {
+  CancelOutlined,
+  GroupsOutlined,
+  InsertChartOutlined,
+  PauseOutlined,
+  PersonOutlined,
+  PlayArrowOutlined,
+  PlayCircleOutlineOutlined,
+  RestartAltOutlined,
+  TrackChangesOutlined,
+  TuneOutlined,
+  UpdateOutlined,
+} from '@mui/icons-material';
+import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
-import { searchExerciseHealthchecks, updateExerciseStatus } from '../../../../actions/Exercise';
+import { createCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
+import { searchExerciseHealthchecks, updateExercise, updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
+import { DetailHero, HeroStat } from '../../../../components/common/detail/EntityDetailCommon';
+import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
+import ItemCategory from '../../../../components/ItemCategory';
+import ItemSeverity from '../../../../components/ItemSeverity';
 import { useHelper } from '../../../../store';
-import { type Exercise, type Exercise as ExerciseType, type HealthCheck } from '../../../../utils/api-types';
+import { type CustomDashboard, type Exercise, type Exercise as ExerciseType, type HealthCheck, type SimulationDetails } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
+import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
+import { type CustomDashboardFormType } from '../../workspaces/custom_dashboards/CustomDashboardForm';
+import DashboardCreationDrawer from '../../workspaces/custom_dashboards/DashboardCreationDrawer';
+import ExerciseDatePopover from './ExerciseDatePopover';
 import ExercisePopover, { type ExerciseActionPopover } from './ExercisePopover';
 import ExerciseStatus from './ExerciseStatus';
-
-const useStyles = makeStyles()(() => ({
-  title: {
-    float: 'left',
-    marginRight: 10,
-  },
-  actions: {
-    margin: '-6px 0 0 0',
-    float: 'right',
-    display: 'flex',
-  },
-}));
+import SimulationConfiguration from './SimulationConfiguration';
 
 const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing }: {
   exerciseId: Exercise['exercise_id'];
@@ -64,10 +73,6 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
             >
               <span style={{ display: 'inline-flex' }}>
                 <Button
-                  style={{
-                    marginRight: 10,
-                    lineHeight: 'initial',
-                  }}
                   startIcon={<PlayArrowOutlined />}
                   variant="contained"
                   size="small"
@@ -87,7 +92,6 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
         if (permissions.canLaunch) {
           return (
             <Button
-              style={{ marginRight: 10 }}
               startIcon={<PauseOutlined />}
               variant="outlined"
               color="warning"
@@ -105,10 +109,10 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
         if (permissions.canLaunch) {
           return (
             <Button
-              style={{ marginRight: 10 }}
               variant="outlined"
               startIcon={<PlayArrowOutlined />}
               color="success"
+              size="small"
               onClick={() => setOpenChangeStatus('RUNNING')}
               disabled={isLoading}
             >
@@ -130,10 +134,10 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
         if (permissions.canLaunch) {
           return (
             <Button
-              style={{ marginRight: 10 }}
               variant="outlined"
               startIcon={<CancelOutlined />}
               color="error"
+              size="small"
               onClick={() => setOpenChangeStatus('CANCELED')}
               disabled={isLoading}
             >
@@ -148,10 +152,10 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
         if (permissions.canLaunch) {
           return (
             <Button
-              style={{ marginRight: 10 }}
               variant="outlined"
               startIcon={<RestartAltOutlined />}
               color="warning"
+              size="small"
               onClick={() => setOpenChangeStatus('SCHEDULED')}
               disabled={isLoading}
             >
@@ -196,11 +200,12 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenChangeStatus(null)}>
+          <Button variant="outlined" color="primary" onClick={() => setOpenChangeStatus(null)}>
             {t('Cancel')}
           </Button>
           <Button
-            color="secondary"
+            variant="contained"
+            color="primary"
             onClick={() => submitUpdateStatus({ exercise_status: openChangeStatus })}
           >
             {t('Confirm')}
@@ -217,13 +222,15 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
 }) => {
   // Standard hooks
   const theme = useTheme();
-  const { classes } = useStyles();
+  const { t, fldt } = useFormatter();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
 
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
   const { exercise } = useHelper((helper: ExercisesHelper) => {
-    return { exercise: helper.getExercise(exerciseId) };
+    return { exercise: helper.getExercise(exerciseId) as SimulationDetails };
   });
+  const permissions = useSimulationPermissions(exerciseId, exercise);
 
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const exerciseWorkflowId = exercise.exercise_workflow_id as string | undefined;
@@ -238,52 +245,197 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   );
 
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+  const [openCreateDashboard, setOpenCreateDashboard] = useState(false);
+  const [openConfiguration, setOpenConfiguration] = useState(false);
+  const [openDateDialog, setOpenDateDialog] = useState(false);
 
   const isScopeMissing = isSimulationChaining
     && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
 
   useEffect(() => {
-    if (isChainingFeatureEnabled && exerciseWorkflowId) {
-      searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
-    }
-  }, [exerciseId, exercise, isChainingFeatureEnabled, workflowConfiguration]);
+    searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
+  }, [exerciseId, exercise, workflowConfiguration]);
 
   const actions: ExerciseActionPopover[] = isSimulationChaining
     ? ['Update', 'Export', 'Delete']
     : ['Update', 'Duplicate', 'Export', 'Delete', 'Access reports'];
 
+  // Headline stats surfaced right in the hero so they are visible on every tab.
+  const injectsCount = exercise.exercise_injects?.length ?? 0;
+  const teamsCount = exercise.exercise_teams?.length ?? 0;
+  const playersCount = exercise.exercise_all_users_number ?? exercise.exercise_users_number ?? 0;
+  const hasDashboard = !!exercise.exercise_custom_dashboard;
+
+  // "Analyze" quick action: an already-attached dashboard opens straight away;
+  // otherwise create a fresh one (pre-scoped to this simulation), attach it and
+  // jump to the simulation-scoped dashboard view.
+  const onDashboardAction = () => {
+    if (hasDashboard) {
+      navigate(`/admin/simulations/${exerciseId}/dashboard`);
+    } else {
+      setOpenCreateDashboard(true);
+    }
+  };
+
+  const attachDashboard = async (dashboardId: string) => {
+    setOpenCreateDashboard(false);
+    await dispatch(updateExercise(exercise.exercise_id, {
+      ...exercise,
+      exercise_custom_dashboard: dashboardId,
+    }));
+    navigate(`/admin/simulations/${exerciseId}/dashboard`);
+  };
+
+  const onCreateDashboard = async (data: CustomDashboardFormType) => {
+    const response = await createCustomDashboard(data);
+    const newDashboardId = (response.data as CustomDashboard | undefined)?.custom_dashboard_id;
+    if (!newDashboardId) {
+      setOpenCreateDashboard(false);
+      return;
+    }
+    await attachDashboard(newDashboardId);
+  };
+
   return (
     <>
-      <Tooltip title={exercise.exercise_name}>
-        <Typography variant="h1" gutterBottom={true} classes={{ root: classes.title }}>
-          {truncate(exercise.exercise_name, 80)}
-        </Typography>
-      </Tooltip>
-      <div style={{
-        float: 'left',
-        margin: '3px 10px 0 8px',
-        color: theme.palette.text?.disabled,
-        borderLeft: `1px solid ${theme.palette.text?.disabled}`,
-        height: 20,
-      }}
+      <Box sx={{ marginBottom: 2 }}>
+        <DetailHero
+          icon={PlayCircleOutlineOutlined}
+          title={truncate(exercise.exercise_name, 80) ?? ''}
+          chips={(
+            <>
+              <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
+              <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
+              {exercise.exercise_category && (
+                <ItemCategory category={exercise.exercise_category} label={t(exercise.exercise_category)} />
+              )}
+              <Chip
+                size="small"
+                variant="outlined"
+                label={exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
+                sx={{
+                  borderRadius: 1,
+                  height: 22,
+                  fontSize: 11,
+                  color: theme.palette.text.secondary,
+                  borderColor: theme.palette.divider,
+                }}
+              />
+            </>
+          )}
+          action={(
+            <>
+              {/* Contextual configuration alert - self-hides when healthy. */}
+              {permissions.canManage && (
+                <HealthcheckIndicator healthchecks={healthchecks} exerciseId={exerciseId} />
+              )}
+              {/* Configuration promoted to a first-class button (not buried in the
+                  overflow) so teams/players setup is discoverable, with an
+                  explicit tooltip describing what it configures. */}
+              {permissions.canManage && !isSimulationChaining && (
+                <Tooltip title={t('Configure the teams, players and audience involved in this simulation')}>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    startIcon={<TuneOutlined />}
+                    onClick={() => setOpenConfiguration(true)}
+                  >
+                    {t('Configuration')}
+                  </Button>
+                </Tooltip>
+              )}
+              {/* Secondary actions surfaced as compact icon buttons (with explicit
+                  tooltips) instead of being buried in the overflow menu. The
+                  dashboard tooltip reflects whether a dashboard is already
+                  attached (open) or still needs to be created. Scheduling can
+                  only be modified while the simulation is still SCHEDULED. */}
+              {permissions.canManage && (
+                <>
+                  <Tooltip title={hasDashboard ? t('Open dashboard') : t('Create dashboard')}>
+                    <IconButton size="small" color="primary" onClick={onDashboardAction}>
+                      <InsertChartOutlined fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={t('Modify the scheduling')}>
+                    <span style={{ display: 'inline-flex' }}>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => setOpenDateDialog(true)}
+                        disabled={exercise.exercise_status !== 'SCHEDULED'}
+                      >
+                        <UpdateOutlined fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </>
+              )}
+              {/* Lifecycle CTAs (start / pause / resume / stop / reset). */}
+              <Buttons
+                exerciseId={exercise.exercise_id}
+                exerciseStatus={exercise.exercise_status}
+                exerciseName={exercise.exercise_name}
+                onLoading={onLoading}
+                isLoading={isLoading}
+                isScopeMissing={isScopeMissing}
+              />
+              {/* CRUD + reports in one overflow menu. */}
+              <ExercisePopover
+                exercise={exercise}
+                actions={actions}
+                onDelete={() => navigate('/admin/simulations')}
+              />
+            </>
+          )}
+          stats={(
+            <>
+              <HeroStat
+                icon={TrackChangesOutlined}
+                label={t('Injects')}
+                value={injectsCount}
+                color={theme.palette.warning.main}
+                to={`/admin/simulations/${exerciseId}/injects`}
+              />
+              <HeroStat
+                icon={GroupsOutlined}
+                label={t('Teams')}
+                value={teamsCount}
+                color={theme.palette.secondary.main}
+              />
+              <HeroStat
+                icon={PersonOutlined}
+                label={t('Players')}
+                value={playersCount}
+                color={theme.palette.success.main}
+              />
+            </>
+          )}
+        />
+      </Box>
+
+      <Drawer
+        open={openConfiguration}
+        handleClose={() => setOpenConfiguration(false)}
+        title={t('Simulation configuration')}
+      >
+        <SimulationConfiguration />
+      </Drawer>
+      <ExerciseDatePopover
+        exercise={exercise}
+        open={openDateDialog}
+        onOpenChange={setOpenDateDialog}
+        showTrigger={false}
       />
-      <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} />
-      <div className={classes.actions}>
-        <Buttons
-          exerciseId={exercise.exercise_id}
-          exerciseStatus={exercise.exercise_status}
-          exerciseName={exercise.exercise_name}
-          onLoading={onLoading}
-          isLoading={isLoading}
-          isScopeMissing={isScopeMissing}
-        />
-        <ExercisePopover
-          exercise={exercise}
-          actions={actions}
-          onDelete={() => navigate('/admin/simulations')}
-        />
-      </div>
-      <div className="clearfix" />
+      <DashboardCreationDrawer
+        open={openCreateDashboard}
+        onClose={() => setOpenCreateDashboard(false)}
+        defaultName={exercise.exercise_name}
+        parameterType="simulation"
+        resourceId={exerciseId}
+        onSelectExisting={attachDashboard}
+        onCreateNew={onCreateDashboard}
+      />
     </>
   );
 };

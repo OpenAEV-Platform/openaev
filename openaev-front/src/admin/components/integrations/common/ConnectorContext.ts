@@ -2,9 +2,9 @@ import { type AxiosResponse } from 'axios';
 import { createContext } from 'react';
 import { type Dispatch } from 'redux';
 
-import { fetchCollector, fetchCollectorRelatedIds, fetchCollectors } from '../../../../actions/Collector';
-import { fetchExecutor, fetchExecutorRelatedIds, fetchExecutors } from '../../../../actions/executors/executor-action';
-import { fetchInjector, fetchInjectorRelatedIds, fetchInjectors } from '../../../../actions/injectors/injector-action';
+import { deleteCollector, fetchCollector, fetchCollectorRelatedIds, fetchCollectors } from '../../../../actions/Collector';
+import { deleteExecutor, fetchExecutor, fetchExecutorRelatedIds, fetchExecutors } from '../../../../actions/executors/executor-action';
+import { deleteInjector, fetchInjector, fetchInjectorRelatedIds, fetchInjectors } from '../../../../actions/injectors/injector-action';
 import type {
   CatalogConnectorOutput, CatalogConnectorSimpleOutput,
   Collector,
@@ -62,6 +62,8 @@ export interface ConnectorContextType<T> {
     fetchAll: () => (dispatch: Dispatch) => Promise<T[]>;
     fetchSingle: (id: string) => (dispatch: Dispatch) => Promise<T>;
     getRelatedIds: (_id: string) => Promise<AxiosResponse<ConnectorIds>>;
+    /** Deletes the connector entity itself (for manually-registered connectors with no managed instance). */
+    deleteSingle: (id: string) => (dispatch: Dispatch) => Promise<unknown>;
   };
   routes: {
     list: string;
@@ -76,6 +78,7 @@ export const injectorConfig: ConnectorContextType<InjectorOutput> = {
     fetchAll: () => fetchInjectors(true),
     fetchSingle: (id: string) => fetchInjector(id),
     getRelatedIds: (id: string) => fetchInjectorRelatedIds(id),
+    deleteSingle: (id: string) => deleteInjector(id),
   },
   routes: {
     list: '/admin/integrations/deployed',
@@ -100,6 +103,7 @@ export const collectorConfig: ConnectorContextType<CollectorOutput & Collector> 
     fetchAll: () => fetchCollectors(true),
     fetchSingle: (id: string) => fetchCollector(id),
     getRelatedIds: (id: string) => fetchCollectorRelatedIds(id),
+    deleteSingle: (id: string) => deleteCollector(id),
   },
   logoUrl: (type: string) => buildTenantApiPath(`/api/collectors/${type}/image`),
   normalizeSingle: data => ({
@@ -124,6 +128,7 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
     fetchAll: () => fetchExecutors(true),
     fetchSingle: (id: string) => fetchExecutor(id),
     getRelatedIds: (id: string) => fetchExecutorRelatedIds(id),
+    deleteSingle: (id: string) => deleteExecutor(id),
   },
   routes: {
     list: '/admin/integrations/deployed',
@@ -148,6 +153,7 @@ export const ConnectorContext = createContext<ConnectorContextType<InjectorOutpu
     fetchAll: () => async (_dispatch: Dispatch) => [],
     fetchSingle: (_id: string) => async (_dispatch: Dispatch) => Promise.resolve({}) as Promise<InjectorOutput | CollectorOutput | ExecutorOutput>,
     getRelatedIds: (_id: string) => Promise.resolve({ data: {} }) as Promise<AxiosResponse<ConnectorIds>>,
+    deleteSingle: (_id: string) => async (_dispatch: Dispatch) => Promise.resolve(),
   },
   routes: {
     list: '/admin/integrations',

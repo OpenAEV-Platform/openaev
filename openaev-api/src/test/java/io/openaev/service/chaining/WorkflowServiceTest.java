@@ -3,6 +3,8 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import io.openaev.api.chaining.dto.ScopeVariableInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
@@ -16,10 +18,7 @@ import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollecto
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.fixtures.WorkflowFixture;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -130,7 +129,7 @@ class WorkflowServiceTest {
       assertEquals(exercise, savedWorkflow.getSimulation());
       // Configuration defaults stored inline on the workflow row
       assertFalse(savedWorkflow.isRateLimitEnabled());
-      assertFalse(savedWorkflow.isTimeoutEnabled());
+      assertTrue(savedWorkflow.isTimeoutEnabled());
       assertEquals(
           WorkflowService.DEFAULT_TIMEOUT_SECONDS,
           savedWorkflow.getTimeoutSeconds(),
@@ -154,7 +153,7 @@ class WorkflowServiceTest {
       assertEquals(WorkflowStatus.TEMPLATE, savedWorkflow.getStatus());
       assertEquals(scenario, savedWorkflow.getScenario());
       assertFalse(savedWorkflow.isRateLimitEnabled());
-      assertFalse(savedWorkflow.isTimeoutEnabled());
+      assertTrue(savedWorkflow.isTimeoutEnabled());
       assertEquals(
           WorkflowService.DEFAULT_TIMEOUT_SECONDS,
           savedWorkflow.getTimeoutSeconds(),
@@ -547,6 +546,101 @@ class WorkflowServiceTest {
       verify(workflowStateService).syncState(any(), any(), eq(run));
       verify(stepService).findAllStepTemplateByWorkflow("simulation-template");
     }
+
+    @Test
+    @DisplayName("should seed scope values and mapped output types")
+    void shouldSeedScopeValuesAndMappedOutputTypes() throws Exception {
+      Workflow workflowTemplate =
+          Workflow.builder().id("template").status(WorkflowStatus.TEMPLATE).build();
+      Workflow run =
+          Workflow.builder()
+              .id("run")
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(workflowTemplate)
+              .workflowScopeRules(
+                  new java.util.ArrayList<>(
+                      List.of(
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.IP)
+                              .ruleValue("192.168.10.10")
+                              .build(),
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.DOMAIN)
+                              .ruleValue("example.org")
+                              .build(),
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.IP_SUBNET)
+                              .ruleValue("10.0.0.0/24")
+                              .build(),
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.ASSET_ID)
+                              .ruleValue("asset-123")
+                              .build(),
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.ASSET_GROUP_ID)
+                              .ruleValue("group-456")
+                              .build())))
+              .build();
+
+      when(stepService.findAllStepTemplateByWorkflow("template"))
+          .thenReturn(Collections.emptyList());
+
+      workflowService.startWorkflow(run);
+
+      ArgumentCaptor<JsonElement> dataCaptor = ArgumentCaptor.forClass(JsonElement.class);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<Map<String, ChainingMappedType>> scopeTypeCaptor =
+          ArgumentCaptor.forClass(Map.class);
+      verify(workflowStateService)
+          .syncState(dataCaptor.capture(), scopeTypeCaptor.capture(), eq(run));
+
+      JsonObject mappedScopeData = dataCaptor.getValue().getAsJsonObject();
+      assertEquals(
+          "192.168.10.10",
+          mappedScopeData.getAsJsonArray(ScopeRuleValueType.IP.name()).get(0).getAsString());
+      assertEquals(
+          "example.org",
+          mappedScopeData.getAsJsonArray(ScopeRuleValueType.DOMAIN.name()).get(0).getAsString());
+      assertEquals(
+          "10.0.0.0/24",
+          mappedScopeData.getAsJsonArray(ScopeRuleValueType.IP_SUBNET.name()).get(0).getAsString());
+      assertEquals(
+          "asset-123",
+          mappedScopeData.getAsJsonArray(ScopeRuleValueType.ASSET_ID.name()).get(0).getAsString());
+      assertEquals(
+          "group-456",
+          mappedScopeData
+              .getAsJsonArray(ScopeRuleValueType.ASSET_GROUP_ID.name())
+              .get(0)
+              .getAsString());
+
+      assertEquals(
+          ChainingTypeKind.PRIMITIVE,
+          scopeTypeCaptor.getValue().get(ScopeRuleValueType.IP.name()).kind());
+      assertEquals(
+          List.of(PrimitiveType.IPv4, PrimitiveType.IPv6),
+          scopeTypeCaptor.getValue().get(ScopeRuleValueType.IP.name()).primitiveTypes());
+      assertEquals(
+          List.of(PrimitiveType.Domain),
+          scopeTypeCaptor.getValue().get(ScopeRuleValueType.DOMAIN.name()).primitiveTypes());
+      assertEquals(
+          List.of(PrimitiveType.IpSubnet),
+          scopeTypeCaptor.getValue().get(ScopeRuleValueType.IP_SUBNET.name()).primitiveTypes());
+      assertEquals(
+          List.of(PrimitiveType.AssetId),
+          scopeTypeCaptor.getValue().get(ScopeRuleValueType.ASSET_ID.name()).primitiveTypes());
+      assertEquals(
+          List.of(PrimitiveType.AssetGroupId),
+          scopeTypeCaptor
+              .getValue()
+              .get(ScopeRuleValueType.ASSET_GROUP_ID.name())
+              .primitiveTypes());
+    }
   }
 
   @Nested
@@ -772,7 +866,7 @@ class WorkflowServiceTest {
       // Arrange
       Workflow workflow = buildTemplate(false);
       ScopeVariableInput input =
-          new ScopeVariableInput(null, "company_name", ArgumentType.Text, "Acme", "Company name");
+          new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Acme", "Company name");
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
       configInput.setWorkflowScopeVariables(List.of(input));
 
@@ -783,7 +877,7 @@ class WorkflowServiceTest {
       assertEquals(1, result.getWorkflowScopeVariables().size());
       ScopeVariable created = result.getWorkflowScopeVariables().getFirst();
       assertEquals("company_name", created.getKey());
-      assertEquals(ArgumentType.Text, created.getType());
+      assertEquals(PrimitiveType.Text, created.getType());
       assertEquals("Acme", created.getValue());
       assertEquals("Company name", created.getDescription());
       assertSame(workflow, created.getWorkflow());
@@ -797,7 +891,7 @@ class WorkflowServiceTest {
       Workflow workflow = buildTemplate(false);
       ScopeVariable existing = new ScopeVariable();
       existing.setKey("old_key");
-      existing.setType(ArgumentType.Text);
+      existing.setType(PrimitiveType.Text);
       existing.setValue("old_value");
       existing.setDescription("old desc");
       existing.setWorkflow(workflow);
@@ -807,7 +901,7 @@ class WorkflowServiceTest {
       workflow.getWorkflowScopeVariables().add(existing);
 
       ScopeVariableInput input =
-          new ScopeVariableInput(varId, "new_key", ArgumentType.IPv4, "10.0.0.1", "new desc");
+          new ScopeVariableInput(varId, "new_key", PrimitiveType.IPv4, "10.0.0.1", "new desc");
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
       configInput.setWorkflowScopeVariables(List.of(input));
 
@@ -819,7 +913,7 @@ class WorkflowServiceTest {
       ScopeVariable updated = result.getWorkflowScopeVariables().getFirst();
       assertSame(existing, updated);
       assertEquals("new_key", updated.getKey());
-      assertEquals(ArgumentType.IPv4, updated.getType());
+      assertEquals(PrimitiveType.IPv4, updated.getType());
       assertEquals("10.0.0.1", updated.getValue());
       assertEquals("new desc", updated.getDescription());
       verify(workflowRepository).save(workflow);
@@ -832,7 +926,7 @@ class WorkflowServiceTest {
       Workflow workflow = buildTemplate();
       ScopeVariable existing = new ScopeVariable();
       existing.setKey("to_remove");
-      existing.setType(ArgumentType.Text);
+      existing.setType(PrimitiveType.Text);
       existing.setWorkflow(workflow);
       String varId = UUID.randomUUID().toString();
       org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
@@ -858,7 +952,7 @@ class WorkflowServiceTest {
       ScopeVariable existing = new ScopeVariable();
       String varId = UUID.randomUUID().toString();
       existing.setKey("my_key");
-      existing.setType(ArgumentType.Text);
+      existing.setType(PrimitiveType.Text);
       existing.setValue("val");
       existing.setDescription("desc");
       existing.setWorkflow(workflow);
@@ -867,7 +961,7 @@ class WorkflowServiceTest {
 
       // Input is identical to existing variable
       ScopeVariableInput input =
-          new ScopeVariableInput(varId, "my_key", ArgumentType.Text, "val", "desc");
+          new ScopeVariableInput(varId, "my_key", PrimitiveType.Text, "val", "desc");
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
       configInput.setWorkflowScopeVariables(List.of(input));
 
@@ -912,7 +1006,7 @@ class WorkflowServiceTest {
 
       ScopeVariable sourceVar = new ScopeVariable();
       sourceVar.setKey("env");
-      sourceVar.setType(ArgumentType.Text);
+      sourceVar.setType(PrimitiveType.Text);
       sourceVar.setValue("production");
       sourceVar.setDescription("Environment name");
       sourceVar.setWorkflow(template);
@@ -929,7 +1023,7 @@ class WorkflowServiceTest {
       ScopeVariable copiedVar = run.getWorkflowScopeVariables().getFirst();
       assertNotSame(sourceVar, copiedVar);
       assertEquals("env", copiedVar.getKey());
-      assertEquals(ArgumentType.Text, copiedVar.getType());
+      assertEquals(PrimitiveType.Text, copiedVar.getType());
       assertEquals("production", copiedVar.getValue());
       assertSame(run, copiedVar.getWorkflow());
     }

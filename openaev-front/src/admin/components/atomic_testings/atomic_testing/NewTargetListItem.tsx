@@ -1,12 +1,13 @@
-import { Groups3Outlined, PersonOutlined, SmartToyOutlined } from '@mui/icons-material';
-import { ListItemButton, ListItemIcon, ListItemText, Paper } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { SelectGroup } from 'mdi-material-ui';
+import { OpenInNewOutlined } from '@mui/icons-material';
+import { IconButton, ListItemButton, Tooltip, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import { useNavigate } from 'react-router';
 
-import PlatformIcon from '../../../../components/PlatformIcon';
+import { useFormatter } from '../../../../components/i18n';
 import type { InjectTarget } from '../../../../utils/api-types';
-import { buildTenantApiPath } from '../../../../utils/url-helper';
+import { getTargetOverviewUrl, isAssetGroups } from '../../../../utils/target/TargetUtils';
 import NewAtomicTestingResult from './NewAtomicTestingResult';
+import TargetIcon from './TargetIcon';
 
 interface Props {
   selected?: boolean;
@@ -16,44 +17,73 @@ interface Props {
 
 const NewTargetListItem: React.FC<Props> = ({ onClick, target, selected }) => {
   const theme = useTheme();
+  const { t } = useFormatter();
+  const navigate = useNavigate();
   const handleItemClick = () => {
     onClick(target);
   };
-  const getIcon = (target: InjectTarget) => {
-    const iconMap = {
-      // TODO: for Endpoints and Agents, check the targetSubType attribute
-      ASSETS_GROUPS: <SelectGroup />,
-      ASSETS: <PlatformIcon platform={target?.target_subtype ?? 'Unknown'} width={20} marginRight={theme.spacing(2)} />,
-      TEAMS: <Groups3Outlined />,
-      PLAYERS: <PersonOutlined fontSize="small" />,
-      AI_TARGETS: <SmartToyOutlined fontSize="small" />,
-      AGENT: (
-        <img
-          src={buildTenantApiPath(`/api/images/executors/icons/${target.target_subtype}`)}
-          alt={target.target_subtype}
-          style={{
-            width: 20,
-            height: 20,
-            borderRadius: 4,
-          }}
-        />
-      ),
-    };
 
-    return iconMap[target.target_type];
+  const overviewUrl = getTargetOverviewUrl(target);
+  const overviewLabel = isAssetGroups(target) ? t('Open asset group overview') : t('Open asset overview');
+
+  const handleOpenOverview = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    event.preventDefault();
+    if (overviewUrl) {
+      navigate(overviewUrl);
+    }
   };
+
   return (
-    <Paper elevation={1}>
-      <ListItemButton onClick={handleItemClick} style={{ marginBottom: theme.spacing() }} selected={selected}>
-        <ListItemIcon>
-          {getIcon(target)}
-        </ListItemIcon>
-        <ListItemText>
-          {target?.target_name}
-        </ListItemText>
-        <NewAtomicTestingResult target={target} />
-      </ListItemButton>
-    </Paper>
+    <ListItemButton
+      onClick={handleItemClick}
+      selected={selected}
+      sx={{
+        'paddingBlock': 1,
+        'paddingInline': 1.5,
+        'gap': 1.5,
+        'borderLeft': `2px solid ${selected ? theme.palette.primary.main : 'transparent'}`,
+        '&.Mui-selected': { backgroundColor: alpha(theme.palette.primary.main, 0.08) },
+        '&.Mui-selected:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.12) },
+        // The pivot action stays discoverable without relying on hover alone
+        // (hover does not exist on touch): it is revealed on hover, on keyboard
+        // focus, and is always shown on the selected row.
+        '& .target-open-overview': {
+          opacity: 0,
+          transition: 'opacity 0.15s',
+        },
+        '&:hover .target-open-overview, &:focus-within .target-open-overview': { opacity: 1 },
+        '&.Mui-selected .target-open-overview': { opacity: 1 },
+      }}
+    >
+      <TargetIcon target={target} />
+      <Typography
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          fontSize: 13,
+          fontWeight: 600,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {target?.target_name}
+      </Typography>
+      {overviewUrl && (
+        <Tooltip title={overviewLabel}>
+          <IconButton
+            className="target-open-overview"
+            size="small"
+            onClick={handleOpenOverview}
+            aria-label={overviewLabel}
+          >
+            <OpenInNewOutlined fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
+      <NewAtomicTestingResult target={target} />
+    </ListItemButton>
   );
 };
 

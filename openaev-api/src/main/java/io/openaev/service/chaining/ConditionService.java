@@ -30,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Transactional(rollbackFor = Exception.class)
 public class ConditionService {
-
   private final WorkflowStateService workflowStateService;
 
   private final ConditionUtils conditionUtils;
@@ -56,7 +55,6 @@ public class ConditionService {
     if (conditionInputs == null || conditionInputs.isEmpty()) {
       throw new BadRequestException("At least one condition is required");
     }
-
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
 
     Condition root =
@@ -66,7 +64,6 @@ public class ConditionService {
             .description(input.getDescription())
             .type(rootInput.getType())
             .keyType(rootInput.getKeyType())
-            .keySubtype(rootInput.getKeySubtype())
             .mappingType(resolveMappingType(rootInput))
             .build();
 
@@ -110,7 +107,6 @@ public class ConditionService {
     if (conditionInputs == null || conditionInputs.isEmpty()) {
       throw new BadRequestException("At least one condition is required");
     }
-
     List<ConditionCreateInput> rootInputs = findRootConditionInputs(conditionInputs);
 
     // Multiple roots are only allowed when all roots are MAPPER conditions
@@ -239,7 +235,6 @@ public class ConditionService {
     if (conditionInputs == null || conditionInputs.isEmpty()) {
       throw new BadRequestException("At least one condition is required");
     }
-
     Condition root = findConditionRootById(conditionRootId);
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
 
@@ -248,7 +243,6 @@ public class ConditionService {
     root.setWorkflowId(input.getWorkflowId());
     root.setType(rootInput.getType());
     root.setKeyType(rootInput.getKeyType());
-    root.setKeySubtype(rootInput.getKeySubtype());
     root.setMappingType(resolveMappingType(rootInput));
 
     if (root.getConditionChildren() != null) {
@@ -694,16 +688,6 @@ public class ConditionService {
   }
 
   /**
-   * Creates a DEPEND_ON condition for a step template dependency.
-   *
-   * @param idStepFromTemplate identifier of the dependent step template
-   * @return the DEPEND_ON condition
-   */
-  public Condition isDependOn(String idStepFromTemplate) {
-    return ConditionFactory.dependOn(idStepFromTemplate);
-  }
-
-  /**
    * Returns {@code true} if the given step has at least one condition of type {@link
    * ConditionType#MAPPER}.
    *
@@ -966,7 +950,8 @@ public class ConditionService {
   private Set<String> extractRequiredExecutionKeys(List<Condition> mappers) {
     return mappers.stream()
         .filter(mapper -> mapper.getMappingType() != MappingType.DEFAULT)
-        .map(mapper -> mapper.getKeyType().name())
+        .map(this::resolveMapperKey)
+        .filter(Objects::nonNull)
         .collect(Collectors.toSet());
   }
 
@@ -982,7 +967,13 @@ public class ConditionService {
     Map<String, String> staticValues = new HashMap<>();
 
     for (Condition mapper : mappers) {
-      String key = mapper.getKeyType().name();
+      String key = resolveMapperKey(mapper);
+      if (key == null) {
+        log.warn(
+            "[Chaining] Skipping mapper {} because keyType and key are both missing",
+            mapper.getId());
+        return new MapperInputPreparation(List.of(), Map.of(), true);
+      }
 
       if (mapper.getMappingType() == MappingType.DEFAULT) {
         staticValues.put(key, mapper.getValue());
@@ -1061,13 +1052,18 @@ public class ConditionService {
     resolved.setKeyType(template.getKeyType());
     resolved.setMappingType(template.getMappingType());
     resolved.setDescription(template.getDescription());
-    resolved.setKeySubtype(template.getKeySubtype());
     resolved.setName(template.getName());
     resolved.setWorkflowId(template.getWorkflowId());
     resolved.setCreationDate(Instant.now());
     resolved.setUpdateDate(Instant.now());
-    resolved.setValue(fullInput.get(template.getKeyType().name()));
+    String key = resolveMapperKey(template);
+    resolved.setValue(key != null ? fullInput.get(key) : null);
     return resolved;
+  }
+
+  /** Resolves the mapper input key used in workflow state. */
+  private String resolveMapperKey(Condition mapper) {
+    return mapper.getKeyType() != null ? mapper.getKeyType().name() : null;
   }
 
   /**

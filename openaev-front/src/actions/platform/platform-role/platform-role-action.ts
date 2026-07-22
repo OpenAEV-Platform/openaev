@@ -14,6 +14,10 @@ export const addPlatformRole = (data: PlatformRoleInput) => (dispatch: Dispatch)
 
 // -- READ --
 
+export const fetchPlatformRoleById = (platformRoleId: PlatformRoleOutput['platform_role_id']) => {
+  return simpleCall(`${PLATFORM_ROLES_URI}/${platformRoleId}`);
+};
+
 export const fetchPlatformRoleCapabilities = (platformRoleId: string) => {
   return simpleCall(`${PLATFORM_ROLES_URI}/${platformRoleId}/capabilities`);
 };

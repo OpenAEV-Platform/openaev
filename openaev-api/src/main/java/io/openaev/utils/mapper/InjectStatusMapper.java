@@ -24,6 +24,26 @@ public class InjectStatusMapper {
         .orElseGet(() -> InjectStatusOutput.builder().build());
   }
 
+  /**
+   * Builds the status output with EVERY execution trace (global orchestration traces plus each
+   * agent's own traces), for the complete execution log. Callers that only want the orchestration
+   * traces should use {@link #toInjectStatusOutput}.
+   */
+  public InjectStatusOutput toInjectStatusOutputWithAllTraces(Optional<InjectStatus> injectStatus) {
+    return injectStatus
+        .map(
+            status -> {
+              InjectStatusOutput output = InjectStatusOutput.builder().build();
+              output.setId(status.getId());
+              output.setName(status.getName().name());
+              output.setTraces(toExecutionTracesOutput(status.getTraces()));
+              output.setTrackingSentDate(status.getTrackingSentDate());
+              output.setTrackingEndDate(status.getTrackingEndDate());
+              return output;
+            })
+        .orElseGet(() -> InjectStatusOutput.builder().build());
+  }
+
   public InjectTestStatusOutput toInjectTestStatusOutput(InjectTestStatus injectTestStatus) {
     InjectTestStatusOutput output = InjectTestStatusOutput.builder().build();
     buildInjectStatusOutput(output, injectTestStatus, injectTestStatus.getTraces());

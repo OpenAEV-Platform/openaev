@@ -1,27 +1,22 @@
-import { PlayArrowOutlined } from '@mui/icons-material';
-import {
-  Avatar,
-  Button,
-  Chip,
-  GridLegacy,
-  Paper,
-  Tooltip,
-  Typography,
-} from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
+import { Avatar, Box, Button, Paper, Tooltip, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type Dispatch, type SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { type AgentHelper } from '../../../../actions/agents/agent-helper';
 import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
+import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults } from '../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import type { LoggedHelper } from '../../../../actions/helper';
 import { fetchScenarioInjects } from '../../../../actions/Inject';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import { searchScenarioExercises, searchScenarioHealthcheks } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
+import { Field, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
+import KillChainTimeline from '../../../../components/common/detail/KillChainTimeline';
+import PostureGauges from '../../../../components/common/detail/PostureGauges';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -39,38 +34,105 @@ import octiLight from '../../../../static/images/xtm/octi_light.png';
 import { useHelper } from '../../../../store';
 import {
   type Agent,
-  type ExerciseSimple, type HealthCheck, type Inject,
+  type ExerciseSimple, type ExpectationResultsByType, type HealthCheck, type Inject,
+  type InjectExpectationResultsByAttackPattern,
   type KillChainPhase,
   type Scenario as ScenarioType,
   type SearchPaginationInput,
+  type SortField,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isEmptyField, isFeatureEnabled } from '../../../../utils/utils';
-import Healthchecks from '../../common/healthchecks/Healthchecks';
+import MitreCoverageMatrix from '../../common/matrix/MitreCoverageMatrix';
 import ExercisePopover from '../../simulations/simulation/ExercisePopover';
 import SimulationList from '../../simulations/SimulationList';
+import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import ScenarioDistributionByExercise from './ScenarioDistributionByExercise';
 
-// Deprecated - https://mui.com/system/styles/basics/
-// Do not use it for new code.
-const useStyles = makeStyles()(theme => ({
-  chip: {
-    fontSize: 12,
-    height: 25,
-    margin: '0 7px 7px 0',
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    width: 180,
+// Illustrative posture used only when a scenario has never run, so the overview
+// previews the exact insights a real run produces instead of an empty CTA. The
+// distribution labels map through getStatusColor to success/partial/failed/pending.
+const SAMPLE_POSTURE: ExpectationResultsByType[] = [
+  {
+    type: 'PREVENTION',
+    avgResult: 'SUCCESS',
+    distribution: [
+      {
+        id: 'PREVENTED',
+        label: 'Prevented',
+        value: 34,
+      },
+      {
+        id: 'PARTIAL',
+        label: 'Partially prevented',
+        value: 5,
+      },
+      {
+        id: 'FAILED',
+        label: 'Failed',
+        value: 9,
+      },
+    ],
   },
-  paper: { padding: theme.spacing(2) },
-}));
+  {
+    type: 'DETECTION',
+    avgResult: 'SUCCESS',
+    distribution: [
+      {
+        id: 'DETECTED',
+        label: 'Detected',
+        value: 41,
+      },
+      {
+        id: 'FAILED',
+        label: 'Failed',
+        value: 6,
+      },
+    ],
+  },
+  {
+    type: 'VULNERABILITY',
+    avgResult: 'FAILED',
+    distribution: [
+      {
+        id: 'NOT_VULNERABLE',
+        label: 'Not vulnerable',
+        value: 13,
+      },
+      {
+        id: 'VULNERABLE',
+        label: 'Vulnerable',
+        value: 27,
+      },
+    ],
+  },
+  {
+    type: 'HUMAN_RESPONSE',
+    avgResult: 'PARTIAL',
+    distribution: [
+      {
+        id: 'SUCCESS',
+        label: 'Successful',
+        value: 18,
+      },
+      {
+        id: 'PENDING',
+        label: 'Pending',
+        value: 7,
+      },
+      {
+        id: 'FAILED',
+        label: 'Failed',
+        value: 5,
+      },
+    ],
+  },
+];
 
 const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>> }) => {
-  // Standard hooks
-  const { classes } = useStyles();
   const theme = useTheme();
   const { t } = useFormatter();
   const { scenarioId } = useParams() as { scenarioId: ScenarioType['scenario_id'] };
@@ -135,9 +197,9 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
     queryableHelpers,
     searchPaginationInput,
   } = useQueryableWithLocalStorage(`scenario-${scenarioId}-simulations`, buildSearchPagination({ sorts: initSorting('exercise_updated_at', 'DESC') }));
-  const search = (scenarioId: ScenarioType['scenario_id'], input: SearchPaginationInput) => {
+  const search = (id: ScenarioType['scenario_id'], input: SearchPaginationInput) => {
     setLoadingExercises(true);
-    return searchScenarioExercises(scenarioId, input).finally(() => {
+    return searchScenarioExercises(id, input).finally(() => {
       setLoadingExercises(false);
     });
   };
@@ -151,240 +213,286 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
     />
   );
 
-  return (
-    <div style={{ paddingBottom: theme.spacing(5) }}>
-      {!!healthchecks?.length && (
-        <Healthchecks
-          healthchecks={healthchecks}
-          scenarioId={scenarioId}
-        />
-      )}
-      <div style={{
-        display: 'grid',
-        gap: `0px ${theme.spacing(3)}`,
-        gridTemplateColumns: '1fr 1fr',
-      }}
-      >
+  // Latest finished simulation posture: the scenario overview reads as a live
+  // AEV posture dashboard by surfacing the most recent run's prevention /
+  // detection / vulnerability results + its MITRE ATT&CK coverage.
+  const [lastSimulationId, setLastSimulationId] = useState<string | null>(null);
+  const [lastResults, setLastResults] = useState<ExpectationResultsByType[] | null>(null);
+  const [lastInjectResults, setLastInjectResults] = useState<InjectExpectationResultsByAttackPattern[] | null>(null);
+  // Tracks whether the latest-run results fetch has settled, so we only fall back
+  // to the illustrative sample preview once we know there is genuinely nothing to
+  // show (never-run OR a run that produced no results) - never while still loading.
+  const [lastResultsResolved, setLastResultsResolved] = useState<boolean>(false);
+  useEffect(() => {
+    if (!areAnyExercisesInScenario) {
+      setLastSimulationId(null);
+      setLastResults(null);
+      setLastInjectResults(null);
+      setLastResultsResolved(true);
+      return () => {};
+    }
+    setLastResultsResolved(false);
+    // Cancellation flag: a stale response must not overwrite the state reset by a
+    // newer effect run, and every path (including failures) must resolve so the
+    // sample fallback can kick in instead of silently dropping the sections.
+    let cancelled = false;
+    searchScenarioExercises(scenarioId, {
+      size: 1,
+      page: 0,
+      sorts: [
+        {
+          property: 'exercise_end_date',
+          direction: 'DESC',
+          nullHandling: 'NULLS_LAST' as SortField['nullHandling'],
+        },
+        {
+          property: 'exercise_updated_at',
+          direction: 'DESC',
+        },
+      ],
+    }).then((result: { data: { content?: ExerciseSimple[] } }) => {
+      if (cancelled) {
+        return;
+      }
+      const simulationId = result.data.content?.[0]?.exercise_id;
+      if (!simulationId) {
+        setLastResultsResolved(true);
+        return;
+      }
+      setLastSimulationId(simulationId);
+      Promise.all([
+        fetchExerciseExpectationResult(simulationId).then((r: { data: ExpectationResultsByType[] }) => {
+          if (!cancelled) setLastResults(r.data);
+        }),
+        fetchExerciseInjectExpectationResults(simulationId).then((r: { data: InjectExpectationResultsByAttackPattern[] }) => {
+          if (!cancelled) setLastInjectResults(r.data);
+        }),
+      ]).finally(() => {
+        if (!cancelled) setLastResultsResolved(true);
+      });
+    }).catch(() => {
+      if (!cancelled) setLastResultsResolved(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [scenarioId, areAnyExercisesInScenario]);
 
-        <div style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '10px',
-        }}
+  const lastAttackPatternIds = R.uniq(
+    (lastInjectResults ?? [])
+      .filter(injectResult => !!injectResult.inject_attack_pattern)
+      .flatMap(injectResult => injectResult.inject_attack_pattern) as unknown as string[],
+  );
+  const hasMitreResults = !!lastInjectResults && lastAttackPatternIds.length > 0;
+  const hasPosture = !!lastResults && lastResults.length > 0;
+
+  // Render the SAME overview fed with illustrative sample data (greyed "Sample"
+  // preview, like the home dashboard) both when the scenario has never run AND
+  // when its latest run produced no results (e.g. a failed run) - so the overview
+  // never degrades into a half-empty page with the posture / MITRE sections
+  // silently dropped. Guarded by lastResultsResolved to avoid flashing the sample
+  // during the initial results fetch.
+  const hasNeverRun = !areAnyExercisesInScenario;
+  const isSample = hasNeverRun || (lastResultsResolved && !hasPosture && !hasMitreResults);
+  const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, scenario.scenario_id);
+  const postureResults = isSample ? SAMPLE_POSTURE : lastResults;
+  const showPosture = isSample || hasPosture;
+  const showMitre = isSample || hasMitreResults;
+
+  const killChainPhases = sortByOrder(scenario.scenario_kill_chain_phases ?? []) as KillChainPhase[];
+  const hasExternalUrl = !isEmptyField(scenario.scenario_external_url);
+
+  return (
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 2,
+      paddingBottom: theme.spacing(5),
+    }}
+    >
+      {isSample && (
+        <Paper
+          variant="outlined"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            flexWrap: 'wrap',
+            padding: 2,
+            borderRadius: 1,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, transparent 60%)`,
+          }}
         >
-          <Typography variant="h4" marginBottom={0}>{t('Information')}</Typography>
-          {!isScenarioChaining
-            && (
-              <Button
-                component={Link}
-                to={scenario.scenario_external_url}
-                target="_blank"
-                size="small"
-                variant="outlined"
-                startIcon={(
-                  <Avatar
-                    style={{
-                      width: 20,
-                      height: 20,
-                    }}
-                    src={theme.palette.mode === 'dark' ? octiDark : octiLight}
-                    alt="OCTI"
-                  />
-                )}
-                disabled={isEmptyField(scenario.scenario_external_url)}
-              >
-                {t('Threat intelligence')}
-              </Button>
-            )}
-        </div>
-        <Typography
-          variant="h4"
-          style={{ alignContent: 'center' }}
-        >
-          {t('Latest 10 Finished Simulations')}
-        </Typography>
-        <Paper classes={{ root: classes.paper }} variant="outlined">
-          <GridLegacy container spacing={3}>
-            <GridLegacy item xs={12} style={{ paddingTop: 10 }}>
-              <Typography
-                variant="h3"
-                gutterBottom
-                style={{ marginTop: 20 }}
-              >
-                {t('Description')}
-              </Typography>
-              <ExpandableMarkdown
-                source={scenario.scenario_description}
-                limit={300}
-              />
-            </GridLegacy>
-            <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
-              <Typography
-                variant="h3"
-                gutterBottom
-                style={{ marginTop: 20 }}
-              >
-                {t('Severity')}
-              </Typography>
-              <ItemSeverity
-                severity={scenario.scenario_severity}
-                label={t(scenario.scenario_severity ?? 'Unknown')}
-              />
-            </GridLegacy>
-            <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
-              <Typography
-                variant="h3"
-                gutterBottom
-                style={{ marginTop: 20 }}
-              >
-                {t('Category')}
-              </Typography>
-              <ItemCategory
-                category={scenario.scenario_category}
-                label={t(scenario.scenario_category ?? 'Unknown')}
-              />
-            </GridLegacy>
-            <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
-              <Typography
-                variant="h3"
-                gutterBottom
-                style={{ marginTop: 20 }}
-              >
-                {t('Main Focus')}
-              </Typography>
-              <ItemMainFocus
-                mainFocus={scenario.scenario_main_focus}
-                label={t(scenario.scenario_main_focus ?? 'Unknown')}
-              />
-            </GridLegacy>
-            <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
-              <Typography
-                variant="h3"
-                gutterBottom
-                style={{ marginTop: 20 }}
-              >
-                {t('Tags')}
-              </Typography>
-              <ItemTags tags={scenario.scenario_tags} limit={10} />
-            </GridLegacy>
-            <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
-              <Typography
-                variant="h3"
-                gutterBottom
-                style={{ marginTop: 20 }}
-              >
-                {t('Platforms')}
-              </Typography>
-              <PlatformIconGroup platforms={scenario.scenario_platforms} width={25} />
-            </GridLegacy>
-            <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
-              <Typography
-                variant="h3"
-                gutterBottom
-                style={{ marginTop: 20 }}
-              >
-                {t('Type Affinity')}
-              </Typography>
-              <TypeAffinityChip affinity_text={scenario?.scenario_type_affinity} />
-            </GridLegacy>
-            <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
-              <Typography
-                variant="h3"
-                gutterBottom
-                style={{ marginTop: 20 }}
-              >
-                {t('Kill Chain Phases')}
-              </Typography>
-              {(scenario.scenario_kill_chain_phases ?? []).length === 0 && '-'}
-              {sortByOrder(scenario.scenario_kill_chain_phases ?? [])?.map((killChainPhase: KillChainPhase) => (
-                <Chip
-                  key={killChainPhase.phase_id}
-                  variant="outlined"
-                  classes={{ root: classes.chip }}
-                  color="error"
-                  label={killChainPhase.phase_name}
-                />
-              ))}
-            </GridLegacy>
-          </GridLegacy>
-        </Paper>
-        <Paper classes={{ root: classes.paper }} variant="outlined">
-          <ScenarioDistributionByExercise scenarioId={scenarioId} />
-        </Paper>
-      </div>
-      {areAnyExercisesInScenario && (
-        <div style={{
-          display: 'grid',
-          marginTop: theme.spacing(3),
-          gap: `0px ${theme.spacing(3)}`,
-          gridTemplateColumns: '1fr',
-        }}
-        >
-          <Typography variant="h4">{t('Simulations')}</Typography>
-          <Paper classes={{ root: classes.paper }} variant="outlined">
-            <PaginationComponentV2
-              fetch={input => search(scenarioId, input)}
-              searchPaginationInput={searchPaginationInput}
-              setContent={setExercises}
-              entityPrefix="exercise"
-              availableFilterNames={['exercise_kill_chain_phases', 'exercise_name', 'exercise_tags']}
-              queryableHelpers={queryableHelpers}
-              searchEnable={false}
-            />
-            <SimulationList
-              exercises={exercises}
-              queryableHelpers={queryableHelpers}
-              secondaryAction={secondaryAction}
-              loading={loadingExercises}
-              isGlobalScoreAsync={true}
-            />
-          </Paper>
-        </div>
-      )}
-      {!areAnyExercisesInScenario && !scenario.scenario_recurrence && ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, scenario.scenario_id) && (
-        <div style={{
-          marginTop: 100,
-          textAlign: 'center',
-        }}
-        >
-          <div style={{ fontSize: 20 }}>
-            {t('This scenario has never run, schedule or run it now!')}
-          </div>
-          <Tooltip title={isScopeMissing ? t('A Chaining Scenario requires a defined scope.') : ''}>
-            <span style={{
-              display: 'inline-flex',
-              marginTop: theme.spacing(2),
+          <RocketLaunchOutlined color="primary" />
+          <Box sx={{
+            flex: 1,
+            minWidth: 240,
+          }}
+          >
+            <Typography sx={{
+              fontWeight: 600,
+              marginBottom: 0.25,
             }}
             >
+              {hasNeverRun ? t('This scenario has not run yet') : t('No results to display yet')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t('The insights below are a sample preview. Launch a simulation to populate them with your real posture.')}
+            </Typography>
+          </Box>
+          {canLaunch && (
+            <Tooltip title={isScopeMissing ? t('A Chaining Scenario requires a defined scope.') : ''}>
+              <span style={{ display: 'inline-flex' }}>
+                <Button
+                  startIcon={<PlayArrowOutlined />}
+                  variant="contained"
+                  color="primary"
+                  disabled={isScopeMissing}
+                  onClick={() => setOpenInstantiateSimulationAndStart(true)}
+                >
+                  {t('Launch simulation now')}
+                </Button>
+              </span>
+            </Tooltip>
+          )}
+        </Paper>
+      )}
 
-              <Button
-                startIcon={<PlayArrowOutlined />}
-                variant="contained"
-                color="primary"
-                size="large"
-                disabled={isScopeMissing}
-                onClick={() => setOpenInstantiateSimulationAndStart(true)}
-              >
-                {t('Launch simulation now')}
-              </Button>
-            </span>
-          </Tooltip>
-        </div>
+      {showPosture && (
+        <SectionBlock title={t('Latest run posture')}>
+          <SamplePreview active={isSample} variant="subtle">
+            <PostureGauges
+              expectationResultsByTypes={postureResults}
+              humanValidationLink={!isSample && lastSimulationId ? `/admin/simulations/${lastSimulationId}/execution/validations` : undefined}
+            />
+          </SamplePreview>
+        </SectionBlock>
       )}
-      {!areAnyExercisesInScenario && scenario.scenario_recurrence && (
-        <div style={{
-          marginTop: 100,
-          textAlign: 'center',
-        }}
-        >
-          <div style={{ fontSize: 20 }}>
-            {t('This scenario is scheduled to run, results will appear soon.')}
-          </div>
-        </div>
+
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+        gap: 2,
+        alignItems: 'stretch',
+      }}
+      >
+        <SectionBlock title={t('Information')}>
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+          }}
+          >
+            <Field label={t('Description')}>
+              {scenario.scenario_description
+                ? <ExpandableMarkdown source={scenario.scenario_description} limit={500} />
+                : '-'}
+            </Field>
+            <Box sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'repeat(2, minmax(0, 1fr))',
+                md: 'repeat(3, minmax(0, 1fr))',
+              },
+              columnGap: 3,
+              rowGap: 2,
+            }}
+            >
+              <Field label={t('Severity')}>
+                <ItemSeverity severity={scenario.scenario_severity} label={t(scenario.scenario_severity ?? 'Unknown')} />
+              </Field>
+              <Field label={t('Category')}>
+                <ItemCategory category={scenario.scenario_category} label={t(scenario.scenario_category ?? 'Unknown')} />
+              </Field>
+              <Field label={t('Main Focus')}>
+                <ItemMainFocus mainFocus={scenario.scenario_main_focus} label={t(scenario.scenario_main_focus ?? 'Unknown')} />
+              </Field>
+              <Field label={t('Type Affinity')}>
+                <TypeAffinityChip affinity_text={scenario?.scenario_type_affinity} />
+              </Field>
+              <Field label={t('Platforms')}>
+                <PlatformIconGroup platforms={scenario.scenario_platforms} width={25} />
+              </Field>
+              <Field label={t('Tags')}>
+                <ItemTags variant="list" tags={scenario.scenario_tags} limit={10} />
+              </Field>
+              <Box sx={{ gridColumn: '1 / -1' }}>
+                <Field label={t('Kill Chain Phases')}>
+                  <KillChainTimeline phases={killChainPhases} />
+                </Field>
+              </Box>
+              {!isScenarioChaining && hasExternalUrl && (
+                <Box sx={{ gridColumn: '1 / -1' }}>
+                  <Field label={t('Threat intelligence')}>
+                    <Button
+                      component={Link}
+                      to={scenario.scenario_external_url}
+                      target="_blank"
+                      size="small"
+                      variant="outlined"
+                      startIcon={(
+                        <Avatar
+                          style={{
+                            width: 20,
+                            height: 20,
+                          }}
+                          src={theme.palette.mode === 'dark' ? octiDark : octiLight}
+                          alt="OCTI"
+                        />
+                      )}
+                    >
+                      {t('Open in OpenCTI')}
+                    </Button>
+                  </Field>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        </SectionBlock>
+
+        <SectionBlock title={t('Posture trend')}>
+          {/* The trend aggregates every past run, so it can show real history even
+              when only the latest run has no results. It owns its own sample marking
+              (greyed + "Sample" chip when it falls back to illustrative data), so it
+              must NOT be wrapped in an outer SamplePreview here - that would either
+              double-mark it or, worse, hide that its data is a sample. */}
+          <ScenarioDistributionByExercise scenarioId={scenarioId} />
+        </SectionBlock>
+      </Box>
+
+      {showMitre && (
+        <SectionBlock title={t('MITRE ATT&CK Results')}>
+          <SamplePreview active={isSample} variant="subtle">
+            <MitreCoverageMatrix
+              widgetId={`scenario-mitre-${scenarioId}`}
+              injectResults={lastInjectResults}
+            />
+          </SamplePreview>
+        </SectionBlock>
       )}
-    </div>
+
+      {areAnyExercisesInScenario && (
+        <SectionBlock title={t('Simulations')}>
+          <PaginationComponentV2
+            fetch={input => search(scenarioId, input)}
+            searchPaginationInput={searchPaginationInput}
+            setContent={setExercises}
+            entityPrefix="exercise"
+            availableFilterNames={['exercise_kill_chain_phases', 'exercise_name', 'exercise_tags']}
+            queryableHelpers={queryableHelpers}
+            searchEnable={false}
+          />
+          <SimulationList
+            exercises={exercises}
+            queryableHelpers={queryableHelpers}
+            secondaryAction={secondaryAction}
+            loading={loadingExercises}
+            isGlobalScoreAsync={true}
+          />
+        </SectionBlock>
+      )}
+    </Box>
   );
 };
 

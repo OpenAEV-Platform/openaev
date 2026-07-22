@@ -1,4 +1,4 @@
-import { CheckCircleOutlined } from '@mui/icons-material';
+import { CheckCircleOutlined, RocketLaunchOutlined } from '@mui/icons-material';
 import { Button, Chip, Tooltip } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { type CSSProperties, type SyntheticEvent } from 'react';
@@ -63,19 +63,17 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
         </Tooltip>
       )}
       <Button
+        // Same anatomy as the OpenCTI marketplace CTA: compact 26px button,
+        // sentence-case label, contained when EE is active, outlined with the
+        // rocket icon + EE chip otherwise - never greyed-out.
         variant={isEnterpriseEdition ? 'contained' : 'outlined'}
         sx={{
-          // The contained EE variant already carries the primary palette; only
-          // the non-EE outlined variant needs the muted overrides.
-          ...(isEnterpriseEdition
-            ? {}
-            : {
-                color: 'action.disabled',
-                borderColor: 'action.disabledBackground',
-              }),
+          height: 26,
+          textTransform: 'none',
         }}
         size="small"
         onClick={onDeployClickAction}
+        startIcon={isEnterpriseEdition ? null : <RocketLaunchOutlined />}
         endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
       >
         {t('Deploy')}

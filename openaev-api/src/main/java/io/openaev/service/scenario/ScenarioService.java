@@ -579,7 +579,7 @@ public class ScenarioService {
                           }
                           ObjectNode content = inject.getContent();
                           return inject.getPayload().get().getArguments().stream()
-                              .filter(arg -> ArgumentType.Document == arg.getType())
+                              .filter(arg -> PrimitiveType.Document == arg.getType())
                               .map(arg -> content.path(arg.getKey()))
                               .filter(node -> node.isTextual() && hasText(node.asText()))
                               .map(node -> documentRepository.findById(node.asText()))

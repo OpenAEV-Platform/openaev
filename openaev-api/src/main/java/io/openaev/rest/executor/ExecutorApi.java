@@ -152,6 +152,21 @@ public class ExecutorApi extends RestBehavior {
         executor, executor.getType(), executor.getName(), executor.getPlatforms());
   }
 
+  @DeleteMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
+  @AccessControl(
+      resourceId = "#executorId",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.ASSET)
+  @Operation(
+      summary = "Delete an executor",
+      description =
+          "Removes a registered executor. Intended for stopped executors that no longer ping;"
+              + " an active executor re-registers on its next heartbeat.")
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteExecutor(@PathVariable String executorId) {
+    executorService.remove(executorId);
+  }
+
   @PostMapping(
       value = {EXECUTOR_URI, TENANT_EXECUTOR_URI},
       produces = {MediaType.APPLICATION_JSON_VALUE},

@@ -1,11 +1,13 @@
 import { Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import moment from 'moment-timezone';
-import { type ReactNode, useContext } from 'react';
-import { useOutletContext } from 'react-router';
+import { type ReactNode, useContext, useState } from 'react';
+import { useNavigate, useOutletContext } from 'react-router';
 
 import { updateRequestedStatus } from '../../../../actions/connector_instances/connector-instance-actions';
+import ButtonPopover from '../../../../components/common/ButtonPopover';
 import useDialog from '../../../../components/common/dialog/useDialog';
+import DialogDelete from '../../../../components/common/DialogDelete';
 import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../../components/i18n';
@@ -15,7 +17,6 @@ import { AbilityContext } from '../../../../utils/permissions/permissionsContext
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import ActionButton from './ActionButton';
-import builtinConnectorDescription from './builtinConnectorDescriptions';
 import { computeConnectorLiveliness } from './connector-liveliness';
 import ConnectorAlerts from './ConnectorAlerts';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
@@ -32,11 +33,13 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   const theme = useTheme();
   const { t, nsdt } = useFormatter();
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const { connector, instance, catalogConnector, isXtmComposerUp, refreshConnector } = useOutletContext<ConnectorContextLayoutType>();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const ability = useContext(AbilityContext);
-  const { logoUrl, connectorType } = useContext(ConnectorContext);
+  const { logoUrl, connectorType, apiRequest, routes } = useContext(ConnectorContext);
   // Built-in connectors have no catalog entry, so fall back to the layout's
   // connector type ('injector' -> 'INJECTOR') and the connector's own external
   // flag, keeping the hero's type / Built-in chip consistent with the catalog card.
@@ -105,6 +108,21 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
   const showMigrateButton = connector?.isExternal === true && !instance && isXtmComposerUp && canManage;
   const disabledUpdateButtons = !isEnterpriseEdition || (!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported === true);
+  // A connector with no managed instance (registered directly / manually, not
+  // deployed through the Integration Manager) has no instance popover, so it
+  // could never be removed. Offer a direct delete of the connector entity - the
+  // heartbeat is what keeps it alive, so a stopped connector that no longer
+  // pings can now be cleaned up. Built-in connectors run inside the platform and
+  // must not be deletable.
+  const canDeleteConnector = canManage && !instance && !!connector?.id && !liveliness?.builtIn;
+
+  const handleDeleteConnector = () => {
+    if (!connector?.id) return;
+    dispatch(apiRequest.deleteSingle(connector.id)).then(() => {
+      setIsDeleteOpen(false);
+      navigate(routes.list);
+    });
+  };
 
   return (
     <div style={{
@@ -113,11 +131,7 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
       gap: theme.spacing(2),
     }}
     >
-      <ConnectorAlerts
-        isEnterpriseEdition={isEnterpriseEdition}
-        isXtmComposerUp={isXtmComposerUp}
-        catalogConnector={catalogConnector}
-      />
+      <ConnectorAlerts />
       <ConnectorDetailHero
         title={connector?.name || catalogConnector?.catalog_connector_title || ''}
         logoSrc={connectorLogoUrl}
@@ -125,11 +139,6 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         useCases={catalogConnector?.catalog_connector_use_cases}
         verified={isSupportedByFiligran(connector, catalogConnector?.catalog_connector_verified)}
         external={heroExternal}
-        description={catalogConnector?.catalog_connector_short_description
-          ?? (() => {
-            const builtin = builtinConnectorDescription(connector?.type);
-            return builtin ? t(builtin) : undefined;
-          })()}
         statusChip={liveliness && (
           <div style={{
             display: 'flex',
@@ -182,13 +191,6 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         )}
         actions={(
           <>
-            {canManage && instance?.connector_instance_id && (
-              <ConnectorPopover
-                connectorInstanceId={instance.connector_instance_id}
-                connectorName={connector?.name || catalogConnector?.catalog_connector_title || ''}
-                disabled={disabledUpdateButtons}
-              />
-            )}
             {showMigrateButton && (
               <MigrateButton onMigrateBtnClick={() => createInstanceDrawer.handleOpen()} />
             )}
@@ -197,6 +199,27 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
                 onUpdate={onUpdateRequestedStatusClick}
                 disabled={disabledUpdateButtons}
                 status={instanceRequestedStatus}
+              />
+            )}
+            {/* Kebab always LAST, like every other detail hero in the app. Kept
+                openable when the Integration Manager is down: the Update drawer
+                shows the warning inside and disables the form, so the action
+                surface stays reachable (OpenCTI pattern). */}
+            {canManage && instance?.connector_instance_id && (
+              <ConnectorPopover
+                connectorInstanceId={instance.connector_instance_id}
+                connectorName={connector?.name || catalogConnector?.catalog_connector_title || ''}
+                disabled={!isEnterpriseEdition}
+              />
+            )}
+            {canDeleteConnector && (
+              <ButtonPopover
+                variant="icon"
+                entries={[{
+                  label: 'Delete',
+                  action: () => setIsDeleteOpen(true),
+                  userRight: true,
+                }]}
               />
             )}
           </>
@@ -225,6 +248,12 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         disabled={!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported}
         migrationSource={connector?.id}
         disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: catalogConnector ? catalogConnector.catalog_connector_type.toLowerCase() : '' })}
+      />
+      <DialogDelete
+        open={isDeleteOpen}
+        handleClose={() => setIsDeleteOpen(false)}
+        handleSubmit={handleDeleteConnector}
+        text={`${t('Do you want to delete this integration:')} ${connector?.name ?? ''}?`}
       />
     </div>
   );

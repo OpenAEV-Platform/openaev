@@ -1,6 +1,7 @@
-import { useContext, useEffect, useState } from 'react';
+import { Box, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import { type ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { fetchTargetResult } from '../../../../../actions/atomic_testings/atomic-testing-actions';
 import Paper from '../../../../../components/common/Paper';
@@ -10,29 +11,30 @@ import { isAgent, isAssetGroups, isAssets } from '../../../../../utils/target/Ta
 import { type ExpectationResultType, ExpectationType, type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import ExecutionStatusDetail from '../../../common/injects/status/ExecutionStatusDetail';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
-import TabbedView, { type TabConfig } from '../../../settings/groups/tenant_groups/grants/ui/TabbedView';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../../InjectResultOverviewOutputContext';
 import InjectExpectationProvider from '../context/InjectExpectationProvider';
 import InjectExpectationCard from './InjectExpectationCard';
-import TargetResultsReactFlow from './TargetResultsReactFlow';
+import TargetResultsHeader from './TargetResultsHeader';
+import TargetResultsTimeline from './TargetResultsTimeline';
 
 interface Props {
   inject: InjectResultOverviewOutput;
   target: InjectTarget;
   isAgentless: boolean;
+  position?: number;
+  total?: number;
+  onSelectPrevious?: () => void;
+  onSelectNext?: () => void;
 }
 
-const useStyles = makeStyles()(theme => ({
-  paddingTop: { paddingTop: theme.spacing(2) },
-  gap: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: theme.spacing(1),
-  },
-}));
+interface SectionConfig {
+  key: string;
+  label: string;
+  content: ReactNode;
+}
 
-const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
-  const { classes } = useStyles();
+const TargetResultsDetail = ({ inject, target, isAgentless, position, total, onSelectPrevious, onSelectNext }: Props) => {
+  const theme = useTheme();
   const { t } = useFormatter();
 
   const [sortedGroupedTargetResults, setSortedGroupedTargetResults] = useState<Record<string, InjectExpectationsStore[]>>({});
@@ -40,7 +42,7 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const openIdParams = searchParams.get('expectation_id');
 
-  const [activeTab, setActiveTab] = useState<string | null>(null);
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const { injectResultOverviewOutput } = useContext<InjectResultOverviewOutputContextType>(InjectResultOverviewOutputContext);
 
@@ -81,27 +83,31 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
       });
   }, [injectResultOverviewOutput, target]);
 
+  // ?expectation_id= deep link: scroll to the section containing that expectation.
   useEffect(() => {
     if (!openIdParams || !sortedGroupedTargetResults) return;
 
-    const activeTabIndex = Object.values(sortedGroupedTargetResults)
+    const expectationType = Object.values(sortedGroupedTargetResults)
       .flat()
       .find(result => result.inject_expectation_id === openIdParams)
       ?.inject_expectation_type;
 
-    if (!activeTabIndex) return;
+    if (!expectationType) return;
 
-    setActiveTab(activeTabIndex);
+    sectionRefs.current[expectationType]?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
     searchParams.delete('open');
     setSearchParams(searchParams, { replace: true });
   }, [openIdParams, sortedGroupedTargetResults]);
 
-  const tabs: TabConfig[] = [];
+  const sections: SectionConfig[] = [];
   if (!isAssetGroups(target)) {
-    tabs.push({
+    sections.push({
       key: 'execution',
-      label: 'Execution',
-      component: (
+      label: t('Execution'),
+      content: (
         <ExecutionStatusDetail
           target={{
             id: target.target_id,
@@ -115,60 +121,111 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
     });
     // Terminal view shows command-execution traces, which only exist for agent-based execution:
     // endpoints (ASSETS) and their agents (AGENT). Other target kinds - AI targets, cloud / SaaS /
-    // identity assets, teams, players - never produce a terminal transcript, so the tab is hidden.
+    // identity assets, teams, players - never produce a terminal transcript, so the section is hidden.
     if (isAssets(target) || isAgent(target)) {
-      tabs.push({
+      sections.push({
         key: 'terminal-view',
         label: t('Terminal view'),
-        component: (
-          <TerminalViewTab injectId={inject.inject_id} target={target} forceExpanded={isAgent(target)} />
+        content: (
+          <TerminalViewTab injectId={inject.inject_id} target={target} />
         ),
       });
     }
   }
 
   Object.entries(sortedGroupedTargetResults).forEach(([type, expectationResults]) => (
-    tabs.push({
+    sections.push({
       key: type,
       label: t(`TYPE_${type}`),
-      component: (
-        expectationResults.map(expectationResult => (
-          <InjectExpectationProvider key={expectationResult.inject_expectation_id} inject={inject}>
-            <InjectExpectationCard
-              injectExpectation={expectationResult}
-              inject={inject}
-              isAgentless={isAgentless}
-              target={target}
-            />
-          </InjectExpectationProvider>
-        ))
+      content: (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: theme.spacing(1),
+        }}
+        >
+          {expectationResults.map(expectationResult => (
+            <InjectExpectationProvider key={expectationResult.inject_expectation_id} inject={inject}>
+              <InjectExpectationCard
+                injectExpectation={expectationResult}
+                inject={inject}
+                isAgentless={isAgentless}
+                target={target}
+              />
+            </InjectExpectationProvider>
+          ))}
+        </div>
       ),
     })
   ));
 
-  // Pre-select the first available tab so the right panel never opens blank (e.g. an AI target
-  // whose only tabs are the dynamic Detection / Prevention expectation tabs).
-  const firstTabKey = tabs.length > 0 ? tabs[0].key : null;
-  const availableTabKeys = tabs.map(tab => tab.key).join(',');
-  useEffect(() => {
-    if (!firstTabKey) return;
-    const tabExists = activeTab && availableTabKeys.split(',').includes(activeTab);
-    if (!tabExists) {
-      setActiveTab(firstTabKey);
-    }
-  }, [firstTabKey, availableTabKeys, activeTab]);
-
   return (
     <Paper>
-      <TargetResultsReactFlow
-        className={`${classes.paddingTop} ${classes.gap}`}
-        injectStatusName={injectResultOverviewOutput?.inject_status?.status_name}
-        targetResultsByType={sortedGroupedTargetResults}
-        lastExecutionStartDate={injectResultOverviewOutput?.inject_status?.tracking_sent_date || ''}
-        lastExecutionEndDate={injectResultOverviewOutput?.inject_status?.tracking_end_date || ''}
-      />
+      <div
+        key={`${inject.inject_id}-${target.target_id}`}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: theme.spacing(2.5),
+          paddingTop: theme.spacing(1),
+        }}
+      >
+        <TargetResultsHeader
+          target={target}
+          position={position}
+          total={total}
+          onSelectPrevious={onSelectPrevious}
+          onSelectNext={onSelectNext}
+        />
 
-      <TabbedView key={`${inject.inject_id}-${target.target_id}`} tabs={tabs} externalCurrentTab={activeTab} notifyTabChange={setActiveTab} />
+        <TargetResultsTimeline
+          injectStatusName={injectResultOverviewOutput?.inject_status?.status_name}
+          targetResultsByType={sortedGroupedTargetResults}
+          lastExecutionStartDate={injectResultOverviewOutput?.inject_status?.tracking_sent_date || ''}
+          lastExecutionEndDate={injectResultOverviewOutput?.inject_status?.tracking_end_date || ''}
+        />
+
+        {sections.map(section => (
+          <section
+            key={section.key}
+            ref={(element) => {
+              sectionRefs.current[section.key] = element;
+            }}
+            style={{ scrollMarginTop: theme.spacing(6) }}
+          >
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing(1.5),
+              marginBottom: theme.spacing(1.5),
+            }}
+            >
+              <Typography
+                sx={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.12em',
+                  color: 'text.secondary',
+                  fontFamily: theme.typography.h1.fontFamily,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {section.label}
+              </Typography>
+              <Box
+                aria-hidden
+                sx={{
+                  flex: 1,
+                  height: '1px',
+                  backgroundColor: alpha(theme.palette.text.primary, 0.05),
+                }}
+              />
+            </div>
+            {section.content}
+          </section>
+        ))}
+      </div>
     </Paper>
   );
 };

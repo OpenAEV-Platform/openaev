@@ -34,7 +34,7 @@ export interface ConnectorItem {
   verified: boolean;
   /** External (managed / manually deployed) versus built-in. */
   external: boolean;
-  /** Number of deployed instances (used by the Deployed facet and sorting). */
+  /** Number of deployed instances (used by the deployed-count chip and sorting). */
   deployedCount: number;
   logoSrc?: string;
   /** Card link target; a card without a detail page is not clickable. */
@@ -44,7 +44,10 @@ export interface ConnectorItem {
 export const fromCatalogConnector = (connector: CatalogConnectorOutput): ConnectorItem => ({
   id: connector.catalog_connector_id,
   title: connector.catalog_connector_title,
-  description: connector.catalog_connector_short_description,
+  // Prefer the full description: the card body has room for several lines and
+  // the short description is a thin one-liner meant for compact contexts.
+  description: connector.catalog_connector_description
+    || connector.catalog_connector_short_description,
   type: connector.catalog_connector_type,
   useCases: connector.catalog_connector_use_cases ?? [],
   verified: connector.catalog_connector_verified === true,
@@ -62,7 +65,6 @@ export const CONNECTOR_TYPE_ORDER: ConnectorItemType[] = ['COLLECTOR', 'INJECTOR
 // true = supported by Filigran, false = supported by the community.
 export const STATUS_FILIGRAN = 'filigran';
 export const STATUS_COMMUNITY = 'community';
-export const STATUS_DEPLOYED = 'deployed';
 export const DEPLOYMENT_EXTERNAL = 'external';
 export const DEPLOYMENT_BUILT_IN = 'built_in';
 
@@ -70,8 +72,10 @@ export const hasActiveFacetFilters = (filters: CatalogFacetFilters): boolean => 
   return Object.values(filters).some(values => values.length > 0);
 };
 
+// Sentence case, like OpenCTI's marketplace chips ("Open source threat intel").
 export const prettifyUseCase = (useCase: string): string => {
-  return useCase.replace(/[_-]+/g, ' ').toLowerCase();
+  const lowered = useCase.replace(/[_-]+/g, ' ').toLowerCase();
+  return lowered.charAt(0).toUpperCase() + lowered.slice(1);
 };
 
 const matchesGroup = (
@@ -92,10 +96,7 @@ const matchesGroup = (
         if (value === STATUS_FILIGRAN) {
           return item.verified;
         }
-        if (value === STATUS_COMMUNITY) {
-          return !item.verified;
-        }
-        return item.deployedCount > 0;
+        return !item.verified;
       });
     case 'deployment':
       return selectedValues.some((value) => {

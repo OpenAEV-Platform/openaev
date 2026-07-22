@@ -28,7 +28,6 @@ const CreateUser: FunctionComponent<CreateUserProps> = ({ onCreate }) => {
     <UserCreate
       onSubmit={handleSubmit}
       type="TENANT"
-      buttonStyle={{ right: 230 }}
     />
   );
 };

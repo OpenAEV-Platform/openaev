@@ -14,7 +14,6 @@ const useStyles = makeStyles()(theme => ({
   item: {
     height: 30,
     fontSize: 13,
-    float: 'left',
     paddingRight: theme.spacing(1),
   },
 }));
@@ -58,19 +57,18 @@ const InjectIndexTabs = ({ injectResultOverview, exercise, backlabel, backuri }:
   };
 
   return (
-    <Tabs value={tabValue}>
+    <Tabs
+      value={tabValue}
+      sx={{
+        borderBottom: 1,
+        borderColor: 'divider',
+      }}
+    >
       <Tab
         component={Link}
         to={computePath(`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}`)}
         value={`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}`}
         label={t('Overview')}
-        className={classes.item}
-      />
-      <Tab
-        component={Link}
-        to={computePath(`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/detail`)}
-        value={`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/detail`}
-        label={t('Inject Execution details')}
         className={classes.item}
       />
       {injectResultOverview.inject_injector_contract?.injector_contract_payload && (

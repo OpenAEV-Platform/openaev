@@ -1,14 +1,15 @@
-import { Alert, AlertTitle, Box, Chip, Paper, Tooltip, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, AlertTitle, Box, Chip, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { fetchAssetOverview } from '../../../../actions/assets/endpoint-actions';
 import { searchAtomicTestings } from '../../../../actions/atomic_testings/atomic-testing-actions';
-import { searchDistinctFindingsOnEndpoint, searchFindingsOnEndpoint } from '../../../../actions/findings/finding-actions';
+import { searchDistinctFindingsOnEndpoint } from '../../../../actions/findings/finding-actions';
 import { type UserHelper } from '../../../../actions/helper';
 import { fetchPlayers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
+import { DetailHero, DetailSections, Field, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import EndpointArchFragment from '../../../../components/common/list/fragments/EndpointArchFragment';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { type Page } from '../../../../components/common/queryable/Page';
@@ -19,25 +20,19 @@ import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCriticality from '../../../../components/ItemCriticality';
 import ItemTags from '../../../../components/ItemTags';
-import ItemTargets from '../../../../components/ItemTargets';
 import Loader from '../../../../components/Loader';
 import PlatformIcon from '../../../../components/PlatformIcon';
-import { INJECT, SIMULATION } from '../../../../constants/Entities';
 import { useHelper } from '../../../../store';
 import {
-  type AggregatedFindingOutput,
   type EndpointOverviewOutput,
   type Filter,
   type InjectResultOutput,
-  type RelatedFindingOutput,
   type SearchPaginationInput,
-  type TargetSimple,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { emptyFilled, formatIp, formatMacAddress } from '../../../../utils/String';
 import InjectResultList from '../../atomic_testings/InjectResultList';
-import FindingContextLink from '../../findings/FindingContextLink';
 import FindingList from '../../findings/FindingList';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
@@ -54,27 +49,6 @@ type AssetOverview = EndpointOverviewOutput & {
   ai_target_model?: string;
   ai_target_system_prompt?: string;
 };
-
-const SECTION_LABEL_SX = {
-  fontFamily: '"Geologica", sans-serif',
-  fontWeight: 600,
-  fontSize: 11,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase' as const,
-  color: 'text.secondary',
-  marginBottom: 1.5,
-};
-
-// A single labelled field inside an information section.
-const Field = ({ label, children }: {
-  label: string;
-  children: ReactNode;
-}) => (
-  <div>
-    <Typography variant="h3" gutterBottom sx={{ fontSize: 12 }}>{label}</Typography>
-    <div>{children}</div>
-  </div>
-);
 
 const AssetDetail = () => {
   const theme = useTheme();
@@ -116,36 +90,6 @@ const AssetDetail = () => {
     ? ([linkedPerson.user_firstname, linkedPerson.user_lastname].filter(Boolean).join(' ').trim() || linkedPerson.user_email)
     : asset?.asset_linked_person;
 
-  // Findings (works for any asset: the backend filters by the asset id in findings_assets).
-  const additionalFilterNames = ['finding_inject_id', 'finding_simulation'];
-  const additionalHeaders = useMemo(() => [
-    {
-      field: 'finding_inject',
-      label: 'Inject',
-      isSortable: false,
-      value: (finding: RelatedFindingOutput) => <FindingContextLink finding={finding} type={INJECT} />,
-    },
-    {
-      field: 'finding_simulation',
-      label: 'Simulation',
-      isSortable: false,
-      value: (finding: RelatedFindingOutput) => <FindingContextLink finding={finding} type={SIMULATION} />,
-    },
-    {
-      field: 'finding_asset_groups',
-      label: 'Asset groups',
-      isSortable: false,
-      value: (finding: AggregatedFindingOutput) => (
-        <ItemTargets targets={(finding.finding_asset_groups || []).map(group => ({
-          target_id: group.asset_group_id,
-          target_name: group.asset_group_name,
-          target_type: 'ASSETS_GROUPS',
-        })) as TargetSimple[]}
-        />
-      ),
-    },
-  ], []);
-
   // Injects played: atomic tests that directly targeted this asset (inject_assets filter).
   const { queryableHelpers: injectsHelpers, searchPaginationInput: injectsInput } = useQueryableWithLocalStorage(
     'asset-injects',
@@ -182,7 +126,6 @@ const AssetDetail = () => {
   }
 
   const isAiTarget = asset.asset_category === 'AI_TARGET';
-  const accent = theme.palette.primary.main;
 
   let internetFacingLabel = '-';
   if (asset.asset_internet_facing != null) {
@@ -217,86 +160,30 @@ const AssetDetail = () => {
       />
 
       {/* Hero */}
-      <Paper
-        variant="outlined"
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          padding: 2,
-          borderRadius: 1,
-          background: `linear-gradient(135deg, ${alpha(accent, 0.08)}, transparent 60%)`,
-        }}
-      >
-        <Box
-          sx={{
-            width: 52,
-            height: 52,
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            backgroundColor: alpha(accent, 0.12),
-            border: `1px solid ${alpha(accent, 0.3)}`,
-          }}
-        >
-          <AssetCategoryIcon category={asset.asset_category} color="primary" />
-        </Box>
-        <Box sx={{
-          minWidth: 0,
-          flex: 1,
-        }}
-        >
-          <Tooltip title={asset.asset_name}>
-            <Typography
-              variant="h1"
-              sx={{
-                margin: 0,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {asset.asset_name}
-            </Typography>
-          </Tooltip>
-          {hasAgents && (
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              marginTop: 0.5,
-              flexWrap: 'wrap',
-            }}
-            >
-              <Chip size="small" variant="outlined" label={`${asset.asset_agents.length} ${t('agent(s)')}`} sx={{ borderRadius: 1 }} />
-            </Box>
-          )}
-        </Box>
-        <AssetPopover
-          endpoint={asset as AssetPopoverProps['endpoint']}
-          agentless={!hasAgents}
-          onUpdate={() => loadAsset()}
-          onDelete={() => navigate('/admin/assets/inventory')}
-        />
-      </Paper>
+      <DetailHero
+        iconNode={<AssetCategoryIcon category={asset.asset_category} color="primary" />}
+        title={asset.asset_name}
+        chips={hasAgents
+          ? <Chip size="small" variant="outlined" label={`${asset.asset_agents.length} ${t('agent(s)')}`} sx={{ borderRadius: 1 }} />
+          : undefined}
+        action={(
+          <AssetPopover
+            endpoint={asset as AssetPopoverProps['endpoint']}
+            agentless={!hasAgents}
+            onUpdate={() => loadAsset()}
+            onDelete={() => navigate('/admin/assets/inventory')}
+          />
+        )}
+      />
 
-      {/* Asset information */}
-      <div>
-        <Typography sx={SECTION_LABEL_SX}>{t('Asset Information')}</Typography>
-        <Paper
-          variant="outlined"
-          sx={{
-            padding: 2,
-            borderRadius: 1,
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: 2,
-          }}
-        >
+      {/* Information + the asset-kind-specific card side by side for a compact,
+          grid-based overview (Network / Cloud / AI target as the second column). */}
+      <DetailSections>
+        <InformationGrid title={t('Asset Information')}>
           <Field label={t('Description')}>
-            <ExpandableMarkdown source={asset.asset_description} limit={300} />
+            {asset.asset_description
+              ? <ExpandableMarkdown source={asset.asset_description} limit={300} />
+              : '-'}
           </Field>
           <Field label={t('Category')}>
             <Box sx={{
@@ -327,23 +214,10 @@ const AssetDetail = () => {
           <Field label={t('Tags')}>
             <ItemTags variant="list" tags={asset.asset_tags} />
           </Field>
-        </Paper>
-      </div>
+        </InformationGrid>
 
-      {/* AI target connection (AI targets only) */}
-      {isAiTarget && (
-        <div>
-          <Typography sx={SECTION_LABEL_SX}>{t('AI target connection')}</Typography>
-          <Paper
-            variant="outlined"
-            sx={{
-              padding: 2,
-              borderRadius: 1,
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: 2,
-            }}
-          >
+        {isAiTarget && (
+          <InformationGrid title={t('AI target connection')}>
             <Field label={t('Provider')}><Typography variant="body2">{emptyFilled(asset.ai_target_provider)}</Typography></Field>
             <Field label={t('Modality')}><Typography variant="body2">{emptyFilled(asset.ai_target_modality)}</Typography></Field>
             <Field label={t('Model')}><Typography variant="body2">{emptyFilled(asset.ai_target_model)}</Typography></Field>
@@ -351,45 +225,19 @@ const AssetDetail = () => {
             {asset.ai_target_system_prompt && (
               <Field label={t('System prompt')}><ExpandableMarkdown source={asset.ai_target_system_prompt} limit={300} /></Field>
             )}
-          </Paper>
-        </div>
-      )}
+          </InformationGrid>
+        )}
 
-      {/* Cloud (cloud/SaaS assets) */}
-      {hasCloud && (
-        <div>
-          <Typography sx={SECTION_LABEL_SX}>{t('Cloud')}</Typography>
-          <Paper
-            variant="outlined"
-            sx={{
-              padding: 2,
-              borderRadius: 1,
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: 2,
-            }}
-          >
+        {hasCloud && (
+          <InformationGrid title={t('Cloud')}>
             <Field label={t('Cloud provider')}><Typography variant="body2">{asset.asset_cloud_provider ? t(humanizeEnum(asset.asset_cloud_provider)) : '-'}</Typography></Field>
             <Field label={t('Native type')}><Typography variant="body2">{emptyFilled(asset.asset_cloud_native_type)}</Typography></Field>
             <Field label={t('Region')}><Typography variant="body2">{emptyFilled(asset.asset_cloud_region)}</Typography></Field>
-          </Paper>
-        </div>
-      )}
+          </InformationGrid>
+        )}
 
-      {/* Network (hosts / network / IoT / web / generic) */}
-      {!isAiTarget && hasNetwork && (
-        <div>
-          <Typography sx={SECTION_LABEL_SX}>{t('Network')}</Typography>
-          <Paper
-            variant="outlined"
-            sx={{
-              padding: 2,
-              borderRadius: 1,
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: 2,
-            }}
-          >
+        {!isAiTarget && hasNetwork && (
+          <InformationGrid title={t('Network')}>
             <Field label={t('Hostname')}><Typography variant="body2">{emptyFilled(asset.asset_hostname)}</Typography></Field>
             <Field label={t('Seen IP address')}><Typography variant="body2">{emptyFilled(asset.asset_seen_ip)}</Typography></Field>
             {asset.endpoint_platform && (
@@ -434,60 +282,33 @@ const AssetDetail = () => {
                 </Box>
               </Field>
             )}
-          </Paper>
-        </div>
-      )}
+          </InformationGrid>
+        )}
+      </DetailSections>
 
-      {/* Agents (endpoints with agents) */}
       {hasAgents && (
-        <div>
-          <Typography sx={SECTION_LABEL_SX}>{t('Agents')}</Typography>
-          <Paper variant="outlined" sx={{ borderRadius: 1 }}>
-            <AgentList agents={asset.asset_agents} />
-          </Paper>
-        </div>
+        <SectionBlock title={t('Agents')}>
+          <AgentList agents={asset.asset_agents} />
+        </SectionBlock>
       )}
 
-      {/* Findings */}
-      <div>
-        <Typography sx={SECTION_LABEL_SX}>{t('Findings')}</Typography>
-        <Paper
-          variant="outlined"
-          sx={{
-            padding: 2,
-            borderRadius: 1,
-          }}
-        >
-          <FindingList
-            filterLocalStorageKey="endpoint-findings"
-            searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindingsOnEndpoint(id, input)}
-            searchFindings={(input: SearchPaginationInput) => searchFindingsOnEndpoint(id, input)}
-            additionalHeaders={additionalHeaders}
-            additionalFilterNames={additionalFilterNames}
-            contextId={id}
-          />
-        </Paper>
-      </div>
+      <SectionBlock title={t('Findings')}>
+        <FindingList
+          filterLocalStorageKey="endpoint-findings"
+          searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindingsOnEndpoint(id, input)}
+          contextId={id}
+        />
+      </SectionBlock>
 
-      {/* Injects played */}
-      <div>
-        <Typography sx={SECTION_LABEL_SX}>{t('Injects played')}</Typography>
-        <Paper
-          variant="outlined"
-          sx={{
-            padding: 2,
-            borderRadius: 1,
-          }}
-        >
-          <InjectResultList
-            fetchInjects={fetchInjectsPlayed}
-            goTo={injectId => `/admin/atomic_testings/${injectId}`}
-            queryableHelpers={injectsHelpers}
-            searchPaginationInput={injectsInput}
-            contextId={id}
-          />
-        </Paper>
-      </div>
+      <SectionBlock title={t('Injects played')}>
+        <InjectResultList
+          fetchInjects={fetchInjectsPlayed}
+          goTo={injectId => `/admin/atomic_testings/${injectId}`}
+          queryableHelpers={injectsHelpers}
+          searchPaginationInput={injectsInput}
+          contextId={id}
+        />
+      </SectionBlock>
     </Box>
   );
 };

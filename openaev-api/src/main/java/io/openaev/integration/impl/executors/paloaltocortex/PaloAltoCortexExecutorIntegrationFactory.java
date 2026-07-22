@@ -121,11 +121,11 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
     connector.setSlug(PALOALTOCORTEX_EXECUTOR_TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
-        """
-        With Palo Alto Cortex executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Palo Alto Cortex instance.
-        """);
+        "Register your Palo Alto Cortex XDR-managed endpoints as OpenAEV executors and run"
+            + " simulated attacks on them through Cortex, so you can validate detection and"
+            + " prevention on real endpoints without deploying the OpenAEV agent.");
     connector.setShortDescription(
-        "Enable execution of OpenAEV scenarios through your Palo Alto Cortex instance.");
+        "Run OpenAEV simulations on your Palo Alto Cortex XDR endpoints.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("https://www.paloaltonetworks.com/cortex/cortex-xdr");
     connector.setContainerType(ConnectorType.EXECUTOR);

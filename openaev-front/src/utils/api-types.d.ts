@@ -231,6 +231,12 @@ export interface AiAttack {
   ai_attack_success_detector?: Record<string, any>;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -248,6 +254,19 @@ export interface AiAttack {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  payload_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+    )[]
+  >;
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
@@ -339,6 +358,7 @@ export interface AiTargetInput {
     | "XTM_ONE";
   ai_target_system_prompt?: string | null;
   ai_target_token?: string | null;
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
   /** @minLength 1 */
@@ -384,41 +404,6 @@ export interface AiTargetTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
-}
-
-export interface ArgumentTypeOutput {
-  argument_subtypes?: (
-    | "host"
-    | "port"
-    | "service"
-    | "username"
-    | "password"
-    | "severity"
-    | "domain"
-  )[];
-  argument_type:
-    | "text"
-    | "number"
-    | "port"
-    | "portscan"
-    | "ipv4"
-    | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "document"
-    | "targeted-asset";
 }
 
 export interface Article {
@@ -539,6 +524,8 @@ export interface Asset {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
+  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"
@@ -1081,6 +1068,12 @@ type BaseInjectorContractBaseOutputInjectorContractHasFullDetailsMapping<
 interface BasePayload {
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -1098,6 +1091,19 @@ interface BasePayload {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  payload_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+    )[]
+  >;
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
@@ -1157,6 +1163,19 @@ interface BasePayloadCreateInput {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  payload_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+    )[]
+  >;
   /** @minLength 1 */
   payload_name: string;
   /**
@@ -1651,6 +1670,12 @@ export interface Command {
   command_executor: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -1668,6 +1693,19 @@ export interface Command {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  payload_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+    )[]
+  >;
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
@@ -1740,41 +1778,29 @@ export interface ConditionCreateInput {
   condition_case_sensitive?: boolean;
   /** Property to be mapped */
   condition_key?: string;
-  /** Condition key subtype */
-  condition_key_subtype?:
-    | "port"
-    | "ipv4"
-    | "ipv6"
-    | "username"
-    | "password"
-    | "service"
-    | "host";
   /** Path to the value in the output of the step from */
   condition_key_type?:
-    | "execution_time"
-    | "step_template_id"
-    | "text"
-    | "status"
-    | "number"
-    | "port"
-    | "portscan"
+    | "asset_group_id"
+    | "asset_id"
+    | "cve"
+    | "document"
+    | "domain"
+    | "hash"
+    | "host"
+    | "hostname"
     | "ipv4"
     | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "asset";
+    | "ip_subnet"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "targeted-asset"
+    | "text"
+    | "username";
   /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   /** ID of the step linked to the key */
@@ -1807,39 +1833,28 @@ export interface ConditionOutput {
   condition_case_sensitive?: boolean;
   condition_id?: string;
   condition_key?: string;
-  condition_key_subtype?:
-    | "port"
-    | "ipv4"
-    | "ipv6"
-    | "username"
-    | "password"
-    | "service"
-    | "host";
   condition_key_type?:
-    | "execution_time"
-    | "step_template_id"
-    | "text"
-    | "status"
-    | "number"
-    | "port"
-    | "portscan"
+    | "asset_group_id"
+    | "asset_id"
+    | "cve"
+    | "document"
+    | "domain"
+    | "hash"
+    | "host"
+    | "hostname"
     | "ipv4"
     | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "asset";
+    | "ip_subnet"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "targeted-asset"
+    | "text"
+    | "username";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_parent_id?: string;
   condition_type?: string;
@@ -2438,6 +2453,12 @@ export interface DnsResolution {
   dns_resolution_hostname: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -2455,6 +2476,19 @@ export interface DnsResolution {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  payload_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+    )[]
+  >;
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
@@ -2632,6 +2666,8 @@ export interface Endpoint {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
+  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"
@@ -3913,6 +3949,12 @@ export interface Executable {
   executable_file: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -3930,6 +3972,19 @@ export interface Executable {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  payload_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+    )[]
+  >;
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
@@ -4129,6 +4184,7 @@ export interface Exercise {
   /** @format int64 */
   exercise_lessons_answers_number?: number;
   exercise_lessons_categories?: string[];
+  exercise_lessons_enabled?: boolean;
   exercise_logo_dark?: string;
   exercise_logo_light?: string;
   /** @format int64 */
@@ -4313,6 +4369,12 @@ export interface FileDrop {
   file_drop_file: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -4330,6 +4392,19 @@ export interface FileDrop {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  payload_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+    )[]
+  >;
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
@@ -5390,6 +5465,10 @@ export interface InjectorContract {
   injector_contract_manual?: boolean;
   injector_contract_needs_executor?: boolean;
   injector_contract_payload?: Payload;
+  injector_contract_payload_author?: string;
+  injector_contract_payload_author_organization?: Organization;
+  injector_contract_payload_author_team?: Team;
+  injector_contract_payload_author_user?: User;
   injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   injector_contract_platforms?: (
     | "Linux"
@@ -5428,6 +5507,20 @@ export interface InjectorContractAddInput {
   /** @minLength 1 */
   injector_id: string;
   is_atomic_testing?: boolean;
+}
+
+export interface InjectorContractAuthorCountOutput {
+  /** Author id (user, team or organization) */
+  author?: string;
+  /** Author display name */
+  author_name?: string;
+  /** Author type: user, team or organization */
+  author_type?: string;
+  /**
+   * Number of contracts authored by this author under the current filters
+   * @format int64
+   */
+  count?: number;
 }
 
 export type InjectorContractBaseOutput = BaseInjectorContractBaseOutput &
@@ -5620,6 +5713,7 @@ export interface InjectorContractUpdateMappingInput {
 }
 
 export interface InjectorCreateInput {
+  injector_author?: string;
   injector_category?: string;
   injector_contracts?: InjectorContractInput[];
   injector_custom_contracts?: boolean;
@@ -5891,7 +5985,10 @@ export interface LessonsCategoryUpdateInput {
 }
 
 export interface LessonsInput {
+  /** Whether questionnaire answers are anonymized (unchanged when absent) */
   lessons_anonymized?: boolean;
+  /** Whether the lessons learned module is enabled (unchanged when absent) */
+  lessons_enabled?: boolean;
 }
 
 export interface LessonsQuestion {
@@ -6085,30 +6182,27 @@ export interface LoginUserInput {
 export interface MapperConditionOutput {
   condition_key?: string;
   condition_key_type?:
-    | "execution_time"
-    | "step_template_id"
-    | "text"
-    | "status"
-    | "number"
-    | "port"
-    | "portscan"
+    | "asset_group_id"
+    | "asset_id"
+    | "cve"
+    | "document"
+    | "domain"
+    | "hash"
+    | "host"
+    | "hostname"
     | "ipv4"
     | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "asset";
+    | "ip_subnet"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "targeted-asset"
+    | "text"
+    | "username";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_value?: string;
 }
@@ -6168,6 +6262,12 @@ export interface NetworkTraffic {
   network_traffic_port_src: number;
   network_traffic_protocol: string;
   payload_arguments?: PayloadArgument[];
+  /** Organization author of the payload */
+  payload_author_organization?: string;
+  /** Team author of the payload */
+  payload_author_team?: string;
+  /** User author of the payload */
+  payload_author_user?: string;
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -6185,6 +6285,19 @@ export interface NetworkTraffic {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  payload_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+    )[]
+  >;
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
@@ -7090,38 +7203,28 @@ export interface PayloadArgument {
   /** @minLength 1 */
   key: string;
   separator?: string | null;
-  /** Optional sub-field key for structured output types */
-  subtype?:
-    | "host"
-    | "port"
-    | "service"
-    | "username"
-    | "password"
-    | "severity"
-    | "domain";
   type:
-    | "text"
-    | "number"
-    | "port"
-    | "portscan"
+    | "asset_group_id"
+    | "asset_id"
+    | "cve"
+    | "document"
+    | "domain"
+    | "hash"
+    | "host"
+    | "hostname"
     | "ipv4"
     | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "document"
-    | "targeted-asset";
+    | "ip_subnet"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "targeted-asset"
+    | "text"
+    | "username";
 }
 
 export interface PayloadCommandBlock {
@@ -7164,6 +7267,19 @@ export interface PayloadInput {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  payload_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+    )[]
+  >;
   /** @minLength 1 */
   payload_name: string;
   /**
@@ -7231,6 +7347,20 @@ export interface PayloadOutput {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  /** Optional map of expectation type to expected security platform types (empty = any) */
+  payload_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+    )[]
+  >;
   /** External reference identifier */
   payload_external_id?: string;
   /**
@@ -7318,6 +7448,19 @@ export interface PayloadUpdateInput {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  payload_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+    )[]
+  >;
   /** @minLength 1 */
   payload_name: string;
   /**
@@ -7370,6 +7513,19 @@ export interface PayloadUpsertInput {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  payload_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+    )[]
+  >;
   /** @minLength 1 */
   payload_external_id: string;
   /** @minLength 1 */
@@ -7609,6 +7765,21 @@ export interface PlatformSettings {
   platform_openid_providers?: OAuthProvider[];
   /** Policies of the platform */
   platform_policies?: PolicyInput;
+  /**
+   * Idle timeout in milliseconds before the UI locks the screen (0 = disabled). Read-only, driven by server configuration
+   * @format int64
+   */
+  platform_session_idle_timeout?: number;
+  /**
+   * Maximum number of concurrent sessions per user (0 = unlimited)
+   * @format int32
+   */
+  platform_session_max_concurrent?: number;
+  /**
+   * Rolling session timeout in milliseconds (every request extends the session by this duration). Read-only, driven by server configuration
+   * @format int64
+   */
+  platform_session_timeout?: number;
   /**
    * Theme of the platform
    * @minLength 1
@@ -8235,6 +8406,7 @@ export interface Scenario {
   scenario_kill_chain_phases?: KillChainPhase[];
   scenario_lessons_anonymized?: boolean;
   scenario_lessons_categories?: string[];
+  scenario_lessons_enabled?: boolean;
   /**
    * @format email
    * @minLength 1
@@ -8361,6 +8533,8 @@ export interface ScenarioOutput {
   scenario_id: string;
   /** @uniqueItems true */
   scenario_kill_chain_phases?: KillChainPhaseOutput[];
+  /** Whether the lessons learned module is enabled for the scenario */
+  scenario_lessons_enabled?: boolean;
   /**
    * From value of the scenario
    * @minLength 1
@@ -8489,28 +8663,27 @@ export interface ScopeVariableInput {
   scope_variable_key: string;
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type:
-    | "text"
-    | "number"
-    | "port"
-    | "portscan"
+    | "asset_group_id"
+    | "asset_id"
+    | "cve"
+    | "document"
+    | "domain"
+    | "hash"
+    | "host"
+    | "hostname"
     | "ipv4"
     | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "document"
-    | "targeted-asset";
+    | "ip_subnet"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "targeted-asset"
+    | "text"
+    | "username";
   /**
    * Value of the variable.
    * @minLength 1
@@ -8528,28 +8701,27 @@ export interface ScopeVariableOutput {
   scope_variable_key?: string;
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type?:
-    | "text"
-    | "number"
-    | "port"
-    | "portscan"
+    | "asset_group_id"
+    | "asset_id"
+    | "cve"
+    | "document"
+    | "domain"
+    | "hash"
+    | "host"
+    | "hostname"
     | "ipv4"
     | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "document"
-    | "targeted-asset";
+    | "ip_subnet"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "targeted-asset"
+    | "text"
+    | "username";
   /** Value of the variable. */
   scope_variable_value?: string;
 }
@@ -8637,6 +8809,8 @@ export interface SecurityPlatform {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
+  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"
@@ -8779,6 +8953,28 @@ export interface Series {
   name?: string;
 }
 
+export interface SessionOutput {
+  /**
+   * Session creation time
+   * @format date-time
+   */
+  session_created_at?: string;
+  /**
+   * Time at which the session expires if it stays idle
+   * @format date-time
+   */
+  session_expires_at?: string;
+  /** Identifier of the session */
+  session_id?: string;
+  /**
+   * Last time the session was used
+   * @format date-time
+   */
+  session_last_access_at?: string;
+  /** Identifier of the user owning the session */
+  session_user_id?: string;
+}
+
 export interface SettingsChatbotAiCguUpdateInput {
   /**
    * Chatbot AI CGU acceptance status: pending, enabled, or disabled
@@ -8799,6 +8995,15 @@ export interface SettingsPlatformWhitemarkUpdateInput {
    * @minLength 1
    */
   platform_whitemark: string;
+}
+
+export interface SettingsSessionsUpdateInput {
+  /**
+   * Maximum number of concurrent sessions per user (0 = unlimited)
+   * @format int32
+   * @min 0
+   */
+  platform_session_max_concurrent: number;
 }
 
 export interface SimulationChallengesReader {
@@ -8825,6 +9030,7 @@ export interface SimulationDetails {
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;
+  exercise_lessons_enabled?: boolean;
   /** @format int64 */
   exercise_logs_number?: number;
   /** @minLength 1 */
@@ -8957,30 +9163,27 @@ export interface StepInput {
 export interface StepOutput {
   step_condition_ids?: string[];
   step_condition_key_types?: (
-    | "execution_time"
-    | "step_template_id"
-    | "text"
-    | "status"
-    | "number"
-    | "port"
-    | "portscan"
+    | "asset_group_id"
+    | "asset_id"
+    | "cve"
+    | "document"
+    | "domain"
+    | "hash"
+    | "host"
+    | "hostname"
     | "ipv4"
     | "ipv6"
-    | "credentials"
-    | "cve"
+    | "ip_subnet"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "targeted-asset"
+    | "text"
     | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "asset"
   )[];
   /** @format date-time */
   step_created_at?: string;
@@ -9353,6 +9556,14 @@ export interface ThemeInput {
   accent_color?: string;
   /** Background color of the theme */
   background_color?: string;
+  /** Solid color of the login page aside */
+  login_aside_color?: string;
+  /** Gradient end color of the login page aside */
+  login_aside_gradient_end?: string;
+  /** Gradient start color of the login page aside */
+  login_aside_gradient_start?: string;
+  /** Url of the login page aside background image */
+  login_aside_image?: string;
   /** Url of the login logo */
   logo_login_url?: string;
   /** Url of the logo */
@@ -9376,6 +9587,12 @@ export interface ThreatArsenalAction {
    * @uniqueItems true
    */
   action_attack_patterns_ids: string[];
+  /** Author id (user, team or organization) */
+  action_author?: string;
+  /** Author display name */
+  action_author_name?: string;
+  /** Author type: user, team or organization */
+  action_author_type?: string;
   /**
    * Domain IDs
    * @minItems 1
@@ -9506,6 +9723,20 @@ export interface ThreatArsenalActionFullOutput {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  /** Security platform types expected to fulfil each predefined technical expectation (empty or absent = any security platform) */
+  action_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+    )[]
+  >;
   /** External reference identifier */
   action_external_id?: string;
   /**
@@ -9649,6 +9880,16 @@ export interface ThreatArsenalActionWithContentOutput {
    * @format date-time
    */
   injector_contract_updated_at: string;
+}
+
+export interface ThreatArsenalBulkDeleteOutput {
+  /**
+   * Number of actions that were actually deleted
+   * @format int32
+   */
+  deleted_count?: number;
+  /** Ids of the actions that were actually deleted */
+  deleted_ids?: string[];
 }
 
 export interface Token {

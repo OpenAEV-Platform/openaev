@@ -6,14 +6,16 @@ import java.util.List;
 /**
  * Tenant scope carried by a database transaction.
  *
- * <p>Two states, never {@code null}: {@link Missing} (no scope, access denied) and {@link
- * Restricted} (an explicit, non-empty set of tenants). There is no "all tenants" state: a wildcard
- * in the scope channel would silently widen access.
+ * <p>Three states, never {@code null}: {@link Missing} (no scope, access denied), {@link
+ * Restricted} (an explicit, non-empty set of tenants), and {@link AllTenants} (an unresolved
+ * intention for genuinely-global background work). No wildcard ever reaches the scope channel:
+ * {@link AllTenants} cannot serialize itself, it is resolved into an explicit {@link Restricted}
+ * list at scope-set time, so {@code can_access_tenant} only ever sees explicit tenant ids.
  *
  * <p>{@link #toGuc()} serializes the scope for {@code set_config('app.current_tenants', …, true)},
  * read back by the {@code can_access_tenant(tenant_id)} SQL function.
  */
-public sealed interface TxCtx permits TxCtx.Missing, TxCtx.Restricted {
+public sealed interface TxCtx permits TxCtx.Missing, TxCtx.Restricted, TxCtx.AllTenants {
 
   /** Value for {@code set_config('app.current_tenants', …, true)}; never {@code null}. */
   String toGuc();
@@ -33,6 +35,15 @@ public sealed interface TxCtx permits TxCtx.Missing, TxCtx.Restricted {
     return new Restricted(List.copyOf(tenantIds));
   }
 
+  /**
+   * The intention "this work must see every tenant" (genuinely-global background work, e.g. the ES
+   * indexing sweep). Not a wildcard: it is resolved into an explicit {@link Restricted} list of
+   * active tenant ids when the scope is set, and only {@code TenantScopedTransaction} does that.
+   */
+  static TxCtx allTenants() {
+    return AllTenants.INSTANCE;
+  }
+
   record Missing() implements TxCtx {
     static final Missing INSTANCE = new Missing();
 
@@ -40,6 +51,19 @@ public sealed interface TxCtx permits TxCtx.Missing, TxCtx.Restricted {
     @Override
     public String toGuc() {
       return "";
+    }
+  }
+
+  /** An unresolved intention: it cannot reach the scope channel, only its resolution can. */
+  record AllTenants() implements TxCtx {
+    static final AllTenants INSTANCE = new AllTenants();
+
+    @Override
+    public String toGuc() {
+      throw new IllegalStateException(
+          "allTenants() is an unresolved intention: it cannot be serialized to the scope channel."
+              + " Only TenantScopedTransaction resolves it into an explicit tenant list; it is not"
+              + " usable on the HTTP path.");
     }
   }
 

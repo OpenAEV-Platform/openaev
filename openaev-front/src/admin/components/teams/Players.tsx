@@ -1,7 +1,7 @@
 import { HelpOutlineOutlined, PersonOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type OrganizationHelper, type UserHelper } from '../../../actions/helper';
@@ -19,6 +19,7 @@ import { type Header } from '../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
+import { PERSON_BASE_URL } from '../../../constants/BaseUrls';
 import { useHelper } from '../../../store';
 import { type PlayerOutput, type SearchPaginationInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
@@ -48,6 +49,7 @@ const Players = () => {
   // Standard hooks
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
 
@@ -134,8 +136,8 @@ const Players = () => {
     <>
       <Breadcrumbs
         variant="list"
-        elements={[{ label: t('Teams') }, {
-          label: t('Players'),
+        elements={[{
+          label: t('Persons'),
           current: true,
         }]}
       />
@@ -146,9 +148,16 @@ const Players = () => {
         entityPrefix="user"
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
-        topBarButtons={
-          <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
-        }
+        topBarButtons={(
+          <Box display="flex" gap={1} alignItems="center">
+            <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
+              <CreatePlayer
+                onCreate={result => setPlayers([result, ...players])}
+              />
+            </Can>
+          </Box>
+        )}
       />
       <List>
         <ListItem
@@ -173,8 +182,8 @@ const Players = () => {
           : players.map((player: PlayerOutput) => (
               <ListItem
                 key={player.user_id}
-                classes={{ root: classes.item }}
                 divider
+                disablePadding
                 secondaryAction={(
                   <PlayerPopover
                     user={player}
@@ -182,34 +191,31 @@ const Players = () => {
                   />
                 )}
               >
-                <ListItemIcon>
-                  <PersonOutlined color="primary" />
-                </ListItemIcon>
-                <ListItemText
-                  primary={(
-                    <div style={bodyItemsStyles.bodyItems}>
-                      {headers.map(header => (
-                        <div
-                          key={header.field}
-                          style={{
-                            ...bodyItemsStyles.bodyItem,
-                            ...inlineStyles[header.field],
-                          }}
-                        >
-                          {header.value?.(player)}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                />
+                <ListItemButton classes={{ root: classes.item }} onClick={() => navigate(`${PERSON_BASE_URL}/${player.user_id}`)}>
+                  <ListItemIcon>
+                    <PersonOutlined color="primary" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={(
+                      <div style={bodyItemsStyles.bodyItems}>
+                        {headers.map(header => (
+                          <div
+                            key={header.field}
+                            style={{
+                              ...bodyItemsStyles.bodyItem,
+                              ...inlineStyles[header.field],
+                            }}
+                          >
+                            {header.value?.(player)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  />
+                </ListItemButton>
               </ListItem>
             ))}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
-        <CreatePlayer
-          onCreate={result => setPlayers([result, ...players])}
-        />
-      </Can>
     </>
   );
 };

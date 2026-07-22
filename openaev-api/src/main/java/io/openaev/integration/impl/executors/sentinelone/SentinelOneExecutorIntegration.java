@@ -17,7 +17,6 @@ import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.service.SentinelOneExecutorContextService;
 import io.openaev.executors.sentinelone.service.SentinelOneExecutorService;
-import io.openaev.executors.sentinelone.service.SentinelOneGarbageCollectorService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
@@ -48,7 +47,6 @@ public class SentinelOneExecutorIntegration extends Integration {
   private SentinelOneExecutorContextService sentinelOneExecutorContextService;
 
   private SentinelOneExecutorService sentinelOneExecutorService;
-  private SentinelOneGarbageCollectorService sentinelOneGarbageCollectorService;
 
   private SentinelOneExecutorConfig config;
   private SentinelOneExecutorClient client;
@@ -145,17 +143,10 @@ public class SentinelOneExecutorIntegration extends Integration {
     sentinelOneExecutorService =
         new SentinelOneExecutorService(
             executor, client, endpointService, agentService, assetGroupService);
-    sentinelOneGarbageCollectorService =
-        new SentinelOneGarbageCollectorService(
-            config, sentinelOneExecutorContextService, agentService, executorId);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(
             sentinelOneExecutorService, Duration.ofSeconds(this.config.getApiRegisterInterval())));
-    timers.add(
-        taskScheduler.scheduleAtFixedRate(
-            sentinelOneGarbageCollectorService,
-            Duration.ofHours(this.config.getCleanImplantInterval())));
   }
 
   @Override

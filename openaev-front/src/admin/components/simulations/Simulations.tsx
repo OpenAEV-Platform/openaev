@@ -1,4 +1,4 @@
-import { ToggleButtonGroup } from '@mui/material';
+import { Box, ToggleButtonGroup } from '@mui/material';
 import { useState } from 'react';
 
 import { searchExercises } from '../../../actions/Exercise';
@@ -98,15 +98,20 @@ const Simulations = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <ToggleButtonGroup value="fake" exclusive>
-            <ExportButton
-              totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
-              exportProps={exportProps}
-            />
+          <Box display="flex" gap={1} alignItems="center">
+            <ToggleButtonGroup value="fake" exclusive>
+              <ExportButton
+                totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
+                exportProps={exportProps}
+              />
+              <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
+                <ImportUploaderExercise />
+              </Can>
+            </ToggleButtonGroup>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-              <ImportUploaderExercise />
+              <ExerciseCreation />
             </Can>
-          </ToggleButtonGroup>
+          </Box>
         )}
       />
       <SimulationList
@@ -115,9 +120,6 @@ const Simulations = () => {
         secondaryAction={secondaryAction}
         loading={loading}
       />
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-        <ExerciseCreation />
-      </Can>
     </>
   );
 };

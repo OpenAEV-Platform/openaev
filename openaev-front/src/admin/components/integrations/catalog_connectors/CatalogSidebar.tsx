@@ -4,12 +4,11 @@ import {
   GroupsOutlined,
   Inventory2Outlined,
   OnlinePredictionOutlined,
-  RocketLaunchOutlined,
   SmartButtonOutlined,
   TerminalOutlined,
   VerifiedOutlined,
 } from '@mui/icons-material';
-import { Button, ButtonBase, Typography } from '@mui/material';
+import { Box, Button, ButtonBase, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, useMemo } from 'react';
 
@@ -25,7 +24,6 @@ import {
   hasActiveFacetFilters,
   prettifyUseCase,
   STATUS_COMMUNITY,
-  STATUS_DEPLOYED,
   STATUS_FILIGRAN,
 } from './catalog-facets';
 import useCaseIcon from './use-case-icons';
@@ -201,6 +199,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
           count: countByPredicate(useCasesBase, c => c.useCases.includes(useCase)),
         })),
       },
+      // No "Deployed" status facet: it would be redundant with the Deployed tab.
       {
         id: 'status' as const,
         label: t('Status'),
@@ -216,12 +215,6 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
             label: t('Supported by Community'),
             icon: GroupsOutlined,
             count: countByPredicate(statusBase, c => !c.verified),
-          },
-          {
-            value: STATUS_DEPLOYED,
-            label: t('Deployed'),
-            icon: RocketLaunchOutlined,
-            count: countByPredicate(statusBase, c => c.deployedCount > 0),
           },
         ],
       },
@@ -247,77 +240,109 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
   }, [connectors, filters, keyword, t]);
 
   return (
-    <aside
-      style={{
-        width: 240,
+    // Fixed sticky column on md+; below md the marketplace stacks it
+    // full-width above the cards (sticky + max-height would then trap the
+    // whole page behind the filters, so both are disabled).
+    <Box
+      component="aside"
+      sx={{
+        width: {
+          xs: '100%',
+          md: 250,
+        },
         flexShrink: 0,
-        position: 'sticky',
+        position: {
+          xs: 'static',
+          md: 'sticky',
+        },
         top: theme.spacing(2),
-        alignSelf: 'flex-start',
+        alignSelf: {
+          xs: 'stretch',
+          md: 'flex-start',
+        },
+        maxHeight: {
+          xs: 'none',
+          md: `calc(100vh - ${theme.spacing(20)})`,
+        },
+        overflowY: {
+          xs: 'visible',
+          md: 'auto',
+        },
+      }}
+    >
+      <div style={{
         display: 'flex',
         flexDirection: 'column',
         gap: theme.spacing(2),
-      }}
-    >
-      <header style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        minHeight: 30,
+        padding: theme.spacing(2),
+        borderRadius: theme.shape.borderRadius,
+        border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+        backgroundColor: theme.palette.background.paper,
       }}
       >
-        <Typography
-          sx={{
-            fontFamily: '"Geologica", sans-serif',
-            fontWeight: 600,
-            fontSize: 13,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-          }}
-        >
-          {t('Filters')}
-        </Typography>
-        {anyActive && (
-          <Button size="small" onClick={onClearAll}>
-            {t('Clear all')}
-          </Button>
-        )}
-      </header>
-      {groups.map(group => (
-        <section
-          key={group.id}
-          aria-label={group.label}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: theme.spacing(0.25),
-          }}
+        <header style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
         >
           <Typography
-            component="h3"
             sx={{
-              fontFamily: '"Geologica", sans-serif',
+              fontFamily: theme.typography.h1.fontFamily,
               fontWeight: 600,
-              fontSize: 11,
-              textTransform: 'uppercase',
-              letterSpacing: '0.12em',
-              color: 'text.secondary',
-              padding: theme.spacing(0.5, 1),
+              fontSize: 15,
             }}
           >
-            {group.label}
+            {t('Filters')}
           </Typography>
-          {group.rows.map(row => (
-            <FacetRowItem
-              key={row.value}
-              row={row}
-              checked={filters[group.id].includes(row.value)}
-              onToggle={() => onToggleFacet(group.id, row.value)}
-            />
-          ))}
-        </section>
-      ))}
-    </aside>
+          {anyActive && (
+            <Button size="small" onClick={onClearAll}>
+              {t('Clear all')}
+            </Button>
+          )}
+        </header>
+        {groups.map((group, groupIndex) => (
+          <section
+            key={group.id}
+            aria-label={group.label}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: theme.spacing(0.25),
+              ...(groupIndex > 0
+                ? {
+                    borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.05)}`,
+                    paddingTop: theme.spacing(2),
+                  }
+                : {}),
+            }}
+          >
+            <Typography
+              component="h3"
+              sx={{
+                fontFamily: theme.typography.h1.fontFamily,
+                fontWeight: 600,
+                fontSize: 12,
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
+                color: 'text.secondary',
+                paddingInline: 1,
+              }}
+            >
+              {group.label}
+            </Typography>
+            {group.rows.map(row => (
+              <FacetRowItem
+                key={row.value}
+                row={row}
+                checked={filters[group.id].includes(row.value)}
+                onToggle={() => onToggleFacet(group.id, row.value)}
+              />
+            ))}
+          </section>
+        ))}
+      </div>
+    </Box>
   );
 };
 

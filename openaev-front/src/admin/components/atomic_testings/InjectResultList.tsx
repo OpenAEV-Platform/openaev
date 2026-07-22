@@ -1,6 +1,6 @@
-import { CloudUploadOutlined, HelpOutlineOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButton, Tooltip } from '@mui/material';
-import { type CSSProperties, type FunctionComponent, useMemo, useState } from 'react';
+import { CloudUploadOutlined, HelpOutlineOutlined, TrackChangesOutlined } from '@mui/icons-material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButton, Tooltip } from '@mui/material';
+import { type CSSProperties, type FunctionComponent, type ReactElement, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -55,6 +55,9 @@ interface Props {
   searchPaginationInput: SearchPaginationInput;
   availableFilterNames?: string[];
   contextId?: string;
+  // Optional creation button rendered at the top right of the list header
+  // (OpenCTI-aligned placement), next to the import action.
+  createButton?: ReactElement | null;
 }
 
 const InjectResultList: FunctionComponent<Props> = ({
@@ -64,6 +67,7 @@ const InjectResultList: FunctionComponent<Props> = ({
   queryableHelpers,
   searchPaginationInput,
   contextId,
+  createButton,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -199,21 +203,24 @@ const InjectResultList: FunctionComponent<Props> = ({
         contextId={contextId}
         reloadContentCount={reloadCount}
         topBarButtons={showActions ? (
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-            <Tooltip title={t('inject_import_json_action')}>
-              <ToggleButton
-                value="import"
-                aria-label="import"
-                size="small"
-                onClick={handleOpenJsonImportDialog}
-              >
-                <CloudUploadOutlined
-                  color="primary"
-                  fontSize="small"
-                />
-              </ToggleButton>
-            </Tooltip>
-          </Can>
+          <Box display="flex" gap={1} alignItems="center">
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
+              <Tooltip title={t('inject_import_json_action')}>
+                <ToggleButton
+                  value="import"
+                  aria-label="import"
+                  size="small"
+                  onClick={handleOpenJsonImportDialog}
+                >
+                  <CloudUploadOutlined
+                    color="primary"
+                    fontSize="small"
+                  />
+                </ToggleButton>
+              </Tooltip>
+            </Can>
+            {createButton}
+          </Box>
         ) : null}
       />
       <InjectImportJsonDialog open={openJsonImportDialog} handleClose={handleCloseJsonImportDialog} handleSubmit={handleSubmitJsonImportFile} />
@@ -292,7 +299,13 @@ const InjectResultList: FunctionComponent<Props> = ({
                 );
               })
         }
-        {!injects ? (<Empty message={t('No data available')} />) : null}
+        {!loading && injects.length === 0 && (
+          <Empty
+            icon={TrackChangesOutlined}
+            message={t('No inject found.')}
+            hint={t('Injects will appear here once they have been played.')}
+          />
+        )}
       </List>
     </>
   );

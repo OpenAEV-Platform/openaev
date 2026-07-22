@@ -102,6 +102,13 @@ const Vulnerabilities = () => {
           availableFilterNames={availableFilterNames}
           queryableHelpers={queryableHelpers}
           entityPrefix="vulnerability"
+          topBarButtons={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+              <CreateVulnerability
+                onCreate={(result: VulnerabilitySimple) => setVulnerabilities([result, ...vulnerabilities])}
+              />
+            </Can>
+          )}
         />
         <List>
           <ListItem
@@ -162,11 +169,6 @@ const Vulnerabilities = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-          <CreateVulnerability
-            onCreate={(result: VulnerabilitySimple) => setVulnerabilities([result, ...vulnerabilities])}
-          />
-        </Can>
         <Drawer
           open={!!selectedVulnerability}
           handleClose={() => setSelectedVulnerability(null)}

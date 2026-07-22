@@ -194,12 +194,10 @@ const ChainingFlowConfiguration = ({
     if (!workflowId) return;
 
     const stepConditions: ConditionCreateInput[] = Object.entries(data.inject_field_links).map(([fieldKey, link], i) => {
-      const parts = link.outputType.split('.');
       return {
         condition_temporary_id: String(i),
         condition_type: 'MAPPER' as const,
-        condition_key_type: parts[0] as ConditionCreateInput['condition_key_type'],
-        condition_key_subtype: (parts.length > 1 ? parts.slice(1).join('.') : undefined) as ConditionCreateInput['condition_key_subtype'],
+        condition_key_type: link.outputType as ConditionCreateInput['condition_key_type'],
         condition_key: fieldKey,
         condition_mapping_type: (link.localScope ? 'LOCAL' : 'GLOBAL') as ConditionCreateInput['condition_mapping_type'],
       };

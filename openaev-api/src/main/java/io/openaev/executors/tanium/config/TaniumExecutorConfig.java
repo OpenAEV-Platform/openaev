@@ -46,7 +46,8 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
       description =
           """
           Tanium API URL
-          """)
+          """,
+      isRequired = true)
   @Getter
   @NotBlank
   private String url;
@@ -90,7 +91,8 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
           """
           Tanium API key
           """,
-      valueFormat = CONNECTOR_CONFIGURATION_FORMAT.PASSWORD)
+      valueFormat = CONNECTOR_CONFIGURATION_FORMAT.PASSWORD,
+      isRequired = true)
   @Getter
   @NotBlank
   private String apiKey;
@@ -122,7 +124,8 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
           """
           ID of the OpenAEV Tanium Windows package
           """,
-      jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
+      jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER,
+      isRequired = true)
   @Getter
   @NotBlank
   private Integer windowsPackageId;
@@ -133,7 +136,8 @@ public class TaniumExecutorConfig extends BaseIntegrationConfiguration {
           """
           ID of the OpenAEV Tanium Unix package
           """,
-      jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
+      jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER,
+      isRequired = true)
   @Getter
   @NotBlank
   private Integer unixPackageId;

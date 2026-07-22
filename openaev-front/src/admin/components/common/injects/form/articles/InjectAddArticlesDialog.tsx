@@ -215,9 +215,10 @@ const InjectAddArticlesDialog: FunctionComponent<Props> = ({
         </Grid>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>{t('Cancel')}</Button>
+        <Button variant="outlined" color="primary" onClick={handleClose}>{t('Cancel')}</Button>
         <Button
-          color="secondary"
+          variant="contained"
+          color="primary"
           onClick={submitAddArticles}
         >
           {t('Add')}

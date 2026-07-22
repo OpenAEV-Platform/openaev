@@ -24,13 +24,11 @@ const getOsPlatform = (): string => {
 
 test.describe('Agent implant registration', () => {
   let hostname: string;
-  let agentUser: string;
   const echoToken = `e2e-${Date.now()}`;
   const payloadName = `E2E Payload ${echoToken}`;
 
   test.beforeAll(async ({ browser }) => {
     hostname = os.hostname().toLowerCase();
-    agentUser = execSync('whoami', { encoding: 'utf-8' }).trim();
     const platform = getOsPlatform();
 
     // Create an authenticated page to navigate the UI
@@ -100,21 +98,28 @@ test.describe('Agent implant registration', () => {
     // Launch the atomic test
     await atomicTestingForm.launch();
 
-    // Wait for the agent to execute and send back results (up to 240s)
+    // In the redesigned atomic-testing detail the right-hand "Results by target"
+    // panel is populated only once a target is selected in the left "Targets"
+    // panel, and a page reload clears that selection. So on every poll iteration
+    // we reload, (re-)open the Endpoints tab, select the endpoint row and check
+    // whether the agent's execution traces have arrived yet (up to 240s).
+    const endpointsTab = page.getByRole('tab', { name: 'Endpoints' });
+    const endpointRow = page.getByRole('button', { name: new RegExp(hostname, 'i') });
+    const spawnTrace = page.getByText('Implant spawn by the agent');
+
     await expect(async () => {
       await page.reload();
-      // Wait for the agent row to show "Executed" status (agent name = whoami output)
-      await expect(page.getByRole('button', { name: new RegExp(`${agentUser}.*Executed`, 'i') })).toBeVisible();
+      if (await endpointsTab.isVisible().catch(() => false)) {
+        await endpointsTab.click();
+      }
+      await endpointRow.first().click();
+      // The START trace is only rendered once the agent has executed and reported.
+      await expect(spawnTrace).toBeVisible({ timeout: 5_000 });
     }).toPass({
       intervals: [10_000],
       timeout: 240_000,
     });
 
-    // Expand the agent row to reveal traces
-    await page.getByRole('button', { name: new RegExp(`${agentUser}.*Executed`, 'i') }).click();
-
-    // Verify traces are visible after expanding
-    await expect(page.getByText('Implant spawn by the agent')).toBeVisible();
     // Verify the attack command trace contains the echo output in stdout
     await expect(page.getByText(new RegExp(`"stdout":".*${echoToken}`))).toBeVisible();
   });

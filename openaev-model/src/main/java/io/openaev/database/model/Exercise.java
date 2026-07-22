@@ -172,6 +172,12 @@ public class Exercise implements GrantableBase, TenantBase {
   @JsonProperty("exercise_lessons_anonymized")
   private boolean lessonsAnonymized = false;
 
+  // Opt-in module flag: the lessons learned tab is only surfaced when enabled.
+  @Getter
+  @Column(name = "exercise_lessons_enabled")
+  @JsonProperty("exercise_lessons_enabled")
+  private boolean lessonsEnabled = false;
+
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore

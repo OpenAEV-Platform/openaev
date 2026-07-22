@@ -11,7 +11,6 @@ import java.time.Instant;
 import java.util.List;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -19,7 +18,10 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "cwes")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+// cwes is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter (#6398). Reads are
+// scoped by the inspector; writes are attributed explicitly by TenantWriteScopeResolver in
+// VulnerabilityService (a new cwe belongs to exactly one tenant). The listener stays as a fallback
+// that only fills a still-null tenant; the resolver-set value wins.
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

@@ -130,7 +130,11 @@ const ConnectorInstanceForm = ({
   };
 
   const formatKeyToLabel = (key: string): string => {
+    // Keys are SCREAMING_SNAKE_CASE (e.g. EXECUTOR_TANIUM_API_URL); lowercase first
+    // so an already-uppercase key becomes proper Title Case ("Executor Tanium Api Url")
+    // instead of staying all-caps.
     return key
+      .toLowerCase()
       .replace(/_/g, ' ')
       .replace(/\b\w/g, char => char.toUpperCase());
   };
@@ -342,14 +346,15 @@ const ConnectorInstanceForm = ({
         >
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             type="submit"
             disabled={isSubmitting || disabled}
           >
             {t(getActionLabel())}
           </Button>
           <Button
-            variant="contained"
+            variant="outlined"
+            color="primary"
             onClick={onClose}
             disabled={isSubmitting}
           >

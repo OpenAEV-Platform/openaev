@@ -93,7 +93,10 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
         allItems.push({
           id: connector.id,
           title: connector.name,
-          description: connector.catalog?.catalog_connector_short_description
+          // Prefer the full catalog description (the embedded catalog ref only
+          // carries the short one-liner); fall back to short, then built-in.
+          description: catalogMatch?.catalog_connector_description
+            ?? connector.catalog?.catalog_connector_short_description
             ?? catalogMatch?.catalog_connector_short_description
             ?? (() => {
               const builtin = builtinConnectorDescription(connector.type);

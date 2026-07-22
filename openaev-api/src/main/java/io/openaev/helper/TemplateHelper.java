@@ -28,7 +28,7 @@ public final class TemplateHelper {
 
   static {
     FREEMARKER_CONFIG = new Configuration(Configuration.VERSION_2_3_31);
-    FREEMARKER_CONFIG.setNewBuiltinClassResolver(TemplateClassResolver.SAFER_RESOLVER);
+    FREEMARKER_CONFIG.setNewBuiltinClassResolver(TemplateClassResolver.ALLOWS_NOTHING_RESOLVER);
     FREEMARKER_CONFIG.setTemplateExceptionHandler(new TemplateExceptionManager());
     FREEMARKER_CONFIG.setLogTemplateExceptions(false);
   }

@@ -8,6 +8,7 @@ import TagField from '../../../../components/fields/TagField';
 import { useFormatter } from '../../../../components/i18n';
 import { type AiTargetInput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
+import { CRITICALITY_OPTIONS, humanizeEnum } from '../asset-categories';
 
 interface Props {
   onSubmit: SubmitHandler<AiTargetInput>;
@@ -67,6 +68,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
     ai_target_model: '',
     ai_target_system_prompt: '',
     ai_target_token: '',
+    asset_criticality: 'UNKNOWN',
     asset_description: '',
     asset_tags: [],
     asset_external_reference: undefined,
@@ -91,6 +93,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         ai_target_system_prompt: z.string().optional().nullable(),
         ai_target_token: z.string().optional().nullable(),
         ai_target_configuration: z.record(z.string(), z.unknown()).optional(),
+        asset_criticality: z.enum(['VERY_HIGH', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']).optional(),
         asset_description: z.string().optional(),
         asset_tags: z.string().array().optional(),
         asset_external_reference: z.string().optional(),
@@ -151,6 +154,27 @@ const AiTargetForm: FunctionComponent<Props> = ({
           >
             {MODALITIES.map(modality => (
               <MenuItem key={modality} value={modality}>{t(MODALITY_LABEL_KEYS[modality])}</MenuItem>
+            ))}
+          </TextField>
+        )}
+      />
+      <Controller
+        control={control}
+        name="asset_criticality"
+        render={({ field }) => (
+          <TextField
+            select
+            variant="standard"
+            fullWidth
+            value={field.value ?? 'UNKNOWN'}
+            label={t('Criticality')}
+            style={{ marginTop: 20 }}
+            error={!!errors.asset_criticality}
+            helperText={errors.asset_criticality?.message}
+            {...register('asset_criticality')}
+          >
+            {CRITICALITY_OPTIONS.map(criticality => (
+              <MenuItem key={criticality} value={criticality}>{t(humanizeEnum(criticality))}</MenuItem>
             ))}
           </TextField>
         )}
@@ -229,7 +253,8 @@ const AiTargetForm: FunctionComponent<Props> = ({
       }}
       >
         <Button
-          variant="contained"
+          variant="outlined"
+          color="primary"
           onClick={handleClose}
           style={{ marginRight: 10 }}
           disabled={isSubmitting}
@@ -238,7 +263,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         </Button>
         <Button
           variant="contained"
-          color="secondary"
+          color="primary"
           type="submit"
           disabled={!isDirty || isSubmitting}
         >

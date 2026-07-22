@@ -602,7 +602,7 @@ class V1_DataImporterTest extends IntegrationTest {
     validStandalone.put("condition_id", "standalone-event-1");
     validStandalone.put("condition_type", "EQ");
     validStandalone.put("condition_key", "status");
-    validStandalone.put("condition_key_type", "status");
+    validStandalone.put("condition_key_type", "text");
     validStandalone.put("condition_value", "SUCCESS");
     validStandalone.put("condition_is_root", true);
     standaloneConditions.add(validStandalone);

@@ -42,7 +42,6 @@ const ConnectorDetails = () => {
         useCases={catalogConnector.catalog_connector_use_cases}
         verified={catalogConnector.catalog_connector_verified === true}
         external={catalogConnector.catalog_connector_manager_supported === true}
-        description={catalogConnector.catalog_connector_short_description}
         actions={ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS) && (
           <DeployButton
             onDeployBtnClick={() => setOpenCreateConnectorInstanceDrawer(true)}

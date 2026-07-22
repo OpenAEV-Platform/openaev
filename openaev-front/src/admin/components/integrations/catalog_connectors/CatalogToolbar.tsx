@@ -1,5 +1,5 @@
-import { Chip, MenuItem, TextField } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { MenuItem, TextField } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
 import SearchFilter from '../../../../components/SearchFilter';
@@ -38,9 +38,12 @@ const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange,
   ];
 
   return (
+    // Wraps like OpenCTI's marketplace toolbar so the fixed-width search and
+    // sort controls never overflow a narrow main column.
     <div style={{
       display: 'flex',
       alignItems: 'center',
+      flexWrap: 'wrap',
       gap: theme.spacing(1.5),
     }}
     >
@@ -69,18 +72,22 @@ const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange,
           </MenuItem>
         ))}
       </TextField>
-      <Chip
-        variant="outlined"
-        size="small"
-        sx={{
-          marginLeft: 'auto',
-          borderRadius: 1,
-        }}
-        label={(() => {
+      <span style={{
+        marginLeft: 'auto',
+        padding: theme.spacing(0.5, 1.25),
+        borderRadius: theme.shape.borderRadius,
+        backgroundColor: alpha(theme.palette.text.primary, 0.06),
+        fontSize: 13,
+        fontWeight: 500,
+        fontVariantNumeric: 'tabular-nums',
+        color: theme.palette.text.secondary,
+      }}
+      >
+        {(() => {
           if (resultCount === 1) return t('1 result');
           return t('{count} results', { count: resultCount });
         })()}
-      />
+      </span>
     </div>
   );
 };

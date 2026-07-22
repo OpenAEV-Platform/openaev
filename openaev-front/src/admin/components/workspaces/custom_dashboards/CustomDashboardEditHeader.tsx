@@ -11,6 +11,7 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { truncate } from '../../../../utils/String';
 import { CustomDashboardContext } from './CustomDashboardContext';
 import CustomDashboardPopover from './CustomDashboardPopover';
+import WidgetCreation from './widgets/WidgetCreation';
 
 const CustomDashboardEditHeader: FunctionComponent = () => {
   const { t } = useFormatter();
@@ -57,13 +58,23 @@ const CustomDashboardEditHeader: FunctionComponent = () => {
             {truncate(customDashboard.custom_dashboard_name, 80)}
           </Typography>
         </Tooltip>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
-          <CustomDashboardPopover
-            customDashboard={customDashboard}
-            onUpdate={handleUpdate}
-            onDelete={() => navigate('/admin/workspaces/custom_dashboards')}
-          />
-        </Can>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing(1),
+        }}
+        >
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
+            <WidgetCreation />
+          </Can>
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
+            <CustomDashboardPopover
+              customDashboard={customDashboard}
+              onUpdate={handleUpdate}
+              onDelete={() => navigate('/admin/workspaces/custom_dashboards')}
+            />
+          </Can>
+        </div>
       </div>
     </>
   );

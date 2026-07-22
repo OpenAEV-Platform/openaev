@@ -248,7 +248,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
           <Button
             type="submit"
             variant="contained"
-            color="secondary"
+            color="primary"
             disabled={!canSubmit}
           >
             {submitLabel ?? t('Add Event')}

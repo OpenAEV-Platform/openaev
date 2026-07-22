@@ -325,7 +325,8 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
         }}
         >
           <Button
-            variant="contained"
+            variant="outlined"
+            color="primary"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -333,7 +334,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
           </Button>
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             type="submit"
             disabled={!isDirty || isSubmitting}
           >

@@ -1,7 +1,7 @@
 package io.openaev.api.chaining.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.ArgumentType;
+import io.openaev.database.model.PrimitiveType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
@@ -22,7 +22,7 @@ public class ScopeVariableOutput {
 
   @Schema(description = "Argument type driving how the variable value is interpreted.")
   @JsonProperty("scope_variable_type")
-  private ArgumentType type;
+  private PrimitiveType type;
 
   @Schema(description = "Value of the variable.")
   @JsonProperty("scope_variable_value")
