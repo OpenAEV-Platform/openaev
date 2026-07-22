@@ -399,7 +399,7 @@ public class ConnectorInstanceService {
       switch (connectorInstance.getCatalogConnector().getContainerType()) {
         case EXECUTOR -> {
           endpointService.removeSourceTagsForExecutor(connectorId, tenantId);
-          executorRepository.deleteByIdAndTenantId(connectorId, tenantId);
+          executorRepository.deleteByExecutorId(connectorId);
         }
         case INJECTOR -> injectorRepository.deleteByIdAndTenantId(connectorId, tenantId);
         case COLLECTOR -> collectorRepository.deleteByIdAndTenantId(connectorId, tenantId);

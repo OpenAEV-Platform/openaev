@@ -76,12 +76,12 @@ public class AgentTargetSearchAdaptor extends SearchAdaptorBase {
             translatedInput,
             Agent.class);
 
-    return new PageImpl<>(
+    var content =
         eps.getContent().stream()
+            .filter(agent -> agent.getExecutor() != null)
             .map(endpoint -> convertFromAgent(endpoint, scopedInject))
-            .toList(),
-        eps.getPageable(),
-        eps.getTotalElements());
+            .toList();
+    return new PageImpl<>(content, eps.getPageable(), eps.getTotalElements());
   }
 
   @Override

@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.rest.connector_instance.dto.*;
 import io.openaev.rest.helper.RestBehavior;
@@ -188,7 +189,8 @@ public class ConnectorInstanceApi extends RestBehavior {
       value = {
         @ApiResponse(responseCode = "200", description = "Successfully deleted connector instance")
       })
-  public void deleteConnectorInstance(@PathVariable @NotBlank final String connectorInstanceId)
+  public void deleteConnectorInstance(
+      TxCtx ctx, @PathVariable @NotBlank final String connectorInstanceId)
       throws ConnectorStatusException {
     connectorInstanceService.deleteById(connectorInstanceId);
   }
