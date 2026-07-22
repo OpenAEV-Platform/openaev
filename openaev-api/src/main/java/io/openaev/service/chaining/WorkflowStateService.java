@@ -44,15 +44,9 @@ public class WorkflowStateService {
 
     // Process traces
     if (dataToSync.isJsonObject()) {
-      // Capture how many correlated tuples exist before ingestion so we can identify new ones
-      int correlatedSizeBefore = entries.getCorrelated().size();
-      Map<String, List<String>> parsedValues =
+      IngestionResult ingestion =
           saveToEntries(entries, dataToSync.getAsJsonObject(), safeTypeMappings, workflowRun);
-      // Newly appended correlated tuples from this sync call only
-      List<WorkflowStateEntries.Correlated> newCorrelated =
-          entries.getCorrelated().subList(correlatedSizeBefore, entries.getCorrelated().size());
-      // Propagate to local states of steps whose events need this output
-      propagateToLocalStates(parsedValues, newCorrelated, workflowRun);
+      propagateToLocalStates(ingestion, workflowRun);
     }
 
     // Save JSON back to DB
@@ -70,36 +64,32 @@ public class WorkflowStateService {
    * field of a tuple matches the step's event conditions, the full tuple is saved into the local
    * state so that downstream execution can use it as a correlated input set.
    *
-   * @param parsedByType map of output type names to their extracted values
-   * @param newCorrelated correlated tuples produced during this sync call (not yet propagated)
+   * @param ingestion the output of the ingestion phase for this sync call
    * @param workflowRun the running workflow execution
    */
-  private void propagateToLocalStates(
-      Map<String, List<String>> parsedByType,
-      List<WorkflowStateEntries.Correlated> newCorrelated,
-      Workflow workflowRun) {
+  private void propagateToLocalStates(IngestionResult ingestion, Workflow workflowRun) {
 
-    if ((parsedByType.isEmpty() && newCorrelated.isEmpty())
-        || workflowRun.getWorkflowTemplate() == null) {
-      return;
-    }
-    // Collect primitive key types matching the produced output.
-    Set<PrimitiveType> outputKeyTypes = resolveOutputKeyTypes(parsedByType.keySet());
-    if (outputKeyTypes.isEmpty() && newCorrelated.isEmpty()) {
+    if (ingestion.isEmpty() || workflowRun.getWorkflowTemplate() == null) {
       return;
     }
 
-    // Finds steps that match the given output key types and groups them
+    // parsedByType already contains the primitive subfields extracted from complex objects
+    // (via saveCorrelatedObject), so deriving key types from it covers both scalar and
+    // correlated-field origins.
+    Set<PrimitiveType> outputKeyTypes = resolveOutputKeyTypes(ingestion.parsedByType().keySet());
+    if (outputKeyTypes.isEmpty()) {
+      return;
+    }
+
+    // Find steps that have event conditions matching the produced key types
     Map<Step, List<Condition>> stepToConditions =
         findStepsWithMatchingConditions(workflowRun.getWorkflowTemplate().getId(), outputKeyTypes);
     if (stepToConditions.isEmpty()) {
       return;
     }
 
-    // For each interested step, propagate matching output values to its local pool
     for (Map.Entry<Step, List<Condition>> stepEntry : stepToConditions.entrySet()) {
-      propagateValuesToStep(
-          stepEntry.getKey(), stepEntry.getValue(), parsedByType, newCorrelated, workflowRun);
+      propagateValuesToStep(stepEntry.getKey(), stepEntry.getValue(), ingestion, workflowRun);
     }
   }
 
@@ -174,21 +164,19 @@ public class WorkflowStateService {
    *
    * @param stepTemplate the target step template
    * @param rootConditions the filter conditions linked to this step
-   * @param parsedByType map of output type names to their extracted values
-   * @param newCorrelated correlated tuples produced during this sync call
+   * @param ingestion the ingestion result carrying primitive values and new correlated tuples
    * @param workflowRun the running workflow execution
    */
   private void propagateValuesToStep(
       Step stepTemplate,
       List<Condition> rootConditions,
-      Map<String, List<String>> parsedByType,
-      List<WorkflowStateEntries.Correlated> newCorrelated,
+      IngestionResult ingestion,
       Workflow workflowRun) {
 
     Map<String, List<String>> valuesToPropagate =
-        filterValuesMatchingConditions(rootConditions, parsedByType);
+        filterValuesMatchingConditions(rootConditions, ingestion.parsedByType());
     List<WorkflowStateEntries.Correlated> correlatedToPropagate =
-        filterCorrelatedMatchingConditions(rootConditions, newCorrelated);
+        filterCorrelatedMatchingConditions(rootConditions, ingestion.newCorrelated());
 
     if (valuesToPropagate.isEmpty() && correlatedToPropagate.isEmpty()) {
       return;
@@ -261,12 +249,7 @@ public class WorkflowStateService {
       // leaf condition, because it may contribute to the overall event satisfaction together
       // with other values. The full AND/OR evaluation happens at step execution time.
       List<String> matchingValues =
-          values.stream()
-              .filter(
-                  val ->
-                      rootConditions.stream()
-                          .anyMatch(root -> conditionUtils.matchesAnyLeafCondition(val, root)))
-              .toList();
+          values.stream().filter(val -> matchesAnyRootCondition(val, rootConditions)).toList();
       if (!matchingValues.isEmpty()) {
         valuesToPropagate.put(keyTypeName, matchingValues);
       }
@@ -297,14 +280,34 @@ public class WorkflowStateService {
         .filter(
             tuple ->
                 tuple.getValues().stream()
-                    .anyMatch(
-                        pair ->
-                            rootConditions.stream()
-                                .anyMatch(
-                                    root ->
-                                        conditionUtils.matchesAnyLeafCondition(
-                                            pair.value(), root))))
+                    .anyMatch(pair -> matchesAnyRootCondition(pair.value(), rootConditions)))
         .toList();
+  }
+
+  /**
+   * Returns {@code true} if the given value satisfies at least one leaf condition within any of the
+   * provided root conditions.
+   *
+   * <p>This is the shared eligibility check for both primitive-value and correlated-tuple
+   * propagation. AND/OR group semantics are intentionally ignored here — full evaluation happens at
+   * step execution time.
+   */
+  private boolean matchesAnyRootCondition(String value, List<Condition> rootConditions) {
+    return rootConditions.stream()
+        .anyMatch(root -> conditionUtils.matchesAnyLeafCondition(value, root));
+  }
+
+  /**
+   * Output of a single {@link #saveToEntries} call: the primitive values indexed by type name
+   * (produced this call only), and the correlated tuples newly created from complex objects.
+   */
+  private record IngestionResult(
+      Map<String, List<String>> parsedByType,
+      List<WorkflowStateEntries.Correlated> newCorrelated) {
+
+    boolean isEmpty() {
+      return parsedByType.isEmpty() && newCorrelated.isEmpty();
+    }
   }
 
   /**
@@ -314,15 +317,17 @@ public class WorkflowStateService {
    * @param structuredOutput JSON object with field arrays produced by the step
    * @param typeMappings mapping from output field name to its resolved chaining type
    * @param workflowRun the running workflow execution
-   * @return map of primitive type names to extracted, scope-validated values
+   * @return {@link IngestionResult} containing extracted primitive values and newly created
+   *     correlated tuples
    */
-  private Map<String, List<String>> saveToEntries(
+  private IngestionResult saveToEntries(
       WorkflowStateEntries entries,
       JsonObject structuredOutput,
       Map<String, ChainingMappedType> typeMappings,
       Workflow workflowRun) {
 
     Map<String, List<String>> parsedByType = new HashMap<>();
+    List<WorkflowStateEntries.Correlated> newCorrelated = new ArrayList<>();
     PrimitiveValidationContext validationContext =
         primitiveValidationContextBuilder.build(typeMappings, workflowRun);
 
@@ -361,11 +366,11 @@ public class WorkflowStateService {
         } else if (element.isJsonObject() && isComplex) {
           // Complex output (e.g. {port: 22, host: "1.1.1.1"}): store as correlated pairs
           String type = mappedType.origin() != null ? mappedType.origin().name() : null;
-          saveCorrelatedObject(entries, element.getAsJsonObject(), type, parsedByType);
+          saveCorrelatedObject(entries, element.getAsJsonObject(), type, parsedByType, newCorrelated);
         }
       }
     }
-    return parsedByType;
+    return new IngestionResult(parsedByType, newCorrelated);
   }
 
   /**
@@ -394,12 +399,15 @@ public class WorkflowStateService {
    * @param obj JSON object whose fields form a correlated pair set
    * @param type business type name (ContractOutputType.name())
    * @param parsedByType accumulator for local-state propagation (mirroring the scalar path)
+   * @param newCorrelated accumulator that collects the correlated tuple created by this call, so
+   *     callers know exactly which tuples were produced without relying on list-size snapshots
    */
   private void saveCorrelatedObject(
       WorkflowStateEntries entries,
       JsonObject obj,
       String type,
-      Map<String, List<String>> parsedByType) {
+      Map<String, List<String>> parsedByType,
+      List<WorkflowStateEntries.Correlated> newCorrelated) {
     Set<WorkflowStateEntries.Pair> pairSet = new HashSet<>();
 
     obj.entrySet()
@@ -433,7 +441,9 @@ public class WorkflowStateService {
             });
 
     if (pairSet.size() > 1) {
-      entries.getCorrelated().add(new WorkflowStateEntries.Correlated(pairSet, type));
+      WorkflowStateEntries.Correlated tuple = new WorkflowStateEntries.Correlated(pairSet, type);
+      entries.getCorrelated().add(tuple);
+      newCorrelated.add(tuple);
     }
   }
 
