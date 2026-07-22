@@ -12,8 +12,10 @@ import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
 import io.openaev.database.model.attackpath.projection.AttackPathInjectorMetaRow;
 import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
+import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
+import io.openaev.database.repository.StepConditionRow;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.expectation.ExpectationType;
@@ -42,6 +44,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -50,12 +53,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Rebuilds a simulation's attack-path graph (issue 6647). The whole graph comes from exactly two
- * flat, indexed reads (Read A: executions; Read B: findings joined to their producing execution)
- * plus one in-memory pass that turns the rows into {@code {nodes, edges, counters}} with the
- * deterministic IDs from {@link AttackPathIds}. No recursion, and the number of SQL statements is a
- * constant two, independent of the graph size. Each read is walked exactly once (counters are
- * accumulated inside the findings pass).
+ * Rebuilds a simulation's attack-path graph (issue 6647). The graph comes from two flat, indexed
+ * reads (Read A: executions; Read B: findings joined to their producing execution) plus one in-memory
+ * pass that turns the rows into {@code {nodes, edges, counters}} with the deterministic IDs from
+ * {@link AttackPathIds}. Full mode adds one more batched read for the kill-chain fields (the
+ * executions' step-template conditions, resolved once per distinct step template), skipped when no
+ * execution carries a step template. No recursion, and the number of SQL statements is constant
+ * (three in full mode, two otherwise), independent of the graph size. Each read is walked exactly
+ * once (counters are accumulated inside the findings pass).
  *
  * <p>The execution is carried on the source-to-target edge (its {@code executionIds}), not as a
  * standalone map node (design O2), while the left feed still lists every execution.
@@ -90,6 +95,8 @@ public class AttackPathGraphService {
   private final InjectorContractRepository injectorContractRepository;
   private final PayloadRepository payloadRepository;
   private final PayloadMapper payloadMapper;
+  private final AttackPathKillChainResolver killChainResolver;
+  private final ConditionRepository conditionRepository;
 
   /**
    * Above this many executions a simulation is served collapsed by default. Tied to the front
@@ -408,6 +415,7 @@ public class AttackPathGraphService {
 
       feedByExecutionId.put(e.id(), executionFeedNode(e));
     }
+    applyKillChain(executions, feedByExecutionId);
 
     // Endpoint (ASSET) nodes, with attributes and colour from the executions targeting them.
     for (Map.Entry<String, List<AttackPathExecutionRow>> entry : byTarget.entrySet()) {
@@ -783,6 +791,50 @@ public class AttackPathGraphService {
       }
     }
     return worst;
+  }
+
+  /**
+   * Sets the kill-chain fields ({@code dependsOn} + {@code consumedFindingKeys}) on each execution
+   * feed node, resolved once per distinct step template from its conditions in a single batched
+   * read. Full mode only; a step with no conditions or an execution with no step template is left
+   * untouched (the fields stay null and are omitted from the JSON).
+   */
+  private void applyKillChain(
+      List<AttackPathExecutionRow> executions, Map<String, AttackPathNodeDTO> feedByExecutionId) {
+    Set<String> stepTemplateIds =
+        executions.stream()
+            .map(AttackPathExecutionRow::stepTemplateId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    if (stepTemplateIds.isEmpty()) {
+      return;
+    }
+    Map<String, AttackPathKillChainResolver.KillChainMeta> metaByStep = new HashMap<>();
+    conditionRepository.findAllLinkedToStepIdIn(stepTemplateIds).stream()
+        .collect(
+            Collectors.groupingBy(
+                StepConditionRow::stepTemplateId,
+                Collectors.mapping(StepConditionRow::condition, Collectors.toList())))
+        .forEach(
+            (stepId, conditions) -> metaByStep.put(stepId, killChainResolver.resolve(conditions)));
+
+    for (AttackPathExecutionRow e : executions) {
+      AttackPathKillChainResolver.KillChainMeta meta =
+          e.stepTemplateId() == null ? null : metaByStep.get(e.stepTemplateId());
+      if (meta == null) {
+        continue;
+      }
+      AttackPathNodeDTO node = feedByExecutionId.get(e.id());
+      if (node == null) {
+        continue;
+      }
+      if (!meta.dependsOn().isEmpty()) {
+        node.setDependsOn(meta.dependsOn());
+      }
+      if (!meta.consumedFindingKeys().isEmpty()) {
+        node.setConsumedFindingKeys(meta.consumedFindingKeys());
+      }
+    }
   }
 
   private AttackPathNodeDTO executionFeedNode(AttackPathExecutionRow e) {

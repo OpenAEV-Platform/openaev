@@ -45,6 +45,11 @@ public class AttackPathNodeDTO {
   private String agentName;
   private String privilege;
   private String stepTemplateId;
+  // Kill-chain, resolved per step template (keyed by stepTemplateId): the step templates this one
+  // depends on, and the finding keys it consumes. Full mode only; the front correlates by
+  // stepTemplateId to draw the causal edges.
+  private List<String> dependsOn;
+  private List<ConsumedFindingKeyDTO> consumedFindingKeys;
   private String command;
   // Kept for the production drawer's shape; stay null in the POC (D3).
   private List<Object> expectations;

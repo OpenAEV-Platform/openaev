@@ -8,11 +8,122 @@ import io.openaev.database.model.attackpath.projection.AttackPathInjectorMetaRow
 import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import java.util.List;
 import java.util.Optional;
+ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface AttackPathExecutionRepository extends CrudRepository<AttackPathExecution, String> {
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Transactional
+  @Query(
+      "UPDATE AttackPathExecution e "
+          + "SET e.preventionStatus = :status "
+          + "WHERE e.injectId = :injectId AND e.agentId = :agentId AND e.tenant.id = :tenantId")
+  int updatePreventionStatusByInjectIdAndAgentId(
+      @Param("injectId") String injectId,
+      @Param("agentId") String agentId,
+      @Param("status") String status,
+      @Param("tenantId") String tenantId);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Transactional
+  @Query(
+      "UPDATE AttackPathExecution e "
+          + "SET e.preventionStatus = :status "
+          + "WHERE e.injectId = :injectId AND e.targetAssetId = :assetId " +
+      "AND e.tenant.id = :tenantId")
+  int updatePreventionStatusByInjectIdAndTargetAssetId(
+      @Param("injectId") String injectId,
+      @Param("assetId") String assetId,
+      @Param("status") String status,
+      @Param("tenantId") String tenantId);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Transactional
+  @Query(
+      "UPDATE AttackPathExecution e "
+          + "SET e.preventionStatus = :status "
+          + "WHERE e.injectId = :injectId AND e.targetKey = :targetKey AND e.tenant.id = :tenantId")
+  int updatePreventionStatusByInjectIdAndTargetKey(
+      @Param("injectId") String injectId,
+      @Param("targetKey") String targetKey,
+      @Param("status") String status,
+      @Param("tenantId") String tenantId);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Transactional
+  @Query(
+      "UPDATE AttackPathExecution e "
+          + "SET e.detectionStatus = :status "
+          + "WHERE e.injectId = :injectId AND e.agentId = :agentId AND e.tenant.id = :tenantId")
+  int updateDetectionStatusByInjectIdAndAgentId(
+      @Param("injectId") String injectId,
+      @Param("agentId") String agentId,
+      @Param("status") String status,
+      @Param("tenantId") String tenantId);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Transactional
+  @Query(
+      "UPDATE AttackPathExecution e "
+          + "SET e.detectionStatus = :status "
+          + "WHERE e.injectId = :injectId AND e.targetAssetId = :assetId AND e.tenant.id = :tenantId")
+  int updateDetectionStatusByInjectIdAndTargetAssetId(
+      @Param("injectId") String injectId,
+      @Param("assetId") String assetId,
+      @Param("status") String status,
+      @Param("tenantId") String tenantId);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Transactional
+  @Query(
+      "UPDATE AttackPathExecution e "
+          + "SET e.detectionStatus = :status "
+          + "WHERE e.injectId = :injectId AND e.targetKey = :targetKey AND e.tenant.id = :tenantId")
+  int updateDetectionStatusByInjectIdAndTargetKey(
+      @Param("injectId") String injectId,
+      @Param("targetKey") String targetKey,
+      @Param("status") String status,
+      @Param("tenantId") String tenantId);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Transactional
+  @Query(
+      "UPDATE AttackPathExecution e "
+          + "SET e.vulnerabilityStatus = :status "
+          + "WHERE e.injectId = :injectId AND e.agentId = :agentId AND e.tenant.id = :tenantId")
+  int updateVulnerabilityStatusByInjectIdAndAgentId(
+      @Param("injectId") String injectId,
+      @Param("agentId") String agentId,
+      @Param("status") String status,
+      @Param("tenantId") String tenantId);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Transactional
+  @Query(
+      "UPDATE AttackPathExecution e "
+          + "SET e.vulnerabilityStatus = :status "
+          + "WHERE e.injectId = :injectId AND e.targetAssetId = :assetId AND e.tenant.id = :tenantId")
+  int updateVulnerabilityStatusByInjectIdAndTargetAssetId(
+      @Param("injectId") String injectId,
+      @Param("assetId") String assetId,
+      @Param("status") String status,
+      @Param("tenantId") String tenantId);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Transactional
+  @Query(
+      "UPDATE AttackPathExecution e "
+          + "SET e.vulnerabilityStatus = :status "
+          + "WHERE e.injectId = :injectId AND e.targetKey = :targetKey AND e.tenant.id = :tenantId")
+  int updateVulnerabilityStatusByInjectIdAndTargetKey(
+      @Param("injectId") String injectId,
+      @Param("targetKey") String targetKey,
+      @Param("status") String status,
+      @Param("tenantId") String tenantId);
 
   /**
    * Result &amp; Terminal drawer (issue 5048): one execution's full row by id, scoped to its
