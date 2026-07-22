@@ -19,6 +19,7 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.exercise.service.PauseExerciseService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -91,6 +92,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private WorkflowService workflowService;
   @Autowired private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
   @Autowired private ApplicationEventPublisher eventPublisher;
+  @Autowired private AttackPathExecutionIngestionService attackPathExecutionService;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -142,7 +144,8 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             fileService,
             stepService,
             healthCheckUtils,
-            eventPublisher);
+            eventPublisher,
+            attackPathExecutionService);
   }
 
   @AfterAll

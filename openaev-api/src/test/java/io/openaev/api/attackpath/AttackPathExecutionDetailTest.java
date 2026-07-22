@@ -90,7 +90,7 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
     AttackPathExecution e = new AttackPathExecution();
     e.setTenant(tenant);
     e.setSimulationId(SIM);
-    e.setInjectId("inject-detail-1");
+    e.setStepId("step-detail-1");
     // A real payload carrying a detection remediation: the read resolves the remediations from the
     // payload that actually ran (the frozen payload id), for the drawer's Remediation tab.
     Payload payload =
@@ -156,7 +156,7 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
 
     assertThat(d).isNotNull();
     // header
-    assertThat(d.injectId()).isEqualTo("inject-detail-1");
+    assertThat(d.stepId()).isEqualTo("step-detail-1");
     assertThat(d.payloadName()).isEqualTo("hydra-payload");
     assertThat(d.payloadId()).isEqualTo(payloadId);
     // the run's contract resolves to its ATT&CK techniques (the drawer's chips)

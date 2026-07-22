@@ -8,7 +8,7 @@ import io.openaev.database.model.attackpath.projection.AttackPathInjectorMetaRow
 import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import java.util.List;
 import java.util.Optional;
- import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -21,9 +21,9 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Query(
       "UPDATE AttackPathExecution e "
           + "SET e.preventionStatus = :status "
-          + "WHERE e.injectId = :injectId AND e.agentId = :agentId AND e.tenant.id = :tenantId")
-  int updatePreventionStatusByInjectIdAndAgentId(
-      @Param("injectId") String injectId,
+          + "WHERE e.stepId = :stepId AND e.agentId = :agentId AND e.tenant.id = :tenantId")
+  int updatePreventionStatusByStepIdAndAgentId(
+      @Param("stepId") String stepId,
       @Param("agentId") String agentId,
       @Param("status") String status,
       @Param("tenantId") String tenantId);
@@ -33,10 +33,10 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Query(
       "UPDATE AttackPathExecution e "
           + "SET e.preventionStatus = :status "
-          + "WHERE e.injectId = :injectId AND e.targetAssetId = :assetId " +
-      "AND e.tenant.id = :tenantId")
-  int updatePreventionStatusByInjectIdAndTargetAssetId(
-      @Param("injectId") String injectId,
+          + "WHERE e.stepId = :stepId AND e.targetAssetId = :assetId "
+          + "AND e.tenant.id = :tenantId")
+  int updatePreventionStatusByStepIdAndTargetAssetId(
+      @Param("stepId") String stepId,
       @Param("assetId") String assetId,
       @Param("status") String status,
       @Param("tenantId") String tenantId);
@@ -46,9 +46,9 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Query(
       "UPDATE AttackPathExecution e "
           + "SET e.preventionStatus = :status "
-          + "WHERE e.injectId = :injectId AND e.targetKey = :targetKey AND e.tenant.id = :tenantId")
-  int updatePreventionStatusByInjectIdAndTargetKey(
-      @Param("injectId") String injectId,
+          + "WHERE e.stepId = :stepId AND e.targetKey = :targetKey AND e.tenant.id = :tenantId")
+  int updatePreventionStatusByStepIdAndTargetKey(
+      @Param("stepId") String stepId,
       @Param("targetKey") String targetKey,
       @Param("status") String status,
       @Param("tenantId") String tenantId);
@@ -58,9 +58,9 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Query(
       "UPDATE AttackPathExecution e "
           + "SET e.detectionStatus = :status "
-          + "WHERE e.injectId = :injectId AND e.agentId = :agentId AND e.tenant.id = :tenantId")
-  int updateDetectionStatusByInjectIdAndAgentId(
-      @Param("injectId") String injectId,
+          + "WHERE e.stepId = :stepId AND e.agentId = :agentId AND e.tenant.id = :tenantId")
+  int updateDetectionStatusByStepIdAndAgentId(
+      @Param("stepId") String stepId,
       @Param("agentId") String agentId,
       @Param("status") String status,
       @Param("tenantId") String tenantId);
@@ -70,9 +70,9 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Query(
       "UPDATE AttackPathExecution e "
           + "SET e.detectionStatus = :status "
-          + "WHERE e.injectId = :injectId AND e.targetAssetId = :assetId AND e.tenant.id = :tenantId")
-  int updateDetectionStatusByInjectIdAndTargetAssetId(
-      @Param("injectId") String injectId,
+          + "WHERE e.stepId = :stepId AND e.targetAssetId = :assetId AND e.tenant.id = :tenantId")
+  int updateDetectionStatusByStepIdAndTargetAssetId(
+      @Param("stepId") String stepId,
       @Param("assetId") String assetId,
       @Param("status") String status,
       @Param("tenantId") String tenantId);
@@ -82,9 +82,9 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Query(
       "UPDATE AttackPathExecution e "
           + "SET e.detectionStatus = :status "
-          + "WHERE e.injectId = :injectId AND e.targetKey = :targetKey AND e.tenant.id = :tenantId")
-  int updateDetectionStatusByInjectIdAndTargetKey(
-      @Param("injectId") String injectId,
+          + "WHERE e.stepId = :stepId AND e.targetKey = :targetKey AND e.tenant.id = :tenantId")
+  int updateDetectionStatusByStepIdAndTargetKey(
+      @Param("stepId") String stepId,
       @Param("targetKey") String targetKey,
       @Param("status") String status,
       @Param("tenantId") String tenantId);
@@ -94,9 +94,9 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Query(
       "UPDATE AttackPathExecution e "
           + "SET e.vulnerabilityStatus = :status "
-          + "WHERE e.injectId = :injectId AND e.agentId = :agentId AND e.tenant.id = :tenantId")
-  int updateVulnerabilityStatusByInjectIdAndAgentId(
-      @Param("injectId") String injectId,
+          + "WHERE e.stepId = :stepId AND e.agentId = :agentId AND e.tenant.id = :tenantId")
+  int updateVulnerabilityStatusByStepIdAndAgentId(
+      @Param("stepId") String stepId,
       @Param("agentId") String agentId,
       @Param("status") String status,
       @Param("tenantId") String tenantId);
@@ -106,9 +106,9 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Query(
       "UPDATE AttackPathExecution e "
           + "SET e.vulnerabilityStatus = :status "
-          + "WHERE e.injectId = :injectId AND e.targetAssetId = :assetId AND e.tenant.id = :tenantId")
-  int updateVulnerabilityStatusByInjectIdAndTargetAssetId(
-      @Param("injectId") String injectId,
+          + "WHERE e.stepId = :stepId AND e.targetAssetId = :assetId AND e.tenant.id = :tenantId")
+  int updateVulnerabilityStatusByStepIdAndTargetAssetId(
+      @Param("stepId") String stepId,
       @Param("assetId") String assetId,
       @Param("status") String status,
       @Param("tenantId") String tenantId);
@@ -118,9 +118,9 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Query(
       "UPDATE AttackPathExecution e "
           + "SET e.vulnerabilityStatus = :status "
-          + "WHERE e.injectId = :injectId AND e.targetKey = :targetKey AND e.tenant.id = :tenantId")
-  int updateVulnerabilityStatusByInjectIdAndTargetKey(
-      @Param("injectId") String injectId,
+          + "WHERE e.stepId = :stepId AND e.targetKey = :targetKey AND e.tenant.id = :tenantId")
+  int updateVulnerabilityStatusByStepIdAndTargetKey(
+      @Param("stepId") String stepId,
       @Param("targetKey") String targetKey,
       @Param("status") String status,
       @Param("tenantId") String tenantId);
@@ -224,4 +224,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.sourceKind = 'INJECTOR'")
   List<AttackPathInjectorMetaRow> findInjectorMetadata(@Param("simulationId") String simulationId);
+
+  void deleteAllBySimulationId(String simulationId);
 }
+
