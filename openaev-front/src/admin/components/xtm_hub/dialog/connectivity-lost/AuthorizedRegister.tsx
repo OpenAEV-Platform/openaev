@@ -24,7 +24,7 @@ const XtmHubDialogConnectivityLostAuthorizedRegister: React.FC<Props> = ({ open,
       <DialogContent>
         <DialogContentText id="authorized-register-dialog-description">
           <p>{t('XTM Hub Connection Unavailable')}</p>
-          <p>{t('Please re-register platform')}</p>
+          <p>{t('Please reconnect platform')}</p>
         </DialogContentText>
       </DialogContent>
       <DialogActions>
@@ -32,7 +32,7 @@ const XtmHubDialogConnectivityLostAuthorizedRegister: React.FC<Props> = ({ open,
           {t('Cancel')}
         </Button>
         <Button onClick={onConfirm} variant="contained" color="primary">
-          {t('Re-register')}
+          {t('Reconnect')}
         </Button>
       </DialogActions>
     </Dialog>

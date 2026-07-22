@@ -7,6 +7,7 @@ import { Link } from 'react-router';
 import { type LoggedHelper } from '../../../actions/helper';
 import { fetchXtmHubRegistration } from '../../../actions/xtmhub/xtmhub-actions';
 import { useFormatter } from '../../../components/i18n';
+import { REDIRECT_CONNECT_XTM_HUB_URL } from '../../../constants/BaseUrls';
 import logoOpenCtiDark from '../../../static/images/logo_open_cti_dark.svg';
 import logoOpenCtiLight from '../../../static/images/logo_open_cti_light.svg';
 import logoXtmHubDark from '../../../static/images/logo_xtm_hub_dark.svg';
@@ -223,8 +224,8 @@ const LeftBarHeader: FunctionComponent<Props> = ({ navOpen }) => {
                     <PopoverListItem
                       logo={isDark ? logoXtmHubDark : logoXtmHubLight}
                       alt="XTM Hub"
-                      tooltip={t('Register your platform')}
-                      to="/admin/settings/experience"
+                      tooltip={t('Connect your product')}
+                      to={REDIRECT_CONNECT_XTM_HUB_URL}
                       onClick={handleClose}
                     />
                   )}
