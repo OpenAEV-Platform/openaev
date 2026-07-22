@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildKillChainMeta, maskFindingValue } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildKillChainMeta, maskFindingValue } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 const dto: AttackPathDTO = {
@@ -261,30 +261,101 @@ describe('buildClusteredAttackPathFlow', () => {
 const killChainDto: AttackPathDTO = {
   mode: 'full',
   attackPathNodes: [
-    { id: 'inj-nmap', type: 'INJECTOR', label: 'nmap' },
-    { id: 'inj-smb', type: 'INJECTOR', label: 'NetExec' },
-    { id: 'ep-1', type: 'ASSET', label: 'DC-01' },
+    {
+      id: 'inj-nmap',
+      type: 'INJECTOR',
+      label: 'nmap',
+    },
+    {
+      id: 'inj-smb',
+      type: 'INJECTOR',
+      label: 'NetExec',
+    },
+    {
+      id: 'ep-1',
+      type: 'ASSET',
+      label: 'DC-01',
+    },
   ],
   attackPathExecutions: [
-    { id: 'x1', type: 'EXECUTION', ref: 'exec-1', stepTemplateId: 'step-A', consumedFindingKeys: [{ keyType: 'port', operator: 'EQ', value: '445' }], dependsOn: [] },
-    { id: 'x2', type: 'EXECUTION', ref: 'exec-2', stepTemplateId: 'step-B', consumedFindingKeys: [{ keyType: 'share_name', operator: 'EQ', value: 'ADMIN$' }], dependsOn: ['step-A'] },
+    {
+      id: 'x1',
+      type: 'EXECUTION',
+      ref: 'exec-1',
+      stepTemplateId: 'step-A',
+      consumedFindingKeys: [{
+        keyType: 'port',
+        operator: 'EQ',
+        value: '445',
+      }],
+      dependsOn: [],
+    },
+    {
+      id: 'x2',
+      type: 'EXECUTION',
+      ref: 'exec-2',
+      stepTemplateId: 'step-B',
+      consumedFindingKeys: [{
+        keyType: 'share_name',
+        operator: 'EQ',
+        value: 'ADMIN$',
+      }],
+      dependsOn: ['step-A'],
+    },
   ],
   attackPathEdges: [
-    { type: 'EDGE_EXECUTIONS', edgeSourceId: 'inj-nmap', edgeTargetId: 'ep-1', executionIds: ['exec-1'] },
-    { type: 'EDGE_EXECUTIONS', edgeSourceId: 'inj-smb', edgeTargetId: 'ep-1', executionIds: ['exec-2'] },
+    {
+      type: 'EDGE_EXECUTIONS',
+      edgeSourceId: 'inj-nmap',
+      edgeTargetId: 'ep-1',
+      executionIds: ['exec-1'],
+    },
+    {
+      type: 'EDGE_EXECUTIONS',
+      edgeSourceId: 'inj-smb',
+      edgeTargetId: 'ep-1',
+      executionIds: ['exec-2'],
+    },
   ],
 };
 
-const injectorNode = (id: string): AttackPathFlowNode => ({ id, type: AP_FLOW_NODE_TYPE.injector, position: { x: 0, y: 0 }, data: {} });
-const findingNode = (id: string, typeFindings: string, value: string): AttackPathFlowNode => ({ id, type: AP_FLOW_NODE_TYPE.finding, position: { x: 0, y: 0 }, data: { typeFindings, value } });
+const injectorNode = (id: string): AttackPathFlowNode => ({
+  id,
+  type: AP_FLOW_NODE_TYPE.injector,
+  position: {
+    x: 0,
+    y: 0,
+  },
+  data: {},
+});
+const findingNode = (id: string, typeFindings: string, value: string): AttackPathFlowNode => ({
+  id,
+  type: AP_FLOW_NODE_TYPE.finding,
+  position: {
+    x: 0,
+    y: 0,
+  },
+  data: {
+    typeFindings,
+    value,
+  },
+});
 
 describe('buildKillChainMeta', () => {
   it('aggregates consumed keys per injector via executionIds <-> exec.ref', () => {
     // Act
     const meta = buildKillChainMeta(killChainDto);
     // Assert
-    expect(meta.get('inj-nmap')?.consumedFindingKeys).toEqual([{ keyType: 'port', operator: 'EQ', value: '445' }]);
-    expect(meta.get('inj-smb')?.consumedFindingKeys).toEqual([{ keyType: 'share_name', operator: 'EQ', value: 'ADMIN$' }]);
+    expect(meta.get('inj-nmap')?.consumedFindingKeys).toEqual([{
+      keyType: 'port',
+      operator: 'EQ',
+      value: '445',
+    }]);
+    expect(meta.get('inj-smb')?.consumedFindingKeys).toEqual([{
+      keyType: 'share_name',
+      operator: 'EQ',
+      value: 'ADMIN$',
+    }]);
   });
 
   it('resolves dependsOn (step template ids) to the injector node ids that ran them', () => {
@@ -297,7 +368,11 @@ describe('buildKillChainMeta', () => {
 
   it('returns an empty map when the DTO carries no kill-chain data', () => {
     expect(buildKillChainMeta(null).size).toBe(0);
-    expect(buildKillChainMeta({ mode: 'full', attackPathExecutions: [], attackPathEdges: [] }).size).toBe(0);
+    expect(buildKillChainMeta({
+      mode: 'full',
+      attackPathExecutions: [],
+      attackPathEdges: [],
+    }).size).toBe(0);
   });
 });
 
@@ -321,5 +396,132 @@ describe('buildCausalEdges', () => {
     const nodes = [injectorNode('inj-nmap'), findingNode('find-cve', 'cve', 'CVE-2024-0001')];
     const edges = buildCausalEdges(nodes, id => (id ? meta.get(id) : undefined));
     expect(edges).toHaveLength(0);
+  });
+});
+
+// Causal execution-chain: Nmap (step-A) produces port 445; NetExec (step-B) consumes it and dependsOn
+// step-A. The chain must read left-to-right in dependsOn order, with the finding on its producer step and
+// a FORWARD causal edge to the consumer.
+const chainDto: AttackPathDTO = {
+  mode: 'full',
+  attackPathNodes: [
+    {
+      id: 'inj-nmap',
+      type: 'INJECTOR',
+      label: 'Nmap',
+    },
+    {
+      id: 'inj-smb',
+      type: 'INJECTOR',
+      label: 'NetExec',
+    },
+    {
+      id: 'ep-1',
+      type: 'ASSET',
+      label: 'DC-01',
+      ip: '10.0.0.1',
+    },
+    {
+      id: 'NODE_FINDING|port|445',
+      type: 'FINDING',
+      typeFindings: 'port',
+      value: '445',
+      label: '445',
+    },
+  ],
+  attackPathExecutions: [
+    {
+      id: 'x1',
+      type: 'EXECUTION',
+      ref: 'exec-1',
+      stepTemplateId: 'step-A',
+      findingsNodeIds: ['NODE_FINDING|port|445'],
+      dependsOn: [],
+    },
+    {
+      id: 'x2',
+      type: 'EXECUTION',
+      ref: 'exec-2',
+      stepTemplateId: 'step-B',
+      consumedFindingKeys: [{
+        keyType: 'port',
+        operator: 'EQ',
+        value: '445',
+      }],
+      dependsOn: ['step-A'],
+    },
+  ],
+  attackPathEdges: [
+    {
+      type: 'EDGE_EXECUTIONS',
+      edgeSourceId: 'inj-nmap',
+      edgeTargetId: 'ep-1',
+      executionIds: ['exec-1'],
+    },
+    {
+      type: 'EDGE_EXECUTIONS',
+      edgeSourceId: 'inj-smb',
+      edgeTargetId: 'ep-1',
+      executionIds: ['exec-2'],
+    },
+  ],
+};
+
+describe('buildCausalChainFlow', () => {
+  it('lays the chain out in dependsOn order with a forward causal edge finding -> consumer', () => {
+    // Act
+    const { nodes, edges } = buildCausalChainFlow(chainDto);
+    const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+
+    // The producer (nmap) sits upstream (left) of the consumer (netexec).
+    expect(byId['inj-nmap'].position.x).toBeLessThan(byId['inj-smb'].position.x);
+    // Each step renders its own endpoint node (suffixed id, shared endpoint shown per hop).
+    expect(byId['chain-ep|inj-nmap|ep-1'].type).toBe(AP_FLOW_NODE_TYPE.asset);
+    expect(byId['chain-ep|inj-smb|ep-1'].type).toBe(AP_FLOW_NODE_TYPE.asset);
+    // The produced finding is placed on its producer step, upstream of the consuming injector.
+    expect(byId['NODE_FINDING|port|445'].type).toBe(AP_FLOW_NODE_TYPE.finding);
+    expect(byId['NODE_FINDING|port|445'].position.x).toBeLessThan(byId['inj-smb'].position.x);
+
+    // The causal edge flows FORWARD: produced finding -> the injector that consumes it.
+    const causal = edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE);
+    expect(causal).toHaveLength(1);
+    expect(causal[0].source).toBe('NODE_FINDING|port|445');
+    expect(causal[0].target).toBe('inj-smb');
+    expect(causal[0].data?.causalKind).toBe('finding');
+  });
+
+  it('falls back to a dashed dependsOn edge when the consumed finding value is not produced', () => {
+    // NetExec depends on nmap's step but consumes a key no produced finding matches.
+    const noMatch: AttackPathDTO = {
+      ...chainDto,
+      attackPathExecutions: [
+        {
+          id: 'x1',
+          type: 'EXECUTION',
+          ref: 'exec-1',
+          stepTemplateId: 'step-A',
+          findingsNodeIds: [],
+          dependsOn: [],
+        },
+        {
+          id: 'x2',
+          type: 'EXECUTION',
+          ref: 'exec-2',
+          stepTemplateId: 'step-B',
+          consumedFindingKeys: [{
+            keyType: 'port',
+            operator: 'EQ',
+            value: '3389',
+          }],
+          dependsOn: ['step-A'],
+        },
+      ],
+    };
+    const { edges } = buildCausalChainFlow(noMatch);
+    const causal = edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE);
+    expect(causal).toHaveLength(1);
+    expect(causal[0].source).toBe('inj-nmap');
+    expect(causal[0].target).toBe('inj-smb');
+    expect(causal[0].data?.causalKind).toBe('depend');
   });
 });

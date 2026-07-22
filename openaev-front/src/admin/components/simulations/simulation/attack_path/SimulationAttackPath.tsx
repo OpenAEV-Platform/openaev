@@ -11,7 +11,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import attackPathStatusColor, { attackPathChokepointColor } from './attack-path-colors';
-import { AP_ALL_ENDPOINTS, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFindingFilter, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
 import AttackPathTableView, { type AttackPathEndpointRow } from './AttackPathTableView';
@@ -22,6 +22,12 @@ import FindingDetailPanel, { type FindingExpectations, type ProducingAction } fr
 // A hot endpoint can have many executions; the read is bounded to the one endpoint, but the side
 // panel still renders a list, so cap it (the backend /relations read would be paginated in prod).
 const EXEC_DISPLAY_CAP = 100;
+
+// The causal overlay needs the per-execution kill-chain fields, which the backend only emits in the
+// full graph. We fetch that full graph solely to derive the meta, gated on the run's execution count so
+// a large simulation never downloads a full payload for the overlay. Mirrors the backend
+// `openaev.attackpath.collapse-threshold` (20000): at or below it, a full read is affordable.
+const CAUSAL_META_MAX_EXECUTIONS = 20000;
 
 // Findings drawer: rows shown per page (client-side paginated over the loaded category page).
 const DRAWER_PAGE_SIZE = 12;
@@ -65,6 +71,10 @@ const STEP_TEMPLATE_CONTRACT_LABEL: Record<string, string> = {
 };
 
 const toContractLabel = (execution: AttackPathNodeDTO): string | undefined => {
+  // The real contract name resolved by the backend wins over any heuristic.
+  if (execution.contractName) {
+    return execution.contractName;
+  }
   if (execution.stepTemplateId && STEP_TEMPLATE_CONTRACT_LABEL[execution.stepTemplateId]) {
     return STEP_TEMPLATE_CONTRACT_LABEL[execution.stepTemplateId];
   }
@@ -148,6 +158,14 @@ const SimulationAttackPath = () => {
   const [simulations, setSimulations] = useState<AttackPathSimSummaryRow[]>([]);
   const [metaById, setMetaById] = useState<Map<string, ExerciseSimple>>(new Map());
   const [dto, setDto] = useState<AttackPathDTO | null>(null);
+  // Per-injector kill-chain metadata (dependsOn / consumedFindingKeys) for the causal overlay. The
+  // collapsed DTO (setDto) omits the per-execution kill-chain fields (applyKillChain is full-mode only),
+  // so both the causal meta and the causal-chain layout are sourced from a separate, size-gated full-mode
+  // fetch (see the effect below), kept in their own state.
+  const [killChainMeta, setKillChainMeta] = useState<ReturnType<typeof buildKillChainMeta>>(new Map());
+  // Full-mode graph (executions + produced findings), fetched only for small runs (see the gated effect).
+  // Drives the causal execution-chain layout; null for large runs (fall back to the aggregated view).
+  const [fullDto, setFullDto] = useState<AttackPathDTO | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [forbidden, setForbidden] = useState(false);
@@ -277,6 +295,49 @@ const SimulationAttackPath = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Causal overlay data source (issue 6647). The rendered graph is collapsed, which omits the
+  // per-execution kill-chain fields, so we fetch the full graph once — only to derive the per-injector
+  // meta — and gate it on the simulation's execution count (mirrors the backend collapse-threshold) so a
+  // large run never pulls a full payload just for the overlay. When the size is unknown or above the
+  // ceiling, the overlay is simply absent (additive: the graph is unchanged).
+  useEffect(() => {
+    if (!simulationId) {
+      setKillChainMeta(new Map());
+      setFullDto(null);
+      return undefined;
+    }
+    const row = simulations.find(s => s.simulationId === simulationId);
+    // No summary row (rows still loading, or a simulation with no attack-path data): no overlay, and
+    // clear any state carried over from a previously viewed simulation so it never leaks onto this one.
+    if (!row) {
+      setKillChainMeta(new Map());
+      setFullDto(null);
+      return undefined;
+    }
+    if ((row.executionCount ?? 0) > CAUSAL_META_MAX_EXECUTIONS) {
+      setKillChainMeta(new Map());
+      setFullDto(null);
+      return undefined;
+    }
+    let cancelled = false;
+    fetchAttackPathGraph(simulationId, 'full')
+      .then((r) => {
+        if (!cancelled) {
+          setKillChainMeta(buildKillChainMeta(r.data));
+          setFullDto(r.data);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setKillChainMeta(new Map());
+          setFullDto(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [simulationId, simulations]);
 
   // Load the picker options once (simulations that have attack-path data in this tenant), then
   // resolve real simulations' date + name so the picker reads dates instead of raw ids.
@@ -717,6 +778,10 @@ const SimulationAttackPath = () => {
   // Base clustered flow — recomputed when the graph data, endpoint expansion, or finding drill-down
   // changes (positions are deterministic, so it stays off the pure selection/focus path). Top-
   // chokepoint endpoints are decorated with their rank so the node can badge them.
+  // Render the causal execution-chain layout whenever the size-gated full graph is available and carries
+  // executions (small runs). Large runs never fetch it (fullDto stays null) and keep the aggregated view.
+  const chainMode = !!fullDto && (fullDto.attackPathExecutions?.length ?? 0) > 0;
+
   const baseFlow = useMemo(
     () => {
       if (!dto) {
@@ -725,18 +790,31 @@ const SimulationAttackPath = () => {
           edges: [],
         };
       }
-      // Focused finding-path view takes over the whole graph until it is cleared.
-      const raw = pathFinding
-        ? buildFindingPathFlow(dto, pathFinding, pathContractLabelByInjector, {
-            expanded: expandedFindingClusters,
-            findingsByCluster,
-            batch: findingBatch,
-          })
-        : buildClusteredAttackPathFlow(dto, endpointBatch, {
-            expanded: expandedFindingClusters,
-            findingsByCluster,
-            batch: findingBatch,
-          });
+      // Three layouts, in priority order:
+      //  1. a finding-path focus takes over the whole graph until cleared;
+      //  2. otherwise, when the size-gated full graph is available, the causal execution-chain layout
+      //     (inject → endpoint → finding → next inject, left-to-right in dependsOn order) — the real
+      //     kill chain, with forward-flowing causal edges;
+      //  3. otherwise the aggregated injector→hub→findings view (fallback for large runs / no full data).
+      let raw: {
+        nodes: AttackPathFlowNode[];
+        edges: AttackPathFlowEdge[];
+      };
+      if (pathFinding) {
+        raw = buildFindingPathFlow(dto, pathFinding, pathContractLabelByInjector, {
+          expanded: expandedFindingClusters,
+          findingsByCluster,
+          batch: findingBatch,
+        });
+      } else if (chainMode && fullDto) {
+        raw = buildCausalChainFlow(fullDto);
+      } else {
+        raw = buildClusteredAttackPathFlow(dto, endpointBatch, {
+          expanded: expandedFindingClusters,
+          findingsByCluster,
+          batch: findingBatch,
+        });
+      }
       if (chokepointRankById.size === 0) {
         return raw;
       }
@@ -753,7 +831,7 @@ const SimulationAttackPath = () => {
         edges: raw.edges,
       };
     },
-    [dto, pathFinding, pathContractLabelByInjector, endpointBatch, expandedFindingClusters, findingsByCluster, findingBatch, chokepointRankById],
+    [dto, chainMode, fullDto, pathFinding, pathContractLabelByInjector, endpointBatch, expandedFindingClusters, findingsByCluster, findingBatch, chokepointRankById],
   );
 
   // Highlight, in place, a finding clicked directly in the focused graph: keep it where it is and
@@ -840,23 +918,43 @@ const SimulationAttackPath = () => {
     const label = node.hostname || node.label || endpointKey;
     setDrawerCategory(null);
     setActiveCard(null);
-    setSelectedFindingId(null);
     setSelectedInjectorId(null);
     setFocusRequest(null);
-    setPathFinding({
-      endpointNodeId: assetNodeId,
-      endpointKey,
-      type,
-      value,
-    });
-    setFitNonce(n => n + 1);
+    if (!chainMode) {
+      setSelectedFindingId(null);
+      setPathFinding({
+        endpointNodeId: assetNodeId,
+        endpointKey,
+        type,
+        value,
+      });
+      setFitNonce(n => n + 1);
+    }
     // Loads the endpoint feed (executions + relations) so producing actions resolve. It also resets
-    // findingDetail + highlightedExecutionIds, so both are set right after within the same batch.
+    // findingDetail + highlightedExecutionIds + selectedFindingId, so all are set right after in the batch.
     onEndpointClick(assetNodeId, endpointKey, label);
     setFindingDetail({
       type,
       value,
     });
+    if (chainMode) {
+      // In the causal-chain layout the graph already reads inject → endpoint → finding → next inject, so
+      // clicking a finding must NOT collapse into the old focused-path layout. Keep the chain and select
+      // the finding by its node id (its producer branch lights up via the upstream selection walk). Set
+      // AFTER onEndpointClick, which resets selectedFindingId.
+      setSelectedFindingId(`NODE_FINDING|${type}|${value}`);
+      // Producing executions come from the full graph's execution→findings links (available for EVERY
+      // finding type, unlike the drawer categories which only cover credentials/users/files/cves), so the
+      // panel lists only the injector(s) that actually produced this finding — not every injector that
+      // merely reached the endpoint.
+      const findingNodeId = `NODE_FINDING|${type}|${value}`;
+      const producerRefs = (fullDto?.attackPathExecutions ?? [])
+        .filter(e => (e.findingsNodeIds ?? []).includes(findingNodeId))
+        .map(e => e.ref)
+        .filter((r): r is string => !!r);
+      setHighlightedExecutionIds(new Set(producerRefs));
+      return true;
+    }
     // Scope the feed (and the producing-action list) to THIS finding's producing executions, resolved
     // from its category page exactly like a drawer pick.
     const category = CATEGORY_OF_TYPE[type];
@@ -872,7 +970,7 @@ const SimulationAttackPath = () => {
       })
       .catch(() => setHighlightedExecutionIds(new Set()));
     return true;
-  }, [dto?.attackPathNodes, onEndpointClick, simulationId]);
+  }, [dto?.attackPathNodes, onEndpointClick, simulationId, chainMode, fullDto]);
 
   // Click a leaf finding: in the focused view highlight it in place (same actions as a drawer
   // selection); in the clustered view switch to its focused endpoint path + open its details panel
@@ -1079,15 +1177,14 @@ const SimulationAttackPath = () => {
     return applyFindingFilter(withSelection.nodes, withSelection.edges, focus);
   }, [baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, selectedInjectorId, focus]);
 
-  // Per-injector kill-chain metadata (dependsOn / consumedFindingKeys), aggregated from the graph DTO's
-  // execution nodes and keyed by injector node id (see buildKillChainMeta). Empty when the run's steps
-  // carried no conditions → no causal edges.
-  const killChainMeta = useMemo(() => buildKillChainMeta(dto), [dto]);
-  // Additive kill-chain causal edges (issue 6647), merged on top of the status graph. Drawn only when a
-  // consumed key matches a produced finding (or a dependsOn resolves), so with no match this is [] and
-  // the graph is exactly as before. Built from the final (post-selection) nodes so the same finding leaf
-  // / injector nodes drive both the base edges and the causal overlay.
-  const causalEdges = useMemo(() => buildCausalEdges(nodes, id => (id ? killChainMeta.get(id) : undefined)), [nodes, killChainMeta]);
+  // Additive kill-chain causal edges (issue 6647) for the AGGREGATED view, merged on top of the status
+  // graph. Drawn only when a consumed key matches a produced finding (or a dependsOn resolves). In chain
+  // mode the layout already emits its own forward causal edges, so this overlay is disabled to avoid
+  // duplicates. Built from the final (post-selection) nodes so the same nodes drive base and overlay.
+  const causalEdges = useMemo(
+    () => (chainMode ? [] : buildCausalEdges(nodes, id => (id ? killChainMeta.get(id) : undefined))),
+    [chainMode, nodes, killChainMeta],
+  );
   const graphEdges = useMemo(() => [...edges, ...causalEdges], [edges, causalEdges]);
 
   const counters = dto?.counters;

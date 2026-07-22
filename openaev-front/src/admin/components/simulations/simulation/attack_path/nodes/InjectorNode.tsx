@@ -63,7 +63,9 @@ const InjectorNode = ({ data }: NodeProps<AttackPathFlowNode>) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: theme.palette.background.paper,
+            // Injector logos are drawn on white; fill the whole diamond with white so the logo colour
+            // extends edge-to-edge instead of a small icon floating over the dark paper corners.
+            background: theme.palette.common.white,
             border: `1px solid ${theme.palette.text.secondary}`,
             clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
           }}
@@ -73,13 +75,13 @@ const InjectorNode = ({ data }: NodeProps<AttackPathFlowNode>) => {
                 <ImageWithFallback
                   src={buildTenantApiPath(`/api/injectors/${injectorSlug}/image`)}
                   alt={data.label ?? ''}
-                  width={40}
-                  height={40}
+                  width={56}
+                  height={56}
                   style={{ objectFit: 'contain' }}
                   fallback={(
                     <BoltOutlined sx={{
                       fontSize: 34,
-                      color: theme.palette.text.secondary,
+                      color: theme.palette.grey[700],
                     }}
                     />
                   )}

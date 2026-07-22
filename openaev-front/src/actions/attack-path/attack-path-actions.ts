@@ -53,8 +53,11 @@ export const fetchFindingsByCategory = (
   simpleCall(`${simulationUri(simulationId)}/findings?category=${encodeURIComponent(category)}&page=${page}&size=${size}`);
 
 // One execution's Result & Terminal detail for the drawer: masked command/output, findings, status.
+// The execution id is passed as a URL-encoded `ref` query parameter (not a path segment): an
+// injector-sourced id ends with the null-agent marker `\0`, and an encoded backslash in the path is
+// rejected by the servlet container before it reaches the controller.
 export const fetchExecutionDetail = (
   simulationId: string,
   executionId: string,
 ): Promise<{ data: AttackPathExecutionDetailDTO }> =>
-  simpleCall(`${simulationUri(simulationId)}/executions/${encodeURIComponent(executionId)}`);
+  simpleCall(`${simulationUri(simulationId)}/execution?ref=${encodeURIComponent(executionId)}`, undefined, false);

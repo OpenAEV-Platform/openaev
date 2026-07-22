@@ -1068,6 +1068,9 @@ export interface CausalConsumedKey {
   keyType: string;
   operator: string;
   value: string;
+  // Name of the event (root filter condition) this key belongs to, so the causal edge can read
+  // "Triggered <event>" rather than the raw "<key> = <value>". Optional (older/nameless events).
+  eventName?: string;
 }
 
 export interface CausalStepMeta {
@@ -1142,6 +1145,7 @@ export const buildKillChainMeta = (dto: AttackPathDTO | null | undefined): Map<s
             keyType: key.keyType,
             operator: key.operator ?? 'EQ',
             value: key.value ?? '',
+            eventName: key.eventName,
           });
         }
       }
@@ -1175,6 +1179,14 @@ const KEYTYPE_TO_FINDING_TYPE: Record<string, string> = {
   share_name: 'share',
   password: 'credentials',
 };
+
+// Label for a causal (finding → consuming action) edge. When the backend named the event (the root
+// filter condition the key belongs to), read it as "Triggered <event>" so the analyst sees WHY the next
+// action ran (its event matched); otherwise fall back to the raw "<key> = <masked value>" match.
+const causalKeyLabel = (key: CausalConsumedKey): string =>
+  (key.eventName && key.eventName.trim()
+    ? `Triggered ${key.eventName}`
+    : `${key.keyType} = ${maskFindingValue(key.keyType, key.value)}`);
 
 // Does a produced finding node satisfy a consumed finding key?
 //   - the finding's type (data.typeFindings) must equal the reconciled key type, and
@@ -1285,9 +1297,9 @@ export const buildCausalEdges = (
           data: {
             count: 1,
             causalKind: 'finding',
-            // Mask sensitive values (credentials/sid/password_policy) exactly like every other
-            // finding surface — never print a raw secret on the graph.
-            label: `${key.keyType} = ${maskFindingValue(key.keyType, key.value)}`,
+            // "Triggered <event>" when the event is named, else the masked "<key> = <value>" match
+            // (sensitive values are masked exactly like every other finding surface).
+            label: causalKeyLabel(key),
             dimmed: edgeDimmed(finding, node),
           },
         });
@@ -1316,4 +1328,308 @@ export const buildCausalEdges = (
   }
 
   return edges;
+};
+
+// ===== Causal execution-chain layout (issue 6647) =====
+// Renders the graph as the ACTUAL kill chain, left-to-right in causal order (dependsOn topology):
+//   inject → endpoint(s) it targeted → finding(s) it produced → the next inject that consumes them → …
+// Because a finding is placed on its PRODUCER step and the consuming inject sits one depth to the right,
+// every causal edge flows forward — there are no backward-crossing edges (the injector-fan-to-hub layout
+// forced the consuming inject upstream of the finding, which read as illegible crossings). Built from the
+// FULL dto: executions carry stepTemplateId / dependsOn / consumedFindingKeys / findingsNodeIds, which the
+// backend only emits in full mode (applyKillChain is full-only).
+const CHAIN_COL_W = 620; // horizontal span of one causal depth (inject + endpoint + finding + gap)
+const CHAIN_EP_DX = 210; // inject → endpoint horizontal offset within a step
+const CHAIN_FIND_DX = 400; // inject → produced-finding horizontal offset within a step
+const CHAIN_FIND_ROW = 96; // vertical gap between findings stacked on the SAME endpoint
+const CHAIN_EP_GAP = 56; // vertical gap between an injector's endpoint blocks
+const CHAIN_STEP_GAP = 80; // vertical gap between two injectors sharing a depth (same column)
+const CHAIN_EP_BLOCK_MIN = 120; // minimum height of one endpoint block (endpoint node + breathing room)
+const CHAIN_FIND_HALF = 28; // half of AP_FINDING_SIZE (56), to centre a finding node on its row
+
+interface ChainStep {
+  injectorId: string;
+  // endpoint node id -> the finding node ids this injector produced ON that endpoint (so each finding
+  // hangs off the endpoint it was actually discovered on, not an arbitrary first one).
+  endpoints: Map<string, string[]>;
+  // endpoint node id -> the contract name run against it (what was launched), for the inject→endpoint
+  // edge label. First non-empty contract name wins when several executions hit the same endpoint.
+  contractByEndpoint: Map<string, string>;
+  consumed: CausalConsumedKey[];
+  deps: Set<string>;
+}
+
+export const buildCausalChainFlow = (
+  dto: AttackPathDTO,
+): {
+  nodes: AttackPathFlowNode[];
+  edges: AttackPathFlowEdge[];
+} => {
+  const dtoNodes = dto.attackPathNodes ?? [];
+  const injectorById = new Map(dtoNodes.filter(n => n.type === 'INJECTOR' && n.id).map(n => [n.id as string, n]));
+  const assetById = new Map(dtoNodes.filter(n => n.type === 'ASSET' && n.id).map(n => [n.id as string, n]));
+  const findingById = new Map(dtoNodes.filter(n => n.type === 'FINDING' && n.id).map(n => [n.id as string, n]));
+  const execByRef = new Map((dto.attackPathExecutions ?? []).filter(e => e.ref).map(e => [e.ref as string, e]));
+  const execEdges = (dto.attackPathEdges ?? []).filter(e => e.type === EDGE_EXECUTIONS);
+
+  // Each execution edge links one injector (edgeSourceId) to one endpoint (edgeTargetId), carrying the
+  // execution refs that ran it — so we recover, per execution, which injector ran it and which endpoint.
+  const injByExec = new Map<string, string>();
+  const epByExec = new Map<string, string>();
+  for (const e of execEdges) {
+    for (const ref of e.executionIds ?? []) {
+      if (e.edgeSourceId) {
+        injByExec.set(ref, e.edgeSourceId);
+      }
+      if (e.edgeTargetId) {
+        epByExec.set(ref, e.edgeTargetId);
+      }
+    }
+  }
+  // Resolve a dependsOn (a prerequisite step template id) to the injector that ran it.
+  const injByStepTpl = new Map<string, string>();
+  for (const [ref, ex] of execByRef) {
+    const inj = injByExec.get(ref);
+    if (inj && ex.stepTemplateId) {
+      injByStepTpl.set(ex.stepTemplateId, inj);
+    }
+  }
+
+  // Aggregate executions into one step per injector (endpoints reached, findings produced/consumed, and
+  // the injectors it depends on — the kill-chain stays a handful of nodes regardless of execution count).
+  const steps = new Map<string, ChainStep>();
+  const ensureStep = (id: string): ChainStep => {
+    let s = steps.get(id);
+    if (!s) {
+      s = {
+        injectorId: id,
+        endpoints: new Map(),
+        contractByEndpoint: new Map(),
+        consumed: [],
+        deps: new Set(),
+      };
+      steps.set(id, s);
+    }
+    return s;
+  };
+  for (const [ref, ex] of execByRef) {
+    const inj = injByExec.get(ref);
+    if (!inj) {
+      continue;
+    }
+    const s = ensureStep(inj);
+    const ep = epByExec.get(ref);
+    if (ep) {
+      const epFindings = s.endpoints.get(ep) ?? [];
+      for (const fid of ex.findingsNodeIds ?? []) {
+        if (!epFindings.includes(fid)) {
+          epFindings.push(fid);
+        }
+      }
+      s.endpoints.set(ep, epFindings);
+      if (ex.contractName && !s.contractByEndpoint.has(ep)) {
+        s.contractByEndpoint.set(ep, ex.contractName);
+      }
+    }
+    for (const k of ex.consumedFindingKeys ?? []) {
+      if (k.keyType && !s.consumed.some(c => c.keyType === k.keyType && c.operator === (k.operator ?? '') && c.value === (k.value ?? ''))) {
+        s.consumed.push({
+          keyType: k.keyType,
+          operator: k.operator ?? 'EQ',
+          value: k.value ?? '',
+          eventName: k.eventName,
+        });
+      }
+    }
+    for (const dep of ex.dependsOn ?? []) {
+      const depInj = injByStepTpl.get(dep);
+      if (depInj && depInj !== inj) {
+        s.deps.add(depInj);
+      }
+    }
+  }
+
+  // Causal depth = longest dependsOn chain to a root, so an injector always sits to the right of every
+  // injector it depends on. A cycle (should not happen) is broken by treating a re-entered node as depth 0.
+  const depth = new Map<string, number>();
+  const inProgress = new Set<string>();
+  const depthOf = (id: string): number => {
+    const cached = depth.get(id);
+    if (cached !== undefined) {
+      return cached;
+    }
+    if (inProgress.has(id)) {
+      return 0;
+    }
+    inProgress.add(id);
+    let d = 0;
+    for (const dep of steps.get(id)?.deps ?? []) {
+      d = Math.max(d, depthOf(dep) + 1);
+    }
+    inProgress.delete(id);
+    depth.set(id, d);
+    return d;
+  };
+  for (const id of steps.keys()) {
+    depthOf(id);
+  }
+  const byDepth = new Map<number, string[]>();
+  for (const id of steps.keys()) {
+    const d = depth.get(id) ?? 0;
+    const lane = byDepth.get(d) ?? [];
+    lane.push(id);
+    byDepth.set(d, lane);
+  }
+
+  const nodes: AttackPathFlowNode[] = [];
+  const edges: AttackPathFlowEdge[] = [];
+
+  // A finding is placed once (unique React Flow id) on the first endpoint that produced it; any other
+  // endpoint that also produced it just gets an edge to the same node.
+  const placedFindings = new Set<string>();
+
+  for (const [d, ids] of [...byDepth.entries()].sort((a, b) => a[0] - b[0])) {
+    const x = PADDING + d * CHAIN_COL_W;
+    let cursorY = PADDING;
+    ids.forEach((injId) => {
+      const s = steps.get(injId) as ChainStep;
+      const endpointEntries = [...s.endpoints.entries()];
+      // Each endpoint is a vertical block sized to hold the endpoint node and its stacked findings.
+      const blocks = endpointEntries.map(([epId, findingIds]) => ({
+        epId,
+        findingIds,
+        h: Math.max(CHAIN_EP_BLOCK_MIN, findingIds.length * CHAIN_FIND_ROW),
+      }));
+      const totalH = blocks.reduce((sum, b) => sum + b.h, 0) + Math.max(0, blocks.length - 1) * CHAIN_EP_GAP;
+      const stepTop = cursorY;
+      const injCenterY = stepTop + Math.max(totalH, CHAIN_EP_BLOCK_MIN) / 2;
+
+      // Inject node, vertically centred against its whole block (keeps its real id + data so the icon,
+      // ATT&CK and injector-click still resolve).
+      const injDto = injectorById.get(injId);
+      nodes.push({
+        id: injId,
+        type: AP_FLOW_NODE_TYPE.injector,
+        position: {
+          x,
+          y: injCenterY - CLUSTER_INJECTOR_HALF_H,
+        },
+        data: injDto ? nodeData(injDto) : { label: injId },
+      });
+
+      let blockCursor = stepTop;
+      blocks.forEach(({ epId, findingIds, h }) => {
+        const blockCenter = blockCursor + h / 2;
+        const epDto = assetById.get(epId);
+        const epNodeId = `chain-ep|${injId}|${epId}`;
+        nodes.push({
+          id: epNodeId,
+          type: AP_FLOW_NODE_TYPE.asset,
+          position: {
+            x: x + CHAIN_EP_DX,
+            y: blockCenter - CLUSTER_EP_HALF_H,
+          },
+          data: epDto ? nodeData(epDto) : { label: epId },
+        });
+        edges.push({
+          id: `${injId}-${epNodeId}`,
+          source: injId,
+          target: epNodeId,
+          type: AP_FLOW_EDGE_TYPE,
+          data: {
+            count: 1,
+            status: epDto?.status,
+            // What was launched against this endpoint (the injector contract name), so the analyst reads
+            // the action on the edge rather than guessing from the injector icon alone.
+            label: s.contractByEndpoint.get(epId),
+          },
+        });
+
+        // The findings discovered on THIS endpoint, stacked and centred against the block.
+        findingIds.forEach((fid, k) => {
+          const fDto = findingById.get(fid);
+          const fY = blockCenter + (k - (findingIds.length - 1) / 2) * CHAIN_FIND_ROW;
+          if (!placedFindings.has(fid)) {
+            placedFindings.add(fid);
+            nodes.push({
+              id: fid,
+              type: AP_FLOW_NODE_TYPE.finding,
+              position: {
+                x: x + CHAIN_FIND_DX,
+                y: fY - CHAIN_FIND_HALF,
+              },
+              data: {
+                label: fDto?.value ?? fDto?.label,
+                value: fDto?.value,
+                typeFindings: fDto?.typeFindings,
+                assetNodeId: fDto?.assetNodeId,
+                status: fDto?.status ?? 'RED',
+              },
+            });
+          }
+          edges.push({
+            id: `${epNodeId}-${fid}`,
+            source: epNodeId,
+            target: fid,
+            type: AP_FLOW_EDGE_TYPE,
+            data: {
+              count: 1,
+              status: fDto?.status ?? 'RED',
+              label: fDto?.typeFindings ? `${fDto.typeFindings} found` : undefined,
+            },
+          });
+        });
+        blockCursor += h + CHAIN_EP_GAP;
+      });
+
+      cursorY = stepTop + Math.max(totalH, CHAIN_EP_BLOCK_MIN) + CHAIN_STEP_GAP;
+    });
+  }
+
+  // Forward causal links: a produced finding → the downstream inject that consumes a matching key. When a
+  // step consumes but no produced finding matches (value not surfaced, or a pure ordering dependency), fall
+  // back to a dashed dependsOn edge so the sequencing is still shown.
+  const findingNodes = nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.finding);
+  for (const [injId, s] of steps) {
+    let matched = false;
+    for (const key of s.consumed) {
+      for (const fn of findingNodes) {
+        if (findingMatchesKey(fn, key)) {
+          matched = true;
+          edges.push({
+            id: `${AP_FLOW_CAUSAL_EDGE_TYPE}-finding-${fn.id}-${injId}`,
+            source: fn.id,
+            target: injId,
+            type: AP_FLOW_CAUSAL_EDGE_TYPE,
+            data: {
+              count: 1,
+              causalKind: 'finding',
+              label: causalKeyLabel(key),
+            },
+          });
+        }
+      }
+    }
+    if (!matched) {
+      for (const dep of s.deps) {
+        if (steps.has(dep)) {
+          edges.push({
+            id: `${AP_FLOW_CAUSAL_EDGE_TYPE}-depend-${dep}-${injId}`,
+            source: dep,
+            target: injId,
+            type: AP_FLOW_CAUSAL_EDGE_TYPE,
+            data: {
+              count: 1,
+              causalKind: 'depend',
+            },
+          });
+        }
+      }
+    }
+  }
+
+  return {
+    nodes,
+    edges,
+  };
 };
