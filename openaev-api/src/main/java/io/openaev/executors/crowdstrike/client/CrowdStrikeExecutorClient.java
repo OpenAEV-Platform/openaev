@@ -62,14 +62,15 @@ public class CrowdStrikeExecutorClient {
       int offset = 0;
       List<CrowdStrikeDevice> hosts = new ArrayList<>();
       ResourcesHosts partialResults = getResourcesHosts(offset, hostGroup);
-      if (partialResults.getErrors() != null && !partialResults.getErrors().isEmpty()) {
-        logErrors(partialResults.getErrors(), hostGroup);
+      throwIfCrowdStrikeErrors(
+          "devices",
+          "hostGroupId=" + hostGroup,
+          partialResults.getErrors(),
+          partialResults.getMeta() == null ? null : partialResults.getMeta().getTraceId());
+      if (partialResults.getResources() == null) {
         return hosts;
-      } else if (partialResults.getResources() == null) {
-        return hosts;
-      } else {
-        hosts.addAll(partialResults.getResources());
       }
+      hosts.addAll(partialResults.getResources());
       int numberOfExecution =
           Math.ceilDiv(
               partialResults.getMeta().getPagination().getTotal(),
@@ -77,11 +78,15 @@ public class CrowdStrikeExecutorClient {
       for (int callNumber = 1; callNumber < numberOfExecution; callNumber += 1) {
         offset += partialResults.getMeta().getPagination().getLimit();
         partialResults = getResourcesHosts(offset, hostGroup);
+        throwIfCrowdStrikeErrors(
+            "devices",
+            "hostGroupId=" + hostGroup + ", offset=" + offset,
+            partialResults.getErrors(),
+            partialResults.getMeta() == null ? null : partialResults.getMeta().getTraceId());
         if (partialResults.getResources() == null) {
           return hosts;
-        } else {
-          hosts.addAll(partialResults.getResources());
         }
+        hosts.addAll(partialResults.getResources());
       }
       return hosts;
     } catch (Exception e) {
@@ -90,21 +95,6 @@ public class CrowdStrikeExecutorClient {
     }
   }
 
-  private void logErrors(List<CrowdstrikeError> errors, String hostGroup) {
-    StringBuilder msg =
-        new StringBuilder(
-            "Error occurred while getting Crowdstrike devices API request for hostGroup id "
-                + hostGroup
-                + ".");
-    for (CrowdstrikeError error : errors) {
-      msg.append("\nCode: ")
-          .append(error.getCode())
-          .append(", message: ")
-          .append(error.getMessage())
-          .append(".");
-    }
-    log.error(msg.toString());
-  }
 
   private ResourcesHosts getResourcesHosts(int offset, String hostGroup) {
     final String formattedDateTime =
