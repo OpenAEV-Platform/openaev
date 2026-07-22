@@ -25,7 +25,7 @@ const Lessons = lazy(() => import('./lessons/SimulationLessons'));
 const SimulationFindings = lazy(() => import('./findings/SimulationFindings'));
 const Injects = lazy(() => import('./injects/ExerciseInjects'));
 const Tests = lazy(() => import('./tests/ExerciseTests'));
-const TimelineOverview = lazy(() => import('./timeline/TimelineOverview'));
+const ExecutionOverview = lazy(() => import('./timeline/ExecutionOverview'));
 const Mails = lazy(() => import('./mails/Mails'));
 const MailsInject = lazy(() => import('./mails/Inject'));
 const Logs = lazy(() => import('./logs/Logs'));
@@ -33,6 +33,13 @@ const Chat = lazy(() => import('./chat/Chat'));
 const Validations = lazy(() => import('./validation/Validations'));
 const SimulationScope = lazy(() => import('./scope/SimulationScope'));
 const SimulationLogic = lazy(() => import('./logic/SimulationLogic'));
+
+// The Animation area was renamed Execution: rewrite any legacy /animation/*
+// deep link to its /execution/* equivalent, preserving the sub-path.
+const AnimationToExecutionRedirect = () => {
+  const location = useLocation();
+  return <Navigate to={location.pathname.replace('/animation', '/execution')} replace />;
+};
 
 const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ exercise }) => {
   const location = useLocation();
@@ -59,7 +66,7 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
   return (
     <PermissionsContext.Provider value={permissionsContext}>
       <DocumentContext.Provider value={documentContext}>
-        <div style={{ paddingRight: location.pathname.includes('/animation') ? 200 : 0 }}>
+        <div style={{ paddingRight: location.pathname.includes('/execution') ? 200 : 0 }}>
           <SimulationShell exercise={exercise}>
             <Suspense fallback={<Loader />}>
               <Routes>
@@ -68,13 +75,15 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                 <Route path="definition" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/injects`} replace={true} />} />
                 <Route path="injects" element={errorWrapper(Injects)()} />
                 <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
-                <Route path="animation" element={<Navigate to="timeline" replace={true} />} />
-                <Route path="animation/timeline" element={errorWrapper(TimelineOverview)()} />
-                <Route path="animation/mails" element={errorWrapper(Mails)()} />
-                <Route path="animation/mails/:injectId" element={errorWrapper(MailsInject)()} />
-                <Route path="animation/logs" element={errorWrapper(Logs)()} />
-                <Route path="animation/chat" element={errorWrapper(Chat)()} />
-                <Route path="animation/validations" element={errorWrapper(Validations)()} />
+                <Route path="execution" element={<Navigate to="timeline" replace={true} />} />
+                <Route path="execution/timeline" element={errorWrapper(ExecutionOverview)()} />
+                <Route path="execution/mails" element={errorWrapper(Mails)()} />
+                <Route path="execution/mails/:injectId" element={errorWrapper(MailsInject)()} />
+                <Route path="execution/logs" element={errorWrapper(Logs)()} />
+                <Route path="execution/chat" element={errorWrapper(Chat)()} />
+                <Route path="execution/validations" element={errorWrapper(Validations)()} />
+                {/* The Animation area was renamed Execution; keep old deep links working. */}
+                <Route path="animation/*" element={<AnimationToExecutionRedirect />} />
                 <Route path="lessons" element={errorWrapper(Lessons)()} />
                 <Route path="findings" element={errorWrapper(SimulationFindings)()} />
                 {/* Simulation-scoped custom dashboard, reached from the hero "Analyze" quick action. */}
