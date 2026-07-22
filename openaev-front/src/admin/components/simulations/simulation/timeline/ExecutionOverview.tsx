@@ -128,7 +128,10 @@ const ExecutionOverview = () => {
   });
 
   useEffect(() => {
-    fetchExerciseExpectationResult(exerciseId).then((result: { data: ExpectationResultsByType[] }) => setResults(result.data));
+    fetchExerciseExpectationResult(exerciseId)
+      .then((result: { data: ExpectationResultsByType[] }) => setResults(result.data))
+      // Degrade to the empty placeholder instead of an infinite loader on failure.
+      .catch(() => setResults([]));
   }, [exerciseId]);
 
   // Sort
@@ -141,8 +144,9 @@ const ExecutionOverview = () => {
 
   const isEnable = (inject: InjectStore): boolean => !!inject.inject_enabled;
   const filteredInjects: InjectStore[] = filtering.filterAndSort(injects.filter((inject: InjectStore) => isEnable(inject)));
-  const pendingInjects: InjectStore[] = filtering.filterAndSort(filteredInjects.filter((inject: InjectStore) => inject.inject_status === null));
-  const processedInjects: InjectStore[] = filtering.filterAndSort(filteredInjects.filter((i: InjectStore) => i.inject_status !== null));
+  // filteredInjects is already filtered and sorted; a plain partition keeps its order.
+  const pendingInjects: InjectStore[] = filteredInjects.filter((inject: InjectStore) => inject.inject_status === null);
+  const processedInjects: InjectStore[] = filteredInjects.filter((i: InjectStore) => i.inject_status !== null);
 
   // Headline metrics computed on the WHOLE simulation (unaffected by the
   // search / tags filters that scope the timeline and lists below).
@@ -441,12 +445,9 @@ const ExecutionOverview = () => {
                             }}
                             >
                               {fndt(inject.inject_status?.tracking_sent_date)}
-                              {' '}
-                              {
-                                inject.inject_status?.tracking_sent_date && inject.inject_status.tracking_end_date
-                                && ((new Date(inject.inject_status.tracking_end_date).getTime() - new Date(inject.inject_status.tracking_sent_date).getTime()) / 1000).toFixed(2)
-                              }
-                              {t('s')}
+                              {/* Only render the duration (with its unit) when both tracking dates exist. */}
+                              {inject.inject_status?.tracking_sent_date && inject.inject_status.tracking_end_date
+                                && ` ${((new Date(inject.inject_status.tracking_end_date).getTime() - new Date(inject.inject_status.tracking_sent_date).getTime()) / 1000).toFixed(2)}${t('s')}`}
                             </Typography>
                           </Box>
                         )}

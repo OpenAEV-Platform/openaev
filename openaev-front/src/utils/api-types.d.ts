@@ -2526,12 +2526,9 @@ export interface DnsResolution {
 
 export interface Document {
   document_description?: string;
-  document_encrypted?: boolean;
   document_exercises?: string[];
-  document_folder?: string;
   /** @minLength 1 */
   document_id: string;
-  document_kind?: "DOCUMENT" | "MALWARE_SAMPLE";
   /** @minLength 1 */
   document_name: string;
   document_scenarios?: string[];
@@ -2545,29 +2542,8 @@ export interface Document {
 export interface DocumentCreateInput {
   document_description?: string;
   document_exercises?: string[];
-  document_folder?: string;
-  document_kind?: "DOCUMENT" | "MALWARE_SAMPLE";
   document_scenarios?: string[];
   document_tags?: string[];
-}
-
-export interface Folder {
-  /** @format date-time */
-  folder_created_at?: string;
-  /** @minLength 1 */
-  folder_id: string;
-  /** @minLength 1 */
-  folder_name: string;
-  folder_parent?: string;
-  /** @format date-time */
-  folder_updated_at?: string;
-  listened?: boolean;
-}
-
-export interface FolderInput {
-  /** @minLength 1 */
-  folder_name: string;
-  folder_parent?: string;
 }
 
 export interface DocumentRelationsOutput {

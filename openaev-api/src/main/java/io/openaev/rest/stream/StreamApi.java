@@ -26,7 +26,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,7 +52,10 @@ public class StreamApi extends RestBehavior {
   public static final String EVENT_TYPE_MESSAGE = "message";
   public static final String EVENT_TYPE_PING = "ping";
   public static final String X_ACCEL_BUFFERING = "X-Accel-Buffering";
-  private final Map<String, StreamConsumer> consumers = new HashMap<>();
+
+  // Mutated from several threads: SSE connect (request thread), disconnect (reactor
+  // doAfterTerminate) and iteration in the @Async broadcast path, so it must be concurrent.
+  private final Map<String, StreamConsumer> consumers = new ConcurrentHashMap<>();
 
   // Short-lived per-principal user cache for the broadcast path. listenDatabaseUpdate
   // runs for EVERY database mutation and fans out to EVERY connected consumer; reloading

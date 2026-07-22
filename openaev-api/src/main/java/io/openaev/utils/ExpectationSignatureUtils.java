@@ -78,10 +78,12 @@ public class ExpectationSignatureUtils {
     // (type, value). InjectExpectationSignature has a composite primary key of (injectExpectation,
     // type, value): two identical (type, value) pairs on the same expectation map to the same row,
     // so persisting both makes Hibernate enqueue two managed entities with the same identifier and
-    // throw NonUniqueObjectException, rolling back the whole expectation save. This happens whenever
+    // throw NonUniqueObjectException, rolling back the whole expectation save. This happens
+    // whenever
     // computeSignatures yields the same value twice - e.g. an endpoint whose seen IP is also one of
     // its declared IPs produces two source_ipv4_address signatures. The entity's
-    // "ON CONFLICT DO NOTHING" only guards duplicates across separate flushes, not within one batch.
+    // "ON CONFLICT DO NOTHING" only guards duplicates across separate flushes, not within one
+    // batch.
     return expectationSignatures.stream()
         .filter(Objects::nonNull)
         .distinct()

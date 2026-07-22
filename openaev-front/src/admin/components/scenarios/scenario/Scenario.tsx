@@ -229,9 +229,13 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
       setLastResults(null);
       setLastInjectResults(null);
       setLastResultsResolved(true);
-      return;
+      return () => {};
     }
     setLastResultsResolved(false);
+    // Cancellation flag: a stale response must not overwrite the state reset by a
+    // newer effect run, and every path (including failures) must resolve so the
+    // sample fallback can kick in instead of silently dropping the sections.
+    let cancelled = false;
     searchScenarioExercises(scenarioId, {
       size: 1,
       page: 0,
@@ -247,6 +251,9 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
         },
       ],
     }).then((result: { data: { content?: ExerciseSimple[] } }) => {
+      if (cancelled) {
+        return;
+      }
       const simulationId = result.data.content?.[0]?.exercise_id;
       if (!simulationId) {
         setLastResultsResolved(true);
@@ -254,10 +261,21 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
       }
       setLastSimulationId(simulationId);
       Promise.all([
-        fetchExerciseExpectationResult(simulationId).then((r: { data: ExpectationResultsByType[] }) => setLastResults(r.data)),
-        fetchExerciseInjectExpectationResults(simulationId).then((r: { data: InjectExpectationResultsByAttackPattern[] }) => setLastInjectResults(r.data)),
-      ]).finally(() => setLastResultsResolved(true));
+        fetchExerciseExpectationResult(simulationId).then((r: { data: ExpectationResultsByType[] }) => {
+          if (!cancelled) setLastResults(r.data);
+        }),
+        fetchExerciseInjectExpectationResults(simulationId).then((r: { data: InjectExpectationResultsByAttackPattern[] }) => {
+          if (!cancelled) setLastInjectResults(r.data);
+        }),
+      ]).finally(() => {
+        if (!cancelled) setLastResultsResolved(true);
+      });
+    }).catch(() => {
+      if (!cancelled) setLastResultsResolved(true);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [scenarioId, areAnyExercisesInScenario]);
 
   const lastAttackPatternIds = R.uniq(

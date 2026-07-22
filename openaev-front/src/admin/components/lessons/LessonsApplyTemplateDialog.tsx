@@ -14,8 +14,8 @@ interface Props {
   onClose: () => void;
   onApply: (templateId: string) => Promise<unknown> | void;
   lessonsTemplates: LessonsTemplate[];
-  /** 'simulation' | 'scenario' - drives the informational alert wording. */
-  variant: string;
+  /** Drives the informational alert wording. */
+  variant: 'simulation' | 'scenario';
 }
 
 // Shared "apply a lessons learned template" dialog (simulation + scenario).
@@ -98,7 +98,7 @@ const LessonsApplyTemplateDialog = ({ open, onClose, onApply, lessonsTemplates, 
         <Button variant="outlined" color="primary" onClick={onClose}>
           {t('Cancel')}
         </Button>
-        <Can I={ACTIONS.ACCESS} a={SUBJECTS.LESSONS_LEARNED}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
           <Button
             variant="contained"
             color="primary"
