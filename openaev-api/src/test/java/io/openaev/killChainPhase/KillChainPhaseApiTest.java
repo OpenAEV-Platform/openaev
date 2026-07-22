@@ -330,6 +330,17 @@ public class KillChainPhaseApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Upsert rejects entries with blank mandatory fields (cascaded validation)")
+    void given_blank_mandatory_fields_should_return_bad_request() throws Exception {
+      mvc.perform(
+              post("/api/kill_chain_phases/upsert")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(upsertInput(createInput("", "No short name", null))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("Duplicate entries in one request (with and without STIX id) persist a single row")
     void given_duplicate_inputs_in_batch_should_persist_single_row() throws Exception {
       mvc.perform(
