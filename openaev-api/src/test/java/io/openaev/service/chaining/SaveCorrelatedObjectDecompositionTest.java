@@ -106,8 +106,8 @@ class SaveCorrelatedObjectDecompositionTest {
     }
 
     @Test
-    @DisplayName("host appears BOTH in correlated pairSet AND in inputs; asset_id in NEITHER")
-    void givenObjectWithHostAndAssetId_hostInBothAssetIdInNeither() {
+    @DisplayName("all known PrimitiveType fields appear in BOTH correlated pairSet AND inputs")
+    void givenObjectWithHostAndAssetId_allFieldsInBoth() {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = Workflow.builder().id(workflowId).build();
       WorkflowState globalState = setupGlobalState(workflowId, workflow);
@@ -135,21 +135,21 @@ class SaveCorrelatedObjectDecompositionTest {
       WorkflowStateEntries persisted =
           gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
 
-      // host in correlated pairSet
+      // All known fields in correlated pairSet — no exclusion
       Set<String> correlatedKeys =
           persisted.getCorrelated().getFirst().getValues().stream()
               .map(WorkflowStateEntries.Pair::key)
               .collect(java.util.stream.Collectors.toSet());
       assertTrue(correlatedKeys.contains("Host"), "host must be in correlated pairSet");
-      assertFalse(correlatedKeys.contains("AssetId"), "asset_id must NOT be in correlated pairSet");
+      assertTrue(correlatedKeys.contains("AssetId"), "asset_id must be in correlated pairSet");
+      assertTrue(correlatedKeys.contains("Username"));
+      assertTrue(correlatedKeys.contains("Password"));
 
-      // host in inputs
+      // All known fields in inputs
       assertEquals(Set.of("srv1"), persisted.getInputByKey("Host").getValues());
-
-      // asset_id in neither inputs nor correlated
-      assertTrue(
-          persisted.getInputs().stream().noneMatch(i -> i.getKey().equals("AssetId")),
-          "asset_id must NOT land in inputs");
+      assertEquals(Set.of("aid-1"), persisted.getInputByKey("AssetId").getValues());
+      assertEquals(Set.of("user1"), persisted.getInputByKey("Username").getValues());
+      assertEquals(Set.of("pass1"), persisted.getInputByKey("Password").getValues());
     }
   }
 
@@ -158,19 +158,19 @@ class SaveCorrelatedObjectDecompositionTest {
   class MonoFieldComplexObject {
 
     @Test
-    @DisplayName("single-field complex → NO Correlated, but input IS populated")
+    @DisplayName("single-field complex (truly one field) → NO Correlated, but input IS populated")
     void givenMonoFieldObject_shouldNotCreateCorrelatedButShouldPopulateInput() {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = Workflow.builder().id(workflowId).build();
       WorkflowState globalState = setupGlobalState(workflowId, workflow);
 
-      // A complex type that only has one content field after ATTACHMENT_KEYS exclusion
+      // A complex type with truly only one known PrimitiveType field
       JsonObject dataToSync =
           JsonParser.parseString(
                   """
                   {
                     "username_output": [
-                      {"username": "lonely-user", "asset_id": "aid-x"}
+                      {"username": "lonely-user"}
                     ]
                   }
                   """)

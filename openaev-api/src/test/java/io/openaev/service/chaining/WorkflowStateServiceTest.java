@@ -443,8 +443,9 @@ class WorkflowStateServiceTest {
 
     @Test
     @DisplayName(
-        "complex object {username, password, host, asset_id} should yield Correlated with keys {Username, Password, Host} — asset_id excluded")
-    void givenComplexCredentialObject_shouldNormalizeKeysAndExcludeAttachments() {
+        "complex object {username, password, host, asset_id} should yield Correlated with all known PrimitiveType keys")
+    void givenComplexCredentialObject_shouldNormalizeKeysAndIncludeAll() {
+      // ...existing code...
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = Workflow.builder().id(workflowId).build();
 
@@ -496,23 +497,14 @@ class WorkflowStateServiceTest {
       Set<WorkflowStateEntries.Pair> pairs =
           persistedEntries.getCorrelated().getFirst().getValues();
 
-      // Keys must be PrimitiveType.name() (Pascal case), not raw JSON field names.
-      // Host is now content (not attachment), so it IS present in the pair set.
+      // All known PrimitiveType fields are included — no exclusion
       assertEquals(
           Set.of(
               new WorkflowStateEntries.Pair("Username", "admin"),
               new WorkflowStateEntries.Pair("Password", "s3cret"),
-              new WorkflowStateEntries.Pair("Host", "10.0.0.1")),
+              new WorkflowStateEntries.Pair("Host", "10.0.0.1"),
+              new WorkflowStateEntries.Pair("AssetId", "asset-42")),
           pairs);
-
-      // Only asset_id remains excluded as an attachment key
-      Set<String> pairKeys =
-          pairs.stream()
-              .map(WorkflowStateEntries.Pair::key)
-              .collect(java.util.stream.Collectors.toSet());
-      assertTrue(pairKeys.contains("Host"));
-      assertFalse(pairKeys.contains("asset_id"));
-      assertFalse(pairKeys.contains("AssetId"));
 
       // Business type must be stamped from the ContractOutputType origin
       assertEquals("Credentials", persistedEntries.getCorrelated().getFirst().getType());

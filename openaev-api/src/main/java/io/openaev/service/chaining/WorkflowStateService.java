@@ -319,17 +319,10 @@ public class WorkflowStateService {
   }
 
   /**
-   * Provenance markers excluded from the content {@code Set<Pair>} of complex objects (e.g.
-   * asset_id).
-   */
-  private static final Set<PrimitiveType> ATTACHMENT_KEYS = Set.of(PrimitiveType.AssetId);
-
-  /**
    * Saves a correlated object (multi-field entry like {username, password}) into state entries.
    *
    * <p>JSON field names are normalized to {@link PrimitiveType#name()} (e.g. "username" →
    * "Username") so that the object path produces the same key convention as the scalar path.
-   * Attachment fields ({@code asset_id} only for now) are excluded from the content pair set.
    *
    * <p>Each accepted primitive field is ALSO decomposed flat into {@code entries.inputs}, so that
    * downstream consumers can query individual primitives regardless of their complex origin.
@@ -372,8 +365,8 @@ public class WorkflowStateService {
   }
 
   /**
-   * Returns the resolved {@link PrimitiveType} for a JSON field name if it is a known primitive AND
-   * is not an attachment key. Returns empty for unknown fields or attachment keys (asset_id).
+   * Returns the resolved {@link PrimitiveType} for a JSON field name if it is a known primitive.
+   * Returns empty for unknown fields.
    *
    * <p>This is the SINGLE filter shared by both the correlated pair-set construction and the flat
    * input decomposition, ensuring they cannot diverge.
@@ -384,9 +377,6 @@ public class WorkflowStateService {
       log.debug(
           "Skipping unknown field '{}' in correlated object — no PrimitiveType match",
           jsonFieldName);
-      return Optional.empty();
-    }
-    if (ATTACHMENT_KEYS.contains(primitiveOpt.get())) {
       return Optional.empty();
     }
     return primitiveOpt;
