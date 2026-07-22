@@ -532,7 +532,8 @@ class WorkflowStateServiceTest {
           gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
       assertEquals(1, persisted.getCorrelated().size(), "full tuple should be propagated");
       Set<WorkflowStateEntries.Pair> pairs = persisted.getCorrelated().getFirst().getValues();
-      assertTrue(pairs.stream().anyMatch(p -> p.key().equals("IPv4") && p.value().equals("10.0.0.1")));
+      assertTrue(
+          pairs.stream().anyMatch(p -> p.key().equals("IPv4") && p.value().equals("10.0.0.1")));
       assertTrue(pairs.stream().anyMatch(p -> p.key().equals("Port") && p.value().equals("22")));
     }
 
@@ -705,8 +706,8 @@ class WorkflowStateServiceTest {
 
     private PrimitiveValidationContext emptyValidationContext() {
       return new PrimitiveValidationContext(
-          Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
-          Set.of(), Set.of());
+          Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
+          Set.of());
     }
   }
 }

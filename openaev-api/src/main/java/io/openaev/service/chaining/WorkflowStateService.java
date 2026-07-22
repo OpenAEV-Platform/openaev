@@ -302,8 +302,7 @@ public class WorkflowStateService {
    * (produced this call only), and the correlated tuples newly created from complex objects.
    */
   private record IngestionResult(
-      Map<String, List<String>> parsedByType,
-      List<WorkflowStateEntries.Correlated> newCorrelated) {
+      Map<String, List<String>> parsedByType, List<WorkflowStateEntries.Correlated> newCorrelated) {
 
     boolean isEmpty() {
       return parsedByType.isEmpty() && newCorrelated.isEmpty();
@@ -366,7 +365,8 @@ public class WorkflowStateService {
         } else if (element.isJsonObject() && isComplex) {
           // Complex output (e.g. {port: 22, host: "1.1.1.1"}): store as correlated pairs
           String type = mappedType.origin() != null ? mappedType.origin().name() : null;
-          saveCorrelatedObject(entries, element.getAsJsonObject(), type, parsedByType, newCorrelated);
+          saveCorrelatedObject(
+              entries, element.getAsJsonObject(), type, parsedByType, newCorrelated);
         }
       }
     }
