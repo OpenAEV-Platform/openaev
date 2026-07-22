@@ -1,6 +1,6 @@
 import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LocalFireDepartment, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
 import { Alert, Autocomplete, Box, ButtonBase, Chip, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -41,6 +41,28 @@ const FINDING_FETCH_ENDPOINTS = 30;
 
 // How many top-exposed endpoints are surfaced as chokepoints (badged on the map + listed in the card).
 const CHOKEPOINT_TOP_N = 5;
+
+// Chokepoint score weights an endpoint's finding count by its business criticality, so the top
+// chokepoint is "the most findings on the most critical endpoint" (not raw finding count alone). The
+// weights are deliberately simple and transparent (surfaced in the card's explanation): a VERY_HIGH
+// asset counts 4x a LOW one; an asset with no criticality set counts as LOW (weight 1), never zero, so
+// it is still ranked. Kept ordered high→low for the legend.
+const CRITICALITY_WEIGHT: Record<string, number> = {
+  VERY_HIGH: 4,
+  HIGH: 3,
+  MEDIUM: 2,
+  LOW: 1,
+  UNKNOWN: 1,
+};
+const criticalityWeight = (criticality?: string): number => CRITICALITY_WEIGHT[criticality ?? ''] ?? 1;
+// Human label for a criticality value (falls back to "Unknown" / "Not set").
+const CRITICALITY_LABEL: Record<string, string> = {
+  VERY_HIGH: 'Very high',
+  HIGH: 'High',
+  MEDIUM: 'Medium',
+  LOW: 'Low',
+  UNKNOWN: 'Unknown',
+};
 
 // Synthetic seeded simulations (POST /attack-path/seed) carry no real date/name; keep them hidden
 // from metadata resolution and fall back to their raw id in the picker.
@@ -721,20 +743,28 @@ const SimulationAttackPath = () => {
       .finally(() => setDetailLoading(false));
   }, [simulationId]);
 
-  // Chokepoints (v1, front-only): rank endpoints by their total finding count. There is no asset
-  // criticality yet, so "the endpoint with the most findings" is the most exposed / highest-leverage
-  // one to fix. Computed straight from the already-loaded collapsed DTO (per-endpoint findingCounts).
+  // Chokepoints: rank endpoints by a transparent score = (total findings) × (criticality weight), so
+  // the top chokepoint is the most findings on the most critical endpoint — not raw finding count alone.
+  // Both operands are kept for the card's explanation. Computed from the already-loaded collapsed DTO
+  // (per-endpoint findingCounts + criticality resolved by the backend from the asset).
   const chokepoints = useMemo(
     () => (dto?.attackPathNodes ?? [])
       .filter(n => n.type === 'ASSET' && n.id)
-      .map(n => ({
-        nodeId: n.id as string,
-        ref: n.ref ?? (n.id as string),
-        label: n.hostname || n.label || n.ref || (n.id as string),
-        ip: n.ip,
-        score: Object.values(n.findingCounts ?? {}).reduce((s, v) => s + (v ?? 0), 0),
-      }))
-      .filter(c => c.score > 0)
+      .map((n) => {
+        const findings = Object.values(n.findingCounts ?? {}).reduce((s, v) => s + (v ?? 0), 0);
+        const weight = criticalityWeight(n.criticality);
+        return {
+          nodeId: n.id as string,
+          ref: n.ref ?? (n.id as string),
+          label: n.hostname || n.label || n.ref || (n.id as string),
+          ip: n.ip,
+          findings,
+          criticality: n.criticality,
+          weight,
+          score: findings * weight,
+        };
+      })
+      .filter(c => c.findings > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, CHOKEPOINT_TOP_N),
     [dto],
@@ -1723,7 +1753,7 @@ const SimulationAttackPath = () => {
                   </Typography>
                   <Tooltip
                     arrow
-                    title={t('Chokepoints are the most-exposed endpoints (those with the most findings). With no asset criticality yet, fixing these first closes the most attack paths.')}
+                    title={t('Chokepoints rank endpoints by findings weighted by criticality (score = findings × criticality weight), so the top one is the most findings on the most critical endpoint. Click to see how it is computed.')}
                   >
                     <HelpOutline sx={{
                       fontSize: 13,
@@ -1748,9 +1778,45 @@ const SimulationAttackPath = () => {
             >
               <Box sx={{
                 p: 1,
-                minWidth: 300,
+                minWidth: 340,
+                maxWidth: 400,
               }}
               >
+                {/* Transparent formula, mirroring the exposure-score explanation: what it measures, the
+                    exact formula, and the criticality weights it uses. */}
+                <Box sx={{
+                  px: 1,
+                  pb: 1,
+                  mb: 0.5,
+                  borderBottom: `1px solid ${theme.palette.divider}`,
+                }}
+                >
+                  <Typography variant="subtitle2">{t('How chokepoints are scored')}</Typography>
+                  <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 0.5 }}>
+                    {t('A chokepoint is the endpoint where fixing findings closes the most attack paths. The score weights an endpoint\'s findings by its business criticality, so a critical host outranks a noisier but less important one.')}
+                  </Typography>
+                  <Box sx={{
+                    mt: 1,
+                    p: 0.75,
+                    borderRadius: 1,
+                    backgroundColor: alpha(chokepointColor, 0.12),
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    textAlign: 'center',
+                  }}
+                  >
+                    {t('score = findings × criticality weight')}
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
+                    {t('Criticality weight')}
+                    {': '}
+                    {Object.entries(CRITICALITY_WEIGHT)
+                      .filter(([k]) => k !== 'UNKNOWN')
+                      .map(([k, w]) => `${t(CRITICALITY_LABEL[k])} ×${w}`)
+                      .join(' · ')}
+                    {` · ${t(CRITICALITY_LABEL.UNKNOWN)} ×${CRITICALITY_WEIGHT.UNKNOWN}`}
+                  </Typography>
+                </Box>
                 <Typography
                   variant="subtitle2"
                   sx={{
@@ -1810,7 +1876,10 @@ const SimulationAttackPath = () => {
                     >
                       <Typography variant="body2" noWrap title={c.label}>{c.label}</Typography>
                       <Typography variant="caption" color="text.secondary" noWrap>
-                        {[c.ip, `${c.score} ${t('findings')}`].filter(Boolean).join(' · ')}
+                        {[
+                          c.ip,
+                          `${c.findings} ${t('findings')} × ${c.weight} (${t(CRITICALITY_LABEL[c.criticality ?? 'UNKNOWN'] ?? CRITICALITY_LABEL.UNKNOWN)}) = ${c.score}`,
+                        ].filter(Boolean).join(' · ')}
                       </Typography>
                     </div>
                   </Box>
