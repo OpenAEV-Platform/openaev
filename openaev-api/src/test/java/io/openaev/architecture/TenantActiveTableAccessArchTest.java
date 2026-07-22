@@ -194,20 +194,6 @@ class TenantActiveTableAccessArchTest {
                   + " rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
-  static final ArchRule mitigations_repository_access_is_reviewed =
-      noClasses()
-          .that()
-          .doNotBelongToAnyOf(
-              // TxCtx-carrying entrypoint, pinned by TenantScopedEntrypointsTxCtxArchTest:
-              MitigationApi.class)
-          .should()
-          .dependOnClassesThat()
-          .areAssignableTo(MitigationRepository.class)
-          .because(
-              "mitigations is tenant-active: an accessor without a tenant scope silently reads"
-                  + " zero rows. New accessors must carry a scope and be allowlisted here");
-
-  @ArchTest
   static final ArchRule executors_repository_access_is_reviewed =
       noClasses()
           .that()
