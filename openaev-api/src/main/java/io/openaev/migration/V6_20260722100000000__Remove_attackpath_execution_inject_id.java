@@ -17,8 +17,14 @@ public class V6_20260722100000000__Remove_attackpath_execution_inject_id extends
   @Override
   public void migrate(Context context) throws Exception {
     try (var statement = context.getConnection().createStatement()) {
+      statement.execute("DROP INDEX IF EXISTS idx_ap_exec_inject_agent");
       statement.execute(
           "ALTER TABLE attackpath_execution DROP COLUMN IF EXISTS attackpath_execution_inject_id");
+
+      statement.execute(
+          "CREATE INDEX IF NOT EXISTS idx_ap_exec_step_agent "
+          + "ON attackpath_execution (attackpath_execution_step_id, "
+          + "attackpath_execution_agent_id);");
     }
   }
 }

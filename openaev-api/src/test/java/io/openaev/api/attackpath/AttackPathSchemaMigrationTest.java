@@ -86,7 +86,7 @@ class AttackPathSchemaMigrationTest extends IntegrationTest {
     assertThat(indexCount("idx_ap_exec_sim_targetkey")).isEqualTo(1);
     // The (inject_id, agent_id) lookup index #204/#202 query by to find a run's rows. Asserted so a
     // future migration edit cannot drop it unnoticed.
-    assertThat(indexCount("idx_ap_exec_inject_agent")).isEqualTo(1);
+    assertThat(indexCount("idx_ap_exec_step_agent")).isEqualTo(1);
     assertThat(indexCount("idx_ap_find_sim")).isEqualTo(1);
     assertThat(indexCount("idx_ap_find_sim_endpointkey_type")).isEqualTo(1);
     assertThat(indexCount("idx_ap_ef_finding")).isEqualTo(1);
