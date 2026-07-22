@@ -18,9 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 @Setter
 public class WorkflowStateEntries {
 
-  /** B2-lite: single global partition in V1. TODO(B2): make asset-aware. */
-  public static final String GLOBAL_PARTITION = "__GLOBAL__";
-
   /*Correlated path are separate by "+" */
   private final String regexPathCorrelated = "^.+\\+.+$";
 
@@ -98,52 +95,6 @@ public class WorkflowStateEntries {
       index.put(keySet, c);
     }
     return index;
-  }
-
-  /**
-   * Materializes all Correlated combinations for a newly received primitive value, bounded to the
-   * given recipe. Recipe is supplied by caller — POJO has no registry access.
-   *
-   * <p>If two different recipes yield the SAME pairSet, dedup keeps the first one's type (known,
-   * accepted V1 limitation — real recipes have distinct key sets).
-   *
-   * @param receivedKey the primitive type name of the received value (e.g. "Username")
-   * @param newValue the newly received value
-   * @param recipeKeys ordered list of primitive type names composing the recipe (e.g. ["Username",
-   *     "Password"])
-   * @param type business type name (ContractOutputType.name()), stamped on each new Correlated
-   */
-  public void generateCorrelatedForRecipe(
-      String receivedKey, String newValue, List<String> recipeKeys, String type) {
-    if (!recipeKeys.contains(receivedKey)) {
-      return;
-    }
-
-    List<String> otherKeys = recipeKeys.stream().filter(k -> !k.equals(receivedKey)).toList();
-
-    List<List<Pair>> otherPairsPerType = new ArrayList<>();
-    for (String k : otherKeys) {
-      Input in = getInputByKey(k);
-      if (in.getValues().isEmpty()) {
-        return; // recipe not satisfiable yet
-      }
-      otherPairsPerType.add(in.getValues().stream().map(v -> new Pair(k, v)).toList());
-    }
-
-    List<List<Pair>> otherCombinations = cartesianProduct(otherPairsPerType);
-    Map<Set<Pair>, Correlated> index = getIndexCorrelatedInput();
-
-    for (List<Pair> combo : otherCombinations) {
-      Set<Pair> pairSet = new HashSet<>(combo);
-      pairSet.add(new Pair(receivedKey, newValue));
-      if (!index.containsKey(pairSet)) {
-        Correlated newCorrelated = new Correlated(pairSet, type);
-        correlated.add(newCorrelated);
-        index.put(pairSet, newCorrelated);
-      }
-    }
-    // TODO(B2): partition pairSet/index by asset_id — Input.values is asset-blind and
-    //   currently crosses values from all assets/executions of the run (fantom credentials).
   }
 
   /**

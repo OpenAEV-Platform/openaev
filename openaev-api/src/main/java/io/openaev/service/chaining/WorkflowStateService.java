@@ -292,7 +292,7 @@ public class WorkflowStateService {
           for (PrimitiveType primitiveType : primitiveTypes) {
             if (PrimitiveValueValidator.isAcceptedForPrimitiveType(
                 primitiveType, val, validationContext)) {
-              recordValue(primitiveType.name(), val, entries, parsedByType, typeMappings);
+              recordValue(primitiveType.name(), val, entries, parsedByType);
             }
           }
         } else if (element.isJsonObject() && isComplex) {
@@ -307,45 +307,15 @@ public class WorkflowStateService {
 
   /**
    * Records a validated primitive value into both the global state entries and the by-type
-   * accumulator used for local-state propagation. When the value is genuinely new, triggers
-   * cartesian correlation generation for any active complex-type recipe that includes this key.
+   * accumulator used for local-state propagation.
    */
   private void recordValue(
       String key,
       String value,
       WorkflowStateEntries entries,
-      Map<String, List<String>> parsedByType,
-      Map<String, ChainingMappedType> typeMappings) {
-    boolean added = entries.getInputByKey(key).getValues().add(value);
+      Map<String, List<String>> parsedByType) {
+    entries.getInputByKey(key).getValues().add(value);
     parsedByType.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
-    // TODO(B2): cartesian generation is asset-blind in V1 — see GLOBAL_PARTITION.
-    if (added) {
-      for (var recipe : activeRecipeKeys(typeMappings)) {
-        entries.generateCorrelatedForRecipe(key, value, recipe.getValue(), recipe.getKey());
-      }
-    }
-  }
-
-  /**
-   * Extracts the recipe key lists from all complex mapped types that have a multi-key recipe (size
-   * > 1), paired with their origin ContractOutputType name. These are the recipes for which
-   * cartesian correlation generation is needed.
-   *
-   * @return list of entries where key = origin type name, value = recipe key list
-   */
-  private List<Map.Entry<String, List<String>>> activeRecipeKeys(
-      Map<String, ChainingMappedType> typeMappings) {
-    return typeMappings.values().stream()
-        .filter(mt -> mt.kind() == ChainingTypeKind.COMPLEX)
-        .filter(mt -> mt.origin() != null)
-        .map(
-            mt ->
-                Map.entry(
-                    mt.origin().name(),
-                    mt.primitiveTypes().stream().map(PrimitiveType::name).toList()))
-        .filter(e -> e.getValue().size() > 1)
-        .distinct()
-        .toList();
   }
 
   /**
