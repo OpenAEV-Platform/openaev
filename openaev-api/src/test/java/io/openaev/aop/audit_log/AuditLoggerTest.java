@@ -263,7 +263,7 @@ class AuditLoggerTest extends IntegrationTest {
           .thenReturn(false);
 
       // Act
-      auditLogger.checkLicenseBanner();
+      auditLogger.isAuditLoggingEnabled();
 
       // Assert
       Mockito.verify(platformSettingsService)
@@ -280,7 +280,7 @@ class AuditLoggerTest extends IntegrationTest {
       Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(true);
 
       // Act
-      auditLogger.checkLicenseBanner();
+      auditLogger.isAuditLoggingEnabled();
 
       // Assert
       Mockito.verify(platformSettingsService)
@@ -297,7 +297,7 @@ class AuditLoggerTest extends IntegrationTest {
       Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(false);
 
       // Act
-      auditLogger.checkLicenseBanner();
+      auditLogger.isAuditLoggingEnabled();
 
       // Assert
       Mockito.verify(platformSettingsService)

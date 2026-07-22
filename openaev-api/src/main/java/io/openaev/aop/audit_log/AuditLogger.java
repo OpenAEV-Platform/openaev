@@ -7,15 +7,12 @@ import io.openaev.config.AuditLogProperties;
 import io.openaev.config.SessionManager;
 import io.openaev.config.ShutdownService;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
-import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.EventType;
 import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.ResourceType;
-import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.LogService;
 import io.openaev.utils.log.LogUtils;
 import io.openaev.service.PlatformSettingsService;
@@ -32,10 +29,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Audit logger that submits audit events asynchronously to the {@code taskLoggerExecutor} thread
@@ -64,10 +58,6 @@ public class AuditLogger {
   private final AuditLogProperties auditLogProperties;
   private final LogService logService;
   private final ObjectMapper objectMapper;
-  private final PreviewFeatureService previewFeatureService;
-  private final EnterpriseEditionService enterpriseEditionService;
-  private final LicenseCacheManager licenseCacheManager;
-  private final PlatformSettingsService platformSettingsService;
   private final @Qualifier("taskLoggerExecutor") Executor taskLoggerExecutor;
 
   public boolean isAuditLoggingEnabled() {
@@ -76,41 +66,6 @@ public class AuditLogger {
 
   public boolean isAuditLoggingValid(Action action) {
     return !shouldSkip(action);
-  }
-
-  /**
-   * Checks whether the audit-log feature flag is enabled and, if so, whether an active Enterprise
-   * Edition license is present.
-   *
-   * <ul>
-   *   <li>If the feature flag is ON but the EE license is absent/inactive → shows the {@code
-   *       AUDIT_LOG_NO_ENTERPRISE_LICENSE} banner.
-   *   <li>Otherwise → clears that banner.
-   * </ul>
-   *
-   * <p>Also called automatically on application startup via {@link ApplicationReadyEvent}.
-   */
-  @EventListener(ApplicationReadyEvent.class)
-  @Transactional(rollbackFor = Exception.class)
-  public void checkLicenseBanner() {
-    boolean isAuditFlagEnabled = previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
-    if (!isAuditFlagEnabled) {
-      platformSettingsService.cleanMessage(
-          BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
-      return;
-    }
-
-    boolean isEeActive =
-        enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo());
-    if (isEeActive) {
-      platformSettingsService.cleanMessage(
-          BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
-    } else {
-      log.warn(
-          "[AUDIT] Audit logging is enabled but inactive — an Enterprise Edition license is required.");
-      platformSettingsService.errorMessage(
-          BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
-    }
   }
 
   // -- PREPARE LOG FAILURE --
