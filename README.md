@@ -87,7 +87,7 @@ fairly easy to implement. This is a great place to get started.
 ### Development
 
 If you want to actively help OpenAEV, we created
-a [dedicated documentation](https://docs.openaev.io/latest/development/environment_ubuntu/) about the
+a [dedicated documentation](http://web.archive.org/web/20260113111421/https://docs.openaev.io/latest/development/environment_ubuntu/) about the
 deployment of a development environment and how to start the source code modification.
 
 ## Community
