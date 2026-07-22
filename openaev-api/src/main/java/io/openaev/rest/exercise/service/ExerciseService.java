@@ -560,8 +560,14 @@ public class ExerciseService {
    *
    * @param simulationId ID of the simulation to delete
    */
+  @Transactional(rollbackFor = Exception.class)
   public void deleteById(String simulationId) {
     existsByIdAndTenantId(simulationId);
+    // Attack-path rows have no FK to the simulation, so the native exercise delete does not cascade
+    // them: clear them explicitly under the caller's tenant (same primitive as the reset path),
+    // otherwise a deleted simulation leaves orphan attack-path executions and findings behind.
+    attackPathExecutionService.deleteAllBySimulationId(
+        simulationId, TenantContext.getCurrentTenant());
     exerciseRepository.deleteById(simulationId);
     // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
     // must be notified explicitly or the simulation (and its cascade-deleted injects,

@@ -19,15 +19,18 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
+import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
@@ -35,7 +38,6 @@ import java.util.Map;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,6 +88,8 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AgentComposer agentComposer;
   @Autowired private ExecutorFixture executorFixture;
+  @Autowired private ExerciseService exerciseService;
+  @Autowired private ExerciseComposer exerciseComposer;
 
   private JdbcTemplate jdbc;
   private Tenant tenant;
@@ -144,11 +148,6 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   }
 
   @Test
-  @Disabled(
-      "Asset-group member path: getAttackPathExecution -> getEndpoint(agent.getAsset().getId())"
-          + " returns 'Endpoint not found' for a group-loaded member, while the direct-asset path"
-          + " (same getEndpoint call) passes. To settle whether the group-member fixture or the"
-          + " resolution's group-member endpoint lookup is at fault before re-enabling.")
   @DisplayName("an inject targeting an asset group records its member endpoints")
   void assetGroupMembersAreRecorded() {
     // Persist a group with one member endpoint (agent-backed), under the tenant, committed so the
@@ -343,6 +342,55 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     } finally {
       tenantHelper.deleteCommittedTenants(other.getId());
     }
+  }
+
+  @Test
+  @DisplayName("hard-deleting a simulation clears its attack-path executions and findings")
+  void hardDeleteClearsTheSimulationsAttackPath() {
+    // Attack-path rows have no FK to the simulation, so exercise deletion does not cascade them.
+    // deleteById must clear them explicitly, else they orphan once the simulation is gone.
+    TenantContext.setCurrentTenant(tenant.getId());
+    Exercise exercise =
+        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
+    String simId = exercise.getId();
+    jdbc.update(
+        "INSERT INTO attackpath_execution (attackpath_execution_id, tenant_id,"
+            + " attackpath_execution_simulation_id, attackpath_execution_source_kind,"
+            + " attackpath_execution_target_kind, attackpath_execution_target_key,"
+            + " attackpath_execution_executed_at) VALUES ('hd-exec', ?, ?, 'INJECTOR', 'ASSET', 'k',"
+            + " now())",
+        tenant.getId(),
+        simId);
+    jdbc.update(
+        "INSERT INTO attackpath_finding (attackpath_finding_id, tenant_id,"
+            + " attackpath_finding_simulation_id, attackpath_finding_type,"
+            + " attackpath_finding_value, attackpath_finding_endpoint_key)"
+            + " VALUES ('hd-find', ?, ?, 'cve', 'CVE-1', 'k')",
+        tenant.getId(),
+        simId);
+    jdbc.update(
+        "INSERT INTO attackpath_execution_finding (execution_id, finding_id)"
+            + " VALUES ('hd-exec', 'hd-find')");
+
+    exerciseService.deleteById(simId);
+    TenantContext.clearCurrentTenant();
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM attackpath_execution"
+                    + " WHERE attackpath_execution_simulation_id = ?",
+                Integer.class,
+                simId))
+        .as("executions cleared on hard delete")
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM attackpath_finding"
+                    + " WHERE attackpath_finding_simulation_id = ?",
+                Integer.class,
+                simId))
+        .as("findings cleared on hard delete")
+        .isZero();
   }
 
   /**
