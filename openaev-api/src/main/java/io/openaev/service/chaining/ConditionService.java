@@ -593,7 +593,12 @@ public class ConditionService {
     // AND node: all children must be satisfied
     if (condition.getType() == ConditionType.AND) {
       if (condition.getConditionChildren() == null || condition.getConditionChildren().isEmpty()) {
-        return true;
+        // A childless AND cannot be produced by any creation path: an action with no condition
+        // creates no Condition at all, and an AND group is always created with >=1 child. This case
+        // means an abnormal/corrupted condition tree.
+        // The fail-safe is to keep the gate closed, and so, we return false here.
+        // Consistent with the empty-OR case, which also returns false.
+        return false;
       }
       return condition.getConditionChildren().stream()
           .allMatch(child -> isFilterTreeSatisfied(child, contextSupplier));

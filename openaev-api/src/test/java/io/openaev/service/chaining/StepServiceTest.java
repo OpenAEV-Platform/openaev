@@ -1064,4 +1064,122 @@ class StepServiceTest {
       verify(stepRepository).findAllByStepTemplateIdIsNull();
     }
   }
+
+  /* ============================================================
+   * copyStepConditionTemplate — field preservation
+   * ============================================================ */
+  @Nested
+  class CopyStepConditionTemplateFields {
+
+    @Test
+    void given_conditionWithAllFields_should_copyAllConfigFieldsToNewCondition() {
+      // Arrange
+      Step sourceStep = new Step();
+      sourceStep.setId("source-step-id");
+
+      Step targetStep = new Step();
+      targetStep.setId("target-step-id");
+
+      // Build a root AND condition with all config fields set to non-default values
+      Condition rootCondition =
+          Condition.builder()
+              .type(ConditionType.AND)
+              .key("test_key")
+              .keyType(PrimitiveType.AssetGroupId)
+              .value("test_value")
+              .caseSensitive(false) // non-default (default is true)
+              .mappingType(MappingType.GLOBAL)
+              .build();
+      rootCondition.setId("root-id");
+
+      // Build a child EQ leaf condition
+      Condition childCondition =
+          Condition.builder()
+              .type(ConditionType.EQ)
+              .key("child_key")
+              .keyType(PrimitiveType.AssetGroupId)
+              .value("child_value")
+              .caseSensitive(false)
+              .mappingType(MappingType.LOCAL)
+              .conditionParent(rootCondition)
+              .build();
+      childCondition.setId("child-id");
+
+      when(conditionService.findAllConditionsByStepId("source-step-id"))
+          .thenReturn(List.of(rootCondition, childCondition));
+
+      // Capture saved conditions
+      List<Condition> savedConditions = new ArrayList<>();
+      when(conditionService.saveCondition(any(Condition.class)))
+          .thenAnswer(
+              invocation -> {
+                Condition c = invocation.getArgument(0);
+                c.setId(UUID.randomUUID().toString());
+                savedConditions.add(c);
+                return c;
+              });
+
+      // Act
+      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+
+      // Assert — root condition fields
+      assertEquals(2, savedConditions.size());
+      Condition copiedRoot = savedConditions.get(0);
+      assertEquals(rootCondition.getKey(), copiedRoot.getKey());
+      assertEquals(rootCondition.getKeyType(), copiedRoot.getKeyType());
+      assertEquals(rootCondition.getType(), copiedRoot.getType());
+      assertEquals(rootCondition.getValue(), copiedRoot.getValue());
+      assertEquals(rootCondition.isCaseSensitive(), copiedRoot.isCaseSensitive());
+      assertEquals(rootCondition.getMappingType(), copiedRoot.getMappingType());
+
+      // Assert — child condition fields
+      Condition copiedChild = savedConditions.get(1);
+      assertEquals(childCondition.getKey(), copiedChild.getKey());
+      assertEquals(childCondition.getKeyType(), copiedChild.getKeyType());
+      assertEquals(childCondition.getType(), copiedChild.getType());
+      assertEquals(childCondition.getValue(), copiedChild.getValue());
+      assertEquals(childCondition.isCaseSensitive(), copiedChild.isCaseSensitive());
+      assertEquals(childCondition.getMappingType(), copiedChild.getMappingType());
+
+      // Assert — structural link: child's parent is the copied root
+      assertSame(copiedRoot, copiedChild.getConditionParent());
+    }
+
+    @Test
+    void given_caseSensitiveFalse_should_notRevertToDefaultTrue() {
+      // This specifically catches the @Builder.Default=true regression
+      Step sourceStep = new Step();
+      sourceStep.setId("src");
+
+      Step targetStep = new Step();
+      targetStep.setId("tgt");
+
+      Condition root =
+          Condition.builder()
+              .type(ConditionType.EQ)
+              .key("k")
+              .value("v")
+              .caseSensitive(false)
+              .mappingType(MappingType.DEFAULT)
+              .build();
+      root.setId("r");
+
+      when(conditionService.findAllConditionsByStepId("src")).thenReturn(List.of(root));
+      when(conditionService.saveCondition(any(Condition.class)))
+          .thenAnswer(
+              invocation -> {
+                Condition c = invocation.getArgument(0);
+                c.setId(UUID.randomUUID().toString());
+                return c;
+              });
+
+      // Act
+      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+
+      // Assert
+      ArgumentCaptor<Condition> captor = ArgumentCaptor.forClass(Condition.class);
+      verify(conditionService).saveCondition(captor.capture());
+      assertFalse(captor.getValue().isCaseSensitive());
+    }
+  }
 }

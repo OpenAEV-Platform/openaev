@@ -1824,4 +1824,54 @@ public class ConditionServiceTest {
       }
     }
   }
+
+  /* ============================================================
+   * isFilterTreeSatisfied — empty AND node defense
+   * ============================================================ */
+  @Nested
+  class FilterTreeEmptyAndNode {
+
+    @Test
+    void given_andNodeWithNoChildren_should_returnFalse() throws Exception {
+      // Arrange: AND node with empty children list
+      Condition andNode =
+          Condition.builder()
+              .type(ConditionType.AND)
+              .build(); // conditionChildren defaults to empty
+
+      // Access private method via reflection
+      java.lang.reflect.Method method =
+          ConditionService.class.getDeclaredMethod(
+              "isFilterTreeSatisfied", Condition.class, java.util.function.Supplier.class);
+      method.setAccessible(true);
+
+      java.util.function.Supplier<?> dummySupplier = () -> null;
+
+      // Act
+      boolean result = (boolean) method.invoke(conditionService, andNode, dummySupplier);
+
+      // Assert — an empty AND must NOT be satisfied (gate must stay closed)
+      assertFalse(result);
+    }
+
+    @Test
+    void given_andNodeWithNullChildren_should_returnFalse() throws Exception {
+      // Arrange: AND node with null children
+      Condition andNode = Condition.builder().type(ConditionType.AND).build();
+      andNode.setConditionChildren(null);
+
+      java.lang.reflect.Method method =
+          ConditionService.class.getDeclaredMethod(
+              "isFilterTreeSatisfied", Condition.class, java.util.function.Supplier.class);
+      method.setAccessible(true);
+
+      java.util.function.Supplier<?> dummySupplier = () -> null;
+
+      // Act
+      boolean result = (boolean) method.invoke(conditionService, andNode, dummySupplier);
+
+      // Assert
+      assertFalse(result);
+    }
+  }
 }

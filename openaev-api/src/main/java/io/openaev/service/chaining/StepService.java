@@ -408,7 +408,10 @@ public class StepService {
           Condition.builder()
               .type(firstCondition.getType())
               .key(firstCondition.getKey())
+              .keyType(firstCondition.getKeyType())
               .value(firstCondition.getValue())
+              .caseSensitive(firstCondition.isCaseSensitive())
+              .mappingType(firstCondition.getMappingType())
               .stepFrom(stepFrom)
               .build();
 
@@ -442,7 +445,10 @@ public class StepService {
             Condition.builder()
                 .type(condition.getType())
                 .key(condition.getKey())
+                .keyType(condition.getKeyType())
                 .value(condition.getValue())
+                .caseSensitive(condition.isCaseSensitive())
+                .mappingType(condition.getMappingType())
                 .conditionParent(temporaryIdAndSaveId.get(condition.getConditionParent().getId()))
                 .stepFrom(stepFromCondition)
                 .build();
