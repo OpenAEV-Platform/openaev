@@ -8,6 +8,8 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.openaev.aop.AccessControl;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.context.TenantContext;
@@ -65,6 +67,18 @@ public class StreamApi extends RestBehavior {
   private final Map<String, CachedUser> userCache = new ConcurrentHashMap<>();
   private static final Duration USER_CACHE_TTL = Duration.ofSeconds(60);
 
+  // Short-lived per-(principal, resource) permission decisions for the broadcast path.
+  // hasPermission is @Transactional and, for inject events (the most frequent mutation while a
+  // simulation is running), resolves the parent permission by loading the FULL Inject entity
+  // graph plus a grant query — per event, per consumer. Under a running simulation this produced
+  // hundreds of queries per second, saturated Postgres and exhausted the Hikari pool, freezing
+  // the whole platform (#6868). Repeated mutations of the same resource are the norm (every
+  // trace/status/expectation update re-touches the same inject), so a 30s TTL absorbs almost all
+  // of it; permission changes propagate to the stream within 30s, consistent with the 60s user
+  // cache above. Bounded so mass disconnects / huge simulations cannot grow it unboundedly.
+  private final Cache<PermissionCacheKey, Boolean> permissionDecisionCache =
+      Caffeine.newBuilder().expireAfterWrite(Duration.ofSeconds(30)).maximumSize(100_000).build();
+
   private final PermissionService permissionService;
   private final UserService userService;
 
@@ -74,6 +88,37 @@ public class StreamApi extends RestBehavior {
       OpenAEVPrincipal principal, String tenantId, FluxSink<Object> fluxSink) {}
 
   private record CachedUser(User user, Instant fetchedAt) {}
+
+  private record PermissionCacheKey(
+      String principalId, String resourceId, ResourceType resourceType, String tenantId) {}
+
+  /**
+   * Resolves the per-event READ permission through the short-lived decision cache. Must be called
+   * with the consumer's tenant context already set (the underlying check is tenant-aware). Cache
+   * misses of the same key may race and both hit the database: bounded and far cheaper than one
+   * resolution per event per consumer.
+   */
+  private boolean hasReadPermission(StreamConsumer consumer, User user, BaseEvent event) {
+    PermissionCacheKey key =
+        new PermissionCacheKey(
+            consumer.principal().getId(),
+            event.getInstance().getId(),
+            event.getInstance().getResourceType(),
+            consumer.tenantId());
+    Boolean cached = permissionDecisionCache.getIfPresent(key);
+    if (cached != null) {
+      return cached;
+    }
+    boolean allowed =
+        permissionService.hasPermission(
+            user,
+            Optional.empty(),
+            event.getInstance().getId(),
+            event.getInstance().getResourceType(),
+            Action.READ);
+    permissionDecisionCache.put(key, allowed);
+    return allowed;
+  }
 
   /**
    * Resolves a consumer's user for the per-event permission check without hitting the database on
@@ -157,12 +202,7 @@ public class StreamApi extends RestBehavior {
 
           try {
             FluxSink<Object> fluxSink = consumer.fluxSink();
-            if (!permissionService.hasPermission(
-                user,
-                Optional.empty(),
-                event.getInstance().getId(),
-                event.getInstance().getResourceType(),
-                Action.READ)) {
+            if (!hasReadPermission(consumer, user, event)) {
               try {
                 String propertyId =
                     event
