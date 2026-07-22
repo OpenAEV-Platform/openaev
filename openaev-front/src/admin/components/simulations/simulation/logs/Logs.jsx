@@ -16,7 +16,7 @@ import { useHelper } from '../../../../../store';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { resolveUserName } from '../../../../../utils/String';
 import { PermissionsContext } from '../../../common/Context';
-import AnimationMenu from '../AnimationMenu';
+import ExecutionMenu from '../ExecutionMenu';
 import LogForm from './LogForm';
 import LogPopover from './LogPopover';
 
@@ -80,7 +80,7 @@ const Logs = () => {
   };
   return (
     <div>
-      <AnimationMenu exerciseId={exerciseId} />
+      <ExecutionMenu exerciseId={exerciseId} />
       <div>
         <Typography sx={{
           ...SECTION_LABEL_SX,

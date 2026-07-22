@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Autocomplete, Button, Checkbox, Chip, FormControlLabel, MenuItem, TextField as MuiTextField } from '@mui/material';
+import { Autocomplete, Button, Checkbox, Chip, FormControlLabel, MenuItem, Switch, TextField as MuiTextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -17,12 +17,17 @@ import { type PlatformSettings, type ScenarioInput } from '../../../utils/api-ty
 import { zodImplement } from '../../../utils/Zod';
 import { scenarioCategories } from './constants';
 
+// The lessons learned module toggle rides along the configuration form but is
+// persisted through the dedicated PUT /scenarios/{id}/lessons endpoint (see
+// ScenarioUpdate), so the general update input stays untouched.
+export type ScenarioFormInput = ScenarioInput & { scenario_lessons_enabled?: boolean };
+
 interface Props {
-  onSubmit: (data: ScenarioInput, isScenarioAssistantChecked?: boolean) => void;
+  onSubmit: (data: ScenarioFormInput, isScenarioAssistantChecked?: boolean) => void;
   handleClose: () => void;
   editing?: boolean;
   disabled?: boolean;
-  initialValues: ScenarioInput;
+  initialValues: ScenarioFormInput;
   isCreation?: boolean;
 }
 
@@ -47,10 +52,10 @@ const ScenarioForm: FunctionComponent<Props> = ({
     handleSubmit,
     formState: { errors, isDirty, isSubmitting },
     setValue,
-  } = useForm<ScenarioInput>({
+  } = useForm<ScenarioFormInput>({
     mode: 'onTouched',
     resolver: zodResolver(
-      zodImplement<ScenarioInput>().with({
+      zodImplement<ScenarioFormInput>().with({
         scenario_name: z.string().min(1, { message: t('Should not be empty') }),
         scenario_category: z.string().optional(),
         scenario_main_focus: z.string().optional(),
@@ -66,6 +71,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
         scenario_message_footer: z.string().optional(),
         scenario_custom_dashboard: z.string().optional(),
         scenario_is_chaining: z.boolean().optional(),
+        scenario_lessons_enabled: z.boolean().optional(),
       }),
     ),
     defaultValues: initialValues,
@@ -95,7 +101,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
           marginTop: theme.spacing(2),
         }}
         id="scenarioForm"
-        onSubmit={handleSubmit((data: ScenarioInput) => onSubmit(data, isScenarioAssistantChecked))}
+        onSubmit={handleSubmit((data: ScenarioFormInput) => onSubmit(data, isScenarioAssistantChecked))}
       >
         {currentTab === 'General' && (
           <>
@@ -218,6 +224,29 @@ const ScenarioForm: FunctionComponent<Props> = ({
                 )}
                 label={t('Use the scenario assistant')}
               />
+            )}
+            {editing && (
+              <div>
+                <Controller
+                  control={control}
+                  name="scenario_lessons_enabled"
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={(
+                        <Switch
+                          checked={field.value ?? false}
+                          onChange={event => field.onChange(event.target.checked)}
+                          disabled={disabled}
+                        />
+                      )}
+                      label={t('Enable lessons learned')}
+                    />
+                  )}
+                />
+                <Typography variant="body2" color="textSecondary">
+                  {t('Adds a lessons learned tab to collect feedback with objectives and questionnaires.')}
+                </Typography>
+              </div>
             )}
           </>
         )}

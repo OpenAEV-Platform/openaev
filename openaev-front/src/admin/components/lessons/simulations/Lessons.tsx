@@ -1,28 +1,25 @@
-import { BallotOutlined, ContactMailOutlined, ContentPasteGoOutlined, DeleteSweepOutlined, SpeakerNotesOutlined, SportsScoreOutlined, VisibilityOutlined } from '@mui/icons-material';
+import { BallotOutlined, ContactMailOutlined, ContentPasteGoOutlined, DeleteSweepOutlined, SendOutlined, SpeakerNotesOutlined, SportsScoreOutlined, VisibilityOutlined } from '@mui/icons-material';
 import {
   Alert,
+  Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  FormControl,
   FormControlLabel,
-  Grid,
-  Link,
   Paper,
-  Radio,
-  RadioGroup,
   Switch,
   Typography,
   useTheme,
 } from '@mui/material';
 import * as R from 'ramda';
-import { type ChangeEvent, type FunctionComponent, useContext, useEffect, useState } from 'react';
-import { makeStyles } from 'tss-react/mui';
+import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
 import { fetchLessonsTemplates } from '../../../../actions/Lessons';
+import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
+import { Field, HeroStat, HeroStats, InformationGrid, Section } from '../../../../components/common/detail/EntityDetailCommon';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type Inject, type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type LessonsSendInput, type LessonsTemplate, type Objective, type Team, type User } from '../../../../utils/api-types';
@@ -30,40 +27,16 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { LessonContext, PermissionsContext } from '../../common/Context';
-import CreateLessonsTemplate from '../../components/lessons/CreateLessonsTemplate';
 import CreateLessonsCategory from '../categories/CreateLessonsCategory';
 import CreateObjective from '../CreateObjective';
+import LessonsApplyTemplateDialog from '../LessonsApplyTemplateDialog';
 import LessonsObjectives from '../LessonsObjectives';
+import LessonsPlaceholder from '../LessonsPlaceholder';
 import ObjectiveEvaluations from '../ObjectiveEvaluations';
 import SendLessonsForm from '../SendLessonsForm';
 import AnswersByQuestionDialog from './AnswersByQuestionDialog';
 import CrysisIntensity from './CrysisIntensity';
 import LessonsCategories from './LessonsCategories';
-
-const useStyles = makeStyles()(theme => ({
-  metric: {
-    position: 'relative',
-    padding: theme.spacing(2),
-    height: 100,
-    overflow: 'hidden',
-  },
-  title: {
-    textTransform: 'uppercase',
-    fontSize: 12,
-    fontWeight: 500,
-    color: theme.palette.secondary.main,
-  },
-  number: {
-    fontSize: 30,
-    fontWeight: 800,
-    float: 'left',
-  },
-  icon: {
-    position: 'absolute',
-    top: 25,
-    right: 15,
-  },
-}));
 
 interface GenericSource {
   id: string;
@@ -107,7 +80,6 @@ const Lessons: FunctionComponent<Props> = ({
   usersMap,
 }) => {
   // Standard hooks
-  const { classes } = useStyles();
   const theme = useTheme();
   const { t, nsdt } = useFormatter();
   const dispatch = useAppDispatch();
@@ -120,12 +92,7 @@ const Lessons: FunctionComponent<Props> = ({
   const [openSendLessons, setOpenSendLessons] = useState<boolean>(false);
   const [openAnonymize, setOpenAnonymize] = useState<boolean>(false);
   const [selectedQuestion, setSelectedQuestion] = useState<LessonsQuestion | null>(null);
-  const [templateValue, setTemplateValue] = useState<string | null>(null);
   const ability = useContext(AbilityContext);
-
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setTemplateValue(event.target.value);
-  };
 
   useEffect(() => {
     if (openApplyTemplate) {
@@ -142,13 +109,6 @@ const Lessons: FunctionComponent<Props> = ({
     onSendLessons,
   } = useContext(LessonContext);
 
-  const applyTemplate = async () => {
-    if (templateValue !== null) {
-      await onApplyLessonsTemplate(templateValue);
-      return setOpenApplyTemplate(false);
-    }
-    return setOpenApplyTemplate(true);
-  };
   const resetAnswers = async () => {
     if (onResetLessonsAnswers) {
       await onResetLessonsAnswers();
@@ -160,9 +120,7 @@ const Lessons: FunctionComponent<Props> = ({
     return setOpenEmptyLessons(false);
   };
   const toggleAnonymize = async () => {
-    const updatedSource = { ...source };
-    await onUpdateSourceLessons(!updatedSource.lessons_anonymized);
-    updatedSource.lessons_anonymized = !updatedSource.lessons_anonymized;
+    await onUpdateSourceLessons(!source.lessons_anonymized);
     return setOpenAnonymize(false);
   };
 
@@ -180,232 +138,259 @@ const Lessons: FunctionComponent<Props> = ({
     const msInHour = 1000 * 60 * 60;
     return Math.round(Math.abs(endDate.getTime() - startDate.getTime()) / msInHour);
   };
+  const canApplyTemplate = permissions.canManage && ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED);
   return (
-    <div style={{ paddingBottom: theme.spacing(5) }}>
-      <div style={{
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 2,
+      paddingBottom: 5,
+    }}
+    >
+      {/* Headline metrics */}
+      <Paper
+        variant="outlined"
+        sx={{
+          padding: 2,
+          borderRadius: 1,
+        }}
+      >
+        <HeroStats>
+          <HeroStat
+            icon={SportsScoreOutlined}
+            label={t('Overall objectives score')}
+            value={`${source.score}%`}
+          />
+          <HeroStat
+            icon={SpeakerNotesOutlined}
+            label={t('Simulation logs')}
+            value={source.logs_number}
+          />
+          <HeroStat
+            icon={BallotOutlined}
+            label={t('Poll replies')}
+            value={source.lessons_answers_number}
+          />
+          <HeroStat
+            icon={ContactMailOutlined}
+            label={t('Messages')}
+            value={source.communications_number}
+          />
+        </HeroStats>
+      </Paper>
+
+      {/* Details / Parameters / Control */}
+      <Box sx={{
         display: 'grid',
-        gap: theme.spacing(3),
-        gridTemplateColumns: '1fr 1fr 1fr 1fr',
+        gap: 2,
+        gridTemplateColumns: {
+          xs: 'minmax(0, 1fr)',
+          lg: permissions.canManage ? 'repeat(3, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))',
+        },
+        alignItems: 'stretch',
       }}
       >
-        <Paper variant="outlined" classes={{ root: classes.metric }}>
-          <div className={classes.icon}>
-            <SportsScoreOutlined color="primary" sx={{ fontSize: 50 }} />
-          </div>
-          <div className={classes.title}>{t('Overall objectives score')}</div>
-          <div className={classes.number}>
-            {source.score}
-            %
-          </div>
-        </Paper>
-        <Paper variant="outlined" classes={{ root: classes.metric }}>
-          <div className={classes.icon}>
-            <SpeakerNotesOutlined color="primary" sx={{ fontSize: 50 }} />
-          </div>
-          <div className={classes.title}>{t('Simulation logs')}</div>
-          <div className={classes.number}>
-            {source.logs_number}
-          </div>
-        </Paper>
-        <Paper variant="outlined" classes={{ root: classes.metric }}>
-          <div className={classes.icon}>
-            <BallotOutlined color="primary" sx={{ fontSize: 50 }} />
-          </div>
-          <div className={classes.title}>{t('Poll replies')}</div>
-          <div className={classes.number}>
-            {source.lessons_answers_number}
-          </div>
-        </Paper>
-        <Paper variant="outlined" classes={{ root: classes.metric }}>
-          <div className={classes.icon}>
-            <ContactMailOutlined color="primary" sx={{ fontSize: 50 }} />
-          </div>
-          <div className={classes.title}>{t('Messages')}</div>
-          <div className={classes.number}>
-            {source.communications_number}
-          </div>
-        </Paper>
-      </div>
-      <div style={{
-        display: 'grid',
-        marginTop: theme.spacing(3),
-        gap: `0px ${theme.spacing(3)}`,
-        gridTemplateColumns: permissions.canManage ? '1fr 1fr 1fr' : '1fr 1fr',
-      }}
-      >
-        <Typography variant="h4">{t('Details')}</Typography>
-        <Typography variant="h4">{t('Parameters')}</Typography>
-        {permissions.canManage && (
-          <Typography variant="h4">{t('Control')}</Typography>)}
-        <Paper variant="outlined" sx={{ padding: theme.spacing(2) }}>
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 6 }}>
-              <Typography variant="h3">{t('Start date')}</Typography>
-              {nsdt(source.start_date)}
-            </Grid>
-            <Grid size={{ xs: 6 }}>
-              <Typography variant="h3">{t('End date')}</Typography>
-              {nsdt(source.end_date)}
-            </Grid>
-            <Grid size={{ xs: 6 }}>
-              <Typography variant="h3">{t('Duration')}</Typography>
-              {getHoursDiff(
-                source.start_date
-                  ? new Date(source.start_date)
-                  : new Date(),
-                source.end_date
-                  ? new Date(source.end_date)
-                  : new Date(),
-              )}
-              {' '}
-              {t('hours')}
-            </Grid>
-            <Grid size={{ xs: 6 }}>
-              <Typography variant="h3">{t('Team')}</Typography>
-              {source.users_number}
-              {t('players')}
-            </Grid>
-          </Grid>
-        </Paper>
-        <Paper variant="outlined" sx={{ padding: theme.spacing(2) }}>
-          <Grid container spacing={3}>
-            {permissions.canManage && (
-              <Grid size={{ xs: 6 }}>
-                <Typography variant="h3">{t('Questionnaire mode')}</Typography>
-                <FormControlLabel
-                  control={(
-                    <Switch
-                      disabled={source.lessons_anonymized}
-                      checked={source.lessons_anonymized}
-                      onChange={() => setOpenAnonymize(true)}
-                      name="anonymized"
-                    />
-                  )}
-                  label={t('Anonymize answers')}
-                />
-              </Grid>
+        <InformationGrid title={t('Details')}>
+          <Field label={t('Start date')}>{nsdt(source.start_date)}</Field>
+          <Field label={t('End date')}>{nsdt(source.end_date)}</Field>
+          <Field label={t('Duration')}>
+            {getHoursDiff(
+              source.start_date ? new Date(source.start_date) : new Date(),
+              source.end_date ? new Date(source.end_date) : new Date(),
             )}
-            {(permissions.canManage && ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED)) && (
-              <Grid size={{ xs: 6 }}>
-                <Typography variant="h3">{t('Template')}</Typography>
-                <Button
-                  startIcon={<ContentPasteGoOutlined />}
-                  color="primary"
-                  variant="contained"
-                  onClick={() => setOpenApplyTemplate(true)}
-                >
-                  {t('Apply')}
-                </Button>
-              </Grid>
-            )}
-            <Grid size={{ xs: 6 }}>
-              <Typography variant="h3">{t('Check')}</Typography>
+            {' '}
+            {t('hours')}
+          </Field>
+          <Field label={t('Team')}>
+            {source.users_number}
+            {' '}
+            {t('players')}
+          </Field>
+        </InformationGrid>
+        <InformationGrid title={t('Parameters')}>
+          {permissions.canManage && (
+            <Field label={t('Questionnaire mode')}>
+              <FormControlLabel
+                control={(
+                  <Switch
+                    disabled={source.lessons_anonymized}
+                    checked={source.lessons_anonymized}
+                    onChange={() => setOpenAnonymize(true)}
+                    name="anonymized"
+                    size="small"
+                  />
+                )}
+                label={t('Anonymize answers')}
+              />
+            </Field>
+          )}
+          {canApplyTemplate && (
+            <Field label={t('Template')}>
               <Button
-                startIcon={<VisibilityOutlined />}
-                color="secondary"
-                variant="contained"
-                component={Link}
-                href={`/lessons/${source.type}/${source.id}?preview=true`}
+                variant="outlined"
+                size="small"
+                color="primary"
+                startIcon={<ContentPasteGoOutlined />}
+                onClick={() => setOpenApplyTemplate(true)}
               >
-                {t('Preview')}
+                {t('Apply')}
               </Button>
-            </Grid>
-            {permissions.canManage && (
-              <Grid size={{ xs: 6 }}>
-                <Typography variant="h3">
-                  {t('Categories and questions')}
-                </Typography>
-                <Button
-                  startIcon={<DeleteSweepOutlined />}
-                  color="error"
-                  variant="contained"
-                  onClick={() => setOpenEmptyLessons(true)}
-                >
-                  {t('Clear out')}
-                </Button>
-              </Grid>
-            )}
-          </Grid>
-        </Paper>
+            </Field>
+          )}
+          <Field label={t('Check')}>
+            <Button
+              variant="outlined"
+              size="small"
+              color="primary"
+              startIcon={<VisibilityOutlined />}
+              href={`/lessons/${source.type}/${source.id}?preview=true`}
+            >
+              {t('Preview')}
+            </Button>
+          </Field>
+          {permissions.canManage && (
+            <Field label={t('Categories and questions')}>
+              <Button
+                variant="outlined"
+                size="small"
+                color="error"
+                startIcon={<DeleteSweepOutlined />}
+                onClick={() => setOpenEmptyLessons(true)}
+              >
+                {t('Clear out')}
+              </Button>
+            </Field>
+          )}
+        </InformationGrid>
         {permissions.canManage && (
-          <Paper variant="outlined" sx={{ padding: theme.spacing(2) }}>
-            <Alert severity="info" sx={{ mb: 2 }}>
+          <Section title={t('Control')}>
+            <Alert severity="info" sx={{ marginBottom: 2 }}>
               {t(
                 'Sending the questionnaire will emit an email to each player with a unique link to access and fill it.',
               )}
             </Alert>
-            <Grid container spacing={3} style={{ marginTop: 0 }}>
-              <Grid size={{ xs: 6 }}>
-                <Typography variant="h3">{t('Questionnaire')}</Typography>
+            <Box sx={{
+              display: 'grid',
+              gap: 2,
+              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+            }}
+            >
+              <Field label={t('Questionnaire')}>
                 <Button
-                  startIcon={<ContentPasteGoOutlined />}
-                  color="success"
-                  variant="contained"
+                  variant="outlined"
+                  size="small"
+                  color="primary"
+                  startIcon={<SendOutlined />}
                   onClick={() => setOpenSendLessons(true)}
                 >
                   {t('Send')}
                 </Button>
-              </Grid>
-              <Grid size={{ xs: 6 }}>
-                <Typography variant="h3">{t('Answers')}</Typography>
+              </Field>
+              <Field label={t('Answers')}>
                 <Button
-                  startIcon={<ContentPasteGoOutlined />}
+                  variant="outlined"
+                  size="small"
                   color="error"
-                  variant="contained"
+                  startIcon={<DeleteSweepOutlined />}
                   onClick={() => setOpenResetAnswers(true)}
                 >
                   {t('Reset')}
                 </Button>
-              </Grid>
-            </Grid>
-          </Paper>
-        ) }
+              </Field>
+            </Box>
+          </Section>
+        )}
+      </Box>
 
-      </div>
-      <div style={{
+      {/* Objectives + crisis intensity */}
+      <Box sx={{
         display: 'grid',
-        marginTop: theme.spacing(3),
-        gap: `0 ${theme.spacing(3)}`,
-        gridTemplateColumns: '1fr 2fr',
+        gap: 2,
+        gridTemplateColumns: {
+          xs: 'minmax(0, 1fr)',
+          lg: 'minmax(0, 1fr) minmax(0, 2fr)',
+        },
+        alignItems: 'stretch',
       }}
       >
-        <Typography variant="h4">
-          {t('Objectives')}
-          {
-            source.isUpdatable && (<CreateObjective />)
-          }
-        </Typography>
-        <Typography variant="h4" style={{ alignContent: 'center' }}>
-          {t('Crisis intensity (injects by hour)')}
-        </Typography>
-        <LessonsObjectives
-          objectives={objectives}
-          setSelectedObjective={setSelectedObjective}
-          source={source}
-        />
-        <CrysisIntensity injects={injects} />
-      </div>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
         <div style={{
           display: 'flex',
-          justifyContent: 'flex-end',
-          marginTop: theme.spacing(3),
+          flexDirection: 'column',
         }}
         >
-          <CreateLessonsCategory />
+          <Typography sx={{
+            ...SECTION_LABEL_SX,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+          }}
+          >
+            {t('Objectives')}
+            {source.isUpdatable && (<CreateObjective />)}
+          </Typography>
+          <LessonsObjectives
+            objectives={objectives}
+            setSelectedObjective={setSelectedObjective}
+            source={source}
+          />
         </div>
-      </Can>
-      <div style={{ marginTop: theme.spacing(1) }}>
-        <LessonsCategories
-          lessonsCategories={lessonsCategories}
-          lessonsAnswers={lessonsAnswers}
-          setSelectedQuestion={setSelectedQuestion}
-          lessonsQuestions={lessonsQuestions}
-          teamsMap={teamsMap}
-          teams={teams}
-          isReport={false}
-        />
-      </div>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+        >
+          <Typography sx={SECTION_LABEL_SX}>
+            {t('Crisis intensity (injects by hour)')}
+          </Typography>
+          <CrysisIntensity injects={injects} />
+        </div>
+      </Box>
+
+      {/* Categories and questions */}
+      <section>
+        <header style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing(1),
+          marginBottom: theme.spacing(1.5),
+        }}
+        >
+          <Typography sx={{
+            ...SECTION_LABEL_SX,
+            marginBottom: 0,
+          }}
+          >
+            {t('Categories and questions')}
+          </Typography>
+          <div style={{ flex: 1 }} />
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
+            <CreateLessonsCategory />
+          </Can>
+        </header>
+        {lessonsCategories.length === 0 ? (
+          <Paper
+            variant="outlined"
+            sx={{ borderRadius: 1 }}
+          >
+            <LessonsPlaceholder
+              icon={BallotOutlined}
+              message={t('No lessons learned categories yet. Apply a template or create a category to build the questionnaire.')}
+            />
+          </Paper>
+        ) : (
+          <LessonsCategories
+            lessonsCategories={lessonsCategories}
+            lessonsAnswers={lessonsAnswers}
+            setSelectedQuestion={setSelectedQuestion}
+            lessonsQuestions={lessonsQuestions}
+            teamsMap={teamsMap}
+            teams={teams}
+            isReport={false}
+          />
+        )}
+      </section>
+
+      {/* Dialogs */}
       <Dialog
         TransitionComponent={Transition}
         keepMounted={false}
@@ -424,86 +409,13 @@ const Lessons: FunctionComponent<Props> = ({
           />
         </DialogContent>
       </Dialog>
-      <Dialog
-        TransitionComponent={Transition}
-        keepMounted={false}
+      <LessonsApplyTemplateDialog
         open={openApplyTemplate}
         onClose={() => setOpenApplyTemplate(false)}
-        fullWidth
-        maxWidth="md"
-        PaperProps={{ elevation: 1 }}
-      >
-        <DialogTitle>{t('Apply a lessons learned template')}</DialogTitle>
-        <DialogContent>
-          <Alert severity="info">
-            {t(
-              `Applying a template will add all categories and questions of the selectedtemplate to this ${source.type}.`,
-            )}
-          </Alert>
-          <FormControl style={{
-            margin: '10px 0 0 5px',
-            width: '100%',
-          }}
-          >
-            <RadioGroup
-              style={{ width: '100%' }}
-              aria-labelledby="controlled-radio-buttons-group"
-              name="template"
-              value={templateValue}
-              onChange={handleChange}
-            >
-              {lessonsTemplates.map((template: LessonsTemplate) => {
-                return (
-                  <FormControlLabel
-                    key={template.lessonstemplate_id}
-                    style={{
-                      width: '100%',
-                      borderBottom: `1px solid ${theme.palette.background.paper}`,
-                      margin: 0,
-                    }}
-                    value={template.lessonstemplate_id}
-                    control={<Radio />}
-                    label={(
-                      <div style={{ margin: '15px 0 15px 10px' }}>
-                        <Typography variant="h4">
-                          {template.lessons_template_name}
-                        </Typography>
-                        <Typography variant="body2">
-                          {template.lessons_template_description || t('No description')}
-                        </Typography>
-                      </div>
-                    )}
-                  />
-                );
-              })}
-            </RadioGroup>
-          </FormControl>
-          <CreateLessonsTemplate inline />
-          <div className="clearfix" />
-          <div style={{
-            float: 'right',
-            marginTop: 20,
-          }}
-          >
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={() => setOpenApplyTemplate(false)}
-              style={{ marginRight: 10 }}
-            >
-              {t('Cancel')}
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={applyTemplate}
-              disabled={templateValue === null}
-            >
-              {t('Apply')}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+        onApply={templateId => onApplyLessonsTemplate(templateId)}
+        lessonsTemplates={lessonsTemplates}
+        variant="simulation"
+      />
       <Dialog
         open={openResetAnswers}
         TransitionComponent={Transition}
@@ -602,7 +514,7 @@ const Lessons: FunctionComponent<Props> = ({
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </Box>
   );
 };
 

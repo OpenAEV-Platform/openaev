@@ -21,7 +21,7 @@ import { type Communication as CommunicationType, type Exercise } from '../../..
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { PermissionsContext } from '../../../common/Context';
-import AnimationMenu from '../AnimationMenu';
+import ExecutionMenu from '../ExecutionMenu';
 import CommunicationItem from './Communication';
 import CommunicationForm from './CommunicationForm';
 
@@ -131,7 +131,7 @@ const InjectComponent: FunctionComponent = () => {
   if (!inject || !communications) {
     return (
       <div className={classes.container}>
-        <AnimationMenu exerciseId={exerciseId} />
+        <ExecutionMenu exerciseId={exerciseId} />
         <Loader />
       </div>
     );
@@ -184,7 +184,7 @@ const InjectComponent: FunctionComponent = () => {
 
   return (
     <div className={classes.container}>
-      <AnimationMenu exerciseId={exerciseId} />
+      <ExecutionMenu exerciseId={exerciseId} />
       <Grid container={true} spacing={3}>
         <Grid size={6} className={classes.section}>
           <SectionLabel>{t('Inject context')}</SectionLabel>

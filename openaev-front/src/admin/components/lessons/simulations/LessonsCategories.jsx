@@ -1,10 +1,10 @@
-import { CastForEducationOutlined, HelpOutlined } from '@mui/icons-material';
-import { Box, Chip, LinearProgress, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Paper, Tooltip, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { BallotOutlined, CastForEducationOutlined, HelpOutlined } from '@mui/icons-material';
+import { Box, Chip, LinearProgress, List, ListItem, ListItemButton, ListItemText, Paper, Tooltip, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useContext } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
+import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
 import { useFormatter } from '../../../../components/i18n';
 import { truncate } from '../../../../utils/String';
 import { LessonContext, PermissionsContext } from '../../common/Context';
@@ -13,8 +13,9 @@ import LessonsCategoryPopover from '../categories/LessonsCategoryPopover';
 import CreateLessonsQuestion from '../categories/questions/CreateLessonsQuestion';
 import LessonsQuestionPopover from '../categories/questions/LessonsQuestionPopover';
 
-const useStyles = makeStyles()(() => ({ chip: { margin: '0 10px 10px 0' } }));
-
+// One block per category: a title row followed by a responsive three-column
+// grid (questions / consolidated results / targeted teams), all rendered with
+// the shared detail-page section anatomy.
 const LessonsCategories = ({
   lessonsCategories,
   lessonsAnswers,
@@ -25,7 +26,6 @@ const LessonsCategories = ({
   isReport,
   style = {},
 }) => {
-  const { classes } = useStyles();
   const { t } = useFormatter();
   const theme = useTheme();
   const { permissions } = useContext(PermissionsContext);
@@ -64,12 +64,12 @@ const LessonsCategories = ({
     R.fromPairs,
   )(lessonsAnswers);
   return (
-    <div
+    <Box
       id="lessons_categories"
-      style={{
-        display: 'grid',
-        gap: `${theme.spacing(2)} 0`,
-        gridTemplateColumns: '1fr',
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
         ...style,
       }}
     >
@@ -80,137 +80,253 @@ const LessonsCategories = ({
           ),
         );
         return (
-          <div key={category.lessonscategory_id}>
-            <Typography variant="h2">
-              {category.lessons_category_name}
-              {!isReport && permissions.canManage && (
-                <LessonsCategoryPopover
-                  lessonsCategory={category}
-                />
-              )}
-            </Typography>
-            <div style={{
-              display: 'grid',
-              gap: `0 ${theme.spacing(3)}`,
-              gridTemplateColumns: '1fr 1fr 1fr',
+          <section key={category.lessonscategory_id}>
+            <header style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing(1),
+              marginBottom: theme.spacing(1.5),
             }}
             >
-              <Typography variant="h4">{t('Questions')}</Typography>
-              <Typography variant="h4">{t('Results')}</Typography>
-              <Typography variant="h4">
-                {t('Targeted teams')}
-                {!isReport && permissions.canManage && (
-                  <LessonsCategoryAddTeams
-                    lessonsCategoryId={category.lessonscategory_id}
-                    lessonsCategoryTeamsIds={category.lessons_category_teams}
-                    handleUpdateTeams={handleUpdateTeams}
-                    teams={teams}
-                    teamsMap={teamsMap}
-                  />
-                )}
+              <Typography
+                component="h2"
+                sx={{
+                  fontFamily: theme.typography.h1.fontFamily,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  margin: 0,
+                }}
+              >
+                {category.lessons_category_name}
               </Typography>
-              <Paper variant="outlined">
-                <List style={{ padding: 0 }}>
-                  {questions.map(question => (
-                    <ListItem
-                      key={question.lessonsquestion_id}
-                      divider
-                      secondaryAction={!isReport && permissions.canManage && (
-                        <LessonsQuestionPopover
-                          lessonsCategoryId={category.lessonscategory_id}
-                          lessonsQuestion={question}
-                        />
-                      )}
-                    >
-                      <ListItemIcon>
-                        <HelpOutlined />
-                      </ListItemIcon>
-                      <ListItemText
-                        style={{ width: '50%' }}
-                        primary={question.lessons_question_content}
-                        secondary={question.lessons_question_explanation || t('No explanation')}
-                      />
-                    </ListItem>
-                  ))}
-                  {!isReport && permissions.canManage && (
-                    <CreateLessonsQuestion
-                      inline
-                      lessonsCategoryId={category.lessonscategory_id}
-                    />
-                  )}
-                </List>
-              </Paper>
-              <Paper variant="outlined">
-                <List style={{ padding: 0 }}>
-                  {questions.map((question) => {
-                    const consolidatedAnswer = consolidatedAnswers[
-                      question.lessonsquestion_id
-                    ] || {
-                      score: 0,
-                      number: 0,
-                      comments: 0,
-                    };
-                    return (
-                      <ListItemButton
+              <span style={{
+                padding: '1px 6px',
+                borderRadius: 2,
+                backgroundColor: alpha(theme.palette.text.primary, 0.06),
+                fontSize: 11,
+                fontWeight: 500,
+                fontVariantNumeric: 'tabular-nums',
+                color: theme.palette.text.secondary,
+              }}
+              >
+                {questions.length}
+              </span>
+              {!isReport && permissions.canManage && (
+                <LessonsCategoryPopover lessonsCategory={category} />
+              )}
+              <div style={{
+                flex: 1,
+                height: 1,
+                backgroundColor: alpha(theme.palette.text.primary, 0.05),
+              }}
+              />
+            </header>
+            <Box sx={{
+              display: 'grid',
+              gap: 2,
+              gridTemplateColumns: {
+                xs: 'minmax(0, 1fr)',
+                md: 'repeat(3, minmax(0, 1fr))',
+              },
+              alignItems: 'stretch',
+            }}
+            >
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+              >
+                <Typography sx={SECTION_LABEL_SX}>{t('Questions')}</Typography>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    borderRadius: 1,
+                    flex: 1,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <List disablePadding>
+                    {questions.map(question => (
+                      <ListItem
                         key={question.lessonsquestion_id}
                         divider
-                        onClick={() => setSelectedQuestion && setSelectedQuestion(question)}
+                        secondaryAction={!isReport && permissions.canManage && (
+                          <LessonsQuestionPopover
+                            lessonsCategoryId={category.lessonscategory_id}
+                            lessonsQuestion={question}
+                          />
+                        )}
                       >
-                        <ListItemText
-                          style={{ width: '50%' }}
-                          primary={`${consolidatedAnswer.number} ${t(
-                            'answers',
-                          )}`}
-                          secondary={`${t('of which')} ${
-                            consolidatedAnswer.comments
-                          } ${t('contain comments')}`}
-                        />
                         <Box
                           sx={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: 1,
                             display: 'flex',
                             alignItems: 'center',
-                            width: '30%',
-                            marginRight: 1,
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            marginRight: 1.5,
+                            color: 'primary.main',
+                            backgroundColor: alpha(theme.palette.primary.main, 0.1),
                           }}
                         >
-                          <Box sx={{
-                            width: '100%',
-                            mr: 1,
+                          <HelpOutlined sx={{ fontSize: 16 }} />
+                        </Box>
+                        <ListItemText
+                          primary={question.lessons_question_content}
+                          secondary={question.lessons_question_explanation || t('No explanation')}
+                          primaryTypographyProps={{
+                            sx: {
+                              fontSize: 13.5,
+                              fontWeight: 600,
+                            },
                           }}
+                        />
+                      </ListItem>
+                    ))}
+                    {!isReport && permissions.canManage && (
+                      <CreateLessonsQuestion
+                        inline
+                        lessonsCategoryId={category.lessonscategory_id}
+                      />
+                    )}
+                  </List>
+                </Paper>
+              </div>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+              >
+                <Typography sx={SECTION_LABEL_SX}>{t('Results')}</Typography>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    borderRadius: 1,
+                    flex: 1,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <List disablePadding>
+                    {questions.map((question) => {
+                      const consolidatedAnswer = consolidatedAnswers[
+                        question.lessonsquestion_id
+                      ] || {
+                        score: 0,
+                        number: 0,
+                        comments: 0,
+                      };
+                      return (
+                        <ListItemButton
+                          key={question.lessonsquestion_id}
+                          divider
+                          onClick={() => setSelectedQuestion && setSelectedQuestion(question)}
+                        >
+                          <Box
+                            sx={{
+                              width: 30,
+                              height: 30,
+                              borderRadius: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              marginRight: 1.5,
+                              color: 'primary.main',
+                              backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                            }}
+                          >
+                            <BallotOutlined sx={{ fontSize: 16 }} />
+                          </Box>
+                          <ListItemText
+                            sx={{ width: '50%' }}
+                            primary={`${consolidatedAnswer.number} ${t('answers')}`}
+                            secondary={`${t('of which')} ${consolidatedAnswer.comments} ${t('contain comments')}`}
+                            primaryTypographyProps={{
+                              sx: {
+                                fontSize: 13.5,
+                                fontWeight: 600,
+                              },
+                            }}
+                          />
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              width: '30%',
+                              flexShrink: 0,
+                              marginRight: 1,
+                              gap: 1,
+                            }}
                           >
                             <LinearProgress
                               variant="determinate"
                               value={consolidatedAnswer.score}
+                              sx={{
+                                flex: 1,
+                                borderRadius: 1,
+                              }}
                             />
-                          </Box>
-                          <Box sx={{ minWidth: 35 }}>
                             <Typography
                               variant="body2"
-                              color="text.secondary"
+                              sx={{
+                                minWidth: 35,
+                                color: 'text.secondary',
+                                fontVariantNumeric: 'tabular-nums',
+                              }}
                             >
                               {consolidatedAnswer.score}
                               %
                             </Typography>
                           </Box>
-                        </Box>
-                      </ListItemButton>
-                    );
-                  })}
-                </List>
-              </Paper>
-              <Paper variant="outlined" style={{ padding: theme.spacing(2) }}>
-                {category.lessons_category_teams.map((teamId) => {
-                  const team = teamsMap[teamId];
-                  return (
-                    <Tooltip
-                      key={teamId}
-                      title={team?.team_name || ''}
-                    >
-                      {permissions.canManage ? (
-
+                        </ListItemButton>
+                      );
+                    })}
+                  </List>
+                </Paper>
+              </div>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+              >
+                <Typography sx={SECTION_LABEL_SX}>
+                  {t('Targeted teams')}
+                  {!isReport && permissions.canManage && (
+                    <LessonsCategoryAddTeams
+                      lessonsCategoryId={category.lessonscategory_id}
+                      lessonsCategoryTeamsIds={category.lessons_category_teams}
+                      handleUpdateTeams={handleUpdateTeams}
+                      teams={teams}
+                      teamsMap={teamsMap}
+                    />
+                  )}
+                </Typography>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    padding: 2,
+                    borderRadius: 1,
+                    flex: 1,
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 1,
+                    alignContent: 'flex-start',
+                  }}
+                >
+                  {category.lessons_category_teams.length === 0 && (
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      {t('No targeted teams')}
+                    </Typography>
+                  )}
+                  {category.lessons_category_teams.map((teamId) => {
+                    const team = teamsMap[teamId];
+                    return (
+                      <Tooltip key={teamId} title={team?.team_name || ''}>
                         <Chip
                           onDelete={
-                            isReport
+                            isReport || !permissions.canManage
                               ? undefined
                               : () => handleUpdateTeams(
                                   category.lessonscategory_id,
@@ -222,24 +338,18 @@ const LessonsCategories = ({
                           }
                           label={truncate(team?.team_name || '', 30)}
                           icon={<CastForEducationOutlined />}
-                          classes={{ root: classes.chip }}
+                          sx={{ borderRadius: 1 }}
                         />
-                      ) : (
-                        <Chip
-                          label={truncate(team?.team_name || '', 30)}
-                          icon={<CastForEducationOutlined />}
-                          classes={{ root: classes.chip }}
-                        />
-                      )}
-                    </Tooltip>
-                  );
-                })}
-              </Paper>
-            </div>
-          </div>
+                      </Tooltip>
+                    );
+                  })}
+                </Paper>
+              </div>
+            </Box>
+          </section>
         );
       })}
-    </div>
+    </Box>
   );
 };
 
