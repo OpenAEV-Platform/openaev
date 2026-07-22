@@ -22,8 +22,6 @@ import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
@@ -34,8 +32,11 @@ public class SecurityCoverageJob implements Job {
   private final SecurityCoverageService securityCoverageService;
   private final OpenCTIConnectorService openCTIConnectorService;
 
+  // No job-level @Transactional here: a transaction spanning the whole loop held a pooled DB
+  // connection across every external OpenCTI HTTP push (potentially minutes when OpenCTI is slow
+  // or unreachable), contributing to Hikari pool exhaustion. Bundle creation is transactional
+  // inside SecurityCoverageService#createBundleFromSendJobs; the push runs connection-free.
   @Override
-  @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     List<SecurityCoverageSendJob> jobs =
