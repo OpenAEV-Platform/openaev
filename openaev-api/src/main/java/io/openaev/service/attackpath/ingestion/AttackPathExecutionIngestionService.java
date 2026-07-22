@@ -102,7 +102,8 @@ public class AttackPathExecutionIngestionService {
         case EXECUTABLE, FILE_DROP, AI_ATTACK -> { // AGENT -> ASSET
           for (Agent agent : agentsAndAssetsAgentless.agents()) {
             io.openaev.database.model.Endpoint endpoint =
-                endpointService.getEndpoint(agent.getAsset().getId(), inject.getTenant().getId());
+                (io.openaev.database.model.Endpoint)
+                    org.hibernate.Hibernate.unproxy(agent.getAsset());
             AttackPathExecution attackPathExecution = new AttackPathExecution();
             attackPathExecution.setId(
                 AttackPathIds.executionNode(inject.getId(), endpoint.getId(), agent.getId()));
@@ -116,7 +117,8 @@ public class AttackPathExecutionIngestionService {
           DnsResolution dnsResolution = (DnsResolution) inject.getPayload().get();
           for (Agent agent : agentsAndAssetsAgentless.agents()) {
             io.openaev.database.model.Endpoint endpoint =
-                endpointService.getEndpoint(agent.getAsset().getId(), inject.getTenant().getId());
+                (io.openaev.database.model.Endpoint)
+                    org.hibernate.Hibernate.unproxy(agent.getAsset());
             AttackPathExecution attackPathExecution = new AttackPathExecution();
             attackPathExecution.setId(
                 AttackPathIds.executionNode(
@@ -152,7 +154,8 @@ public class AttackPathExecutionIngestionService {
 
           for (Agent agent : agentsAndAssetsAgentless.agents()) { // AGENT ->
             io.openaev.database.model.Endpoint endpoint =
-                endpointService.getEndpoint(agent.getAsset().getId(), inject.getTenant().getId());
+                (io.openaev.database.model.Endpoint)
+                    org.hibernate.Hibernate.unproxy(agent.getAsset());
             AttackPathExecution attackPathExecution = new AttackPathExecution();
             attackPathExecution.setGlobalInformation(step, inject);
             attackPathExecution.setSourceAgentInformation(agent, endpoint);
@@ -245,7 +248,8 @@ public class AttackPathExecutionIngestionService {
       switch (payloadType) {
         case EXECUTABLE, FILE_DROP, AI_ATTACK -> { // AGENT -> ASSET
           io.openaev.database.model.Endpoint endpoint =
-              endpointService.getEndpoint(agent.getAsset().getId(), inject.getTenant().getId());
+              (io.openaev.database.model.Endpoint)
+                  org.hibernate.Hibernate.unproxy(agent.getAsset());
           return AttackPathIds.executionNode(inject.getId(), endpoint.getId(), target);
         }
         case DNS_RESOLUTION -> { // AGENT -> DISCOVERED
@@ -279,7 +283,8 @@ public class AttackPathExecutionIngestionService {
 
           } else { // ASSET
             io.openaev.database.model.Endpoint endpoint =
-                endpointService.getEndpoint(agent.getAsset().getId(), inject.getTenant().getId());
+                (io.openaev.database.model.Endpoint)
+                    org.hibernate.Hibernate.unproxy(agent.getAsset());
             return AttackPathIds.executionNode(inject.getId(), endpoint.getId(), target);
           }
         }
