@@ -11,11 +11,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import attackPathStatusColor, { attackPathChokepointColor } from './attack-path-colors';
-import { AP_ALL_ENDPOINTS, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFindingFilter, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
-// TEMPORARY kill-chain metadata source (issue 6647). TODO(#6647): drop this import and pass an
-// accessor reading the real AttackPathNodeDTO fields once the backend exposes dependsOn /
-// consumedFindingKeys — the whole attack-path-killchain-mock module is then deleted.
-import { getKillChainMeta } from './attack-path-killchain-mock';
+import { AP_ALL_ENDPOINTS, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFindingFilter, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
 import AttackPathTableView, { type AttackPathEndpointRow } from './AttackPathTableView';
@@ -1083,11 +1079,15 @@ const SimulationAttackPath = () => {
     return applyFindingFilter(withSelection.nodes, withSelection.edges, focus);
   }, [baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, selectedInjectorId, focus]);
 
-  // Additive kill-chain causal edges (issue 6647), merged on top of the status graph. They are drawn
-  // only when kill-chain meta matches a produced finding / dependsOn (getKillChainMeta), so with no
-  // match this is [] and the graph is exactly as before. Built from the final (post-selection) nodes
-  // so the same finding leaf / injector nodes drive both the base edges and the causal overlay.
-  const causalEdges = useMemo(() => buildCausalEdges(nodes, getKillChainMeta), [nodes]);
+  // Per-injector kill-chain metadata (dependsOn / consumedFindingKeys), aggregated from the graph DTO's
+  // execution nodes and keyed by injector node id (see buildKillChainMeta). Empty when the run's steps
+  // carried no conditions → no causal edges.
+  const killChainMeta = useMemo(() => buildKillChainMeta(dto), [dto]);
+  // Additive kill-chain causal edges (issue 6647), merged on top of the status graph. Drawn only when a
+  // consumed key matches a produced finding (or a dependsOn resolves), so with no match this is [] and
+  // the graph is exactly as before. Built from the final (post-selection) nodes so the same finding leaf
+  // / injector nodes drive both the base edges and the causal overlay.
+  const causalEdges = useMemo(() => buildCausalEdges(nodes, id => (id ? killChainMeta.get(id) : undefined)), [nodes, killChainMeta]);
   const graphEdges = useMemo(() => [...edges, ...causalEdges], [edges, causalEdges]);
 
   const counters = dto?.counters;

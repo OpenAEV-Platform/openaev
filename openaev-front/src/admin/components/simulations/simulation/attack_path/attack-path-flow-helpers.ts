@@ -1075,18 +1075,87 @@ export interface CausalStepMeta {
   consumedFindingKeys: CausalConsumedKey[];
 }
 
-// The lookup key used to resolve a flow node's kill-chain metadata.
-//
-// ASSUMPTION (documented per task): front injector/execution nodes do NOT reliably expose a
-// stepTemplateId today — nodeData() now forwards AttackPathNodeDTO.stepTemplateId when present, but
-// the clustered/aggregate injector nodes may carry none. So we look up by data.stepTemplateId first
-// (forward-compatible with the real DTO field) and fall back to the node id. Because the mock's keys
-// are placeholders, neither will match real seed data until the mock ids are adapted — until then the
-// accessor returns undefined and NO causal edges are emitted (additive by design).
+// The lookup key used to resolve a flow node's kill-chain metadata. Kill-chain data is aggregated PER
+// INJECTOR (an injector's executions carry the consumed keys; see buildKillChainMeta), and the aggregate
+// is keyed by the injector node id. Injector flow nodes carry no stepTemplateId, so this resolves to the
+// node id (= the injector node id the meta map is keyed by). The stepTemplateId branch stays for any
+// future per-execution node rendering.
 const causalLookupKey = (node: AttackPathFlowNode): string =>
   (typeof node.data.stepTemplateId === 'string' && node.data.stepTemplateId
     ? node.data.stepTemplateId
     : node.id);
+
+// Build the per-injector kill-chain metadata from the graph DTO (issue 6647). The backend exposes
+// `dependsOn` + `consumedFindingKeys` on each EXECUTION node (AttackPathNodeDTO in
+// dto.attackPathExecutions, carrying stepTemplateId). Executions are rendered as EDGES, not nodes, so we
+// aggregate each injector's executions' keys onto the injector node: an EDGE_EXECUTIONS edge links an
+// injector (edgeSourceId) to its executions (edge.executionIds ↔ execution.ref). The result is keyed by
+// injector node id — exactly what causalLookupKey resolves for injector flow nodes. `dependsOn` (step
+// template ids) is resolved to the injector node ids that ran those templates, so the causal builder can
+// draw injector→injector dashed edges. Returns an empty map when the DTO carries no kill-chain data
+// (additive: no causal edges), e.g. a run whose steps had no conditions.
+export const buildKillChainMeta = (dto: AttackPathDTO | null | undefined): Map<string, CausalStepMeta> => {
+  const byInjector = new Map<string, CausalStepMeta>();
+  if (!dto) {
+    return byInjector;
+  }
+  const execEdges = (dto.attackPathEdges ?? []).filter(e => e.type === 'EDGE_EXECUTIONS');
+  const execByRef = new Map<string, AttackPathNodeDTO>();
+  for (const e of dto.attackPathExecutions ?? []) {
+    if (e.ref) {
+      execByRef.set(e.ref, e);
+    }
+  }
+  // First pass: which injector ran each step template (to resolve dependsOn to injector node ids).
+  const injectorByStepTemplateId = new Map<string, string>();
+  for (const edge of execEdges) {
+    const injectorId = edge.edgeSourceId;
+    if (!injectorId) {
+      continue;
+    }
+    for (const ref of edge.executionIds ?? []) {
+      const stepTpl = execByRef.get(ref)?.stepTemplateId;
+      if (stepTpl) {
+        injectorByStepTemplateId.set(stepTpl, injectorId);
+      }
+    }
+  }
+  // Second pass: aggregate consumed keys + resolved dependsOn per injector.
+  for (const edge of execEdges) {
+    const injectorId = edge.edgeSourceId;
+    if (!injectorId) {
+      continue;
+    }
+    const meta = byInjector.get(injectorId) ?? {
+      dependsOn: [],
+      consumedFindingKeys: [],
+    };
+    for (const ref of edge.executionIds ?? []) {
+      const exec = execByRef.get(ref);
+      if (!exec) {
+        continue;
+      }
+      for (const key of exec.consumedFindingKeys ?? []) {
+        if (key.keyType
+          && !meta.consumedFindingKeys.some(k => k.keyType === key.keyType && k.operator === (key.operator ?? '') && k.value === (key.value ?? ''))) {
+          meta.consumedFindingKeys.push({
+            keyType: key.keyType,
+            operator: key.operator ?? 'EQ',
+            value: key.value ?? '',
+          });
+        }
+      }
+      for (const stepTpl of exec.dependsOn ?? []) {
+        const depInjector = injectorByStepTemplateId.get(stepTpl);
+        if (depInjector && depInjector !== injectorId && !meta.dependsOn.includes(depInjector)) {
+          meta.dependsOn.push(depInjector);
+        }
+      }
+    }
+    byInjector.set(injectorId, meta);
+  }
+  return byInjector;
+};
 
 // Read a finding node's produced value (stored on data.label for finding leaf nodes, with an optional
 // data.value mirror), as a string for comparison against a consumed finding key.
@@ -1095,8 +1164,20 @@ const findingNodeValue = (node: AttackPathFlowNode): string => {
   return typeof raw === 'string' ? raw : '';
 };
 
+// A consumed key uses the raw PrimitiveType vocabulary (e.g. `share_name`, `password`) while finding
+// nodes use the finding-type vocabulary (`share`, `credentials`). Reconcile the known complex sub-field
+// keys to their finding type here. Primitives that already match a finding type 1:1 (`port`, `cve`,
+// `ipv4`, `username`, `hostname`, `hash`…) are left untouched (identity). NOTE: reconciling the VALUE of
+// a complex finding (reaching into its sub-field, e.g. a share's `share_name`) is the front-side complex
+// matching still to come — today only the TYPE is reconciled and value comparison stays direct, which is
+// correct for primitives; complex value-matching is a follow-up (see backend requirements topo).
+const KEYTYPE_TO_FINDING_TYPE: Record<string, string> = {
+  share_name: 'share',
+  password: 'credentials',
+};
+
 // Does a produced finding node satisfy a consumed finding key?
-//   - the finding's type (data.typeFindings) must equal key.keyType, and
+//   - the finding's type (data.typeFindings) must equal the reconciled key type, and
 //   - EQ => the finding value equals key.value exactly;
 //   - IN => the finding value is one of key.value's comma-separated members (a small, explicit list
 //     semantics; trimmed). Falls back to substring containment for a single-token key.
@@ -1106,7 +1187,8 @@ const findingMatchesKey = (node: AttackPathFlowNode, key: CausalConsumedKey): bo
   if (node.type !== AP_FLOW_NODE_TYPE.finding) {
     return false;
   }
-  if ((node.data.typeFindings ?? '') !== key.keyType) {
+  const reconciledType = KEYTYPE_TO_FINDING_TYPE[key.keyType] ?? key.keyType;
+  if ((node.data.typeFindings ?? '') !== reconciledType) {
     return false;
   }
   // Guard the real DTO field (the mock is always a string, but the backend value may be null/undefined):

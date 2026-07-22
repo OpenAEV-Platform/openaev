@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, buildAttackPathFlow, buildClusteredAttackPathFlow, maskFindingValue } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildKillChainMeta, maskFindingValue } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 const dto: AttackPathDTO = {
@@ -252,5 +252,74 @@ describe('buildClusteredAttackPathFlow', () => {
     expect(ids).toContain('ep2');
     expect(nodes.find(n => n.id === 'ep1')?.type).toBe(AP_FLOW_NODE_TYPE.asset);
     expect(edges.find(e => e.id === 'cl-ep-all-ep1')?.target).toBe('ep1');
+  });
+});
+
+// Kill-chain: two NetExec-style steps, the SMB step (inj-smb) consumes a share and depends on the
+// port-scan step (inj-nmap). Executions carry the kill-chain fields and are linked to their injector
+// via edge.executionIds ↔ execution.ref (the real DTO linkage).
+const killChainDto: AttackPathDTO = {
+  mode: 'full',
+  attackPathNodes: [
+    { id: 'inj-nmap', type: 'INJECTOR', label: 'nmap' },
+    { id: 'inj-smb', type: 'INJECTOR', label: 'NetExec' },
+    { id: 'ep-1', type: 'ASSET', label: 'DC-01' },
+  ],
+  attackPathExecutions: [
+    { id: 'x1', type: 'EXECUTION', ref: 'exec-1', stepTemplateId: 'step-A', consumedFindingKeys: [{ keyType: 'port', operator: 'EQ', value: '445' }], dependsOn: [] },
+    { id: 'x2', type: 'EXECUTION', ref: 'exec-2', stepTemplateId: 'step-B', consumedFindingKeys: [{ keyType: 'share_name', operator: 'EQ', value: 'ADMIN$' }], dependsOn: ['step-A'] },
+  ],
+  attackPathEdges: [
+    { type: 'EDGE_EXECUTIONS', edgeSourceId: 'inj-nmap', edgeTargetId: 'ep-1', executionIds: ['exec-1'] },
+    { type: 'EDGE_EXECUTIONS', edgeSourceId: 'inj-smb', edgeTargetId: 'ep-1', executionIds: ['exec-2'] },
+  ],
+};
+
+const injectorNode = (id: string): AttackPathFlowNode => ({ id, type: AP_FLOW_NODE_TYPE.injector, position: { x: 0, y: 0 }, data: {} });
+const findingNode = (id: string, typeFindings: string, value: string): AttackPathFlowNode => ({ id, type: AP_FLOW_NODE_TYPE.finding, position: { x: 0, y: 0 }, data: { typeFindings, value } });
+
+describe('buildKillChainMeta', () => {
+  it('aggregates consumed keys per injector via executionIds <-> exec.ref', () => {
+    // Act
+    const meta = buildKillChainMeta(killChainDto);
+    // Assert
+    expect(meta.get('inj-nmap')?.consumedFindingKeys).toEqual([{ keyType: 'port', operator: 'EQ', value: '445' }]);
+    expect(meta.get('inj-smb')?.consumedFindingKeys).toEqual([{ keyType: 'share_name', operator: 'EQ', value: 'ADMIN$' }]);
+  });
+
+  it('resolves dependsOn (step template ids) to the injector node ids that ran them', () => {
+    // Act
+    const meta = buildKillChainMeta(killChainDto);
+    // Assert: step-B depends on step-A, which ran on inj-nmap
+    expect(meta.get('inj-smb')?.dependsOn).toEqual(['inj-nmap']);
+    expect(meta.get('inj-nmap')?.dependsOn).toEqual([]);
+  });
+
+  it('returns an empty map when the DTO carries no kill-chain data', () => {
+    expect(buildKillChainMeta(null).size).toBe(0);
+    expect(buildKillChainMeta({ mode: 'full', attackPathExecutions: [], attackPathEdges: [] }).size).toBe(0);
+  });
+});
+
+describe('buildCausalEdges', () => {
+  it('draws a solid finding edge, reconciling the primitive key type (share_name -> share)', () => {
+    // Arrange
+    const meta = buildKillChainMeta(killChainDto);
+    const nodes = [injectorNode('inj-smb'), findingNode('find-share', 'share', 'ADMIN$')];
+    // Act
+    const edges = buildCausalEdges(nodes, id => (id ? meta.get(id) : undefined));
+    // Assert
+    expect(edges).toHaveLength(1);
+    expect(edges[0].type).toBe(AP_FLOW_CAUSAL_EDGE_TYPE);
+    expect(edges[0].source).toBe('find-share');
+    expect(edges[0].target).toBe('inj-smb');
+    expect(edges[0].data?.causalKind).toBe('finding');
+  });
+
+  it('emits no edge when no produced finding matches the consumed key', () => {
+    const meta = buildKillChainMeta(killChainDto);
+    const nodes = [injectorNode('inj-nmap'), findingNode('find-cve', 'cve', 'CVE-2024-0001')];
+    const edges = buildCausalEdges(nodes, id => (id ? meta.get(id) : undefined));
+    expect(edges).toHaveLength(0);
   });
 });
