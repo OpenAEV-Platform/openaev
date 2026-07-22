@@ -37,9 +37,6 @@ public class AttackPathExecution implements TenantBase {
   @Column(name = "attackpath_execution_simulation_id", nullable = false)
   private String simulationId;
 
-  @Column(name = "attackpath_execution_inject_id")
-  private String injectId;
-
   @Column(name = "attackpath_execution_step_id")
   private String stepId;
 
@@ -131,7 +128,6 @@ public class AttackPathExecution implements TenantBase {
   public void setGlobalInformation(Step stepExecution, Inject inject) {
     this.tenant = inject.getTenant();
     this.simulationId =inject.getExercise().getId();
-    this.injectId = inject.getId();
     this.stepId = stepExecution.getId();
     this.stepTemplateId = stepExecution.getStepTemplate().getId();
     this.payloadName = inject.getTitle();

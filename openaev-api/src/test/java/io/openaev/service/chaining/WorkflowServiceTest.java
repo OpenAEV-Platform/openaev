@@ -502,6 +502,7 @@ class WorkflowServiceTest {
       when(workflowScopeRuleRepository.findAllByWorkflowId("template"))
           .thenReturn(Collections.emptyList());
       when(workflowRepository.save(any(Workflow.class))).thenReturn(run);
+      when(workflowRepository.findById(any(String.class))).thenReturn(Optional.ofNullable(run));
 
       workflowService.startWorkflowBySimulationId(simulationId);
 
@@ -539,6 +540,7 @@ class WorkflowServiceTest {
       when(workflowRepository.save(any(Workflow.class)))
           .thenReturn(simulationTemplate)
           .thenReturn(run);
+      when(workflowRepository.findById(any(String.class))).thenReturn(Optional.ofNullable(run));
 
       workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
 
@@ -589,6 +591,7 @@ class WorkflowServiceTest {
 
       when(stepService.findAllStepTemplateByWorkflow("template"))
           .thenReturn(Collections.emptyList());
+      when(workflowRepository.findById(any(String.class))).thenReturn(Optional.ofNullable(run));
 
       workflowService.startWorkflow(run);
 

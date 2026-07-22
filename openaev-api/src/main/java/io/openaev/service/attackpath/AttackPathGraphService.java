@@ -229,7 +229,7 @@ public class AttackPathGraphService {
                     .orElse(List.of()));
     return new AttackPathExecutionDetailDTO(
         e.getPayloadName(),
-        e.getInjectId(),
+        e.getStepId(),
         e.getPayloadId(),
         e.getAgentName(),
         e.getAgentPrivilege(),

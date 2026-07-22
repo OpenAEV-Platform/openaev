@@ -29,6 +29,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
@@ -37,9 +38,11 @@ import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowStateService;
+import io.openaev.service.detection_remediation.DetectionRemediationAIService;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.mapper.PayloadMapper;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -95,6 +98,7 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectUtils injectUtils;
 
   private final Executor executor;
+  private PayloadService payloadService;
 
   @Resource protected ObjectMapper mapper;
   @PersistenceContext private EntityManager em;
@@ -865,6 +869,8 @@ public class InjectExecutionStep implements ActionStep {
         .getStatus()
         .ifPresent(
             status -> {
+              if(status.getName() == null || status.getTrackingEndDate() == null)
+                return;
               Map<String, JsonElement> map = new HashMap<>();
               map.put(
                   "inject_status",

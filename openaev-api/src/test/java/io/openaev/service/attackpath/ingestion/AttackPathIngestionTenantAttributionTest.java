@@ -112,7 +112,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   @Test
   @DisplayName("with no ambient scope, the run's row lands under the inject's own tenant")
   void createAttributesTheRowToTheInjectTenant() {
-    runAsTheExecutorWould(() -> ingestionService.onRun(step(), inject(), contract()));
+    runAsTheExecutorWould(() -> ingestionService.persistExecution(ingestionService.getAttackPathExecution(inject(), step(), "")));
 
     String rowId = AttackPathIds.executionNode(INJECT_ID, ENDPOINT_ID, AGENT_ID);
     assertThat(rawTenantOf(rowId))
@@ -123,7 +123,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   @Test
   @DisplayName("the row is readable under its own tenant's scope and invisible under another's")
   void theRowIsVisibleOnlyUnderItsOwnTenantScope() throws Exception {
-    runAsTheExecutorWould(() -> ingestionService.onRun(step(), inject(), contract()));
+    runAsTheExecutorWould(() -> ingestionService.persistExecution(ingestionService.getAttackPathExecution(inject(), step(), "")));
     Tenant other = tenantHelper.createTenantWithCurrentUser("ap-realpath-other");
     try {
       // Positive control first: without it, an empty cross-tenant read would also be satisfied by
@@ -208,9 +208,9 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     inject.setAssetGroups(java.util.List.of(group)); // group only, no direct assets
     inject.setTenant(tenant);
 
-    runAsTheExecutorWould(() -> ingestionService.onRun(step(), inject, contract()));
+    runAsTheExecutorWould(() -> ingestionService.persistExecution(ingestionService.getAttackPathExecution(inject, step(), "")));
 
-    assertThat(rawRowCountForInject(INJECT_ID))
+    assertThat(rawRowCountForStep("step-realpath"))
         .as("an inject targeting only an asset group must still record its member endpoints")
         .isPositive();
   }
@@ -250,10 +250,10 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
           inject.setInjector(injector);
           inject.setAssets(java.util.List.of(proxy));
           inject.setTenant(tenant);
-          ingestionService.onRun(step(), inject, contract());
+          ingestionService.persistExecution(ingestionService.getAttackPathExecution(inject, step(), ""));
         });
 
-    assertThat(rawRowCountForInject(INJECT_ID))
+    assertThat(rawRowCountForStep("step-realpath"))
         .as("a proxied endpoint must be recognised and recorded, not dropped by a bare instanceof")
         .isPositive();
   }
@@ -261,7 +261,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   @Test
   @DisplayName("a re-run never overwrites what the later phases wrote on the row")
   void reRunIsCreateOnce() {
-    runAsTheExecutorWould(() -> ingestionService.onRun(step(), inject(), contract()));
+    runAsTheExecutorWould(() -> ingestionService.persistExecution(ingestionService.getAttackPathExecution(inject(), step(), "")));
     String rowId = AttackPathIds.executionNode(INJECT_ID, ENDPOINT_ID, AGENT_ID);
 
     // Phase B (#204/#202) fills its own columns on the row this create left behind. The create must
@@ -273,7 +273,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
         "whoami /priv",
         rowId);
 
-    runAsTheExecutorWould(() -> ingestionService.onRun(step(), inject(), contract()));
+    runAsTheExecutorWould(() -> ingestionService.persistExecution(ingestionService.getAttackPathExecution(inject(), step(), "")));
 
     assertThat(rawRow(rowId))
         .as("the second run must leave the Phase B column untouched")
@@ -295,7 +295,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
         () -> {
           // Asserted, not assumed: if the doomed create silently succeeded, the catch below would
           // never fire and this test would prove nothing at all.
-          assertThatThrownBy(() -> ingestionService.onRun(step(), doomed, contract()))
+          assertThatThrownBy(() -> ingestionService.persistExecution(ingestionService.getAttackPathExecution(doomed, step(), "")))
               .isInstanceOf(RuntimeException.class);
           // Then the run carries on, exactly as InjectExecutionStep's guard lets it.
           tenantRepository.save(TenantFixture.getTenant(marker));
@@ -310,14 +310,14 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   @Test
   @DisplayName("the run's row carries the columns extracted from the inject")
   void createFreezesTheColumnsExtractedFromTheInject() {
-    runAsTheExecutorWould(() -> ingestionService.onRun(step(), inject(), contract()));
+    runAsTheExecutorWould(() -> ingestionService.persistExecution(ingestionService.getAttackPathExecution(inject(), step(), "")));
 
     // Read back from the database rather than through the ORM: a scoped read would be fail-closed
     // here, and the point is what actually landed on disk.
     Map<String, Object> row = rawRow(AttackPathIds.executionNode(INJECT_ID, ENDPOINT_ID, AGENT_ID));
     assertThat(row)
         .containsEntry("attackpath_execution_simulation_id", SIM)
-        .containsEntry("attackpath_execution_inject_id", INJECT_ID)
+        .containsEntry("attackpath_execution_step_id", "step-realpath")
         .containsEntry("attackpath_execution_contract_external_id", "contract-realpath")
         .containsEntry("attackpath_execution_payload_id", "cmd-realpath")
         .containsEntry("attackpath_execution_payload_name", "crackmapexec")
@@ -343,9 +343,9 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     inject.setTenant(tenant);
     // no exercise set
 
-    runAsTheExecutorWould(() -> ingestionService.onRun(new Step(), inject, new InjectorContract()));
+    runAsTheExecutorWould(() -> ingestionService.persistExecution(ingestionService.getAttackPathExecution(inject, new Step(), "")));
 
-    assertThat(rawRowCountForInject(INJECT_ID)).isZero();
+    assertThat(rawRowCountForStep("step-realpath")).isZero();
   }
 
   /**
@@ -377,11 +377,11 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
         "SELECT count(*) FROM tenants WHERE tenant_name = ?", Integer.class, name);
   }
 
-  private Integer rawRowCountForInject(String injectId) {
+  private Integer rawRowCountForStep(String stepId) {
     return jdbc.queryForObject(
-        "SELECT count(*) FROM attackpath_execution WHERE attackpath_execution_inject_id = ?",
+        "SELECT count(*) FROM attackpath_execution WHERE attackpath_execution_step_id = ?",
         Integer.class,
-        injectId);
+        stepId);
   }
 
   // In-memory inject graph, as the engine hands it over. Only the EXECUTION rows are persisted.
