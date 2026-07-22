@@ -186,7 +186,7 @@ public class WorkflowStateService {
     WorkflowState localState = loadOrBuildLocalState(stepTemplate, workflowRun);
     if (localState == null) {
       log.error(
-          "Failed to load or build local state for step template {} in workflow run {}",
+          "[Chaining] Failed to load or build local state for step template {} in workflow run {}",
           stepTemplate.getId(),
           workflowRun.getId());
       return;
@@ -341,7 +341,9 @@ public class WorkflowStateService {
 
       ChainingMappedType mappedType = typeMappings.get(fieldName);
       if (mappedType == null) {
-        log.warn("Skipping output field '{}' because no primitive type mapping exists.", fieldName);
+        log.warn(
+            "[Chaining] Skipping output field '{}' because no primitive type mapping exists.",
+            fieldName);
         continue;
       }
       if (mappedType.kind() == ChainingTypeKind.NOT_CHAINABLE) {
@@ -480,7 +482,7 @@ public class WorkflowStateService {
     Optional<PrimitiveType> primitiveOpt = PrimitiveType.fromLabelOptional(jsonFieldName);
     if (primitiveOpt.isEmpty()) {
       log.debug(
-          "Skipping unknown field '{}' in correlated object — no PrimitiveType match",
+          "[Chaining] Skipping unknown field '{}' in correlated object — no PrimitiveType match",
           jsonFieldName);
       return Optional.empty();
     }

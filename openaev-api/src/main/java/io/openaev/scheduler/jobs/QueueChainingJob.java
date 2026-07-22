@@ -36,17 +36,19 @@ public class QueueChainingJob implements Job {
           List<StepDelayQueue> stepsDelayQueue = stepDelayQueueService.popNextToProcess();
           if (stepsDelayQueue.isEmpty()) return;
 
-          log.info("QueueChainingJob: processing {} delayed step(s)", stepsDelayQueue.size());
+          log.info(
+              "[Chaining] QueueChainingJob: processing {} delayed step(s)",
+              stepsDelayQueue.size());
 
           for (StepDelayQueue stepDelayQueue : stepsDelayQueue) {
             // Guard: ignore if workflow run has already ended (e.g. timeout).
             if (workflowService.isWorkflowEnded(stepDelayQueue.getWorkflowRun().getId())) {
               log.info(
-                  "Ignoring step {} because workflow run {} has ended.",
+                  "[Chaining] Ignoring step {} because workflow run {} has ended.",
                   stepDelayQueue.getId(),
                   stepDelayQueue.getWorkflowRun().getId());
               log.info(
-                  "Deleting all delayed steps for workflow run {} as it has ended.",
+                  "[Chaining] Deleting all delayed steps for workflow run {} as it has ended.",
                   stepDelayQueue.getWorkflowRun().getId());
               stepDelayQueueService.deleteAllByWorkflowRun(stepDelayQueue.getWorkflowRun());
               continue;
@@ -65,7 +67,7 @@ public class QueueChainingJob implements Job {
 
               stepService.enqueueReadySteps(readySteps, stepDelayQueue.getWorkflowRun());
             } catch (ChainingException e) {
-              log.error("Delay consume failed : {}", e.getMessage(), e);
+              log.error("[Chaining] Delay consume failed : {}", e.getMessage(), e);
             }
           }
         });

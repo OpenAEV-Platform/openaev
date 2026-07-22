@@ -146,8 +146,36 @@ public class WorkflowStateEntries {
     return Hashing.murmur3_128().hashString(sb.toString(), StandardCharsets.UTF_8).toString();
   }
 
-  public boolean comboContainAllExecutionKeys(
-      Set<String> executionKeys, Map<String, String> combo) {
-    return combo.keySet().containsAll(executionKeys);
+  /**
+   * Returns correlated tuples that share at least one key with {@code requiredKeys}.
+   *
+   * <p>These are candidates for the correlated-first input resolution: they can anchor one or more
+   * required keys, with remaining keys completed from the primitive pool.
+   *
+   * @param requiredKeys the set of key names the step needs (non-DEFAULT mappers)
+   * @return tuples whose pair keys intersect with requiredKeys
+   */
+  public List<Correlated> findCandidateCorrelated(Set<String> requiredKeys) {
+    return correlated.stream()
+        .filter(tuple -> tuple.getValues().stream().anyMatch(p -> requiredKeys.contains(p.key())))
+        .toList();
+  }
+
+  /**
+   * Projects a correlated tuple to only the keys present in {@code requiredKeys}.
+   *
+   * <p>Use for both superset tuples (extra keys discarded) and subset tuples (covered keys
+   * extracted; caller handles the rest via primitive pool).
+   *
+   * @param tuple the correlated tuple to project
+   * @param requiredKeys the keys to keep
+   * @return map of key → value for the intersection of tuple keys and requiredKeys
+   */
+  public Map<String, String> projectTuple(Correlated tuple, Set<String> requiredKeys) {
+    Map<String, String> projection = new HashMap<>();
+    tuple.getValues().stream()
+        .filter(pair -> requiredKeys.contains(pair.key()))
+        .forEach(pair -> projection.put(pair.key(), pair.value()));
+    return projection;
   }
 }

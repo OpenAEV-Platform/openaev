@@ -70,13 +70,13 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
                       this::run,
                       () ->
                           log.error(
-                              "Ready consume: Step not found for StepEvent ID: {}",
+                              "[Chaining] Ready consume: Step not found for StepEvent ID: {}",
                               stepEvent.getStepId())));
     } catch (Exception e) {
       if (stepEvent.getRetryCount() < chainingConfig.getMaxRetryCount()) {
         stepEvent.setRetryCount(stepEvent.getRetryCount() + 1);
         log.warn(
-            "Transaction failed for StepEvent {}. Re-queuing (retry {}/{}).",
+            "[Chaining] Transaction failed for StepEvent {}. Re-queuing (retry {}/{}).",
             stepEvent.getStepId(),
             stepEvent.getRetryCount(),
             chainingConfig.getMaxRetryCount(),
@@ -85,13 +85,13 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
           queueChainingService.republishReadyEvent(stepEvent);
         } catch (IOException ioEx) {
           log.error(
-              "Failed to re-queue StepEvent {} after transactional failure. Event is lost.",
+              "[Chaining] Failed to re-queue StepEvent {} after transactional failure. Event is lost.",
               stepEvent.getStepId(),
               ioEx);
         }
       } else {
         log.error(
-            "Transaction failed for StepEvent {} after {} retries. Event is dropped.",
+            "[Chaining] Transaction failed for StepEvent {} after {} retries. Event is dropped.",
             stepEvent.getStepId(),
             chainingConfig.getMaxRetryCount(),
             e);
@@ -110,7 +110,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
     Workflow workflowRun = stepReady.getWorkflow();
     if (workflowRun != null && workflowService.isWorkflowEnded(workflowRun.getId())) {
       log.info(
-          "Ignoring run request for step {} because workflow run {} has ended.",
+          "[Chaining] Ignoring run request for step {} because workflow run {} has ended.",
           stepReady.getId(),
           workflowRun.getId());
       return;
@@ -127,7 +127,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
     } catch (ChainingException e) {
       // todo system notif queue fail + system log for step + status FAIL
       log.error(
-          "Ready consume : Step (READY) execution failed. Step moved to (END) state. Step ID: {} {}",
+          "[Chaining] Ready consume : Step (READY) execution failed. Step moved to (END) state. Step ID: {} {}",
           stepReady.getId(),
           e.getMessage(),
           e);
@@ -175,7 +175,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
     } catch (ElementNotFoundException e) {
       // Todo: system notif queue fail + system log for step + status FAIL
       log.error(
-          "Update consume: Step (RUN) not found. Step ID: {} {}",
+          "[Chaining] Update consume: Step (RUN) not found. Step ID: {} {}",
           stepEvent.getStepId(),
           e.getMessage(),
           e);
@@ -187,7 +187,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
     Workflow workflowRun = stepRun.getWorkflow();
     if (workflowRun != null && workflowService.isWorkflowEnded(workflowRun.getId())) {
       log.info(
-          "Ignoring external update event for step {} because workflow run {} has ended.",
+          "[Chaining] Ignoring external update event for step {} because workflow run {} has ended.",
           stepRun.getId(),
           workflowRun.getId());
       return;
@@ -201,7 +201,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
     } catch (ChainingException e) {
       // Todo: system notif queue fail + system log for step + status FAIL
       log.error(
-          "Update consume : Step (RUN) update failed. Step moved to (END) state. Step ID: {} {}",
+          "[Chaining] Update consume : Step (RUN) update failed. Step moved to (END) state. Step ID: {} {}",
           stepRun.getId(),
           e.getMessage(),
           e);
@@ -218,7 +218,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
         workflowService.saveWorkflowRun(stepUpdated.getWorkflow());
       } catch (ChainingException e) {
         log.error(
-            "Update consume: Evaluation of WORKFLOW Progress has failed with STEP (RUN) update. Workflow ID: {}, Step ID: {}. {}",
+            "[Chaining] Update consume: Evaluation of WORKFLOW Progress has failed with STEP (RUN) update. Workflow ID: {}, Step ID: {}. {}",
             stepUpdated.getWorkflow().getId(),
             stepUpdated.getId(),
             e.getMessage(),

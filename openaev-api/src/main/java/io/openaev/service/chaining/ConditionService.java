@@ -446,7 +446,7 @@ public class ConditionService {
     if (!dependOnConditions.isEmpty()) {
       if (!evaluateDependOnConditions(dependOnConditions, workflowRun)) {
         log.debug(
-            "Depend-on conditions not satisfied for step template {}",
+            "[Chaining] Depend-on conditions not satisfied for step template {}",
             nextStepTemplateToExecute.getId());
         return Collections.emptyList();
       }
@@ -498,7 +498,8 @@ public class ConditionService {
     for (Condition condition : dependOnConditions) {
       String dependentStepTemplateId = condition.getValue();
       if (dependentStepTemplateId == null || dependentStepTemplateId.isBlank()) {
-        log.error("DEPEND_ON condition has no step template ID value: {}", condition.getId());
+        log.error(
+            "[Chaining] DEPEND_ON condition has no step template ID value: {}", condition.getId());
         return false;
       }
 
@@ -508,7 +509,7 @@ public class ConditionService {
 
       if (!executed) {
         log.debug(
-            "DEPEND_ON not satisfied: step template {} has not been executed in workflow run {}",
+            "[Chaining] DEPEND_ON not satisfied: step template {} has not been executed in workflow run {}",
             dependentStepTemplateId,
             workflowRun.getId());
         return false;
@@ -879,8 +880,8 @@ public class ConditionService {
         buildExecutionBatches(
             mappers,
             context.localEntries(),
-            preparation.dynamicPairs(),
-            preparation.staticValues(),
+            context.globalEntries(),
+            preparation,
             requiredKeys);
 
     return batches;
@@ -955,6 +956,7 @@ public class ConditionService {
       WorkflowStateEntries localEntries,
       WorkflowStateEntries globalEntries) {
     List<List<WorkflowStateEntries.Pair>> allPairsList = new ArrayList<>();
+    Map<String, MappingType> keyToMappingType = new HashMap<>();
     Map<String, String> staticValues = new HashMap<>();
 
     for (Condition mapper : mappers) {
@@ -963,7 +965,7 @@ public class ConditionService {
         log.warn(
             "[Chaining] Skipping mapper {} because keyType and key are both missing",
             mapper.getId());
-        return new MapperInputPreparation(List.of(), Map.of(), true);
+        return new MapperInputPreparation(List.of(), Map.of(), Map.of(), true);
       }
 
       if (mapper.getMappingType() == MappingType.DEFAULT) {
@@ -977,62 +979,143 @@ public class ConditionService {
               : localEntries.getInputByKey(key).getValues();
 
       if (values == null || values.isEmpty()) {
-        return new MapperInputPreparation(List.of(), Map.of(), true);
+        return new MapperInputPreparation(List.of(), Map.of(), Map.of(), true);
       }
 
+      keyToMappingType.put(key, mapper.getMappingType());
       allPairsList.add(
           values.stream().map(value -> new WorkflowStateEntries.Pair(key, value)).toList());
     }
 
-    return new MapperInputPreparation(allPairsList, staticValues, false);
+    return new MapperInputPreparation(allPairsList, keyToMappingType, staticValues, false);
   }
 
   /**
-   * Computes the Cartesian product of dynamic values, filters duplicates via hash, merges static
-   * values, and returns ready-to-run execution batches.
+   * Builds execution batches using a two-pass strategy:
    *
-   * <p>Hashes are <b>not</b> committed to the persistent state here. Instead, each batch carries
-   * its deduplication hash so the caller can decide which hashes to commit after applying
-   * rate-limit guards.
+   * <ol>
+   *   <li><b>Correlated pass</b> (≥2 dynamic keys only): anchors each candidate correlated tuple
+   *       to the required keys, completes uncovered keys from their MappingType source pool, and
+   *       generates combinations. Respects LOCAL/GLOBAL per uncovered key.
+   *   <li><b>Fallback cartesian pass</b> (runs only when correlated pass produced no usable batch):
+   *       computes the full cartesian product of all dynamic key value lists.
+   * </ol>
+   *
+   * <p>DEFAULT values are never part of either pass — they are merged into every batch at the end.
+   * Hashes are <b>not</b> committed here; the caller does so via {@code commitHashes()}.
    */
   private List<ConditionService.ExecutionBatch> buildExecutionBatches(
       List<Condition> mappers,
       WorkflowStateEntries localEntries,
-      List<List<WorkflowStateEntries.Pair>> allPairsList,
-      Map<String, String> staticValues,
+      WorkflowStateEntries globalEntries,
+      MapperInputPreparation preparation,
       Set<String> requiredKeys) {
 
-    List<List<WorkflowStateEntries.Pair>> product = localEntries.cartesianProduct(allPairsList);
     List<ConditionService.ExecutionBatch> batches = new ArrayList<>();
     Set<String> pendingHashes = new HashSet<>();
+    boolean hasCorrelatedBatch = false;
 
-    for (List<WorkflowStateEntries.Pair> comboPairs : product) {
-      Map<String, String> comboMap = new TreeMap<>();
-      comboPairs.forEach(pair -> comboMap.put(pair.key(), pair.value()));
+    // Pass 1 — correlated-first (only meaningful with ≥2 dynamic inputs)
+    if (requiredKeys.size() >= 2) {
+      WorkflowStateEntries correlatedPool =
+          preparation.hasAnyLocal() ? localEntries : globalEntries;
+      List<WorkflowStateEntries.Correlated> candidates =
+          correlatedPool.findCandidateCorrelated(requiredKeys);
 
-      if (!localEntries.comboContainAllExecutionKeys(requiredKeys, comboMap)) {
-        continue;
+      for (WorkflowStateEntries.Correlated tuple : candidates) {
+        Map<String, String> covered = correlatedPool.projectTuple(tuple, requiredKeys);
+        Set<String> uncoveredKeys = new HashSet<>(requiredKeys);
+        uncoveredKeys.removeAll(covered.keySet());
+
+        List<List<WorkflowStateEntries.Pair>> uncoveredValueLists = new ArrayList<>();
+        boolean skipTuple = false;
+
+        for (String uncoveredKey : uncoveredKeys) {
+          MappingType source = preparation.keyToMappingType().get(uncoveredKey);
+          Set<String> values =
+              (source == MappingType.GLOBAL)
+                  ? globalEntries.getInputByKey(uncoveredKey).getValues()
+                  : localEntries.getInputByKey(uncoveredKey).getValues();
+
+          if (values == null || values.isEmpty()) {
+            log.warn(
+                "[Chaining] Skipping correlated tuple of type '{}': uncovered key '{}' has no"
+                    + " values in the {} pool",
+                tuple.getType(),
+                uncoveredKey,
+                source);
+            skipTuple = true;
+            break;
+          }
+
+          uncoveredValueLists.add(
+              values.stream()
+                  .map(v -> new WorkflowStateEntries.Pair(uncoveredKey, v))
+                  .toList());
+        }
+
+        if (skipTuple) {
+          continue;
+        }
+
+        for (List<WorkflowStateEntries.Pair> delta :
+            localEntries.cartesianProduct(uncoveredValueLists)) {
+          Map<String, String> combo = new TreeMap<>(covered);
+          delta.forEach(pair -> combo.put(pair.key(), pair.value()));
+          int sizeBefore = batches.size();
+          tryAddBatch(combo, preparation, localEntries, mappers, pendingHashes, batches);
+          hasCorrelatedBatch = hasCorrelatedBatch || batches.size() > sizeBefore;
+        }
       }
+    }
 
-      String hash = localEntries.hashCombo(comboMap);
-      if (localEntries.getHashExecution().contains(hash) || pendingHashes.contains(hash)) {
-        continue;
+    // Pass 2 — fallback cartesian (only when correlated pass produced no usable batch)
+    if (!hasCorrelatedBatch) {
+      for (List<WorkflowStateEntries.Pair> comboPairs :
+          localEntries.cartesianProduct(preparation.dynamicPairs())) {
+        Map<String, String> combo = new TreeMap<>();
+        comboPairs.forEach(pair -> combo.put(pair.key(), pair.value()));
+        tryAddBatch(combo, preparation, localEntries, mappers, pendingHashes, batches);
       }
-
-      Map<String, String> fullInput = new HashMap<>(comboMap);
-      fullInput.putAll(staticValues);
-
-      List<Condition> resolvedMappers =
-          mappers.stream()
-              .map(mapperTemplate -> toResolvedMapper(mapperTemplate, fullInput))
-              .collect(Collectors.toList());
-
-      batches.add(
-          new ConditionService.ExecutionBatch(gson.toJson(fullInput), resolvedMappers, hash));
-      pendingHashes.add(hash);
     }
 
     return batches;
+  }
+
+  /**
+   * Attempts to add a batch for the given combo map. Skips the combo if:
+   *
+   * <ul>
+   *   <li>its hash is already in the persistent {@code hashExecution} set, or
+   *   <li>its hash was already added in this same call ({@code pendingHashes}).
+   * </ul>
+   *
+   * <p>DEFAULT static values are merged into the final input map after dedup so they do not affect
+   * the deduplication hash.
+   */
+  private void tryAddBatch(
+      Map<String, String> comboMap,
+      MapperInputPreparation preparation,
+      WorkflowStateEntries localEntries,
+      List<Condition> mappers,
+      Set<String> pendingHashes,
+      List<ExecutionBatch> batches) {
+
+    String hash = localEntries.hashCombo(comboMap);
+    if (localEntries.getHashExecution().contains(hash) || pendingHashes.contains(hash)) {
+      return;
+    }
+
+    Map<String, String> fullInput = new HashMap<>(comboMap);
+    fullInput.putAll(preparation.staticValues());
+
+    List<Condition> resolvedMappers =
+        mappers.stream()
+            .map(template -> toResolvedMapper(template, fullInput))
+            .collect(Collectors.toList());
+
+    batches.add(new ConditionService.ExecutionBatch(gson.toJson(fullInput), resolvedMappers, hash));
+    pendingHashes.add(hash);
   }
 
   /** Creates a resolved copy of a mapper condition with its value filled from the input map. */
@@ -1062,20 +1145,21 @@ public class ConditionService {
    *
    * @param inputString resolved JSON input used to create a READY step
    * @param usedMappers mapper conditions used to build this input
-   */
-  /**
-   * Input payload and mapper conditions for one executable data-chaining batch.
-   *
-   * @param inputString resolved JSON input used to create a READY step
-   * @param usedMappers mapper conditions used to build this input
    * @param hash deduplication hash for this input combination (nullable for non-mapper batches)
    */
   public record ExecutionBatch(String inputString, List<Condition> usedMappers, String hash) {}
 
   private record MapperInputPreparation(
       List<List<WorkflowStateEntries.Pair>> dynamicPairs,
+      Map<String, MappingType> keyToMappingType,
       Map<String, String> staticValues,
-      boolean hasMissingDynamicValues) {}
+      boolean hasMissingDynamicValues) {
+
+    /** True if at least one dynamic mapper reads from the step-local state. */
+    boolean hasAnyLocal() {
+      return keyToMappingType.containsValue(MappingType.LOCAL);
+    }
+  }
 
   private record WorkflowContext(
       WorkflowState localStateEntity,

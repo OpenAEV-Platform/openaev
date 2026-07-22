@@ -3,6 +3,9 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.database.model.*;
@@ -11,7 +14,9 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.utils.ConditionUtils;
 import jakarta.persistence.EntityNotFoundException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -228,6 +233,236 @@ public class ConditionServiceTest {
       assertEquals(expected, result);
       verify(conditionService)
           .prepareInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));
+    }
+  }
+
+  /* ============================================================
+   * prepareInputsForStepExecution — correlated + fallback batching
+   * ============================================================ */
+  @Nested
+  class PrepareInputsForStepExecution {
+    private final Gson gson = new Gson();
+
+    private Condition mapper(MappingType mappingType, PrimitiveType keyType, String value) {
+      Condition mapper = new Condition();
+      mapper.setType(ConditionType.MAPPER);
+      mapper.setMappingType(mappingType);
+      mapper.setKeyType(keyType);
+      mapper.setValue(value);
+      return mapper;
+    }
+
+    private WorkflowStateEntries.Input input(String key, String... values) {
+      return WorkflowStateEntries.Input.builder().key(key).values(new HashSet<>(Set.of(values))).build();
+    }
+
+    private WorkflowStateEntries.Correlated correlated(
+        String type, WorkflowStateEntries.Pair... values) {
+      return WorkflowStateEntries.Correlated.builder()
+          .type(type)
+          .values(new HashSet<>(Set.of(values)))
+          .build();
+    }
+
+    private WorkflowStateEntries entries(
+        List<WorkflowStateEntries.Input> inputs, List<WorkflowStateEntries.Correlated> correlated) {
+      return new WorkflowStateEntries(
+          new ArrayList<>(inputs), new ArrayList<>(correlated), new HashSet<>(), new HashSet<>());
+    }
+
+    private WorkflowState stateFromEntries(WorkflowStateEntries entries) {
+      WorkflowState state = new WorkflowState();
+      state.setEntries(gson.toJson(entries));
+      return state;
+    }
+
+    private JsonObject inputJson(ConditionService.ExecutionBatch batch) {
+      return JsonParser.parseString(batch.inputString()).getAsJsonObject();
+    }
+
+    @Test
+    void given_noCorrelatedData_should_buildFallbackCartesianBatches() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-no-correlated");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.GLOBAL, PrimitiveType.IPv4, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Port, null));
+
+      WorkflowStateEntries globalEntries =
+          entries(
+              List.of(input("IPv4", "10.0.0.1", "10.0.0.2"), input("Port", "80", "443")),
+              List.of());
+      WorkflowStateEntries localEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-no-correlated"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(4, batches.size());
+      Set<String> pairs =
+          batches.stream()
+              .map(
+                  b -> {
+                    JsonObject json = inputJson(b);
+                    return json.get("IPv4").getAsString() + ":" + json.get("Port").getAsString();
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("10.0.0.1:80", "10.0.0.1:443", "10.0.0.2:80", "10.0.0.2:443"), pairs);
+    }
+
+    @Test
+    void given_localAndGlobalSubsetCorrelation_should_completeUncoveredKeyFromMappedPool() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-subset");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.LOCAL, PrimitiveType.IPv4, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Port, null),
+              mapper(MappingType.DEFAULT, PrimitiveType.Text, "static-default"));
+
+      WorkflowStateEntries localEntries =
+          entries(
+              List.of(input("IPv4", "10.0.0.1")),
+              List.of(correlated("LocalIp", new WorkflowStateEntries.Pair("IPv4", "10.0.0.1"))));
+      WorkflowStateEntries globalEntries = entries(List.of(input("Port", "80", "443")), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-subset"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(2, batches.size());
+      for (ConditionService.ExecutionBatch batch : batches) {
+        JsonObject json = inputJson(batch);
+        assertEquals("10.0.0.1", json.get("IPv4").getAsString());
+        assertTrue(Set.of("80", "443").contains(json.get("Port").getAsString()));
+        assertEquals("static-default", json.get("Text").getAsString());
+      }
+    }
+
+    @Test
+    void given_supersetCorrelatedTuple_should_ignoreExtraKeysOutsideMapperScope() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-superset");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.GLOBAL, PrimitiveType.IPv4, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Port, null));
+
+      WorkflowStateEntries globalEntries =
+          entries(
+              List.of(input("IPv4", "10.0.0.1"), input("Port", "443")),
+              List.of(
+                  correlated(
+                      "RichTuple",
+                      new WorkflowStateEntries.Pair("IPv4", "10.0.0.1"),
+                      new WorkflowStateEntries.Pair("Port", "443"),
+                      new WorkflowStateEntries.Pair("Text", "folder-A"))));
+      WorkflowStateEntries localEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-superset"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(1, batches.size());
+      JsonObject json = inputJson(batches.getFirst());
+      assertEquals("10.0.0.1", json.get("IPv4").getAsString());
+      assertEquals("443", json.get("Port").getAsString());
+      assertFalse(json.has("Text"));
+    }
+
+    @Test
+    void given_correlatedAndFallbackSameCombo_should_deduplicateToSingleBatch() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-dedup");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.GLOBAL, PrimitiveType.IPv4, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Port, null));
+
+      WorkflowStateEntries globalEntries =
+          entries(
+              List.of(input("IPv4", "10.0.0.9"), input("Port", "8443")),
+              List.of(
+                  correlated(
+                      "HostPort",
+                      new WorkflowStateEntries.Pair("IPv4", "10.0.0.9"),
+                      new WorkflowStateEntries.Pair("Port", "8443"))));
+      WorkflowStateEntries localEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-dedup"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(1, batches.size());
+      JsonObject json = inputJson(batches.getFirst());
+      assertEquals("10.0.0.9", json.get("IPv4").getAsString());
+      assertEquals("8443", json.get("Port").getAsString());
+    }
+
+    @Test
+    void given_onlyDefaultMappers_should_returnSingleBatchWithDefaults() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-default-only");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.DEFAULT, PrimitiveType.Text, "admin"),
+              mapper(MappingType.DEFAULT, PrimitiveType.Hostname, "worker-01"));
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-default-only"))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(1, batches.size());
+      JsonObject json = inputJson(batches.getFirst());
+      assertEquals("admin", json.get("Text").getAsString());
+      assertEquals("worker-01", json.get("Hostname").getAsString());
+      assertNotNull(batches.getFirst().hash());
     }
   }
 
