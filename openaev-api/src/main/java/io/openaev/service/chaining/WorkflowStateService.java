@@ -298,7 +298,7 @@ public class WorkflowStateService {
         } else if (element.isJsonObject() && isComplex) {
           // Complex output (e.g. {port: 22, host: "1.1.1.1"}): store as correlated pairs
           String type = mappedType.origin() != null ? mappedType.origin().name() : null;
-          saveCorrelatedObject(entries, element.getAsJsonObject(), type);
+          saveCorrelatedObject(entries, element.getAsJsonObject(), type, parsedByType);
         }
       }
     }
@@ -330,8 +330,13 @@ public class WorkflowStateService {
    * @param entries state entries to update
    * @param obj JSON object whose fields form a correlated pair set
    * @param type business type name (ContractOutputType.name())
+   * @param parsedByType accumulator for local-state propagation (mirroring the scalar path)
    */
-  private void saveCorrelatedObject(WorkflowStateEntries entries, JsonObject obj, String type) {
+  private void saveCorrelatedObject(
+      WorkflowStateEntries entries,
+      JsonObject obj,
+      String type,
+      Map<String, List<String>> parsedByType) {
     Set<WorkflowStateEntries.Pair> pairSet = new HashSet<>();
 
     obj.entrySet()
@@ -357,6 +362,11 @@ public class WorkflowStateService {
 
               // Decompose into flat inputs (source-of-truth propagation)
               entries.getInputByKey(primitiveType.name()).getValues().add(valStr);
+
+              // Mirror into parsedByType for local-state propagation (symmetric with scalar path)
+              parsedByType
+                  .computeIfAbsent(primitiveType.name(), k -> new ArrayList<>())
+                  .add(valStr);
             });
 
     if (pairSet.size() > 1) {

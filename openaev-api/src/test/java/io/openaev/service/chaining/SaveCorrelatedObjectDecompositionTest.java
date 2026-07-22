@@ -229,4 +229,53 @@ class SaveCorrelatedObjectDecompositionTest {
       assertEquals(0, persisted.getCorrelated().size());
     }
   }
+
+  @Nested
+  @DisplayName("Complex output propagation to local states")
+  class ComplexOutputPropagation {
+
+    @Test
+    @DisplayName(
+        "complex object decomposed primitives are propagated to local state lookup (parsedByType populated)")
+    void givenComplexOutput_shouldTriggerLocalStatePropagationWithDecomposedKeys() {
+      String workflowId = UUID.randomUUID().toString();
+      String templateId = UUID.randomUUID().toString();
+      Workflow template = Workflow.builder().id(templateId).build();
+      Workflow workflow = Workflow.builder().id(workflowId).workflowTemplate(template).build();
+      WorkflowState globalState = setupGlobalState(workflowId, workflow);
+
+      JsonObject dataToSync =
+          JsonParser.parseString(
+                  """
+                  {
+                    "portscan": [
+                      {"host": "10.0.0.1", "port": "443", "service": "https"}
+                    ]
+                  }
+                  """)
+              .getAsJsonObject();
+
+      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+      typeMappings.put(
+          "portscan",
+          ChainingMappedType.complex(
+              List.of(PrimitiveType.Host, PrimitiveType.Port, PrimitiveType.Service),
+              ContractOutputType.PortsScan));
+
+      // conditionRepository returns empty → propagation short-circuits, but the CALL proves
+      // that the decomposed keys (Host, Port, Service) were passed to propagateToLocalStates.
+      when(conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
+              eq(templateId), anySet(), anySet()))
+          .thenReturn(List.of());
+
+      workflowStateService.syncState(dataToSync, typeMappings, workflow);
+
+      // Verify that propagateToLocalStates was reached with the decomposed primitive key types
+      verify(conditionRepository)
+          .findFilterConditionsByWorkflowIdAndKeyTypes(
+              eq(templateId),
+              eq(Set.of(PrimitiveType.Host, PrimitiveType.Port, PrimitiveType.Service)),
+              anySet());
+    }
+  }
 }
