@@ -366,7 +366,12 @@ public class WorkflowStateService {
           // Complex output (e.g. {port: 22, host: "1.1.1.1"}): store as correlated pairs
           String type = mappedType.origin() != null ? mappedType.origin().name() : null;
           saveCorrelatedObject(
-              entries, element.getAsJsonObject(), type, parsedByType, newCorrelated);
+              entries,
+              element.getAsJsonObject(),
+              type,
+              parsedByType,
+              newCorrelated,
+              validationContext);
         }
       }
     }
@@ -387,60 +392,79 @@ public class WorkflowStateService {
   }
 
   /**
-   * Saves a correlated object (multi-field entry like {username, password}) into state entries.
+   * Saves a correlated object (multi-field entry like {username, password}) into state entries,
+   * validating each field against the scope rules before accepting it.
    *
    * <p>JSON field names are normalized to {@link PrimitiveType#name()} (e.g. "username" →
    * "Username") so that the object path produces the same key convention as the scalar path.
    *
-   * <p>Each accepted primitive field is ALSO decomposed flat into {@code entries.inputs}, so that
-   * downstream consumers can query individual primitives regardless of their complex origin.
+   * <p><b>All-or-nothing semantics</b>: if any field fails scope validation, the entire tuple is
+   * rejected and nothing is written to state. A partial correlated tuple would break the
+   * correlation semantics — downstream code expects every pair in a tuple to be valid together.
+   *
+   * <p>Once all fields pass, each accepted primitive field is ALSO decomposed flat into {@code
+   * entries.inputs} so that downstream consumers can query individual primitives regardless of
+   * their complex origin.
    *
    * @param entries state entries to update
    * @param obj JSON object whose fields form a correlated pair set
    * @param type business type name (ContractOutputType.name())
    * @param parsedByType accumulator for local-state propagation (mirroring the scalar path)
-   * @param newCorrelated accumulator that collects the correlated tuple created by this call, so
-   *     callers know exactly which tuples were produced without relying on list-size snapshots
+   * @param newCorrelated accumulator that collects the correlated tuple created by this call
+   * @param validationContext scope rules applied per primitive type (same as the scalar path)
    */
   private void saveCorrelatedObject(
       WorkflowStateEntries entries,
       JsonObject obj,
       String type,
       Map<String, List<String>> parsedByType,
-      List<WorkflowStateEntries.Correlated> newCorrelated) {
+      List<WorkflowStateEntries.Correlated> newCorrelated,
+      PrimitiveValidationContext validationContext) {
+
     Set<WorkflowStateEntries.Pair> pairSet = new HashSet<>();
+    // Collect updates for entries.inputs and parsedByType; applied only if all fields are valid.
+    List<Runnable> pendingUpdates = new ArrayList<>();
 
-    obj.entrySet()
-        .forEach(
-            entry -> {
-              String jsonKey = entry.getKey();
-              JsonElement value = entry.getValue();
+    for (Map.Entry<String, JsonElement> fieldEntry : obj.entrySet()) {
+      String jsonKey = fieldEntry.getKey();
+      JsonElement value = fieldEntry.getValue();
 
-              if (value == null || value.isJsonNull()) {
-                return;
-              }
+      if (value == null || value.isJsonNull()) {
+        continue;
+      }
 
-              Optional<PrimitiveType> accepted = acceptedContentPrimitive(jsonKey);
-              if (accepted.isEmpty()) {
-                return;
-              }
+      Optional<PrimitiveType> accepted = acceptedContentPrimitive(jsonKey);
+      if (accepted.isEmpty()) {
+        continue;
+      }
 
-              PrimitiveType primitiveType = accepted.get();
-              String valStr = value.isJsonPrimitive() ? value.getAsString() : value.toString();
+      PrimitiveType primitiveType = accepted.get();
+      String valStr = value.isJsonPrimitive() ? value.getAsString() : value.toString();
 
-              // Store in the correlated pair set
-              pairSet.add(new WorkflowStateEntries.Pair(primitiveType.name(), valStr));
+      // Reject the ENTIRE tuple if any field fails validation — partial tuples break correlation.
+      if (!PrimitiveValueValidator.isAcceptedForPrimitiveType(
+          primitiveType, valStr, validationContext)) {
+        log.debug(
+            "[Chaining] Rejecting correlated tuple: field '{}' value '{}' failed scope validation",
+            jsonKey,
+            valStr);
+        return;
+      }
 
-              // Decompose into flat inputs (source-of-truth propagation)
-              entries.getInputByKey(primitiveType.name()).getValues().add(valStr);
+      pairSet.add(new WorkflowStateEntries.Pair(primitiveType.name(), valStr));
 
-              // Mirror into parsedByType for local-state propagation (symmetric with scalar path)
-              parsedByType
-                  .computeIfAbsent(primitiveType.name(), k -> new ArrayList<>())
-                  .add(valStr);
-            });
+      // Defer flat-input updates until all fields have been validated.
+      String primKey = primitiveType.name();
+      pendingUpdates.add(
+          () -> {
+            entries.getInputByKey(primKey).getValues().add(valStr);
+            parsedByType.computeIfAbsent(primKey, k -> new ArrayList<>()).add(valStr);
+          });
+    }
 
     if (pairSet.size() > 1) {
+      // All fields validated — now apply flat-input decomposition and register the tuple.
+      pendingUpdates.forEach(Runnable::run);
       WorkflowStateEntries.Correlated tuple = new WorkflowStateEntries.Correlated(pairSet, type);
       entries.getCorrelated().add(tuple);
       newCorrelated.add(tuple);
