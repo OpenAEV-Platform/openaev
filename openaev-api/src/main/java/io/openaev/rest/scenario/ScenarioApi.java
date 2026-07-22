@@ -200,7 +200,7 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/healthchecks",
     TENANT_SCENARIO_URI + "/{scenarioId}/healthchecks"
   })
-  @Transactional
+  @Transactional(readOnly = true, noRollbackFor = Exception.class)
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,

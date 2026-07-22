@@ -17,7 +17,6 @@ import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.CustomDashboardRepository;
-import io.openaev.database.repository.CveRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.ImportMapperRepository;
@@ -63,7 +62,6 @@ class ProductInventoryMetricCollectorTest {
   @Mock private WorkflowRepository workflowRepository;
   @Mock private FindingRepository findingRepository;
   @Mock private VulnerabilityRepository vulnerabilityRepository;
-  @Mock private CveRepository cveRepository;
   @Mock private VulnerableEndpointRepository vulnerableEndpointRepository;
   @Mock private AttackPatternRepository attackPatternRepository;
   @Mock private ReportRepository reportRepository;
@@ -92,7 +90,6 @@ class ProductInventoryMetricCollectorTest {
             workflowRepository,
             findingRepository,
             vulnerabilityRepository,
-            cveRepository,
             vulnerableEndpointRepository,
             attackPatternRepository,
             reportRepository);

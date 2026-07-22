@@ -9,7 +9,6 @@ import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.CustomDashboardRepository;
-import io.openaev.database.repository.CveRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.ImportMapperRepository;
@@ -64,7 +63,6 @@ public class ProductInventoryMetricCollector {
   private final WorkflowRepository workflowRepository;
   private final FindingRepository findingRepository;
   private final VulnerabilityRepository vulnerabilityRepository;
-  private final CveRepository cveRepository;
   private final VulnerableEndpointRepository vulnerableEndpointRepository;
   private final AttackPatternRepository attackPatternRepository;
   private final ReportRepository reportRepository;
@@ -127,10 +125,8 @@ public class ProductInventoryMetricCollector {
         "findings_total", "Number of findings", () -> safeCount(findingRepository::count));
     metricRegistry.registerGauge(
         "vulnerabilities_total",
-        "Number of structured vulnerabilities",
+        "Number of vulnerabilities",
         () -> safeCount(vulnerabilityRepository::count));
-    metricRegistry.registerGauge(
-        "cves_total", "Number of CVEs in the catalog", () -> safeCount(cveRepository::count));
     metricRegistry.registerGauge(
         "vulnerable_endpoints_total",
         "Number of vulnerable endpoints",

@@ -1,7 +1,6 @@
 package io.openaev.utils.mapper;
 
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.database.model.Cve;
 import io.openaev.database.model.Cwe;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.ee.EnterpriseEditionService;
@@ -23,13 +22,6 @@ public class CveMapper {
 
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
-
-  private Cve.VulnerabilityStatus mapVulnerabilityStatus(Vulnerability.VulnerabilityStatus status) {
-    if (status == null) {
-      return null;
-    }
-    return Cve.VulnerabilityStatus.valueOf(status.name());
-  }
 
   public CveSimple toCveSimple(final Vulnerability vulnerability) {
     if (vulnerability == null) {
@@ -54,7 +46,7 @@ public class CveMapper {
         .published(vulnerability.getPublished())
         .sourceIdentifier(vulnerability.getSourceIdentifier())
         .description(vulnerability.getDescription())
-        .vulnStatus(mapVulnerabilityStatus(vulnerability.getVulnStatus()))
+        .vulnStatus(vulnerability.getVulnStatus())
         .cisaActionDue(vulnerability.getCisaActionDue())
         .cisaExploitAdd(vulnerability.getCisaExploitAdd())
         .cisaRequiredAction(vulnerability.getCisaRequiredAction())
