@@ -27,7 +27,8 @@ const FormActions: FunctionComponent<FormActionsProps> = ({
     }}
     >
       <Button
-        variant="contained"
+        variant="outlined"
+        color="primary"
         onClick={onCancel}
         disabled={submitting}
       >
@@ -36,7 +37,7 @@ const FormActions: FunctionComponent<FormActionsProps> = ({
 
       <Button
         variant="contained"
-        color="secondary"
+        color="primary"
         type="submit"
         disabled={disabled || submitting}
       >

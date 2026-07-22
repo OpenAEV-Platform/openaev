@@ -3,7 +3,7 @@ package io.openaev.utils.mapper;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionFullOutput;
 import io.openaev.database.model.*;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -109,6 +109,7 @@ public class ThreatArsenalMapper {
         injectorContract.getExternalId(),
         null,
         injectorContractContentUtils.getPredefinedExpectations(injectorContract),
+        injectorContractContentUtils.getPredefinedExpectedSecurityPlatforms(injectorContract),
         null,
         null,
         null,
@@ -176,6 +177,7 @@ public class ThreatArsenalMapper {
         payload.getExternalId(),
         payload.getSource(),
         payload.getExpectations(),
+        payload.getExpectedSecurityPlatforms(),
         payload.getStatus(),
         payload.getExecutionArch(),
         payload.getCollectorTypeValue(),

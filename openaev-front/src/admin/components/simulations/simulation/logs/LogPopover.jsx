@@ -76,9 +76,11 @@ class LogPopoverComponent extends Component {
         <IconButton
           onClick={this.handlePopoverOpen.bind(this)}
           aria-haspopup="true"
-          size="large"
+          size="small"
+          color="primary"
+          sx={{ borderRadius: 1 }}
         >
-          <MoreVert />
+          <MoreVert fontSize="small" />
         </IconButton>
 
         <Menu
@@ -105,10 +107,10 @@ class LogPopoverComponent extends Component {
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={this.handleCloseDelete.bind(this)}>
+            <Button variant="outlined" color="primary" onClick={this.handleCloseDelete.bind(this)}>
               {t('Cancel')}
             </Button>
-            <Button color="secondary" onClick={this.submitDelete.bind(this)}>
+            <Button variant="contained" color="primary" onClick={this.submitDelete.bind(this)}>
               {t('Delete')}
             </Button>
           </DialogActions>

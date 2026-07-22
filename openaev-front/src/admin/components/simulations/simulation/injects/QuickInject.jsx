@@ -225,7 +225,7 @@ class QuickInjectComponent extends Component {
       allTeams: false,
       teamsIds: [],
       documents: [],
-      expectations: props.injectorContract.fields.filter(f => f.key === 'expectations').flatMap(f => f.predefinedExpectations) || [],
+      expectations: props.injectorContract.fields.filter(f => f.key === 'expectations').flatMap(f => (f.availableExpectations || []).filter(e => e.expectation_is_predefined)) || [],
       teamsSortBy: 'team_name',
       teamsOrderAsc: true,
       documentsSortBy: 'document_name',

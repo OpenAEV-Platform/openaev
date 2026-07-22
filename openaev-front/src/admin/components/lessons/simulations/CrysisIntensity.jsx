@@ -1,11 +1,12 @@
+import { TimelineOutlined } from '@mui/icons-material';
 import { Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 
 import Chart from '../../../../components/Chart';
-import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import { areaChartOptions } from '../../../../utils/Charts';
+import LessonsPlaceholder from '../LessonsPlaceholder';
 
 const CrysisIntensity = ({ injects }) => {
   const theme = useTheme();
@@ -31,7 +32,14 @@ const CrysisIntensity = ({ injects }) => {
     },
   ];
   return (
-    <Paper variant="outlined">
+    <Paper
+      variant="outlined"
+      sx={{
+        borderRadius: 1,
+        flex: 1,
+        overflow: 'hidden',
+      }}
+    >
       {injectsData.length > 0 ? (
         <Chart
           options={areaChartOptions(theme, true, nsdt, null, undefined)}
@@ -41,10 +49,9 @@ const CrysisIntensity = ({ injects }) => {
           height={350}
         />
       ) : (
-        <Empty
-          message={t(
-            'No data to display or the simulation has not started yet',
-          )}
+        <LessonsPlaceholder
+          icon={TimelineOutlined}
+          message={t('No data to display or the simulation has not started yet')}
         />
       )}
     </Paper>

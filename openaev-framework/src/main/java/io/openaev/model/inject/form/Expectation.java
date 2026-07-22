@@ -1,5 +1,6 @@
 package io.openaev.model.inject.form;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.SecurityPlatform;
@@ -23,6 +24,9 @@ import lombok.Data;
  * @see io.openaev.expectation.ExpectationBuilderService
  */
 @Data
+@JsonAutoDetect(
+    getterVisibility = JsonAutoDetect.Visibility.NONE,
+    isGetterVisibility = JsonAutoDetect.Visibility.NONE)
 public class Expectation {
 
   /** The type of expectation to create. */
@@ -57,7 +61,10 @@ public class Expectation {
    * single selection.
    */
   @JsonProperty("expectation_is_multi_selectable")
-  private boolean isMultiSelectable;
+  private boolean multiSelectable;
+
+  @JsonProperty("expectation_is_predefined")
+  private boolean predefined;
 
   /**
    * Security platform types expected to fulfil this expectation.

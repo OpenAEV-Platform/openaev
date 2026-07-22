@@ -1,10 +1,11 @@
-import { Box, Grid, Paper, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Grid, Paper, Tab, Tabs } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useContext, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { searchTargets } from '../../../../actions/injects/inject-action';
+import { SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
@@ -71,6 +72,7 @@ const AtomicTesting = () => {
   const [hasPlayers, setHasPlayers] = useState(false);
   const [hasPlayersChecked, setHasPlayersChecked] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState<InjectTarget>();
+  const [pageTargets, setPageTargets] = useState<InjectTarget[]>([]);
 
   // Initial tab open
   const [searchParams, setSearchParams] = useSearchParams();
@@ -241,6 +243,25 @@ const AtomicTesting = () => {
     setSelectedTarget(target);
   };
 
+  // Prev/next switching across the currently loaded page of targets, so results
+  // can be browsed without hunting through the list on the left.
+  const selectedIndex = useMemo(
+    () => pageTargets.findIndex(target => target.target_id === selectedTarget?.target_id),
+    [pageTargets, selectedTarget],
+  );
+
+  const handleSelectPrevious = () => {
+    if (selectedIndex > 0) {
+      setSelectedTarget(pageTargets[selectedIndex - 1]);
+    }
+  };
+
+  const handleSelectNext = () => {
+    if (selectedIndex >= 0 && selectedIndex < pageTargets.length - 1) {
+      setSelectedTarget(pageTargets[selectedIndex + 1]);
+    }
+  };
+
   const handleTabChange = (_event: SyntheticEvent, newValue: number) => {
     const location = tabConfig.find(tc => newValue == tc.key);
     navigateToTab(location);
@@ -262,6 +283,8 @@ const AtomicTesting = () => {
             inject_id={injectResultOverviewOutput.inject_id}
             target_type={tab.type}
             reloadContentCount={reloadContentCount}
+            selectedTargetId={selectedTarget?.target_id}
+            onTargetsChange={setPageTargets}
           />
         )}
       </>
@@ -280,15 +303,16 @@ const AtomicTesting = () => {
       sx={{ alignItems: 'stretch' }}
     >
       <Grid
-        size={6}
+        size={{
+          xs: 12,
+          md: 6,
+        }}
         sx={{
           display: 'flex',
           flexDirection: 'column',
         }}
       >
-        <Typography variant="h4" gutterBottom sx={{ mb: theme.spacing(1) }}>
-          {t('Targets')}
-        </Typography>
+        <SectionLabel>{t('Targets')}</SectionLabel>
         <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
           {hasAssetsGroupChecked && hasTeamsChecked && hasEndpointsChecked && hasAgentsChecked && hasPlayersChecked && hasAiTargetsChecked && (
             <>
@@ -310,15 +334,16 @@ const AtomicTesting = () => {
         </Paper>
       </Grid>
       <Grid
-        size={6}
+        size={{
+          xs: 12,
+          md: 6,
+        }}
         sx={{
           display: 'flex',
           flexDirection: 'column',
         }}
       >
-        <Typography variant="h4" gutterBottom sx={{ mb: theme.spacing(1) }}>
-          {t('Results by target')}
-        </Typography>
+        <SectionLabel>{t('Results by target')}</SectionLabel>
         {selectedTarget && !!injectResultOverviewOutput.inject_type && (
           <Box
             sx={{
@@ -328,7 +353,15 @@ const AtomicTesting = () => {
               '& > .MuiPaper-root': { flex: 1 },
             }}
           >
-            <TargetResultsDetail inject={injectResultOverviewOutput} target={selectedTarget} isAgentless={isAgentless(hasAgents, hasTeams)} />
+            <TargetResultsDetail
+              inject={injectResultOverviewOutput}
+              target={selectedTarget}
+              isAgentless={isAgentless(hasAgents, hasTeams)}
+              position={selectedIndex >= 0 ? selectedIndex + 1 : undefined}
+              total={pageTargets.length}
+              onSelectPrevious={handleSelectPrevious}
+              onSelectNext={handleSelectNext}
+            />
           </Box>
         )}
         {!selectedTarget && (

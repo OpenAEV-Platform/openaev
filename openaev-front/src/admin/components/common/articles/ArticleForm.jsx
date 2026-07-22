@@ -397,13 +397,15 @@ const ArticleForm = ({
             }}
             >
               <Button
+                variant="outlined"
+                color="primary"
                 onClick={handleClose}
                 style={{ marginRight: 10 }}
                 disabled={submitting}
               >
                 {t('Cancel')}
               </Button>
-              <Button color="secondary" type="submit" disabled={submitting}>
+              <Button variant="contained" color="primary" type="submit" disabled={submitting}>
                 {editing ? t('Update') : t('Create')}
               </Button>
             </div>

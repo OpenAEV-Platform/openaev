@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import type { AssetGroupsHelper } from '../../../actions/asset_groups/assetgroup-helper';
 import type { EndpointHelper } from '../../../actions/assets/asset-helper';
+import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
@@ -218,12 +219,15 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
     }}
     >
       <Typography
-        variant="h4"
         sx={{
+          ...SECTION_LABEL_SX,
           display: 'flex',
           alignItems: 'center',
           gap: theme.spacing(1),
           m: 0,
+          // Keep the header row the same height as sibling sections whose header
+          // carries an icon button (Variables), so the paper below lines up.
+          minHeight: 34,
         }}
       >
         {t('Scope')}

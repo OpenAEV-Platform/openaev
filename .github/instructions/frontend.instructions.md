@@ -24,7 +24,7 @@ description: "Frontend React/TypeScript conventions: components, MUI, forms, per
 - **No MUI for layout** — use native HTML (`div`, `section`, `header`)
 - MUI only for interactive components (`Button`, `TextField`, `Dialog`)
 - Styling: `sx` prop only — never `makeStyles` / `withStyles`
-- Buttons: Create/Update → `secondary`, Cancel → `primary`, Delete → `secondary`/`error`
+- Buttons (OpenCTI convention): affirmative (Create/Update/Confirm) → `variant="contained" color="primary"`, Cancel → `variant="outlined" color="primary"`, destructive confirm (Delete) → `variant="contained" color="error"` when the action is irreversible
 
 ## Forms
 

@@ -114,7 +114,8 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
         }}
         >
           <Button
-            variant="contained"
+            variant="outlined"
+            color="primary"
             onClick={handleClose}
             sx={{ mr: 1 }}
             disabled={isSubmitting}
@@ -123,7 +124,7 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
           </Button>
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             type="submit"
             disabled={isSubmitting || (editing && !isDirty)}
           >

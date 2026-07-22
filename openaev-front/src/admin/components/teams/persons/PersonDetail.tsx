@@ -140,23 +140,25 @@ const PersonDetail = () => {
         )}
       />
 
-      <InformationGrid title={t('Information')}>
-        <Field label={t('Email address')}>{user.user_email}</Field>
-        <Field label={t('First name')}>{emptyFilled(user.user_firstname)}</Field>
-        <Field label={t('Last name')}>{emptyFilled(user.user_lastname)}</Field>
-        <Field label={t('Organization')}>
-          {user.user_organization
-            ? <Link to={`${ORGANIZATION_BASE_URL}/${user.user_organization}`}>{organizationName || user.user_organization}</Link>
-            : '-'}
-        </Field>
-        <Field label={t('Phone number')}>{emptyFilled(user.user_phone)}</Field>
-        <Field label={t('Country')}>{emptyFilled(user.user_country)}</Field>
-        <Field label={t('Tags')}>
-          <ItemTags variant="list" tags={user.user_tags ?? []} />
-        </Field>
-      </InformationGrid>
-
+      {/* Identity + teams side by side: both sections are short, so sharing
+          one grid row keeps the overview compact (they stack automatically on
+          narrow viewports). */}
       <DetailSections>
+        <InformationGrid title={t('Information')}>
+          <Field label={t('Email address')}>{user.user_email}</Field>
+          <Field label={t('First name')}>{emptyFilled(user.user_firstname)}</Field>
+          <Field label={t('Last name')}>{emptyFilled(user.user_lastname)}</Field>
+          <Field label={t('Organization')}>
+            {user.user_organization
+              ? <Link to={`${ORGANIZATION_BASE_URL}/${user.user_organization}`}>{organizationName || user.user_organization}</Link>
+              : '-'}
+          </Field>
+          <Field label={t('Phone number')}>{emptyFilled(user.user_phone)}</Field>
+          <Field label={t('Country')}>{emptyFilled(user.user_country)}</Field>
+          <Field label={t('Tags')}>
+            <ItemTags variant="list" tags={user.user_tags ?? []} />
+          </Field>
+        </InformationGrid>
         <Section title={t('Teams')}>
           {teams.length === 0
             ? <Empty message={t('This person is not part of any team.')} />

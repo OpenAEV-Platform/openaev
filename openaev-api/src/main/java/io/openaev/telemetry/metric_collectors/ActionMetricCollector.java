@@ -30,6 +30,8 @@ public class ActionMetricCollector {
   // Injects played broken down by injector type (additive to the legacy
   // with/without-agents pair, which is kept for continuity).
   private final Map<Attributes, AtomicLong> injectsPlayedByType = new ConcurrentHashMap<>();
+  // Executors actually used, broken down by executor type.
+  private final Map<Attributes, AtomicLong> executorsUsedByType = new ConcurrentHashMap<>();
 
   @PostConstruct
   public void init() {
@@ -65,11 +67,27 @@ public class ActionMetricCollector {
         "injects_played_count",
         "Number of injects played, broken down by injector type",
         this::collectInjectsPlayedByType);
+    metricRegistry.registerMultiGauge(
+        "executors_used_count",
+        "Number of times each executor type was used",
+        this::collectExecutorsUsedByType);
   }
 
   private Map<Attributes, Long> collectInjectsPlayedByType() {
     Map<Attributes, Long> snapshot = new HashMap<>();
     injectsPlayedByType.forEach(
+        (attributes, value) -> {
+          long collected = value.getAndSet(0);
+          if (collected > 0) {
+            snapshot.put(attributes, collected);
+          }
+        });
+    return snapshot;
+  }
+
+  private Map<Attributes, Long> collectExecutorsUsedByType() {
+    Map<Attributes, Long> snapshot = new HashMap<>();
+    executorsUsedByType.forEach(
         (attributes, value) -> {
           long collected = value.getAndSet(0);
           if (collected > 0) {
@@ -122,6 +140,20 @@ public class ActionMetricCollector {
   private void addInjectPlayedWithoutAgentsCount() {
     injectPlayedWithoutAgentsCount.incrementAndGet();
     log.info("Increment Inject Played without agents Counter");
+  }
+
+  /** Records that the given executor type was used for an inject execution. */
+  public void addExecutorUsedCount(String executorType) {
+    try {
+      String type = MetricRegistry.normalizeLabel(executorType);
+      executorsUsedByType
+          .computeIfAbsent(
+              Attributes.of(stringKey("executor_type"), type), key -> new AtomicLong(0))
+          .incrementAndGet();
+    } catch (Exception e) {
+      log.error(
+          String.format("Error during incrementing executor used count: %s", e.getMessage()), e);
+    }
   }
 
   public void addInjectPlayedCount(String injectorType) {

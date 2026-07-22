@@ -64,6 +64,8 @@ const LessonsTemplate = () => {
         <div style={{
           display: 'flex',
           justifyContent: 'flex-end',
+          marginTop: 24,
+          marginBottom: 8,
         }}
         >
           <CreateLessonsTemplateCategory lessonsTemplateId={lessonsTemplateId} />

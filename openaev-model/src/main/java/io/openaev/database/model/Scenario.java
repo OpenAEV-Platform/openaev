@@ -392,6 +392,12 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @JsonProperty("scenario_lessons_anonymized")
   private boolean lessonsAnonymized = false;
 
+  // Opt-in module flag: the lessons learned tab is only surfaced when enabled.
+  @Getter
+  @Column(name = "scenario_lessons_enabled")
+  @JsonProperty("scenario_lessons_enabled")
+  private boolean lessonsEnabled = false;
+
   // -- TENANT --
 
   @ManyToOne

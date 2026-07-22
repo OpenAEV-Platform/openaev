@@ -22,6 +22,7 @@ import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ChannelIcon from '../../components/channels/ChannelIcon';
 import { type ChannelOption } from '../../components/channels/ChannelOption';
 import ChannelsFilter from '../../components/channels/ChannelsFilter';
+import ConfigurationSection from '../ConfigurationSection';
 import { ArticleContext, PermissionsContext } from '../Context';
 import ArticlePopover from './ArticlePopover';
 import CreateArticle from './CreateArticle';
@@ -94,24 +95,23 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
   );
 
   return (
-    <div>
-      <Typography variant="h4" gutterBottom style={{ float: 'left' }}>
-        {t('Media pressure')}
-      </Typography>
-      {permissions.canManage && (
+    <ConfigurationSection
+      title={t('Media pressure')}
+      count={fullArticles.length}
+      action={permissions.canManage && (
         <CreateArticle
           openCreate={openCreate}
           handleOpenCreate={handleOpenCreate}
           handleCloseCreate={handleCloseCreate}
         />
       )}
+    >
       {fullArticles.length > 0 && (
         <ChannelsFilter
           onChannelsChange={handleChannelsChange}
           onClearChannels={handleClearChannels}
         />
       )}
-      <div className="clearfix" />
       {sortedArticles.length === 0 && (
         <Empty message={(
           <div style={{ textAlign: 'center' }}>
@@ -295,7 +295,7 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
           );
         })}
       </GridLegacy>
-    </div>
+    </ConfigurationSection>
   );
 };
 

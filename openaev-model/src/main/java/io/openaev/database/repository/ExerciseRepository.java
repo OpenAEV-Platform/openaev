@@ -199,7 +199,7 @@ public interface ExerciseRepository
           " SELECT ex.exercise_id, ex.exercise_name, ex.exercise_description, ex.exercise_status, ex.exercise_subtitle, "
               + "ex.exercise_category, ex.exercise_main_focus, ex.exercise_severity, ex.exercise_start_date, "
               + "ex.exercise_end_date, ex.exercise_message_header, ex.exercise_message_footer, ex.exercise_mail_from, ex.exercise_mail_from_name, "
-              + "ex.exercise_lessons_anonymized, ex.exercise_custom_dashboard, ex.exercise_created_at, ex.exercise_updated_at, "
+              + "ex.exercise_lessons_anonymized, ex.exercise_lessons_enabled, ex.exercise_custom_dashboard, ex.exercise_created_at, ex.exercise_updated_at, "
               + "MAX(se.scenario_id) as scenario_id, MAX(inj.inject_scenario) as inject_scenario, "
               + " coalesce(array_agg(emrt.exercise_reply_to) FILTER ( WHERE emrt.exercise_reply_to IS NOT NULL ), '{}') as exercise_reply_to, "
               + " coalesce(array_agg(et.tag_id) FILTER ( WHERE et.tag_id IS NOT NULL ), '{}') as exercise_tags, "

@@ -504,5 +504,98 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
               mockMvc.perform(
                   multipart(THREAT_ARSENAL_URL + "/import").file(zipFile).with(csrf())));
     }
+
+    @Nested
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Backward compatibility — old predefinedExpectations format")
+    class LegacyPredefinedExpectationsFormat {
+
+      private static final String LEGACY_FIXTURE =
+          "threat_arsenal/legacy-predefined-expectations-contract.json";
+
+      @Test
+      @DisplayName(
+          "given_oldFormatWithPredefinedExpectations_should_migrateToAvailableExpectations")
+      void given_oldFormatWithPredefinedExpectations_should_migrateToAvailableExpectations()
+          throws Exception {
+        // Arrange
+        byte[] zipBytes = buildZipFromJsonResource(LEGACY_FIXTURE);
+        MockMultipartFile zipFile =
+            new MockMultipartFile("file", "legacy-action.zip", "application/zip", zipBytes);
+
+        // Act
+        String importResponse =
+            mockMvc
+                .perform(
+                    multipart(tenantUri(TENANT_THREAT_ARSENAL_URL + "/import"))
+                        .file(zipFile)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // Assert
+        String importedActionId = JsonPath.read(importResponse, "$.injector_contract_id");
+        InjectorContract importedContract =
+            injectorContractRepository.findById(importedActionId).orElseThrow();
+
+        JsonNode content = objectMapper.readTree(importedContract.getContent());
+        JsonNode expectationsField =
+            java.util.stream.StreamSupport.stream(content.get("fields").spliterator(), false)
+                .filter(f -> "expectations".equals(f.path("key").asText()))
+                .findFirst()
+                .orElseThrow();
+
+        // predefinedExpectations should no longer exist
+        assertFalse(
+            expectationsField.has("predefinedExpectations"),
+            "predefinedExpectations should have been removed");
+
+        // availableExpectations should exist with all items having the flag
+        assertTrue(
+            expectationsField.has("availableExpectations"),
+            "availableExpectations should be present");
+        JsonNode available = expectationsField.get("availableExpectations");
+        assertTrue(available.isArray());
+
+        // DETECTION and PREVENTION should be marked as predefined
+        for (JsonNode exp : available) {
+          assertTrue(
+              exp.has("expectation_is_predefined"),
+              "Expectation "
+                  + exp.path("expectation_type").asText()
+                  + " should have expectation_is_predefined flag");
+        }
+
+        long predefinedCount =
+            java.util.stream.StreamSupport.stream(available.spliterator(), false)
+                .filter(e -> e.path("expectation_is_predefined").asBoolean())
+                .count();
+        assertEquals(2, predefinedCount, "VULNERABILITY and PREVENTION should be predefined");
+
+        long nonPredefinedCount =
+            java.util.stream.StreamSupport.stream(available.spliterator(), false)
+                .filter(e -> !e.path("expectation_is_predefined").asBoolean())
+                .count();
+        assertEquals(1, nonPredefinedCount, "DETECTION should not be predefined");
+      }
+
+      private byte[] buildZipFromJsonResource(String resourcePath) throws Exception {
+        byte[] jsonContent =
+            Thread.currentThread()
+                .getContextClassLoader()
+                .getResourceAsStream(resourcePath)
+                .readAllBytes();
+
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(baos)) {
+          zos.putNextEntry(new java.util.zip.ZipEntry("contract.json"));
+          zos.write(jsonContent);
+          zos.closeEntry();
+        }
+        return baos.toByteArray();
+      }
+    }
   }
 }

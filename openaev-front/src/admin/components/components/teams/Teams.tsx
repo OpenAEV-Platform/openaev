@@ -142,8 +142,8 @@ const Teams = () => {
     <>
       <Breadcrumbs
         variant="list"
-        elements={[{ label: t('Teams') }, {
-          label: t('Teams of players'),
+        elements={[{
+          label: t('Teams'),
           current: true,
         }]}
       />

@@ -86,12 +86,12 @@ const TeamForm: FunctionComponent<TeamFormProps> = ({
             />
           )}
           <div className={classes.container} style={{ marginTop: 20 }}>
-            <Button variant="contained" onClick={handleClose} disabled={submitting}>
+            <Button variant="outlined" color="primary" onClick={handleClose} disabled={submitting}>
               {t('Cancel')}
             </Button>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               data-testid="team-form-submit-button"
               disabled={pristine || submitting}

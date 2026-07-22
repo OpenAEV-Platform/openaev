@@ -191,12 +191,13 @@ const GroupDetail = () => {
                 )}
           />
 
-          <InformationGrid title={t('Information')}>
-            <Field label={t('Description')}>{description || '-'}</Field>
-            <Field label={t('Default user assignment')}>{defaultUserAssign ? t('Yes') : t('No')}</Field>
-          </InformationGrid>
-
+          {/* All short sections share one adaptive grid so the overview stays
+              compact (they stack automatically on narrow viewports). */}
           <DetailSections>
+            <InformationGrid title={t('Information')}>
+              <Field label={t('Description')}>{description || '-'}</Field>
+              <Field label={t('Default user assignment')}>{defaultUserAssign ? t('Yes') : t('No')}</Field>
+            </InformationGrid>
             <Section title={t('Roles')}>
               {roleItems.length === 0
                 ? <Empty message={t('No role assigned to this group.')} />

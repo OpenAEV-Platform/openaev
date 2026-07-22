@@ -117,20 +117,28 @@ const UpdateInjectLogicalChains: FunctionComponent<Props> = ({ inject, handleClo
               isDisabled={isDisabled}
             />
             <div style={{
+              position: 'sticky',
+              bottom: 0,
+              zIndex: 2,
               display: 'flex',
               justifyContent: 'flex-end',
               gap: theme.spacing(1),
+              padding: theme.spacing(1.5, 0),
+              marginTop: theme.spacing(2),
+              backgroundColor: theme.palette.background.paper,
+              borderTop: `1px solid ${theme.palette.divider}`,
             }}
             >
               <Button
-                variant="contained"
+                variant="outlined"
+                color="primary"
                 onClick={handleClose}
               >
                 {t('Cancel')}
               </Button>
               <Button
                 variant="contained"
-                color="secondary"
+                color="primary"
                 type="submit"
                 disabled={(errors !== undefined && Object.keys(errors).length > 0) || permissions.readOnly}
               >
