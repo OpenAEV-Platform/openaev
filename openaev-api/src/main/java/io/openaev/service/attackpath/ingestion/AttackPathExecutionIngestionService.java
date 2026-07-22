@@ -288,7 +288,12 @@ public class AttackPathExecutionIngestionService {
         inject.getId(),
         Instant.now(),
         payload != null ? payload.getName() : null,
-        contract.getExternalId(),
+        // Prefer the contract's external id, but fall back to its id: many built-in contracts carry a
+        // blank external id, and the reads resolve the contract by id OR external id
+        // (findByIdOrExternalId), so storing the id keeps the contract name + ATT&CK resolvable.
+        contract.getExternalId() != null && !contract.getExternalId().isBlank()
+            ? contract.getExternalId()
+            : contract.getId(),
         payload != null ? payload.getId() : null,
         inject.getInjector() != null ? inject.getInjector().getType() : null);
   }

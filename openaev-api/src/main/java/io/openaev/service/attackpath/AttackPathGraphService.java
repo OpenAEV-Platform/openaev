@@ -12,6 +12,7 @@ import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
 import io.openaev.database.model.attackpath.projection.AttackPathInjectorMetaRow;
 import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
+import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
@@ -97,6 +98,7 @@ public class AttackPathGraphService {
   private final PayloadMapper payloadMapper;
   private final AttackPathKillChainResolver killChainResolver;
   private final ConditionRepository conditionRepository;
+  private final AssetRepository assetRepository;
 
   /**
    * Above this many executions a simulation is served collapsed by default. Tied to the front
@@ -487,6 +489,7 @@ public class AttackPathGraphService {
         });
 
     resolveInjectorAttackPatterns(nodes, contractsByInjectorNode);
+    applyEndpointCriticality(nodes);
 
     AttackPathCounters counters =
         new AttackPathCounters(
@@ -626,6 +629,7 @@ public class AttackPathGraphService {
     }
 
     enrichCollapsedInjectors(simulationId, nodes);
+    applyEndpointCriticality(nodes);
 
     return new AttackPathDTO(
         List.of(),
@@ -880,6 +884,31 @@ public class AttackPathGraphService {
       AttackPathNodeDTO node = feedByExecutionId.get(e.id());
       if (node != null) {
         node.setContractName(nameByExternalId.get(externalId));
+      }
+    }
+  }
+
+  /**
+   * Sets each endpoint (ASSET) node's business criticality from its backing asset, in one batched read
+   * over the asset ids (endpoint node refs). Discovered endpoints (raw values, not asset ids) simply
+   * match nothing and stay null. Feeds the front's chokepoint score (findings weighted by criticality).
+   */
+  private void applyEndpointCriticality(Map<String, AttackPathNodeDTO> nodes) {
+    Map<String, AttackPathNodeDTO> assetNodesByRef = new HashMap<>();
+    for (AttackPathNodeDTO node : nodes.values()) {
+      if (TYPE_ASSET.equals(node.getType()) && node.getRef() != null) {
+        assetNodesByRef.put(node.getRef(), node);
+      }
+    }
+    if (assetNodesByRef.isEmpty()) {
+      return;
+    }
+    for (Object[] row : assetRepository.findCriticalityByIds(assetNodesByRef.keySet())) {
+      String assetId = (String) row[0];
+      Object criticality = row[1];
+      AttackPathNodeDTO node = assetNodesByRef.get(assetId);
+      if (node != null && criticality != null) {
+        node.setCriticality(criticality.toString());
       }
     }
   }

@@ -32,6 +32,10 @@ public class AttackPathNodeDTO {
   private String hostname;
   private String ip;
   private String platform;
+  // ASSET: the endpoint's business criticality (VERY_HIGH..LOW / UNKNOWN), resolved from the asset, so
+  // the chokepoint score can weight "most findings" by "most critical". Null for discovered endpoints
+  // (no backing asset).
+  private String criticality;
   private List<String> agents;
   // The raw endpoint key (asset id or discovered raw value); the ref the front passes to the
   // expand/relations reads to load an endpoint's detail on click.
