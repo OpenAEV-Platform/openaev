@@ -113,10 +113,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     Target target = persistTarget();
 
     Inject inject = injectFor(target.endpoint());
-    runAsTheExecutorWould(
-        () ->
-            ingestionService.persistExecution(
-                ingestionService.getAttackPathExecution(inject, step(), "")));
+    runAsTheExecutorWould(() -> ingestionService.onRun(inject, step(), ""));
 
     String rowId =
         AttackPathIds.executionNode(INJECT_ID, target.endpoint().getId(), target.agent().getId());
@@ -129,10 +126,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   @DisplayName("the row is readable under its own tenant's scope and invisible under another's")
   void theRowIsVisibleOnlyUnderItsOwnTenantScope() throws Exception {
     Inject inject = injectFor(persistTarget().endpoint());
-    runAsTheExecutorWould(
-        () ->
-            ingestionService.persistExecution(
-                ingestionService.getAttackPathExecution(inject, step(), "")));
+    runAsTheExecutorWould(() -> ingestionService.onRun(inject, step(), ""));
     Tenant other = tenantHelper.createTenantWithCurrentUser("ap-realpath-other");
     try {
       // Positive control first: without it, an empty cross-tenant read would also be satisfied by
@@ -187,10 +181,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     inject.setAssetGroups(java.util.List.of(group)); // group only, no direct assets
     inject.setTenant(tenant);
 
-    runAsTheExecutorWould(
-        () ->
-            ingestionService.persistExecution(
-                ingestionService.getAttackPathExecution(inject, step(), "")));
+    runAsTheExecutorWould(() -> ingestionService.onRun(inject, step(), ""));
 
     assertThat(rawRowCountForStep("step-realpath"))
         .as("an inject targeting only an asset group must still record its member endpoints")
@@ -235,6 +226,9 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
           inject.setInjectorContract(contract());
           inject.setAssets(java.util.List.of(proxy));
           inject.setTenant(tenant);
+          // Resolves directly rather than through onRun on purpose: this proxy is bound to the
+          // ambient session, so it must be unproxied in this same transaction, not across onRun's
+          // REQUIRES_NEW boundary. The concern under test is the resolver's unproxy, not the tx.
           ingestionService.persistExecution(
               ingestionService.getAttackPathExecution(inject, step(), ""));
         });
@@ -259,10 +253,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
         () -> {
           // Asserted, not assumed: if the doomed create silently succeeded, the catch below would
           // never fire and this test would prove nothing at all.
-          assertThatThrownBy(
-                  () ->
-                      ingestionService.persistExecution(
-                          ingestionService.getAttackPathExecution(doomed, step(), "")))
+          assertThatThrownBy(() -> ingestionService.onRun(doomed, step(), ""))
               .isInstanceOf(RuntimeException.class);
           // Then the run carries on, exactly as InjectExecutionStep's guard lets it.
           tenantRepository.save(TenantFixture.getTenant(marker));
@@ -279,10 +270,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   void createFreezesTheColumnsExtractedFromTheInject() {
     Target target = persistTarget();
     Inject inject = injectFor(target.endpoint());
-    runAsTheExecutorWould(
-        () ->
-            ingestionService.persistExecution(
-                ingestionService.getAttackPathExecution(inject, step(), "")));
+    runAsTheExecutorWould(() -> ingestionService.onRun(inject, step(), ""));
 
     // Read back from the database rather than through the ORM: a scoped read would be fail-closed
     // here, and the point is what actually landed on disk.
@@ -320,10 +308,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     inject.setTenant(tenant);
     // no exercise set
 
-    runAsTheExecutorWould(
-        () ->
-            ingestionService.persistExecution(
-                ingestionService.getAttackPathExecution(inject, new Step(), "")));
+    runAsTheExecutorWould(() -> ingestionService.onRun(inject, new Step(), ""));
 
     assertThat(rawRowCountForStep("step-realpath")).isZero();
   }

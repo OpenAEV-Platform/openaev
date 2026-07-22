@@ -18,7 +18,6 @@ import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
-import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
@@ -38,11 +37,9 @@ import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowStateService;
-import io.openaev.service.detection_remediation.DetectionRemediationAIService;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
-import io.openaev.utils.mapper.PayloadMapper;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -196,9 +193,7 @@ public class InjectExecutionStep implements ActionStep {
                             + readyStep.getId()));
     prepareGetStatusPayloadFromInject(injectorContract);
 
-    List<AttackPathExecution> attackPathExecutions =
-        attackPathIngestion.getAttackPathExecution(inject, readyStep, this.getCommand(inject));
-    recordAttackPathExecution(attackPathExecutions, inject);
+    recordAttackPathExecution(readyStep, inject);
 
     try {
       String data = setInjectId(inject.getId(), readyStep.getData());
@@ -228,14 +223,18 @@ public class InjectExecutionStep implements ActionStep {
     }
   }
 
-
-  private void recordAttackPathExecution(
-      List<AttackPathExecution> attackPathExecutions, Inject inject) {
+  /**
+   * Records the run's attack-path rows: flag-gated and non-fatal. The whole ingestion (resolution +
+   * write) runs inside {@code onRun}, which opens its own tenant-scoped REQUIRES_NEW transaction,
+   * so a failure here is caught and logged and can never roll the inject execution back. Recover
+   * around this boundary, never inside {@code onRun} (activate-tenant-table skill).
+   */
+  private void recordAttackPathExecution(Step readyStep, Inject inject) {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
       return;
     }
     try {
-      attackPathIngestion.persistExecution(attackPathExecutions);
+      attackPathIngestion.onRun(inject, readyStep, this.getCommand(inject));
     } catch (Exception e) {
       log.warn("Attack-path ingestion skipped for inject {} (non-fatal)", inject.getId(), e);
     }
@@ -869,8 +868,7 @@ public class InjectExecutionStep implements ActionStep {
         .getStatus()
         .ifPresent(
             status -> {
-              if(status.getName() == null || status.getTrackingEndDate() == null)
-                return;
+              if (status.getName() == null || status.getTrackingEndDate() == null) return;
               Map<String, JsonElement> map = new HashMap<>();
               map.put(
                   "inject_status",
@@ -890,9 +888,9 @@ public class InjectExecutionStep implements ActionStep {
    * output. Each entry contains the expectation type, name, score, collector source ID, and — when
    * the expectation is agent-level — the associated agent ID and asset ID.
    *
-   * Some expectations may not match an actual execution.
-   * We observed duplicate expectation entries returned without an agent_id and only with an asset_id.
-   * These entries do not correspond to real executions; they are duplicated information.
+   * <p>Some expectations may not match an actual execution. We observed duplicate expectation
+   * entries returned without an agent_id and only with an asset_id. These entries do not correspond
+   * to real executions; they are duplicated information.
    *
    * @param injectId Inject id
    * @param output the output list to populate
@@ -904,7 +902,7 @@ public class InjectExecutionStep implements ActionStep {
       for (InjectExpectationResult result : expectation.getResults()) {
         Map<String, JsonElement> map = getExpectationOutput(expectation, result);
         addEndpointContext(inject, expectation, map);
-        //syncAttackPathExecutionStatus(injectId, expectation, result, map);
+        // syncAttackPathExecutionStatus(injectId, expectation, result, map);
         output.add(map);
       }
     }
@@ -926,7 +924,7 @@ public class InjectExecutionStep implements ActionStep {
    *
    * @param inject
    * @param expectation the expectation to inspect
-   * @param map         the output map to enrich
+   * @param map the output map to enrich
    */
   private static void addEndpointContext(
       Inject inject, BaseInjectExpectation expectation, Map<String, JsonElement> map) {
@@ -956,7 +954,7 @@ public class InjectExecutionStep implements ActionStep {
     } else if (assetGroup != null) {
       targetType = "ASSET_GROUP";
       targetId = assetGroup.getId();
-    } else { //TODO
+    } else { // TODO
       targetType = null;
       targetId = null;
     }

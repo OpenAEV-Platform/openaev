@@ -1,5 +1,7 @@
 package io.openaev.service.attackpath.ingestion;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
@@ -16,13 +18,12 @@ import java.util.Set;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Attack-path ingestion — Phase A (issue 5048, #203). At RUN, create one EXECUTION row per resolved
  * edge from the run's source/target resolution, on the store columns the read already consumes. The
- * tenant is set by {@code TenantBaseListener} from the current tenant context. #204/#202 update
- * these rows later (Phase B), found by the queryable {@code (inject_id, agent_id)} written here.
+ * rows carry the inject's tenant (the write runs under it, see {@link #onRun}). #204/#202 update
+ * these rows later (Phase B), found by the queryable {@code (step_id, agent_id)} written here.
  */
 @Service
 @RequiredArgsConstructor
@@ -33,6 +34,7 @@ public class AttackPathExecutionIngestionService {
   private final InjectService injectService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
+  private final TenantScopedTransaction tenantTx;
 
   public void deleteAllBySimulationId(@NotBlank String id) {
     executionRepository.deleteAllBySimulationId(id);
@@ -47,8 +49,24 @@ public class AttackPathExecutionIngestionService {
       Instant executedAt,
       String payloadName) {}
 
-  @Transactional
-  public void persistExecution(List<AttackPathExecution> attackPathExecutions){
+  /**
+   * Records a run's attack-path rows. As a background writer of a tenant-active table it goes
+   * through the tenant primitive, never {@code @Transactional} (activate-tenant-table skill, Phase
+   * 5b): {@code executeNew} opens its own tenant-scoped REQUIRES_NEW transaction, so the write
+   * carries the inject's tenant and commits independently of the run — an attack-path failure can
+   * never roll the real inject execution back, and the resolution runs under the inject's scope.
+   * The caller recovers around this boundary (a try/catch in InjectExecutionStep), never inside it.
+   */
+  public void onRun(Inject inject, Step step, String command) {
+    if (inject.getExercise() == null) {
+      return; // the attack path is simulation-scoped: no simulation, nothing to record
+    }
+    tenantTx.executeNew(
+        TxCtx.forTenant(inject.getTenant().getId()),
+        () -> persistExecution(getAttackPathExecution(inject, step, command)));
+  }
+
+  public void persistExecution(List<AttackPathExecution> attackPathExecutions) {
     executionRepository.saveAll(attackPathExecutions);
   }
 
