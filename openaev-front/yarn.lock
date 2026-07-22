@@ -8966,7 +8966,7 @@ __metadata:
     react-apexcharts: "npm:1.7.0"
     react-color: "npm:2.19.3"
     react-csv: "npm:2.2.2"
-    react-dom: "npm:19.2.6"
+    react-dom: "npm:19.2.7"
     react-final-form: "npm:6.5.9"
     react-final-form-arrays: "npm:4.0.0"
     react-grid-layout: "npm:2.2.3"
@@ -9700,14 +9700,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-dom@npm:19.2.6":
-  version: 19.2.6
-  resolution: "react-dom@npm:19.2.6"
+"react-dom@npm:19.2.7":
+  version: 19.2.7
+  resolution: "react-dom@npm:19.2.7"
   dependencies:
     scheduler: "npm:^0.27.0"
   peerDependencies:
-    react: ^19.2.6
-  checksum: 10c0/dbf2aef67857c03a612bc9316a4562e5066f43fa04bf28f7f0734963fc1350da2c9f8eb973930655453281079f30cc8222bab383dbec4b5097084e2c081e3334
+    react: ^19.2.7
+  checksum: 10c0/970ff600f6e80d47d39e2f226f12f226173b3cba3382efc97c5f0cd663de9af38c7a4c11c213fb936094faeac83060d660247accaa96b752180d5b951b9cfecb
   languageName: node
   linkType: hard
 
