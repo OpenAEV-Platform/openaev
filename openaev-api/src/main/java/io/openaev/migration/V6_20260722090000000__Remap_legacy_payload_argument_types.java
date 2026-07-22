@@ -1,7 +1,12 @@
 package io.openaev.migration;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
@@ -24,11 +29,19 @@ import org.springframework.stereotype.Component;
  * tolerant for data written between deploy and migration): each legacy complex type is mapped to
  * the primitive that carries its main scalar projection.
  *
- * <p>Idempotent: the UPDATE only matches rows that still contain a legacy label; after the first
- * run there are none left.
+ * <p>Execution is batched to stay production-safe on large tables ({@code injects_statuses} can
+ * hold millions of rows): the affected row ids are collected first with a read-only scan, then
+ * rewritten in chunks of {@value #BATCH_SIZE} ids. The migration runs OUTSIDE a wrapping Flyway
+ * transaction ({@link #canExecuteInTransaction()} returns false) so each chunked UPDATE commits on
+ * its own and row locks / WAL churn stay bounded instead of accumulating in one long transaction.
+ *
+ * <p>Idempotent: the UPDATEs only match rows that still contain a legacy label; after the first run
+ * (or an interrupted partial run) only the remaining rows are picked up again.
  */
 @Component
 public class V6_20260722090000000__Remap_legacy_payload_argument_types extends BaseJavaMigration {
+
+  private static final int BATCH_SIZE = 1000;
 
   private static final String[][] LEGACY_TO_PRIMITIVE = {
     {"credentials", "username"},
@@ -46,21 +59,36 @@ public class V6_20260722090000000__Remap_legacy_payload_argument_types extends B
     {"kerberoastable_account", "username"}
   };
 
+  /** No wrapping transaction: each chunked UPDATE commits on its own to keep locks bounded. */
+  @Override
+  public boolean canExecuteInTransaction() {
+    return false;
+  }
+
   @Override
   public void migrate(Context context) throws Exception {
-    String caseExpression = buildCaseExpression("argument ->> 'type'");
-    String legacyLabelList = buildLegacyLabelList();
-
-    try (Statement stmt = context.getConnection().createStatement()) {
-      remapPayloadArguments(stmt, caseExpression, legacyLabelList);
-      remapStatusPayloadOutput(stmt, caseExpression, legacyLabelList);
-    }
+    Connection connection = context.getConnection();
+    remapPayloadArguments(connection);
+    remapStatusPayloadOutput(connection);
   }
 
   /** Rewrites legacy labels inside {@code payloads.payload_arguments} (json array column). */
-  private void remapPayloadArguments(Statement stmt, String caseExpression, String legacyLabelList)
-      throws SQLException {
-    stmt.execute(
+  private void remapPayloadArguments(Connection connection) throws SQLException {
+    String selectSql =
+        String.format(
+            """
+            SELECT payload_id
+            FROM payloads
+            WHERE payload_arguments IS NOT NULL
+              AND json_typeof(payload_arguments) = 'array'
+              AND EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(payload_arguments::jsonb) argument
+                WHERE argument ->> 'type' IN (%s)
+              )
+            """,
+            buildLegacyLabelList());
+    String updateSql =
         String.format(
             """
             UPDATE payloads
@@ -77,24 +105,34 @@ public class V6_20260722090000000__Remap_legacy_payload_argument_types extends B
               )::json
               FROM jsonb_array_elements(payload_arguments::jsonb) argument
             )
-            WHERE payload_arguments IS NOT NULL
+            WHERE payload_id = ANY (?)
+              AND payload_arguments IS NOT NULL
               AND json_typeof(payload_arguments) = 'array'
-              AND EXISTS (
-                SELECT 1
-                FROM jsonb_array_elements(payload_arguments::jsonb) argument
-                WHERE argument ->> 'type' IN (%2$s)
-              );
             """,
-            caseExpression, legacyLabelList));
+            buildCaseExpression("argument ->> 'type'"), buildLegacyLabelList());
+    updateInBatches(connection, selectSql, updateSql);
   }
 
   /**
    * Rewrites legacy labels inside {@code injects_statuses.status_payload_output ->
    * payload_arguments} (json object column embedding an argument array).
    */
-  private void remapStatusPayloadOutput(
-      Statement stmt, String caseExpression, String legacyLabelList) throws SQLException {
-    stmt.execute(
+  private void remapStatusPayloadOutput(Connection connection) throws SQLException {
+    String selectSql =
+        String.format(
+            """
+            SELECT status_id
+            FROM injects_statuses
+            WHERE status_payload_output IS NOT NULL
+              AND jsonb_typeof(status_payload_output::jsonb -> 'payload_arguments') = 'array'
+              AND EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(status_payload_output::jsonb -> 'payload_arguments') argument
+                WHERE argument ->> 'type' IN (%s)
+              )
+            """,
+            buildLegacyLabelList());
+    String updateSql =
         String.format(
             """
             UPDATE injects_statuses
@@ -115,15 +153,35 @@ public class V6_20260722090000000__Remap_legacy_payload_argument_types extends B
                 FROM jsonb_array_elements(status_payload_output::jsonb -> 'payload_arguments') argument
               )
             )::json
-            WHERE status_payload_output IS NOT NULL
+            WHERE status_id = ANY (?)
+              AND status_payload_output IS NOT NULL
               AND jsonb_typeof(status_payload_output::jsonb -> 'payload_arguments') = 'array'
-              AND EXISTS (
-                SELECT 1
-                FROM jsonb_array_elements(status_payload_output::jsonb -> 'payload_arguments') argument
-                WHERE argument ->> 'type' IN (%2$s)
-              );
             """,
-            caseExpression, legacyLabelList));
+            buildCaseExpression("argument ->> 'type'"), buildLegacyLabelList());
+    updateInBatches(connection, selectSql, updateSql);
+  }
+
+  /**
+   * Collects the ids of the rows still holding legacy labels, then applies the rewrite in chunks of
+   * {@value #BATCH_SIZE} ids so each UPDATE stays short-lived. The connection is in autocommit
+   * (non-transactional migration), so every chunk releases its row locks immediately.
+   */
+  private void updateInBatches(Connection connection, String selectSql, String updateSql)
+      throws SQLException {
+    List<String> ids = new ArrayList<>();
+    try (Statement select = connection.createStatement();
+        ResultSet results = select.executeQuery(selectSql)) {
+      while (results.next()) {
+        ids.add(results.getString(1));
+      }
+    }
+    try (PreparedStatement update = connection.prepareStatement(updateSql)) {
+      for (int from = 0; from < ids.size(); from += BATCH_SIZE) {
+        List<String> chunk = ids.subList(from, Math.min(from + BATCH_SIZE, ids.size()));
+        update.setArray(1, connection.createArrayOf("varchar", chunk.toArray()));
+        update.executeUpdate();
+      }
+    }
   }
 
   private String buildCaseExpression(String typeAccessor) {
