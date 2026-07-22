@@ -4124,12 +4124,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cronstrue@npm:3.21.0":
-  version: 3.21.0
-  resolution: "cronstrue@npm:3.21.0"
+"cronstrue@npm:3.24.0":
+  version: 3.24.0
+  resolution: "cronstrue@npm:3.24.0"
   bin:
     cronstrue: bin/cli.js
-  checksum: 10c0/6896a5685a841436ab057fe7e8ea545341db77f414b286f032a4b4d26c87320a65da5cc774d5b7ef132ff25a6eae8779c56ecc48cfd6d5da8ef9a14483adfd76
+  checksum: 10c0/7e723c2f798fea2a8c67b018670c8128e71d6bd02e9a835b070f039a62985a32ab05b70410b178da1bd40709103a1b938a3565f53b0070ace6c453ee90dfd36e
   languageName: node
   linkType: hard
 
@@ -8922,7 +8922,7 @@ __metadata:
     axios: "npm:1.18.1"
     chokidar: "npm:5.0.0"
     classcat: "npm:5.0.5"
-    cronstrue: "npm:3.21.0"
+    cronstrue: "npm:3.24.0"
     cross-env: "npm:10.1.0"
     d3-hierarchy: "npm:3.1.2"
     date-fns: "npm:4.4.0"
