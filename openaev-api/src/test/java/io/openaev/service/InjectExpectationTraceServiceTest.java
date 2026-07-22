@@ -129,7 +129,7 @@ class InjectExpectationTraceServiceTest {
   @Test
   void createInjectExpectationTrace_WithNullTrace() {
     // Act & Assert
-    injectExpectationTraceService.bulkInsertInjectExpectationTraces(List.of());
+    injectExpectationTraceService.bulkInsertInjectExpectationTraces(List.of(), "any-tenant");
     verify(collectorRepository, never()).save(any());
     verify(injectExpectationTraceRepository, never()).save(any());
   }

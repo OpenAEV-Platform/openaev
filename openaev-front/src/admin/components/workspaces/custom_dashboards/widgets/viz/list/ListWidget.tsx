@@ -15,6 +15,7 @@ import { makeStyles } from 'tss-react/mui';
 import { type AttackPatternHelper } from '../../../../../../../actions/attack_patterns/attackpattern-helper';
 import { ROWS_PER_PAGE_OPTIONS } from '../../../../../../../components/common/queryable/pagination/usePaginationState';
 import useBodyItemsStyles from '../../../../../../../components/common/queryable/style/style';
+import Empty from '../../../../../../../components/Empty';
 import { useFormatter } from '../../../../../../../components/i18n';
 import Loader from '../../../../../../../components/Loader';
 import { useHelper } from '../../../../../../../store';
@@ -237,14 +238,13 @@ const ListWidget = ({
       {contentLoading && <Loader variant="inElement" />}
       {!contentLoading && elements.length === 0 && (
         <div style={{
-          textAlign: 'center',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flex: 1,
         }}
         >
-          {t('No data to display')}
+          <Empty message={t('No data to display')} />
         </div>
       )}
       {!contentLoading && elements.length > 0 && (

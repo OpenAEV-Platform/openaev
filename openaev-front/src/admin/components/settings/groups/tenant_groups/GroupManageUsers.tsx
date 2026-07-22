@@ -119,11 +119,11 @@ const GroupManageUsers: FunctionComponent<Props> = ({
           marginTop: 20,
         }}
         >
-          <Button variant="contained" style={{ marginRight: 10 }} onClick={onClose}>
+          <Button variant="outlined" color="primary" style={{ marginRight: 10 }} onClick={onClose}>
             {t('Cancel')}
           </Button>
           {!isLoading && (
-            <Button variant="contained" color="secondary" onClick={handleSubmit}>
+            <Button variant="contained" color="primary" onClick={handleSubmit}>
               {t('Update')}
             </Button>
           )}

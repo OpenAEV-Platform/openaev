@@ -181,6 +181,7 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
             type="submit"
             disabled={isSubmitting || isDisabled}
             variant="contained"
+            color="primary"
           >
             {t('Validate')}
           </Button>

@@ -76,9 +76,11 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>{t('Cancel')}</Button>
+        <Button variant="outlined" color="primary" onClick={handleClose} disabled={loading}>
+          {t('Cancel')}
+        </Button>
         {handleSubmit && (
-          <Button color="secondary" loading={loading} onClick={handleLoadingAndSubmit}>
+          <Button variant="contained" color="primary" loading={loading} onClick={handleLoadingAndSubmit}>
             {submitLabel}
           </Button>
         )}

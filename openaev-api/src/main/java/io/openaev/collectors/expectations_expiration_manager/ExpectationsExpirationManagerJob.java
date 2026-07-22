@@ -48,6 +48,7 @@ public class ExpectationsExpirationManagerJob implements Runnable, BuiltinTenant
 
   @Override
   public void run() {
+    log.debug("ExpectationsExpirationManagerJob starting (interval={}s)", config.getInterval());
     tenantTx.forEachTenant(
         scope -> {
           // Bridge: set TenantContext so that the v1 Hibernate @Filter (enabled by
@@ -56,14 +57,17 @@ public class ExpectationsExpirationManagerJob implements Runnable, BuiltinTenant
           String tenantId = ((TxCtx.Restricted) scope).tenantIds().getFirst();
           TenantContext.setCurrentTenant(tenantId);
           try {
+            log.debug("Processing expectations expiration for tenant {}", tenantId);
             // Detection & Prevention expectation expiration
-            this.fakeDetectorService.computeExpectations();
+            this.fakeDetectorService.computeExpectations(tenantId);
             // Heartbeat: surface the run as the collector's last execution so the UI
             // shows a truthful liveliness signal for this built-in collector.
             this.collectorService.updateLastExecution(config.getId(), tenantId);
+            log.debug("Finished expectations expiration for tenant {}", tenantId);
           } finally {
             TenantContext.clearCurrentTenant();
           }
         });
+    log.debug("ExpectationsExpirationManagerJob completed");
   }
 }

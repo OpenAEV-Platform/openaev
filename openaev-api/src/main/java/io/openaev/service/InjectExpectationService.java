@@ -711,11 +711,12 @@ public class InjectExpectationService {
    * Retrieves unfilled inject expectations (no score and either no results or bound to an agent)
    * and expired Returns a bounded batch for incremental processing.
    *
+   * @param tenantId the tenant to scope the query to
    * @param limit maximum number of expectations to return
    * @return a list of unfilled inject expectations ordered by creation date (oldest first)
    */
-  public List<BaseInjectExpectation> expectationsNotFillAndExpired(int limit) {
-    return this.injectExpectationRepository.findExpectationsNotFilledAndExpired(limit);
+  public List<BaseInjectExpectation> expectationsNotFillAndExpired(String tenantId, int limit) {
+    return this.injectExpectationRepository.findExpectationsNotFilledAndExpired(tenantId, limit);
   }
 
   // -- EXPECTATIONS BY TYPE --
@@ -1499,7 +1500,17 @@ public class InjectExpectationService {
                 .collect(Collectors.toList());
       }
       injectExpectations.addAll(injectExpectationsByUserAndTeam);
-    } else if (!assets.isEmpty() || !assetGroups.isEmpty()) {
+    } else if (!assets.isEmpty()
+        || !assetGroups.isEmpty()
+        || expectations.stream().anyMatch(InjectExpectationService::carriesOwnTarget)) {
+      // Technical expectations carry their own asset / asset group (they were built from the
+      // resolved AssetToExecute list, which includes content-referenced AI targets that are NOT
+      // attached to the inject as an asset / asset group relation). Gating only on the inject's
+      // asset / group relations dropped every AI Red Team expectation on the floor - an AI target
+      // reached through content.ai_target produced zero expectation rows. Convert whenever at
+      // least one computed expectation carries a target of its own, regardless of how that target
+      // was attached - but keep skipping target-less expectations (e.g. a manual email expectation
+      // executed directly with no team), which have nothing to attach to.
       injectExpectations =
           expectations.stream()
               .map(
@@ -1514,6 +1525,20 @@ public class InjectExpectationService {
       setupDefaultExpectationResults(injectExpectations, tenantId);
       injectExpectationRepository.saveAll(injectExpectations);
     }
+  }
+
+  /**
+   * Whether a computed expectation carries its own validation target (asset or asset group), i.e.
+   * it can be persisted even when the inject has no asset / asset group relation - the case of
+   * content-referenced AI targets.
+   */
+  private static boolean carriesOwnTarget(Expectation expectation) {
+    return switch (expectation) {
+      case DetectionExpectation e -> e.getAsset() != null || e.getAssetGroup() != null;
+      case PreventionExpectation e -> e.getAsset() != null || e.getAssetGroup() != null;
+      case VulnerabilityExpectation e -> e.getAsset() != null || e.getAssetGroup() != null;
+      default -> false;
+    };
   }
 
   /**

@@ -38,14 +38,23 @@ public class ExpectationsExpirationManagerService {
   private static final int BATCH_SIZE = 1000;
 
   @Transactional(rollbackFor = Exception.class)
-  public void computeExpectations() {
+  public void computeExpectations(String tenantId) {
     Collector collector = this.collectorService.collector(config.getId());
     List<BaseInjectExpectation> expectations =
-        this.injectExpectationService.expectationsNotFillAndExpired(BATCH_SIZE);
+        this.injectExpectationService.expectationsNotFillAndExpired(tenantId, BATCH_SIZE);
+    log.debug(
+        "Found {} pending expired expectations for tenant {} (expirationTime={}s, assetExpirationTime={}s)",
+        expectations.size(),
+        tenantId,
+        config.getExpirationTime(),
+        config.getExpirationTimeForAsset());
     List<BaseInjectExpectation> updated = new ArrayList<>();
     this.processAgentExpectations(expectations, collector);
     this.processRemainingExpectations(expectations, collector, updated);
     this.injectExpectationService.updateAll(updated);
+    if (!expectations.isEmpty()) {
+      log.debug("Expired {} expectations for tenant {}", expectations.size(), tenantId);
+    }
   }
 
   // -- PRIVATE --

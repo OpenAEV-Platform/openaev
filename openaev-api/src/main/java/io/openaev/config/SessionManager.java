@@ -12,6 +12,7 @@ import io.openaev.service.UserService;
 import io.openaev.service.settings.SettingService;
 import io.openaev.utils.HttpReqRespUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -32,6 +33,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.saml2.provider.service.authentication.Saml2Authentication;
@@ -40,6 +42,8 @@ import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.Session;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * Session registry backed by the PostgreSQL session store (Spring Session JDBC).
@@ -99,6 +103,29 @@ public class SessionManager {
     request
         .getSession()
         .setAttribute(FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME, userId);
+  }
+
+  // -- SESSION REGISTRY --
+  /**
+   * Invalidates the current HTTP session and clears the {@link
+   * org.springframework.security.core.context.SecurityContextHolder SecurityContextHolder} so no
+   * user is left authenticated. Resolves the current request via {@link
+   * org.springframework.web.context.request.RequestContextHolder RequestContextHolder} — must be
+   * called from a servlet thread.
+   */
+  public static void invalidateCurrentSession() {
+    try {
+      SecurityContextHolder.clearContext();
+      var attrs = RequestContextHolder.getRequestAttributes();
+      if (attrs instanceof ServletRequestAttributes servletAttrs) {
+        HttpSession session = servletAttrs.getRequest().getSession(false);
+        if (session != null) {
+          session.invalidate();
+        }
+      }
+    } catch (Exception e) {
+      log.warn("[SESSION] Failed to invalidate current session: {}", e.getMessage(), e);
+    }
   }
 
   // -- SESSION REGISTRY --

@@ -232,15 +232,18 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => {
-            setOpen(false);
-            setKeyword('');
-            setUsersIds([]);
-          }}
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={() => {
+              setOpen(false);
+              setKeyword('');
+              setUsersIds([]);
+            }}
           >
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitAddUsers}>
+          <Button variant="contained" color="primary" onClick={submitAddUsers}>
             {t('Add')}
           </Button>
         </DialogActions>

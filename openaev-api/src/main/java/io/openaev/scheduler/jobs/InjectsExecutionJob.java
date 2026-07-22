@@ -8,6 +8,8 @@ import static java.util.stream.Collectors.groupingBy;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectDependenciesRepository;
@@ -87,6 +89,7 @@ public class InjectsExecutionJob implements Job {
   private final NotificationEventService notificationEventService;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
   private final EntityManager entityManager;
+  private final TenantScopedTransaction tenantTx;
 
   private final PreviewFeatureService previewFeatureService;
 
@@ -452,7 +455,27 @@ public class InjectsExecutionJob implements Job {
                     .forEach(
                         executableInject -> {
                           try {
-                            this.executeInject(executableInject);
+                            String tenantId =
+                                executableInject.getInjection().getInject().getTenant().getId();
+                            // Scope the transaction so the v2 inspector can resolve
+                            // can_access_tenant for activated tables (e.g. collectors)
+                            tenantTx.execute(
+                                TxCtx.forTenant(tenantId),
+                                () -> {
+                                  try {
+                                    this.executeInject(executableInject);
+                                  } catch (RuntimeException re) {
+                                    throw re;
+                                  } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                  }
+                                });
+                          } catch (RuntimeException e) {
+                            Inject inject = executableInject.getInjection().getInject();
+                            Throwable cause = e.getCause() != null ? e.getCause() : e;
+                            log.warn(cause.getMessage(), cause);
+                            injectStatusService.failInjectStatus(
+                                inject.getId(), cause.getMessage());
                           } catch (Exception e) {
                             Inject inject = executableInject.getInjection().getInject();
                             log.warn(e.getMessage(), e);

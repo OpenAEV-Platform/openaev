@@ -379,7 +379,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
                           )}
                       </DialogContent>
                       <DialogActions>
-                        <Button onClick={handleDefaultValueClose} autoFocus>
+                        <Button variant="outlined" color="primary" onClick={handleDefaultValueClose} autoFocus>
                           {t('Close')}
                         </Button>
                       </DialogActions>
@@ -404,9 +404,10 @@ const RulesContractContent: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseAlertDelete}>{t('Cancel')}</Button>
+          <Button variant="outlined" color="primary" onClick={handleCloseAlertDelete}>{t('Cancel')}</Button>
           <Button
-            color="secondary"
+            variant="contained"
+            color="primary"
             onClick={() => {
               remove(index);
               handleCloseAlertDelete();

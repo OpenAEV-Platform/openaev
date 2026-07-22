@@ -762,13 +762,24 @@ public class ExpectationUtils {
    * @return true when an asset-level (agentless) expectation must be created for this asset
    */
   public static boolean isAgentlessAssetExpectationNecessary(Asset asset, Inject inject) {
-    if (inject == null || inject.getInjector() == null || inject.getInjector().isPayloads()) {
+    if (asset == null || inject == null || inject.getInjector() == null) {
       return false;
     }
     if (asset instanceof Endpoint endpoint) {
+      // On an endpoint a payload runs through an OAEV agent, so the expectation
+      // is created at the agent level. An asset-level (agentless) expectation is
+      // therefore only needed for a non-payload injector targeting an endpoint
+      // that carries no agent.
+      if (inject.getInjector().isPayloads()) {
+        return false;
+      }
       return endpoint.getAgents().isEmpty();
     }
-    // Non-endpoint assets (AI targets, ...) never run an agent: the asset is the validation target.
-    return asset != null;
+    // Non-endpoint assets (AI targets, ...) never run an agent: the asset itself
+    // is the validation target, fulfilled by an external collector (e.g. the XTM
+    // One LLM firewall collector). They ALWAYS need an asset-level expectation,
+    // regardless of whether the injector uses payloads - an AI Red Team inject is
+    // payload-based yet still targets an AI asset with no agent.
+    return true;
   }
 }

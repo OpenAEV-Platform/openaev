@@ -26,9 +26,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -52,7 +52,18 @@ public class StreamApi extends RestBehavior {
   public static final String EVENT_TYPE_MESSAGE = "message";
   public static final String EVENT_TYPE_PING = "ping";
   public static final String X_ACCEL_BUFFERING = "X-Accel-Buffering";
-  private final Map<String, StreamConsumer> consumers = new HashMap<>();
+
+  // Mutated from several threads: SSE connect (request thread), disconnect (reactor
+  // doAfterTerminate) and iteration in the @Async broadcast path, so it must be concurrent.
+  private final Map<String, StreamConsumer> consumers = new ConcurrentHashMap<>();
+
+  // Short-lived per-principal user cache for the broadcast path. listenDatabaseUpdate
+  // runs for EVERY database mutation and fans out to EVERY connected consumer; reloading
+  // each user from the database per event drained the Hikari connection pool and hung the
+  // platform (typically while viewing a running simulation, which emits many events). See
+  // the resolveUser javadoc.
+  private final Map<String, CachedUser> userCache = new ConcurrentHashMap<>();
+  private static final Duration USER_CACHE_TTL = Duration.ofSeconds(60);
 
   private final PermissionService permissionService;
   private final UserService userService;
@@ -61,6 +72,31 @@ public class StreamApi extends RestBehavior {
 
   private record StreamConsumer(
       OpenAEVPrincipal principal, String tenantId, FluxSink<Object> fluxSink) {}
+
+  private record CachedUser(User user, Instant fetchedAt) {}
+
+  /**
+   * Resolves a consumer's user for the per-event permission check without hitting the database on
+   * every event.
+   *
+   * <p>{@code listenDatabaseUpdate} runs for every DB mutation and iterates over every connected
+   * consumer. Loading each user with a transactional {@code findById} per event per consumer
+   * exhausted the connection pool (total=20) under load and blocked all other requests, including
+   * session lookups. Users eagerly load their capabilities/permissions, so a short-lived detached
+   * copy is safe for {@link PermissionService#hasPermission}; changes are picked up within {@link
+   * #USER_CACHE_TTL}.
+   */
+  private User resolveUser(String principalId) {
+    CachedUser cached = userCache.get(principalId);
+    if (cached != null && cached.fetchedAt().isAfter(Instant.now().minus(USER_CACHE_TTL))) {
+      return cached.user();
+    }
+    // Not cached / stale: a handful of concurrent stream threads may refresh the same
+    // principal at TTL expiry, which is bounded and far cheaper than one query per event.
+    User user = userService.user(principalId);
+    userCache.put(principalId, new CachedUser(user, Instant.now()));
+    return user;
+  }
 
   public StreamApi(PermissionService permissionService, UserService userService) {
     this.permissionService = permissionService;
@@ -107,9 +143,9 @@ public class StreamApi extends RestBehavior {
             return;
           }
 
-          User user = userService.user(consumer.principal().getId());
-          // FIXME find a way to cache user
-          // -> close session when user se login
+          // Resolved from a short-lived cache instead of a DB query per event per consumer,
+          // which used to exhaust the connection pool while viewing busy simulations.
+          User user = resolveUser(consumer.principal().getId());
 
           // Set the tenant context for permission checks on the async thread.
           // Without this, TenantContext defaults to DEFAULT_TENANT_UUID, causing
@@ -197,7 +233,17 @@ public class StreamApi extends RestBehavior {
                         sessionId,
                         new StreamConsumer(
                             currentUser(), TenantContext.getCurrentTenant(), fluxSinkConsumer)))
-            .doAfterTerminate(() -> consumers.remove(sessionId));
+            .doAfterTerminate(
+                () -> {
+                  StreamConsumer removed = consumers.remove(sessionId);
+                  // Drop the cached user once the principal has no stream left open.
+                  if (removed != null
+                      && consumers.values().stream()
+                          .noneMatch(
+                              c -> removed.principal().getId().equals(c.principal().getId()))) {
+                    userCache.remove(removed.principal().getId());
+                  }
+                });
     // Build the health check flux.
     Flux<Object> ping =
         Flux.interval(Duration.ofSeconds(1))

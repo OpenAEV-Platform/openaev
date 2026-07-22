@@ -5,11 +5,11 @@ const useEntityLink = (entity: string, id: string, searchTerm: string) => {
     case 'AssetGroup':
       return `/admin/assets/asset_groups?search=${searchTerm}&id=${id}`;
     case 'User':
-      return `/admin/teams/persons/${id}`;
+      return `/admin/persons/${id}`;
     case 'Team':
-      return `/admin/teams/teams/${id}`;
+      return `/admin/teams/${id}`;
     case 'Organization':
-      return `/admin/teams/organizations/${id}`;
+      return `/admin/organizations/${id}`;
     case 'Scenario':
       return `/admin/scenarios/${id}`;
     case 'Exercise':

@@ -32,6 +32,7 @@ const ActionButton = ({ onUpdate, disabled, status }: Props) => {
       <Button
         variant="outlined"
         color="error"
+        size="small"
         onClick={onUpdate}
         disabled={disabled}
       >
@@ -43,6 +44,7 @@ const ActionButton = ({ onUpdate, disabled, status }: Props) => {
   return (
     <Button
       variant={isEnterpriseEdition ? 'contained' : 'outlined'}
+      size="small"
       sx={{
         color: isEnterpriseEdition ? 'primary' : 'action.disabled',
         borderColor: isEnterpriseEdition ? 'primary' : 'action.disabledBackground',

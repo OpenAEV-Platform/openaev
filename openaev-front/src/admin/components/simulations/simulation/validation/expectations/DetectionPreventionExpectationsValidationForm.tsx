@@ -139,6 +139,7 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
           type="submit"
           disabled={isSubmitting}
           variant="contained"
+          color="primary"
         >
           {t('Validate')}
         </Button>

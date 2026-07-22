@@ -5,9 +5,11 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.ConnectorCompositeId;
 import io.openaev.database.model.InjectExpectationTrace;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.CollectorRepository;
@@ -45,6 +47,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
   private final InjectExpectationTraceService injectExpectationTraceService;
   private final InjectExpectationTraceRepository injectExpectationTraceRepository;
   private final CollectorRepository collectorRepository;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   /**
    * @deprecated since 1.16.0, forRemoval = true
@@ -67,11 +70,12 @@ public class InjectExpectationTraceApi extends RestBehavior {
     // instead. That happens to be harmless here (this method is itself @Transactional), but the
     // shape is exactly what TenantBackgroundTransactionArchTest.no_transactional_self_invocation
     // flags, so keep the transactional boundary honest and call the shared logic directly.
-    this.injectExpectationTraceService.bulkInsertInjectExpectationTraces(List.of(input));
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    this.injectExpectationTraceService.bulkInsertInjectExpectationTraces(List.of(input), tenantId);
 
     Collector collector =
         collectorRepository
-            .findByCollectorId(input.getSourceId())
+            .findById(ConnectorCompositeId.of(input.getSourceId(), tenantId))
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
 
     return this.injectExpectationTraceRepository
@@ -104,8 +108,9 @@ public class InjectExpectationTraceApi extends RestBehavior {
     if (inputs.getExpectationTraces().isEmpty()) {
       return;
     }
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     this.injectExpectationTraceService.bulkInsertInjectExpectationTraces(
-        inputs.getExpectationTraces());
+        inputs.getExpectationTraces(), tenantId);
   }
 
   @Operation(summary = "Get inject expectation traces from collector")
@@ -117,9 +122,10 @@ public class InjectExpectationTraceApi extends RestBehavior {
       @RequestParam String injectExpectationId,
       @RequestParam String sourceId) {
     try {
+      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       Collector collector =
           collectorRepository
-              .findByCollectorId(sourceId)
+              .findById(ConnectorCompositeId.of(sourceId, tenantId))
               .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
       return this.injectExpectationTraceService.getInjectExpectationTracesFromCollector(
           injectExpectationId, collector.getSecurityPlatform().getId());
