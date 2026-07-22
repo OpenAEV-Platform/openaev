@@ -95,7 +95,6 @@ public class CrowdStrikeExecutorClient {
     }
   }
 
-
   private ResourcesHosts getResourcesHosts(int offset, String hostGroup) {
     final String formattedDateTime =
         DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
