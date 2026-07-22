@@ -26,7 +26,6 @@ import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.inject.form.InjectDependencyInput;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
 import io.openaev.rest.payload.form.*;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
@@ -37,6 +36,8 @@ import io.openaev.service.ImportEntry;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.WorkflowScopeRuleUtils;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
+import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
 import jakarta.activation.MimetypesFileTypeMap;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -1496,6 +1497,7 @@ public class V1_DataImporter implements Importer {
         new ObjectMapper()
             .convertValue(importNode.get("injector_contract_labels"), new TypeReference<>() {}));
     injectorContract.setPayload(payload);
+    InjectorContractMigrationUtils.migratePredefinedExpectations(injectorContract);
     return injectorContractRepository.save(injectorContract);
   }
 

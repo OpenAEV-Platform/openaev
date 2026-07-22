@@ -106,7 +106,7 @@ const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedEle
                     inject_assets: [],
                     inject_asset_groups: [],
                     inject_documents: [],
-                    inject_content: { expectations: selectedAction.convertedContent.fields.find((f: ContractElement) => f.type === 'expectation')?.predefinedExpectations },
+                    inject_content: { expectations: selectedAction.convertedContent.fields.find((f: ContractElement) => f.type === 'expectation')?.availableExpectations?.filter((e: { expectation_is_predefined?: boolean }) => e.expectation_is_predefined) },
                   }}
                   injectorContractContent={selectedAction.convertedContent}
                   onSubmitInject={onSubmitInject}

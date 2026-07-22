@@ -22,7 +22,6 @@ import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
 import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -61,9 +60,7 @@ public class EmailContract extends Contractor {
             One);
     // Contracts
     ContractExpectations expectationsField =
-        expectationsField(
-            Collections.emptyList(),
-            List.of(this.expectationBuilderService.buildManualExpectation()));
+        expectationsField(List.of(this.expectationBuilderService.buildManualExpectation()));
     ContractConfig contractConfig = getConfig();
     // Standard contract
     List<ContractElement> standardInstance =

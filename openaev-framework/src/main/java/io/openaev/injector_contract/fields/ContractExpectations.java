@@ -23,58 +23,36 @@ import lombok.Getter;
 @Getter
 public class ContractExpectations extends ContractCardinalityElement {
 
-  /** Pre-configured expectations to include by default. */
-  List<Expectation> predefinedExpectations;
-
   List<Expectation> availableExpectations;
 
   /**
-   * Creates a new expectations field with predefined and available expectations.
+   * Creates a new expectations field with available expectations.
    *
-   * @param predefinedExpectations the default expectations to include
    * @param availableExpectations the full list of selectable expectations
    */
-  private ContractExpectations(
-      @NotNull final List<Expectation> predefinedExpectations,
-      @NotNull final List<Expectation> availableExpectations) {
+  private ContractExpectations(@NotNull final List<Expectation> availableExpectations) {
     super(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS, "Expectations", Multiple);
-    this.predefinedExpectations = new ArrayList<>(predefinedExpectations);
     this.availableExpectations = new ArrayList<>(availableExpectations);
   }
 
   /**
-   * Creates an expectations field with no predefined expectations.
+   * Creates an expectations field with no available expectations.
    *
    * @return a configured ContractExpectations instance
    */
   public static ContractExpectations expectationsField() {
-    return new ContractExpectations(Collections.emptyList(), Collections.emptyList());
+    return new ContractExpectations(Collections.emptyList());
   }
 
   /**
-   * Creates an expectations field with predefined expectations.
+   * Creates an expectations field with available expectations.
    *
    * @param expectations the default expectations to include
    * @return a configured ContractExpectations instance
    */
   public static ContractExpectations expectationsField(
       @NotEmpty final List<Expectation> expectations) {
-    return new ContractExpectations(expectations, expectations);
-  }
-
-  /**
-   * Creates an expectations field with distinct predefined and available expectations.
-   *
-   * <p>Use this factory when the set of expectations selectable by the user (available) is broader
-   * than the ones pre-populated by default (predefined), e.g. for payload-based contracts.
-   *
-   * @param predefined expectations pre-populated in the form
-   * @param available full list of expectations the user may choose from
-   * @return a configured ContractExpectations instance
-   */
-  public static ContractExpectations expectationsField(
-      final List<Expectation> predefined, final List<Expectation> available) {
-    return new ContractExpectations(predefined, available);
+    return new ContractExpectations(expectations);
   }
 
   @Override

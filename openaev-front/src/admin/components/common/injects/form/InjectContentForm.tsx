@@ -143,7 +143,6 @@ const InjectContentForm = ({
       handleExpectations={onExpectationChange}
       readOnly={enhancedFieldsMapByType.get('expectation')?.readOnly || readOnly}
       injectId={injectId}
-      predefinedExpectations={expectationContractElement?.predefinedExpectations ?? []}
       availableExpectations={expectationContractElement?.availableExpectations ?? []}
     />
   );
