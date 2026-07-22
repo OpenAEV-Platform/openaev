@@ -13,8 +13,16 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
+/**
+ * Re-issued copy of {@code V6_20260721130050400}: that version landed in main AFTER
+ * V6_20260721190000000 had already been applied in production, so Flyway's default validation
+ * rejected it as "resolved migration not applied to database" and the platform could not boot. The
+ * logic is idempotent (predefinedExpectations is removed once merged, is_predefined is only added
+ * when missing), so environments that already ran the 130050400 version simply see a no-op here,
+ * and the old applied version is tolerated by the configured ignore-migration-patterns *:missing.
+ */
 @Component
-public class V6_20260721130050400__Migrate_predefined_to_available_expectations
+public class V6_20260722110000000__Migrate_predefined_to_available_expectations
     extends BaseJavaMigration {
 
   private static final String PREDEFINED_EXPECTATIONS = "predefinedExpectations";
