@@ -141,7 +141,7 @@
     "globals": "17.7.0",
     "happy-dom": "^20.8.9",
     "i18n-auto-translation": "2.2.3",
-    "license-checker-rseidelsohn": "4.4.2",
+    "license-checker-rseidelsohn": "5.0.1",
     "monocart-coverage-reports": "2.12.12",
     "monocart-reporter": "2.12.2",
     "swagger-typescript-api": "13.12.5",
