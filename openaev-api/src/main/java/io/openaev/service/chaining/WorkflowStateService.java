@@ -319,15 +319,9 @@ public class WorkflowStateService {
   }
 
   /**
-   * Correlation/attachment keys that appear in complex objects but are NOT part of the content
-   * tuple. They serve as correlation anchors (host → asset resolution) or provenance markers
-   * (asset_id) and must be excluded from the content {@code Set<Pair>}.
+   * Provenance markers excluded from the content {@code Set<Pair>} of complex objects (e.g.
+   * asset_id).
    */
-  // TODO(correlation-anchor): asset_id is a coarse approximation. The precise rule is "exclude
-  // anchor-type fields declared required=false on the OutputProcessor" (i.e.: host is content on
-  // PortScan/required=true but provenance on Computer/required=false). We need to implement that
-  // which requires ChainingMappedType to retain its origin ContractOutputType so the processor's
-  // ContractOutputField.required is reachable here.
   private static final Set<PrimitiveType> ATTACHMENT_KEYS = Set.of(PrimitiveType.AssetId);
 
   /**
@@ -514,7 +508,6 @@ public class WorkflowStateService {
           workflowStateEntries.getIndexCorrelatedInput();
       if (!index.containsKey(values)) {
         WorkflowStateEntries.Correlated newCorrelated =
-            // TODO(correlation-type): legacy path, no business type available here.
             new WorkflowStateEntries.Correlated(values, null);
         workflowStateEntries.getCorrelated().add(newCorrelated);
         // todo test all combination  and launch the ones not executed

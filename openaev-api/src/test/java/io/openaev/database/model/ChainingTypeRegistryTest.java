@@ -2,7 +2,6 @@ package io.openaev.database.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -94,13 +93,11 @@ class ChainingTypeRegistryTest {
   }
 
   @Test
-  @DisplayName("Credentials recipe should be [Username, Password]")
-  void given_credentials_should_haveUsernamePasswordRecipe() {
+  @DisplayName("Complex type should retain its origin ContractOutputType")
+  void given_credentials_should_retainOriginAndBeComplex() {
     ChainingMappedType mapped =
         ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.Credentials);
     assertThat(mapped.kind()).isEqualTo(ChainingTypeKind.COMPLEX);
-    assertThat(mapped.primitiveTypes())
-        .isEqualTo(List.of(PrimitiveType.Username, PrimitiveType.Password));
     assertThat(mapped.origin()).isEqualTo(ContractOutputType.Credentials);
   }
 

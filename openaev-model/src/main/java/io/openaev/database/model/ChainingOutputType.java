@@ -25,29 +25,24 @@ public record ChainingOutputType(
     registerPrimitive(ContractOutputType.IPv4, PrimitiveType.IPv4);
     registerPrimitive(ContractOutputType.IPv6, PrimitiveType.IPv6);
 
-    registerComplex(
-        ContractOutputType.Credentials,
-        ComplexType.Credentials,
-        List.of(PrimitiveType.Username, PrimitiveType.Password));
-    registerComplex(ContractOutputType.PortsScan, ComplexType.PortsScan); // TODO recipe
-    registerComplex(ContractOutputType.Share, ComplexType.Share); // TODO recipe
-    registerComplex(ContractOutputType.Vulnerability, ComplexType.Vulnerability); // TODO recipe
-    registerComplex(
-        ContractOutputType.AsreproastableAccount, ComplexType.AsreproastableAccount); // TODO recipe
-    registerComplex(
-        ContractOutputType.KerberoastableAccount, ComplexType.KerberoastableAccount); // TODO recipe
-    registerComplex(ContractOutputType.CVE, ComplexType.CVE); // TODO recipe
-    registerComplex(ContractOutputType.Username, ComplexType.Username); // TODO recipe
-    registerComplex(ContractOutputType.AdminUsername, ComplexType.AdminUsername); // TODO recipe
-    registerComplex(ContractOutputType.Group, ComplexType.Group); // TODO recipe
-    registerComplex(ContractOutputType.Computer, ComplexType.Computer); // TODO recipe
-    registerComplex(ContractOutputType.PasswordPolicy, ComplexType.PasswordPolicy); // TODO recipe
-    registerComplex(ContractOutputType.Delegation, ComplexType.Delegation); // TODO recipe
-    registerComplex(ContractOutputType.Sid, ComplexType.Sid); // TODO recipe
+    registerComplex(ContractOutputType.Credentials, ComplexType.Credentials);
+    registerComplex(ContractOutputType.PortsScan, ComplexType.PortsScan);
+    registerComplex(ContractOutputType.Share, ComplexType.Share);
+    registerComplex(ContractOutputType.Vulnerability, ComplexType.Vulnerability);
+    registerComplex(ContractOutputType.AsreproastableAccount, ComplexType.AsreproastableAccount);
+    registerComplex(ContractOutputType.KerberoastableAccount, ComplexType.KerberoastableAccount);
+    registerComplex(ContractOutputType.CVE, ComplexType.CVE);
+    registerComplex(ContractOutputType.Username, ComplexType.Username);
+    registerComplex(ContractOutputType.AdminUsername, ComplexType.AdminUsername);
+    registerComplex(ContractOutputType.Group, ComplexType.Group);
+    registerComplex(ContractOutputType.Computer, ComplexType.Computer);
+    registerComplex(ContractOutputType.PasswordPolicy, ComplexType.PasswordPolicy);
+    registerComplex(ContractOutputType.Delegation, ComplexType.Delegation);
+    registerComplex(ContractOutputType.Sid, ComplexType.Sid);
     registerComplex(
         ContractOutputType.AccountWithPasswordNotRequired,
-        ComplexType.AccountWithPasswordNotRequired); // TODO recipe
-    registerComplex(ContractOutputType.Asset, ComplexType.Asset); // TODO recipe
+        ComplexType.AccountWithPasswordNotRequired);
+    registerComplex(ContractOutputType.Asset, ComplexType.Asset);
 
     registerNonChainable(ContractOutputType.ExpectationSignature);
   }
@@ -61,15 +56,9 @@ public record ChainingOutputType(
   }
 
   private static void registerComplex(ContractOutputType outputType, ComplexType complexType) {
-    registerComplex(outputType, complexType, List.of());
-  }
-
-  private static void registerComplex(
-      ContractOutputType outputType, ComplexType complexType, List<PrimitiveType> primitiveRecipe) {
     INDEX.put(
         outputType,
-        new ChainingOutputType(
-            outputType, ChainingTypeKind.COMPLEX, null, complexType, primitiveRecipe));
+        new ChainingOutputType(outputType, ChainingTypeKind.COMPLEX, null, complexType, List.of()));
   }
 
   private static void registerNonChainable(ContractOutputType outputType) {
