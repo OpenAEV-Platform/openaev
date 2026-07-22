@@ -5917,7 +5917,7 @@ export interface KillChainPhaseUpdateInput {
 }
 
 export interface KillChainPhaseUpsertInput {
-  kill_chain_phases?: KillChainPhaseCreateInput[];
+  kill_chain_phases: KillChainPhaseCreateInput[];
 }
 
 export interface LessonsAnswer {
