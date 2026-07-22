@@ -87,17 +87,6 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
   private Integer apiRegisterInterval = 1200;
 
   @IntegrationConfigKey(
-      key = "EXECUTOR_SENTINELONE_CLEAN_IMPLANT_INTERVAL",
-      description =
-          """
-          SentinelOne clean old implant interval (in hours)
-          """,
-      jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
-  @Getter
-  @NotBlank
-  private Integer cleanImplantInterval = 8;
-
-  @IntegrationConfigKey(
       key = "EXECUTOR_SENTINELONE_ACCOUNT_ID",
       description =
           """

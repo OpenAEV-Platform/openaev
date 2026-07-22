@@ -150,6 +150,7 @@ const SecurityPlatforms = () => {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
           gap: 2,
+          mt: 2,
         }}
         >
           {Array.from({ length: 8 }).map((_, idx) => (
@@ -163,6 +164,7 @@ const SecurityPlatforms = () => {
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
         gap: 2,
+        mt: 2,
       }}
       >
         {securityPlatforms.map((securityPlatform: SecurityPlatform) => (

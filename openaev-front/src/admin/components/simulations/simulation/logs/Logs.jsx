@@ -9,13 +9,14 @@ import { makeStyles } from 'tss-react/mui';
 
 import { addLog, fetchLogs } from '../../../../../actions/Log';
 import { fetchExerciseObjectives } from '../../../../../actions/Objective';
+import { SECTION_LABEL_SX } from '../../../../../components/common/detail/detailStyles';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
 import { useHelper } from '../../../../../store';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { resolveUserName } from '../../../../../utils/String';
 import { PermissionsContext } from '../../../common/Context';
-import AnimationMenu from '../AnimationMenu';
+import ExecutionMenu from '../ExecutionMenu';
 import LogForm from './LogForm';
 import LogPopover from './LogPopover';
 
@@ -79,9 +80,13 @@ const Logs = () => {
   };
   return (
     <div>
-      <AnimationMenu exerciseId={exerciseId} />
+      <ExecutionMenu exerciseId={exerciseId} />
       <div>
-        <Typography variant="h4" style={{ float: 'left' }}>
+        <Typography sx={{
+          ...SECTION_LABEL_SX,
+          float: 'left',
+        }}
+        >
           {t('Simulation logs')}
         </Typography>
         {permissions.canManage

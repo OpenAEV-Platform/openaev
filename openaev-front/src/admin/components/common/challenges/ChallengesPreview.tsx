@@ -218,7 +218,7 @@ const ChallengesPreview: FunctionComponent<Props> = ({
                   marginTop: theme.spacing(2),
                 }}
                 >
-                  <Button onClick={handleClose} style={{ marginRight: theme.spacing(1) }}>
+                  <Button variant="outlined" color="primary" onClick={handleClose} style={{ marginRight: theme.spacing(1) }}>
                     {t('Close')}
                   </Button>
                 </div>

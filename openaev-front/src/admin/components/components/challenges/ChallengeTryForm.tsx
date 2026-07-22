@@ -51,6 +51,8 @@ const ChallengeTryForm: FunctionComponent<Props> = ({ handleClose, onSubmit }) =
         />
         <div style={{ alignSelf: 'flex-end' }}>
           <Button
+            variant="outlined"
+            color="primary"
             onClick={handleClose}
             style={{ marginRight: theme.spacing(1) }}
             disabled={isSubmitting}
@@ -58,7 +60,8 @@ const ChallengeTryForm: FunctionComponent<Props> = ({ handleClose, onSubmit }) =
             {t('Cancel')}
           </Button>
           <Button
-            color="secondary"
+            variant="contained"
+            color="primary"
             type="submit"
             disabled={isSubmitting || !isDirty}
           >

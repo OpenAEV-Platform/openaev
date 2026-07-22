@@ -66,7 +66,8 @@ const AttackPatternForm = (props) => {
           }}
           >
             <Button
-              variant="contained"
+              variant="outlined"
+              color="primary"
               onClick={handleClose}
               style={{ marginRight: 10 }}
               disabled={submitting}
@@ -75,7 +76,7 @@ const AttackPatternForm = (props) => {
             </Button>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={pristine || submitting}
             >

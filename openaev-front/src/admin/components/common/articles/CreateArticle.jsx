@@ -1,5 +1,5 @@
-import { Add, ControlPointOutlined } from '@mui/icons-material';
-import { Dialog, DialogContent, DialogTitle, IconButton, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { AddOutlined, ControlPointOutlined } from '@mui/icons-material';
+import { Button, Dialog, DialogContent, DialogTitle, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -9,10 +9,6 @@ import { ArticleContext } from '../Context';
 import ArticleForm from './ArticleForm';
 
 const useStyles = makeStyles()(theme => ({
-  createButton: {
-    float: 'left',
-    marginTop: -15,
-  },
   text: {
     fontSize: 15,
     color: theme.palette.primary.main,
@@ -58,15 +54,15 @@ const CreateArticle = (props) => {
           />
         </ListItemButton>
       ) : (
-        <IconButton
+        <Button
+          variant="contained"
           color="primary"
-          aria-label="Add"
+          size="small"
+          startIcon={<AddOutlined />}
           onClick={handleOpenCreate}
-          classes={{ root: classes.createButton }}
-          size="large"
         >
-          <Add fontSize="small" />
-        </IconButton>
+          {t('Create an article')}
+        </Button>
       )}
       <Dialog
         open={openCreate}

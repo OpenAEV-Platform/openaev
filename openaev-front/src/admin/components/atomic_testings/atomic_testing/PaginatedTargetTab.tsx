@@ -17,6 +17,8 @@ interface Props {
   inject_id: string;
   target_type: string;
   reloadContentCount: number;
+  selectedTargetId?: string;
+  onTargetsChange?: (targets: InjectTarget[]) => void;
 }
 
 const PaginatedTargetTab: React.FC<Props> = (props) => {
@@ -30,27 +32,28 @@ const PaginatedTargetTab: React.FC<Props> = (props) => {
   }));
 
   const [targets, setTargets] = useState<InjectTarget[]>();
-  const [selectedTarget, setSelectedTarget] = useState<InjectTarget>();
   const [searchReloadContentCount, setSearchReloadContentCount] = useState(0);
 
+  const { onTargetsChange } = props;
+
   useEffect(() => {
-    setSearchReloadContentCount(searchReloadContentCount + 1);
+    setSearchReloadContentCount(previous => previous + 1);
   }, [props.reloadContentCount]);
 
   const handleSetTargets = (content: InjectTarget[]) => {
     setTargets(content);
+    onTargetsChange?.(content);
   };
 
-  const handleSelectTarget = (target: InjectTarget) => {
-    setSelectedTarget(target);
-    props.handleSelectTarget(target);
-  };
-
+  // Selection is owned by the parent (AtomicTesting) so the results header and
+  // its prev/next switcher stay in sync with the highlighted row. We only
+  // auto-select the first target when the current selection is no longer on the
+  // loaded page (e.g. after switching tabs or paginating).
   useEffect(() => {
-    if (targets && targets.length > 0 && !targets.find(t => t.target_id == selectedTarget?.target_id)) {
-      handleSelectTarget(targets[0]);
+    if (targets && targets.length > 0 && !targets.find(t => t.target_id === props.selectedTargetId)) {
+      props.handleSelectTarget(targets[0]);
     }
-  }, [targets]);
+  }, [targets, props.selectedTargetId, props.handleSelectTarget]);
 
   return (
     <>
@@ -76,9 +79,9 @@ const PaginatedTargetTab: React.FC<Props> = (props) => {
           <List disablePadding>
             {targets.map(target => (
               <NewTargetListItem
-                onClick={handleSelectTarget}
+                onClick={props.handleSelectTarget}
                 target={target}
-                selected={selectedTarget?.target_id === target.target_id}
+                selected={props.selectedTargetId === target.target_id}
                 key={target?.target_id}
               />
             ))}

@@ -7,7 +7,7 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.output_processor.FindingCapableOutputProcessor;
 import io.openaev.output_processor.OutputProcessorFactory;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Optional;

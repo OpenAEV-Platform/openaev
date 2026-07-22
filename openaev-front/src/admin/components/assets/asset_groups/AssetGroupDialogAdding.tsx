@@ -121,9 +121,9 @@ const AssetGroupDialogAdding: FunctionComponent<Props> = ({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>{t('Cancel')}</Button>
+        <Button variant="outlined" color="primary" onClick={handleClose}>{t('Cancel')}</Button>
         {!isLoading && (
-          <Button color="secondary" onClick={handleSubmit}>
+          <Button variant="contained" color="primary" onClick={handleSubmit}>
             {t('Update')}
           </Button>
         )}

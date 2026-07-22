@@ -337,7 +337,6 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
                   ...prev,
                   [EXPECTATIONS_CONTENT_KEY]: updatedExpectations,
                 }))}
-                predefinedExpectations={expectationField.predefinedExpectations ?? []}
                 availableExpectations={expectationField.availableExpectations ?? []}
                 inline
               />
@@ -362,7 +361,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
             </Button>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={!isValid}
             >

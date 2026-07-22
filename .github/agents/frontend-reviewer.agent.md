@@ -44,8 +44,11 @@ These thresholds trigger automatic severity levels regardless of subjective asse
 | **Component size** | Single component file >300 lines → suggest splitting | 🟡 MEDIUM |
 | **`any` type usage** | Any `any` in new code (not pre-existing) | 🟡 MEDIUM |
 | **Missing `t()`** | Any user-facing string literal not wrapped in `t()` | 🟡 MEDIUM |
-| **Inline styles** | Any `style={{ ... }}` on a component that has a MUI equivalent | 🟡 MEDIUM |
+| **Inline styles** | `style={{ }}` on a MUI component — use `sx` | 🟡 MEDIUM |
+| **Hardcoded tokens** | Colors, spacing, border-radius, or typography not from `theme.*` (fixed `width` exempt) | 🟡 MEDIUM |
+| **Dead props** | Props declared in `interface Props` but never passed by any call-site in the codebase | 🟡 MEDIUM |
 | **`@ts-ignore`** | Any `@ts-ignore` without an explanatory comment | 🟡 MEDIUM |
+| **Button convention** | Affirmative confirm not `contained`/`primary`, Cancel not `outlined`/`primary`, or irreversible delete confirm not `contained`/`error` (per `frontend.instructions.md`) | 🟡 MEDIUM |
 | **Props count** | Component with >8 props → suggest decomposition or context | 🟢 LOW |
 
 ## What NOT to Flag

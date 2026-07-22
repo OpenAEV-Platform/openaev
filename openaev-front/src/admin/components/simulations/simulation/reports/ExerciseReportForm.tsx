@@ -167,6 +167,8 @@ const ExerciseReportForm: FunctionComponent<Props> = ({
       }}
       >
         <Button
+          variant="outlined"
+          color="primary"
           style={{ marginLeft: 'auto' }}
           onClick={handleCancel}
           disabled={isSubmitting}
@@ -174,7 +176,8 @@ const ExerciseReportForm: FunctionComponent<Props> = ({
           {t('Cancel')}
         </Button>
         <Button
-          color="secondary"
+          variant="contained"
+          color="primary"
           type="submit"
           disabled={isSubmitting}
         >

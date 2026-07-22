@@ -18,6 +18,8 @@ import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
@@ -31,6 +33,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Aspect
 @Component
+@Order(Ordered.LOWEST_PRECEDENCE) // Inner to audit aspect (LOWEST_PRECEDENCE - 1)
 @RequiredArgsConstructor
 @Slf4j
 public class AccessControlAspect {

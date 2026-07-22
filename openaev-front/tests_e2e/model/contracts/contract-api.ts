@@ -61,7 +61,7 @@ class ContractApiMock {
                   ],
                   mandatory: false,
                   mandatoryGroups: null,
-                  predefinedExpectations: [
+                  availableExpectations: [
                   ],
                   type: 'expectation',
                 },
@@ -123,7 +123,7 @@ class ContractApiMock {
                   ],
                   mandatory: false,
                   mandatoryGroups: null,
-                  predefinedExpectations: [
+                  availableExpectations: [
                   ],
                   type: 'expectation',
                 },
@@ -299,7 +299,7 @@ class ContractApiMock {
                   ],
                   mandatory: false,
                   mandatoryGroups: null,
-                  predefinedExpectations: [
+                  availableExpectations: [
                   ],
                   type: 'expectation',
                 },

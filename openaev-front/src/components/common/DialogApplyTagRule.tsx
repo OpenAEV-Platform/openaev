@@ -42,10 +42,10 @@ const DialogApplyTagRule: FunctionComponent<DialogDeleteProps> = ({
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleDontApplyRule}>
+        <Button variant="outlined" color="primary" onClick={handleDontApplyRule}>
           {t('No')}
         </Button>
-        <Button color="secondary" onClick={handleApplyRule}>
+        <Button variant="contained" color="primary" onClick={handleApplyRule}>
           {t('Yes')}
         </Button>
       </DialogActions>

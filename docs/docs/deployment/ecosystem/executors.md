@@ -15,6 +15,7 @@ architectures. This table below summarizes the information about each agent.
 | **CrowdStrike Falcon Agent**       | Under license | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |                              
 | **SentinelOne Agent**              | Under license | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |
 | **Palo Alto Cortex Agent**         | Under license | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |
+| **Microsoft Defender for Endpoint (MDE) Agent** | Under license | Leverages the existing MDE sensor (Live Response) | Executable | An admin background process (SYSTEM)    | As a system admin                              | No, always the same agent                        |
 | **Caldera Agent**                  | Open source   | As a user session                                 | Script            | An admin background process            | As a user admin                                | Yes, depending on the user                       |                      
 
 ## OpenAEV Agent
@@ -429,6 +430,175 @@ Endpoint on the OpenAEV endpoint page.
 !!! success "Installation done"
 
     You are now ready to leverage your SentinelOne platform to run OpenAEV threat arsenal actions!
+
+---
+<a id="mde-agent"></a>
+
+## Microsoft Defender for Endpoint (MDE) Agent
+
+Microsoft Defender for Endpoint (MDE) can be leveraged to execute implants as detached processes that will then execute
+threat arsenal actions according to
+the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/platform/overview/).
+
+OpenAEV does **not** install a new agent: it reuses the **MDE sensor already deployed** on your endpoints and drives it
+through the **Live Response** API. For each inject, OpenAEV runs a small subprocessor script from the MDE Live Response
+Library, which downloads and starts the OpenAEV implant.
+
+!!! info "Enterprise Edition"
+
+    The Microsoft Defender for Endpoint executor is an **Enterprise Edition** feature. A valid EE license is required to
+    enable it.
+
+!!! warning "Windows: detached scheduled task"
+
+    On Windows, the MDE Live Response session terminates the whole process tree when the session ends. To let the implant
+    survive and report its execution traces, OpenAEV launches it from a **detached SYSTEM scheduled task**
+    (`OpenAEV-Inject-<inject>-Agent-<agent>`). This task **self-deletes** right after the implant finishes — you should
+    not see leftover tasks in Task Scheduler.
+
+### Configure the Microsoft Defender Platform
+
+#### 1. Register an Azure (Entra ID) application
+
+OpenAEV authenticates to the MDE API with the OAuth2 **client credentials** flow. Create an app registration in
+**Microsoft Entra ID > App registrations > New registration**, then collect:
+
+- **Directory (tenant) ID** → `Azure tenant ID` in OpenAEV
+- **Application (client) ID** → `Client ID` in OpenAEV
+- A **client secret** (`Certificates & secrets > New client secret`) → `Client secret` in OpenAEV
+
+!!! warning "Required API permissions"
+
+    Under **API permissions**, add the following **Application permissions** for *WindowsDefenderATP*, then click
+    **Grant admin consent**:
+
+    | Permission | Why |
+    |------------|-----|
+    | `Machine.Read.All` | List devices / device groups and sync them into OpenAEV |
+    | `Machine.LiveResponse.All` | Run the Live Response script that launches the implant |
+    | `AdvancedQuery.Read.All` | Read near real-time device activity (Advanced Hunting) so only genuinely-reachable machines are marked active — the device inventory `lastSeen` lags by up to a day |
+
+    Application permissions (not delegated) are mandatory because OpenAEV runs without a signed-in user.
+
+#### 2. Enable Live Response in Microsoft Defender
+
+In the **Microsoft Defender portal** → **Settings > Endpoints > Advanced features**, enable:
+
+- **Live Response** (required)
+- **Live Response for servers** (only if you target Windows Server / Linux server endpoints)
+- **Live Response unsigned script execution** (**required** — the OpenAEV subprocessor scripts are not code-signed)
+
+!!! danger "Unsigned script execution"
+
+    If *Live Response unsigned script execution* is **disabled**, every inject fails at the Live Response step because
+    MDE refuses to run the OpenAEV subprocessor script. This is the single most common misconfiguration.
+
+#### 3. Upload the OpenAEV subprocessor scripts
+
+Upload the two subprocessor scripts to the **MDE Live Response Library** (they decode the Base64 command sent by OpenAEV
+and execute it). The file names must match what you configure in OpenAEV (defaults below).
+
+*Windows script* (`openaev-subprocessor.ps1`):
+
+[Download](../assets/mde_subprocessor_windows.ps1)
+
+*Unix script* (`openaev-subprocessor.sh`, covers Linux and macOS):
+
+[Download](../assets/mde_subprocessor_unix.sh)
+
+!!! note "How the scripts work"
+
+    OpenAEV passes the full command as a **single Base64 argument**. The Windows script decodes it and runs it with
+    `Invoke-Expression`; the Unix script decodes it and pipes it to `sh`. Keep them as-is — reserved parameter names such
+    as `param([string]$Args)` will break argument passing on PowerShell (`$args[0]` must be used).
+
+#### 4. (Optional) Scope to a device group
+
+To sync only a subset of devices, note the **device group ID** (`rbacGroupId`) in
+**Settings > Endpoints > Permissions > Device groups**. Leave the field empty in OpenAEV to sync **all** devices.
+
+### Configure the OpenAEV platform
+
+To configure the MDE executor, navigate to the **Integrations > Executors** section in the OpenAEV menu and fill in the
+Microsoft Defender for Endpoint integration settings directly from the UI.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Azure tenant ID** | ✅ | Directory (tenant) ID of the Entra app registration |
+| **Client ID** | ✅ | Application (client) ID |
+| **Client secret** | ✅ | Client secret value |
+| **Device group** | ❌ | One or more `rbacGroupId` separated by commas. Empty = all devices |
+| **Windows script name** | ✅ | Must match the uploaded Windows script (default `openaev-subprocessor.ps1`) |
+| **Unix script name** | ✅ | Must match the uploaded Unix script (default `openaev-subprocessor.sh`) |
+
+!!! note "Advanced settings"
+
+    Defaults rarely need changing: the API base URL (`https://api.securitycenter.microsoft.com/api`), the auth URL
+    (`https://login.microsoftonline.com`), the register interval (device/agent sync, default **1200s**) and the Live
+    Response batch pagination (**10 machines / 5s**, the MDE rate limit is stricter than CrowdStrike).
+
+### Checks
+
+Once enabled, you should see Microsoft Defender for Endpoint available in your `Install agents` section.
+
+The devices in the selected device group(s) should now appear in the endpoints and asset groups sections in OpenAEV
+after the first sync (up to the register interval).
+
+!!! note "Where to see executions on the Microsoft side"
+
+    Each inject is an MDE **Live Response** action. You can review them in the Microsoft Defender portal:
+
+    - **Assets > Devices > *device* > Timeline** and the device **Live response** session log
+    - **Action center > History**, filtered on *Action type = Live response* / *Source = API*
+    - **Advanced hunting** (KQL on `DeviceProcessEvents`) to see the scheduled task, the implant and the payload commands
+
+!!! success "Installation done"
+
+    You are now ready to leverage your Microsoft Defender for Endpoint platform to run OpenAEV threat arsenal actions!
+
+#### Microsoft Defender for Endpoint — troubleshooting
+
+!!! tip "Inject is ERROR but I have execution traces (stdout/stderr)"
+
+    This is expected: the inject status reflects the **payload's own exit code / stderr**, not an executor failure. If the
+    payload command returns a non-zero exit code or writes to `stderr` (e.g. running `net localgroup "Administrators"` on a
+    non-English Windows, or a test designed to fail off-domain), the trace is marked ERROR even though the executor
+    delivered and ran it correctly. Check the `stdout`/`stderr`/`exit_code` in the execution trace to confirm.
+
+!!! tip "Inject stays PENDING then TIMEOUT (no trace)"
+
+    The implant was likely killed when the Live Response session ended. Ensure you are running a recent OpenAEV version
+    (the implant runs from a **self-deleting SYSTEM scheduled task** on Windows). Check Task Scheduler while an inject runs:
+    a task `OpenAEV-Inject-...` should appear briefly, then disappear.
+
+!!! tip "\"Agent not found\" / \"Element not found\" on callback"
+
+    OpenAEV resolves the calling agent by its **MDE Device ID**. A device that was re-provisioned or manually deleted can
+    leave a stale agent whose primary key no longer matches the Device ID. Let a sync cycle run (or restart the platform)
+    so the device is re-registered with the correct Device ID before relaunching.
+
+!!! tip "Live Response fails immediately for every device"
+
+    Verify **Live Response unsigned script execution** is enabled (see step 2), that both subprocessor scripts are in the
+    Live Response Library with the **exact names** configured in OpenAEV, and that the app registration has
+    `Machine.LiveResponse.All` with **admin consent granted**.
+
+!!! tip "Devices are missing or show as inactive"
+
+    OpenAEV filters devices by the configured **device group** and marks an agent active from **near
+    real-time Advanced Hunting activity** (the device inventory `lastSeen` lags by up to a day and is
+    not reliable). If the app registration lacks `AdvancedQuery.Read.All`, OpenAEV falls back to the
+    sensor `healthStatus` and logs a warning. Confirm the device group ID, that the machines are
+    onboarded and reporting to MDE, and that `AdvancedQuery.Read.All` is granted.
+
+!!! tip "An inject times out on a device that looks active"
+
+    Live Response only runs while the Defender sensor is **actively connected**. A device can be
+    onboarded and healthy yet asleep/offline right now: the `runliveresponse` action is then created
+    but stays **Pending** until the machine reconnects, so the inject times out. This is an inherent
+    MDE constraint (one Live Response session per machine, no execution while offline), not an OpenAEV
+    error. Stale Pending actions are cancelled automatically before the next dispatch so they never
+    block future injects.
 
 ---
 

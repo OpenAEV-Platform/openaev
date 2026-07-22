@@ -3,17 +3,19 @@ import { useParams } from 'react-router';
 
 import { addVariableForScenario, deleteVariableForScenario, fetchVariablesForScenario, updateVariableForScenario } from '../../../../../actions/variables/variable-actions';
 import { type VariablesHelper } from '../../../../../actions/variables/variable-helper';
+import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type Scenario, type Variable, type VariableInput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import ConfigurationSection from '../../../common/ConfigurationSection';
 import { PermissionsContext, VariableContext, type VariableContextType } from '../../../common/Context';
 import CreateVariable from '../../../components/variables/CreateVariable';
 import Variables from '../../../components/variables/Variables';
-import ConfigurationFab from '../ConfigurationFab';
 
 const ScenarioVariables = () => {
   // Standard hooks
+  const { t } = useFormatter();
   const dispatch = useAppDispatch();
 
   // Fetching data
@@ -32,14 +34,13 @@ const ScenarioVariables = () => {
 
   return (
     <VariableContext.Provider value={context}>
-      {/* No inner Paper / section title: the Configuration tab already labels
-          this section, and the list sits directly on the drawer surface. */}
-      {permissions.canManage && (
-        <ConfigurationFab>
-          <CreateVariable />
-        </ConfigurationFab>
-      )}
-      <Variables variables={variables} />
+      <ConfigurationSection
+        title={t('Variables')}
+        count={variables.length}
+        action={permissions.canManage && <CreateVariable />}
+      >
+        <Variables variables={variables} />
+      </ConfigurationSection>
     </VariableContext.Provider>
   );
 };

@@ -70,9 +70,8 @@ public class ChallengeContract extends Contractor {
     // Challenge injects expose both challenge and manual expectations.
     ContractExpectations expectationsField =
         expectationsField(
-            List.of(this.expectationBuilderService.buildChallengeExpectation()),
             List.of(
-                this.expectationBuilderService.buildChallengeExpectation(),
+                this.expectationBuilderService.buildPredefinedChallengeExpectation(),
                 this.expectationBuilderService.buildManualExpectation()));
     List<ContractElement> publishInstance =
         contractBuilder()

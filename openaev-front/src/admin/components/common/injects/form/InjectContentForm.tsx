@@ -1,5 +1,5 @@
 import { HelpOutlineOutlined, RotateLeftOutlined } from '@mui/icons-material';
-import { Button, IconButton, InputLabel, Tooltip, Typography } from '@mui/material';
+import { Button, IconButton, InputLabel, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
@@ -22,6 +22,7 @@ import InjectChallengesList from './challenges/InjectChallengesList';
 import InjectDocumentsList from './documents/InjectDocumentsList';
 import InjectEndpointsList from './endpoints/InjectEndpointsList';
 import InjectContentFieldComponent from './InjectContentFieldComponent';
+import InjectFormSection from './InjectFormSection';
 import InjectTeamsList from './teams/InjectTeamsList';
 
 interface Props {
@@ -52,20 +53,6 @@ const InjectContentForm = ({
   const theme = useTheme();
   const { control, setValue, getValues, formState: { errors } } = useFormContext();
   const ability = useContext(AbilityContext);
-
-  const renderTitle = (title: string, required: boolean = false, err: boolean = false) => {
-    const getTitleColor = () => {
-      if (err) return 'error';
-      if (readOnly) return 'text.disabled';
-      return 'textPrimary';
-    };
-    return (
-      <Typography variant="h5" color={getTitleColor()}>
-        {title}
-        {required ? '*' : '' }
-      </Typography>
-    );
-  };
 
   // -- TEAMS --
   const renderTeams = (err?: string | null) => (
@@ -156,7 +143,6 @@ const InjectContentForm = ({
       handleExpectations={onExpectationChange}
       readOnly={enhancedFieldsMapByType.get('expectation')?.readOnly || readOnly}
       injectId={injectId}
-      predefinedExpectations={expectationContractElement?.predefinedExpectations ?? []}
       availableExpectations={expectationContractElement?.availableExpectations ?? []}
     />
   );
@@ -221,11 +207,22 @@ const InjectContentForm = ({
     </div>
   );
 
+  const canResetDefaults = !isAtomic
+    || ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT)
+    || (!!injectId && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId));
+
+  // Guard: these keys only exist when the contract actually has the field, so
+  // dereference them safely while building the (unfiltered) parts array.
+  const teamFieldKey = enhancedFieldsMapByType.get('team')?.key;
+
   const injectContentParts = [
     {
       key: 'teams',
-      title: () => renderTitle(t('Targeted teams'), enhancedFieldsMapByType.get('team')?.settings?.required, !!errors[enhancedFieldsMapByType.get('team')!.key]),
-      renderRightButton: !isAtomic && (
+      title: t('Targeted teams'),
+      helper: t('Who receives this inject.'),
+      required: enhancedFieldsMapByType.get('team')?.settings?.required,
+      error: !!(teamFieldKey && errors[teamFieldKey]),
+      action: !isAtomic && (
         <SwitchFieldController
           name="inject_all_teams"
           label={<strong>{t('All teams')}</strong>}
@@ -233,42 +230,43 @@ const InjectContentForm = ({
           size="small"
         />
       ),
-      render: () => renderTeams(errors[enhancedFieldsMapByType.get('team')!.key]?.message as string || null),
+      render: () => renderTeams((teamFieldKey && errors[teamFieldKey]?.message as string) || null),
       show: enhancedFieldsMapByType.has('team'),
     },
     {
       key: 'media_pressure',
-      title: () => renderTitle(t('Media pressure to publish'), enhancedFieldsMapByType.get('article')?.settings?.required),
+      title: t('Media pressure to publish'),
+      required: enhancedFieldsMapByType.get('article')?.settings?.required,
       render: renderArticles,
       show: enhancedFieldsMapByType.has('article') && enhancedFieldsMapByType.get('article')?.isVisible,
     },
     {
       key: 'challenge',
-      title: () => renderTitle(t('Challenges to publish'), enhancedFieldsMapByType.get('challenge')?.settings?.required),
+      title: t('Challenges to publish'),
+      required: enhancedFieldsMapByType.get('challenge')?.settings?.required,
       render: () => renderChallenges(errors[enhancedFieldsMapByType.get('challenge')!.key]?.message as string || null),
       show: enhancedFieldsMapByType.has('challenge') && enhancedFieldsMapByType.get('challenge')?.isVisible,
     },
     {
-      key: 'inject_data_title',
-      title: () => <Typography variant="h5" style={{ marginTop: 0 }}>{t('Inject data')}</Typography>,
-      parentStyle: {
-        marginTop: theme.spacing(1),
-        marginBottom: theme.spacing(-1),
-      },
-      renderLeftButton: (!isAtomic || (ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT) || (injectId && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId))))
-        && (
-          <Tooltip title={t('Reset to default values')}>
+      key: 'inject_data',
+      title: t('Inject data'),
+      helper: t('The content and targets specific to this action.'),
+      titleAdornment: canResetDefaults && (
+        <Tooltip title={t('Reset to default values')}>
+          <span>
             <IconButton
               color="primary"
               disabled={enhancedFieldsMapByType.get('expectation')?.readOnly || readOnly}
               onClick={resetDefaultValue}
               size="small"
+              sx={{ borderRadius: 1 }}
             >
-              <RotateLeftOutlined />
+              <RotateLeftOutlined fontSize="small" />
             </IconButton>
-          </Tooltip>
-        ),
-      renderRightButton: (
+          </span>
+        </Tooltip>
+      ),
+      action: (
         <Button
           color="primary"
           startIcon={<HelpOutlineOutlined />}
@@ -279,67 +277,40 @@ const InjectContentForm = ({
           {t('Available variables')}
         </Button>
       ),
-      show: dynamicFields.length,
-    },
-    {
-      key: 'inject_data',
       render: renderDynamicFields,
-      show: true,
+      show: !!dynamicFields.length,
     },
     {
       key: 'expectations',
-      title: () => renderTitle(t('Inject expectations'), enhancedFieldsMapByType.get('expectation')?.settings?.required),
+      title: t('Inject expectations'),
+      helper: t('What must succeed or fail for this inject to be scored.'),
+      required: enhancedFieldsMapByType.get('expectation')?.settings?.required,
       render: renderExpectations,
       show: enhancedFieldsMapByType.has('expectation') && enhancedFieldsMapByType.get('expectation')?.isVisible,
-      parentStyle: {
-        marginTop: theme.spacing(1),
-        marginBottom: theme.spacing(-1),
-      },
     },
     {
       key: 'documents',
-      title: () => renderTitle(t('Inject documents'), enhancedFieldsMapByType.get('attachment')?.settings?.required),
+      title: t('Inject documents'),
+      required: enhancedFieldsMapByType.get('attachment')?.settings?.required,
       render: renderDocuments,
       show: enhancedFieldsMapByType.has('attachment') && enhancedFieldsMapByType.get('attachment')?.isVisible,
-      parentStyle: {
-        marginTop: theme.spacing(1),
-        marginBottom: theme.spacing(-1),
-      },
     },
   ];
 
   return (
     <>
       {injectContentParts.filter(part => part.show).map(part => (
-        <div
+        <InjectFormSection
           key={part.key}
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            ...part.parentStyle,
-          }}
+          title={part.title}
+          helper={part.helper}
+          required={part.required}
+          error={part.error}
+          titleAdornment={part.titleAdornment}
+          action={part.action}
         >
-          {part.title && part.title()}
-          {part.renderLeftButton}
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            justifyContent: 'flex-end',
-          }}
-          >
-            {part.renderRightButton}
-          </div>
-          {
-            part.render
-            && (
-              <div style={{ width: '100%' }}>
-                {part.render()}
-              </div>
-            )
-          }
-        </div>
+          {part.render()}
+        </InjectFormSection>
       ))}
       <AvailableVariablesDialog
         uriVariable={uriVariable}
