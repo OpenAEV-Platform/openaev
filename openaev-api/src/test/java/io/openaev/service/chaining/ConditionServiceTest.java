@@ -359,6 +359,48 @@ public class ConditionServiceTest {
     }
 
     @Test
+    void given_localCorrelatedCoversRequiredKeys_should_notExpandGlobalFallbackValues() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-local-priority");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.LOCAL, PrimitiveType.Port, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Host, null));
+
+      WorkflowStateEntries localEntries =
+          entries(
+              List.of(input("Port", "5040")),
+              List.of(
+                  correlated(
+                      "PortsScan",
+                      new WorkflowStateEntries.Pair("Host", "0.0.0.0"),
+                      new WorkflowStateEntries.Pair("Port", "5040"),
+                      new WorkflowStateEntries.Pair("Service", "TCP"))));
+      WorkflowStateEntries globalEntries =
+          entries(
+              List.of(input("Host", "0.0.0.0", "1.1.1.1", "2.2.2.2", "3.3.3.3")),
+              List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-local-priority"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(1, batches.size());
+      JsonObject json = inputJson(batches.getFirst());
+      assertEquals("5040", json.get("Port").getAsString());
+      assertEquals("0.0.0.0", json.get("Host").getAsString());
+    }
+
+    @Test
     void given_supersetCorrelatedTuple_should_ignoreExtraKeysOutsideMapperScope() {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
