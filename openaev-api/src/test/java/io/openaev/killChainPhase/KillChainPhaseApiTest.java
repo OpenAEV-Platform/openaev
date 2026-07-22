@@ -7,6 +7,7 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.KillChainPhaseFixture.getKillChainPhase;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.Mockito.mock;
@@ -351,6 +352,13 @@ public class KillChainPhaseApiTest extends IntegrationTest {
       assertEquals(STIX_ID, persisted.getStixId(), "STIX id must survive the stix-less duplicate");
     }
 
+    private static DataIntegrityViolationException uniqueViolation(String constraintName) {
+      return new DataIntegrityViolationException(
+          "duplicate key",
+          new org.hibernate.exception.ConstraintViolationException(
+              "duplicate key", new java.sql.SQLException("duplicate key"), constraintName));
+    }
+
     @Test
     @DisplayName("Upsert retries once when the first attempt loses a concurrent-insert race")
     void given_concurrent_insert_race_should_retry_once() {
@@ -359,13 +367,31 @@ public class KillChainPhaseApiTest extends IntegrationTest {
       KillChainPhaseUpsertInput input = new KillChainPhaseUpsertInput();
       List<KillChainPhase> winner = List.of(new KillChainPhase());
       when(service.upsertKillChainPhases(input.getKillChainPhases()))
-          .thenThrow(new DataIntegrityViolationException("duplicate key"))
+          .thenThrow(uniqueViolation("kill_chain_phases_stix_id_tenant_unique"))
           .thenReturn(winner);
 
       Iterable<KillChainPhase> result = api.upsertKillChainPhases(input);
 
       assertSame(winner, result);
       verify(service, times(2)).upsertKillChainPhases(input.getKillChainPhases());
+    }
+
+    @Test
+    @DisplayName("Upsert does not retry integrity failures unrelated to the unique constraints")
+    void given_unrelated_integrity_violation_should_not_retry() {
+      KillChainPhaseService service = mock(KillChainPhaseService.class);
+      KillChainPhaseApi api = new KillChainPhaseApi(mock(KillChainPhaseRepository.class), service);
+      KillChainPhaseUpsertInput input = new KillChainPhaseUpsertInput();
+      DataIntegrityViolationException notNullViolation =
+          new DataIntegrityViolationException("null value in column phase_external_id");
+      when(service.upsertKillChainPhases(input.getKillChainPhases())).thenThrow(notNullViolation);
+
+      DataIntegrityViolationException thrown =
+          assertThrows(
+              DataIntegrityViolationException.class, () -> api.upsertKillChainPhases(input));
+
+      assertSame(notNullViolation, thrown);
+      verify(service, times(1)).upsertKillChainPhases(input.getKillChainPhases());
     }
   }
 

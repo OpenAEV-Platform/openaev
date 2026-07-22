@@ -104,7 +104,10 @@ public enum PrimitiveType {
 
   @JsonCreator
   public static PrimitiveType fromLabel(String label) {
-    String effectiveLabel = LEGACY_ARGUMENT_TYPE_LABELS.getOrDefault(label, label);
+    // Immutable maps reject null keys: guard so a null label keeps failing with the controlled
+    // IllegalArgumentException below instead of an opaque NullPointerException.
+    String effectiveLabel =
+        label == null ? null : LEGACY_ARGUMENT_TYPE_LABELS.getOrDefault(label, label);
     return fromLabelOptional(effectiveLabel)
         .orElseThrow(
             () ->

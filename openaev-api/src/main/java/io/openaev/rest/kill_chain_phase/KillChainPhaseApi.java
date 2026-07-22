@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -117,11 +118,25 @@ public class KillChainPhaseApi extends RestBehavior {
     try {
       return killChainPhaseService.upsertKillChainPhases(input.getKillChainPhases());
     } catch (DataIntegrityViolationException e) {
+      if (!isKillChainPhaseUniqueViolation(e)) {
+        throw e;
+      }
       log.warn(
           "Kill chain phase upsert lost a concurrent-insert race, retrying once: {}",
           e.getMessage());
       return killChainPhaseService.upsertKillChainPhases(input.getKillChainPhases());
     }
+  }
+
+  /**
+   * Only a duplicate-key violation on one of the kill_chain_phases unique constraints is a
+   * concurrent-insert race worth retrying; any other integrity failure (not-null, foreign key...)
+   * would fail again identically and must propagate immediately.
+   */
+  private static boolean isKillChainPhaseUniqueViolation(DataIntegrityViolationException e) {
+    return e.getCause() instanceof ConstraintViolationException constraintViolation
+        && constraintViolation.getConstraintName() != null
+        && constraintViolation.getConstraintName().startsWith("kill_chain_phases_");
   }
 
   @DeleteMapping("/{killChainPhaseId}")
