@@ -453,7 +453,6 @@ public class WorkflowStateService {
 
       pairSet.add(new WorkflowStateEntries.Pair(primitiveType.name(), valStr));
 
-      // Defer flat-input updates until all fields have been validated.
       String primKey = primitiveType.name();
       pendingUpdates.add(
           () -> {
@@ -463,7 +462,6 @@ public class WorkflowStateService {
     }
 
     if (pairSet.size() > 1) {
-      // All fields validated — now apply flat-input decomposition and register the tuple.
       pendingUpdates.forEach(Runnable::run);
       WorkflowStateEntries.Correlated tuple = new WorkflowStateEntries.Correlated(pairSet, type);
       entries.getCorrelated().add(tuple);
