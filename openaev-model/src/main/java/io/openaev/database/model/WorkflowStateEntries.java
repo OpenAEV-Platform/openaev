@@ -169,7 +169,7 @@ public class WorkflowStateEntries {
    *
    * @param tuple the correlated tuple to project
    * @param requiredKeys the keys to keep
-   * @return map of key → value for the intersection of tuple keys and requiredKeys
+   * @return map of key to value for the intersection of tuple keys and requiredKeys
    */
   public Map<String, String> projectTuple(Correlated tuple, Set<String> requiredKeys) {
     Map<String, String> projection = new HashMap<>();

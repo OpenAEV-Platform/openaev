@@ -289,7 +289,7 @@ public class WorkflowStateService {
    * provided root conditions.
    *
    * <p>This is the shared eligibility check for both primitive-value and correlated-tuple
-   * propagation. AND/OR group semantics are intentionally ignored here — full evaluation happens at
+   * propagation. AND/OR group semantics are intentionally ignored here. Full evaluation happens at
    * step execution time.
    */
   private boolean matchesAnyRootCondition(String value, List<Condition> rootConditions) {
@@ -397,12 +397,12 @@ public class WorkflowStateService {
    * Saves a correlated object (multi-field entry like {username, password}) into state entries,
    * validating each field against the scope rules before accepting it.
    *
-   * <p>JSON field names are normalized to {@link PrimitiveType#name()} (e.g. "username" →
+   * <p>JSON field names are normalized to {@link PrimitiveType#name()} (for example, "username" to
    * "Username") so that the object path produces the same key convention as the scalar path.
    *
    * <p><b>All-or-nothing semantics</b>: if any field fails scope validation, the entire tuple is
    * rejected and nothing is written to state. A partial correlated tuple would break the
-   * correlation semantics — downstream code expects every pair in a tuple to be valid together.
+   * correlation semantics. Downstream code expects every pair in a tuple to be valid together.
    *
    * <p>Once all fields pass, each accepted primitive field is ALSO decomposed flat into {@code
    * entries.inputs} so that downstream consumers can query individual primitives regardless of
@@ -443,7 +443,7 @@ public class WorkflowStateService {
       PrimitiveType primitiveType = accepted.get();
       String valStr = value.isJsonPrimitive() ? value.getAsString() : value.toString();
 
-      // Reject the ENTIRE tuple if any field fails validation — partial tuples break correlation.
+      // Reject the whole tuple if any field fails validation. Partial tuples break correlation.
       if (!PrimitiveValueValidator.isAcceptedForPrimitiveType(
           primitiveType, valStr, validationContext)) {
         log.debug(
@@ -482,7 +482,7 @@ public class WorkflowStateService {
     Optional<PrimitiveType> primitiveOpt = PrimitiveType.fromLabelOptional(jsonFieldName);
     if (primitiveOpt.isEmpty()) {
       log.debug(
-          "[Chaining] Skipping unknown field '{}' in correlated object — no PrimitiveType match",
+          "[Chaining] Skipping unknown field '{}' in correlated object: no PrimitiveType match",
           jsonFieldName);
       return Optional.empty();
     }

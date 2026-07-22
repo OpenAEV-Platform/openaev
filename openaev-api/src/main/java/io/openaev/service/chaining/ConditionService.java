@@ -742,7 +742,7 @@ public class ConditionService {
   }
 
   /**
-   * Identifies the root condition input — the one with no parent reference.
+   * Identifies the root condition input, the one with no parent reference.
    *
    * <p>For non-MAPPER conditions, exactly one root is expected. For MAPPER conditions, multiple
    * roots are allowed (each mapper is independent).
@@ -761,7 +761,7 @@ public class ConditionService {
   }
 
   /**
-   * Identifies all root condition inputs — those with no parent reference.
+   * Identifies all root condition inputs, those with no parent reference.
    *
    * <p>For MAPPER conditions, multiple roots are allowed since each mapper is an independent
    * mapping. For other condition types, the caller should validate that exactly one root exists.
@@ -874,7 +874,7 @@ public class ConditionService {
     Set<String> requiredKeys = extractRequiredExecutionKeys(mappers);
 
     // Build execution batches which be used as input for the step execution.
-    // Hashes are NOT committed here — the caller commits only the hashes of batches
+    // Hashes are not committed here. The caller commits only hashes of batches
     // that actually proceed (i.e. are not rate-limited) via commitHashes().
     List<ExecutionBatch> batches =
         buildExecutionBatches(
@@ -987,18 +987,15 @@ public class ConditionService {
   }
 
   /**
-   * Builds execution batches using a two-pass strategy:
+   * Builds execution batches in two steps.
    *
-   * <ol>
-   *   <li><b>Correlated pass</b> (≥2 dynamic keys only): anchors each candidate correlated tuple to
-   *       the required keys, completes uncovered keys from their MappingType source pool, and
-   *       generates combinations. Respects LOCAL/GLOBAL per uncovered key.
-   *   <li><b>Fallback cartesian pass</b> (runs only when correlated pass produced no usable batch):
-   *       computes the full cartesian product of all dynamic key value lists.
-   * </ol>
+   * <p>Step 1 uses correlated tuples when there are at least 2 dynamic keys. Covered keys come from
+   * the tuple. Missing keys are completed from LOCAL or GLOBAL pools based on MappingType.
    *
-   * <p>DEFAULT values are never part of either pass — they are merged into every batch at the end.
-   * Hashes are <b>not</b> committed here; the caller does so via {@code commitHashes()}.
+   * <p>Step 2 runs the fallback cartesian product only if step 1 produced no batch.
+   *
+   * <p>DEFAULT values are added at the end for every batch. Hashes are not committed here. The
+   * caller commits them with {@code commitHashes()}.
    */
   private List<ConditionService.ExecutionBatch> buildExecutionBatches(
       List<Condition> mappers,
@@ -1011,7 +1008,7 @@ public class ConditionService {
     Set<String> pendingHashes = new HashSet<>();
     boolean hasCorrelatedBatch = false;
 
-    // Pass 1 — correlated-first (only meaningful with ≥2 dynamic inputs)
+    // Step 1: correlated-first (useful only with >= 2 dynamic inputs)
     if (requiredKeys.size() >= 2) {
       WorkflowStateEntries correlatedPool =
           preparation.hasAnyLocal() ? localEntries : globalEntries;
@@ -1063,7 +1060,7 @@ public class ConditionService {
       }
     }
 
-    // Pass 2 — fallback cartesian (only when correlated pass produced no usable batch)
+    // Step 2: fallback cartesian (only when step 1 produced no batch)
     if (!hasCorrelatedBatch) {
       for (List<WorkflowStateEntries.Pair> comboPairs :
           localEntries.cartesianProduct(preparation.dynamicPairs())) {
