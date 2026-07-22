@@ -466,6 +466,10 @@ OpenAEV authenticates to the MDE API with the OAuth2 **client credentials** flow
 - **Application (client) ID** → `Client ID` in OpenAEV
 - A **client secret** (`Certificates & secrets > New client secret`) → `Client secret` in OpenAEV
 
+![MDE app registration](../assets/mde-app-registration.png)
+
+![MDE client secret](../assets/mde-client-secret.png)
+
 !!! warning "Required API permissions"
 
     Under **API permissions**, add the following **Application permissions** for *WindowsDefenderATP*, then click
@@ -479,6 +483,7 @@ OpenAEV authenticates to the MDE API with the OAuth2 **client credentials** flow
 
     Application permissions (not delegated) are mandatory because OpenAEV runs without a signed-in user.
 
+![MDE API permissions](../assets/mde-api-permissions.png)
 
 #### 2. Enable Live Response in Microsoft Defender
 
@@ -492,6 +497,8 @@ In the **Microsoft Defender portal** → **Settings > Endpoints > Advanced featu
 
     If *Live Response unsigned script execution* is **disabled**, every inject fails at the Live Response step because
     MDE refuses to run the OpenAEV subprocessor script. This is the single most common misconfiguration.
+
+![MDE Live Response advanced features](../assets/mde-live-response-features.png)
 
 #### 3. Upload the OpenAEV subprocessor scripts
 
@@ -512,6 +519,14 @@ and execute it). The file names must match what you configure in OpenAEV (defaul
     `Invoke-Expression`; the Unix script decodes it and pipes it to `sh`. Keep them as-is — reserved parameter names such
     as `param([string]$Args)` will break argument passing on PowerShell (`$args[0]` must be used).
 
+!!! warning "Tick *Has parameters* when uploading each script"
+
+    In the upload dialog, **enable the "parameters" option** for both scripts. OpenAEV always invokes the subprocessor
+    with the Base64 command as an argument; if parameters are not enabled, MDE runs the script without it and every inject
+    fails. Both scripts must show **Has parameters: Yes** in the library.
+
+![MDE Live Response Library](../assets/mde-scripts-library.png)
+
 #### 4. (Optional) Scope to a device group
 
 To sync only a subset of devices, set the **device group ID** (`rbacGroupId`) in OpenAEV. Leave the field empty to
@@ -524,6 +539,7 @@ sync **all** devices.
     to map a group **name** to its **id** is to read it from the machines inventory, which returns both `rbacGroupName`
     and `rbacGroupId` for every device.
 
+![MDE device groups](../assets/mde-device-groups.png)
 
 Run the following (PowerShell) against your tenant — it authenticates with the same Entra app registration and prints
 the `name → id` mapping for every device group that has at least one machine:
@@ -561,6 +577,8 @@ DEMO                    367
 UnassignedGroup         366
 ```
 
+![MDE rbacGroupId lookup result](../assets/mde-rbacgroupid-result.png)
+
 Here, syncing only the **DEMO** group means setting the OpenAEV **Device group** field to `367`. Separate multiple IDs
 with commas (for example `367,366`). `UnassignedGroup` is the default group for machines not assigned to any custom
 group.
@@ -576,6 +594,7 @@ group.
 To configure the MDE executor, navigate to the **Integrations > Executors** section in the OpenAEV menu and fill in the
 Microsoft Defender for Endpoint integration settings directly from the UI.
 
+![MDE executor configuration in OpenAEV](../assets/mde-executor-config.png)
 
 | Field | Required | Description |
 |-------|----------|-------------|
@@ -592,6 +611,8 @@ Microsoft Defender for Endpoint integration settings directly from the UI.
     (`https://login.microsoftonline.com`), the register interval (device/agent sync, default **1200s**) and the Live
     Response batch pagination (**10 machines / 5s**, the MDE rate limit is stricter than CrowdStrike).
 
+![MDE executor advanced options](../assets/mde-executor-advanced.png)
+
 ### Checks
 
 Once enabled, you should see Microsoft Defender for Endpoint available in your `Install agents` section.
@@ -599,6 +620,7 @@ Once enabled, you should see Microsoft Defender for Endpoint available in your `
 The devices in the selected device group(s) should now appear in the endpoints and asset groups sections in OpenAEV
 after the first sync (up to the register interval).
 
+![MDE assets in OpenAEV](../assets/mde-assets.png)
 
 !!! note "Where to see executions on the Microsoft side"
 
