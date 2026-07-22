@@ -10,6 +10,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
@@ -217,6 +221,79 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // Assert
     assertNotNull(updated);
     assertTrue(updated.isEmpty());
+  }
+
+  @Test
+  void given_parsedContainsObjectArraysAndPrimitiveLists_should_extractValues() {
+    // Arrange
+    JsonObject parsed = new JsonObject();
+    JsonArray portscan = new JsonArray();
+    JsonObject portscanItem = new JsonObject();
+    portscanItem.addProperty("asset_id", (String) null);
+    portscanItem.addProperty("host", "0.0.0.0");
+    portscanItem.addProperty("port", 135);
+    portscanItem.addProperty("service", "TCP");
+    JsonObject secondPortscanItem = new JsonObject();
+    secondPortscanItem.addProperty("asset_id", (String) null);
+    secondPortscanItem.addProperty("host", "127.0.0.1");
+    secondPortscanItem.addProperty("port", 5432);
+    secondPortscanItem.addProperty("service", "TCP");
+    portscan.add(portscanItem);
+    portscan.add(secondPortscanItem);
+    parsed.add("portscan", portscan);
+
+    JsonArray ips = new JsonArray();
+    ips.add(new JsonPrimitive("0.0.0.0"));
+    ips.add(new JsonPrimitive("127.0.0.1"));
+    parsed.add("ips", ips);
+
+    JsonArray ports = new JsonArray();
+    ports.add(new JsonPrimitive(135));
+    ports.add(new JsonPrimitive(5432));
+    parsed.add("ports", ports);
+
+    Map<String, JsonElement> outputEntry = new HashMap<>();
+    outputEntry.put("parsed", parsed);
+
+    // Act
+    JsonObject extracted =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "extractDataFromParsed", List.of(outputEntry));
+
+    // Assert
+    assertNotNull(extracted);
+    assertTrue(extracted.get("portscan").isJsonArray());
+    assertEquals(2, extracted.getAsJsonArray("portscan").size());
+    assertEquals(portscanItem, extracted.getAsJsonArray("portscan").get(0).getAsJsonObject());
+    assertEquals(secondPortscanItem, extracted.getAsJsonArray("portscan").get(1).getAsJsonObject());
+    assertEquals("0.0.0.0", extracted.getAsJsonArray("ips").get(0).getAsString());
+    assertEquals("127.0.0.1", extracted.getAsJsonArray("ips").get(1).getAsString());
+    assertEquals(135, extracted.getAsJsonArray("ports").get(0).getAsInt());
+    assertEquals(5432, extracted.getAsJsonArray("ports").get(1).getAsInt());
+  }
+
+  @Test
+  void given_parsedContainsSingleObject_should_wrapValueIntoArray() {
+    // Arrange
+    JsonObject parsed = new JsonObject();
+    JsonObject credential = new JsonObject();
+    credential.addProperty("username", "admin");
+    credential.addProperty("password", "secret");
+    parsed.add("credentials", credential);
+
+    Map<String, JsonElement> outputEntry = new HashMap<>();
+    outputEntry.put("parsed", parsed);
+
+    // Act
+    JsonObject extracted =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "extractDataFromParsed", List.of(outputEntry));
+
+    // Assert
+    assertNotNull(extracted);
+    assertTrue(extracted.get("credentials").isJsonArray());
+    assertEquals(1, extracted.getAsJsonArray("credentials").size());
+    assertEquals(credential, extracted.getAsJsonArray("credentials").get(0).getAsJsonObject());
   }
 
   @Test

@@ -2,7 +2,10 @@ package io.openaev.service.chaining;
 
 import static io.openaev.utils.JsonUtils.gson;
 
-import com.google.gson.*;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.WorkflowStateRepository;
@@ -294,7 +297,8 @@ public class WorkflowStateService {
           }
         } else if (element.isJsonObject() && isComplex) {
           // Complex output (e.g. {port: 22, host: "1.1.1.1"}): store as correlated pairs
-          saveCorrelatedObject(entries, element.getAsJsonObject());
+          String type = mappedType.origin() != null ? mappedType.origin().name() : null;
+          saveCorrelatedObject(entries, element.getAsJsonObject(), type, parsedByType);
         }
       }
     }
@@ -315,32 +319,77 @@ public class WorkflowStateService {
   }
 
   /**
-   * Saves a correlated object (multi-field entry like host+port) into state entries.
+   * Saves a correlated object (multi-field entry like {username, password}) into state entries.
+   *
+   * <p>JSON field names are normalized to {@link PrimitiveType#name()} (e.g. "username" →
+   * "Username") so that the object path produces the same key convention as the scalar path.
+   *
+   * <p>Each accepted primitive field is ALSO decomposed flat into {@code entries.inputs}, so that
+   * downstream consumers can query individual primitives regardless of their complex origin.
    *
    * @param entries state entries to update
    * @param obj JSON object whose fields form a correlated pair set
+   * @param type business type name (ContractOutputType.name())
+   * @param parsedByType accumulator for local-state propagation (mirroring the scalar path)
    */
-  private void saveCorrelatedObject(WorkflowStateEntries entries, JsonObject obj) {
+  private void saveCorrelatedObject(
+      WorkflowStateEntries entries,
+      JsonObject obj,
+      String type,
+      Map<String, List<String>> parsedByType) {
     Set<WorkflowStateEntries.Pair> pairSet = new HashSet<>();
 
     obj.entrySet()
         .forEach(
             entry -> {
-              String key = entry.getKey();
+              String jsonKey = entry.getKey();
               JsonElement value = entry.getValue();
 
               if (value == null || value.isJsonNull()) {
                 return;
               }
 
-              // Extract clean string values for the Pair
+              Optional<PrimitiveType> accepted = acceptedContentPrimitive(jsonKey);
+              if (accepted.isEmpty()) {
+                return;
+              }
+
+              PrimitiveType primitiveType = accepted.get();
               String valStr = value.isJsonPrimitive() ? value.getAsString() : value.toString();
-              pairSet.add(new WorkflowStateEntries.Pair(key, valStr));
+
+              // Store in the correlated pair set
+              pairSet.add(new WorkflowStateEntries.Pair(primitiveType.name(), valStr));
+
+              // Decompose into flat inputs (source-of-truth propagation)
+              entries.getInputByKey(primitiveType.name()).getValues().add(valStr);
+
+              // Mirror into parsedByType for local-state propagation (symmetric with scalar path)
+              parsedByType
+                  .computeIfAbsent(primitiveType.name(), k -> new ArrayList<>())
+                  .add(valStr);
             });
 
     if (pairSet.size() > 1) {
-      entries.getCorrelated().add(new WorkflowStateEntries.Correlated(pairSet));
+      entries.getCorrelated().add(new WorkflowStateEntries.Correlated(pairSet, type));
     }
+  }
+
+  /**
+   * Returns the resolved {@link PrimitiveType} for a JSON field name if it is a known primitive.
+   * Returns empty for unknown fields.
+   *
+   * <p>This is the SINGLE filter shared by both the correlated pair-set construction and the flat
+   * input decomposition, ensuring they cannot diverge.
+   */
+  private Optional<PrimitiveType> acceptedContentPrimitive(String jsonFieldName) {
+    Optional<PrimitiveType> primitiveOpt = PrimitiveType.fromLabelOptional(jsonFieldName);
+    if (primitiveOpt.isEmpty()) {
+      log.debug(
+          "Skipping unknown field '{}' in correlated object — no PrimitiveType match",
+          jsonFieldName);
+      return Optional.empty();
+    }
+    return primitiveOpt;
   }
 
   /** Persists a workflow state entity. */
@@ -458,11 +507,11 @@ public class WorkflowStateService {
       Map<Set<WorkflowStateEntries.Pair>, WorkflowStateEntries.Correlated> index =
           workflowStateEntries.getIndexCorrelatedInput();
       if (!index.containsKey(values)) {
-        WorkflowStateEntries.Correlated newCorrelated = new WorkflowStateEntries.Correlated(values);
+        WorkflowStateEntries.Correlated newCorrelated =
+            new WorkflowStateEntries.Correlated(values, null);
         workflowStateEntries.getCorrelated().add(newCorrelated);
         // todo test all combination  and launch the ones not executed
         // Todo save this StepInputBuffer
-        workflowStateEntries.testAndSaveCombinationsForCorrelated(newCorrelated);
       }
     } else {
       Set<String> values = getValues(output, path);
@@ -476,10 +525,6 @@ public class WorkflowStateService {
           input.getValues().add(value);
           // todo test all combination and launch the ones not executed
           // Todo save this StepInputBuffer
-
-          if (!newValues.isEmpty()) {
-            workflowStateEntries.testAndSaveCombinationsForInput(input, newValues);
-          }
         }
       }
     }

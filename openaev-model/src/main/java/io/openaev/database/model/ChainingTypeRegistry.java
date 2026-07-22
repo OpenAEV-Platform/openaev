@@ -34,7 +34,7 @@ public final class ChainingTypeRegistry {
     ChainingOutputType outputType = ChainingOutputType.fromContractOutputType(type);
     return switch (outputType.kind()) {
       case PRIMITIVE -> ChainingMappedType.primitive(outputType.primitiveType());
-      case COMPLEX -> ChainingMappedType.complex();
+      case COMPLEX -> ChainingMappedType.complex(outputType.primitiveRecipe(), type);
       case NOT_CHAINABLE -> ChainingMappedType.nonChainable();
     };
   }
