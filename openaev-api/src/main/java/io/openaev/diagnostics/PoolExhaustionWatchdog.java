@@ -118,8 +118,10 @@ public class PoolExhaustionWatchdog {
           holders.append("    ... ").append(frames.length - limit).append(" more\n");
         }
       } else {
+        // Thread names are not unique (pool threads share patterns): suffix the id so
+        // colliding entries do not overwrite each other and under-report threads.
         others.put(
-            thread.getName(),
+            thread.getName() + " #" + thread.threadId(),
             thread.getState() + (frames.length > 0 ? " at " + frames[0] : " (no frames)"));
       }
     }
@@ -140,8 +142,9 @@ public class PoolExhaustionWatchdog {
 
   /**
    * A thread executing inside the Postgres driver, Hibernate's JDBC layer or Hikari's proxy is, by
-   * construction, holding a pooled connection right now (Hikari housekeeping threads are excluded
-   * by name below).
+   * construction, holding (or opening) a database connection right now. Hikari's own housekeeping
+   * threads can match too (e.g. the connection adder stuck dialing an unreachable database): that
+   * is intentional, their stacks are just as diagnostic as application holders.
    */
   private static boolean isSuspectedConnectionHolder(StackTraceElement[] frames) {
     for (StackTraceElement frame : frames) {

@@ -40,7 +40,8 @@ public class PoolExhaustionWatchdogTest {
     assertThat(dump).contains("io.openaev.service.SomeService");
     // The idle thread is summarized on a single line, not dumped in full
     assertThat(dump).contains("--- OTHER THREADS (1)");
-    assertThat(dump).contains("\"idle-worker\"");
+    // Summarized entries are disambiguated with the thread id (names are not unique)
+    assertThat(dump).containsPattern("\"idle-worker #\\d+\"");
   }
 
   @Test
