@@ -490,7 +490,14 @@ public class ScenarioApi extends RestBehavior {
   public Scenario updateScenarioLessons(
       @PathVariable String scenarioId, @Valid @RequestBody LessonsInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    scenario.setLessonsAnonymized(input.isLessonsAnonymized());
+    // Partial update: absent fields keep their current value (older API consumers
+    // only send lessons_anonymized and must not reset the enabled flag).
+    if (input.getLessonsAnonymized() != null) {
+      scenario.setLessonsAnonymized(input.getLessonsAnonymized());
+    }
+    if (input.getLessonsEnabled() != null) {
+      scenario.setLessonsEnabled(input.getLessonsEnabled());
+    }
     return scenarioRepository.save(scenario);
   }
 

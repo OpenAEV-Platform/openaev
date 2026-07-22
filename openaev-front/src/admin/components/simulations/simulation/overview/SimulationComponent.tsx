@@ -138,7 +138,7 @@ const SimulationComponent = () => {
               if (results.length === 0) {
                 return <OverviewPlaceholder message={t('Prevention, detection and vulnerability results will appear here once the simulation runs.')} />;
               }
-              return <PostureGauges expectationResultsByTypes={results} humanValidationLink={`/admin/simulations/${exerciseId}/animation/validations`} />;
+              return <PostureGauges expectationResultsByTypes={results} humanValidationLink={`/admin/simulations/${exerciseId}/execution/validations`} />;
             })()}
           </Box>
         </SectionBlock>

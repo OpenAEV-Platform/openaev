@@ -16,7 +16,7 @@ import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import TagsFilter from '../../../common/filters/TagsFilter';
 import InjectIcon from '../../../common/injects/InjectIcon';
-import AnimationMenu from '../AnimationMenu';
+import ExecutionMenu from '../ExecutionMenu';
 import TeamOrAssetLine from './common/TeamOrAssetLine';
 
 const useStyles = makeStyles()(() => ({
@@ -124,7 +124,7 @@ const Validations = () => {
   if (exercise && injectExpectations) {
     return (
       <div>
-        <AnimationMenu exerciseId={exerciseId} />
+        <ExecutionMenu exerciseId={exerciseId} />
         <div style={{
           float: 'left',
           marginRight: 10,
@@ -208,7 +208,7 @@ const Validations = () => {
   }
   return (
     <div className={classes.container}>
-      <AnimationMenu exerciseId={exerciseId} />
+      <ExecutionMenu exerciseId={exerciseId} />
       <Loader />
     </div>
   );

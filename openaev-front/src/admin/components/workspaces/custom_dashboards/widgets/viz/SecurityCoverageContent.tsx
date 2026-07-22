@@ -6,6 +6,7 @@ import { useLocalStorage } from 'usehooks-ts';
 
 import type { AttackPatternHelper } from '../../../../../../actions/attack_patterns/attackpattern-helper';
 import type { KillChainPhaseHelper } from '../../../../../../actions/kill_chain_phases/killchainphase-helper';
+import Empty from '../../../../../../components/Empty';
 import { useFormatter } from '../../../../../../components/i18n';
 import { useHelper } from '../../../../../../store';
 import {
@@ -366,15 +367,7 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetCon
             without this guard a 0-covered / 0-gaps scope renders a blank body. */}
         {((coverageFilter === 'covered' && coverageStats.covered === 0)
           || (coverageFilter === 'gaps' && coverageStats.gaps === 0)) ? (
-              <Typography
-                variant="body2"
-                sx={{
-                  margin: 'auto',
-                  color: 'text.secondary',
-                }}
-              >
-                {t('No data to display')}
-              </Typography>
+              <Empty message={t('No data to display')} />
             ) : visiblePhases.map((phase) => {
               // Use indexed lookups - O(1) instead of O(n) filter
               const resolvedDataSuccessByKillChainPhase = successByPhase.get(phase.phase_external_id) ?? [];

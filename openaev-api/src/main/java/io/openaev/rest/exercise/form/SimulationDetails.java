@@ -77,6 +77,9 @@ public class SimulationDetails {
   @JsonProperty("exercise_lessons_anonymized")
   private boolean lessonsAnonymized;
 
+  @JsonProperty("exercise_lessons_enabled")
+  private boolean lessonsEnabled;
+
   // -- SCENARIO --
 
   @JsonProperty("exercise_scenario")
@@ -183,6 +186,7 @@ public class SimulationDetails {
     }
     details
         .lessonsAnonymized(exercise.getExercise_lessons_anonymized())
+        .lessonsEnabled(exercise.getExercise_lessons_enabled())
         .scenario(exercise.getScenario_id())
         .createAt(exercise.getExercise_created_at())
         .updatedAt(exercise.getExercise_updated_at());

@@ -2,6 +2,7 @@ import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
 import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
+import { searchInjectTests } from '../../../../actions/inject_test/scenario-inject-test-actions';
 import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { findNotificationRuleByResource } from '../../../../actions/scenarios/scenario-notification-rules';
@@ -24,6 +25,7 @@ import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
+import useHasInjectTests from '../../injects/useHasInjectTests';
 import ScenarioNotificationRulesDrawer from './notification_rule/ScenarioNotificationRulesDrawer';
 import injectContextForScenario from './ScenarioContext';
 import ScenarioHeader from './ScenarioHeader';
@@ -46,6 +48,9 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
   const location = useLocation();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const permissions = useScenarioPermissions(scenario.scenario_id);
+  // The Tests tab only exists for email/SMS injects that have actually been
+  // tested; hide it entirely otherwise.
+  const hasInjectTests = useHasInjectTests(searchInjectTests, scenario.scenario_id);
   // Stable context identities: these providers wrap the whole scenario subtree and a
   // new value each render forces every consumer (incl. the injects list) to re-render.
   const permissionsContext: PermissionsContextType = useMemo(() => ({
@@ -193,18 +198,23 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
                     value={`/admin/scenarios/${scenario.scenario_id}/injects`}
                     label={t('Injects')}
                   />
-                  <Tab
-                    component={Link}
-                    to={`/admin/scenarios/${scenario.scenario_id}/tests`}
-                    value={`/admin/scenarios/${scenario.scenario_id}/tests`}
-                    label={t('Tests')}
-                  />
-                  <Tab
-                    component={Link}
-                    to={`/admin/scenarios/${scenario.scenario_id}/lessons`}
-                    value={`/admin/scenarios/${scenario.scenario_id}/lessons`}
-                    label={t('Lessons learned')}
-                  />
+                  {hasInjectTests && (
+                    <Tab
+                      component={Link}
+                      to={`/admin/scenarios/${scenario.scenario_id}/tests`}
+                      value={`/admin/scenarios/${scenario.scenario_id}/tests`}
+                      label={t('Tests')}
+                    />
+                  )}
+                  {/* The lessons learned module is opt-in (scenario configuration). */}
+                  {scenario.scenario_lessons_enabled && (
+                    <Tab
+                      component={Link}
+                      to={`/admin/scenarios/${scenario.scenario_id}/lessons`}
+                      value={`/admin/scenarios/${scenario.scenario_id}/lessons`}
+                      label={t('Lessons learned')}
+                    />
+                  )}
                   <Tab
                     component={Link}
                     to={`/admin/scenarios/${scenario.scenario_id}/findings`}

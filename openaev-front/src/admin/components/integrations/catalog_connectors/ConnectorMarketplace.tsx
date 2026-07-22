@@ -77,11 +77,21 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
   }, [filteredItems, t]);
 
   return (
-    <div style={{
-      display: 'flex',
-      gap: theme.spacing(3),
-      alignItems: 'flex-start',
-    }}
+    // Below md the sidebar stacks full-width above the cards instead of
+    // squeezing them against a fixed 250px column.
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: {
+          xs: 'column',
+          md: 'row',
+        },
+        gap: 3,
+        alignItems: {
+          xs: 'stretch',
+          md: 'flex-start',
+        },
+      }}
     >
       <CatalogSidebar
         connectors={items}
@@ -90,13 +100,15 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
         onToggleFacet={onToggleFacet}
         onClearAll={onClearFacets}
       />
-      <main style={{
-        flex: 1,
-        minWidth: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: theme.spacing(2),
-      }}
+      <Box
+        component="main"
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+        }}
       >
         <CatalogToolbar
           keyword={keyword}
@@ -179,17 +191,19 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
                 }}
                 />
               </header>
-              {/* Capped at 4 columns like OpenCTI (Grid2 xs-12 md-6 lg-4 xl-3):
-                  cards grow with the screen instead of multiplying columns. */}
+              {/* Capped at 4 columns like OpenCTI (Grid2 xs-12 sm-6 lg-4 xl-3):
+                  cards grow with the screen instead of multiplying columns.
+                  minmax(0, 1fr) keeps every track the same width even when a
+                  card's intrinsic content would otherwise stretch its column. */}
               <Box
                 sx={{
                   display: 'grid',
                   gap: 2,
                   gridTemplateColumns: {
-                    xs: '1fr',
-                    md: 'repeat(2, 1fr)',
-                    lg: 'repeat(3, 1fr)',
-                    xl: 'repeat(4, 1fr)',
+                    xs: 'minmax(0, 1fr)',
+                    sm: 'repeat(2, minmax(0, 1fr))',
+                    lg: 'repeat(3, minmax(0, 1fr))',
+                    xl: 'repeat(4, minmax(0, 1fr))',
                   },
                 }}
               >
@@ -204,8 +218,8 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
             </section>
           );
         })}
-      </main>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

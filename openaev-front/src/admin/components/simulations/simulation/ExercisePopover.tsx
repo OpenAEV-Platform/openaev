@@ -1,7 +1,7 @@
 import { type FunctionComponent, useContext, useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { deleteExercise, duplicateExercise, updateExercise } from '../../../../actions/Exercise';
+import { deleteExercise, duplicateExercise, updateExercise, updateExerciseLessons } from '../../../../actions/Exercise';
 import { checkExerciseTagRules } from '../../../../actions/exercises/exercise-action';
 import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
 import DialogApplyTagRule from '../../../../components/common/DialogApplyTagRule';
@@ -22,6 +22,8 @@ import useSimulationPermissions from '../../../../utils/permissions/useSimulatio
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ExerciseForm from './ExerciseForm';
 import ExerciseReports from './reports/ExerciseReports';
+
+type ExerciseUpdateFormInput = UpdateExerciseInput & { exercise_lessons_enabled?: boolean };
 
 export type ExerciseActionPopover = 'Duplicate' | 'Update' | 'Delete' | 'Export' | 'Access reports';
 
@@ -50,7 +52,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
   const ability = useContext(AbilityContext);
 
   // Form
-  const initialValues: UpdateExerciseInput = {
+  const initialValues: ExerciseUpdateFormInput = {
     exercise_name: exercise.exercise_name,
     exercise_subtitle: exercise.exercise_subtitle ?? '',
     exercise_description: exercise.exercise_description,
@@ -64,13 +66,14 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
     exercise_message_footer: exercise.exercise_message_footer ?? '',
     exercise_custom_dashboard: exercise.exercise_custom_dashboard ?? '',
     apply_tag_rule: false,
+    exercise_lessons_enabled: exercise.exercise_lessons_enabled ?? false,
   };
 
   // Edit
   const [openEdit, setOpenEdit] = useState(false);
   const handleOpenEdit = () => setOpenEdit(true);
   const handleCloseEdit = () => setOpenEdit(false);
-  const [exerciseFormData, setExerciseFormData] = useState<UpdateExerciseInput>(initialValues);
+  const [exerciseFormData, setExerciseFormData] = useState<ExerciseUpdateFormInput>(initialValues);
 
   // Delete
   const [openDelete, setOpenDelete] = useState(false);
@@ -163,7 +166,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
     };
   }
 
-  const submitExerciseUpdate = (data: UpdateExerciseInput) => {
+  const submitExerciseUpdate = (data: ExerciseUpdateFormInput) => {
     const input = {
       exercise_name: data.exercise_name,
       exercise_subtitle: data.exercise_subtitle,
@@ -179,7 +182,18 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
       exercise_custom_dashboard: data.exercise_custom_dashboard,
       apply_tag_rule: data.apply_tag_rule,
     };
-    return dispatch(updateExercise(exercise.exercise_id, input)).then(() => handleCloseEdit());
+    // The lessons learned module flag lives behind its own endpoint (partial
+    // update) so external API consumers of the general update can never
+    // accidentally reset it. Sequential on purpose: the general update saves
+    // the whole entity, so a concurrent lessons update could be overwritten.
+    return dispatch(updateExercise(exercise.exercise_id, input))
+      .then(() => {
+        const lessonsEnabled = data.exercise_lessons_enabled ?? false;
+        return lessonsEnabled !== (exercise.exercise_lessons_enabled ?? false)
+          ? dispatch(updateExerciseLessons(exercise.exercise_id, { lessons_enabled: lessonsEnabled }))
+          : Promise.resolve();
+      })
+      .then(() => handleCloseEdit());
   };
 
   const handleTagRuleChoice = (shouldApply: boolean) => {
@@ -188,7 +202,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
     handleCloseApplyRule();
   };
 
-  const onSubmit = (data: UpdateExerciseInput) => {
+  const onSubmit = (data: ExerciseUpdateFormInput) => {
     setExerciseFormData(data);
     // before updating the exercise we are checking if tag rules could apply
     // -> if yes we ask the user to apply or not apply the rules at the update

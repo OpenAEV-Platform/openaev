@@ -219,13 +219,19 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   const [lastSimulationId, setLastSimulationId] = useState<string | null>(null);
   const [lastResults, setLastResults] = useState<ExpectationResultsByType[] | null>(null);
   const [lastInjectResults, setLastInjectResults] = useState<InjectExpectationResultsByAttackPattern[] | null>(null);
+  // Tracks whether the latest-run results fetch has settled, so we only fall back
+  // to the illustrative sample preview once we know there is genuinely nothing to
+  // show (never-run OR a run that produced no results) - never while still loading.
+  const [lastResultsResolved, setLastResultsResolved] = useState<boolean>(false);
   useEffect(() => {
     if (!areAnyExercisesInScenario) {
       setLastSimulationId(null);
       setLastResults(null);
       setLastInjectResults(null);
+      setLastResultsResolved(true);
       return;
     }
+    setLastResultsResolved(false);
     searchScenarioExercises(scenarioId, {
       size: 1,
       page: 0,
@@ -242,10 +248,15 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
       ],
     }).then((result: { data: { content?: ExerciseSimple[] } }) => {
       const simulationId = result.data.content?.[0]?.exercise_id;
-      if (!simulationId) return;
+      if (!simulationId) {
+        setLastResultsResolved(true);
+        return;
+      }
       setLastSimulationId(simulationId);
-      fetchExerciseExpectationResult(simulationId).then((r: { data: ExpectationResultsByType[] }) => setLastResults(r.data));
-      fetchExerciseInjectExpectationResults(simulationId).then((r: { data: InjectExpectationResultsByAttackPattern[] }) => setLastInjectResults(r.data));
+      Promise.all([
+        fetchExerciseExpectationResult(simulationId).then((r: { data: ExpectationResultsByType[] }) => setLastResults(r.data)),
+        fetchExerciseInjectExpectationResults(simulationId).then((r: { data: InjectExpectationResultsByAttackPattern[] }) => setLastInjectResults(r.data)),
+      ]).finally(() => setLastResultsResolved(true));
     });
   }, [scenarioId, areAnyExercisesInScenario]);
 
@@ -257,9 +268,14 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   const hasMitreResults = !!lastInjectResults && lastAttackPatternIds.length > 0;
   const hasPosture = !!lastResults && lastResults.length > 0;
 
-  // When the scenario has never run, render the SAME overview but fed with
-  // illustrative sample data (greyed "Sample" preview), like the home dashboard.
-  const isSample = !areAnyExercisesInScenario;
+  // Render the SAME overview fed with illustrative sample data (greyed "Sample"
+  // preview, like the home dashboard) both when the scenario has never run AND
+  // when its latest run produced no results (e.g. a failed run) - so the overview
+  // never degrades into a half-empty page with the posture / MITRE sections
+  // silently dropped. Guarded by lastResultsResolved to avoid flashing the sample
+  // during the initial results fetch.
+  const hasNeverRun = !areAnyExercisesInScenario;
+  const isSample = hasNeverRun || (lastResultsResolved && !hasPosture && !hasMitreResults);
   const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, scenario.scenario_id);
   const postureResults = isSample ? SAMPLE_POSTURE : lastResults;
   const showPosture = isSample || hasPosture;
@@ -301,7 +317,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               marginBottom: 0.25,
             }}
             >
-              {t('This scenario has not run yet')}
+              {hasNeverRun ? t('This scenario has not run yet') : t('No results to display yet')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {t('The insights below are a sample preview. Launch a simulation to populate them with your real posture.')}
@@ -330,7 +346,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
           <SamplePreview active={isSample} variant="subtle">
             <PostureGauges
               expectationResultsByTypes={postureResults}
-              humanValidationLink={!isSample && lastSimulationId ? `/admin/simulations/${lastSimulationId}/animation/validations` : undefined}
+              humanValidationLink={!isSample && lastSimulationId ? `/admin/simulations/${lastSimulationId}/execution/validations` : undefined}
             />
           </SamplePreview>
         </SectionBlock>
@@ -418,9 +434,12 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
         </SectionBlock>
 
         <SectionBlock title={t('Posture trend')}>
-          <SamplePreview active={isSample} variant="subtle">
-            <ScenarioDistributionByExercise scenarioId={scenarioId} />
-          </SamplePreview>
+          {/* The trend aggregates every past run, so it can show real history even
+              when only the latest run has no results. It owns its own sample marking
+              (greyed + "Sample" chip when it falls back to illustrative data), so it
+              must NOT be wrapped in an outer SamplePreview here - that would either
+              double-mark it or, worse, hide that its data is a sample. */}
+          <ScenarioDistributionByExercise scenarioId={scenarioId} />
         </SectionBlock>
       </Box>
 

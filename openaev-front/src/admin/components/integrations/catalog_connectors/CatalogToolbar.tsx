@@ -38,9 +38,12 @@ const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange,
   ];
 
   return (
+    // Wraps like OpenCTI's marketplace toolbar so the fixed-width search and
+    // sort controls never overflow a narrow main column.
     <div style={{
       display: 'flex',
       alignItems: 'center',
+      flexWrap: 'wrap',
       gap: theme.spacing(1.5),
     }}
     >

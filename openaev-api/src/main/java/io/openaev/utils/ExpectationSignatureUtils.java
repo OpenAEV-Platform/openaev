@@ -9,6 +9,7 @@ import io.openaev.validator.Ipv4OrIpv6Validator;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class ExpectationSignatureUtils {
@@ -73,7 +74,17 @@ public class ExpectationSignatureUtils {
     if (expectationSignatures == null || expectationSignatures.isEmpty()) {
       return new ArrayList<>();
     }
+    // Drop nulls (createIpSignature returns null for non-IP values) and de-duplicate by
+    // (type, value). InjectExpectationSignature has a composite primary key of (injectExpectation,
+    // type, value): two identical (type, value) pairs on the same expectation map to the same row,
+    // so persisting both makes Hibernate enqueue two managed entities with the same identifier and
+    // throw NonUniqueObjectException, rolling back the whole expectation save. This happens whenever
+    // computeSignatures yields the same value twice - e.g. an endpoint whose seen IP is also one of
+    // its declared IPs produces two source_ipv4_address signatures. The entity's
+    // "ON CONFLICT DO NOTHING" only guards duplicates across separate flushes, not within one batch.
     return expectationSignatures.stream()
+        .filter(Objects::nonNull)
+        .distinct()
         .map(signature -> convertToInjectExpectationSignature(signature, injectExpectation))
         .collect(Collectors.toCollection(ArrayList::new));
   }

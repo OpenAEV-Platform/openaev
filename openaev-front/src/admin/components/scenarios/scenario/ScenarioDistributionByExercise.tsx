@@ -9,6 +9,7 @@ import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type GlobalScoreBySimulationEndDate, type ScenarioStatistic } from '../../../../utils/api-types';
 import { expectationTypeColor, expectationTypeIcon } from '../../common/ExpectationIconByType';
+import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 
 interface Props { scenarioId: string }
 
@@ -85,8 +86,7 @@ const TrendTile: FunctionComponent<{
   type: string;
   label: string;
   scores: GlobalScoreBySimulationEndDate[];
-  dimmed: boolean;
-}> = ({ type, label, scores, dimmed }) => {
+}> = ({ type, label, scores }) => {
   const theme = useTheme();
   const { fsd, t } = useFormatter();
   const color = expectationTypeColor(type);
@@ -117,8 +117,7 @@ const TrendTile: FunctionComponent<{
         padding: 1.5,
         borderRadius: 1,
         border: `1px solid ${alpha(theme.palette.text.primary, 0.06)}`,
-        background: `linear-gradient(180deg, ${alpha(color, dimmed ? 0.04 : 0.07)}, transparent 70%)`,
-        opacity: dimmed ? 0.75 : 1,
+        background: `linear-gradient(180deg, ${alpha(color, 0.07)}, transparent 70%)`,
       }}
     >
       <Box sx={{
@@ -265,7 +264,7 @@ const ScenarioDistributionByExercise: FunctionComponent<Props> = ({ scenarioId }
     return <Empty message={t('No data to display')} />;
   }
 
-  return (
+  const grid = (
     <Box sx={{
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
@@ -278,11 +277,16 @@ const ScenarioDistributionByExercise: FunctionComponent<Props> = ({ scenarioId }
           type={type}
           label={label}
           scores={scores[type]}
-          dimmed={isFakeData}
         />
       ))}
     </Box>
   );
+
+  // No real trend yet (scenario never ran, or every run so far produced no
+  // results): the tiles above are an illustrative sample so the widget previews
+  // its final shape. Mark it explicitly as a sample (greyed + "Sample" chip),
+  // like the other overview widgets, so it can never be mistaken for real posture.
+  return isFakeData ? <SamplePreview active variant="subtle">{grid}</SamplePreview> : grid;
 };
 
 export default ScenarioDistributionByExercise;
