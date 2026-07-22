@@ -190,8 +190,9 @@ public class AttackPathExecutionIngestionService {
       if (inject.getPayload().isEmpty()) return null;
       PayloadType payloadType = PayloadType.fromString(inject.getPayload().get().getType());
 
+      String finalTarget = target;
       Agent agent = agentsAndAssetsAgentless.agents().stream()
-          .filter(targets -> targets.getId().equals(target))
+          .filter(targets -> targets.getId().equals(finalTarget))
           .findFirst()
           .orElse(null);
       if (agent == null) return null;
@@ -235,14 +236,19 @@ public class AttackPathExecutionIngestionService {
         }
       }
 
-    } else { //INJECTOR ->
+    } else { //INJECTOR -> 1 Execution by target
       String targetSelector = inject.getContent().get("target_selector").asText();
 
       if (targetSelector.equals("manual")) { // DISCOVERY
+        String[] targets = inject.getContent().get("targets").asText().split(",");
+        if(targets.length < 1) return null;
 
+        target = inject.getContent().get("targets").asText().split(",")[0];
         return AttackPathIds.executionNode(inject.getId(), target, inject.getInjector().getId());
 
       } else if (targetSelector.equals("asset") || targetSelector.equals("asset_group")) { //ASSET
+        if(inject.getAssets().isEmpty()) return null;
+        target = inject.getAssets().getFirst().getId();
         AttackPathIds.executionNode(inject.getId(), target, inject.getInjector().getId());
       }
 
