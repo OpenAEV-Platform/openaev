@@ -5840,7 +5840,8 @@ export interface KillChainPhaseCoverage {
 
 export interface KillChainPhaseCreateInput {
   phase_description?: string;
-  phase_external_id?: string;
+  /** @minLength 1 */
+  phase_external_id: string;
   /** @minLength 1 */
   phase_kill_chain_name: string;
   /** @minLength 1 */
@@ -5917,7 +5918,7 @@ export interface KillChainPhaseUpdateInput {
 }
 
 export interface KillChainPhaseUpsertInput {
-  kill_chain_phases?: KillChainPhaseCreateInput[];
+  kill_chain_phases: KillChainPhaseCreateInput[];
 }
 
 export interface LessonsAnswer {

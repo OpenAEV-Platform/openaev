@@ -1,7 +1,9 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Optional;
 
 public enum PrimitiveType {
@@ -70,12 +72,43 @@ public enum PrimitiveType {
 
   public final String label;
 
+  /**
+   * Labels of the pre-#6536 {@code ArgumentType} enum that no longer exist in {@code
+   * PrimitiveType}, mapped to their closest primitive. Payload rows created before the chaining
+   * refactor still carry these labels in {@code payloads.payload_arguments} and {@code
+   * injects_statuses.status_payload_output}; without this mapping Jackson fails to deserialize the
+   * column and the whole entity row becomes unreadable (hypersistence JsonType then rethrows as
+   * "cannot be transformed to Json object"). A Flyway migration rewrites stored data, but this
+   * keeps reads safe for anything written between deploy and migration, and for external clients
+   * (injector contracts, imports) still sending legacy labels.
+   */
+  private static final Map<String, String> LEGACY_ARGUMENT_TYPE_LABELS =
+      Map.ofEntries(
+          Map.entry("credentials", "username"),
+          Map.entry("portscan", "port"),
+          Map.entry("share", "share_name"),
+          Map.entry("admin_username", "username"),
+          Map.entry("group", "text"),
+          Map.entry("computer", "hostname"),
+          Map.entry("password_policy", "text"),
+          Map.entry("delegation", "text"),
+          Map.entry("sid", "text"),
+          Map.entry("vulnerability", "cve"),
+          Map.entry("account_with_password_not_required", "username"),
+          Map.entry("asreproastable_account", "username"),
+          Map.entry("kerberoastable_account", "username"));
+
   PrimitiveType(String label) {
     this.label = label;
   }
 
+  @JsonCreator
   public static PrimitiveType fromLabel(String label) {
-    return fromLabelOptional(label)
+    // Immutable maps reject null keys: guard so a null label keeps failing with the controlled
+    // IllegalArgumentException below instead of an opaque NullPointerException.
+    String effectiveLabel =
+        label == null ? null : LEGACY_ARGUMENT_TYPE_LABELS.getOrDefault(label, label);
+    return fromLabelOptional(effectiveLabel)
         .orElseThrow(
             () ->
                 new IllegalArgumentException(

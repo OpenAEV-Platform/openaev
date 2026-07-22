@@ -1,6 +1,7 @@
 package io.openaev.database.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -51,6 +52,15 @@ class ChainingTypeRegistryTest {
     assertThat(PrimitiveType.fromLabel("ip_subnet")).isEqualTo(PrimitiveType.IpSubnet);
     assertThat(PrimitiveType.fromLabel("asset_id")).isEqualTo(PrimitiveType.AssetId);
     assertThat(PrimitiveType.fromLabel("asset_group_id")).isEqualTo(PrimitiveType.AssetGroupId);
+  }
+
+  @Test
+  @DisplayName("Should keep a controlled failure on null or unknown primitive labels")
+  void given_nullOrUnknownLabel_should_throwIllegalArgument() {
+    assertThatThrownBy(() -> PrimitiveType.fromLabel(null))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> PrimitiveType.fromLabel("definitely-not-a-type"))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test

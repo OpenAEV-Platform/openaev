@@ -26,6 +26,9 @@ public class KillChainPhaseCreateInput {
   @JsonProperty("phase_stix_id")
   private String stixId;
 
+  // The entity is @NotBlank and the frontend form already treats it as required: validating here
+  // fails fast with a 400 instead of a late entity-validation failure at flush time.
+  @NotBlank(message = MANDATORY_MESSAGE)
   @JsonProperty("phase_external_id")
   private String externalId;
 

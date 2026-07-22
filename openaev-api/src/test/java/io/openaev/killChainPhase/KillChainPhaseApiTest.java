@@ -6,7 +6,12 @@ import static io.openaev.database.specification.KillChainPhaseSpecification.byNa
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.KillChainPhaseFixture.getKillChainPhase;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -19,6 +24,9 @@ import io.openaev.database.model.KillChainPhase;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.database.specification.KillChainPhaseSpecification;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseApi;
+import io.openaev.rest.kill_chain_phase.form.KillChainPhaseCreateInput;
+import io.openaev.rest.kill_chain_phase.form.KillChainPhaseUpsertInput;
+import io.openaev.rest.kill_chain_phase.service.KillChainPhaseService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -33,6 +41,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.MediaType;
@@ -251,6 +260,185 @@ public class KillChainPhaseApiTest extends IntegrationTest {
           .andExpect(jsonPath("$.content.[0].phase_name").value("name3"))
           .andExpect(jsonPath("$.content.[1].phase_name").value("name2"))
           .andExpect(jsonPath("$.content.[2].phase_name").value("name1"));
+    }
+  }
+
+  @Nested
+  @WithMockUser(isAdmin = true)
+  @DisplayName("Upserting kill chain phases")
+  class UpsertingKillChainPhases {
+
+    private static final String KILL_CHAIN = "upsert-test-chain";
+    private static final String STIX_ID = "x-mitre-tactic--upsert-test-0001";
+
+    @AfterEach
+    void cleanUp() {
+      for (String shortName : List.of("old-short", "new-short", "exec")) {
+        killChainPhaseRepository
+            .findByKillChainNameAndShortName(KILL_CHAIN, shortName)
+            .ifPresent(killChainPhaseRepository::delete);
+      }
+    }
+
+    private KillChainPhaseCreateInput createInput(String shortName, String name, String stixId) {
+      KillChainPhaseCreateInput input = new KillChainPhaseCreateInput();
+      input.setKillChainName(KILL_CHAIN);
+      input.setShortName(shortName);
+      input.setName(name);
+      input.setStixId(stixId);
+      input.setExternalId("TA-UPSERT-TEST");
+      return input;
+    }
+
+    private KillChainPhaseUpsertInput upsertInput(KillChainPhaseCreateInput... inputs) {
+      KillChainPhaseUpsertInput upsertInput = new KillChainPhaseUpsertInput();
+      upsertInput.setKillChainPhases(List.of(inputs));
+      return upsertInput;
+    }
+
+    @Test
+    @DisplayName("Upsert matches an existing phase by STIX id even when the short name changed")
+    void given_existing_stix_id_should_update_phase_instead_of_inserting() throws Exception {
+      KillChainPhase existing = getKillChainPhase("Old name", 1L);
+      existing.setKillChainName(KILL_CHAIN);
+      existing.setShortName("old-short");
+      existing.setStixId(STIX_ID);
+      String existingId = killChainPhaseRepository.save(existing).getId();
+
+      mvc.perform(
+              post("/api/kill_chain_phases/upsert")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(upsertInput(createInput("new-short", "New name", STIX_ID))))
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.length()").value(1))
+          .andExpect(jsonPath("$[0].phase_id").value(existingId))
+          .andExpect(jsonPath("$[0].phase_shortname").value("new-short"))
+          .andExpect(jsonPath("$[0].phase_name").value("New name"));
+
+      assertTrue(
+          killChainPhaseRepository
+              .findByKillChainNameAndShortName(KILL_CHAIN, "old-short")
+              .isEmpty(),
+          "the old natural key must not survive as a separate row");
+      assertEquals(
+          existingId,
+          killChainPhaseRepository
+              .findByKillChainNameAndShortName(KILL_CHAIN, "new-short")
+              .orElseThrow()
+              .getId());
+    }
+
+    @Test
+    @DisplayName("Upsert rejects entries with blank mandatory fields (cascaded validation)")
+    void given_blank_mandatory_fields_should_return_bad_request() throws Exception {
+      mvc.perform(
+              post("/api/kill_chain_phases/upsert")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(upsertInput(createInput("", "No short name", null))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Upsert rejects an explicit null kill_chain_phases list")
+    void given_null_phase_list_should_return_bad_request() throws Exception {
+      mvc.perform(
+              post("/api/kill_chain_phases/upsert")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"kill_chain_phases\": null}")
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Upsert rejects null entries inside the kill_chain_phases list")
+    void given_null_phase_entry_should_return_bad_request() throws Exception {
+      mvc.perform(
+              post("/api/kill_chain_phases/upsert")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"kill_chain_phases\": [null]}")
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Upsert rejects entries without an external id")
+    void given_missing_external_id_should_return_bad_request() throws Exception {
+      KillChainPhaseCreateInput input = createInput("exec", "Execution", STIX_ID);
+      input.setExternalId(null);
+
+      mvc.perform(
+              post("/api/kill_chain_phases/upsert")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(upsertInput(input)))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Duplicate entries in one request (with and without STIX id) persist a single row")
+    void given_duplicate_inputs_in_batch_should_persist_single_row() throws Exception {
+      mvc.perform(
+              post("/api/kill_chain_phases/upsert")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      asJsonString(
+                          upsertInput(
+                              createInput("exec", "Execution", STIX_ID),
+                              createInput("exec", "Execution updated", null))))
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.length()").value(1));
+
+      KillChainPhase persisted =
+          killChainPhaseRepository
+              .findByKillChainNameAndShortName(KILL_CHAIN, "exec")
+              .orElseThrow();
+      assertEquals("Execution updated", persisted.getName());
+      assertEquals(STIX_ID, persisted.getStixId(), "STIX id must survive the stix-less duplicate");
+    }
+
+    private static DataIntegrityViolationException uniqueViolation(String constraintName) {
+      return new DataIntegrityViolationException(
+          "duplicate key",
+          new org.hibernate.exception.ConstraintViolationException(
+              "duplicate key", new java.sql.SQLException("duplicate key"), constraintName));
+    }
+
+    @Test
+    @DisplayName("Upsert retries once when the first attempt loses a concurrent-insert race")
+    void given_concurrent_insert_race_should_retry_once() {
+      KillChainPhaseService service = mock(KillChainPhaseService.class);
+      KillChainPhaseApi api = new KillChainPhaseApi(mock(KillChainPhaseRepository.class), service);
+      KillChainPhaseUpsertInput input = new KillChainPhaseUpsertInput();
+      List<KillChainPhase> winner = List.of(new KillChainPhase());
+      when(service.upsertKillChainPhases(input.getKillChainPhases()))
+          .thenThrow(uniqueViolation("kill_chain_phases_stix_id_tenant_unique"))
+          .thenReturn(winner);
+
+      Iterable<KillChainPhase> result = api.upsertKillChainPhases(input);
+
+      assertSame(winner, result);
+      verify(service, times(2)).upsertKillChainPhases(input.getKillChainPhases());
+    }
+
+    @Test
+    @DisplayName("Upsert does not retry integrity failures unrelated to the unique constraints")
+    void given_unrelated_integrity_violation_should_not_retry() {
+      KillChainPhaseService service = mock(KillChainPhaseService.class);
+      KillChainPhaseApi api = new KillChainPhaseApi(mock(KillChainPhaseRepository.class), service);
+      KillChainPhaseUpsertInput input = new KillChainPhaseUpsertInput();
+      DataIntegrityViolationException notNullViolation =
+          new DataIntegrityViolationException("null value in column phase_external_id");
+      when(service.upsertKillChainPhases(input.getKillChainPhases())).thenThrow(notNullViolation);
+
+      DataIntegrityViolationException thrown =
+          assertThrows(
+              DataIntegrityViolationException.class, () -> api.upsertKillChainPhases(input));
+
+      assertSame(notNullViolation, thrown);
+      verify(service, times(1)).upsertKillChainPhases(input.getKillChainPhases());
     }
   }
 
