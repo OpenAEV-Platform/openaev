@@ -120,7 +120,9 @@ public class QueueChainingService {
    */
   public void republishReadyEvent(StepEvent event) throws IOException {
     log.info(
-        "[Chaining] RE-PUBLISH STEP READY (retry {}): {}", event.getRetryCount(), event.getStepId());
+        "[Chaining] RE-PUBLISH STEP READY (retry {}): {}",
+        event.getRetryCount(),
+        event.getStepId());
     readyQueueService.publish(event);
   }
 

@@ -37,8 +37,7 @@ public class QueueChainingJob implements Job {
           if (stepsDelayQueue.isEmpty()) return;
 
           log.info(
-              "[Chaining] QueueChainingJob: processing {} delayed step(s)",
-              stepsDelayQueue.size());
+              "[Chaining] QueueChainingJob: processing {} delayed step(s)", stepsDelayQueue.size());
 
           for (StepDelayQueue stepDelayQueue : stepsDelayQueue) {
             // Guard: ignore if workflow run has already ended (e.g. timeout).

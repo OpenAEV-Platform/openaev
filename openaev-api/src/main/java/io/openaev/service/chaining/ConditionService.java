@@ -878,11 +878,7 @@ public class ConditionService {
     // that actually proceed (i.e. are not rate-limited) via commitHashes().
     List<ExecutionBatch> batches =
         buildExecutionBatches(
-            mappers,
-            context.localEntries(),
-            context.globalEntries(),
-            preparation,
-            requiredKeys);
+            mappers, context.localEntries(), context.globalEntries(), preparation, requiredKeys);
 
     return batches;
   }
@@ -994,8 +990,8 @@ public class ConditionService {
    * Builds execution batches using a two-pass strategy:
    *
    * <ol>
-   *   <li><b>Correlated pass</b> (≥2 dynamic keys only): anchors each candidate correlated tuple
-   *       to the required keys, completes uncovered keys from their MappingType source pool, and
+   *   <li><b>Correlated pass</b> (≥2 dynamic keys only): anchors each candidate correlated tuple to
+   *       the required keys, completes uncovered keys from their MappingType source pool, and
    *       generates combinations. Respects LOCAL/GLOBAL per uncovered key.
    *   <li><b>Fallback cartesian pass</b> (runs only when correlated pass produced no usable batch):
    *       computes the full cartesian product of all dynamic key value lists.
@@ -1049,9 +1045,7 @@ public class ConditionService {
           }
 
           uncoveredValueLists.add(
-              values.stream()
-                  .map(v -> new WorkflowStateEntries.Pair(uncoveredKey, v))
-                  .toList());
+              values.stream().map(v -> new WorkflowStateEntries.Pair(uncoveredKey, v)).toList());
         }
 
         if (skipTuple) {

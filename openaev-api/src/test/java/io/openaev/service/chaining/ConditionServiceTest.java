@@ -253,7 +253,10 @@ public class ConditionServiceTest {
     }
 
     private WorkflowStateEntries.Input input(String key, String... values) {
-      return WorkflowStateEntries.Input.builder().key(key).values(new HashSet<>(Set.of(values))).build();
+      return WorkflowStateEntries.Input.builder()
+          .key(key)
+          .values(new HashSet<>(Set.of(values)))
+          .build();
     }
 
     private WorkflowStateEntries.Correlated correlated(
@@ -380,9 +383,7 @@ public class ConditionServiceTest {
                       new WorkflowStateEntries.Pair("Port", "5040"),
                       new WorkflowStateEntries.Pair("Service", "TCP"))));
       WorkflowStateEntries globalEntries =
-          entries(
-              List.of(input("Host", "0.0.0.0", "1.1.1.1", "2.2.2.2", "3.3.3.3")),
-              List.of());
+          entries(List.of(input("Host", "0.0.0.0", "1.1.1.1", "2.2.2.2", "3.3.3.3")), List.of());
 
       when(workflowStateService.getGlobalStateByWorkflowId("wf-local-priority"))
           .thenReturn(stateFromEntries(globalEntries));

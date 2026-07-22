@@ -928,7 +928,8 @@ public class WorkflowService {
 
     // Guard: ignore if workflow run has already ended (e.g. timeout).
     if (this.isWorkflowEnded(workflowRun.getId())) {
-      log.info("[Chaining] Ignoring evalution because workflow run {} has ended.", workflowRun.getId());
+      log.info(
+          "[Chaining] Ignoring evalution because workflow run {} has ended.", workflowRun.getId());
       return workflowRun;
     }
 
