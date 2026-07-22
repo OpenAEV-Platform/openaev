@@ -57,29 +57,6 @@ public interface EndpointRepository
               + ACTIVITY_STATUS_SELECT
               + " from assets e where e.asset_type = '"
               + AssetType.Values.ENDPOINT_TYPE
-              + "' and e.asset_ips && cast(:ips as text[]) and e.tenant_id = :tenantId",
-      nativeQuery = true)
-  List<Endpoint> findByAtLeastOneIp(
-      @NotNull final @Param("ips") String[] ips, @NotNull final @Param("tenantId") String tenantId);
-
-  @Query(
-      value =
-          "select e.*"
-              + ACTIVITY_STATUS_SELECT
-              + " from assets e where e.asset_type = '"
-              + AssetType.Values.ENDPOINT_TYPE
-              + "' and LOWER(e.asset_hostname) = LOWER(:hostname) and e.tenant_id = :tenantId",
-      nativeQuery = true)
-  List<Endpoint> findByHostname(
-      @NotBlank final @Param("hostname") String hostname,
-      @NotNull final @Param("tenantId") String tenantId);
-
-  @Query(
-      value =
-          "select e.*"
-              + ACTIVITY_STATUS_SELECT
-              + " from assets e where e.asset_type = '"
-              + AssetType.Values.ENDPOINT_TYPE
               + "' and LOWER(e.asset_hostname) = LOWER(:hostname) and e.tenant_id = :tenantId "
               + "and exists (select 1 from unnest(e.asset_mac_addresses) as mac "
               + "where mac = any(select LOWER(REPLACE(REPLACE(m, ':', ''), '-', '')) from unnest(cast(:macAddresses as text[])) as m))",
