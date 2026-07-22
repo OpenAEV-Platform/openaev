@@ -292,8 +292,6 @@ public enum Capability {
       pair(ResourceType.USER_GROUP, Action.SEARCH),
       pair(ResourceType.USER, Action.READ),
       pair(ResourceType.USER, Action.SEARCH),
-      pair(ResourceType.MAPPER, Action.READ),
-      pair(ResourceType.MAPPER, Action.SEARCH),
       pair(ResourceType.COLLECTOR, Action.READ),
       pair(ResourceType.COLLECTOR, Action.SEARCH),
       pair(ResourceType.INJECTOR, Action.READ),
