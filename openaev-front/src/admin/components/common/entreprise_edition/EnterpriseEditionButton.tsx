@@ -20,12 +20,7 @@ import { useTheme } from '@mui/material/styles';
 import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 
-interface Props {
-  style?: React.CSSProperties;
-  classes?: { [key: string]: string };
-}
-
-const EnterpriseEditionButton = ({ style = {}, classes }: Props) => {
+const EnterpriseEditionButton = () => {
   const { t } = useFormatter();
   const theme = useTheme();
   const { openDialog } = useEnterpriseEdition();
@@ -36,12 +31,10 @@ const EnterpriseEditionButton = ({ style = {}, classes }: Props) => {
       color="ee"
       onClick={() => openDialog()}
       startIcon={<RocketLaunchOutlined />}
-      style={{
+      sx={{
         textTransform: 'none',
         fontWeight: theme.typography.fontWeightBold,
-        ...style,
       }}
-      classes={classes}
     >
       {t('Manage your enterprise edition license')}
     </Button>

@@ -43,13 +43,6 @@ const styles = () => ({
     borderRadius: 4,
     width: 140,
   },
-  chipFit: {
-    fontSize: 12,
-    lineHeight: '12px',
-    height: 25,
-    textTransform: 'none',
-    borderRadius: 4,
-  },
 });
 
 const computeInlineStyles = theme => ({
@@ -69,15 +62,10 @@ const computeInlineStyles = theme => ({
     backgroundColor: theme.palette.ee.lightBackground,
     color: theme.palette.ee.main,
   },
-  accent: {
-    backgroundColor: theme.palette.background.accent,
-    color: theme.palette.common.white,
-    fontWeight: theme.typography.fontWeightBold,
-  },
 });
 
 const RenderChip = (props) => {
-  const { classes, label, neutralLabel, status, variant, t, reverse, styleOverride } = props;
+  const { classes, label, neutralLabel, status, variant, t, reverse } = props;
   const theme = useTheme();
   let style = classes.chip;
   if (variant === 'inList') {
@@ -86,18 +74,13 @@ const RenderChip = (props) => {
     style = classes.chipLarge;
   } else if (variant === 'xlarge') {
     style = classes.chipXLarge;
-  } else if (variant === 'fit') {
-    style = classes.chipFit;
   }
   const inlineStyles = computeInlineStyles(theme);
   if (status === true) {
     return (
       <Chip
         classes={{ root: style }}
-        style={{
-          ...(reverse ? inlineStyles.red : inlineStyles.green),
-          ...styleOverride,
-        }}
+        style={reverse ? inlineStyles.red : inlineStyles.green}
         label={label}
       />
     );
@@ -106,22 +89,7 @@ const RenderChip = (props) => {
     return (
       <Chip
         classes={{ root: style }}
-        style={{
-          ...inlineStyles.blue,
-          ...styleOverride,
-        }}
-        label={neutralLabel || t('Not applicable')}
-      />
-    );
-  }
-  if (status === 'accent') {
-    return (
-      <Chip
-        classes={{ root: style }}
-        style={{
-          ...inlineStyles.accent,
-          ...styleOverride,
-        }}
+        style={inlineStyles.blue}
         label={neutralLabel || t('Not applicable')}
       />
     );
@@ -130,10 +98,7 @@ const RenderChip = (props) => {
     return (
       <Chip
         classes={{ root: style }}
-        style={{
-          ...inlineStyles.ee,
-          ...styleOverride,
-        }}
+        style={inlineStyles.ee}
         label={neutralLabel || t('EE')}
       />
     );
@@ -142,10 +107,7 @@ const RenderChip = (props) => {
     return (
       <Chip
         classes={{ root: style }}
-        style={{
-          ...inlineStyles.blue,
-          ...styleOverride,
-        }}
+        style={inlineStyles.blue}
         label={<CircularProgress size={10} color="primary" />}
       />
     );
@@ -153,10 +115,7 @@ const RenderChip = (props) => {
   return (
     <Chip
       classes={{ root: style }}
-      style={{
-        ...(reverse ? inlineStyles.green : inlineStyles.red),
-        ...styleOverride,
-      }}
+      style={reverse ? inlineStyles.green : inlineStyles.red}
       label={label}
     />
   );
@@ -183,7 +142,6 @@ ItemBooleanComponent.propTypes = {
   variant: PropTypes.string,
   reverse: PropTypes.bool,
   tooltip: PropTypes.string,
-  styleOverride: PropTypes.object,
 };
 
 const ItemBoolean = R.compose(

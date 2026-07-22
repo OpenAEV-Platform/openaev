@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, List, ListItem, ListItemText, Paper, Switch, Typography } from '@mui/material';
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, List, ListItem, ListItemText, Paper, Switch, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
 import { type ChangeEvent, useContext, useState } from 'react';
@@ -6,7 +6,7 @@ import { type ChangeEvent, useContext, useState } from 'react';
 import { updateChatbotAiCguStatus, updatePlatformEnterpriseEditionParameters } from '../../../../actions/Application';
 import type { LoggedHelper } from '../../../../actions/helper';
 import { useFormatter } from '../../../../components/i18n';
-import ItemBoolean from '../../../../components/ItemBoolean';
+import InfoChip from '../../../../components/InfoChip';
 import { useHelper } from '../../../../store';
 import type { PlatformSettings, SettingsEnterpriseEditionUpdateInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -33,15 +33,6 @@ const EnterpriseEditionSettings: React.FC = () => {
   const chatbotCguStatus = settings.filigran_chatbot_ai_cgu_status;
   const isCguPending = chatbotCguStatus === 'pending' || chatbotCguStatus === undefined;
 
-  const chipStyle = {
-    fontSize: theme.typography.body2.fontSize,
-    fontWeight: theme.typography.fontWeightBold,
-    borderRadius: `${theme.shape.borderRadius}px`,
-    height: theme.spacing(3),
-    color: theme.palette.common.white,
-    backgroundColor: theme.palette.background.accent,
-  };
-
   const handleCGUStatusChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.checked) {
       setOpenValidateTermsOfUse(true);
@@ -63,7 +54,7 @@ const EnterpriseEditionSettings: React.FC = () => {
             <Typography
               variant="h4"
               gutterBottom
-              style={{
+              sx={{
                 display: 'flex',
                 alignItems: 'flex-end',
                 marginBottom: 0,
@@ -102,7 +93,7 @@ const EnterpriseEditionSettings: React.FC = () => {
                     >
                       <Typography>{t('You are about to disable the "Enterprise Edition" mode. Please note that this action will disable access to certain advanced features.')}</Typography>
                       <Typography
-                        style={{ marginTop: theme.spacing(6) }}
+                        sx={{ marginTop: theme.spacing(6) }}
                         fontWeight="bold"
                       >
                         {t('However, your existing data will remain intact and will not be lost.')}
@@ -136,29 +127,27 @@ const EnterpriseEditionSettings: React.FC = () => {
           </div>
 
           <Paper
-            style={{
+            sx={{
               padding: theme.spacing(0, 2, 2),
               borderRadius: 4,
               flexGrow: 1,
             }}
             variant="outlined"
           >
-            <List style={{ padding: 0 }}>
+            <List sx={{ padding: 0 }}>
               <ListItem divider disableGutters>
                 <ListItemText primary={t('Organisation')} />
-                <ItemBoolean
-                  variant="fit"
-                  neutralLabel={settings.platform_license?.license_customer}
-                  status="accent"
+                <InfoChip
+                  label={settings.platform_license?.license_customer ?? t('Not applicable')}
+                  tone="accent"
                 />
               </ListItem>
 
               <ListItem divider disableGutters>
                 <ListItemText primary={t('Scope')} />
-                <ItemBoolean
-                  variant="fit"
-                  neutralLabel={settings.platform_license?.license_is_global ? t('Global') : t('Current instance')}
-                  status="accent"
+                <InfoChip
+                  label={settings.platform_license?.license_is_global ? t('Global') : t('Current instance')}
+                  tone="accent"
                 />
               </ListItem>
               {!settings.platform_license?.license_is_expired && settings.platform_license?.license_is_prevention && (
@@ -177,34 +166,23 @@ const EnterpriseEditionSettings: React.FC = () => {
               )}
               <ListItem divider disableGutters>
                 <ListItemText primary={t('Start date')} />
-                <ItemBoolean
-                  variant="fit"
+                <InfoChip
                   label={fldt(settings.platform_license?.license_start_date)}
-                  status={!settings.platform_license?.license_is_expired}
-                  styleOverride={{
-                    color: theme.palette.common.white,
-                    fontWeight: theme.typography.fontWeightBold,
-                  }}
+                  tone={settings.platform_license?.license_is_expired ? 'red' : 'green'}
                 />
               </ListItem>
               <ListItem divider disableGutters>
                 <ListItemText primary={t('Expiration date')} />
-                <ItemBoolean
-                  variant="fit"
+                <InfoChip
                   label={fldt(settings.platform_license?.license_expiration_date)}
-                  status={!settings.platform_license?.license_is_expired}
-                  styleOverride={{
-                    color: theme.palette.common.white,
-                    fontWeight: theme.typography.fontWeightBold,
-                  }}
+                  tone={settings.platform_license?.license_is_expired ? 'red' : 'green'}
                 />
               </ListItem>
               <ListItem divider={!settings.platform_license?.license_is_prevention} disableGutters>
                 <ListItemText primary={t('License type')} />
-                <ItemBoolean
-                  variant="fit"
-                  neutralLabel={settings.platform_license?.license_type}
-                  status="accent"
+                <InfoChip
+                  label={settings.platform_license?.license_type ?? t('Not applicable')}
+                  tone="accent"
                 />
               </ListItem>
               {canManageSettings && (
@@ -254,7 +232,7 @@ const EnterpriseEditionSettings: React.FC = () => {
             <Typography
               variant="h4"
               gutterBottom
-              style={{
+              sx={{
                 display: 'flex',
                 alignItems: 'flex-end',
                 marginBottom: 0,
@@ -271,22 +249,21 @@ const EnterpriseEditionSettings: React.FC = () => {
           </div>
 
           <Paper
-            style={{
+            sx={{
               padding: theme.spacing(3),
-              borderRadius: 4,
               flexGrow: 1,
               display: 'flex',
               flexDirection: 'column',
               backgroundColor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.border.primary}`,
+              borderColor: theme.palette.border.primary,
             }}
             className="paper-for-grid"
-            elevation={0}
+            variant="outlined"
           >
-            <Typography variant="h6" style={{ marginBottom: theme.spacing(2) }}>
+            <Typography variant="h6" sx={{ marginBottom: theme.spacing(2) }}>
               {t('Unlock powerful capabilities with OpenAEV Enterprise Edition')}
             </Typography>
-            <Typography style={{ marginBottom: theme.spacing(5) }}>
+            <Typography sx={{ marginBottom: theme.spacing(5) }}>
               {t('Get enterprise-grade automation, remediation, and deployment flexibility - trusted by governments, financial institutions, and global enterprises. Deployment flexibility with SaaS, on-premise, and Bring-Your-Own-Cloud to match your needs.')}
             </Typography>
             <div
@@ -297,12 +274,12 @@ const EnterpriseEditionSettings: React.FC = () => {
                 marginBottom: theme.spacing(3),
               }}
             >
-              <Chip label={t('AI-powered scenario generation & remediation')} sx={chipStyle} />
-              <Chip label={t('Agentless through your EDR')} sx={chipStyle} />
-              <Chip label={t('SSO')} sx={chipStyle} />
-              <Chip label={t('Multi-Tenancy')} sx={chipStyle} />
-              <Chip label={t('Autonomous scenarios with chaining')} sx={chipStyle} />
-              <Chip label={t('Dedicated technical support')} sx={chipStyle} />
+              <InfoChip label={t('AI-powered scenario generation & remediation')} tone="accent" />
+              <InfoChip label={t('Agentless through your EDR')} tone="accent" />
+              <InfoChip label={t('SSO')} tone="accent" />
+              <InfoChip label={t('Multi-Tenancy')} tone="accent" />
+              <InfoChip label={t('Autonomous scenarios with chaining')} tone="accent" />
+              <InfoChip label={t('Dedicated technical support')} tone="accent" />
             </div>
             <Button
               size="small"
@@ -312,7 +289,7 @@ const EnterpriseEditionSettings: React.FC = () => {
               href="https://filigran.io/services/openaev-enterprise-edition/"
               target="_blank"
               rel="noopener noreferrer"
-              style={{
+              sx={{
                 alignSelf: 'flex-start',
                 marginTop: 'auto',
                 textTransform: 'none',
