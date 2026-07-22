@@ -136,6 +136,13 @@ public class AttackPathExecution implements TenantBase {
     this.stepTemplateId = stepExecution.getStepTemplate().getId();
     this.payloadName = inject.getTitle();
     this.executedAt = Instant.now();
+    // The graph read never re-reads the live inject; it renders from this frozen row. Freeze the
+    // identity keys it resolves from: contractExternalId -> ATT&CK techniques, payloadId -> detection
+    // remediations, injectorType -> the injector node's real type.
+    this.contractExternalId =
+        inject.getInjectorContract().map(InjectorContract::getExternalId).orElse(null);
+    this.payloadId = inject.getPayload().map(Payload::getId).orElse(null);
+    this.injectorType = inject.getInjector() != null ? inject.getInjector().getType() : null;
     }
 
   public void setTargetDiscoveredInformation(String key) {
