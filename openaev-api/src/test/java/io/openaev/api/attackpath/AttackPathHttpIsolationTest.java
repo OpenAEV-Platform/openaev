@@ -58,8 +58,7 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   private static final String RELATIONS = SCOPED + "/simulations/{simulationId}/endpoint/relations";
   private static final String LIST = SCOPED + "/simulations";
   private static final String FINDINGS = SCOPED + "/simulations/{simulationId}/findings";
-  private static final String EXECUTION =
-      SCOPED + "/simulations/{simulationId}/executions/{executionId}";
+  private static final String EXECUTION = SCOPED + "/simulations/{simulationId}/execution";
   // The same handlers without the tenant prefix: here the scope comes from the header.
   private static final String PLAIN_GRAPH = PLAIN + "/simulations/{simulationId}/graph";
   private static final String PLAIN_LIST = PLAIN + "/simulations";
@@ -179,7 +178,7 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   @Test
   @DisplayName("under the owner tenant's path: the execution detail is visible")
   void executionDetailUnderOwnerTenantIsVisible() throws Exception {
-    mvc.perform(get(EXECUTION, tenantA, SIM, executionId))
+    mvc.perform(get(EXECUTION, tenantA, SIM).param("ref", executionId))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.endpointKey").value(ENDPOINT_KEY));
   }
@@ -187,7 +186,7 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   @Test
   @DisplayName("under another tenant's path: the execution detail is not found (no leak)")
   void executionDetailUnderOtherTenantIsHidden() throws Exception {
-    mvc.perform(get(EXECUTION, tenantB, SIM, executionId)).andExpect(status().isNotFound());
+    mvc.perform(get(EXECUTION, tenantB, SIM).param("ref", executionId)).andExpect(status().isNotFound());
   }
 
   @Test

@@ -373,7 +373,7 @@ public class AttackPathGraphService {
         executionRepository.findByTarget(simulationId, targetKey);
     String targetNodeId = AttackPathIds.endpointNode(targetKey);
     Map<String, AttackPathEdges> edges = new LinkedHashMap<>();
-    List<AttackPathNodeDTO> feed = new ArrayList<>();
+    Map<String, AttackPathNodeDTO> feedByExecutionId = new LinkedHashMap<>();
     for (AttackPathExecutionRow e : executions) {
       String sourceNodeId = sourceNodeId(e);
       String edgeId = AttackPathIds.executionsEdge(sourceNodeId, targetNodeId);
@@ -381,9 +381,11 @@ public class AttackPathGraphService {
           edges.computeIfAbsent(edgeId, id -> executionEdge(id, sourceNodeId, targetNodeId));
       edge.setCount(edge.getCount() + 1);
       edge.getExecutionIds().add(e.id());
-      feed.add(executionFeedNode(e));
+      feedByExecutionId.put(e.id(), executionFeedNode(e));
     }
-    return new AttackPathEndpointRelationsDTO(feed, new ArrayList<>(edges.values()));
+    applyContractNames(executions, feedByExecutionId);
+    return new AttackPathEndpointRelationsDTO(
+        new ArrayList<>(feedByExecutionId.values()), new ArrayList<>(edges.values()));
   }
 
   private AttackPathDTO assemble(
@@ -416,6 +418,7 @@ public class AttackPathGraphService {
       feedByExecutionId.put(e.id(), executionFeedNode(e));
     }
     applyKillChain(executions, feedByExecutionId);
+    applyContractNames(executions, feedByExecutionId);
 
     // Endpoint (ASSET) nodes, with attributes and colour from the executions targeting them.
     for (Map.Entry<String, List<AttackPathExecutionRow>> entry : byTarget.entrySet()) {
@@ -835,6 +838,59 @@ public class AttackPathGraphService {
         node.setConsumedFindingKeys(meta.consumedFindingKeys());
       }
     }
+  }
+
+  /**
+   * Resolves each execution's injector-contract name (e.g. "NMAP SYN Scan") from its contract external
+   * id and sets it on the execution feed node, so the front can name WHAT was launched on the
+   * inject→endpoint edge. Batched over the DISTINCT external ids (a run uses a handful of contracts, not
+   * one per execution), so this is a few reads regardless of the execution count. No-op when no
+   * execution carries a contract.
+   */
+  private void applyContractNames(
+      List<AttackPathExecutionRow> executions, Map<String, AttackPathNodeDTO> feedByExecutionId) {
+    Set<String> externalIds =
+        executions.stream()
+            .map(AttackPathExecutionRow::contractExternalId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    if (externalIds.isEmpty()) {
+      return;
+    }
+    Map<String, String> nameByExternalId = new HashMap<>();
+    for (String externalId : externalIds) {
+      injectorContractRepository
+          .findByIdOrExternalId(externalId, externalId)
+          .ifPresent(
+              contract -> {
+                String name = contractLabel(contract.getLabels());
+                if (name != null) {
+                  nameByExternalId.put(externalId, name);
+                }
+              });
+    }
+    if (nameByExternalId.isEmpty()) {
+      return;
+    }
+    for (AttackPathExecutionRow e : executions) {
+      String externalId = e.contractExternalId();
+      if (externalId == null) {
+        continue;
+      }
+      AttackPathNodeDTO node = feedByExecutionId.get(e.id());
+      if (node != null) {
+        node.setContractName(nameByExternalId.get(externalId));
+      }
+    }
+  }
+
+  /** The contract's display name from its locale labels: English if present, else any label. */
+  private static String contractLabel(Map<String, String> labels) {
+    if (labels == null || labels.isEmpty()) {
+      return null;
+    }
+    String en = labels.get("en");
+    return en != null ? en : labels.values().iterator().next();
   }
 
   private AttackPathNodeDTO executionFeedNode(AttackPathExecutionRow e) {

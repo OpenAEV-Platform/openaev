@@ -257,12 +257,8 @@ class AttackPathApiTest extends IntegrationTest {
     entityManager.flush();
 
     mvc.perform(
-            get(
-                AttackPathApi.ATTACK_PATH_URI
-                    + "/simulations/"
-                    + sim
-                    + "/executions/"
-                    + execution.getId()))
+            get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + sim + "/execution")
+                .param("ref", execution.getId()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.payloadName").value("hydra-payload"))
         .andExpect(jsonPath("$.agentName").value("agent-1"))
@@ -273,11 +269,8 @@ class AttackPathApiTest extends IntegrationTest {
         .andExpect(jsonPath("$.findings[0].value", not(containsString("secret123"))));
 
     mvc.perform(
-            get(
-                AttackPathApi.ATTACK_PATH_URI
-                    + "/simulations/"
-                    + sim
-                    + "/executions/does-not-exist"))
+            get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + sim + "/execution")
+                .param("ref", "does-not-exist"))
         .andExpect(status().isNotFound());
   }
 

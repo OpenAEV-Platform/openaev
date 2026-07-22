@@ -41,6 +41,10 @@ public class AttackPathNodeDTO {
 
   // EXECUTION (left feed)
   private String payloadName;
+  // EXECUTION: the human-readable name of the injector contract that was run (e.g. "NMAP SYN Scan"),
+  // resolved from the contract's labels, so the graph can name WHAT was launched on the inject→endpoint
+  // edge. Null when the execution carries no resolvable contract.
+  private String contractName;
   private String executedAt;
   private String agentName;
   private String privilege;

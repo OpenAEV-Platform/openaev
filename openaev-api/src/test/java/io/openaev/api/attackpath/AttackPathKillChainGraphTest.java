@@ -91,6 +91,6 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
             .orElseThrow();
     assertThat(node.getDependsOn()).containsExactly("prereq-step-tpl");
     assertThat(node.getConsumedFindingKeys())
-        .containsExactly(new ConsumedFindingKeyDTO("port", "EQ", "445"));
+        .containsExactly(new ConsumedFindingKeyDTO("port", "EQ", "445", null));
   }
 }
