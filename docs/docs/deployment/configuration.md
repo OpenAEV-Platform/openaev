@@ -50,14 +50,14 @@ Here are the configuration keys, for both containers (environment variables) and
 #### Network and security
 
 | Parameter                       | Environment variable            | Default value           | Description                                                                                                                                                                                                                                                                                                                                                                                                                 |
-|:--------------------------------|:--------------------------------|:------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|:---------------------------------|:---------------------------------|:--------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | server.ssl.enabled              | SERVER_SSL_ENABLED              | `false`                 | Turn on to enable SSL on the local server                                                                                                                                                                                                                                                                                                                                                                                   |
 | server.ssl.key-store-type       | SERVER_SSL_KEY-STORE-TYPE       | PKCS12                  | Type of SSL keystore                                                                                                                                                                                                                                                                                                                                                                                                        |
 | server.ssl.key-store            | SERVER_SSL_KEY-STORE            | classpath:localhost.p12 | SSL keystore path                                                                                                                                                                                                                                                                                                                                                                                                           |
 | server.ssl.key-store-password   | SERVER_SSL_KEY-STORE-PASSWORD   | admin                   | SSL keystore password                                                                                                                                                                                                                                                                                                                                                                                                       |
 | server.ssl.key-alias            | SERVER_SSL_KEY-ALIAS            | localhost               | SSL key alias                                                                                                                                                                                                                                                                                                                                                                                                               |
 | openaev.unsecured-certificate   | OPENAEV_UNSECURED-CERTIFICATE   | `false`                 | Turn on to authorize self-signed or unsecure ssl certificate                                                                                                                                                                                                                                                                                                                                                                |
-| openaev.with-proxy              | OPENAEV_WITH-PROXY              | `false`                 | Turn on to authorize environment with proxy                                                                                                                                                                                                                                                                                                                                                                                 |
+| openaev.with-proxy              | OPENAEV_WITH-PROXY              | `false`                 | Turn on to authorize environment with proxy                                                                                                                                                                                                                                                                                                                                                                                |
 | openaev.extra-trusted-certs-dir | OPENAEV_EXTRA-TRUSTED-CERTS-DIR |                         | If you want to set extra trusted self-signed TLS certificates to communicate with external applications (Crowdstrike, Tanium, SentinelOne,...),<br/>fill this attribute with you local folder containing your public .PEM certs. If you install OpenAEV with Docker,<br/>uncomment the volume and set the attribute in the [docker compose file](https://github.com/OpenAEV-Platform/docker/blob/master/docker-compose.yml) | 
 
 !!! warning "Extra trusted certificates format"
@@ -67,7 +67,7 @@ Here are the configuration keys, for both containers (environment variables) and
 #### Logging
 
 | Parameter                                   | Environment variable                        | Default value      | Description                                   |
-|:--------------------------------------------|:--------------------------------------------|:-------------------|:----------------------------------------------|
+|:--------------------------------------------|:--------------------------------------------|:--------------------|:------------------------------------------------|
 | logging.level.root                          | LOGGING_LEVEL_ROOT                          | fatal              | Root log level                                |
 | logging.level.io.openaev                    | LOGGING_LEVEL_IO_OPENAEV                    | error              | OpenAEV log level                             |
 | logging.file.name                           | LOGGING_FILE_NAME                           | ./logs/openaev.log | Log file path (in addition to console output) |
@@ -84,7 +84,7 @@ Audit logging will allow you to have a trace of the actions performed using API 
     Please note that only modifying actions are logged (creating, updating, deleting) and not reading actions.
 
 | Parameter                          | Environment variable               | Default value    | Description                                                                                                                                              |
-|:-----------------------------------|:-----------------------------------|:-----------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------|
+|:-------------------------------------|:--------------------------------------|:-------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------|
 | openaev.audit-logs.transports      | OPENAEV_AUDIT-LOGS_TRANSPORTS      |                  | Lists of transports to use for audit logging separated by comma. No transports means audit logging is disabled. The transports usable are : file,console |
 | openaev.audit-logs.halt-on-failure | OPENAEV_AUDIT-LOGS_HALT-ON-FAILURE | false            | Parameter to stop the platform if audit logging is failing.                                                                                              |
 | logging.level.io.openaev.utils.log | LOGGING_LEVEL_IO_OPENAEV_UTILS_LOG |                  | Audit logging is using the global OpenAEV log level but to lower the log level of the audit logging, this parameter can be used                          |
@@ -99,7 +99,7 @@ Audit logging will allow you to have a trace of the actions performed using API 
 Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (`{id}`).
 
 | Parameter                                    | Environment variable                         | Default value | Description                                                                                                                                    |
-|:---------------------------------------------|:---------------------------------------------|:--------------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
+|:-----------------------------------------------|:-----------------------------------------------|:--------------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
 | openaev.xtm.opencti.{id}.enable              | OPENAEV_XTM_OPENCTI_{id}_ENABLE              | false         | Enable this OpenCTI connection                                                                                                                 |
 | openaev.xtm.opencti.{id}.url                 | OPENAEV_XTM_OPENCTI_{id}_URL                 |               | OpenCTI instance URL                                                                                                                           |
 | openaev.xtm.opencti.{id}.api_url             | OPENAEV_XTM_OPENCTI_{id}_API_URL             |               | OpenCTI API URL — completely overrides the base URL. Defaults to `openaev.xtm.opencti.{id}.url` + `/graphql`                                   |
@@ -109,7 +109,7 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 #### XTM Suite: XTM Hub
 
 | Parameter                                             | Environment variable             | Default value | Description                                                         |
-|:------------------------------------------------------|:------------------------------------------------------|:-------------------------------------|:----------------------------------------------------------------------|
+|:--------------------------------------------------------|:--------------------------------------------------------|:---------------------------------------|:----------------------------------------------------------------------|
 | openaev.xtm.hub.enable                                | OPENAEV_XTM_HUB_ENABLE                                | false                                | Enables integration with XTM Hub                                     |
 | openaev.xtm.hub.url                                   | OPENAEV_XTM_HUB_URL              |               | XTM Hub URL                                                         |
 | openaev.xtm.hub.override-api-url                      | OPENAEV_XTM_HUB_OVERRIDE_API_URL                      |                                      | When specified, override `openaev.xtm.hub.url` during backend calls |
@@ -120,7 +120,7 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 #### PostgreSQL
 
 | Parameter                  | Environment variable       | Default value         | Description                                                                                |
-|:---------------------------|:---------------------------|:----------------------|:-------------------------------------------------------------------------------------------|
+|:------------------------------|:------------------------------|:-------------------------|:-------------------------------------------------------------------------------------------|
 | spring.datasource.url      | SPRING_DATASOURCE_URL      | jdbc:postgresql://... | URL of the PostgreSQL database (ex jdbc:postgresql://postgresql.mydomain.com:5432/openaev) |
 | spring.datasource.username | SPRING_DATASOURCE_USERNAME |                       | Login for the database                                                                     |
 | spring.datasource.password | SPRING_DATASOURCE_PASSWORD | password              | Password for the database                                                                  |
@@ -132,7 +132,7 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 - With a classic authentication, you can use either ElasticSearch or OpenSearch as an engine.
 
 | Parameter              | Environment variable   | Default value         | Description                                                                                    |
-|:-----------------------|:-----------------------|:----------------------|:-----------------------------------------------------------------------------------------------|
+|:--------------------------|:--------------------------|:--------------------------|:-----------------------------------------------------------------------------------------------|
 | engine.engine-aws-mode | ENGINE_ENGINE_AWS_MODE | no                    | Classic authentication (no)                                                                    |
 | engine.engine-selector | ENGINE_ENGINE_SELECTOR | elk                   | Engine to use for storage and search (`elk` for ElasticSearch and `opensearch` for OpenSearch) |
 | engine.url             | ENGINE_URL             | http://localhost:9200 | URL of the ElasticSearch database                                                              |
@@ -142,7 +142,7 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 - With AWS SigV4 authentication, you can use Amazon OpenSearch or Amazon OpenSearch Serverless as an engine.
 
 | Parameter                | Environment variable     | Default value         | Description                                                                                                |
-|:-------------------------|:-------------------------|:----------------------|:-----------------------------------------------------------------------------------------------------------|
+|:----------------------------|:----------------------------|:--------------------------|:-----------------------------------------------------------------------------------------------------------|
 | engine.engine-aws-mode   | ENGINE_ENGINE_AWS_MODE   |                       | Whether to use AWS SigV4 authentication Amazon OpenSearch or Amazon OpenSearch Serverless (`es` or `aoss`) |
 | engine.engine-selector   | ENGINE_ENGINE_SELECTOR   |                       | Engine to use for storage and search (`opensearch` for OpenSearch)                                         |
 | engine.engine-aws-host   | ENGINE_ENGINE_AWS_HOST   |                       | URL of the OpenSearch database, no http(s) prefix                                                          |
@@ -164,7 +164,7 @@ reindex.
 #### RabbitMQ
 
 | Parameter                             | Environment variable                  | Default value                     | Description                                                                                                                                                                       |
-|:--------------------------------------|:--------------------------------------|:----------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|:-----------------------------------------|:-----------------------------------------|:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | openaev.rabbitmq.prefix               | OPENAEV_RABBITMQ_PREFIX               | openaev                           | Prefix for the queue names                                                                                                                                                        |
 | openaev.rabbitmq.hostname             | OPENAEV_RABBITMQ_HOSTNAME             | localhost                         | Hostname of the RabbitMQ server                                                                                                                                                   |
 | openaev.rabbitmq.vhost                | OPENAEV_RABBITMQ_VHOST                | /                                 | Vhost of the RabbitMQ server                                                                                                                                                      |
@@ -181,7 +181,7 @@ reindex.
 #### S3 bucket
 
 | Parameter               | Environment variable    | Default value | Description                                                                                                                                                                                                                                                                                                                                                                                                                   |
-|:------------------------|:------------------------|:--------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|:---------------------------|:---------------------------|:-------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | minio.endpoint          | MINIO_ENDPOINT          | localhost     | Hostname of the S3 Service. Example if you use AWS Bucket S3: __s3.us-east-1.amazonaws.com__ (if `minio:bucket_region` value is _us-east-1_). This parameter value can be omitted if you use Minio as an S3 Bucket Service.                                                                                                                                                                                                   |
 | minio.port              | MINIO_PORT              | 9000          | Port of the S3 Service. For AWS Bucket S3 over HTTPS, this value can be changed (usually __443__).                                                                                                                                                                                                                                                                                                                            |
 | minio.secure            | MINIO_SECURE            | `false`       | Indicates whether the S3 Service has TLS enabled. For AWS Bucket S3 over HTTPS, this value could be `true`.                                                                                                                                                                                                                                                                                                                   |
@@ -198,7 +198,7 @@ To be able to use the power of the OpenAEV platform on endpoints, you need at le
 be in charge of executing implants as detached processes. Implants will then execute threat arsenal actions.
 
 | Parameter                                    | Environment variable                         | Default value | Description                                                                              |
-|:---------------------------------------------|:---------------------------------------------|:--------------|:-----------------------------------------------------------------------------------------|
+|:------------------------------------------------|:------------------------------------------------|:------------------|:-------------------------------------------------------------------------------------------|
 | executor.openaev.agent.max-simultaneous-jobs | EXECUTOR_OPENAEV_AGENT_MAX-SIMULTANEOUS-JOBS | 5             | Simultaneous jobs execution limitation for agents, to avoid overloading the system.      |
 | openaev.agent.queue-threshold              | OPENAEV_AGENT_QUEUE-THRESHOLD               | 0            | Max number of pending jobs per agent before marking it overloaded. 0 disables the check. |
 ##### OpenAEV Agent
@@ -218,10 +218,21 @@ To know more about other available executors, please refer to the [executors doc
 For the associated mailbox, for the moment the platform only relies on IMAP / SMTP protocols, we are actively developing
 integrations with APIs such as O365 and Google Apps.
 
+##### General
+
+These parameters control the default sender identity used when creating Scenarios and Simulations. They are always
+available (mandatory) regardless of which mail transport (SMTP/IMAP) is configured below.
+
+| Parameter                   | Environment variable        | Default value        | Description                                                                                                                                                                                          |
+|:-------------------------------|:--------------------------------|:-------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| openaev.default-mailer      | OPENAEV_DEFAULT-MAILER      | no-reply@openaev.io  | Default sender email address, used to pre-fill new Scenarios/Simulations. This field is read-only in the UI (locked to prevent spoofing — see [#4726](https://github.com/OpenAEV-Platform/openaev/issues/4726)); only the sender name below can be edited from the UI |
+| openaev.default-mailer-name | OPENAEV_DEFAULT-MAILER-NAME | no-reply             | Default sender display name ("Sender email from"), pre-fills the sender name on new Scenario/Simulation creation. Editable per-Scenario/Simulation afterwards in the UI                              |
+| openaev.default-reply-to    | OPENAEV_DEFAULT-REPLY-TO    | contact@openaev.io   | Default Reply-To address used on outgoing emails                                                                                                                                                     |
+
 ##### SMTP
 
 | Parameter                      | Environment variable           | Default value     | Description                                                                                                            |
-|:-------------------------------|:-------------------------------|:------------------|:-----------------------------------------------------------------------------------------------------------------------|
+|:-----------------------------------|:------------------------------------|:----------------------|:-----------------------------------------------------------------------------------------------------------------------|
 | openaev.listener.smtp.enabled  | OPENAEV_LISTENER_SMTP_ENABLED  | `true`            | SMTP connection monitoring, enabled by default. Allow you to monitor service state from healthchecks and settings page |
 | spring.mail.host               | SPRING_MAIL_HOST               | smtp.mail.com     | SMTP Server hostname                                                                                                   |
 | spring.mail.port               | SPRING_MAIL_PORT               | 465               | SMTP Server port                                                                                                       |
@@ -229,7 +240,7 @@ integrations with APIs such as O365 and Google Apps.
 | spring.mail.password           | SPRING_MAIL_PASSWORD           | password          | SMTP Server password                                                                                                   |
 
 | Parameter                                        | Environment variable                             | Default value | Description                   |
-|:-------------------------------------------------|:-------------------------------------------------|:--------------|:------------------------------|
+|:-----------------------------------------------------|:-----------------------------------------------------|:------------------|:--------------------------------|
 | spring.mail.properties.mail.smtp.ssl.enable      | SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE      | `true`        | Turn on SMTP SSL mode         |
 | spring.mail.properties.mail.smtp.ssl.trust       | SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST       | *             | Trust unverified certificates |
 | spring.mail.properties.mail.smtp.auth            | SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH            | `true`        | Turn on SMTP authentication   |
@@ -238,7 +249,7 @@ integrations with APIs such as O365 and Google Apps.
 > **Note :** Example with Gmail
 
 | Parameter                                        | Environment variable                             | Value             | Description                  |
-|:-------------------------------------------------|:-------------------------------------------------|:------------------|:-----------------------------|
+|:-----------------------------------------------------|:-----------------------------------------------------|:----------------------|:--------------------------------|
 | spring.mail.host                                 | SPRING_MAIL_HOST                                 | smtp.gmail.com    | Gmail SMTP server hostname   |
 | spring.mail.port                                 | SPRING_MAIL_PORT                                 | 587               | Gmail SMTP server port (TLS) |
 | spring.mail.username                             | SPRING_MAIL_USERNAME                             | username@mail.com | Gmail address                |
@@ -253,7 +264,7 @@ integrations with APIs such as O365 and Google Apps.
 ##### IMAP
 
 | Parameter                  | Environment variable       | Default value     | Description                                                                         |
-|:---------------------------|:---------------------------|:------------------|:------------------------------------------------------------------------------------|
+|:-------------------------------|:-------------------------------|:----------------------|:----------------------------------------------------------------------------------------|
 | openaev.mail.imap.enabled  | OPENAEV_MAIL_IMAP_ENABLED  | false             | Turn on to enable IMAP mail synchronization. Injector email must be well configured |
 | openaev.mail.imap.host     | OPENAEV_MAIL_IMAP_HOST     | imap.mail.com     | IMAP Server hostname                                                                |
 | openaev.mail.imap.port     | OPENAEV_MAIL_IMAP_PORT     | 993               | IMAP Server port                                                                    |
@@ -263,7 +274,7 @@ integrations with APIs such as O365 and Google Apps.
 | openaev.mail.imap.sent     | OPENAEV_MAIL_IMAP_SENT     | Sent              | IMAP sent directory to synchronize from                                             |
 
 | Parameter                         | Environment variable              | Default value | Description                   |
-|:----------------------------------|:----------------------------------|:--------------|:------------------------------|
+|:--------------------------------------|:--------------------------------------|:------------------|:--------------------------------|
 | openaev.mail.imap.ssl.enable      | OPENAEV_MAIL_IMAP_SSL_ENABLE      | true          | Turn on IMAP SSL mode         |
 | openaev.mail.imap.ssl.trust       | OPENAEV_MAIL_IMAP_SSL_TRUST       | *             | Trust unverified certificates |
 | openaev.mail.imap.auth            | OPENAEV_MAIL_IMAP_AUTH            | true          | Turn on IMAP authentication   |
@@ -272,7 +283,7 @@ integrations with APIs such as O365 and Google Apps.
 > **Note :** Example with Gmail
 
 | Parameter                    | Environment variable         | Value             | Description                             |
-|:-----------------------------|:-----------------------------|:------------------|:----------------------------------------|
+|:---------------------------------|:----------------------------------|:----------------------|:---------------------------------------------|
 | openaev.mail.imap.enabled    | OPENAEV_MAIL_IMAP_ENABLED    | true              | Enable IMAP for Gmail                   |
 | openaev.mail.imap.host       | OPENAEV_MAIL_IMAP_HOST       | imap.gmail.com    | Gmail IMAP server hostname              |
 | openaev.mail.imap.port       | OPENAEV_MAIL_IMAP_PORT       | 993               | Gmail IMAP port (SSL)                   |
@@ -298,7 +309,7 @@ integrations with APIs such as O365 and Google Apps.
      - Deploy or use local AI endpoints (Filigran can provide you with the custom model).
 
 | Parameter       | Environment variable | Default value | Description                                               |
-|:----------------|:---------------------|:--------------|:----------------------------------------------------------|
+|:-------------------|:--------------------|:-----------------|:--------------------------------------------------------------|
 | ai.enabled      | AI_ENABLED           | true          | Enable AI capabilities                                    |
 | ai.type         | AI_TYPE              | mistralai     | AI type (`mistralai` or `openai`)                         |
 | ai.endpoint     | AI_ENDPOINT          |               | Endpoint URL (empty means default cloud service)          |
