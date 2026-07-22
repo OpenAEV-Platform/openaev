@@ -194,7 +194,11 @@ class TenantActiveTableAccessArchTest {
           .doNotBelongToAnyOf(
               // Read path, driven by the TxCtx-carrying AttackPathApi (pinned by
               // TenantScopedEntrypointsTxCtxArchTest):
-              AttackPathGraphService.class)
+              AttackPathGraphService.class,
+              // Scoped writer: deletes a simulation's findings on reset/delete through the tenant
+              // primitive (executeNew with the exercise's tenant). Pinned by
+              // AttackPathIngestionTenantAttributionTest#deleteClearsTheSimulationScopedToItsTenant.
+              AttackPathExecutionIngestionService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(AttackPathFindingRepository.class)

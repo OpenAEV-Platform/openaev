@@ -313,6 +313,38 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     assertThat(rawRowCountForStep("step-realpath")).isZero();
   }
 
+  @Test
+  @DisplayName(
+      "delete clears the simulation's executions, findings and links under its tenant, and leaves"
+          + " another tenant's rows")
+  void deleteClearsTheSimulationScopedToItsTenant() throws Exception {
+    Tenant other = tenantHelper.createTenantWithCurrentUser("ap-realpath-del-other");
+    try {
+      // The same simulation id under two tenants, seeded by native INSERT with an explicit
+      // tenant_id
+      // (the inspector does not block VALUES inserts): one execution + one finding + their link
+      // each.
+      seedExecutionFindingLink(tenant.getId(), "exec-own", "find-own");
+      seedExecutionFindingLink(other.getId(), "exec-other", "find-other");
+
+      // The delete runs with no ambient scope, exactly as the reset/delete flow triggers it.
+      runAsTheExecutorWould(() -> ingestionService.deleteAllBySimulationId(SIM, tenant.getId()));
+
+      assertThat(rawExecCount(tenant.getId())).as("own executions deleted").isZero();
+      assertThat(rawFindingCount(tenant.getId())).as("own findings deleted").isZero();
+      assertThat(rawLinkCount("exec-own")).as("own link cascade-cleared").isZero();
+      assertThat(rawExecCount(other.getId()))
+          .as("other tenant's executions untouched")
+          .isEqualTo(1);
+      assertThat(rawFindingCount(other.getId()))
+          .as("other tenant's findings untouched")
+          .isEqualTo(1);
+      assertThat(rawLinkCount("exec-other")).as("other tenant's link untouched").isEqualTo(1);
+    } finally {
+      tenantHelper.deleteCommittedTenants(other.getId());
+    }
+  }
+
   /**
    * Reproduces the executor's shape, which the attribution depends on: {@code
    * InjectExecutionStep.run} is {@code @Transactional(rollbackFor = Exception.class)}, so the hook
@@ -347,6 +379,57 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
         "SELECT count(*) FROM attackpath_execution WHERE attackpath_execution_step_id = ?",
         Integer.class,
         stepId);
+  }
+
+  // Seeds one execution + one finding + their link for SIM under the given tenant, native INSERTs
+  // with an explicit tenant_id (VALUES inserts pass the inspector; this is ground-truth seeding).
+  private void seedExecutionFindingLink(String tenantId, String execId, String findId) {
+    jdbc.update(
+        "INSERT INTO attackpath_execution (attackpath_execution_id, tenant_id,"
+            + " attackpath_execution_simulation_id, attackpath_execution_source_kind,"
+            + " attackpath_execution_target_kind, attackpath_execution_target_key,"
+            + " attackpath_execution_executed_at) VALUES (?, ?, ?, 'INJECTOR', 'ASSET', 'dc-01',"
+            + " now())",
+        execId,
+        tenantId,
+        SIM);
+    jdbc.update(
+        "INSERT INTO attackpath_finding (attackpath_finding_id, tenant_id,"
+            + " attackpath_finding_simulation_id, attackpath_finding_type,"
+            + " attackpath_finding_value, attackpath_finding_endpoint_key)"
+            + " VALUES (?, ?, ?, 'cve', 'CVE-1', 'dc-01')",
+        findId,
+        tenantId,
+        SIM);
+    jdbc.update(
+        "INSERT INTO attackpath_execution_finding (execution_id, finding_id) VALUES (?, ?)",
+        execId,
+        findId);
+  }
+
+  private Integer rawExecCount(String tenantId) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM attackpath_execution"
+            + " WHERE attackpath_execution_simulation_id = ? AND tenant_id = ?",
+        Integer.class,
+        SIM,
+        tenantId);
+  }
+
+  private Integer rawFindingCount(String tenantId) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM attackpath_finding"
+            + " WHERE attackpath_finding_simulation_id = ? AND tenant_id = ?",
+        Integer.class,
+        SIM,
+        tenantId);
+  }
+
+  private Integer rawLinkCount(String executionId) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM attackpath_execution_finding WHERE execution_id = ?",
+        Integer.class,
+        executionId);
   }
 
   private record Target(Endpoint endpoint, Agent agent) {}

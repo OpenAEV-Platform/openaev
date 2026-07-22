@@ -637,8 +637,9 @@ public class ExerciseService {
         // DELETE injects
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
-        //Delete attack path execution
-        this.attackPathExecutionService.deleteAllBySimulationId(exercise.getId());
+        // Delete attack path execution
+        this.attackPathExecutionService.deleteAllBySimulationId(
+            exercise.getId(), exercise.getTenant().getId());
       }
       urlAccessTokenService.revokeAllForExercise(exercise.getId());
     }

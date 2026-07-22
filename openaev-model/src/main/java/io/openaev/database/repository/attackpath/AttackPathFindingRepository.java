@@ -134,4 +134,11 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
           + "WHERE ef.executionId = :executionId "
           + "ORDER BY f.type, f.value")
   List<AttackPathEndpointFindingRow> findByExecutionId(@Param("executionId") String executionId);
+
+  /**
+   * Delete every finding of a simulation. Through Hibernate so the tenant inspector scopes it; the
+   * {@code attackpath_execution_finding} links ride the ON DELETE CASCADE on {@code finding_id}.
+   * Used by the attack-path cleanup on simulation reset and delete.
+   */
+  void deleteAllBySimulationId(String simulationId);
 }
