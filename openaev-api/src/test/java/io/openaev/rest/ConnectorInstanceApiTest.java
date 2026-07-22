@@ -576,7 +576,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
 
       // Assert
       assertFalse(connectorInstanceRepository.findById(connectorInstance.getId()).isPresent());
-      assertFalse(executorRepository.findById(executor.getId()).isPresent());
+      assertFalse(executorRepository.findByExecutorId(executor.getId()).isPresent());
     }
 
     @Test

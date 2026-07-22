@@ -40,7 +40,7 @@ class ExecutorServiceTest {
         "Given new executor, register should set tenantId so @JoinColumnsOrFormulas resolves correctly")
     void given_newExecutor_should_setTenantIdForCompositeJoinResolution() throws Exception {
       // -------- Arrange --------
-      when(executorRepository.findById("exec-new")).thenReturn(Optional.empty());
+      when(executorRepository.findByExecutorId("exec-new")).thenReturn(Optional.empty());
       when(executorRepository.save(any(Executor.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -80,7 +80,7 @@ class ExecutorServiceTest {
       existing.setType("openaev_crowdstrike_executor");
       existing.setTenantId("tenant-001");
 
-      when(executorRepository.findById("exec-existing")).thenReturn(Optional.of(existing));
+      when(executorRepository.findByExecutorId("exec-existing")).thenReturn(Optional.of(existing));
       when(executorRepository.save(any(Executor.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -109,7 +109,7 @@ class ExecutorServiceTest {
     void given_newExecutor_savedEntity_should_haveTenantAndTenantIdConsistent() throws Exception {
       // -------- Arrange --------
       ArgumentCaptor<Executor> captor = ArgumentCaptor.forClass(Executor.class);
-      when(executorRepository.findById("exec-cap")).thenReturn(Optional.empty());
+      when(executorRepository.findByExecutorId("exec-cap")).thenReturn(Optional.empty());
       when(executorRepository.save(captor.capture()))
           .thenAnswer(invocation -> invocation.getArgument(0));
 

@@ -7,6 +7,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
@@ -69,6 +70,7 @@ public class CalderaExecutorIntegrationTest {
   @Autowired private FileService fileService;
   @Autowired private InjectorService injectorService;
   @Autowired private PlatformSettingsService platformSettingsService;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   private CalderaExecutorIntegrationFactory getFactory() {
     return new CalderaExecutorIntegrationFactory(
@@ -84,7 +86,8 @@ public class CalderaExecutorIntegrationTest {
         taskScheduler,
         fileService,
         baseIntegrationConfigurationBuilder,
-        httpClientFactory);
+        httpClientFactory,
+        tenantTx);
   }
 
   @Test
@@ -216,7 +219,8 @@ public class CalderaExecutorIntegrationTest {
                     injectorService,
                     taskScheduler,
                     null,
-                    httpClientFactory))
+                    httpClientFactory,
+                    tenantTx))
         .isInstanceOf(ExecutorException.class)
         .hasMessageContaining("Error during initialization of the Executor");
   }

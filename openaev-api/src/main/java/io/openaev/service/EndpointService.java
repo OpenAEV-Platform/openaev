@@ -841,7 +841,7 @@ public class EndpointService implements AuditLoggedService {
 
   private AgentRegisterInput toAgentEndpoint(EndpointRegisterInput input) {
     AgentRegisterInput agentInput = new AgentRegisterInput();
-    agentInput.setExecutor(executorRepository.findById(OPENAEV_EXECUTOR_ID).orElse(null));
+    agentInput.setExecutor(executorRepository.findByExecutorId(OPENAEV_EXECUTOR_ID).orElse(null));
     agentInput.setLastSeen(Instant.now());
     agentInput.setExternalReference(input.getExternalReference());
     agentInput.setIps(input.getIps());

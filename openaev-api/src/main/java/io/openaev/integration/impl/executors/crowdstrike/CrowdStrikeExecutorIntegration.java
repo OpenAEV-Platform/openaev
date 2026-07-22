@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
@@ -66,6 +67,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   private final OpenAEVConfig openAEVConfig;
+  private final TenantScopedTransaction tenantTx;
 
   public CrowdStrikeExecutorIntegration(
       ConnectorInstance connectorInstance,
@@ -80,7 +82,8 @@ public class CrowdStrikeExecutorIntegration extends Integration {
       ThreadPoolTaskScheduler taskScheduler,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory,
-      OpenAEVConfig openAEVConfig) {
+      OpenAEVConfig openAEVConfig,
+      TenantScopedTransaction tenantTx) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.taskScheduler = taskScheduler;
     this.endpointService = endpointService;
@@ -93,6 +96,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
     this.openAEVConfig = openAEVConfig;
+    this.tenantTx = tenantTx;
 
     // Refresh the context to get the config
     try {
@@ -147,10 +151,10 @@ public class CrowdStrikeExecutorIntegration extends Integration {
             openAEVConfig);
     crowdStrikeExecutorService =
         new CrowdStrikeExecutorService(
-            executor, client, config, endpointService, agentService, assetGroupService);
+            executor, client, config, endpointService, agentService, assetGroupService, tenantTx);
     crowdStrikeGarbageCollectorService =
         new CrowdStrikeGarbageCollectorService(
-            config, crowdStrikeExecutorContextService, agentService, executorId);
+            config, crowdStrikeExecutorContextService, agentService, executor, tenantTx);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

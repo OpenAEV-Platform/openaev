@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Agent;
+import io.openaev.database.model.Executor;
 import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
 import io.openaev.executors.paloaltocortex.model.PaloAltoCortexAction;
 import io.openaev.service.AgentService;
@@ -27,14 +29,17 @@ public class PaloAltoCortexGarbageCollectorServiceTest {
   @Mock private AgentService agentService;
   @Mock private PaloAltoCortexExecutorContextService paloAltoCortexExecutorContextService;
   @Mock private PaloAltoCortexExecutorConfig config;
+  @Mock private Executor executor;
+  @Mock private TenantScopedTransaction tenantTx;
 
   private PaloAltoCortexGarbageCollectorService paloAltoCortexGarbageCollectorService;
 
   @BeforeEach
   void setUp() {
+    org.mockito.Mockito.when(executor.getId()).thenReturn(EXECUTOR_ID);
     paloAltoCortexGarbageCollectorService =
         new PaloAltoCortexGarbageCollectorService(
-            config, paloAltoCortexExecutorContextService, agentService, EXECUTOR_ID);
+            config, paloAltoCortexExecutorContextService, agentService, executor, tenantTx);
   }
 
   @Test

@@ -73,7 +73,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   @Override
   protected Executor getConnectorById(String executorId) {
-    return executorRepository.findById(executorId).orElse(null);
+    return executorRepository.findByExecutorId(executorId).orElse(null);
   }
 
   @Override
@@ -109,7 +109,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    */
   public Executor executor(String id) throws ElementNotFoundException {
     return executorRepository
-        .findById(id)
+        .findByExecutorId(id)
         .orElseThrow(() -> new ElementNotFoundException("Executor not found with id: " + id));
   }
 
@@ -193,7 +193,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       fileService.uploadStream(EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
     }
 
-    Executor executor = executorRepository.findById(id).orElse(null);
+    Executor executor = executorRepository.findByExecutorId(id).orElse(null);
     if (executor == null) {
       executor = new Executor();
       executor.setId(id);
@@ -213,7 +213,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   @Transactional
   public void remove(String id) {
     executorRepository
-        .findById(id)
+        .findByExecutorId(id)
         .ifPresent(
             executor -> {
               endpointService.removeSourceTagsForExecutor(id, executor.getTenantId());

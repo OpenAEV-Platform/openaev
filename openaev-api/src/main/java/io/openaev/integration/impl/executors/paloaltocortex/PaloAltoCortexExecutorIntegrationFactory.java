@@ -5,6 +5,7 @@ import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCorte
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -48,6 +49,7 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
   private final OpenAEVConfig openAEVConfig;
   private final PaloAltoCortexExecutorConfigurationMigration
       paloAltoCortexExecutorConfigurationMigration;
+  private final TenantScopedTransaction tenantTx;
 
   public PaloAltoCortexExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -64,7 +66,8 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory,
-      OpenAEVConfig openAEVConfig) {
+      OpenAEVConfig openAEVConfig,
+      TenantScopedTransaction tenantTx) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
@@ -81,6 +84,7 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
     this.openAEVConfig = openAEVConfig;
+    this.tenantTx = tenantTx;
   }
 
   @Override
@@ -149,6 +153,7 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
         taskScheduler,
         baseIntegrationConfigurationBuilder,
         httpClientFactory,
-        openAEVConfig);
+        openAEVConfig,
+        tenantTx);
   }
 }

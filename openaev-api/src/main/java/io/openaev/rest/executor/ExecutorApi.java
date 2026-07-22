@@ -196,7 +196,7 @@ public class ExecutorApi extends RestBehavior {
             banner.get());
       }
       // Upsert: look up by id (inspector scopes to the resolved tenant)
-      Executor executor = executorRepository.findById(input.getId()).orElse(null);
+      Executor executor = executorRepository.findByExecutorId(input.getId()).orElse(null);
       if (executor == null) {
         Executor executorChecking = executorRepository.findByType(input.getType()).orElse(null);
         if (executorChecking != null) {

@@ -3,8 +3,11 @@ package io.openaev.executors.paloaltocortex.service;
 import static io.openaev.executors.ExecutorHelper.*;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Executor;
 import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
 import io.openaev.executors.paloaltocortex.model.PaloAltoCortexAction;
 import io.openaev.executors.paloaltocortex.model.PaloAltoCortexCommand;
@@ -22,22 +25,34 @@ public class PaloAltoCortexGarbageCollectorService implements Runnable {
   private final PaloAltoCortexExecutorConfig config;
   private final PaloAltoCortexExecutorContextService paloAltoCortexExecutorContextService;
   private final AgentService agentService;
-  private final String executorId;
+  private final Executor executor;
+  private final TenantScopedTransaction tenantTx;
 
   public PaloAltoCortexGarbageCollectorService(
       PaloAltoCortexExecutorConfig config,
       PaloAltoCortexExecutorContextService paloAltoCortexExecutorContextService,
       AgentService agentService,
-      String executorId) {
+      Executor executor,
+      TenantScopedTransaction tenantTx) {
     this.config = config;
     this.paloAltoCortexExecutorContextService = paloAltoCortexExecutorContextService;
     this.agentService = agentService;
-    this.executorId = executorId;
+    this.executor = executor;
+    this.tenantTx = tenantTx;
   }
 
   @Override
   public void run() {
-    List<Agent> agents = this.agentService.getAgentsByExecutorId(executorId);
+    tenantTx.execute(
+        TxCtx.forTenant(executor.getTenantId()),
+        () -> {
+          doRun();
+          return null;
+        });
+  }
+
+  private void doRun() {
+    List<Agent> agents = this.agentService.getAgentsByExecutorId(executor.getId());
     if (!agents.isEmpty()) {
       log.info(
           "Running Palo Alto Cortex executor garbage collector on " + agents.size() + " agents");

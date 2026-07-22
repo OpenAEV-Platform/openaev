@@ -8,6 +8,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
@@ -72,6 +73,7 @@ public class CrowdStrikeExecutorIntegrationTest {
   private CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
 
   @Autowired private FileService fileService;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   private CrowdStrikeExecutorIntegrationFactory getFactory() {
     return new CrowdStrikeExecutorIntegrationFactory(
@@ -89,7 +91,8 @@ public class CrowdStrikeExecutorIntegrationTest {
         fileService,
         baseIntegrationConfigurationBuilder,
         httpClientFactory,
-        openAEVConfig);
+        openAEVConfig,
+        tenantTx);
   }
 
   @Test
@@ -225,7 +228,8 @@ public class CrowdStrikeExecutorIntegrationTest {
                     taskScheduler,
                     null,
                     httpClientFactory,
-                    openAEVConfig))
+                    openAEVConfig,
+                    tenantTx))
         .isInstanceOf(ExecutorException.class)
         .hasMessageContaining("Error during initialization of the Executor");
   }

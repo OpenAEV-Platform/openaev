@@ -86,14 +86,6 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi#bulkInsertInjectExpectationTraceForCollector",
           "io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi#getInjectExpectationTracesFromCollector",
           "io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi#getAlertLinksNumber",
-          // mitigations (v2)
-          "io.openaev.rest.mitigation.MitigationApi#mitigations",
-          "io.openaev.rest.mitigation.MitigationApi#mitigation",
-          "io.openaev.rest.mitigation.MitigationApi#injectorContracts",
-          "io.openaev.rest.mitigation.MitigationApi#createMitigation",
-          "io.openaev.rest.mitigation.MitigationApi#updateMitigation",
-          "io.openaev.rest.mitigation.MitigationApi#upsertMitigation",
-          "io.openaev.rest.mitigation.MitigationApi#deleteMitigation",
           // executors: all read/write endpoints wired with TxCtx
           "io.openaev.rest.executor.ExecutorApi#executors",
           "io.openaev.rest.executor.ExecutorApi#getExecutor",
@@ -101,7 +93,8 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.executor.ExecutorApi#updateExecutor",
           "io.openaev.rest.executor.ExecutorApi#deleteExecutor",
           "io.openaev.rest.executor.ExecutorApi#registerExecutor",
-          "io.openaev.rest.asset.endpoint.EndpointApi#upsertEndpoint");
+          "io.openaev.rest.asset.endpoint.EndpointApi#upsertEndpoint",
+          "io.openaev.rest.connector_instance.ConnectorInstanceApi#deleteConnectorInstance");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =

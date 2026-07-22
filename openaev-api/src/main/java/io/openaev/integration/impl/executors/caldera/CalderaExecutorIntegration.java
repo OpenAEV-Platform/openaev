@@ -4,6 +4,7 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
@@ -51,6 +52,7 @@ public class CalderaExecutorIntegration extends Integration {
   private final ConnectorInstanceService connectorInstanceService;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  private final TenantScopedTransaction tenantTx;
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
@@ -65,7 +67,8 @@ public class CalderaExecutorIntegration extends Integration {
       InjectorService injectorService,
       ThreadPoolTaskScheduler taskScheduler,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      TenantScopedTransaction tenantTx) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.endpointService = endpointService;
     this.agentService = agentService;
@@ -76,6 +79,7 @@ public class CalderaExecutorIntegration extends Integration {
     this.connectorInstanceService = connectorInstanceService;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+    this.tenantTx = tenantTx;
 
     // Refresh the context to get the config
     try {
@@ -130,7 +134,8 @@ public class CalderaExecutorIntegration extends Integration {
             endpointService,
             injectorService,
             platformSettingsService,
-            agentService);
+            agentService,
+            tenantTx);
 
     calderaExecutorContextService.registerAbilities();
 

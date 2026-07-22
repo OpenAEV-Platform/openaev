@@ -13,13 +13,12 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ExecutorRepository extends CrudRepository<Executor, ConnectorCompositeId> {
 
-  Optional<Executor> findById(@NotNull String id);
+  @Query("SELECT e FROM Executor e WHERE e.id = :id")
+  Optional<Executor> findByExecutorId(@Param("id") @NotNull String id);
 
   Optional<Executor> findByType(@NotNull String type);
 
   @Modifying
-  @Query(
-      nativeQuery = true,
-      value = "DELETE FROM executors WHERE executor_id = :id AND tenant_id = :tenantId")
-  void deleteByIdAndTenantId(@Param("id") String id, @Param("tenantId") String tenantId);
+  @Query(nativeQuery = true, value = "DELETE FROM executors WHERE executor_id = :id")
+  void deleteByExecutorId(@Param("id") String id);
 }

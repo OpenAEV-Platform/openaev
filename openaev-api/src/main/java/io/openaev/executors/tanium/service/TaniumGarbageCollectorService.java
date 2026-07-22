@@ -4,8 +4,11 @@ import static io.openaev.executors.ExecutorHelper.UNIX_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Executor;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.TaniumAction;
 import io.openaev.service.AgentService;
@@ -20,23 +23,35 @@ public class TaniumGarbageCollectorService implements Runnable {
   private final TaniumExecutorConfig config;
   private final TaniumExecutorContextService taniumExecutorContextService;
   private final AgentService agentService;
-  private final String executorId;
+  private final Executor executor;
+  private final TenantScopedTransaction tenantTx;
 
   public TaniumGarbageCollectorService(
       TaniumExecutorConfig config,
       TaniumExecutorContextService taniumExecutorContextService,
       AgentService agentService,
-      String executorId) {
+      Executor executor,
+      TenantScopedTransaction tenantTx) {
     this.config = config;
     this.taniumExecutorContextService = taniumExecutorContextService;
     this.agentService = agentService;
-    this.executorId = executorId;
+    this.executor = executor;
+    this.tenantTx = tenantTx;
   }
 
   @Override
   public void run() {
+    tenantTx.execute(
+        TxCtx.forTenant(executor.getTenantId()),
+        () -> {
+          doRun();
+          return null;
+        });
+  }
+
+  private void doRun() {
     List<io.openaev.database.model.Agent> agents =
-        this.agentService.getAgentsByExecutorId(executorId);
+        this.agentService.getAgentsByExecutorId(executor.getId());
     if (!agents.isEmpty()) {
       log.info("Running Tanium executor garbage collector on " + agents.size() + " agents");
       List<TaniumAction> actions = new ArrayList<>();

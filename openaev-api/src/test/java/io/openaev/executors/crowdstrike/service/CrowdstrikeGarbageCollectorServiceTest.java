@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Agent;
+import io.openaev.database.model.Executor;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
 import io.openaev.service.AgentService;
@@ -26,14 +28,17 @@ public class CrowdstrikeGarbageCollectorServiceTest {
   @Mock private AgentService agentService;
   @Mock private CrowdStrikeExecutorContextService crowdStrikeExecutorContextService;
   @Mock private CrowdStrikeExecutorConfig config;
+  @Mock private Executor executor;
+  @Mock private TenantScopedTransaction tenantTx;
 
   private CrowdStrikeGarbageCollectorService crowdStrikeGarbageCollectorService;
 
   @BeforeEach
   void setUp() {
+    org.mockito.Mockito.when(executor.getId()).thenReturn(EXECUTOR_ID);
     crowdStrikeGarbageCollectorService =
         new CrowdStrikeGarbageCollectorService(
-            config, crowdStrikeExecutorContextService, agentService, EXECUTOR_ID);
+            config, crowdStrikeExecutorContextService, agentService, executor, tenantTx);
   }
 
   @Test

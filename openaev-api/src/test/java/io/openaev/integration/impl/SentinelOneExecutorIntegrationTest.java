@@ -8,6 +8,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
@@ -70,6 +71,7 @@ public class SentinelOneExecutorIntegrationTest {
   private SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration;
 
   @Autowired private FileService fileService;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   private SentinelOneExecutorIntegrationFactory getFactory() {
     return new SentinelOneExecutorIntegrationFactory(
@@ -87,7 +89,8 @@ public class SentinelOneExecutorIntegrationTest {
         fileService,
         baseIntegrationConfigurationBuilder,
         httpClientFactory,
-        openAEVConfig);
+        openAEVConfig,
+        tenantTx);
   }
 
   @Test
@@ -223,7 +226,8 @@ public class SentinelOneExecutorIntegrationTest {
                     taskScheduler,
                     null,
                     httpClientFactory,
-                    openAEVConfig))
+                    openAEVConfig,
+                    tenantTx))
         .isInstanceOf(ExecutorException.class)
         .hasMessageContaining("Error during initialization of the Executor");
   }

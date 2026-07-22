@@ -7,6 +7,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceInMemory;
@@ -65,6 +66,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
   @Autowired private OpenAEVConfig openAEVConfig;
 
   @Autowired private FileService fileService;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   @Autowired
   private PaloAltoCortexExecutorConfigurationMigration paloAltoCortexExecutorConfigurationMigration;
@@ -85,7 +87,8 @@ public class PaloAltoCortexExecutorIntegrationTest {
         fileService,
         baseIntegrationConfigurationBuilder,
         httpClientFactory,
-        openAEVConfig);
+        openAEVConfig,
+        tenantTx);
   }
 
   /**
@@ -173,7 +176,8 @@ public class PaloAltoCortexExecutorIntegrationTest {
                     taskScheduler,
                     null,
                     httpClientFactory,
-                    openAEVConfig))
+                    openAEVConfig,
+                    tenantTx))
         .isInstanceOf(ExecutorException.class)
         .hasMessageContaining("Error during initialization of the Executor");
   }

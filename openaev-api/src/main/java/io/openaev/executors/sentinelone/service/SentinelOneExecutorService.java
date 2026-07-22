@@ -1,6 +1,8 @@
 package io.openaev.executors.sentinelone.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
@@ -21,6 +23,7 @@ public class SentinelOneExecutorService implements Runnable {
   private final EndpointService endpointService;
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
+  private final TenantScopedTransaction tenantTx;
   private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
@@ -45,16 +48,27 @@ public class SentinelOneExecutorService implements Runnable {
       SentinelOneExecutorClient client,
       EndpointService endpointService,
       AgentService agentService,
-      AssetGroupService assetGroupService) {
+      AssetGroupService assetGroupService,
+      TenantScopedTransaction tenantTx) {
     this.executor = executor;
     this.client = client;
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
+    this.tenantTx = tenantTx;
   }
 
   @Override
   public void run() {
+    tenantTx.execute(
+        TxCtx.forTenant(executor.getTenantId()),
+        () -> {
+          doRun();
+          return null;
+        });
+  }
+
+  private void doRun() {
     log.info("Running SentinelOne executor endpoints gathering...");
     Set<SentinelOneAgent> sentinelOneAgents = this.client.agents();
     if (!sentinelOneAgents.isEmpty()) {

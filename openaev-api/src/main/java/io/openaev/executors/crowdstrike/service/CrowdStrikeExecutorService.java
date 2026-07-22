@@ -3,6 +3,8 @@ package io.openaev.executors.crowdstrike.service;
 import static io.openaev.utils.time.TimeUtils.toInstant;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
@@ -28,6 +30,7 @@ public class CrowdStrikeExecutorService implements Runnable {
   private final EndpointService endpointService;
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
+  private final TenantScopedTransaction tenantTx;
   private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
@@ -53,17 +56,28 @@ public class CrowdStrikeExecutorService implements Runnable {
       CrowdStrikeExecutorConfig config,
       EndpointService endpointService,
       AgentService agentService,
-      AssetGroupService assetGroupService) {
+      AssetGroupService assetGroupService,
+      TenantScopedTransaction tenantTx) {
     this.client = client;
     this.config = config;
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
+    this.tenantTx = tenantTx;
     this.executor = executor;
   }
 
   @Override
   public void run() {
+    tenantTx.execute(
+        TxCtx.forTenant(executor.getTenantId()),
+        () -> {
+          doRun();
+          return null;
+        });
+  }
+
+  private void doRun() {
     try {
       log.info(
           "Running CrowdStrike executor endpoints gathering... executorId={}, hostGroup={}",
