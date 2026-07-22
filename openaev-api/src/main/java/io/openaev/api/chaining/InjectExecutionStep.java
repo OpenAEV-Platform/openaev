@@ -323,9 +323,10 @@ public class InjectExecutionStep implements ActionStep {
     if (parsedValueElement == null || parsedValueElement.isJsonNull()) {
       return;
     }
-    JsonArray target = result.has(key) && result.get(key).isJsonArray()
-        ? result.getAsJsonArray(key)
-        : new JsonArray();
+    JsonArray target =
+        result.has(key) && result.get(key).isJsonArray()
+            ? result.getAsJsonArray(key)
+            : new JsonArray();
     if (!result.has(key)) {
       result.add(key, target);
     }

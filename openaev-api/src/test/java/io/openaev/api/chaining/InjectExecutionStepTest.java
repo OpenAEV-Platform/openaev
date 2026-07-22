@@ -263,8 +263,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertTrue(extracted.get("portscan").isJsonArray());
     assertEquals(2, extracted.getAsJsonArray("portscan").size());
     assertEquals(portscanItem, extracted.getAsJsonArray("portscan").get(0).getAsJsonObject());
-    assertEquals(
-        secondPortscanItem, extracted.getAsJsonArray("portscan").get(1).getAsJsonObject());
+    assertEquals(secondPortscanItem, extracted.getAsJsonArray("portscan").get(1).getAsJsonObject());
     assertEquals("0.0.0.0", extracted.getAsJsonArray("ips").get(0).getAsString());
     assertEquals("127.0.0.1", extracted.getAsJsonArray("ips").get(1).getAsString());
     assertEquals(135, extracted.getAsJsonArray("ports").get(0).getAsInt());
@@ -292,8 +291,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertNotNull(extracted);
     assertTrue(extracted.get("credentials").isJsonArray());
     assertEquals(1, extracted.getAsJsonArray("credentials").size());
-    assertEquals(
-        credential, extracted.getAsJsonArray("credentials").get(0).getAsJsonObject());
+    assertEquals(credential, extracted.getAsJsonArray("credentials").get(0).getAsJsonObject());
   }
 
   @Test
