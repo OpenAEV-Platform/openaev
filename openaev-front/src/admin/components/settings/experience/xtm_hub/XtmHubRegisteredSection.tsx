@@ -54,9 +54,9 @@ const XtmHubRegisteredSection: React.FC<XtmHubRegisteredSectionProps> = ({ onDis
         }}
         >
           <Typography sx={{
-            fontFamily: '"Geologica", sans-serif',
+            fontFamily: theme.typography.h2.fontFamily,
             fontWeight: theme.typography.fontWeightBold,
-            fontSize: '1rem',
+            fontSize: theme.typography.h2.fontSize,
           }}
           >
             {t('Experiment valuable threat management resources in the XTM Hub')}
@@ -125,7 +125,7 @@ const XtmHubRegisteredSection: React.FC<XtmHubRegisteredSectionProps> = ({ onDis
             rel="noreferrer"
             sx={{
               'textTransform': 'none',
-              'fontWeight': 600,
+              'fontWeight': theme.button.sizes.default.fontWeight,
               'borderColor': theme.palette.border.primary,
               '&:hover': { borderColor: theme.palette.border.primary },
             }}
@@ -139,7 +139,7 @@ const XtmHubRegisteredSection: React.FC<XtmHubRegisteredSectionProps> = ({ onDis
             disabled={!onDisconnect}
             sx={{
               textTransform: 'none',
-              fontWeight: 600,
+              fontWeight: theme.button.sizes.default.fontWeight,
             }}
           >
             {t('Disconnect XTM Hub')}

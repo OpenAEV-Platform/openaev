@@ -19,7 +19,7 @@ const XtmHubFeatureCard: React.FC<XtmHubFeatureCardProps> = ({ icon, label }) =>
         alignItems: 'center',
         gap: theme.spacing(1),
         padding: theme.spacing(2),
-        borderRadius: 8,
+        borderRadius: theme.shape.borderRadius,
         backgroundColor: theme.palette.background.accent,
       }}
     >

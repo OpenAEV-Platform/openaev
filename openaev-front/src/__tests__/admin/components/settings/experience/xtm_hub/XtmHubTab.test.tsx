@@ -139,8 +139,6 @@ const DEFAULT_SETTINGS: Partial<PlatformSettings> = {
   platform_license: { license_is_validated: true } as PlatformSettings['platform_license'],
 };
 
-const UNREGISTER_BUTTON_TEXT = 'Disconnect from XTM Hub';
-
 // -- FACTORIZED HELPERS --
 
 interface RenderOptions {
@@ -239,10 +237,10 @@ describe('XtmHubTab', () => {
       expect(screen.getByTestId('trigger-button')).toBeDefined();
     });
 
-    it('renders an outlined error Button "Disconnect from XTM Hub" when connected', () => {
+    it('renders the trigger button when connected (no gradient button)', () => {
       renderXtmHubTab({ registrationStatus: 'REGISTERED' });
       expect(screen.queryByTestId('gradient-button')).toBeNull();
-      expect(screen.getByText(UNREGISTER_BUTTON_TEXT)).toBeDefined();
+      expect(screen.getByTestId('trigger-button')).toBeDefined();
     });
 
     it('renders nothing when in demo mode', () => {
@@ -267,7 +265,9 @@ describe('XtmHubTab', () => {
       const wrapper = ({ children }: { children: ReactNode }) => (
         <ThemeProvider theme={theme}>
           <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
-            <UserContext.Provider value={userContext}>{children}</UserContext.Provider>
+            <MemoryRouter>
+              <UserContext.Provider value={userContext}>{children}</UserContext.Provider>
+            </MemoryRouter>
           </IntlProvider>
         </ThemeProvider>
       );

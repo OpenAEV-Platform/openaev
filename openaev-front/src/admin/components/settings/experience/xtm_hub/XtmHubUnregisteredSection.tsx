@@ -47,9 +47,9 @@ const XtmHubUnregisteredSection: React.FC<XtmHubUnregisteredSectionProps> = ({ o
         }}
         >
           <Typography sx={{
-            fontFamily: '"Geologica", sans-serif',
+            fontFamily: theme.typography.h1.fontFamily,
             fontWeight: theme.typography.fontWeightBold,
-            fontSize: '1rem',
+            fontSize: theme.typography.h2.fontSize,
           }}
           >
             {t('Extend and scale your OpenAEV experience')}
@@ -85,7 +85,7 @@ const XtmHubUnregisteredSection: React.FC<XtmHubUnregisteredSectionProps> = ({ o
             rel="noreferrer"
             sx={{
               'textTransform': 'none',
-              'fontWeight': 600,
+              'fontWeight': theme.button.sizes.default.fontWeight,
               'borderColor': theme.palette.border.primary,
               '&:hover': { borderColor: theme.palette.border.primary },
             }}
@@ -98,7 +98,7 @@ const XtmHubUnregisteredSection: React.FC<XtmHubUnregisteredSectionProps> = ({ o
             disabled={!onConnect}
             sx={{
               textTransform: 'none',
-              fontWeight: 600,
+              fontWeight: theme.button.sizes.default.fontWeight,
             }}
           >
             {t('Connect to XTM Hub')}
