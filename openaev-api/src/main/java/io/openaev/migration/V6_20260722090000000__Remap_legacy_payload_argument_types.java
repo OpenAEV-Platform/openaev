@@ -30,10 +30,11 @@ import org.springframework.stereotype.Component;
  * the primitive that carries its main scalar projection.
  *
  * <p>Execution is batched to stay production-safe on large tables ({@code injects_statuses} can
- * hold millions of rows): the affected row ids are collected first with a read-only scan, then
- * rewritten in chunks of {@value #BATCH_SIZE} ids. The migration runs OUTSIDE a wrapping Flyway
- * transaction ({@link #canExecuteInTransaction()} returns false) so each chunked UPDATE commits on
- * its own and row locks / WAL churn stay bounded instead of accumulating in one long transaction.
+ * hold millions of rows): each iteration selects the next {@value #BATCH_SIZE} affected row ids
+ * (LIMIT page, no full id materialization in memory) and rewrites just those. The migration runs
+ * OUTSIDE a wrapping Flyway transaction ({@link #canExecuteInTransaction()} returns false) so each
+ * chunked UPDATE commits on its own and row locks / WAL churn stay bounded instead of accumulating
+ * in one long transaction.
  *
  * <p>Idempotent: the UPDATEs only match rows that still contain a legacy label; after the first run
  * (or an interrupted partial run) only the remaining rows are picked up again.
@@ -162,22 +163,28 @@ public class V6_20260722090000000__Remap_legacy_payload_argument_types extends B
   }
 
   /**
-   * Collects the ids of the rows still holding legacy labels, then applies the rewrite in chunks of
-   * {@value #BATCH_SIZE} ids so each UPDATE stays short-lived. The connection is in autocommit
-   * (non-transactional migration), so every chunk releases its row locks immediately.
+   * Applies the rewrite in chunks of {@value #BATCH_SIZE} ids so each UPDATE stays short-lived,
+   * without ever materializing the full id set in memory: each iteration selects the next {@value
+   * #BATCH_SIZE} rows still holding a legacy label (LIMIT page), rewrites them, and loops until the
+   * select comes back empty. No OFFSET is needed because the UPDATE removes the legacy labels, so
+   * processed rows stop matching the predicate. The connection is in autocommit (non-transactional
+   * migration), so every chunk releases its row locks immediately.
    */
   private void updateInBatches(Connection connection, String selectSql, String updateSql)
       throws SQLException {
-    List<String> ids = new ArrayList<>();
+    String pagedSelectSql = selectSql + " LIMIT " + BATCH_SIZE;
     try (Statement select = connection.createStatement();
-        ResultSet results = select.executeQuery(selectSql)) {
-      while (results.next()) {
-        ids.add(results.getString(1));
-      }
-    }
-    try (PreparedStatement update = connection.prepareStatement(updateSql)) {
-      for (int from = 0; from < ids.size(); from += BATCH_SIZE) {
-        List<String> chunk = ids.subList(from, Math.min(from + BATCH_SIZE, ids.size()));
+        PreparedStatement update = connection.prepareStatement(updateSql)) {
+      while (true) {
+        List<String> chunk = new ArrayList<>(BATCH_SIZE);
+        try (ResultSet results = select.executeQuery(pagedSelectSql)) {
+          while (results.next()) {
+            chunk.add(results.getString(1));
+          }
+        }
+        if (chunk.isEmpty()) {
+          return;
+        }
         update.setArray(1, connection.createArrayOf("varchar", chunk.toArray()));
         update.executeUpdate();
       }

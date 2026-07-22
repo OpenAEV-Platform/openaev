@@ -2,6 +2,7 @@ package io.openaev.rest.kill_chain_phase.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,7 +10,10 @@ public class KillChainPhaseUpsertInput {
 
   // @Valid cascades validation to each item: without it, blank kill chain / short names would
   // slip through and NPE in the upsert in-batch key building instead of returning a 400.
+  // @NotNull rejects an explicit "kill_chain_phases": null (the setter would overwrite the
+  // default empty list) with a 400 instead of an NPE downstream.
   @Valid
+  @NotNull
   @JsonProperty("kill_chain_phases")
   private List<KillChainPhaseCreateInput> killChainPhases = new ArrayList<>();
 
