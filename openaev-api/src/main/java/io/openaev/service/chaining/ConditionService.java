@@ -38,6 +38,7 @@ public class ConditionService {
   private final StepRepository stepRepository;
 
   // -- CONDITION TREE CREATE --
+
   /**
    * Creates a condition tree from an {@link EventInput} payload.
    *
@@ -218,6 +219,7 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE UPDATE --
+
   /**
    * Replaces an existing condition tree: updates root metadata and rebuilds child conditions.
    *
@@ -274,6 +276,7 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE GET --
+
   /**
    * Finds a condition tree root by its ID.
    *
@@ -291,19 +294,6 @@ public class ConditionService {
       throw new EntityNotFoundException("Condition root not found: " + conditionRootId);
     }
     return condition;
-  }
-
-  /**
-   * Returns all event condition tree roots for a given workflow, excluding mapper conditions.
-   *
-   * @param workflowId the workflow identifier
-   * @return list of root event conditions for that workflow
-   */
-  @Transactional(readOnly = true)
-  public List<Condition> findEventRootsByWorkflowId(String workflowId) {
-    return conditionRepository.findAllByWorkflowIdAndConditionParentIsNull(workflowId).stream()
-        .filter(c -> !conditionUtils.isMapperCondition(c))
-        .toList();
   }
 
   /**
@@ -329,6 +319,7 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE DELETE --
+
   /**
    * Deletes a condition tree root and all its children (cascade).
    *
