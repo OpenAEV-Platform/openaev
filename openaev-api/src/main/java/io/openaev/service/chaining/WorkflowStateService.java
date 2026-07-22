@@ -337,8 +337,12 @@ public class WorkflowStateService {
    * "Username") so that the object path produces the same key convention as the scalar path.
    * Attachment fields ({@code asset_id} only for now) are excluded from the content pair set.
    *
+   * <p>Each accepted primitive field is ALSO decomposed flat into {@code entries.inputs}, so that
+   * downstream consumers can query individual primitives regardless of their complex origin.
+   *
    * @param entries state entries to update
    * @param obj JSON object whose fields form a correlated pair set
+   * @param type business type name (ContractOutputType.name())
    */
   private void saveCorrelatedObject(WorkflowStateEntries entries, JsonObject obj, String type) {
     Set<WorkflowStateEntries.Pair> pairSet = new HashSet<>();
@@ -353,38 +357,45 @@ public class WorkflowStateService {
                 return;
               }
 
-              // Resolve the JSON field name to its PrimitiveType via the label mapping
-              Optional<PrimitiveType> primitiveOpt = PrimitiveType.fromLabelOptional(jsonKey);
-              if (primitiveOpt.isEmpty()) {
-                log.trace(
-                    "Skipping unknown field '{}' in correlated object — no PrimitiveType match",
-                    jsonKey);
+              Optional<PrimitiveType> accepted = acceptedContentPrimitive(jsonKey);
+              if (accepted.isEmpty()) {
                 return;
               }
 
-              PrimitiveType primitiveType = primitiveOpt.get();
-
-              // Exclude attachment/correlation keys from the content pair set
-              if (ATTACHMENT_KEYS.contains(primitiveType)) {
-                return;
-              }
-
-              // Extract clean string values for the Pair, keyed by PrimitiveType.name()
+              PrimitiveType primitiveType = accepted.get();
               String valStr = value.isJsonPrimitive() ? value.getAsString() : value.toString();
+
+              // Store in the correlated pair set
               pairSet.add(new WorkflowStateEntries.Pair(primitiveType.name(), valStr));
+
+              // Decompose into flat inputs (source-of-truth propagation)
+              entries.getInputByKey(primitiveType.name()).getValues().add(valStr);
             });
 
-    // A Correlated only makes sense when the object carries at least two correlated primitives
-    // (e.g. Credentials = Username + Password|Hash).
-    // CredentialsOutputProcessor.validate guarantees username + (password|hash), so a valid
-    // Credentials always yields >= 2 content pairs here — this guard never rejects a valid
-    // Credentials.
-    // KNOWN LIMITATION: single-content complex Object types (Username, AdminUsername,
-    // AccountWithPasswordNotRequired) are silently NOT stored as Correlated by this size check.
-    // They are treated as findings, not correlations.
     if (pairSet.size() > 1) {
       entries.getCorrelated().add(new WorkflowStateEntries.Correlated(pairSet, type));
     }
+  }
+
+  /**
+   * Returns the resolved {@link PrimitiveType} for a JSON field name if it is a known primitive AND
+   * is not an attachment key. Returns empty for unknown fields or attachment keys (asset_id).
+   *
+   * <p>This is the SINGLE filter shared by both the correlated pair-set construction and the flat
+   * input decomposition, ensuring they cannot diverge.
+   */
+  private Optional<PrimitiveType> acceptedContentPrimitive(String jsonFieldName) {
+    Optional<PrimitiveType> primitiveOpt = PrimitiveType.fromLabelOptional(jsonFieldName);
+    if (primitiveOpt.isEmpty()) {
+      log.debug(
+          "Skipping unknown field '{}' in correlated object — no PrimitiveType match",
+          jsonFieldName);
+      return Optional.empty();
+    }
+    if (ATTACHMENT_KEYS.contains(primitiveOpt.get())) {
+      return Optional.empty();
+    }
+    return primitiveOpt;
   }
 
   /** Persists a workflow state entity. */
