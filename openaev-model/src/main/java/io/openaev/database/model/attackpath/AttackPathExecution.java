@@ -5,10 +5,9 @@ import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.*;
 import jakarta.persistence.*;
+import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.time.Instant;
 
 /**
  * One row = one attack-path edge (source → target) for a simulation (issue 6647). Carries the run
@@ -46,7 +45,7 @@ public class AttackPathExecution implements TenantBase {
   @Column(name = "attackpath_execution_contract_external_id")
   private String contractExternalId;
 
-  //INJECTOR or AGENT
+  // INJECTOR or AGENT
   @Column(name = "attackpath_execution_source_kind", nullable = false)
   private String sourceKind;
 
@@ -77,7 +76,7 @@ public class AttackPathExecution implements TenantBase {
   @Column(name = "attackpath_execution_injector_type")
   private String injectorType;
 
-  //ASSET or DISCOVERED
+  // ASSET or DISCOVERED
   @Column(name = "attackpath_execution_target_kind", nullable = false)
   private String targetKind;
 
@@ -117,7 +116,10 @@ public class AttackPathExecution implements TenantBase {
   @Column(name = "attackpath_execution_vulnerability_status")
   private String vulnerabilityStatus;
 
-  /** The graph read never selects it; unlike the heavy TOASTed terminal_output it is generally smaller. */
+  /**
+   * The graph read never selects it; unlike the heavy TOASTed terminal_output it is generally
+   * smaller.
+   */
   @Column(name = "attackpath_execution_command")
   private String command;
 
@@ -127,25 +129,26 @@ public class AttackPathExecution implements TenantBase {
 
   public void setGlobalInformation(Step stepExecution, Inject inject) {
     this.tenant = inject.getTenant();
-    this.simulationId =inject.getExercise().getId();
+    this.simulationId = inject.getExercise().getId();
     this.stepId = stepExecution.getId();
     this.stepTemplateId = stepExecution.getStepTemplate().getId();
     this.payloadName = inject.getTitle();
     this.executedAt = Instant.now();
     // The graph read never re-reads the live inject; it renders from this frozen row. Freeze the
-    // identity keys it resolves from: contractExternalId -> ATT&CK techniques, payloadId -> detection
+    // identity keys it resolves from: contractExternalId -> ATT&CK techniques, payloadId ->
+    // detection
     // remediations, injectorType -> the injector node's real type.
     this.contractExternalId =
         inject.getInjectorContract().map(InjectorContract::getExternalId).orElse(null);
     this.payloadId = inject.getPayload().map(Payload::getId).orElse(null);
     this.injectorType = inject.getInjector() != null ? inject.getInjector().getType() : null;
-    }
+  }
 
   public void setTargetDiscoveredInformation(String key) {
     this.targetKind = "DISCOVERED";
     this.targetKey = key;
     this.targetRawValue = "";
-    //TODO if type IP or Hostname
+    // TODO if type IP or Hostname
     this.targetHostname = "";
     this.targetIp = "";
   }
@@ -155,26 +158,29 @@ public class AttackPathExecution implements TenantBase {
     this.targetAssetId = endpoint.getId();
     this.targetHostname = endpoint.getHostname();
     this.targetKey = endpoint.getId();
-    this.targetIp = String.join(",", endpoint.getIps());
-    this.targetPlatform = endpoint.getPlatform().name();
+    // Null-safe for the same reason as the source side: endpoint_platform has no NOT NULL
+    // constraint and ips can be unset, and the non-fatal ingestion must not drop the row over it.
+    this.targetIp = endpoint.getIps() == null ? null : String.join(",", endpoint.getIps());
+    this.targetPlatform = endpoint.getPlatform() == null ? null : endpoint.getPlatform().name();
   }
 
   public void setSourceAgentInformation(Agent agent, Endpoint endpoint) {
-    this.sourceKind ="AGENT";
+    this.sourceKind = "AGENT";
     this.sourceAssetId = agent.getAsset().getId();
     this.sourceHostname = endpoint.getHostname();
-    this.sourceIp = String.join(",", endpoint.getIps());
-    this.sourcePlatform = endpoint.getPlatform().name();
+    // Null-safe: agent_executor is a nullable column and endpoint_platform has no NOT NULL
+    // constraint, so a run's agent/endpoint can lack them. The ingestion is non-fatal, so an
+    // unguarded dereference here would silently drop the whole row; keep it with null metadata.
+    this.sourceIp = endpoint.getIps() == null ? null : String.join(",", endpoint.getIps());
+    this.sourcePlatform = endpoint.getPlatform() == null ? null : endpoint.getPlatform().name();
 
     this.agentId = agent.getId();
-    this.agentName = agent.getExecutor().getName();
+    this.agentName = agent.getExecutor() == null ? null : agent.getExecutor().getName();
     this.agentPrivilege = agent.getPrivilege().name();
-
   }
 
   public void setSourceInjectorInformation(Injector injector) {
-    this.sourceKind ="INJECTOR";
+    this.sourceKind = "INJECTOR";
     this.sourceInjector = injector.getName();
   }
 }
-
