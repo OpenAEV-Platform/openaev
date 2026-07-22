@@ -16,6 +16,7 @@ import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.StepConditionRow;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.expectation.ExpectationType;
@@ -54,13 +55,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Rebuilds a simulation's attack-path graph (issue 6647). The graph comes from two flat, indexed
- * reads (Read A: executions; Read B: findings joined to their producing execution) plus one in-memory
- * pass that turns the rows into {@code {nodes, edges, counters}} with the deterministic IDs from
- * {@link AttackPathIds}. Full mode adds one more batched read for the kill-chain fields (the
- * executions' step-template conditions, resolved once per distinct step template), skipped when no
- * execution carries a step template. No recursion, and the number of SQL statements is constant
- * (three in full mode, two otherwise), independent of the graph size. Each read is walked exactly
- * once (counters are accumulated inside the findings pass).
+ * reads (Read A: executions; Read B: findings joined to their producing execution) plus one
+ * in-memory pass that turns the rows into {@code {nodes, edges, counters}} with the deterministic
+ * IDs from {@link AttackPathIds}. Full mode adds one more batched read for the kill-chain fields
+ * (the executions' step-template conditions, resolved once per distinct step template), skipped
+ * when no execution carries a step template. No recursion, and the number of SQL statements is
+ * constant (three in full mode, two otherwise), independent of the graph size. Each read is walked
+ * exactly once (counters are accumulated inside the findings pass).
  *
  * <p>The execution is carried on the source-to-target edge (its {@code executionIds}), not as a
  * standalone map node (design O2), while the left feed still lists every execution.
@@ -94,6 +95,7 @@ public class AttackPathGraphService {
   private final AttackPathFindingRepository findingRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final PayloadRepository payloadRepository;
+  private final StepRepository stepRepository;
   private final PayloadMapper payloadMapper;
   private final AttackPathKillChainResolver killChainResolver;
   private final ConditionRepository conditionRepository;
@@ -234,9 +236,19 @@ public class AttackPathGraphService {
                     .findById(e.getPayloadId())
                     .map(p -> p.getDetectionRemediations())
                     .orElse(List.of()));
+    // "Action details" opens the run's inject. The frozen row no longer stores the injectId (it is
+    // a
+    // live ref), so resolve it from the durable step the row is keyed by: the engine writes
+    // inject_id
+    // into step_data at run. Null (e.g. a not-yet-committed run) simply hides the front's button.
+    String injectId =
+        e.getStepId() == null
+            ? null
+            : stepRepository.findInjectIdByStepId(e.getStepId()).orElse(null);
     return new AttackPathExecutionDetailDTO(
         e.getPayloadName(),
         e.getStepId(),
+        injectId,
         e.getPayloadId(),
         e.getAgentName(),
         e.getAgentPrivilege(),

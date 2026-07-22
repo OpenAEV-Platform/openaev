@@ -7,7 +7,10 @@ import static org.mockito.Mockito.when;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.Step;
+import io.openaev.database.model.StepStatus;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
 import io.openaev.database.model.attackpath.AttackPathFinding;
@@ -18,14 +21,20 @@ import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.dto.AttackPathExecutionDetailDTO;
 import io.openaev.utils.fixtures.CollectorTypeFixture;
 import io.openaev.utils.fixtures.DetectionRemediationFixture;
+import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
+import io.openaev.utils.fixtures.StepFixture;
+import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
 import io.openaev.utils.fixtures.composers.CollectorTypeComposer;
 import io.openaev.utils.fixtures.composers.DetectionRemediationComposer;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
+import io.openaev.utils.fixtures.composers.StepComposer;
+import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -59,6 +68,9 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private DetectionRemediationComposer detectionRemediationComposer;
   @Autowired private CollectorTypeComposer collectorTypeComposer;
+  @Autowired private WorkflowComposer workflowComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private StepComposer stepComposer;
 
   // The remediation mapping is Enterprise-gated. The test environment has no active licence, so the
   // gate is driven explicitly here: that is the only way to exercise the resolution itself rather
@@ -184,6 +196,37 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
     // terminal: the linked secret is masked in the command and the output
     assertThat(d.command()).contains("hydra -l admin").doesNotContain("secret123");
     assertThat(d.terminalOutput()).doesNotContain("secret123");
+  }
+
+  @Test
+  @DisplayName("resolves the inject link from the durable step the row is keyed by")
+  void resolvesInjectIdFromTheStep() {
+    // The engine freezes inject_id into step_data at run (InjectExecutionStep.setInjectId); the
+    // read
+    // resolves the "Action details" inject link from that durable step, not from the dropped
+    // column.
+    Step step = StepFixture.getDefaultStepExecution(StepStatus.READY);
+    step.setData("{\"inject_id\": \"inj-detail-1\"}");
+    workflowComposer
+        .forWorkflow(WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN))
+        .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withStep(stepComposer.forStep(step))
+        .persist();
+    String stepId = step.getId();
+
+    AttackPathExecution linked = new AttackPathExecution();
+    linked.setTenant(tenant);
+    linked.setSimulationId(SIM);
+    linked.setStepId(stepId);
+    linked.setSourceKind("INJECTOR");
+    linked.setTargetKind("ASSET");
+    linked.setTargetKey("dc-01");
+    linked.setExecutedAt(Instant.parse("2026-06-18T08:00:00Z"));
+    String linkedExecutionId = executionRepository.save(linked).getId();
+    entityManager.flush();
+
+    assertThat(graphService.executionDetail(SIM, linkedExecutionId).injectId())
+        .isEqualTo("inj-detail-1");
   }
 
   @Test

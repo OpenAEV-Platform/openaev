@@ -126,6 +126,25 @@ public interface StepRepository extends JpaRepository<Step, String> {
   Optional<String> findStepIdByInjectId(@Param("injectId") String injectId);
 
   /**
+   * Return the injectId frozen in a step's data, if present. The engine writes it into {@code
+   * step_data} at run ({@code InjectExecutionStep.setInjectId}), so the attack-path read can
+   * resolve the "Action details" inject link from the durable step rather than storing it on the
+   * frozen row.
+   *
+   * @param stepId the step whose data may carry an inject_id
+   * @return an optional filled with the injectId if found
+   */
+  @Query(
+      value =
+          """
+      SELECT jsonb_path_query_first(step_data, '$.**.inject_id') #>> '{}'
+      FROM steps
+      WHERE step_id = :stepId
+      """,
+      nativeQuery = true)
+  Optional<String> findInjectIdByStepId(@Param("stepId") String stepId);
+
+  /**
    * Returns the step IDs associated with any of the given inject IDs in a single query.
    *
    * @param injectIds the inject IDs for which we want the associated steps
