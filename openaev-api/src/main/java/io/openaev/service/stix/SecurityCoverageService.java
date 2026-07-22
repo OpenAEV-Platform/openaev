@@ -455,10 +455,10 @@ public class SecurityCoverageService {
   /**
    * Builds the STIX bundle for the given send jobs inside its own short read-only transaction.
    *
-   * <p>The transaction boundary is intentionally here and NOT around the caller's whole loop
-   * (which also pushes bundles to OpenCTI over HTTP): holding a pooled JDBC connection across
-   * external network calls exhausted the Hikari pool in production. Jobs may arrive detached, so
-   * the simulation is re-read within this transaction before navigating its lazy associations.
+   * <p>The transaction boundary is intentionally here and NOT around the caller's whole loop (which
+   * also pushes bundles to OpenCTI over HTTP): holding a pooled JDBC connection across external
+   * network calls exhausted the Hikari pool in production. Jobs may arrive detached, so the
+   * simulation is re-read within this transaction before navigating its lazy associations.
    */
   @Transactional(readOnly = true)
   public Bundle createBundleFromSendJobs(List<SecurityCoverageSendJob> securityCoverageSendJobs)

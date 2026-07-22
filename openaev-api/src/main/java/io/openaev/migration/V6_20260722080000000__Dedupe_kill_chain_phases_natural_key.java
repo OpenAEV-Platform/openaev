@@ -19,15 +19,15 @@ import org.springframework.stereotype.Component;
  * <p>Steps, all idempotent:
  *
  * <ol>
- *   <li>Repoint {@code attack_patterns_kill_chain_phases} links from duplicate phases to the
- *       oldest surviving row (dropping links that would collide with an existing one).
+ *   <li>Repoint {@code attack_patterns_kill_chain_phases} links from duplicate phases to the oldest
+ *       surviving row (insert-then-delete with ON CONFLICT DO NOTHING, so links that already exist
+ *       on the keeper are simply collapsed).
  *   <li>Delete the duplicate phase rows, keeping the oldest per natural key.
  *   <li>Add the unique constraint on the natural key.
  * </ol>
  */
 @Component
-public class V6_20260722080000000__Dedupe_kill_chain_phases_natural_key
-    extends BaseJavaMigration {
+public class V6_20260722080000000__Dedupe_kill_chain_phases_natural_key extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -47,24 +47,22 @@ public class V6_20260722080000000__Dedupe_kill_chain_phases_natural_key
           """
           DELETE FROM tmp_kcp_duplicates WHERE duplicate_id = keeper_id;
           """);
-      // Drop attack pattern links that would collide with an existing keeper link...
+      // Repoint attack pattern links as insert-then-delete rather than UPDATE: an in-place
+      // UPDATE would break the (attack_pattern_id, phase_id) primary key whenever an attack
+      // pattern links to the keeper already, or to several duplicates of the same keeper.
+      // ON CONFLICT DO NOTHING collapses all those cases onto the single surviving link.
+      statement.execute(
+          """
+          INSERT INTO attack_patterns_kill_chain_phases (attack_pattern_id, phase_id)
+          SELECT DISTINCT apkcp.attack_pattern_id, dup.keeper_id
+          FROM attack_patterns_kill_chain_phases apkcp
+          JOIN tmp_kcp_duplicates dup ON apkcp.phase_id = dup.duplicate_id
+          ON CONFLICT DO NOTHING;
+          """);
       statement.execute(
           """
           DELETE FROM attack_patterns_kill_chain_phases apkcp
           USING tmp_kcp_duplicates dup
-          WHERE apkcp.phase_id = dup.duplicate_id
-            AND EXISTS (
-              SELECT 1 FROM attack_patterns_kill_chain_phases existing
-              WHERE existing.attack_pattern_id = apkcp.attack_pattern_id
-                AND existing.phase_id = dup.keeper_id
-            );
-          """);
-      // ...and repoint the remaining ones to the keeper.
-      statement.execute(
-          """
-          UPDATE attack_patterns_kill_chain_phases apkcp
-          SET phase_id = dup.keeper_id
-          FROM tmp_kcp_duplicates dup
           WHERE apkcp.phase_id = dup.duplicate_id;
           """);
       statement.execute(

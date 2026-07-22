@@ -68,10 +68,10 @@ public class SecurityCoverageJob implements Job {
         openCTIConnectorService.pushSecurityCoverageStixBundle(resultBundle, tenantId);
         successfulJobs.add(securityCoverageSendJob);
       } catch (Exception e) {
-        // don't crash the job
+        // don't crash the job; getSimulation() can be null (that very case throws above)
         log.error(
             "Could not create the STIX bundle for coverage of simulation {}",
-            securityCoverageSendJob.getSimulation().getId(),
+            ofNullable(securityCoverageSendJob.getSimulation()).map(Exercise::getId).orElse("?"),
             e);
       } finally {
         TenantContext.clearCurrentTenant();

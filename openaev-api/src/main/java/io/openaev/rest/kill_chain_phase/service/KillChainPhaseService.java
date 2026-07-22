@@ -6,10 +6,13 @@ import io.openaev.helper.StreamHelper;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseUtils;
 import io.openaev.rest.kill_chain_phase.form.KillChainPhaseCreateInput;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,30 +38,49 @@ public class KillChainPhaseService {
    */
   @Transactional(rollbackFor = Exception.class)
   public List<KillChainPhase> upsertKillChainPhases(List<KillChainPhaseCreateInput> inputs) {
-    // LinkedHashMap keeps collector ordering; the key collapses duplicates within the batch.
-    Map<String, KillChainPhase> phasesByKey = new LinkedHashMap<>();
+    // In-batch de-duplication tracks pending entities under BOTH unique keys the database
+    // enforces (STIX id and natural key). Keying on a single one is not enough: the same phase
+    // can appear once with a STIX id and once without, or two entries can share a STIX id under
+    // different natural keys — either way a single-key map would create two entities and
+    // deterministically violate a constraint at flush, which no retry can fix.
+    Map<String, KillChainPhase> byNaturalKey = new LinkedHashMap<>();
+    Map<String, KillChainPhase> byStixId = new LinkedHashMap<>();
     for (KillChainPhaseCreateInput input : inputs) {
-      String key = dedupeKey(input);
-      KillChainPhase phase = phasesByKey.get(key);
+      String naturalKey = naturalKey(input);
+      String stixId = normalizedStixId(input);
+      KillChainPhase phase = byNaturalKey.get(naturalKey);
+      if (phase == null && stixId != null) {
+        phase = byStixId.get(stixId);
+      }
       if (phase == null) {
         phase = resolveExisting(input).orElseGet(KillChainPhase::new);
-        phasesByKey.put(key, phase);
       }
       apply(phase, input);
+      byNaturalKey.put(naturalKey, phase);
+      if (stixId != null) {
+        byStixId.put(stixId, phase);
+      }
     }
-    return StreamHelper.fromIterable(killChainPhaseRepository.saveAll(phasesByKey.values()));
+    // The same entity instance can be registered under several natural keys when entries share
+    // a STIX id, but it must only be persisted once. Identity-based de-duplication on purpose:
+    // KillChainPhase#equals dereferences the id, which is still null for new entities.
+    Set<KillChainPhase> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+    List<KillChainPhase> phases = byNaturalKey.values().stream().filter(seen::add).toList();
+    return StreamHelper.fromIterable(killChainPhaseRepository.saveAll(phases));
   }
 
-  private String dedupeKey(KillChainPhaseCreateInput input) {
-    if (input.getStixId() != null && !input.getStixId().isBlank()) {
-      return "stix:" + input.getStixId();
-    }
-    return "name:" + input.getKillChainName() + "|" + input.getShortName();
+  private String naturalKey(KillChainPhaseCreateInput input) {
+    return input.getKillChainName() + "|" + input.getShortName();
+  }
+
+  private String normalizedStixId(KillChainPhaseCreateInput input) {
+    return input.getStixId() != null && !input.getStixId().isBlank() ? input.getStixId() : null;
   }
 
   private Optional<KillChainPhase> resolveExisting(KillChainPhaseCreateInput input) {
-    if (input.getStixId() != null && !input.getStixId().isBlank()) {
-      Optional<KillChainPhase> byStixId = killChainPhaseRepository.findByStixId(input.getStixId());
+    String stixId = normalizedStixId(input);
+    if (stixId != null) {
+      Optional<KillChainPhase> byStixId = killChainPhaseRepository.findByStixId(stixId);
       if (byStixId.isPresent()) {
         return byStixId;
       }
@@ -70,7 +92,12 @@ public class KillChainPhaseService {
   private void apply(KillChainPhase phase, KillChainPhaseCreateInput input) {
     boolean isNew = phase.getId() == null;
     phase.setKillChainName(input.getKillChainName());
-    phase.setStixId(input.getStixId());
+    // Never clobber a known STIX id with null: entries without a STIX id can target the same
+    // phase as entries with one, and the STIX id is part of the database unique key.
+    String stixId = normalizedStixId(input);
+    if (stixId != null) {
+      phase.setStixId(stixId);
+    }
     phase.setExternalId(input.getExternalId());
     phase.setShortName(input.getShortName());
     phase.setName(input.getName());
