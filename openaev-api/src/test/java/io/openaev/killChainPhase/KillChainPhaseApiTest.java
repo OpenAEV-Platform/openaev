@@ -352,6 +352,31 @@ public class KillChainPhaseApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Upsert rejects null entries inside the kill_chain_phases list")
+    void given_null_phase_entry_should_return_bad_request() throws Exception {
+      mvc.perform(
+              post("/api/kill_chain_phases/upsert")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"kill_chain_phases\": [null]}")
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Upsert rejects entries without an external id")
+    void given_missing_external_id_should_return_bad_request() throws Exception {
+      KillChainPhaseCreateInput input = createInput("exec", "Execution", STIX_ID);
+      input.setExternalId(null);
+
+      mvc.perform(
+              post("/api/kill_chain_phases/upsert")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(upsertInput(input)))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("Duplicate entries in one request (with and without STIX id) persist a single row")
     void given_duplicate_inputs_in_batch_should_persist_single_row() throws Exception {
       mvc.perform(
