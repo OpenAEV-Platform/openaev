@@ -18,10 +18,12 @@ import ActionFormButtons from './ActionFormButtons';
 import ActionInjectData from './ActionInjectData';
 import ActionScopeChips from './ActionScopeChips';
 import {
+  applyAutoLinks,
   applyPredefinedExpectations,
   buildContractDefaults,
   EXPECTATION_FIELD_TYPE,
   EXPECTATIONS_CONTENT_KEY,
+  getAutoLinkedFieldKeys,
   getContractFieldDefaultValue,
   isExpectationInput,
 } from './ConfigureActionDetail.utils';
@@ -127,6 +129,13 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     }
   }, [action, initialData]);
 
+  // Auto-link fields with known primitive type mappings (payload injects only).
+  // Extend AUTO_LINK_BY_FIELD_TYPE in ConfigureActionDetail.utils.ts to add more.
+  useEffect(() => {
+    if (!isPayload || contractFields.length === 0) return;
+    setFieldLinks(prev => applyAutoLinks(contractFields, prev));
+  }, [isPayload, contractFields]);
+
   // Resets all input argument fields to contract defaults.
   // Expectations are explicitly restored from current state because they are not part of this reset.
   const handleResetDefaults = () => {
@@ -195,10 +204,10 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   const inputArgumentFields = useMemo(() => {
     return contractFields.filter((f) => {
       if (f.readOnly || f.type === EXPECTATION_FIELD_TYPE) return false;
+      if (!isPayload && (f.key.startsWith('targeted-property-') || f.key.startsWith('targeted-asset-separator-'))) return false;
       if (isPayload) return !PAYLOAD_HIDDEN_TYPES.has(f.type);
       if (INJECTOR_HIDDEN_TYPES.has(f.type)) return false;
       if (INJECTOR_HIDDEN_KEYS.has(f.key)) return false;
-      if (f.key.startsWith('targeted-property-') || f.key.startsWith('targeted-asset-separator-')) return false;
       return true;
     });
   }, [contractFields, isPayload]);
@@ -206,6 +215,27 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   const expectationField = useMemo(() => {
     return contractFields.find(field => field.type === EXPECTATION_FIELD_TYPE);
   }, [contractFields]);
+
+  const autoLinkedFields = useMemo(
+    () => (isPayload ? getAutoLinkedFieldKeys(contractFields) : new Set<string>()),
+    [isPayload, contractFields],
+  );
+
+  const noLinkFields = useMemo(
+    () =>
+      isPayload
+        ? new Set(
+            contractFields
+              .filter(
+                f =>
+                  f.key.startsWith('targeted-property-')
+                  || f.key.startsWith('targeted-asset-separator-'),
+              )
+              .map(f => f.key),
+          )
+        : new Set<string>(),
+    [isPayload, contractFields],
+  );
 
   const expectations = useMemo(() => {
     if (!expectationField) return [];
@@ -253,6 +283,8 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
             fields={inputArgumentFields}
             fieldValues={fieldValues}
             fieldLinks={fieldLinks}
+            autoLinkedFields={autoLinkedFields}
+            noLinkFields={noLinkFields}
             onResetDefaults={handleResetDefaults}
             onValueChange={handleFieldValueChange}
             onLink={handleLinkField}

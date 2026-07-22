@@ -10,6 +10,8 @@ interface ActionInjectDataProps {
   fields: ContractElement[];
   fieldValues: Record<string, unknown>;
   fieldLinks: Record<string, FieldLink>;
+  autoLinkedFields?: Set<string>;
+  noLinkFields?: Set<string>;
   onResetDefaults: () => void;
   onValueChange: (fieldKey: string, value: string) => void;
   onLink: (fieldKey: string, link: FieldLink) => void;
@@ -22,6 +24,8 @@ const ActionInjectData = ({
   fields,
   fieldValues,
   fieldLinks,
+  autoLinkedFields = new Set(),
+  noLinkFields = new Set(),
   onResetDefaults,
   onValueChange,
   onLink,
@@ -68,6 +72,13 @@ const ActionInjectData = ({
               value={String(fieldValues[field.key] ?? '')}
               defaultValue={defaultVal}
               link={fieldLinks[field.key] ?? null}
+              readOnly={autoLinkedFields.has(field.key)}
+              noLink={noLinkFields.has(field.key)}
+              choices={
+                field.choices && !Array.isArray(field.choices)
+                  ? (field.choices as Record<string, string>)
+                  : undefined
+              }
               onValueChange={onValueChange}
               onLink={onLink}
               onUnlink={onUnlink}
