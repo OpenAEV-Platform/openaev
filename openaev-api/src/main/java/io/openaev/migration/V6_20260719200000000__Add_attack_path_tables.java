@@ -42,7 +42,6 @@ public class V6_20260719200000000__Add_attack_path_tables extends BaseJavaMigrat
                   CONSTRAINT attackpath_execution_tenant_fk
                       REFERENCES tenants (tenant_id) ON DELETE CASCADE,
               attackpath_execution_simulation_id        varchar(255) NOT NULL,
-              attackpath_execution_inject_id            varchar(255),
               attackpath_execution_step_id              varchar(255),
               attackpath_execution_step_template_id     varchar(255),
               attackpath_execution_contract_external_id text,
@@ -77,8 +76,8 @@ public class V6_20260719200000000__Add_attack_path_tables extends BaseJavaMigrat
               + "ON attackpath_execution (attackpath_execution_simulation_id, "
               + "attackpath_execution_target_key);");
       statement.execute(
-          "CREATE INDEX IF NOT EXISTS idx_ap_exec_inject_agent "
-              + "ON attackpath_execution (attackpath_execution_inject_id, "
+          "CREATE INDEX IF NOT EXISTS idx_ap_exec_step_agent "
+              + "ON attackpath_execution (attackpath_execution_step_id, "
               + "attackpath_execution_agent_id);");
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_ap_exec_tenant "
