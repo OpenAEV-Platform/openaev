@@ -102,6 +102,8 @@ const EnterpriseEditionSettings: React.FC = () => {
                   </DialogContent>
                   <DialogActions>
                     <Button
+                      variant="outlined"
+                      color="primary"
                       onClick={() => {
                         setOpenEEChanges(false);
                       }}
@@ -109,7 +111,8 @@ const EnterpriseEditionSettings: React.FC = () => {
                       {t('Cancel')}
                     </Button>
                     <Button
-                      color="secondary"
+                      variant="contained"
+                      color="primary"
                       onClick={() => {
                         setOpenEEChanges(false);
                         updateEnterpriseEdition({ platform_enterprise_license: '' });

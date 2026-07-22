@@ -7,7 +7,7 @@ class ScenarioPage {
   readonly page: Page;
 
   // Scenario configuration (teams, variables, media pressure, challenges) is
-  // opened from the hero "Configuration" action; teams is its first tab.
+  // opened from the hero "Configuration" button; teams is its first tab.
   readonly configurationButton: Locator;
   readonly teamAddBtn: Locator;
   readonly teamListSection: Locator;
@@ -21,10 +21,14 @@ class ScenarioPage {
   constructor(page: Page) {
     this.page = page;
     // Scenario configuration drawer (hosts the teams section on its first tab).
-    // The teams section has no inner heading anymore (the drawer tab labels it),
-    // so target the "Add" trigger inside the promoted configuration action slot.
-    this.configurationButton = page.getByRole('button', { name: 'Configuration' });
-    this.teamAddBtn = page.getByTestId('configuration-fab').getByLabel('Add');
+    // The hero "Configuration" button is wrapped in a MUI Tooltip, which
+    // overrides its accessible name with the tooltip sentence - so target the
+    // stable data-testid rather than the role/name.
+    this.configurationButton = page.getByTestId('scenario-configuration-button');
+    // The configuration drawer's Teams section exposes a single "Add team"
+    // action button (the old floating "configuration-fab" was removed when the
+    // drawer was reworked into the shared ConfigurationSection pattern).
+    this.teamAddBtn = page.getByRole('button', { name: 'Add team' });
     this.teamListSection = page.getByTestId('teams-list-section');
     this.updateTeamDialog = new UpdateTeamDialog(page);
     // Injects tab's locators

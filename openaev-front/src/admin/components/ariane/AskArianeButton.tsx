@@ -1,5 +1,5 @@
 import { Button, SvgIcon, Tooltip } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { useContext, useState } from 'react';
 
@@ -49,43 +49,45 @@ const AskArianeButton = () => {
     }
   };
 
+  // AI gradient (aligned with OpenCTI's "Ask Ariane" tertiary gradient button):
+  // borderless, transparent background, gradient-painted label + icon, subtle
+  // AI-tinted hover. No outlined box.
+  const aiGradient = `linear-gradient(90deg, ${theme.palette.ai.light} 0%, ${theme.palette.ai.main} 100%)`;
+
   const buttonContent = (
     <Button
-      variant="outlined"
-      size="small"
+      variant="text"
       onClick={handleClick}
       startIcon={(
         <SvgIcon
           component={LogoXtmOneIcon}
           inheritViewBox
-          sx={{ fontSize: '16px !important' }}
+          sx={{
+            fontSize: '20px !important',
+            color: theme.palette.ai.main,
+          }}
         />
       )}
       endIcon={!isEnterpriseEdition ? <span><EEChip /></span> : undefined}
       sx={{
-        'borderColor': isOpen
-          ? theme.palette.ai.main
-          : theme.palette.ai.main + '80',
-        'color': theme.palette.ai.main,
-        'backgroundColor': isOpen
-          ? theme.palette.ai.main + '1A'
-          : 'transparent',
-        'textTransform': 'none',
-        'fontWeight': 500,
-        'fontSize': '0.8125rem',
-        'padding': '3px 12px',
-        'borderRadius': '6px',
+        'height': 36,
+        'paddingInline': 1.5,
+        'borderRadius': 1,
+        'fontWeight': 600,
         'whiteSpace': 'nowrap',
-        'marginRight': 1,
-        'verticalAlign': 'middle',
-        '&:hover': {
-          borderColor: theme.palette.ai.main,
-          backgroundColor: theme.palette.ai.main + '1A',
+        'backgroundColor': isOpen ? alpha(theme.palette.ai.main, 0.15) : 'transparent',
+        '&:hover': { backgroundColor: alpha(theme.palette.ai.main, 0.15) },
+        // Gradient-painted label, matching OpenCTI.
+        '& .ariane-label': {
+          background: aiGradient,
+          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
         },
         '& .MuiButton-startIcon': { marginRight: '6px' },
       }}
     >
-      {t('Ask Ariane')}
+      <span className="ariane-label">{t('Ask Ariane')}</span>
     </Button>
   );
 

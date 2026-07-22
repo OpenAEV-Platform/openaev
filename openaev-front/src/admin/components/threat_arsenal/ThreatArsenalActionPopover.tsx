@@ -227,8 +227,8 @@ const ThreatArsenalActionPopover = ({
 
   return (
     <>
-      <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="large">
-        <MoreVert />
+      <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="small" sx={{ borderRadius: 1 }}>
+        <MoreVert fontSize="small" />
       </IconButton>
       <Menu
         anchorEl={anchorEl}
@@ -266,8 +266,8 @@ const ThreatArsenalActionPopover = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDuplicate}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitDuplicate}>{t('Duplicate')}</Button>
+          <Button variant="outlined" color="primary" onClick={handleCloseDuplicate}>{t('Cancel')}</Button>
+          <Button variant="contained" color="primary" onClick={submitDuplicate}>{t('Duplicate')}</Button>
         </DialogActions>
       </Dialog>
 

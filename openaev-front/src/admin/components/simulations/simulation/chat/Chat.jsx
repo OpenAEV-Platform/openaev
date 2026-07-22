@@ -2,7 +2,7 @@ import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../components/i18n';
-import AnimationMenu from '../AnimationMenu';
+import ExecutionMenu from '../ExecutionMenu';
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -17,7 +17,7 @@ const Chat = () => {
   const { exerciseId } = useParams();
   return (
     <div className={classes.container}>
-      <AnimationMenu exerciseId={exerciseId} />
+      <ExecutionMenu exerciseId={exerciseId} />
       {t('Chat')}
     </div>
   );

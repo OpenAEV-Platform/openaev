@@ -28,6 +28,8 @@ description: >-
 ### Step 3 — Check MUI & styling
 
 - **No MUI for layout** — native `div`, `section`, `header`, flexbox/grid
+- **`sx` over `style`** — use `sx` on MUI components, never `style={{ }}`
+- **Theme tokens** — use `theme.palette`, `theme.spacing()`, `theme.shape`, `theme.typography` for all visual values; no hardcoded `#hex`, `rgba()`, or raw `px` (fixed `width` exempt)
 
 ### Step 4 — Check permissions
 
@@ -64,6 +66,7 @@ description: >-
 - No unused imports (ESLint catches most)
 - No orphaned `.jsx` files if a `.tsx` replacement exists
 - No components imported but not rendered
+- No dead props — grep all call-sites of modified components; any prop declared in `interface Props` that no consumer passes must be removed
 
 ### Step 9 — Report
 

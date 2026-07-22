@@ -1,5 +1,5 @@
 import { PlayArrowOutlined, SettingsOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -91,10 +91,7 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
       const launchOrRelaunchKey = !injectResultOverviewOutput.inject_status?.status_id ? 'Launch now' : 'Relaunch now';
       return (
         <Button
-          style={{
-            marginRight: theme.spacing(1),
-            whiteSpace: 'nowrap',
-          }}
+          style={{ whiteSpace: 'nowrap' }}
           startIcon={<PlayArrowOutlined />}
           variant="contained"
           color="primary"
@@ -109,7 +106,6 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
       return (
         <>
           <Button
-            style={{ marginRight: theme.spacing(1) }}
             startIcon={<SettingsOutlined />}
             variant="contained"
             color="warning"
@@ -142,9 +138,10 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>{t('Cancel')}</Button>
+          <Button variant="outlined" color="primary" onClick={handleCloseDialog}>{t('Cancel')}</Button>
           <Button
-            color="secondary"
+            variant="contained"
+            color="primary"
             onClick={
               injectResultOverviewOutput.inject_ready && !injectResultOverviewOutput.inject_status?.status_id
                 ? submitLaunch
@@ -160,14 +157,14 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
 
   return (
     <>
-      <Box display="flex" flexDirection="row" alignItems="center">
-        {hasAbility && getActionButton(injectResultOverview)}
-        <AtomicTestingPopover
-          atomic={injectResultOverview}
-          actions={['Export', 'Update', 'Duplicate', 'Delete']}
-          onDelete={() => navigate('/admin/atomic_testings')}
-        />
-      </Box>
+      {/* Rendered inside the DetailHero action cluster, which provides the
+          flex layout, the gap and the 32px control normalization. */}
+      {hasAbility && getActionButton(injectResultOverview)}
+      <AtomicTestingPopover
+        atomic={injectResultOverview}
+        actions={['Export', 'Update', 'Duplicate', 'Delete']}
+        onDelete={() => navigate('/admin/atomic_testings')}
+      />
       {getDialog(injectResultOverview)}
     </>
   );

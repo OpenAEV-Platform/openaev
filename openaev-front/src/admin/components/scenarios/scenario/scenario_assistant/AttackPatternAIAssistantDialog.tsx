@@ -217,7 +217,8 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
         }
         <div className={`${classes.buttonContainer} ${classes.allWidth}`}>
           <Button
-            variant="contained"
+            variant="outlined"
+            color="primary"
             style={{ marginLeft: 'auto' }}
             onClick={onResetAndClose}
             disabled={isLoading}
@@ -226,7 +227,7 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
           </Button>
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             onClick={onSubmit}
             disabled={isLoading || (files.length === 0 && text.trim() === '')}
           >

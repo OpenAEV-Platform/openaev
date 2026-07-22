@@ -11,6 +11,7 @@ import { type UserHelper } from '../../../../../actions/helper';
 import { executeInject, fetchExerciseInjects } from '../../../../../actions/Inject';
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
 import { fetchPlayers } from '../../../../../actions/users/User';
+import { SectionLabel } from '../../../../../components/common/detail/EntityDetailCommon';
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
@@ -20,7 +21,7 @@ import { type Communication as CommunicationType, type Exercise } from '../../..
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { PermissionsContext } from '../../../common/Context';
-import AnimationMenu from '../AnimationMenu';
+import ExecutionMenu from '../ExecutionMenu';
 import CommunicationItem from './Communication';
 import CommunicationForm from './CommunicationForm';
 
@@ -130,7 +131,7 @@ const InjectComponent: FunctionComponent = () => {
   if (!inject || !communications) {
     return (
       <div className={classes.container}>
-        <AnimationMenu exerciseId={exerciseId} />
+        <ExecutionMenu exerciseId={exerciseId} />
         <Loader />
       </div>
     );
@@ -183,10 +184,10 @@ const InjectComponent: FunctionComponent = () => {
 
   return (
     <div className={classes.container}>
-      <AnimationMenu exerciseId={exerciseId} />
+      <ExecutionMenu exerciseId={exerciseId} />
       <Grid container={true} spacing={3}>
         <Grid size={6} className={classes.section}>
-          <Typography variant="h4">{t('Inject context')}</Typography>
+          <SectionLabel>{t('Inject context')}</SectionLabel>
           <Paper variant="outlined" classes={{ root: classes.paper }}>
             <Grid container={true} spacing={3}>
               <Grid size={6}>
@@ -210,7 +211,7 @@ const InjectComponent: FunctionComponent = () => {
         </Grid>
 
         <Grid size={6} className={classes.section}>
-          <Typography variant="h4">{t('Inject details')}</Typography>
+          <SectionLabel>{t('Inject details')}</SectionLabel>
           <Paper variant="outlined" classes={{ root: classes.paper }}>
             <Grid container={true} spacing={3}>
               <Grid size={6}>
@@ -235,7 +236,7 @@ const InjectComponent: FunctionComponent = () => {
       <br />
 
       <div className={classes.mailsSection}>
-        <Typography variant="h4" style={{ float: 'left' }}>{t('Mails')}</Typography>
+        <SectionLabel>{t('Mails')}</SectionLabel>
         <div className="clearfix" />
         {topics.map((topic) => {
           const topicUsers = (topic.communication_users ?? []).map(

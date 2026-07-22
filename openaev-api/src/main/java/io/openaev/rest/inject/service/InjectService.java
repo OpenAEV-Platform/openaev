@@ -47,7 +47,6 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.LicenseRestrictionException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
@@ -58,9 +57,11 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.JpaUtils;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.InjectStatusMapper;
 import jakarta.annotation.Nullable;
@@ -103,6 +104,7 @@ public class InjectService {
   private final ExecutionTraceRepository executionTraceRepository;
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
+  private final AiTargetRepository aiTargetRepository;
   private final CollectorService collectorService;
   private final EnterpriseEditionService enterpriseEditionService;
   private final EndpointService endpointService;
@@ -403,7 +405,35 @@ public class InjectService {
                   });
             });
 
+    // AI targets are referenced from the inject content ("ai_target" key), not as an asset relation
+    // on the inject (see AiTargetSearchAdaptor). Resolve that reference here so the agentless
+    // asset-level DETECTION / PREVENTION expectations get created at execution, exactly like any
+    // other directly-targeted asset - otherwise an AI Red Team atomic testing / simulation produces
+    // zero expectation rows ("No expectation for ...") and the collector has nothing to match. AI
+    // targets reached through an asset group are already resolved by the group loop above.
+    resolveContentAiTarget(inject)
+        .ifPresent(
+            aiTarget -> {
+              boolean alreadyResolved =
+                  assetToExecutes.stream()
+                      .anyMatch(as -> as.asset().getId().equals(aiTarget.getId()));
+              if (!alreadyResolved) {
+                assetToExecutes.add(new AssetToExecute(aiTarget));
+              }
+            });
+
     return assetToExecutes;
+  }
+
+  /**
+   * Resolve the AI target ({@link Asset} with {@code category = AI_TARGET}) referenced from the
+   * inject content, if any. The key parsing is shared with {@code AiTargetSearchAdaptor} (via
+   * {@link InjectContentUtils}) so display and execution agree on which AI target the inject
+   * targets.
+   */
+  private Optional<Asset> resolveContentAiTarget(Inject inject) {
+    return InjectContentUtils.contentAiTargetId(inject.getContent())
+        .flatMap(aiTargetRepository::findAiTargetById);
   }
 
   public void cleanInjectsDocExercise(String exerciseId, String documentId) {

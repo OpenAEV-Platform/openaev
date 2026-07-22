@@ -150,7 +150,8 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
           }}
           >
             <Button
-              variant="contained"
+              variant="outlined"
+              color="primary"
               onClick={handleClose}
               style={{ marginRight: 10 }}
               disabled={submitting}
@@ -159,7 +160,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             </Button>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={pristine || submitting}
             >

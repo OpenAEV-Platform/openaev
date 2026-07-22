@@ -320,7 +320,8 @@ const AssetForm: FunctionComponent<Props> = ({
 
         <div style={{ alignSelf: 'flex-end' }}>
           <Button
-            variant="contained"
+            variant="outlined"
+            color="primary"
             onClick={handleClose}
             style={{ marginRight: theme.spacing(2) }}
             disabled={isSubmitting}
@@ -329,7 +330,7 @@ const AssetForm: FunctionComponent<Props> = ({
           </Button>
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             type="submit"
             disabled={!isDirty || isSubmitting}
           >

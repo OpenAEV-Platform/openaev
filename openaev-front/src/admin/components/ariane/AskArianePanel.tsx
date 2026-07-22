@@ -10,6 +10,7 @@ import { useLocation } from 'react-router';
 
 import { useFormatter } from '../../../components/i18n';
 import { api } from '../../../network';
+import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import { MESSAGING$ } from '../../../utils/Environment';
 import useAuth from '../../../utils/hooks/useAuth';
 import installChatbotCsrf from './installChatbotCsrf';
@@ -40,7 +41,11 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [agentFetchState, setAgentFetchState] = useState<AgentFetchState>('loading');
 
-  const topOffset = 64;
+  // Sit flush under the app bar, pushed down by any active top banner (EE trial,
+  // system messages) so the panel never slides under the header when a banner
+  // is shown.
+  const { bannerHeightNumber } = computeBannerSettings(settings);
+  const topOffset = 64 + bannerHeightNumber;
   const firstName = me.user_email?.split('@')[0] ?? 'User';
   const accentColor = theme.palette.ai?.main ?? '#B286FF';
   const xtmOneUrl = settings.platform_xtm_one_url || '';

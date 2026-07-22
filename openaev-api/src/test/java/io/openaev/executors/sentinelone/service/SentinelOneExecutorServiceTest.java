@@ -12,6 +12,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
@@ -21,6 +22,7 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -132,6 +134,60 @@ public class SentinelOneExecutorServiceTest {
     verify(client).executeScript(agentId.capture(), scriptName.capture(), commandEncoded.capture());
     assertEquals("12345", agentId.getValue());
     assertEquals("1234567890", scriptName.getValue());
-    assertEquals("eAA4ADYAXwA2ADQA", commandEncoded.getValue());
+    // The self-clean command is now prepended to the inject command before encoding. Decode
+    // (UTF-16LE, SentinelOne Windows -encodedCommand) and assert the clean block precedes the arch
+    // payload. Pins the exact clean-command coverage previously held by the deleted GC test.
+    String decodedWindows =
+        new String(
+            Base64.getDecoder().decode(commandEncoded.getValue()), StandardCharsets.UTF_16LE);
+    assertEquals(ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND + ";x86_64", decodedWindows);
+  }
+
+  @Test
+  void test_launchBatchExecutorSubprocess_sentinelone_unix()
+      throws JsonProcessingException, InterruptedException {
+    // Init datas
+    when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
+    doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
+    when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
+    when(config.getUnixScriptId()).thenReturn("unixScript");
+    Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
+    Injector injector = InjectorFixture.createDefaultPayloadInjector();
+    Map<String, String> executorCommands = new HashMap<>();
+    executorCommands.put(
+        Endpoint.PLATFORM_TYPE.Linux.name() + "." + Endpoint.PLATFORM_ARCH.x86_64, "linuxcmd");
+    injector.setExecutorCommands(executorCommands);
+    Inject inject =
+        InjectFixture.createTechnicalInject(
+            InjectorContractFixture.createPayloadInjectorContractWithDefaultDomain(
+                injector, payloadCommand),
+            "Inject",
+            EndpointFixture.createEndpointWithPlatform("linux-ep", Endpoint.PLATFORM_TYPE.Linux));
+    inject.setId("injectId");
+    List<Agent> agents =
+        List.of(
+            AgentFixture.createAgent(
+                EndpointFixture.createEndpointWithPlatform(
+                    "linux-ep", Endpoint.PLATFORM_TYPE.Linux),
+                "12345"));
+    InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
+    when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
+    when(openAEVConfig.getBaseUrlForAgent()).thenReturn("http://localhost:8080");
+    // Run method to test
+    sentinelOneExecutorContextService.launchBatchExecutorSubprocess(
+        inject, new HashSet<>(agents), injectStatus, "token");
+    // Executor scheduled so we have to wait before the execution
+    Thread.sleep(1000);
+    // Asserts
+    ArgumentCaptor<String> agentId = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<String> scriptName = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<String> commandEncoded = ArgumentCaptor.forClass(String.class);
+    verify(client).executeScript(agentId.capture(), scriptName.capture(), commandEncoded.capture());
+    assertEquals("12345", agentId.getValue());
+    assertEquals("unixScript", scriptName.getValue());
+    // Unix command is UTF-8 encoded and prepended with the self-clean command.
+    String decodedUnix =
+        new String(Base64.getDecoder().decode(commandEncoded.getValue()), StandardCharsets.UTF_8);
+    assertEquals(ExecutorHelper.UNIX_CLEAN_PAYLOADS_COMMAND + ";linuxcmd", decodedUnix);
   }
 }

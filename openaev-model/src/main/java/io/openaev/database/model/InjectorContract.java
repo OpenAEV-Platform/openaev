@@ -550,7 +550,8 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   public static final String CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES =
       "mandatoryConditionValues";
   public static final String DEFAULT_VALUE_FIELD = "defaultValue";
-  public static final String PREDEFINED_EXPECTATIONS = "predefinedExpectations";
+  public static final String AVAILABLE_EXPECTATIONS = "availableExpectations";
+  public static final String IS_PREDEFINED_EXPECTATION = "expectation_is_predefined";
 
   public static final String CONTRACT_ELEMENT_CONTENT_KEY_TEAMS = "teams";
   public static final String CONTRACT_ELEMENT_CONTENT_KEY_ASSETS = "assets";

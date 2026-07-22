@@ -1,5 +1,5 @@
-import { Alert, AlertTitle, Box, Chip, Paper, Tooltip, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Alert, AlertTitle, Box, Chip, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
@@ -9,7 +9,7 @@ import { searchDistinctFindingsOnEndpoint } from '../../../../actions/findings/f
 import { type UserHelper } from '../../../../actions/helper';
 import { fetchPlayers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { DetailSections, Field, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, DetailSections, Field, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import EndpointArchFragment from '../../../../components/common/list/fragments/EndpointArchFragment';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { type Page } from '../../../../components/common/queryable/Page';
@@ -126,7 +126,6 @@ const AssetDetail = () => {
   }
 
   const isAiTarget = asset.asset_category === 'AI_TARGET';
-  const accent = theme.palette.primary.main;
 
   let internetFacingLabel = '-';
   if (asset.asset_internet_facing != null) {
@@ -161,70 +160,21 @@ const AssetDetail = () => {
       />
 
       {/* Hero */}
-      <Paper
-        variant="outlined"
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          padding: 2,
-          borderRadius: 1,
-          background: `linear-gradient(135deg, ${alpha(accent, 0.08)}, transparent 60%)`,
-        }}
-      >
-        <Box
-          sx={{
-            width: 52,
-            height: 52,
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            backgroundColor: alpha(accent, 0.12),
-            border: `1px solid ${alpha(accent, 0.3)}`,
-          }}
-        >
-          <AssetCategoryIcon category={asset.asset_category} color="primary" />
-        </Box>
-        <Box sx={{
-          minWidth: 0,
-          flex: 1,
-        }}
-        >
-          <Tooltip title={asset.asset_name}>
-            <Typography
-              variant="h1"
-              sx={{
-                margin: 0,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {asset.asset_name}
-            </Typography>
-          </Tooltip>
-          {hasAgents && (
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              marginTop: 0.5,
-              flexWrap: 'wrap',
-            }}
-            >
-              <Chip size="small" variant="outlined" label={`${asset.asset_agents.length} ${t('agent(s)')}`} sx={{ borderRadius: 1 }} />
-            </Box>
-          )}
-        </Box>
-        <AssetPopover
-          endpoint={asset as AssetPopoverProps['endpoint']}
-          agentless={!hasAgents}
-          onUpdate={() => loadAsset()}
-          onDelete={() => navigate('/admin/assets/inventory')}
-        />
-      </Paper>
+      <DetailHero
+        iconNode={<AssetCategoryIcon category={asset.asset_category} color="primary" />}
+        title={asset.asset_name}
+        chips={hasAgents
+          ? <Chip size="small" variant="outlined" label={`${asset.asset_agents.length} ${t('agent(s)')}`} sx={{ borderRadius: 1 }} />
+          : undefined}
+        action={(
+          <AssetPopover
+            endpoint={asset as AssetPopoverProps['endpoint']}
+            agentless={!hasAgents}
+            onUpdate={() => loadAsset()}
+            onDelete={() => navigate('/admin/assets/inventory')}
+          />
+        )}
+      />
 
       {/* Information + the asset-kind-specific card side by side for a compact,
           grid-based overview (Network / Cloud / AI target as the second column). */}
@@ -337,7 +287,7 @@ const AssetDetail = () => {
       </DetailSections>
 
       {hasAgents && (
-        <SectionBlock title={t('Agents')} disablePadding>
+        <SectionBlock title={t('Agents')}>
           <AgentList agents={asset.asset_agents} />
         </SectionBlock>
       )}

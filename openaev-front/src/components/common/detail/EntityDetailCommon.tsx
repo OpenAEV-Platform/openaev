@@ -3,15 +3,9 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
-const SECTION_LABEL_SX = {
-  fontFamily: '"Geologica", sans-serif',
-  fontWeight: 600,
-  fontSize: 11,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase' as const,
-  color: 'text.secondary',
-  marginBottom: 1.5,
-};
+// The shared section-subtitle style lives in a component-free module so it does
+// not trip react-refresh/only-export-components on this component file.
+import { SECTION_LABEL_SX } from './detailStyles';
 
 // A single labelled field inside an information section.
 export const Field = ({ label, children }: {
@@ -103,6 +97,13 @@ export const DetailSections = ({ children }: { children: ReactNode }) => (
 // A full-width titled block: uppercase overline label above an outlined Paper.
 // Use for embedded lists (injects played, findings) on overview pages so the
 // section-title styling stays consistent and is defined once.
+// Standalone section label (same look as the SectionBlock title) for sections
+// that must render flat on the page background, without the Paper wrapper
+// (e.g. standard entity lists on detail pages).
+export const SectionLabel = ({ children }: { children: ReactNode }) => (
+  <Typography sx={SECTION_LABEL_SX}>{children}</Typography>
+);
+
 export const SectionBlock = ({ title, children, disablePadding }: {
   title: string;
   children: ReactNode;
@@ -228,28 +229,37 @@ export const HeroStats = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// The hero header shared by all Security detail pages. When `stats` is set, the
-// headline metrics render as a second row of tiny HeroStats inside the hero
-// (mirroring the scenario / simulation overviews) instead of a separate tile
-// grid below it.
-export const DetailHero = ({ icon: Icon, iconNode, title, chips, action, stats }: {
+// The hero header shared by ALL entity detail pages (scenario, simulation,
+// atomic testing, assets, teams, persons, findings, connectors...). When
+// `stats` is set, the headline metrics render as a second row of tiny
+// HeroStats inside the hero.
+//
+// The `action` node is wrapped in a normalized cluster: every top-level
+// Button / ToggleButton / IconButton is forced to the same 32px control
+// height so the top-right of every hero in the app looks identical.
+export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, action, stats, footer }: {
   icon?: ComponentType<{
     color?: 'primary';
     sx?: object;
   }>;
   /** Custom node rendered inside the icon box (e.g. a brand logo), overrides `icon`. */
   iconNode?: ReactNode;
+  /** Small uppercase label rendered above the title (e.g. entity type). */
+  overline?: ReactNode;
   title: string;
   chips?: ReactNode;
   action?: ReactNode;
   /** Tiny headline stats rendered as a second hero row (wrap in HeroStat). */
   stats?: ReactNode;
+  /** Free-form extra hero row rendered after the stats (e.g. meta items). */
+  footer?: ReactNode;
 }) => {
   const theme = useTheme();
   const accent = theme.palette.primary.main;
   return (
     <Paper
       variant="outlined"
+      data-testid="detail-hero"
       sx={{
         display: 'flex',
         flexDirection: 'column',
@@ -285,7 +295,20 @@ export const DetailHero = ({ icon: Icon, iconNode, title, chips, action, stats }
           flex: 1,
         }}
         >
-          <Tooltip title={title}>
+          {overline && (
+            <Typography sx={{
+              fontFamily: '"Geologica", sans-serif',
+              fontWeight: 600,
+              fontSize: 11,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: 'primary.main',
+            }}
+            >
+              {overline}
+            </Typography>
+          )}
+          <Tooltip title={title} placement="bottom-start">
             <Typography
               variant="h1"
               sx={{
@@ -293,6 +316,11 @@ export const DetailHero = ({ icon: Icon, iconNode, title, chips, action, stats }
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                // Shrink the anchor to the actual title width (capped at the
+                // column) so the tooltip sits under the text instead of the
+                // center of a full-width block.
+                width: 'fit-content',
+                maxWidth: '100%',
               }}
             >
               {title}
@@ -311,9 +339,48 @@ export const DetailHero = ({ icon: Icon, iconNode, title, chips, action, stats }
             </Box>
           )}
         </Box>
-        {action}
+        {action && (
+          <Box sx={{
+            'display': 'flex',
+            'alignItems': 'center',
+            'gap': 1,
+            'flexShrink': 0,
+            'flexWrap': 'wrap',
+            'justifyContent': 'flex-end',
+            // One control geometry for every hero across the app: identical
+            // height, font, line-height and padding for all text buttons
+            // (outlined or contained), so no CTA ever looks smaller than its
+            // neighbors.
+            '& .MuiButton-root': {
+              height: 32,
+              fontSize: 13,
+              fontWeight: 500,
+              lineHeight: '21px',
+              paddingTop: 0,
+              paddingBottom: 0,
+              paddingInline: 1.5,
+            },
+            '& .MuiButton-root .MuiButton-startIcon .MuiSvgIcon-root': { fontSize: 18 },
+            '& .MuiToggleButton-root': {
+              width: 32,
+              height: 32,
+            },
+            // Only normalize IconButtons sitting directly in the cluster
+            // (custom nested toolbars keep their own internal sizing).
+            '& > .MuiIconButton-root': {
+              width: 32,
+              height: 32,
+              borderRadius: 1,
+            },
+            '& > .MuiIconButton-root .MuiSvgIcon-root': { fontSize: 20 },
+          }}
+          >
+            {action}
+          </Box>
+        )}
       </Box>
       {stats && <HeroStats>{stats}</HeroStats>}
+      {footer}
     </Paper>
   );
 };

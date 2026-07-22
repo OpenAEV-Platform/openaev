@@ -51,13 +51,16 @@ const ReportComment: FunctionComponent<Props> = ({ initialComment, saveComment, 
           }}
           >
             <Button
+              variant="outlined"
+              color="primary"
               style={{ marginLeft: 'auto' }}
               onClick={() => setOpenEdit(false)}
             >
               {t('Cancel')}
             </Button>
             <Button
-              color="secondary"
+              variant="contained"
+              color="primary"
               type="submit"
               onClick={() => {
                 saveComment(comment);

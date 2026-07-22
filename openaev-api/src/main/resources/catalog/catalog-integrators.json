@@ -3988,8 +3988,19 @@
                         "type": "string"
                     },
                     "COLLECTOR_PERIOD": {
+                        "default": "PT5M",
+                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format). Expectation validation runs on every cycle, so this is effectively the expectation-matching cadence; the agent import is additionally throttled by COLLECTOR_IMPORT_PERIOD.",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "COLLECTOR_PLATFORM": {
+                        "default": "LLM_FIREWALL",
+                        "description": "Security platform type registered for this collector so XTM One appears in the OpenAEV inventory as a security platform (like any EDR/XDR collector) and detection/prevention expectation results are attributed to it. XTM One acts as an AI defense that flags prompt injections, hence LLM_FIREWALL by default. Accepted values: EDR, XDR, SIEM, SOAR, NDR, ISPM, LLM_FIREWALL, AI_GATEWAY.",
+                        "type": "string"
+                    },
+                    "COLLECTOR_IMPORT_PERIOD": {
                         "default": "PT1H",
-                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
+                        "description": "Minimum duration between two imports of the XTM One agents/models catalog (ISO 8601 format). The import runs on the first cycle and then only when this much time has elapsed since the previous import; set it lower than or equal to the collector period to import on every cycle.",
                         "format": "duration",
                         "type": "string"
                     },
@@ -3998,15 +4009,15 @@
                         "type": "string"
                     },
                     "COLLECTOR_XTM_ONE_TOKEN": {
-                        "description": "XTM One API key (fcp-...) used to read the agents and models catalog.",
+                        "description": "XTM One API key (fcp-...) used to read the agents and models catalog and the security audit log, and written onto each seeded AI target so the injector can authenticate to XTM One directly. Reading the audit log to validate detection expectations requires this key to belong to an XTM One administrator.",
                         "format": "password",
                         "type": "string",
                         "writeOnly": true
                     },
-                    "COLLECTOR_XTM_ONE_API_KEY_VARIABLE": {
-                        "default": "XTM_ONE_API_KEY",
-                        "description": "Name of the injector environment variable holding the credential the AI red team injector uses to reach XTM One at execution time. The secret value itself is never stored on the AI target.",
-                        "type": "string"
+                    "COLLECTOR_VALIDATE_EXPECTATIONS": {
+                        "default": true,
+                        "description": "When true, the collector also validates AI detection/prevention expectations by matching XTM One 'Prompt injection detected' security events to the AI red team injects that triggered them. Requires the XTM One token to have administrator access to the audit log.",
+                        "type": "boolean"
                     },
                     "COLLECTOR_INCLUDE_BARE_MODELS": {
                         "default": false,

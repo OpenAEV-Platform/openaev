@@ -286,10 +286,10 @@ const DocumentPopover = (props) => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseRemove}>
+          <Button variant="outlined" color="primary" onClick={handleCloseRemove}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitRemove}>
+          <Button variant="contained" color="primary" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

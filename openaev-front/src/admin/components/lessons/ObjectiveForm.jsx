@@ -63,6 +63,8 @@ class ObjectiveFormComponent extends Component {
             }}
             >
               <Button
+                variant="outlined"
+                color="primary"
                 onClick={handleClose.bind(this)}
                 style={{ marginRight: 10 }}
                 disabled={submitting}
@@ -70,7 +72,8 @@ class ObjectiveFormComponent extends Component {
                 {t('Cancel')}
               </Button>
               <Button
-                color="secondary"
+                variant="contained"
+                color="primary"
                 type="submit"
                 disabled={pristine || submitting}
               >
