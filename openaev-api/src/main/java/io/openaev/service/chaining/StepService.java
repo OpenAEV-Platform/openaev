@@ -412,6 +412,8 @@ public class StepService {
               .value(firstCondition.getValue())
               .caseSensitive(firstCondition.isCaseSensitive())
               .mappingType(firstCondition.getMappingType())
+              .name(firstCondition.getName())
+              .workflowId(stepCopied.getWorkflow().getId())
               .stepFrom(stepFrom)
               .build();
 
@@ -449,6 +451,8 @@ public class StepService {
                 .value(condition.getValue())
                 .caseSensitive(condition.isCaseSensitive())
                 .mappingType(condition.getMappingType())
+                .name(condition.getName())
+                .workflowId(stepCopied.getWorkflow().getId())
                 .conditionParent(temporaryIdAndSaveId.get(condition.getConditionParent().getId()))
                 .stepFrom(stepFromCondition)
                 .build();

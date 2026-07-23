@@ -1077,8 +1077,12 @@ class StepServiceTest {
       Step sourceStep = new Step();
       sourceStep.setId("source-step-id");
 
+      Workflow targetWorkflow = new Workflow();
+      targetWorkflow.setId("target-workflow-id");
+
       Step targetStep = new Step();
       targetStep.setId("target-step-id");
+      targetStep.setWorkflow(targetWorkflow);
 
       // Build a root AND condition with all config fields set to non-default values
       Condition rootCondition =
@@ -1089,6 +1093,7 @@ class StepServiceTest {
               .value("test_value")
               .caseSensitive(false) // non-default (default is true)
               .mappingType(MappingType.GLOBAL)
+              .name("root-event-name")
               .build();
       rootCondition.setId("root-id");
 
@@ -1101,6 +1106,7 @@ class StepServiceTest {
               .value("child_value")
               .caseSensitive(false)
               .mappingType(MappingType.LOCAL)
+              .name("child-name")
               .conditionParent(rootCondition)
               .build();
       childCondition.setId("child-id");
@@ -1151,8 +1157,12 @@ class StepServiceTest {
       Step sourceStep = new Step();
       sourceStep.setId("src");
 
+      Workflow targetWorkflow = new Workflow();
+      targetWorkflow.setId("tgt-wf");
+
       Step targetStep = new Step();
       targetStep.setId("tgt");
+      targetStep.setWorkflow(targetWorkflow);
 
       Condition root =
           Condition.builder()
@@ -1180,6 +1190,73 @@ class StepServiceTest {
       ArgumentCaptor<Condition> captor = ArgumentCaptor.forClass(Condition.class);
       verify(conditionService).saveCondition(captor.capture());
       assertFalse(captor.getValue().isCaseSensitive());
+    }
+
+    @Test
+    void given_scenarioEvent_when_copiedToSimulation_should_preserveWorkflowIdAndName() {
+      // GIVEN a scenario template step with a named root condition (event)
+      Step sourceStep = new Step();
+      sourceStep.setId("scenario-step");
+
+      Workflow simulationWorkflow = new Workflow();
+      simulationWorkflow.setId("simulation-workflow-id");
+
+      Step stepCopied = new Step();
+      stepCopied.setId("simulation-step");
+      stepCopied.setWorkflow(simulationWorkflow);
+
+      Condition sourceRoot =
+          Condition.builder()
+              .type(ConditionType.AND)
+              .key("event_key")
+              .name("My Event Name")
+              .workflowId("old-scenario-workflow-id")
+              .mappingType(MappingType.GLOBAL)
+              .build();
+      sourceRoot.setId("src-root");
+
+      Condition sourceChild =
+          Condition.builder()
+              .type(ConditionType.EQ)
+              .key("child_key")
+              .name("Child Label")
+              .workflowId("old-scenario-workflow-id")
+              .mappingType(MappingType.LOCAL)
+              .conditionParent(sourceRoot)
+              .build();
+      sourceChild.setId("src-child");
+
+      when(conditionService.findAllConditionsByStepId("scenario-step"))
+          .thenReturn(List.of(sourceRoot, sourceChild));
+
+      List<Condition> savedConditions = new ArrayList<>();
+      when(conditionService.saveCondition(any(Condition.class)))
+          .thenAnswer(
+              invocation -> {
+                Condition c = invocation.getArgument(0);
+                c.setId(UUID.randomUUID().toString());
+                savedConditions.add(c);
+                return c;
+              });
+
+      // WHEN copyStepConditionTemplate copies the step into the simulation workflow
+      stepService.copyStepConditionTemplate(sourceStep, stepCopied);
+
+      // THEN the copied root condition has:
+      assertEquals(2, savedConditions.size());
+      Condition copiedRoot = savedConditions.get(0);
+      Condition copiedChild = savedConditions.get(1);
+
+      // workflowId == stepCopied.getWorkflow().getId() (target workflow, NOT the source)
+      assertEquals(simulationWorkflow.getId(), copiedRoot.getWorkflowId());
+      assertEquals(simulationWorkflow.getId(), copiedChild.getWorkflowId());
+
+      // name == source name (preserved from template)
+      assertEquals(sourceRoot.getName(), copiedRoot.getName());
+      assertEquals(sourceChild.getName(), copiedChild.getName());
+
+      // Verify it's NOT the old source workflowId
+      assertNotEquals("old-scenario-workflow-id", copiedRoot.getWorkflowId());
     }
   }
 }
