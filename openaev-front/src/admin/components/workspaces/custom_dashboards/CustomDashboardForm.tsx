@@ -92,7 +92,8 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
       <form
         id="customDashboardForm"
         style={{
-          display: 'grid',
+          display: 'flex',
+          flexDirection: 'column',
           minHeight: '100%',
           gap: theme.spacing(2),
         }}
