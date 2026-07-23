@@ -7,6 +7,10 @@ import type { AttackPathAttackPatternDTO, AttackPathDTO, AttackPathEdges, Attack
 // Executions are carried on the edges (design O2), never as flow nodes, so the graph stays a handful
 // of node kinds regardless of how many executions a simulation ran.
 
+// Minimal shape of the i18n formatter's `t`, threaded into the layout builders so the edge labels they
+// generate ("<type> found", "N open ports", "Triggered <event>"…) render in the session language.
+export type ApTranslate = (key: string, params?: Record<string, string>) => string;
+
 export const AP_FLOW_NODE_TYPE = {
   injector: 'apInjector',
   asset: 'apAsset',
@@ -345,6 +349,7 @@ const pushFindingColumn = (
   // The endpoint (ASSET) node id this column hangs off, when known (per-endpoint column). Used as a
   // fallback origin for findings whose own assetNodeId is absent.
   endpointNodeId: string | undefined,
+  t: ApTranslate,
 ): void => {
   items.forEach((e) => {
     nodes.push({
@@ -374,7 +379,7 @@ const pushFindingColumn = (
       data: {
         count: e.count,
         status: e.typeStatus,
-        label: `${e.type} found`,
+        label: t('{type} found', { type: e.type }),
       },
     });
     e.findings.forEach((f, j) => {
@@ -443,6 +448,7 @@ export const buildClusteredAttackPathFlow = (
   // Endpoint expand/collapse batch. In the deduped view there is a single shared hub, so this maps
   // the AP_ALL_ENDPOINTS key to how many endpoints are revealed (0 / absent = collapsed).
   endpointBatch: Map<string, number>,
+  t: ApTranslate,
   findingExpansion?: FindingExpansion,
 ): {
   nodes: AttackPathFlowNode[];
@@ -622,7 +628,7 @@ export const buildClusteredAttackPathFlow = (
         },
       });
       // The endpoint's own finding column, vertically centred against its block.
-      pushFindingColumn(nodes, edges, epCol.items, assetId, epY + (epBlockH - epCol.height) / 2, AP_ALL_ENDPOINTS, asset.ref ?? assetId, assetId);
+      pushFindingColumn(nodes, edges, epCol.items, assetId, epY + (epBlockH - epCol.height) / 2, AP_ALL_ENDPOINTS, asset.ref ?? assetId, assetId, t);
       epY += epBlockH;
     });
     if (total > shown) {
@@ -654,7 +660,7 @@ export const buildClusteredAttackPathFlow = (
       });
     }
   } else {
-    pushFindingColumn(nodes, edges, agg.items, clusterId, centerY - agg.height / 2, AP_ALL_ENDPOINTS, undefined, undefined);
+    pushFindingColumn(nodes, edges, agg.items, clusterId, centerY - agg.height / 2, AP_ALL_ENDPOINTS, undefined, undefined, t);
   }
 
   return {
@@ -709,6 +715,7 @@ export const findingCategoryNoun = (typeFindings?: string): string => {
 export const buildFindingPathFlow = (
   dto: AttackPathDTO,
   finding: PathFinding,
+  t: ApTranslate,
   contractLabelByInjector?: Record<string, string>,
   findingExpansion?: FindingExpansion,
 ): {
@@ -914,7 +921,7 @@ export const buildFindingPathFlow = (
       id,
       type,
       count,
-      `${count} ${findingCategoryNoun(type)}`,
+      `${count} ${t(findingCategoryNoun(type))}`,
       clusterY,
       CLUSTER_FINDING_X,
       CLUSTER_FINDING_DETAIL_X,
@@ -1187,9 +1194,9 @@ const KEYTYPE_TO_FINDING_TYPE: Record<string, string> = {
 // Label for a causal (finding → consuming action) edge. When the backend named the event (the root
 // filter condition the key belongs to), read it as "Triggered <event>" so the analyst sees WHY the next
 // action ran (its event matched); otherwise fall back to the raw "<key> = <masked value>" match.
-const causalKeyLabel = (key: CausalConsumedKey): string =>
+const causalKeyLabel = (key: CausalConsumedKey, t: ApTranslate): string =>
   (key.eventName && key.eventName.trim()
-    ? `Triggered ${key.eventName}`
+    ? t('Triggered {event}', { event: key.eventName })
     : `${key.keyType} = ${maskFindingValue(key.keyType, key.value)}`);
 
 // Does a produced finding node satisfy a consumed finding key?
@@ -1249,6 +1256,7 @@ const findingMatchesKey = (node: AttackPathFlowNode, key: CausalConsumedKey): bo
 export const buildCausalEdges = (
   nodes: AttackPathFlowNode[],
   getMeta: (stepTemplateId?: string) => CausalStepMeta | undefined,
+  t: ApTranslate,
 ): AttackPathFlowEdge[] => {
   // Only injector/execution nodes can carry kill-chain meta and be a dependsOn target.
   const executionNodes = nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector);
@@ -1303,7 +1311,7 @@ export const buildCausalEdges = (
             causalKind: 'finding',
             // "Triggered <event>" when the event is named, else the masked "<key> = <value>" match
             // (sensitive values are masked exactly like every other finding surface).
-            label: causalKeyLabel(key),
+            label: causalKeyLabel(key, t),
             dimmed: edgeDimmed(finding, node),
           },
         });
@@ -1365,6 +1373,7 @@ interface ChainStep {
 
 export const buildCausalChainFlow = (
   dto: AttackPathDTO,
+  t: ApTranslate,
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
@@ -1579,7 +1588,7 @@ export const buildCausalChainFlow = (
             data: {
               count: 1,
               status: fDto?.status ?? 'RED',
-              label: fDto?.typeFindings ? `${fDto.typeFindings} found` : undefined,
+              label: fDto?.typeFindings ? t('{type} found', { type: fDto.typeFindings }) : undefined,
             },
           });
         });
@@ -1608,7 +1617,7 @@ export const buildCausalChainFlow = (
             data: {
               count: 1,
               causalKind: 'finding',
-              label: causalKeyLabel(key),
+              label: causalKeyLabel(key, t),
             },
           });
         }

@@ -839,15 +839,15 @@ const SimulationAttackPath = () => {
         edges: AttackPathFlowEdge[];
       };
       if (pathFinding) {
-        raw = buildFindingPathFlow(dto, pathFinding, pathContractLabelByInjector, {
+        raw = buildFindingPathFlow(dto, pathFinding, t, pathContractLabelByInjector, {
           expanded: expandedFindingClusters,
           findingsByCluster,
           batch: findingBatch,
         });
       } else if (chainMode && fullDto) {
-        raw = buildCausalChainFlow(fullDto);
+        raw = buildCausalChainFlow(fullDto, t);
       } else {
-        raw = buildClusteredAttackPathFlow(dto, endpointBatch, {
+        raw = buildClusteredAttackPathFlow(dto, endpointBatch, t, {
           expanded: expandedFindingClusters,
           findingsByCluster,
           batch: findingBatch,
@@ -869,7 +869,7 @@ const SimulationAttackPath = () => {
         edges: raw.edges,
       };
     },
-    [dto, chainMode, fullDto, pathFinding, pathContractLabelByInjector, endpointBatch, expandedFindingClusters, findingsByCluster, findingBatch, chokepointRankById],
+    [dto, chainMode, fullDto, pathFinding, pathContractLabelByInjector, endpointBatch, expandedFindingClusters, findingsByCluster, findingBatch, chokepointRankById, t],
   );
 
   // Highlight, in place, a finding clicked directly in the focused graph: keep it where it is and
@@ -1232,8 +1232,8 @@ const SimulationAttackPath = () => {
   // mode the layout already emits its own forward causal edges, so this overlay is disabled to avoid
   // duplicates. Built from the final (post-selection) nodes so the same nodes drive base and overlay.
   const causalEdges = useMemo(
-    () => (chainMode ? [] : buildCausalEdges(nodes, id => (id ? killChainMeta.get(id) : undefined))),
-    [chainMode, nodes, killChainMeta],
+    () => (chainMode ? [] : buildCausalEdges(nodes, id => (id ? killChainMeta.get(id) : undefined), t)),
+    [chainMode, nodes, killChainMeta, t],
   );
   const graphEdges = useMemo(() => [...edges, ...causalEdges], [edges, causalEdges]);
 
