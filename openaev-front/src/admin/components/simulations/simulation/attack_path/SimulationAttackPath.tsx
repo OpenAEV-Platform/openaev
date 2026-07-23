@@ -667,9 +667,12 @@ const SimulationAttackPath = () => {
   // Producing contract labels per injector for the focused finding path, so each injector->endpoint
   // branch is labelled with its own contract(s), not a global merged string.
   const pathContractLabelByInjector = useMemo(() => {
-    if (!pathFinding || highlightedExecutionIds.size === 0) {
+    if (!pathFinding) {
       return {} as Record<string, string>;
     }
+    // In endpoint focus (no specific finding highlighted) label every injector with its contract; when a
+    // finding is highlighted, restrict to the executions that produced it so the branch reads its contract.
+    const restrict = highlightedExecutionIds.size > 0;
     const execLabelById = new Map(
       executions
         .filter(e => !!e.ref)
@@ -681,7 +684,7 @@ const SimulationAttackPath = () => {
         continue;
       }
       const labels = (e.executionIds ?? [])
-        .filter(id => highlightedExecutionIds.has(id))
+        .filter(id => !restrict || highlightedExecutionIds.has(id))
         .map(id => execLabelById.get(id))
         .filter((s): s is string => !!s);
       if (labels.length > 0) {
@@ -780,14 +783,19 @@ const SimulationAttackPath = () => {
   const endpointRows = useMemo<AttackPathEndpointRow[]>(
     () => (dto?.attackPathNodes ?? [])
       .filter(n => n.type === 'ASSET' && n.id)
-      .map(n => ({
-        nodeId: n.id as string,
-        ref: n.ref ?? (n.id as string),
-        label: n.hostname || n.label || n.ref || (n.id as string),
-        ip: n.ip,
-        score: Object.values(n.findingCounts ?? {}).reduce((s, v) => s + (v ?? 0), 0),
-        findingCounts: n.findingCounts ?? {},
-      }))
+      .map((n) => {
+        const findings = Object.values(n.findingCounts ?? {}).reduce((s, v) => s + (v ?? 0), 0);
+        return {
+          nodeId: n.id as string,
+          ref: n.ref ?? (n.id as string),
+          label: n.hostname || n.label || n.ref || (n.id as string),
+          ip: n.ip,
+          score: findings,
+          criticality: n.criticality,
+          chokepointScore: findings * criticalityWeight(n.criticality),
+          findingCounts: n.findingCounts ?? {},
+        };
+      })
       .filter(r => r.score > 0),
     [dto],
   );
@@ -900,6 +908,18 @@ const SimulationAttackPath = () => {
       applyExec(loaded.executionIds ?? []);
       return;
     }
+    // Authoritative for EVERY finding type: the full graph's execution→findings links. This covers types
+    // the drawer categories don't (port, hash…), which otherwise resolved to no producer — leaving every
+    // injector on the endpoint highlighted instead of just the one that produced the finding.
+    const findingNodeId = `NODE_FINDING|${type}|${value}`;
+    const fromFull = (fullDto?.attackPathExecutions ?? [])
+      .filter(e => (e.findingsNodeIds ?? []).includes(findingNodeId))
+      .map(e => e.ref)
+      .filter((r): r is string => !!r);
+    if (fromFull.length > 0) {
+      applyExec(fromFull);
+      return;
+    }
     const category = CATEGORY_OF_TYPE[type];
     if (!category) {
       applyExec([]);
@@ -908,7 +928,7 @@ const SimulationAttackPath = () => {
     fetchFindingsByCategory(simulationId, category, 0, DRAWER_FETCH_SIZE)
       .then(r => applyExec(matchIn(r.data.items ?? [])?.executionIds ?? []))
       .catch(() => applyExec([]));
-  }, [pathFinding, findingsPage, simulationId]);
+  }, [pathFinding, findingsPage, simulationId, fullDto]);
 
   // Reverse of a finding click, only meaningful in the focused finding-path view: clicking an
   // injector highlights its DOWNSTREAM path (injector -> endpoint -> the findings it produced) and

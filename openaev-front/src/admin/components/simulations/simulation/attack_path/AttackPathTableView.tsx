@@ -11,9 +11,20 @@ export interface AttackPathEndpointRow {
   ref: string;
   label: string;
   ip?: string;
-  score: number;
+  score: number; // total findings on the endpoint
+  criticality?: string; // asset business criticality (VERY_HIGH..LOW / undefined)
+  chokepointScore: number; // findings × criticality weight — the ranking metric
   findingCounts: Record<string, number>;
 }
+
+// Short display label for a criticality value (raw enum otherwise reads poorly in a table).
+const CRITICALITY_DISPLAY: Record<string, string> = {
+  VERY_HIGH: 'Very high',
+  HIGH: 'High',
+  MEDIUM: 'Medium',
+  LOW: 'Low',
+  UNKNOWN: 'Unknown',
+};
 
 interface Props {
   rows: AttackPathEndpointRow[];
@@ -24,8 +35,17 @@ interface Props {
   onRowFocus: (row: AttackPathEndpointRow) => void;
 }
 
-type SortKey = 'label' | 'ip' | 'score' | `type:${string}`;
+type SortKey = 'label' | 'ip' | 'score' | 'chokepoint' | 'criticality' | `type:${string}`;
 type SortDir = 'asc' | 'desc';
+
+// Criticality ordered for sorting (higher = more critical).
+const CRITICALITY_ORDER: Record<string, number> = {
+  VERY_HIGH: 4,
+  HIGH: 3,
+  MEDIUM: 2,
+  LOW: 1,
+  UNKNOWN: 0,
+};
 
 const cellValue = (row: AttackPathEndpointRow, key: SortKey): string | number => {
   if (key === 'label') {
@@ -36,6 +56,12 @@ const cellValue = (row: AttackPathEndpointRow, key: SortKey): string | number =>
   }
   if (key === 'score') {
     return row.score;
+  }
+  if (key === 'chokepoint') {
+    return row.chokepointScore;
+  }
+  if (key === 'criticality') {
+    return CRITICALITY_ORDER[row.criticality ?? 'UNKNOWN'] ?? 0;
   }
   return row.findingCounts[key.slice('type:'.length)] ?? 0;
 };
@@ -49,7 +75,7 @@ const csvField = (v: string | number): string => `"${String(v).replace(/"/g, '""
 const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const [sortKey, setSortKey] = useState<SortKey>('score');
+  const [sortKey, setSortKey] = useState<SortKey>('chokepoint');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const chokepointColor = attackPathChokepointColor(theme);
 
@@ -68,11 +94,11 @@ const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: 
     return sorted;
   }, [rows, sortKey, sortDir]);
 
-  // Stable chokepoint rank (by score desc), independent of the current display sort, so the exported
-  // "Rank" column always means the exposure rank — not the current row position.
+  // Stable chokepoint rank (by weighted chokepoint score desc), independent of the current display sort,
+  // so the "Rank" column/flame always means the exposure rank — matching the graph badges and the card.
   const rankByNodeId = useMemo(() => {
     const m = new Map<string, number>();
-    [...rows].sort((a, b) => b.score - a.score).forEach((r, i) => m.set(r.nodeId, i + 1));
+    [...rows].sort((a, b) => b.chokepointScore - a.chokepointScore).forEach((r, i) => m.set(r.nodeId, i + 1));
     return m;
   }, [rows]);
 
@@ -87,12 +113,14 @@ const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: 
   };
 
   const exportCsv = () => {
-    const header = [t('Rank'), t('Endpoint'), t('IP'), t('Total findings'), ...typeColumns];
+    const header = [t('Rank'), t('Endpoint'), t('IP'), t('Criticality'), t('Total findings'), t('Chokepoint score'), ...typeColumns];
     const body = sortedRows.map(r => [
       rankByNodeId.get(r.nodeId) ?? 0,
       r.label,
       r.ip ?? '',
+      t(CRITICALITY_DISPLAY[r.criticality ?? 'UNKNOWN'] ?? CRITICALITY_DISPLAY.UNKNOWN),
       r.score,
+      r.chokepointScore,
       ...typeColumns.map(tc => r.findingCounts[tc] ?? 0),
     ]);
     const csv = [header, ...body].map(line => line.map(csvField).join(',')).join('\n');
@@ -155,8 +183,14 @@ const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: 
                   <TableCell sortDirection={sortKey === 'ip' ? sortDir : false}>
                     <TableSortLabel {...headSort('ip')}>{t('IP')}</TableSortLabel>
                   </TableCell>
+                  <TableCell sortDirection={sortKey === 'criticality' ? sortDir : false}>
+                    <TableSortLabel {...headSort('criticality')}>{t('Criticality')}</TableSortLabel>
+                  </TableCell>
                   <TableCell align="right" sortDirection={sortKey === 'score' ? sortDir : false}>
                     <TableSortLabel {...headSort('score')}>{t('Total findings')}</TableSortLabel>
+                  </TableCell>
+                  <TableCell align="right" sortDirection={sortKey === 'chokepoint' ? sortDir : false}>
+                    <TableSortLabel {...headSort('chokepoint')}>{t('Chokepoint score')}</TableSortLabel>
                   </TableCell>
                   {typeColumns.map(tc => (
                     <TableCell key={tc} align="right" sortDirection={sortKey === `type:${tc}` ? sortDir : false}>
@@ -180,7 +214,7 @@ const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: 
                         gap: 0.5,
                       }}
                       >
-                        {i < chokepointTopN && sortKey === 'score' && sortDir === 'desc' && (
+                        {(rankByNodeId.get(r.nodeId) ?? Infinity) <= chokepointTopN && (
                           <LocalFireDepartment sx={{
                             fontSize: 15,
                             color: chokepointColor,
@@ -192,7 +226,9 @@ const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: 
                     </TableCell>
                     <TableCell title={r.label}>{r.label}</TableCell>
                     <TableCell>{r.ip ?? '—'}</TableCell>
+                    <TableCell>{t(CRITICALITY_DISPLAY[r.criticality ?? 'UNKNOWN'] ?? CRITICALITY_DISPLAY.UNKNOWN)}</TableCell>
                     <TableCell align="right">{r.score}</TableCell>
+                    <TableCell align="right">{r.chokepointScore}</TableCell>
                     {typeColumns.map(tc => (
                       <TableCell key={tc} align="right">{r.findingCounts[tc] ?? 0}</TableCell>
                     ))}

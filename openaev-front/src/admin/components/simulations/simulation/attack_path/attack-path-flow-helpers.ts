@@ -691,6 +691,10 @@ export const findingCategoryNoun = (typeFindings?: string): string => {
       return 'users';
     case 'cve':
       return 'CVEs';
+    case 'port':
+      return 'open ports';
+    case 'hash':
+      return 'hashes';
     case 'share':
       return 'files';
     case 'password_policy':

@@ -17,7 +17,9 @@ interface Props {
 const AttackPathLegend = ({ collapseSignal }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const [open, setOpen] = useState(true);
+  // Collapsed by default: the graph reads on its own, and the folded state still shows the verdict-colour
+  // key. The analyst expands the full legend on demand.
+  const [open, setOpen] = useState(false);
 
   // Fold the legend when a panel opens (ignoring the initial mount), without locking it: reopening is
   // still up to the user.
