@@ -857,17 +857,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@fontsource/geologica@npm:5.2.8":
-  version: 5.2.8
-  resolution: "@fontsource/geologica@npm:5.2.8"
-  checksum: 10c0/a634af2509b3d6939cc4605c4db3dac5c0f990a367f9162e508c1dab02133325d82fda996c16e474c001c0448ccbacd9015fda1d4ae663f630de9f75048944c1
+"@fontsource/geologica@npm:5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/geologica@npm:5.3.0"
+  checksum: 10c0/05e2f55acbba39d358d25d391a6126eb5f7c78da5fdd3493d07943c98978e3c9e43ff6e72527bf4ce6a4fbaa455430b5a5e1121632e3d774ee3a7dd1e6371119
   languageName: node
   linkType: hard
 
-"@fontsource/ibm-plex-sans@npm:5.2.8":
-  version: 5.2.8
-  resolution: "@fontsource/ibm-plex-sans@npm:5.2.8"
-  checksum: 10c0/3cdb45d9dd54f9b4ec0d5912215bbc5ef5a89cea99cc28d46fa5cf6ebee457f94183f42be5994b61b6cdacec0fe67d697b6642678823dc0cc7e7b58180e86211
+"@fontsource/ibm-plex-sans@npm:5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/ibm-plex-sans@npm:5.3.0"
+  checksum: 10c0/8e4c7a849e8167c8de1905282a62ff312a4266e364e3c436fa6d89d650bbb30b3386157ae31af3783e00f85fa64fd7e26bee7ca232db7d22fdc082f6b531edb5
   languageName: node
   linkType: hard
 
@@ -8848,12 +8848,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"moment-timezone@npm:0.6.2":
-  version: 0.6.2
-  resolution: "moment-timezone@npm:0.6.2"
+"moment-timezone@npm:0.6.3":
+  version: 0.6.3
+  resolution: "moment-timezone@npm:0.6.3"
   dependencies:
     moment: "npm:^2.29.4"
-  checksum: 10c0/dbdca171625edaa73e55e4db152b9d3fe14035766e86c20a4bf881570418ecdbc50cc2d3a84101967b229a5ac0630031b4c3a49b0ba8447a9cd458d76e383cd5
+  checksum: 10c0/004965d8932ef7e164fe2f98b10b52bd266932468a281b862dd5c484e63e9502307c99ce5df3eb304da83002dc8077ad5f285d3c6d52c24e2dbfc69721026bda
   languageName: node
   linkType: hard
 
@@ -9379,8 +9379,8 @@ __metadata:
     "@faker-js/faker": "npm:10.5.0"
     "@filigran/chatbot": "npm:3.7.4"
     "@filigran/rich-text-editor": "npm:1.2.0"
-    "@fontsource/geologica": "npm:5.2.8"
-    "@fontsource/ibm-plex-sans": "npm:5.2.8"
+    "@fontsource/geologica": "npm:5.3.0"
+    "@fontsource/ibm-plex-sans": "npm:5.3.0"
     "@hello-pangea/dnd": "npm:18.0.1"
     "@hookform/resolvers": "npm:5.4.0"
     "@microsoft/fetch-event-source": "npm:2.0.1"
@@ -9445,7 +9445,7 @@ __metadata:
     license-checker-rseidelsohn: "npm:5.0.1"
     mdi-material-ui: "npm:7.9.4"
     moment: "npm:2.30.1"
-    moment-timezone: "npm:0.6.2"
+    moment-timezone: "npm:0.6.3"
     monocart-coverage-reports: "npm:2.12.12"
     monocart-reporter: "npm:2.12.2"
     normalizr: "npm:3.6.2"

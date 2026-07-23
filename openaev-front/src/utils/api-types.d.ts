@@ -6706,6 +6706,25 @@ export interface PageAttackPattern {
   totalPages?: number;
 }
 
+export interface PageConnectorInstanceLog {
+  content?: ConnectorInstanceLog[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageCustomDashboard {
   content?: CustomDashboard[];
   empty?: boolean;
@@ -7833,6 +7852,7 @@ export interface PlatformSettings {
     | "_RESERVED"
     | "FEATURE_FLAG_ALL"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
+    | "TENANT_FIELDS_FOR_SECURITY_COVERAGE"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
@@ -8120,6 +8140,7 @@ export interface PublicPlatformSettings {
     | "_RESERVED"
     | "FEATURE_FLAG_ALL"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
+    | "TENANT_FIELDS_FOR_SECURITY_COVERAGE"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"

@@ -11,6 +11,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceLogService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.exception.ConnectorStatusException;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -23,6 +24,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -136,23 +138,25 @@ public class ConnectorInstanceApi extends RestBehavior {
         catalogConnectorWithConfigMap, connectorInstanceId, safeInput);
   }
 
-  @GetMapping(
+  @PostMapping(
       value = {
-        CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/logs",
-        TENANT_CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/logs"
+        CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/logs/search",
+        TENANT_CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/logs/search"
       })
-  @Operation(summary = "Retrieve connector instance logs")
-  @Transactional
+  @Operation(summary = "Search connector instance logs")
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponse(
       responseCode = "200",
       content =
           @Content(
               mediaType = "application/json",
-              array = @ArraySchema(schema = @Schema(implementation = ConnectorInstanceLog.class))))
-  public List<ConnectorInstanceLog> retrieveConnectorInstanceLogs(
-      @PathVariable @NotBlank final String connectorInstanceId) {
-    return connectorInstanceLogService.findLogsByConnectorInstanceId(connectorInstanceId);
+              schema = @Schema(implementation = PageConnectorInstanceLog.class)))
+  public Page<ConnectorInstanceLog> searchConnectorInstanceLogs(
+      @PathVariable @NotBlank final String connectorInstanceId,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return connectorInstanceLogService.searchLogsByConnectorInstanceId(
+        connectorInstanceId, searchPaginationInput);
   }
 
   @PutMapping(

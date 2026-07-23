@@ -157,6 +157,26 @@ public class StreamApiTest {
   }
 
   @Test
+  public void test_listenDatabaseUpdate_WHEN_same_resource_should_resolve_permission_once() {
+    // The broadcast path used to resolve permissions per event per consumer, flooding the
+    // database while viewing a running simulation (#6868): repeated events on the same
+    // resource must be served from the decision cache.
+    when(permissionService.hasPermission(
+            mockUser, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ))
+        .thenReturn(true);
+
+    Scenario scenario = ScenarioFixture.getScenario();
+    scenario.setId(RESOURCE_ID);
+
+    streamApi.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, scenario, mock(ObjectMapper.class)));
+    streamApi.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, scenario, mock(ObjectMapper.class)));
+
+    verify(permissionService, times(1))
+        .hasPermission(mockUser, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ);
+    verify(mockSink, times(2)).next(any());
+  }
+
+  @Test
   public void test_given_databaseEvent_when_eventIsCVE_then_doNothing() {
     Vulnerability vulnerability = new Vulnerability();
     BaseEvent event = new BaseEvent(DATA_UPDATE, vulnerability, mock(ObjectMapper.class));
