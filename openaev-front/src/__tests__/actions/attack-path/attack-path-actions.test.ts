@@ -73,9 +73,13 @@ describe('attack path POC actions', () => {
     expect(simpleCall).toHaveBeenCalledWith('/api/attack-path/simulations/SIM-1/findings?category=cves&page=2&size=25');
   });
 
-  it('fetchExecutionDetail hits the execution detail endpoint and encodes the id', async () => {
+  it('fetchExecutionDetail passes the id as a URL-encoded ref query parameter', async () => {
     const { fetchExecutionDetail } = await importActions();
     await fetchExecutionDetail('SIM-1', 'exec/1');
-    expect(simpleCall).toHaveBeenCalledWith('/api/attack-path/simulations/SIM-1/executions/exec%2F1');
+    expect(simpleCall).toHaveBeenCalledWith(
+      '/api/attack-path/simulations/SIM-1/execution?ref=exec%2F1',
+      undefined,
+      false,
+    );
   });
 });
