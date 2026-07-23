@@ -26,7 +26,6 @@ import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
-import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
@@ -94,7 +93,6 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectUtils injectUtils;
 
   private final Executor executor;
-  private PayloadService payloadService;
 
   @Resource protected ObjectMapper mapper;
   @PersistenceContext private EntityManager em;
@@ -208,11 +206,14 @@ public class InjectExecutionStep implements ActionStep {
               inject.getAssetGroups(),
               List.of(),
               true);
+
+      // TODO Check add documents? Executable Payloads
+      // executableInject.addDirectAttachment(inject.getDocuments());
+
       executor.directExecute(executableInject);
+
       return Optional.of(readyStep);
     } catch (Exception e) {
-      throw new ChainingException(
-          "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
       throw new ChainingException(
           "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
     }
@@ -275,13 +276,16 @@ public class InjectExecutionStep implements ActionStep {
     }
 
     Inject inject = injectService.inject(injectId);
-    List<Map<String, JsonElement>> output = new ArrayList<>();
 
     // GET INJECT STATUS
     InjectStatus injectStatus = inject.getStatus().orElse(null);
+
+    List<Map<String, JsonElement>> output = new ArrayList<>();
     if (injectStatus != null) {
       // FORMAT EXECUTION TRACE TO OUTPUT STEP
       formatExecutionTracesToOutput(injectStatus, output);
+      // FORMAT INJECT STATUS TO OUTPUT STEP
+      formatStatusToOutput(inject, output);
     }
 
     // FORMAT EXPECTATION TO OUTPUT STEP
