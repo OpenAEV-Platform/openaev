@@ -25,9 +25,15 @@ import org.springframework.stereotype.Component;
  * so the long-lived branch carries a single attack-path schema migration dated after the last
  * release rather than several that sort into the middle of the already-released block. Purely
  * additive and idempotent (IF NOT EXISTS throughout), so re-running it is a no-op.
+ *
+ * <p>Re-dated (2026-07-23, formerly 6.20260719200000000): the original timestamp sorted BEFORE
+ * migrations already applied on deployed databases (prod had run the 07/20-07/23 block before this
+ * one merged), so Flyway validation failed with "resolved migration not applied" and out-of-order
+ * disabled. Databases that already ran the old version re-run this one as a no-op; their orphaned
+ * old history row is covered by the default {@code ignore-migration-patterns=*:missing}.
  */
 @Component
-public class V6_20260719200000000__Add_attack_path_tables extends BaseJavaMigration {
+public class V6_20260723160000000__Add_attack_path_tables extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
