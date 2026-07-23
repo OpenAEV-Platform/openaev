@@ -540,10 +540,10 @@ class WorkflowStateServiceTest {
       when(primitiveValidationContextBuilder.build(anyMap(), eq(workflowRun)))
           .thenReturn(emptyValidationContext());
 
-      // Event condition on IPv4 key type: matches "10.0.0.1"
+      // Event condition on Host key type: matches "10.0.0.1"
       Condition leafCondition =
           Condition.builder()
-              .keyType(PrimitiveType.IPv4)
+              .keyType(PrimitiveType.Host)
               .value("10.0.0.1")
               .operator(ConditionKeyType.eq)
               .build();
@@ -567,13 +567,13 @@ class WorkflowStateServiceTest {
       when(conditionUtils.matchesAnyLeafCondition(eq("10.0.0.1"), any())).thenReturn(true);
       when(conditionUtils.matchesAnyLeafCondition(eq("22"), any())).thenReturn(false);
 
-      // Complex output: PortScan {ip, port}
+      // Complex output: PortScan {host, port}
       JsonObject dataToSync =
           JsonParser.parseString(
                   """
                   {
                     "portscan": [
-                      {"ip": "10.0.0.1", "port": "22"}
+                      {"host": "10.0.0.1", "port": "22"}
                     ]
                   }
                   """)
@@ -583,18 +583,18 @@ class WorkflowStateServiceTest {
       typeMappings.put(
           "portscan",
           ChainingMappedType.complex(
-              List.of(PrimitiveType.IPv4, PrimitiveType.Port), ContractOutputType.PortsScan));
+              List.of(PrimitiveType.Host, PrimitiveType.Port), ContractOutputType.PortsScan));
 
       // Act
       workflowStateService.syncState(dataToSync, typeMappings, workflowRun);
 
-      // Assert — local state must contain the full tuple {Ip, Port}
+      // Assert — local state must contain the full tuple {Host, Port}
       WorkflowStateEntries persisted =
           gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
       assertEquals(1, persisted.getCorrelated().size(), "full tuple should be propagated");
       Set<WorkflowStateEntries.Pair> pairs = persisted.getCorrelated().getFirst().getValues();
       assertTrue(
-          pairs.stream().anyMatch(p -> p.key().equals("IPv4") && p.value().equals("10.0.0.1")));
+          pairs.stream().anyMatch(p -> p.key().equals("Host") && p.value().equals("10.0.0.1")));
       assertTrue(pairs.stream().anyMatch(p -> p.key().equals("Port") && p.value().equals("22")));
     }
 
@@ -624,10 +624,10 @@ class WorkflowStateServiceTest {
       when(primitiveValidationContextBuilder.build(anyMap(), eq(workflowRun)))
           .thenReturn(emptyValidationContext());
 
-      // Event condition on IPv4: expects "192.168.1.1" — no field in the tuple matches
+      // Event condition on Host: expects "192.168.1.1" — no field in the tuple matches
       Condition leafCondition =
           Condition.builder()
-              .keyType(PrimitiveType.IPv4)
+              .keyType(PrimitiveType.Host)
               .value("192.168.1.1")
               .operator(ConditionKeyType.eq)
               .build();
@@ -651,7 +651,7 @@ class WorkflowStateServiceTest {
                   """
                   {
                     "portscan": [
-                      {"ip": "10.0.0.1", "port": "22"}
+                      {"host": "10.0.0.1", "port": "22"}
                     ]
                   }
                   """)
@@ -661,7 +661,7 @@ class WorkflowStateServiceTest {
       typeMappings.put(
           "portscan",
           ChainingMappedType.complex(
-              List.of(PrimitiveType.IPv4, PrimitiveType.Port), ContractOutputType.PortsScan));
+              List.of(PrimitiveType.Host, PrimitiveType.Port), ContractOutputType.PortsScan));
 
       // Act
       workflowStateService.syncState(dataToSync, typeMappings, workflowRun);
@@ -718,7 +718,7 @@ class WorkflowStateServiceTest {
 
       Condition leafCondition =
           Condition.builder()
-              .keyType(PrimitiveType.IPv4)
+              .keyType(PrimitiveType.Host)
               .value("10.0.0.1")
               .operator(ConditionKeyType.eq)
               .build();
@@ -744,7 +744,7 @@ class WorkflowStateServiceTest {
                   """
                   {
                     "portscan": [
-                      {"ip": "10.0.0.1", "port": "22"}
+                      {"host": "10.0.0.1", "port": "22"}
                     ]
                   }
                   """)
@@ -754,7 +754,7 @@ class WorkflowStateServiceTest {
       typeMappings.put(
           "portscan",
           ChainingMappedType.complex(
-              List.of(PrimitiveType.IPv4, PrimitiveType.Port), ContractOutputType.PortsScan));
+              List.of(PrimitiveType.Host, PrimitiveType.Port), ContractOutputType.PortsScan));
 
       // Act
       workflowStateService.syncState(dataToSync, typeMappings, workflowRun);
