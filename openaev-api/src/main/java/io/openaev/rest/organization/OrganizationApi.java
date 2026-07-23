@@ -19,6 +19,9 @@ import io.openaev.rest.organization.form.OrganizationUpdateInput;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -112,6 +115,14 @@ public class OrganizationApi extends RestBehavior {
     organizationRepository.deleteById(organizationId);
   }
 
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "The ids of the deleted organizations")
+      })
+  @Operation(
+      summary = "Bulk delete organizations",
+      description =
+          "Deletes the organizations matching the given ids (organization_ids). Organizations from other tenants are silently skipped.")
   @DeleteMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
   @Transactional(rollbackFor = Exception.class)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ORGANIZATION)
