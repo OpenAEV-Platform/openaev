@@ -147,12 +147,9 @@ public class WorkflowStateEntries {
   }
 
   /**
-   * Returns correlated tuples that share at least one key with {@code requiredKeys}.
+   * Returns correlated tuples that share at least one required key.
    *
-   * <p>These are candidates for the correlated-first input resolution: they can anchor one or more
-   * required keys, with remaining keys completed from the primitive pool.
-   *
-   * @param requiredKeys the set of key names the step needs (non-DEFAULT mappers)
+   * @param requiredKeys required dynamic mapper keys
    * @return tuples whose pair keys intersect with requiredKeys
    */
   public List<Correlated> findCandidateCorrelated(Set<String> requiredKeys) {
@@ -162,14 +159,11 @@ public class WorkflowStateEntries {
   }
 
   /**
-   * Projects a correlated tuple to only the keys present in {@code requiredKeys}.
-   *
-   * <p>Use for both superset tuples (extra keys discarded) and subset tuples (covered keys
-   * extracted; caller handles the rest via primitive pool).
+   * Projects a correlated tuple to required keys only.
    *
    * @param tuple the correlated tuple to project
    * @param requiredKeys the keys to keep
-   * @return map of key to value for the intersection of tuple keys and requiredKeys
+   * @return key-value pairs present in both the tuple and requiredKeys
    */
   public Map<String, String> projectTuple(Correlated tuple, Set<String> requiredKeys) {
     Map<String, String> projection = new HashMap<>();

@@ -934,7 +934,7 @@ public class ConditionService {
     workflowStateService.save(localState);
   }
 
-  /** Returns the set of key-type names that must be present in every execution combo. */
+  /** Returns dynamic mapper keys required in every batch (DEFAULT mappers are excluded). */
   private Set<String> extractRequiredExecutionKeys(List<Condition> mappers) {
     return mappers.stream()
         .filter(mapper -> mapper.getMappingType() != MappingType.DEFAULT)
@@ -944,8 +944,11 @@ public class ConditionService {
   }
 
   /**
-   * Collects candidate values for each mapper: DEFAULT values go to staticValues, GLOBAL/LOCAL
-   * values go to dynamic pairs. Returns early if any dynamic mapper has no values.
+   * Prepares mapper inputs.
+   *
+   * <p>DEFAULT values are stored as static values. Dynamic mapper values are collected from their
+   * source pool when available. Missing dynamic values are allowed because correlated data may still
+   * produce valid batches.
    */
   private MapperInputPreparation prepareMapperInputs(
       List<Condition> mappers,
@@ -969,14 +972,14 @@ public class ConditionService {
         continue;
       }
 
+      keyToMappingType.put(key, mapper.getMappingType());
       Set<String> values =
           resolveValuesByMappingType(key, mapper.getMappingType(), localEntries, globalEntries);
 
       if (values == null || values.isEmpty()) {
-        return new MapperInputPreparation(List.of(), Map.of(), Map.of(), true);
+        continue;
       }
 
-      keyToMappingType.put(key, mapper.getMappingType());
       allPairsList.add(
           values.stream().map(value -> new WorkflowStateEntries.Pair(key, value)).toList());
     }
@@ -1047,7 +1050,8 @@ public class ConditionService {
             localEntries.cartesianProduct(uncoveredValueLists)) {
           Map<String, String> combo = new TreeMap<>(covered);
           delta.forEach(pair -> combo.put(pair.key(), pair.value()));
-          tryAddBatch(combo, preparation, localEntries, mappers, pendingHashes, batches);
+          tryAddBatch(
+              combo, preparation, localEntries, mappers, requiredKeys, pendingHashes, batches);
         }
       }
     }
@@ -1057,7 +1061,7 @@ public class ConditionService {
         localEntries.cartesianProduct(preparation.dynamicPairs())) {
       Map<String, String> combo = new TreeMap<>();
       comboPairs.forEach(pair -> combo.put(pair.key(), pair.value()));
-      tryAddBatch(combo, preparation, localEntries, mappers, pendingHashes, batches);
+      tryAddBatch(combo, preparation, localEntries, mappers, requiredKeys, pendingHashes, batches);
     }
 
     return batches;
@@ -1080,23 +1084,23 @@ public class ConditionService {
   }
 
   /**
-   * Attempts to add a batch for the given combo map. Skips the combo if:
+   * Adds one batch if valid and not duplicated.
    *
-   * <ul>
-   *   <li>its hash is already in the persistent {@code hashExecution} set, or
-   *   <li>its hash was already added in this same call ({@code pendingHashes}).
-   * </ul>
-   *
-   * <p>DEFAULT static values are merged into the final input map after dedup so they do not affect
-   * the deduplication hash.
+   * <p>Skips combos that miss required keys or are already known by hash. Static DEFAULT values are
+   * merged after dedup.
    */
   private void tryAddBatch(
       Map<String, String> comboMap,
       MapperInputPreparation preparation,
       WorkflowStateEntries localEntries,
       List<Condition> mappers,
+      Set<String> requiredKeys,
       Set<String> pendingHashes,
       List<ExecutionBatch> batches) {
+
+    if (!comboMap.keySet().containsAll(requiredKeys)) {
+      return;
+    }
 
     String hash = localEntries.hashCombo(comboMap);
     if (localEntries.getHashExecution().contains(hash) || pendingHashes.contains(hash)) {
@@ -1132,7 +1136,7 @@ public class ConditionService {
     return resolved;
   }
 
-  /** Resolves the mapper input key used in workflow state. */
+  /** Returns the workflow-state key used by a mapper. */
   private String resolveMapperKey(Condition mapper) {
     return mapper.getKeyType() != null ? mapper.getKeyType().name() : null;
   }
@@ -1152,7 +1156,7 @@ public class ConditionService {
       Map<String, String> staticValues,
       boolean hasMissingDynamicValues) {
 
-    /** True if at least one dynamic mapper reads from the step-local state. */
+    /** True when at least one dynamic mapper is LOCAL. */
     boolean hasAnyLocal() {
       return keyToMappingType.containsValue(MappingType.LOCAL);
     }

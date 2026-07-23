@@ -427,6 +427,44 @@ public class ConditionServiceTest {
     }
 
     @Test
+    void given_localMappersAndCorrelatedOnly_should_generateBatchEvenIfHostNotInInputs() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-local-correlated-only");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.LOCAL, PrimitiveType.Port, null),
+              mapper(MappingType.LOCAL, PrimitiveType.Host, null));
+
+      WorkflowStateEntries localEntries =
+          entries(
+              List.of(input("Port", "5040")),
+              List.of(
+                  correlated(
+                      "PortsScan",
+                      new WorkflowStateEntries.Pair("Host", "0.0.0.0"),
+                      new WorkflowStateEntries.Pair("Port", "5040"),
+                      new WorkflowStateEntries.Pair("Service", "TCP"))));
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-local-correlated-only"))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(1, batches.size());
+      JsonObject json = inputJson(batches.getFirst());
+      assertEquals("5040", json.get("Port").getAsString());
+      assertEquals("0.0.0.0", json.get("Host").getAsString());
+    }
+
+    @Test
     void given_fullCorrelatedCoverageButAlreadyExecuted_shouldKeepBestEffortCombinations() {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
