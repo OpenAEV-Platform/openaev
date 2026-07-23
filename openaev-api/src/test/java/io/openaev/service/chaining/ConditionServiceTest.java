@@ -650,7 +650,7 @@ public class ConditionServiceTest {
       List<Condition> mappers =
           List.of(
               mapper(MappingType.DEFAULT, PrimitiveType.Text, "admin"),
-              mapper(MappingType.DEFAULT, PrimitiveType.Hostname, "worker-01"));
+              mapper(MappingType.DEFAULT, PrimitiveType.Host, "worker-01"));
 
       when(workflowStateService.getGlobalStateByWorkflowId("wf-default-only"))
           .thenReturn(stateFromEntries(entries(List.of(), List.of())));
@@ -665,7 +665,7 @@ public class ConditionServiceTest {
       assertEquals(1, batches.size());
       JsonObject json = inputJson(batches.getFirst());
       assertEquals("admin", json.get("Text").getAsString());
-      assertEquals("worker-01", json.get("Hostname").getAsString());
+      assertEquals("worker-01", json.get("Host").getAsString());
       assertNotNull(batches.getFirst().hash());
     }
   }

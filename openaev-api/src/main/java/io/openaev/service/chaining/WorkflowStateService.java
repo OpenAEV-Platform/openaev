@@ -435,7 +435,7 @@ public class WorkflowStateService {
         continue;
       }
 
-      Optional<PrimitiveType> accepted = acceptedContentPrimitive(jsonKey);
+      Optional<PrimitiveType> accepted = resolveOutputFieldPrimitiveType(type, jsonKey);
       if (accepted.isEmpty()) {
         continue;
       }
@@ -472,13 +472,19 @@ public class WorkflowStateService {
   }
 
   /**
-   * Returns the resolved {@link PrimitiveType} for a JSON field name if it is a known primitive.
-   * Returns empty for unknown fields.
+   * Resolves the primitive type for an output field.
    *
-   * <p>This is the SINGLE filter shared by both the correlated pair-set construction and the flat
-   * input decomposition, ensuring they cannot diverge.
+   * <p>It first applies contextual complex-type mapping, then falls back to direct primitive-label
+   * matching. Unknown fields are ignored.
    */
-  private Optional<PrimitiveType> acceptedContentPrimitive(String jsonFieldName) {
+  private Optional<PrimitiveType> resolveOutputFieldPrimitiveType(
+      String outputTypeName, String jsonFieldName) {
+    Optional<PrimitiveType> contextual =
+        ChainingTypeRegistry.resolveComplexFieldPrimitive(outputTypeName, jsonFieldName);
+    if (contextual.isPresent()) {
+      return contextual;
+    }
+
     Optional<PrimitiveType> primitiveOpt = PrimitiveType.fromLabelOptional(jsonFieldName);
     if (primitiveOpt.isEmpty()) {
       log.debug(

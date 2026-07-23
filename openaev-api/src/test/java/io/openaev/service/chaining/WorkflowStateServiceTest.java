@@ -432,6 +432,67 @@ class WorkflowStateServiceTest {
       assertEquals(
           Set.of(validAssetGroupId), persistedEntries.getInputByKey("AssetGroupId").getValues());
     }
+
+    @Test
+    @DisplayName("should map complex subfields to contextual primitive keys")
+    void givenComplexTypeSubfields_shouldStoreUnderContextualPrimitiveTypes() {
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = Workflow.builder().id(workflowId).build();
+
+      WorkflowStateEntries initialEntries =
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      WorkflowState globalState =
+          WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
+
+      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
+          .thenReturn(globalState);
+      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflow)))
+          .thenReturn(
+              new PrimitiveValidationContext(
+                  Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
+                  Set.of(), Set.of()));
+
+      JsonObject dataToSync =
+          JsonParser.parseString(
+                  """
+                  {
+                    "vulnerabilities": [
+                      {
+                        "name": "vuln-name",
+                        "status": "open",
+                        "host": "dc1.local",
+                        "asset_id": "asset-1"
+                      }
+                    ],
+                    "delegations": [
+                      {
+                        "account": "svc-app",
+                        "host": "dc2.local",
+                        "asset_id": "asset-2"
+                      }
+                    ]
+                  }
+                  """)
+              .getAsJsonObject();
+
+      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+      typeMappings.put(
+          "vulnerabilities",
+          ChainingMappedType.complex(List.of(), ContractOutputType.Vulnerability));
+      typeMappings.put(
+          "delegations", ChainingMappedType.complex(List.of(), ContractOutputType.Delegation));
+
+      workflowStateService.syncState(dataToSync, typeMappings, workflow);
+
+      WorkflowStateEntries persistedEntries =
+          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+
+      assertTrue(inputValuesByKey(persistedEntries, "VulnerabilityName").contains("vuln-name"));
+      assertTrue(inputValuesByKey(persistedEntries, "VulnerabilityStatus").contains("open"));
+      assertTrue(inputValuesByKey(persistedEntries, "DelegationAccount").contains("svc-app"));
+      assertFalse(inputValuesByKey(persistedEntries, "Account").contains("svc-app"));
+    }
   }
 
   // ========================================================================
@@ -709,5 +770,13 @@ class WorkflowStateServiceTest {
           Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
           Set.of());
     }
+  }
+
+  private static Set<String> inputValuesByKey(WorkflowStateEntries entries, String key) {
+    return entries.getInputs().stream()
+        .filter(input -> key.equals(input.getKey()))
+        .findFirst()
+        .map(WorkflowStateEntries.Input::getValues)
+        .orElse(Set.of());
   }
 }
