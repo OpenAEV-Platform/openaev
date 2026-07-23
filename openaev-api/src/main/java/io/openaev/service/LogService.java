@@ -12,6 +12,7 @@ import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.config.cache.LicenseRefreshedEvent;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.EventType;
@@ -34,9 +35,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -60,12 +59,10 @@ public class LogService {
 
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
+  private final PlatformSettingsService platformSettingsService;
 
   /** Ensures the EE audit-disabled warning is logged only once. */
   private final AtomicBoolean auditEeDisabledWarningLogged = new AtomicBoolean(false);
-
-  // @Lazy to break the cycle: LogService → PlatformSettingsService → LogService
-  @Autowired @Lazy private PlatformSettingsService platformSettingsService;
 
   // -- Public API --
 
@@ -75,6 +72,15 @@ public class LogService {
    */
   @EventListener(ApplicationReadyEvent.class)
   public void onApplicationReady() {
+    isEnabled();
+  }
+
+  /**
+   * Re-evaluates the audit logging state whenever the license cache is refreshed (e.g. after a new
+   * Enterprise Edition certificate is saved).
+   */
+  @EventListener(LicenseRefreshedEvent.class)
+  public void onLicenseRefreshed() {
     isEnabled();
   }
 
@@ -105,13 +111,10 @@ public class LogService {
 
   /**
    * Updates the {@link BannerMessage.BANNER_KEYS#AUDIT_LOG_NO_ENTERPRISE_LICENSE} platform banner.
-   * Null-safe: skips the DB call when {@code platformSettingsService} is not yet available (e.g. in
-   * unit tests that don't wire the full Spring context).
    *
    * @param shouldClean {@code true} → clear the banner; {@code false} → show the banner.
    */
   private void updateBanner(boolean shouldClean) {
-    if (platformSettingsService == null) return;
     if (shouldClean) {
       platformSettingsService.cleanMessage(
           BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);

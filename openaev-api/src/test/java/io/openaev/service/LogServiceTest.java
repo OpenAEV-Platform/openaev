@@ -44,6 +44,7 @@ class LogServiceTest {
   @Mock private AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private LicenseCacheManager licenseCacheManager;
+  @Mock private PlatformSettingsService platformSettingsService;
 
   private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -74,7 +75,8 @@ class LogServiceTest {
             engineService,
             mock(UserService.class),
             enterpriseEditionService,
-            licenseCacheManager);
+            licenseCacheManager,
+            platformSettingsService);
     lenient().when(auditLogProperties.isEnabled()).thenReturn(true);
     lenient().when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
   }
