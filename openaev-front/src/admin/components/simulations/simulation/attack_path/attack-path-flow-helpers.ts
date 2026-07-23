@@ -1526,25 +1526,38 @@ export const buildCausalChainFlow = (
   const edges: AttackPathFlowEdge[] = [];
 
   // The inject→endpoint edge carries the contract name as its label, centred on the edge. A long name
-  // would overflow onto the endpoint node, so widen the inject→endpoint gap to fit the LONGEST label
-  // (same gap on every node, so the whole graph stays column-aligned regardless of name length). The
-  // downstream offsets shift by the same delta to preserve the endpoint→finding gap and inter-depth gap.
-  const longestLabel = [...steps.values()]
-    .flatMap(s => [...s.contractByEndpoint.values()])
-    .reduce((max, label) => Math.max(max, (label ?? '').length), 0);
+  // would overflow onto the endpoint node. The padding around the label is constant everywhere; the gap
+  // itself is sized to each COLUMN's own longest label (its own size), so a column stays exactly as wide
+  // as it needs and no wider. Endpoints of a depth share that gap, so the column stays aligned.
   // ~6.7px per caption char + label padding/border, then room for the endpoint and injector radii so the
-  // centred label clears both nodes. Never shrinks below the static default.
-  const labelSpan = longestLabel * 6.7 + 24;
-  const chainEpDx = Math.max(CHAIN_EP_DX, Math.round(labelSpan / 2 + CLUSTER_EP_HALF_H + CLUSTER_INJECTOR_HALF_H + 16));
-  const chainFindDx = CHAIN_FIND_DX + (chainEpDx - CHAIN_EP_DX);
-  const chainColW = CHAIN_COL_W + (chainEpDx - CHAIN_EP_DX);
+  // centred label clears both nodes; never shrinks below the static default.
+  const epDxForLabels = (labels: string[]): number => {
+    const longest = labels.reduce((max, label) => Math.max(max, (label ?? '').length), 0);
+    const labelSpan = longest * 6.7 + 24;
+    return Math.max(CHAIN_EP_DX, Math.round(labelSpan / 2 + CLUSTER_EP_HALF_H + CLUSTER_INJECTOR_HALF_H + 16));
+  };
+  const sortedDepths = [...byDepth.entries()].sort((a, b) => a[0] - b[0]);
+  // Per-depth geometry: each column's gap fits its own labels, and columns are laid out left-to-right by
+  // accumulating each column's width (base span + the extra its gap needed) rather than a fixed stride.
+  const depthEpDx = new Map<number, number>();
+  const depthX = new Map<number, number>();
+  let xCursor = PADDING;
+  for (const [d, ids] of sortedDepths) {
+    const labels = ids.flatMap(injId => [...(steps.get(injId) as ChainStep).contractByEndpoint.values()]);
+    const epDx = epDxForLabels(labels);
+    depthEpDx.set(d, epDx);
+    depthX.set(d, xCursor);
+    xCursor += CHAIN_COL_W + (epDx - CHAIN_EP_DX);
+  }
 
   // A finding is placed once (unique React Flow id) on the first endpoint that produced it; any other
   // endpoint that also produced it just gets an edge to the same node.
   const placedFindings = new Set<string>();
 
-  for (const [d, ids] of [...byDepth.entries()].sort((a, b) => a[0] - b[0])) {
-    const x = PADDING + d * chainColW;
+  for (const [d, ids] of sortedDepths) {
+    const x = depthX.get(d) as number;
+    const chainEpDx = depthEpDx.get(d) as number;
+    const chainFindDx = CHAIN_FIND_DX + (chainEpDx - CHAIN_EP_DX);
     let cursorY = PADDING;
     ids.forEach((injId) => {
       const s = steps.get(injId) as ChainStep;
