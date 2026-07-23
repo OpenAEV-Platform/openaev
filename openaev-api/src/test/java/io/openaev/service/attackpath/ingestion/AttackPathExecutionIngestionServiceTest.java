@@ -17,13 +17,13 @@ import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
+import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
-import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
@@ -72,10 +72,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     agent.setAsset(endpoint);
     agent.setExecutedByUser("agent-1");
 
-    endpointComposer
-        .forEndpoint(endpoint)
-        .withAgent(agentComposer.forAgent(agent))
-        .persist();
+    endpointComposer.forEndpoint(endpoint).withAgent(agentComposer.forAgent(agent)).persist();
     String endpointId = endpoint.getId();
 
     Exercise exercise = new Exercise();
@@ -150,10 +147,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     agent.setAsset(endpoint);
     agent.setExecutedByUser("agent-1");
 
-    endpointComposer
-        .forEndpoint(endpoint)
-        .withAgent(agentComposer.forAgent(agent))
-        .persist();
+    endpointComposer.forEndpoint(endpoint).withAgent(agentComposer.forAgent(agent)).persist();
     String endpointId = endpoint.getId();
 
     Exercise exercise = new Exercise();

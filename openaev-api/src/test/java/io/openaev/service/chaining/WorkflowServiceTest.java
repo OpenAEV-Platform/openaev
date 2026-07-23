@@ -1362,7 +1362,8 @@ class WorkflowServiceTest {
     void given_workflowRunNotFound_should_throwElementNotFoundException() {
       // Arrange
       String workflowRunId = UUID.randomUUID().toString();
-      Workflow detachedRun = Workflow.builder().id(workflowRunId).status(WorkflowStatus.RUN).build();
+      Workflow detachedRun =
+          Workflow.builder().id(workflowRunId).status(WorkflowStatus.RUN).build();
       when(workflowRepository.findById(workflowRunId)).thenReturn(Optional.empty());
 
       // Act & Assert

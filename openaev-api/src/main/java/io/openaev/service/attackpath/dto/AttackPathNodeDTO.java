@@ -32,8 +32,10 @@ public class AttackPathNodeDTO {
   private String hostname;
   private String ip;
   private String platform;
-  // ASSET: the endpoint's business criticality (VERY_HIGH..LOW / UNKNOWN), resolved from the asset, so
-  // the chokepoint score can weight "most findings" by "most critical". Null for discovered endpoints
+  // ASSET: the endpoint's business criticality (VERY_HIGH..LOW / UNKNOWN), resolved from the asset,
+  // so
+  // the chokepoint score can weight "most findings" by "most critical". Null for discovered
+  // endpoints
   // (no backing asset).
   private String criticality;
   private List<String> agents;
@@ -45,8 +47,10 @@ public class AttackPathNodeDTO {
 
   // EXECUTION (left feed)
   private String payloadName;
-  // EXECUTION: the human-readable name of the injector contract that was run (e.g. "NMAP SYN Scan"),
-  // resolved from the contract's labels, so the graph can name WHAT was launched on the inject→endpoint
+  // EXECUTION: the human-readable name of the injector contract that was run (e.g. "NMAP SYN
+  // Scan"),
+  // resolved from the contract's labels, so the graph can name WHAT was launched on the
+  // inject→endpoint
   // edge. Null when the execution carries no resolvable contract.
   private String contractName;
   private String executedAt;

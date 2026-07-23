@@ -123,7 +123,10 @@ class AttackPathCreateBenchmark extends IntegrationTest {
   private long timeOneCreate(int targets) {
     Inject inject = inject(targets);
     long start = System.nanoTime();
-    tx.executeWithoutResult(status -> ingestionService.persistExecution(ingestionService.getAttackPathExecution(inject, step(), "")));
+    tx.executeWithoutResult(
+        status ->
+            ingestionService.persistExecution(
+                ingestionService.getAttackPathExecution(inject, step(), "")));
     return System.nanoTime() - start;
   }
 

@@ -186,7 +186,8 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   @Test
   @DisplayName("under another tenant's path: the execution detail is not found (no leak)")
   void executionDetailUnderOtherTenantIsHidden() throws Exception {
-    mvc.perform(get(EXECUTION, tenantB, SIM).param("ref", executionId)).andExpect(status().isNotFound());
+    mvc.perform(get(EXECUTION, tenantB, SIM).param("ref", executionId))
+        .andExpect(status().isNotFound());
   }
 
   @Test

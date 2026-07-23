@@ -4,7 +4,6 @@ import io.openaev.database.model.ArticleInjectExpectation;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.ChallengeInjectExpectation;
 import io.openaev.database.model.TechnicalInjectExpectation;
-import io.openaev.context.TenantContext;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -195,8 +194,7 @@ public interface InjectExpectationRepository
           + "WHERE t.inject.id = :injectId "
           + "AND t.inject.tenant.id = :tenantId")
   List<BaseInjectExpectation> findTechnicalByInjectIdWithRelations(
-      @Param("injectId") @NotBlank String injectId,
-      @Param("tenantId") @NotBlank String tenantId);
+      @Param("injectId") @NotBlank String injectId, @Param("tenantId") @NotBlank String tenantId);
 
   @Query(
       value =

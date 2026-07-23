@@ -200,7 +200,8 @@ public class InjectExpectationService {
   @Transactional(readOnly = true)
   public List<BaseInjectExpectation> findAllByInjectId(@NotBlank final String injectId) {
     String tenantId = TenantContext.getCurrentTenant();
-    return this.injectExpectationRepository.findTechnicalByInjectIdWithRelations(injectId, tenantId);
+    return this.injectExpectationRepository.findTechnicalByInjectIdWithRelations(
+        injectId, tenantId);
   }
 
   // -- UPDATE FROM UI --

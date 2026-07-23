@@ -21,8 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Bulk generator for the attack-path POC tables (issue 6647), used to prove the model scales.
  *
- * <p>Scope: the generated rows are injector-sourced executions only ({@code source_kind = INJECTOR}).
- * The AGENT_ASSET pivot (agent-sourced edges) is exercised by unit tests, not by this seed.
+ * <p>Scope: the generated rows are injector-sourced executions only ({@code source_kind =
+ * INJECTOR}). The AGENT_ASSET pivot (agent-sourced edges) is exercised by unit tests, not by this
+ * seed.
  *
  * <p><b>Why this bypasses the tenant inspector (ADR-003).</b> The rest of the POC goes through
  * Hibernate so the {@code TenantStatementInspector} filters every statement. The seed deliberately

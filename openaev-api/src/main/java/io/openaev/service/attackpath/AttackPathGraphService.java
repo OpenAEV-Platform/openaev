@@ -862,11 +862,11 @@ public class AttackPathGraphService {
   }
 
   /**
-   * Resolves each execution's injector-contract name (e.g. "NMAP SYN Scan") from its contract external
-   * id and sets it on the execution feed node, so the front can name WHAT was launched on the
-   * inject→endpoint edge. Batched over the DISTINCT external ids (a run uses a handful of contracts, not
-   * one per execution), so this is a few reads regardless of the execution count. No-op when no
-   * execution carries a contract.
+   * Resolves each execution's injector-contract name (e.g. "NMAP SYN Scan") from its contract
+   * external id and sets it on the execution feed node, so the front can name WHAT was launched on
+   * the inject→endpoint edge. Batched over the DISTINCT external ids (a run uses a handful of
+   * contracts, not one per execution), so this is a few reads regardless of the execution count.
+   * No-op when no execution carries a contract.
    */
   private void applyContractNames(
       List<AttackPathExecutionRow> executions, Map<String, AttackPathNodeDTO> feedByExecutionId) {
@@ -906,9 +906,10 @@ public class AttackPathGraphService {
   }
 
   /**
-   * Sets each endpoint (ASSET) node's business criticality from its backing asset, in one batched read
-   * over the asset ids (endpoint node refs). Discovered endpoints (raw values, not asset ids) simply
-   * match nothing and stay null. Feeds the front's chokepoint score (findings weighted by criticality).
+   * Sets each endpoint (ASSET) node's business criticality from its backing asset, in one batched
+   * read over the asset ids (endpoint node refs). Discovered endpoints (raw values, not asset ids)
+   * simply match nothing and stay null. Feeds the front's chokepoint score (findings weighted by
+   * criticality).
    */
   private void applyEndpointCriticality(Map<String, AttackPathNodeDTO> nodes) {
     Map<String, AttackPathNodeDTO> assetNodesByRef = new HashMap<>();
@@ -931,7 +932,8 @@ public class AttackPathGraphService {
       if (criticality != null) {
         node.setCriticality(criticality.toString());
       }
-      // Prefer the asset's friendly name over the raw id fallback (an ASSET endpoint with no hostname
+      // Prefer the asset's friendly name over the raw id fallback (an ASSET endpoint with no
+      // hostname
       // otherwise reads as its uuid on the map and in the chokepoint list).
       if (name != null && !name.isBlank()) {
         node.setLabel(name);

@@ -227,4 +227,3 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
 
   void deleteAllBySimulationId(String simulationId);
 }
-

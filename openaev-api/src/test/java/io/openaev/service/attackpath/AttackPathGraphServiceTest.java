@@ -32,7 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Rebuild service: two flat reads plus one in-memory pass produce {@code {nodes, edges, counters}}
  * with the deterministic IDs, and the read path issues a constant number of SQL statements
- * regardless of graph size (the two flat reads plus the bounded per-run contract/technique lookups).
+ * regardless of graph size (the two flat reads plus the bounded per-run contract/technique
+ * lookups).
  */
 @Transactional
 class AttackPathGraphServiceTest extends IntegrationTest {
