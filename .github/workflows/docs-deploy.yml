@@ -1,0 +1,81 @@
+name: Deploy documentation
+
+# Publishes MkDocs documentation to GitHub Pages via mike.
+#
+# Triggers:
+#   - Called by the release orchestrator (OpenAEV-Platform/release) after platform release
+#   - Manually via workflow_dispatch for ad-hoc deployments
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Documentation version label (e.g. "2.260717.0")'
+        required: true
+        type: string
+      set_latest:
+        description: 'Update the "latest" alias to point to this version'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      RELEASE_TOKEN:
+        required: false
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Documentation version label (e.g. "2.260717.0")'
+        required: true
+        type: string
+      set_latest:
+        description: 'Update the "latest" alias to point to this version'
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: write # mike pushes to the gh-pages branch
+
+jobs:
+  deploy-docs:
+    name: Deploy documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # full history required by mike and git-based plugins
+          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Install documentation dependencies
+        working-directory: docs
+        run: pip install -r requirements.txt
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy with mike
+        working-directory: docs
+        env:
+          MKDOCS_GIT_COMMITTERS_APIKEY: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          SET_LATEST: ${{ inputs.set_latest }}
+        run: |
+          if [ "$SET_LATEST" = "true" ]; then
+            mike deploy --push --update-aliases "$VERSION" latest
+          else
+            mike deploy --push "$VERSION"
+          fi
+          echo "Documentation deployed: version=${VERSION}, latest=${SET_LATEST}"
