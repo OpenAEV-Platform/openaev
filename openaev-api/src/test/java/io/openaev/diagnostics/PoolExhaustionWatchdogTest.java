@@ -26,10 +26,15 @@ public class PoolExhaustionWatchdogTest {
 
   private ListAppender<ILoggingEvent> appender;
   private Logger watchdogLogger;
+  private Level originalLevel;
 
   @BeforeEach
   void setUpLogCapture() {
     watchdogLogger = (Logger) LoggerFactory.getLogger(PoolExhaustionWatchdog.class);
+    // The CI test logback config caps io.openaev above WARN: force the level so the
+    // WARN assertions see the events, and restore it afterwards.
+    originalLevel = watchdogLogger.getLevel();
+    watchdogLogger.setLevel(Level.WARN);
     appender = new ListAppender<>();
     appender.start();
     watchdogLogger.addAppender(appender);
@@ -39,6 +44,7 @@ public class PoolExhaustionWatchdogTest {
   void tearDownLogCapture() {
     watchdogLogger.detachAppender(appender);
     appender.stop();
+    watchdogLogger.setLevel(originalLevel);
   }
 
   private List<ILoggingEvent> errorEvents() {
