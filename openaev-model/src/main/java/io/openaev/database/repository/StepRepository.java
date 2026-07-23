@@ -107,9 +107,6 @@ public interface StepRepository extends JpaRepository<Step, String> {
   /**
    * Return the stepId associated to a given injectId if it exists.
    *
-   * <p>Supports both the legacy {@code inject_id} (string) format and the current {@code
-   * inject_ids} (JSON array) format stored in {@code step_data}.
-   *
    * @param injectId the injectId for which we want the associated step
    * @return An optional filled with the stepId if found
    */
@@ -123,7 +120,6 @@ public interface StepRepository extends JpaRepository<Step, String> {
         '$.** ? (@.inject_id == $id)',
         jsonb_build_object('id', to_jsonb(:injectId))
       )
-      OR step_data->'inject_ids' @> to_jsonb(:injectId)
       LIMIT 1
       """,
       nativeQuery = true)
@@ -173,9 +169,6 @@ public interface StepRepository extends JpaRepository<Step, String> {
   /**
    * Returns the step IDs associated with any of the given inject IDs in a single query.
    *
-   * <p>Supports both the legacy {@code inject_id} (string) format and the current {@code
-   * inject_ids} (JSON array) format stored in {@code step_data}.
-   *
    * @param injectIds the inject IDs for which we want the associated steps
    * @return set of step IDs that reference any of the given inject IDs
    */
@@ -188,13 +181,10 @@ public interface StepRepository extends JpaRepository<Step, String> {
         SELECT 1
         FROM injects i
         WHERE i.inject_id IN (:injectIds)
-        AND (
-          jsonb_path_exists(
-            s.step_data,
-            '$.** ? (@.inject_id == $id)',
-            jsonb_build_object('id', to_jsonb(i.inject_id))
-          )
-          OR s.step_data->'inject_ids' @> to_jsonb(i.inject_id)
+        AND jsonb_path_exists(
+          s.step_data,
+          '$.** ? (@.inject_id == $id)',
+          jsonb_build_object('id', to_jsonb(i.inject_id))
         )
       )
       """,
@@ -210,13 +200,10 @@ public interface StepRepository extends JpaRepository<Step, String> {
           SELECT 1
           FROM injects_expectations ie
           WHERE ie.inject_expectation_id IN (:expectationIds)
-          AND (
-            jsonb_path_exists(
-              s.step_data,
-              '$.** ? (@.inject_id == $id)',
-              jsonb_build_object('id', to_jsonb(ie.inject_id))
-            )
-            OR s.step_data->'inject_ids' @> to_jsonb(ie.inject_id)
+          AND jsonb_path_exists(
+            s.step_data,
+            '$.** ? (@.inject_id == $id)',
+            jsonb_build_object('id', to_jsonb(ie.inject_id))
           )
         )
         """,
