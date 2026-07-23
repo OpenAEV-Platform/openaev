@@ -1,4 +1,4 @@
-package io.openaev.rest.bulk_operation;
+package io.openaev.api.bulk_operation;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;

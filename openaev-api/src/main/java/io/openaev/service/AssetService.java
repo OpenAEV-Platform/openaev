@@ -18,6 +18,10 @@ import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -141,14 +145,29 @@ public class AssetService {
                   specification.and(
                       (root, query, cb) ->
                           cb.notEqual(root.get("type"), AssetType.Values.SECURITY_PLATFORM_TYPE));
-              return this.assetRepository.findAll(specification).stream()
-                  .map(Asset::getId)
-                  .toList();
+              // Project only the ids: bulk scopes can span very large inventories, so loading
+              // the full entities just to extract ids would create a needless memory spike and
+              // lengthen the scope-resolution transaction.
+              return resolveAssetIds(specification);
             });
     return bulkDeleteExecutor.deleteInChunks(
         "assets",
         assetIdsToDelete,
         chunk -> this.assetRepository.deleteAll(this.assetRepository.findAllById(chunk)));
+  }
+
+  // Criteria query selecting only the id column, so scope resolution never materialises full
+  // Asset entities (goes through the Hibernate session, so the tenant filter still applies).
+  private List<String> resolveAssetIds(final Specification<Asset> specification) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    CriteriaQuery<String> query = cb.createQuery(String.class);
+    Root<Asset> root = query.from(Asset.class);
+    query.select(root.get("id"));
+    Predicate predicate = specification.toPredicate(root, query, cb);
+    if (predicate != null) {
+      query.where(predicate);
+    }
+    return entityManager.createQuery(query).getResultList();
   }
 
   public List<SecurityPlatform> securityPlatformsByIds(@NotNull final Set<String> ids) {

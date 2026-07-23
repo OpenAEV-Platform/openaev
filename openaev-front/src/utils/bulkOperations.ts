@@ -1,21 +1,37 @@
 import { useSyncExternalStore } from 'react';
 
 import { simpleCall } from './Action';
+import { type BulkOperation as GeneratedBulkOperation } from './api-types';
 
 /**
- * Massive (bulk) operation snapshot, mirroring the backend BulkOperationMonitor.BulkOperation
- * payload streamed through the `bulk-operation` SSE events and served by GET /api/bulk-operations.
+ * Massive (bulk) operation snapshot streamed through the `bulk-operation` SSE events and served
+ * by GET /api/bulk-operations. Derived from the generated API type so the frontend cannot drift
+ * from the backend contract; the fields the store and the header indicator rely on are narrowed
+ * to required, which the runtime guard in {@link ingestBulkOperation} enforces on ingestion.
  */
-export interface BulkOperation {
-  bulk_operation_id: string;
-  bulk_operation_action: string;
-  bulk_operation_entity: string;
-  bulk_operation_total: number;
-  bulk_operation_processed: number;
-  bulk_operation_status: 'RUNNING' | 'COMPLETED' | 'FAILED';
-  bulk_operation_started_at: string;
-  bulk_operation_finished_at?: string | null;
-}
+export type BulkOperation = GeneratedBulkOperation & Required<
+  Pick<
+    GeneratedBulkOperation,
+    | 'bulk_operation_id'
+    | 'bulk_operation_action'
+    | 'bulk_operation_entity'
+    | 'bulk_operation_total'
+    | 'bulk_operation_processed'
+    | 'bulk_operation_status'
+    | 'bulk_operation_started_at'
+  >
+>;
+
+// The generated type marks every field optional: narrow wire payloads (SSE events, seed endpoint)
+// to the fields the store and the indicator actually dereference before ingesting them.
+const isUsableBulkOperation = (operation: GeneratedBulkOperation): operation is BulkOperation =>
+  typeof operation.bulk_operation_id === 'string'
+  && typeof operation.bulk_operation_action === 'string'
+  && typeof operation.bulk_operation_entity === 'string'
+  && typeof operation.bulk_operation_total === 'number'
+  && typeof operation.bulk_operation_processed === 'number'
+  && typeof operation.bulk_operation_status === 'string'
+  && typeof operation.bulk_operation_started_at === 'string';
 
 // The indicator is permanent: finished operations stay listed as a per-user history (the
 // backend journals the last operations per user), capped so the popover stays lightweight.
@@ -51,7 +67,10 @@ const rebuildSnapshot = () => {
  * Returns true when this snapshot is the transition to a terminal state (completed or failed),
  * so the caller can refresh the data of mounted screens exactly once per operation.
  */
-export const ingestBulkOperation = (operation: BulkOperation): boolean => {
+export const ingestBulkOperation = (operation: GeneratedBulkOperation): boolean => {
+  if (!isUsableBulkOperation(operation)) {
+    return false;
+  }
   const previous = operations.get(operation.bulk_operation_id);
   // SSE events are delivered asynchronously per consumer: never let a stale progress snapshot
   // overwrite a terminal one.
@@ -71,7 +90,7 @@ export const ingestBulkOperation = (operation: BulkOperation): boolean => {
 export const seedBulkOperations = async () => {
   try {
     const result = await simpleCall('/api/bulk-operations', undefined, false);
-    (result.data as BulkOperation[]).forEach((operation) => {
+    (result.data as GeneratedBulkOperation[]).forEach((operation) => {
       ingestBulkOperation(operation);
     });
   } catch {
