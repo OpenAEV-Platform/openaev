@@ -67,6 +67,7 @@ public class V6_20260719200000000__Add_attack_path_tables extends BaseJavaMigrat
               attackpath_execution_executed_at          timestamp NOT NULL,
               attackpath_execution_prevention_status    text,
               attackpath_execution_detection_status     text,
+              attackpath_execution_vulnerability_status text,
               attackpath_execution_command              text,
               attackpath_execution_terminal_output      text
           );
