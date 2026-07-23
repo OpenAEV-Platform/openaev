@@ -2,6 +2,7 @@ package io.openaev.api.expectations.mapper;
 
 import io.openaev.api.expectations.dto.InjectExpectationOutput;
 import io.openaev.database.model.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -24,9 +25,9 @@ public final class InjectExpectationMapper {
         expectation.getResponse(),
         expectation.getCreatedAt(),
         expectation.getUpdatedAt(),
-        expectation.getSignatures(),
+        new ArrayList<>(expectation.getSignatures()),
         expectation.getResults(),
-        expectation.getTraces(),
+        new ArrayList<>(expectation.getTraces()),
         expectation.getExercise() != null ? expectation.getExercise().getId() : null,
         expectation.getInject() != null ? expectation.getInject().getId() : null,
         expectation instanceof TableTopInjectExpectation tableTopInjectExpectation
