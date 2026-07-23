@@ -10,6 +10,7 @@ import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.scheduler.jobs.InjectsExecutionJob;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -17,6 +18,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -29,6 +31,7 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
   private final InjectorContext injectorContext;
   private final InjectExpectationService injectExpectationService;
   private final InjectService injectService;
+  private final Environment env;
 
   public OpenaevInjectorIntegrationFactory(
       ComponentRequestEngine componentRequestEngine,
@@ -39,7 +42,8 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
       HttpClientFactory httpClientFactory,
       InjectorContext injectorContext,
       InjectExpectationService injectExpectationService,
-      InjectService injectService) {
+      InjectService injectService,
+      Environment env) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
@@ -48,6 +52,7 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
     this.injectorContext = injectorContext;
     this.injectExpectationService = injectExpectationService;
     this.injectService = injectService;
+    this.env = env;
   }
 
   @Override
@@ -94,7 +99,13 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
 
   @Override
   public void registerConnectorForTenant(String tenantId) throws Exception {
-    Map<String, String> executorCommands = OpenaevImplantCommandBuilder.buildExecutorCommands();
+    String threshold = env.getProperty("inject.execution.threshold.minutes");
+    if (threshold == null || threshold.isBlank()) {
+      threshold = InjectsExecutionJob.DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES;
+    }
+    int timeoutSeconds = Integer.parseInt(threshold) * 60;
+    Map<String, String> executorCommands =
+        OpenaevImplantCommandBuilder.buildExecutorCommands(timeoutSeconds);
     Map<String, String> executorClearCommands =
         OpenaevImplantCommandBuilder.buildExecutorClearCommands();
     injectorService.registerBuiltinInjector(
