@@ -1927,7 +1927,6 @@ export interface ConditionCreateInput {
   condition_key?: string;
   /** Path to the value in the output of the step from */
   condition_key_type?:
-    | "account"
     | "account_with_password_not_required"
     | "admin_username"
     | "asreproastable_account"
@@ -1935,19 +1934,17 @@ export interface ConditionCreateInput {
     | "asset_id"
     | "computer_name"
     | "cve"
+    | "delegation_account"
     | "document"
     | "domain"
-    | "group"
     | "group_name"
     | "hash"
     | "host"
-    | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
     | "kerberoastable_account"
     | "key"
-    | "key_file"
     | "number"
     | "password"
     | "permissions"
@@ -1961,8 +1958,7 @@ export interface ConditionCreateInput {
     | "username"
     | "value"
     | "vulnerability_name"
-    | "vulnerability_status"
-    | "delegation";
+    | "vulnerability_status";
   /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   /** ID of the step linked to the key */
@@ -1996,7 +1992,6 @@ export interface ConditionOutput {
   condition_id?: string;
   condition_key?: string;
   condition_key_type?:
-    | "account"
     | "account_with_password_not_required"
     | "admin_username"
     | "asreproastable_account"
@@ -2004,19 +1999,17 @@ export interface ConditionOutput {
     | "asset_id"
     | "computer_name"
     | "cve"
+    | "delegation_account"
     | "document"
     | "domain"
-    | "group"
     | "group_name"
     | "hash"
     | "host"
-    | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
     | "kerberoastable_account"
     | "key"
-    | "key_file"
     | "number"
     | "password"
     | "permissions"
@@ -2030,8 +2023,7 @@ export interface ConditionOutput {
     | "username"
     | "value"
     | "vulnerability_name"
-    | "vulnerability_status"
-    | "delegation";
+    | "vulnerability_status";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_parent_id?: string;
   condition_type?: string;
@@ -6373,7 +6365,6 @@ export interface LoginUserInput {
 export interface MapperConditionOutput {
   condition_key?: string;
   condition_key_type?:
-    | "account"
     | "account_with_password_not_required"
     | "admin_username"
     | "asreproastable_account"
@@ -6381,19 +6372,17 @@ export interface MapperConditionOutput {
     | "asset_id"
     | "computer_name"
     | "cve"
+    | "delegation_account"
     | "document"
     | "domain"
-    | "group"
     | "group_name"
     | "hash"
     | "host"
-    | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
     | "kerberoastable_account"
     | "key"
-    | "key_file"
     | "number"
     | "password"
     | "permissions"
@@ -6407,8 +6396,7 @@ export interface MapperConditionOutput {
     | "username"
     | "value"
     | "vulnerability_name"
-    | "vulnerability_status"
-    | "delegation";
+    | "vulnerability_status";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_value?: string;
 }
@@ -7434,7 +7422,6 @@ export interface PayloadArgument {
   key: string;
   separator?: string | null;
   type:
-    | "account"
     | "account_with_password_not_required"
     | "admin_username"
     | "asreproastable_account"
@@ -7442,19 +7429,17 @@ export interface PayloadArgument {
     | "asset_id"
     | "computer_name"
     | "cve"
+    | "delegation_account"
     | "document"
     | "domain"
-    | "group"
     | "group_name"
     | "hash"
     | "host"
-    | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
     | "kerberoastable_account"
     | "key"
-    | "key_file"
     | "number"
     | "password"
     | "permissions"
@@ -7468,8 +7453,7 @@ export interface PayloadArgument {
     | "username"
     | "value"
     | "vulnerability_name"
-    | "vulnerability_status"
-    | "delegation";
+    | "vulnerability_status";
 }
 
 export interface PayloadCommandBlock {
@@ -8924,7 +8908,6 @@ export interface ScopeVariableInput {
   scope_variable_key: string;
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type:
-    | "account"
     | "account_with_password_not_required"
     | "admin_username"
     | "asreproastable_account"
@@ -8932,19 +8915,17 @@ export interface ScopeVariableInput {
     | "asset_id"
     | "computer_name"
     | "cve"
+    | "delegation_account"
     | "document"
     | "domain"
-    | "group"
     | "group_name"
     | "hash"
     | "host"
-    | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
     | "kerberoastable_account"
     | "key"
-    | "key_file"
     | "number"
     | "password"
     | "permissions"
@@ -8958,8 +8939,7 @@ export interface ScopeVariableInput {
     | "username"
     | "value"
     | "vulnerability_name"
-    | "vulnerability_status"
-    | "delegation";
+    | "vulnerability_status";
   /**
    * Value of the variable.
    * @minLength 1
@@ -8977,7 +8957,6 @@ export interface ScopeVariableOutput {
   scope_variable_key?: string;
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type?:
-    | "account"
     | "account_with_password_not_required"
     | "admin_username"
     | "asreproastable_account"
@@ -8985,19 +8964,17 @@ export interface ScopeVariableOutput {
     | "asset_id"
     | "computer_name"
     | "cve"
+    | "delegation_account"
     | "document"
     | "domain"
-    | "group"
     | "group_name"
     | "hash"
     | "host"
-    | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
     | "kerberoastable_account"
     | "key"
-    | "key_file"
     | "number"
     | "password"
     | "permissions"
@@ -9011,8 +8988,7 @@ export interface ScopeVariableOutput {
     | "username"
     | "value"
     | "vulnerability_name"
-    | "vulnerability_status"
-    | "delegation";
+    | "vulnerability_status";
   /** Value of the variable. */
   scope_variable_value?: string;
 }
@@ -9454,7 +9430,6 @@ export interface StepInput {
 export interface StepOutput {
   step_condition_ids?: string[];
   step_condition_key_types?: (
-    | "account"
     | "account_with_password_not_required"
     | "admin_username"
     | "asreproastable_account"
@@ -9462,19 +9437,17 @@ export interface StepOutput {
     | "asset_id"
     | "computer_name"
     | "cve"
+    | "delegation_account"
     | "document"
     | "domain"
-    | "group"
     | "group_name"
     | "hash"
     | "host"
-    | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
     | "kerberoastable_account"
     | "key"
-    | "key_file"
     | "number"
     | "password"
     | "permissions"
@@ -9489,7 +9462,6 @@ export interface StepOutput {
     | "value"
     | "vulnerability_name"
     | "vulnerability_status"
-    | "delegation"
   )[];
   /** @format date-time */
   step_created_at?: string;
