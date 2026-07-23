@@ -33,11 +33,18 @@ public class V6_20260723200000000__Add_bulk_operations_history extends BaseJavaM
             operation_status VARCHAR(32) NOT NULL,
             operation_started_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
             operation_finished_at TIMESTAMP WITH TIME ZONE,
+            operation_updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
             operation_tenant_id VARCHAR(255),
             operation_user_id VARCHAR(255),
             CONSTRAINT pk_bulk_operations PRIMARY KEY (operation_id)
           );
           """);
+      // Idempotency helper for environments that created the table before the updated_at
+      // column landed (same unreleased branch): Java migrations carry no checksum, so the
+      // ALTER keeps them consistent without a repair.
+      statement.execute(
+          "ALTER TABLE bulk_operations ADD COLUMN IF NOT EXISTS operation_updated_at"
+              + " TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now();");
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_bulk_operations_user"
               + " ON bulk_operations (operation_user_id, operation_started_at DESC);");

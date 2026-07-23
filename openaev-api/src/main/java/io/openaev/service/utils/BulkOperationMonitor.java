@@ -2,6 +2,7 @@ package io.openaev.service.utils;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.annotation.AllowRawJdbc;
 import io.openaev.config.SessionHelper;
 import io.openaev.context.TenantContext;
 import java.sql.Timestamp;
@@ -45,6 +46,12 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Slf4j
+@AllowRawJdbc(
+    reason =
+        "bulk_operations is a platform-level bookkeeping journal keyed by globally-unique operation"
+            + " ids: every query explicitly scopes by the user (and tenant) columns, so bypassing"
+            + " the tenant statement inspector is safe. Journal writes are best-effort and must"
+            + " never break or extend the underlying massive operation.")
 public class BulkOperationMonitor {
 
   static final Duration FINISHED_RETENTION = Duration.ofMinutes(1);
@@ -162,8 +169,9 @@ public class BulkOperationMonitor {
   /**
    * Returns the last {@link #HISTORY_SIZE} operations of the given user, most recent first, running
    * operations first. Live in-memory snapshots take precedence over their journal row; journal rows
-   * still RUNNING with no live counterpart and no recent update (node restarted mid-operation) are
-   * self-healed to FAILED.
+   * still RUNNING but not updated for {@link #STALE_RUNNING_AFTER} (node died mid-operation:
+   * progress is journaled on every chunk, so a live operation is never that quiet) are self-healed
+   * to FAILED before reading.
    */
   public List<BulkOperation> findForUser(String userId, String tenantId) {
     evictExpired();
@@ -175,36 +183,11 @@ public class BulkOperationMonitor {
         .filter(op -> userId == null || Objects.equals(op.userId(), userId))
         .filter(op -> tenantId == null || Objects.equals(op.tenantId(), tenantId))
         .forEach(op -> byId.put(op.id(), op));
-    List<BulkOperation> result = new ArrayList<>();
-    for (BulkOperation op : byId.values()) {
-      result.add(selfHealIfStale(op));
-    }
+    List<BulkOperation> result = new ArrayList<>(byId.values());
     result.sort(
         Comparator.comparing((BulkOperation op) -> op.status() != BulkOperationStatus.RUNNING)
             .thenComparing(BulkOperation::startedAt, Comparator.reverseOrder()));
     return result.size() > HISTORY_SIZE ? result.subList(0, HISTORY_SIZE) : result;
-  }
-
-  private BulkOperation selfHealIfStale(BulkOperation op) {
-    if (op.status() != BulkOperationStatus.RUNNING
-        || operations.containsKey(op.id())
-        || op.startedAt().isAfter(Instant.now().minus(STALE_RUNNING_AFTER))) {
-      return op;
-    }
-    BulkOperation failed =
-        new BulkOperation(
-            op.id(),
-            op.action(),
-            op.entityLabel(),
-            op.total(),
-            op.processed(),
-            BulkOperationStatus.FAILED,
-            op.startedAt(),
-            Instant.now(),
-            op.tenantId(),
-            op.userId());
-    journalUpdate(failed);
-    return failed;
   }
 
   private void evictExpired() {
@@ -258,7 +241,7 @@ public class BulkOperationMonitor {
     try {
       jdbcTemplate.update(
           "UPDATE bulk_operations SET operation_processed = ?, operation_status = ?,"
-              + " operation_finished_at = ? WHERE operation_id = ?",
+              + " operation_finished_at = ?, operation_updated_at = now() WHERE operation_id = ?",
           op.processed(),
           op.status().name(),
           op.finishedAt() == null ? null : Timestamp.from(op.finishedAt()),
@@ -286,6 +269,16 @@ public class BulkOperationMonitor {
       return List.of();
     }
     try {
+      // Self-heal before reading: RUNNING rows not updated recently have no node processing
+      // them anymore (progress is journaled on every chunk), so the node died mid-operation.
+      // Live operations of this node overlay their row anyway, and their next journal write
+      // restores the true status if a heal ever raced a slow-but-alive operation.
+      jdbcTemplate.update(
+          "UPDATE bulk_operations SET operation_status = 'FAILED', operation_finished_at = now()"
+              + " WHERE operation_user_id = ? AND operation_status = 'RUNNING'"
+              + " AND operation_updated_at < ?",
+          userId,
+          Timestamp.from(Instant.now().minus(STALE_RUNNING_AFTER)));
       RowMapper<BulkOperation> rowMapper =
           (rs, rowNum) ->
               new BulkOperation(
