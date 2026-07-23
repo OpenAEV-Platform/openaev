@@ -1258,5 +1258,71 @@ class StepServiceTest {
       // Verify it's NOT the old source workflowId
       assertNotEquals("old-scenario-workflow-id", copiedRoot.getWorkflowId());
     }
+
+    @Test
+    void given_scenarioEventWithLeaf_when_copied_should_exposeLeafInConditionChildren() {
+      // GIVEN a scenario template step with a named root AND condition (event "totoCond")
+      //       having one leaf child (text equals "toto")
+      Step sourceStep = new Step();
+      sourceStep.setId("scenario-step");
+
+      Workflow simulationWorkflow = new Workflow();
+      simulationWorkflow.setId("sim-wf-id");
+
+      Step stepCopied = new Step();
+      stepCopied.setId("sim-step");
+      stepCopied.setWorkflow(simulationWorkflow);
+
+      Condition sourceRoot =
+          Condition.builder()
+              .type(ConditionType.AND)
+              .key("event_key")
+              .name("totoCond")
+              .workflowId("old-wf")
+              .mappingType(MappingType.GLOBAL)
+              .build();
+      sourceRoot.setId("root-id");
+
+      Condition sourceLeaf =
+          Condition.builder()
+              .type(ConditionType.EQ)
+              .key("text")
+              .value("toto")
+              .name("leaf-label")
+              .workflowId("old-wf")
+              .mappingType(MappingType.LOCAL)
+              .conditionParent(sourceRoot)
+              .build();
+      sourceLeaf.setId("leaf-id");
+
+      when(conditionService.findAllConditionsByStepId("scenario-step"))
+          .thenReturn(List.of(sourceRoot, sourceLeaf));
+
+      List<Condition> savedConditions = new ArrayList<>();
+      when(conditionService.saveCondition(any(Condition.class)))
+          .thenAnswer(
+              invocation -> {
+                Condition c = invocation.getArgument(0);
+                c.setId(UUID.randomUUID().toString());
+                savedConditions.add(c);
+                return c;
+              });
+
+      // WHEN copyStepConditionTemplate copies the step into the simulation workflow
+      stepService.copyStepConditionTemplate(sourceStep, stepCopied);
+
+      // THEN the copied root exposes its child in memory (inverse side populated)
+      assertEquals(2, savedConditions.size());
+      Condition copiedRoot = savedConditions.get(0);
+      Condition copiedChild = savedConditions.get(1);
+
+      assertNotNull(copiedRoot.getConditionChildren());
+      assertEquals(1, copiedRoot.getConditionChildren().size());
+      assertSame(copiedChild, copiedRoot.getConditionChildren().get(0));
+      assertEquals(sourceLeaf.getValue(), copiedRoot.getConditionChildren().get(0).getValue());
+
+      // AND the child's conditionParent points back to the copied root
+      assertSame(copiedRoot, copiedChild.getConditionParent());
+    }
   }
 }

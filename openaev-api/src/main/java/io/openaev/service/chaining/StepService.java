@@ -460,6 +460,13 @@ public class StepService {
         conditionService.linkToStep(current, stepCopied, false);
         current = conditionService.saveCondition(current);
 
+        // Keep the in-memory graph consistent for API mapping (mirrors persistConditionTree)
+        Condition parent = current.getConditionParent();
+        if (parent.getConditionChildren() == null) {
+          parent.setConditionChildren(new ArrayList<>());
+        }
+        parent.getConditionChildren().add(current);
+
         temporaryIdAndSaveId.put(condition.getId(), current);
 
         currentId.add(condition.getId());
