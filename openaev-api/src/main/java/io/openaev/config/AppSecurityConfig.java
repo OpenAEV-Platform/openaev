@@ -6,10 +6,10 @@ import static org.apache.commons.lang3.StringUtils.startsWithIgnoreCase;
 import static org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.security.OpenSamlConfig;
 import io.openaev.config.security.SecurityService;
-import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.User;
 import io.openaev.security.SsoRefererAuthenticationFailureHandler;
@@ -17,7 +17,6 @@ import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
 import io.openaev.security.TokenAuthenticationFilter;
 import io.openaev.service.UserMappingService;
 import io.openaev.service.user_events.UserEventService;
-import io.openaev.utils.log.LogUtils;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -177,10 +176,8 @@ public class AppSecurityConfig {
                                       e);
                                 }
 
-                                String eventScope = LogUtils.getEventScope(Action.LOGOUT);
-                                String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
                                 logger.logAuthEventWithRequestContext(
-                                    rcd, eventScope, eventStatus, null, null, null);
+                                    rcd, AuditEventScope.LOGOUT, EventStatus.SUCCESS, null, null);
                               });
                         })
                     .invalidateHttpSession(true)

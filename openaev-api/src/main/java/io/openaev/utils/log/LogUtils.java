@@ -3,7 +3,6 @@ package io.openaev.utils.log;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.AdministrationResourceType;
-import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.log.form.LogDetailsInput;
@@ -178,14 +177,8 @@ public class LogUtils {
     return switch (type) {
       case MUTATION -> "mutation";
       case AUTHENTICATION -> "authentication";
-      default -> "unknown";
-    };
-  }
-
-  public static String getEventStatus(EventStatus status) {
-    return switch (status) {
-      case SUCCESS -> "success";
-      case ERROR -> "error";
+      case EXECUTION -> "execution";
+      case SYSTEM -> "system";
       default -> "unknown";
     };
   }

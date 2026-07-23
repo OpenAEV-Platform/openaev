@@ -4,6 +4,8 @@ import static io.openaev.helper.CryptoHelper.hashWithSHA256;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.OpenAEVPrincipal;
@@ -193,6 +195,148 @@ public class LogService {
   }
 
   // -- Internal helpers --
+
+  /**
+   * Logs a generic audit event. This is the single transport method for all event types — both
+   * legacy utility methods ({@code logAuthEvent}, {@code logRequestEvent}) and the new generic
+   * entry point ({@code AuditLogger.logEvent}) delegate here.
+   *
+   * @param event the audit event descriptor
+   * @param logLevel the log level for console emission
+   * @param logUUID the unique ID for this audit entry
+   * @return {@code true} if the event was successfully emitted
+   */
+  public boolean logGenericEvent(AuditEvent event, Object logLevel, String logUUID) {
+    if (!isEnabled()) {
+      return true;
+    }
+
+    try {
+      String eventType = resolveEventType(event.getEventType());
+      String eventStatus = event.getEventStatus().name().toLowerCase();
+      String eventScope = event.getEventScope().name().toLowerCase();
+
+      // For MUTATION events, resolve access based on ResourceType
+      String eventAccess;
+      ResourceType resourceType = null;
+      if (event.getEventType() == EventType.MUTATION && event.getResourceType() != null) {
+        try {
+          resourceType = ResourceType.valueOf(event.getResourceType());
+        } catch (IllegalArgumentException ignored) {
+          // Non-enum resource type — use extended access
+        }
+        eventAccess = LogUtils.getEventAccess(resourceType);
+      } else {
+        eventAccess = resolveEventAccess(event);
+      }
+
+      LogEvent doc = buildBaseAuditLog(eventType, eventStatus, eventAccess, eventScope, logUUID);
+
+      Map<String, Object> ctx =
+          new LinkedHashMap<>(event.getContextData() != null ? event.getContextData() : Map.of());
+
+      // MUTATION events: normalize, redact, and build message from input/output
+      if (event.getEventType() == EventType.MUTATION) {
+        processMutationContext(ctx, resourceType, eventScope, doc);
+      }
+
+      if (event.getMessage() != null) {
+        ctx.put("message", event.getMessage());
+      } else if (event.getEventType() == EventType.MUTATION) {
+        // Build message from mutation context if not explicitly provided
+        String entityTypeName = formatResourceType(resourceType);
+        String displayName = null;
+        Object inputObj = ctx.get("input");
+        if (inputObj instanceof JsonNode inputNode) {
+          displayName = LogUtils.extractNameFromSnapshot(inputNode);
+        }
+        displayName = displayName != null ? displayName : event.getResourceId();
+
+        String message;
+        if ("status_change".equals(eventScope)) {
+          JsonNode inputNode = inputObj instanceof JsonNode jn ? jn : null;
+          message = LogUtils.buildStatusChangeMessage(inputNode, entityTypeName, displayName);
+        } else {
+          message = LogUtils.buildRequestLogMessage(eventScope, entityTypeName, displayName);
+        }
+        ctx.put("message", message);
+      }
+
+      if (event.getResourceType() != null && !ctx.containsKey("entity_type")) {
+        ctx.put("entity_type", formatResourceType(resourceType));
+      }
+      if (event.getResourceId() != null && !ctx.containsKey("resource_id")) {
+        ctx.put("resource_id", event.getResourceId());
+      }
+
+      // Entity diffs — normalize and redact
+      if (event.getEntityDiffs() != null && !event.getEntityDiffs().isEmpty()) {
+        JsonNode redactedDiffs = ObjectRedactionUtils.redact(event.getEntityDiffs(), resourceType);
+        ctx.put("entity_diffs", toContextValue(redactedDiffs));
+      }
+
+      doc.setContextData(ctx);
+
+      // For SYSTEM-origin: skip user metadata population (no servlet context)
+      if (event.getOrigin() == AuditEventOrigin.SYSTEM) {
+        doc.setUserId(null);
+        doc.setUserMetadata(null);
+      }
+
+      return emit(doc, logLevel);
+    } catch (Exception e) {
+      log.warn("[AUDIT] Failed to log generic event: {}", e.getMessage(), e);
+    }
+    return false;
+  }
+
+  /**
+   * Processes MUTATION-specific contextData entries: normalizes and redacts input/output JsonNodes,
+   * and extracts the signature into request metadata.
+   */
+  private void processMutationContext(
+      Map<String, Object> ctx, ResourceType resourceType, String eventScope, LogEvent doc) {
+    // Normalize and redact input
+    Object inputObj = ctx.get("input");
+    if (inputObj instanceof JsonNode inputNode && !inputNode.isNull()) {
+      inputNode = objectNormalizationUtils.normalize(inputNode);
+      inputNode = ObjectRedactionUtils.redact(inputNode, resourceType);
+      ctx.put("input", toContextValue(inputNode));
+    }
+
+    // Normalize and redact output
+    Object outputObj = ctx.get("output");
+    if (outputObj instanceof JsonNode outputNode && !outputNode.isNull()) {
+      outputNode = objectNormalizationUtils.normalize(outputNode);
+      outputNode = ObjectRedactionUtils.redact(outputNode, resourceType);
+      ctx.put("output", toContextValue(outputNode));
+    }
+
+    // Extract signature into request metadata
+    Object signatureObj = ctx.remove("signature");
+    if (signatureObj instanceof JsonNode signatureNode && !signatureNode.isNull()) {
+      JsonNode redactedSignature = ObjectRedactionUtils.redact(signatureNode, resourceType);
+      doc.getRequestMetadata().setSignature(redactedSignature);
+    }
+  }
+
+  /** Maps {@link EventType} to the string representation used in {@link LogEvent}. */
+  private String resolveEventType(EventType type) {
+    return switch (type) {
+      case MUTATION -> "mutation";
+      case AUTHENTICATION -> "authentication";
+      case EXECUTION -> "execution";
+      case SYSTEM -> "system";
+    };
+  }
+
+  /** Resolves the event access level based on the event type. */
+  private String resolveEventAccess(AuditEvent event) {
+    if (event.getEventType() == EventType.AUTHENTICATION) {
+      return "administration";
+    }
+    return "extended";
+  }
 
   /**
    * Logs a session expiry audit event. Called from the session listener (no HTTP request context).
