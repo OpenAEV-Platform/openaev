@@ -232,6 +232,9 @@ public class CustomDashboardService {
    * @param resourceId simulation id or scenario id
    * @return the effective dashboard for this resource
    */
+  // Explicitly transactional so the Hibernate tenant filter applies to the scenario / simulation
+  // existence checks of the fallback, whatever the caller's context.
+  @Transactional(readOnly = true)
   public CustomDashboard findCustomDashboardByResourceId(@NotBlank final String resourceId) {
     return customDashboardRepository
         .findByResourceId(resourceId)

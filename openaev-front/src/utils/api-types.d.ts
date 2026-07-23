@@ -1381,6 +1381,21 @@ export interface BrokerConnectionInfo {
   vhost?: string;
 }
 
+export interface BulkOperation {
+  bulk_operation_action?: string;
+  bulk_operation_entity?: string;
+  /** @format date-time */
+  bulk_operation_finished_at?: string;
+  bulk_operation_id?: string;
+  /** @format int32 */
+  bulk_operation_processed?: number;
+  /** @format date-time */
+  bulk_operation_started_at?: string;
+  bulk_operation_status?: "RUNNING" | "COMPLETED" | "FAILED";
+  /** @format int32 */
+  bulk_operation_total?: number;
+}
+
 export interface CTIEvent {
   event: Event;
   internal: Internal;

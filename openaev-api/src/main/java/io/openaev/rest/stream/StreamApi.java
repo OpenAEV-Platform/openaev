@@ -257,10 +257,11 @@ public class StreamApi extends RestBehavior {
     consumers.forEach(
         (key, consumer) -> {
           // Legacy consumers (no tenant in the stream URL) receive everything, mirroring
-          // isVisibleForTenant; tenant-scoped consumers only see their tenant's operations.
+          // isVisibleForTenant; tenant-scoped consumers only see operations carrying exactly
+          // their tenant id (an operation without a tenant id stays off tenant streams, so no
+          // cross-tenant operational metadata can leak).
           if (consumer.tenantId() != null
               && !consumer.tenantId().isBlank()
-              && operation.tenantId() != null
               && !consumer.tenantId().equals(operation.tenantId())) {
             return;
           }

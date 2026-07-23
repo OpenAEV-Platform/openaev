@@ -83,6 +83,7 @@ public class BulkOperationMonitor {
 
   /** Adds processed items to a running operation and notifies the stream. */
   public void progress(String operationId, int processedDelta) {
+    evictExpired();
     BulkOperation updated =
         operations.computeIfPresent(
             operationId,
@@ -113,6 +114,7 @@ public class BulkOperationMonitor {
   }
 
   private void finish(String operationId, BulkOperationStatus status) {
+    evictExpired();
     BulkOperation updated =
         operations.computeIfPresent(
             operationId,

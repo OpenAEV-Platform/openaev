@@ -221,8 +221,14 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
     // The header indicator renders them live, and the data of mounted screens is refreshed
     // exactly once, when an operation reaches a terminal state.
     sseClient.addEventListener('bulk-operation', (event) => {
-      const operation = JSON.parse(event.data);
-      const justFinished = ingestBulkOperation(operation);
+      // A malformed payload must never break the SSE processing of this tab: skip it, the
+      // periodic seed endpoint reconciles the indicator anyway.
+      let justFinished = false;
+      try {
+        justFinished = ingestBulkOperation(JSON.parse(event.data));
+      } catch {
+        return;
+      }
       if (justFinished) {
         if (isDocumentHidden()) {
           // Hidden tab: defer the reload to the visibility transition, like the

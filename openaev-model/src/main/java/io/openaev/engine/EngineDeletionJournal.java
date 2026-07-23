@@ -62,7 +62,11 @@ public class EngineDeletionJournal {
     }
   }
 
-  /** Returns every journaled id still within the retention window, oldest first. */
+  /**
+   * Returns every journaled id, oldest first. Deliberately unfiltered: retention is enforced by
+   * {@link #prune()} after replaying, so entries older than the retention window (e.g. after a long
+   * platform downtime) are still replayed one last time before being dropped.
+   */
   public List<String> findPendingIds() {
     return jdbcTemplate.queryForList(
         "SELECT deletion_id FROM engine_deletions ORDER BY deletion_date ASC", String.class);
