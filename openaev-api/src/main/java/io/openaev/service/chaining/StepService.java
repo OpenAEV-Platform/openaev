@@ -130,15 +130,17 @@ public class StepService {
       return List.of();
     }
 
-    // For inject execution steps, expand each condition batch into one batch per scope target
-    // (one per asset, one per IP) so that each READY step handles exactly one inject.
-    if (StepActionClass.INJECT_EXECUTION.equals(persistedTemplate.getStepAction())) {
+    // Expand each condition batch into one batch per scope target (one per asset, one per IP)
+    // so that each READY step handles exactly one inject.
+    // Only for injector-based steps (no payload): payload-based injects
+    // handle multi-asset distribution internally => one step covers all assets.
+    if (StepActionClass.INJECT_EXECUTION.equals(persistedTemplate.getStepAction())
+        && !injectExecutionStep.hasPayload(persistedTemplate)) {
       executionBatches = injectExecutionStep.expandTargetBatches(executionBatches, workflowRun);
       if (executionBatches.isEmpty()) {
         return List.of();
       }
     }
-
     List<Step> stepReadys = new ArrayList<>();
     Set<String> committedHashes = new HashSet<>();
     int localPending = pendingCount;

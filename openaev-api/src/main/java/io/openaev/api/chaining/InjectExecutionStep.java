@@ -206,7 +206,8 @@ public class InjectExecutionStep implements ActionStep {
               inject.getTeams(),
               inject.getAssets(),
               inject.getAssetGroups(),
-              List.of());
+              List.of(),
+              true);
       executor.directExecute(executableInject);
       return Optional.of(readyStep);
     } catch (Exception e) {
@@ -593,6 +594,39 @@ public class InjectExecutionStep implements ActionStep {
     return expanded;
   }
 
+  /**
+   * Returns {@code true} if the step template data contains a non-null payload inside its injector
+   * contract ({@code inject_injector_contract.injector_contract_payload}).
+   */
+  public boolean hasPayload(Step stepTemplate) {
+    if (stepTemplate.getData() == null) {
+      return false;
+    }
+    try {
+      JsonElement contractElement =
+          JsonParser.parseString(stepTemplate.getData())
+              .getAsJsonObject()
+              .get("inject_injector_contract");
+      if (contractElement == null
+          || contractElement.isJsonNull()
+          || !contractElement.isJsonObject()) {
+        return false;
+      }
+      JsonElement payloadElement =
+          contractElement.getAsJsonObject().get("injector_contract_payload");
+      if (payloadElement == null || payloadElement.isJsonNull() || !payloadElement.isJsonObject()) {
+        return false;
+      }
+
+      JsonElement payloadType = payloadElement.getAsJsonObject().get("payload_type");
+      return payloadType != null && !payloadType.isJsonNull();
+    } catch (Exception e) {
+      log.warn(
+          "Failed to check payload presence in step data for step ID: {}", stepTemplate.getId());
+      return false;
+    }
+  }
+
   /** Embeds a {@code "_target"} entry into the batch input JSON. */
   private String addTargetToInput(String inputJson, JsonObject target) {
     JsonObject input =
@@ -631,20 +665,22 @@ public class InjectExecutionStep implements ActionStep {
    *   <li>IP: sets manual targeting in content and clears asset fields.
    *   <li>No target present: inject runs with its template defaults.
    * </ul>
+   *
+   * @return {@code true} if a target was found and applied, {@code false} otherwise
    */
-  private void applyChainingTarget(Inject inject, String stepData, boolean isExternalInjector) {
+  private boolean applyChainingTarget(Inject inject, String stepData, boolean isExternalInjector) {
     if (stepData == null) {
-      return;
+      return false;
     }
     JsonElement targetElement;
     try {
       targetElement = JsonParser.parseString(stepData).getAsJsonObject().get("_chaining_target");
     } catch (Exception e) {
       log.warn("Failed to read _chaining_target from step data", e);
-      return;
+      return false;
     }
     if (targetElement == null || targetElement.isJsonNull() || !targetElement.isJsonObject()) {
-      return;
+      return false;
     }
 
     JsonObject target = targetElement.getAsJsonObject();
@@ -653,7 +689,7 @@ public class InjectExecutionStep implements ActionStep {
     if ("ASSET".equals(type)) {
       String assetId = target.has("assetId") ? target.get("assetId").getAsString() : null;
       if (assetId == null) {
-        return;
+        return false;
       }
       Asset asset = assetService.asset(assetId);
       inject.setAssets(List.of(asset));
@@ -669,10 +705,11 @@ public class InjectExecutionStep implements ActionStep {
         applyScopeTargetsToContent(content, List.of(asset));
         inject.setContent(content);
       }
+      return true;
     } else if ("IP".equals(type)) {
       String ip = target.has("ip") ? target.get("ip").getAsString() : null;
       if (ip == null) {
-        return;
+        return false;
       }
       ObjectNode content =
           inject.getContent() != null ? inject.getContent().deepCopy() : mapper.createObjectNode();
@@ -682,7 +719,9 @@ public class InjectExecutionStep implements ActionStep {
       inject.setContent(content);
       inject.setAssets(List.of());
       inject.setAssetGroups(List.of());
+      return true;
     }
+    return false;
   }
 
   /** Stores the created inject ID into the step data JSON. */
@@ -891,8 +930,19 @@ public class InjectExecutionStep implements ActionStep {
           injectorContractContentUtils.setExpectations(injectorContract, updatedContent);
       inject.setContent(contentWithExpectations);
 
-      // Apply the per-target info baked in by ready() (asset or IP from scope)
-      applyChainingTarget(inject, step.getData(), injectorContract.getPayload() == null);
+      // Apply the per-target info baked in by ready() (asset or IP from scope).
+      // For injector-based steps, expansion set _chaining_target → one asset per step.
+      // For payload-based steps (no expansion), fall back to all scope assets so the
+      // executor can distribute the payload across every scoped endpoint — same behavior
+      // as before expandTargetBatches was introduced.
+      boolean targetApplied =
+          applyChainingTarget(inject, step.getData(), injectorContract.getPayload() == null);
+      if (!targetApplied && step.getWorkflow() != null) {
+        List<Asset> scopedAssets = scopeService.getValidAssets(step.getWorkflow().getId());
+        if (scopedAssets != null && !scopedAssets.isEmpty()) {
+          inject.setAssets(scopedAssets);
+        }
+      }
 
       return inject;
 

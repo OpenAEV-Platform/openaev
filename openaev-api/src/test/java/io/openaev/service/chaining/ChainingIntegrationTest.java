@@ -44,6 +44,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -146,6 +147,7 @@ class ChainingIntegrationTest extends IntegrationTest {
   }
 
   @Nested
+  @Transactional
   @DisplayName("Scenario chaining integration tests")
   public class ScenarioChainingIntegrationTests {
 
@@ -472,7 +474,7 @@ class ChainingIntegrationTest extends IntegrationTest {
           workflowTemplate.getId(),
           WorkflowConfigurationInput.builder().workflowScopeRules(List.of(assetScopeRule)).build());
       // Override the asset mock so the scope service resolves the rule to savedAsset
-      doReturn(List.of(savedAsset)).when(assetService).assets(any());
+      doReturn(List.of(savedAsset)).when(assetService).assets(any(Specification.class));
       String simulation =
           mvc.perform(
                   post(tenantUri(
@@ -615,6 +617,7 @@ class ChainingIntegrationTest extends IntegrationTest {
   }
 
   @Nested
+  @Transactional
   @DisplayName("Simulation chaining integration tests")
   public class SimulationChainingIntegrationTests {
 

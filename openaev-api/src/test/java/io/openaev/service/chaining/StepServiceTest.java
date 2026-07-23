@@ -417,6 +417,8 @@ class StepServiceTest {
 
         when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
             .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers, null)));
+        when(injectExecutionStep.expandTargetBatches(any(), any()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
 
         Step stepReady = mock(Step.class);
 
@@ -476,6 +478,8 @@ class StepServiceTest {
 
         when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
             .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers, null)));
+        when(injectExecutionStep.expandTargetBatches(any(), any()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
 
         Step stepReady = mock(Step.class);
 
