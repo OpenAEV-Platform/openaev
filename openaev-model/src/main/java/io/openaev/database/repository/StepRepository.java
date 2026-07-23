@@ -126,6 +126,28 @@ public interface StepRepository extends JpaRepository<Step, String> {
   Optional<String> findStepIdByInjectId(@Param("injectId") String injectId);
 
   /**
+   * Resolves the tenant that owns a step: step -&gt; workflow -&gt; simulation -&gt; tenant. Used
+   * to stamp the tenant on chaining events (#6357). NATIVE on purpose: {@code exercises} is a v1
+   * {@code @Filter} entity ({@code tenantFilter}), so a JPQL path through it would be re-filtered
+   * by the ambient {@code TenantContext} and, on a scheduler/queue producer thread that carries the
+   * default (or wrong) tenant, could silently return empty and stamp the event with null. A native
+   * query bypasses the Hibernate filter, so the stamp is truly context-free. Also no lazy
+   * navigation, so it is safe with no open session. Empty for a workflow with no simulation
+   * (standalone run); the caller falls back to the default tenant.
+   */
+  @Query(
+      value =
+          """
+      SELECT e.tenant_id
+      FROM steps s
+      JOIN workflows w ON w.workflow_id = s.step_workflow_id
+      JOIN exercises e ON e.exercise_id = w.workflow_simulation_id
+      WHERE s.step_id = :stepId
+      """,
+      nativeQuery = true)
+  Optional<String> findTenantIdByStepId(@Param("stepId") String stepId);
+
+  /**
    * Return the injectId frozen in a step's data, if present. The engine writes it into {@code
    * step_data} at run ({@code InjectExecutionStep.setInjectId}), so the attack-path read can
    * resolve the "Action details" inject link from the durable step rather than storing it on the

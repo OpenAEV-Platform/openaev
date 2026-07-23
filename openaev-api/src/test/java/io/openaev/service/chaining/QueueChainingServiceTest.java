@@ -7,6 +7,8 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.QueueConfig;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
+import io.openaev.database.repository.StepRepository;
+import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.queue.QueueExecution;
 import java.io.IOException;
@@ -36,6 +38,10 @@ class QueueChainingServiceTest {
   @Mock private BatchQueueService<StepEvent> readyQueueService;
 
   @Mock private BatchQueueService<ExternalUpdateEvent> updateQueueService;
+
+  @Mock private StepRepository stepRepository;
+
+  @Mock private WorkflowRepository workflowRepository;
 
   @InjectMocks private QueueChainingService queueChainingService;
 
