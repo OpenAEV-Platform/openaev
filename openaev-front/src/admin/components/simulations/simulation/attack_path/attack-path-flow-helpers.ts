@@ -1525,12 +1525,26 @@ export const buildCausalChainFlow = (
   const nodes: AttackPathFlowNode[] = [];
   const edges: AttackPathFlowEdge[] = [];
 
+  // The inject→endpoint edge carries the contract name as its label, centred on the edge. A long name
+  // would overflow onto the endpoint node, so widen the inject→endpoint gap to fit the LONGEST label
+  // (same gap on every node, so the whole graph stays column-aligned regardless of name length). The
+  // downstream offsets shift by the same delta to preserve the endpoint→finding gap and inter-depth gap.
+  const longestLabel = [...steps.values()]
+    .flatMap(s => [...s.contractByEndpoint.values()])
+    .reduce((max, label) => Math.max(max, (label ?? '').length), 0);
+  // ~6.7px per caption char + label padding/border, then room for the endpoint and injector radii so the
+  // centred label clears both nodes. Never shrinks below the static default.
+  const labelSpan = longestLabel * 6.7 + 24;
+  const chainEpDx = Math.max(CHAIN_EP_DX, Math.round(labelSpan / 2 + CLUSTER_EP_HALF_H + CLUSTER_INJECTOR_HALF_H + 16));
+  const chainFindDx = CHAIN_FIND_DX + (chainEpDx - CHAIN_EP_DX);
+  const chainColW = CHAIN_COL_W + (chainEpDx - CHAIN_EP_DX);
+
   // A finding is placed once (unique React Flow id) on the first endpoint that produced it; any other
   // endpoint that also produced it just gets an edge to the same node.
   const placedFindings = new Set<string>();
 
   for (const [d, ids] of [...byDepth.entries()].sort((a, b) => a[0] - b[0])) {
-    const x = PADDING + d * CHAIN_COL_W;
+    const x = PADDING + d * chainColW;
     let cursorY = PADDING;
     ids.forEach((injId) => {
       const s = steps.get(injId) as ChainStep;
@@ -1570,7 +1584,7 @@ export const buildCausalChainFlow = (
           id: epNodeId,
           type: AP_FLOW_NODE_TYPE.asset,
           position: {
-            x: x + CHAIN_EP_DX,
+            x: x + chainEpDx,
             y: blockCenter - CLUSTER_EP_HALF_H,
           },
           data: epDto ? nodeData(epDto) : { label: friendlyNodeId(epId) },
@@ -1599,7 +1613,7 @@ export const buildCausalChainFlow = (
               id: fid,
               type: AP_FLOW_NODE_TYPE.finding,
               position: {
-                x: x + CHAIN_FIND_DX,
+                x: x + chainFindDx,
                 y: fY - CHAIN_FIND_HALF,
               },
               data: {
