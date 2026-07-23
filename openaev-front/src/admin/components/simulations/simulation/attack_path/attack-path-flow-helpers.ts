@@ -1,6 +1,7 @@
 import { type Edge, type Node } from '@xyflow/react';
 
 import type { AttackPathAttackPatternDTO, AttackPathDTO, AttackPathEdges, AttackPathNodeDTO } from '../../../../../utils/api-types';
+import { AP_ENDPOINT_SIZE, AP_FINDING_SIZE, AP_INJECTOR_SIZE } from './nodes/node-sizes';
 
 // Attack-path execution-store POC (issue 6647). Pure mapping of the backend AttackPathDTO onto
 // React Flow nodes and edges, with a manual column layout (no layout lib, mirroring AttackPath.tsx).
@@ -1525,29 +1526,54 @@ export const buildCausalChainFlow = (
   const nodes: AttackPathFlowNode[] = [];
   const edges: AttackPathFlowEdge[] = [];
 
-  // The inject→endpoint edge carries the contract name as its label, centred on the edge. A long name
-  // would overflow onto the endpoint node. The padding around the label is constant everywhere; the gap
-  // itself is sized to each COLUMN's own longest label (its own size), so a column stays exactly as wide
-  // as it needs and no wider. Endpoints of a depth share that gap, so the column stays aligned.
-  // ~6.7px per caption char + label padding/border, then room for the endpoint and injector radii so the
-  // centred label clears both nodes; never shrinks below the static default.
-  const epDxForLabels = (labels: string[]): number => {
-    const longest = labels.reduce((max, label) => Math.max(max, (label ?? '').length), 0);
-    const labelSpan = longest * 6.7 + 24;
-    return Math.max(CHAIN_EP_DX, Math.round(labelSpan / 2 + CLUSTER_EP_HALF_H + CLUSTER_INJECTOR_HALF_H + 16));
+  // Every edge label (contract name, "<type> found", causal "Triggered …") is a bordered box centred on
+  // its edge. The box padding is constant; on top of that each label must keep the SAME clearance to the
+  // nodes at both ends, so a long label never ends up crushed against a node while short ones float free.
+  // That means the segment length must GROW with the label: a mid-point label of pixel width W centred
+  // between two nodes clears both by CLEARANCE when the centre-to-centre distance is
+  // W + 2·max(halfLeft, halfRight) + 2·CLEARANCE. Gaps are computed per COLUMN (its own longest label),
+  // so each column is exactly as wide as it needs and endpoints of a depth stay aligned.
+  const CAPTION_CHAR_PX = 6.7; // rough advance width of one caption-size char
+  const LABEL_H_PAD = 12; // the label box' own horizontal padding (spacing(0.75) each side)
+  const LABEL_CLEARANCE = 18; // constant gap we want between every label box and the nodes it sits between
+  const INJ_HALF = AP_INJECTOR_SIZE / 2;
+  const EP_HALF = AP_ENDPOINT_SIZE / 2;
+  const FIND_HALF = AP_FINDING_SIZE / 2;
+  const maxLen = (labels: (string | undefined)[]) => labels.reduce((m, l) => Math.max(m, (l ?? '').length), 0);
+  // Centre-to-centre distance so the longest of `labels` keeps LABEL_CLEARANCE from both flanking nodes.
+  const segLen = (labels: (string | undefined)[], halfLeft: number, halfRight: number) =>
+    Math.round(maxLen(labels) * CAPTION_CHAR_PX + LABEL_H_PAD + 2 * Math.max(halfLeft, halfRight) + 2 * LABEL_CLEARANCE);
+
+  const findingLabel = (injId: string) => {
+    const s = steps.get(injId) as ChainStep;
+    return [...s.endpoints.values()].flat()
+      .map(fid => findingById.get(fid)?.typeFindings)
+      .filter((type): type is string => Boolean(type))
+      .map(type => t('{type} found', { type }));
   };
+  const causalLabels = (injId: string) =>
+    (steps.get(injId) as ChainStep).consumed.map(key => causalKeyLabel(key, t));
+
   const sortedDepths = [...byDepth.entries()].sort((a, b) => a[0] - b[0]);
-  // Per-depth geometry: each column's gap fits its own labels, and columns are laid out left-to-right by
-  // accumulating each column's width (base span + the extra its gap needed) rather than a fixed stride.
+  // Per-depth geometry, accumulated left-to-right so each column takes exactly the width its own labels
+  // need: inject→endpoint fits the contract name, endpoint→finding fits the "<type> found" label, and the
+  // trailing gap to the next depth fits the causal label leaving this column.
   const depthEpDx = new Map<number, number>();
+  const depthFindDx = new Map<number, number>();
   const depthX = new Map<number, number>();
   let xCursor = PADDING;
-  for (const [d, ids] of sortedDepths) {
-    const labels = ids.flatMap(injId => [...(steps.get(injId) as ChainStep).contractByEndpoint.values()]);
-    const epDx = epDxForLabels(labels);
+  for (let i = 0; i < sortedDepths.length; i++) {
+    const [d, ids] = sortedDepths[i];
+    const epDx = Math.max(CHAIN_EP_DX, segLen(ids.flatMap(injId => [...(steps.get(injId) as ChainStep).contractByEndpoint.values()]), INJ_HALF, EP_HALF));
+    const findGap = Math.max(CHAIN_FIND_DX - CHAIN_EP_DX, segLen(ids.flatMap(findingLabel), EP_HALF, FIND_HALF));
+    const findDx = epDx + findGap;
     depthEpDx.set(d, epDx);
+    depthFindDx.set(d, findDx);
     depthX.set(d, xCursor);
-    xCursor += CHAIN_COL_W + (epDx - CHAIN_EP_DX);
+    // Room from this column's findings to the next depth's injectors must fit the causal label there.
+    const nextIds = sortedDepths[i + 1]?.[1] ?? [];
+    const causalGap = Math.max(CHAIN_COL_W - CHAIN_FIND_DX, segLen(nextIds.flatMap(causalLabels), FIND_HALF, INJ_HALF));
+    xCursor += findDx + causalGap;
   }
 
   // A finding is placed once (unique React Flow id) on the first endpoint that produced it; any other
@@ -1557,7 +1583,7 @@ export const buildCausalChainFlow = (
   for (const [d, ids] of sortedDepths) {
     const x = depthX.get(d) as number;
     const chainEpDx = depthEpDx.get(d) as number;
-    const chainFindDx = CHAIN_FIND_DX + (chainEpDx - CHAIN_EP_DX);
+    const chainFindDx = depthFindDx.get(d) as number;
     let cursorY = PADDING;
     ids.forEach((injId) => {
       const s = steps.get(injId) as ChainStep;
