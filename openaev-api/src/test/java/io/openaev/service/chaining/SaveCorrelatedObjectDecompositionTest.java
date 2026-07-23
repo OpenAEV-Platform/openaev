@@ -189,7 +189,8 @@ class SaveCorrelatedObjectDecompositionTest {
       // No Correlated (pairSet size == 1, under the guard)
       assertEquals(0, persisted.getCorrelated().size());
 
-      // All-or-nothing: single-field correlated objects do not persist decomposed primitives either.
+      // All-or-nothing: single-field correlated objects do not persist decomposed primitives
+      // either.
       assertEquals(Set.of(), persisted.getInputByKey("Username").getValues());
     }
   }
