@@ -138,8 +138,18 @@ public class AttackPathExecution implements TenantBase {
     // identity keys it resolves from: contractExternalId -> ATT&CK techniques, payloadId ->
     // detection
     // remediations, injectorType -> the injector node's real type.
+    // Fall back to the contract id when the external id is blank: built-in contracts (e.g. Nmap)
+    // carry only a UUID id, and the graph read resolves the contract via findByIdOrExternalId, so a
+    // null here would leave the contract name and ATT&CK unresolved on real runs.
     this.contractExternalId =
-        inject.getInjectorContract().map(InjectorContract::getExternalId).orElse(null);
+        inject
+            .getInjectorContract()
+            .map(
+                contract ->
+                    contract.getExternalId() != null && !contract.getExternalId().isBlank()
+                        ? contract.getExternalId()
+                        : contract.getId())
+            .orElse(null);
     this.payloadId = inject.getPayload().map(Payload::getId).orElse(null);
     this.injectorType = inject.getInjector() != null ? inject.getInjector().getType() : null;
   }
