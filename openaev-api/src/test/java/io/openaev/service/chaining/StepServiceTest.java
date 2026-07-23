@@ -1074,8 +1074,12 @@ class StepServiceTest {
     @Test
     void given_conditionWithAllFields_should_copyAllConfigFieldsToNewCondition() {
       // Arrange
+      Workflow sourceWorkflow = new Workflow();
+      sourceWorkflow.setId("source-workflow-id");
+
       Step sourceStep = new Step();
       sourceStep.setId("source-step-id");
+      sourceStep.setWorkflow(sourceWorkflow);
 
       Workflow targetWorkflow = new Workflow();
       targetWorkflow.setId("target-workflow-id");
@@ -1112,6 +1116,9 @@ class StepServiceTest {
       childCondition.setId("child-id");
 
       when(conditionService.findAllConditionsByStepId("source-step-id"))
+          .thenReturn(List.of(rootCondition, childCondition));
+
+      when(conditionService.findAllNonMapperConditionsByWorkflowId("source-workflow-id"))
           .thenReturn(List.of(rootCondition, childCondition));
 
       // Capture saved conditions
@@ -1154,8 +1161,12 @@ class StepServiceTest {
     @Test
     void given_caseSensitiveFalse_should_notRevertToDefaultTrue() {
       // This specifically catches the @Builder.Default=true regression
+      Workflow sourceWorkflow = new Workflow();
+      sourceWorkflow.setId("src-wf");
+
       Step sourceStep = new Step();
       sourceStep.setId("src");
+      sourceStep.setWorkflow(sourceWorkflow);
 
       Workflow targetWorkflow = new Workflow();
       targetWorkflow.setId("tgt-wf");
@@ -1175,6 +1186,8 @@ class StepServiceTest {
       root.setId("r");
 
       when(conditionService.findAllConditionsByStepId("src")).thenReturn(List.of(root));
+      when(conditionService.findAllNonMapperConditionsByWorkflowId("src-wf"))
+          .thenReturn(List.of(root));
       when(conditionService.saveCondition(any(Condition.class)))
           .thenAnswer(
               invocation -> {
@@ -1195,8 +1208,12 @@ class StepServiceTest {
     @Test
     void given_scenarioEvent_when_copiedToSimulation_should_preserveWorkflowIdAndName() {
       // GIVEN a scenario template step with a named root condition (event)
+      Workflow sourceWorkflow = new Workflow();
+      sourceWorkflow.setId("old-scenario-workflow-id");
+
       Step sourceStep = new Step();
       sourceStep.setId("scenario-step");
+      sourceStep.setWorkflow(sourceWorkflow);
 
       Workflow simulationWorkflow = new Workflow();
       simulationWorkflow.setId("simulation-workflow-id");
@@ -1227,6 +1244,9 @@ class StepServiceTest {
       sourceChild.setId("src-child");
 
       when(conditionService.findAllConditionsByStepId("scenario-step"))
+          .thenReturn(List.of(sourceRoot, sourceChild));
+
+      when(conditionService.findAllNonMapperConditionsByWorkflowId("old-scenario-workflow-id"))
           .thenReturn(List.of(sourceRoot, sourceChild));
 
       List<Condition> savedConditions = new ArrayList<>();
@@ -1263,8 +1283,12 @@ class StepServiceTest {
     void given_scenarioEventWithLeaf_when_copied_should_exposeLeafInConditionChildren() {
       // GIVEN a scenario template step with a named root AND condition (event "totoCond")
       //       having one leaf child (text equals "toto")
+      Workflow sourceWorkflow = new Workflow();
+      sourceWorkflow.setId("old-wf");
+
       Step sourceStep = new Step();
       sourceStep.setId("scenario-step");
+      sourceStep.setWorkflow(sourceWorkflow);
 
       Workflow simulationWorkflow = new Workflow();
       simulationWorkflow.setId("sim-wf-id");
@@ -1298,6 +1322,8 @@ class StepServiceTest {
       when(conditionService.findAllConditionsByStepId("scenario-step"))
           .thenReturn(List.of(sourceRoot, sourceLeaf));
 
+      when(conditionService.findAllNonMapperConditionsByWorkflowId("old-wf"))
+          .thenReturn(List.of(sourceRoot, sourceLeaf));
       List<Condition> savedConditions = new ArrayList<>();
       when(conditionService.saveCondition(any(Condition.class)))
           .thenAnswer(
@@ -1323,6 +1349,157 @@ class StepServiceTest {
 
       // AND the child's conditionParent points back to the copied root
       assertSame(copiedRoot, copiedChild.getConditionParent());
+    }
+
+    @Test
+    void given_eventApiCreation_rootOnlyLinkedToStep_should_stillCopyChild() {
+      // Reproduces the Event-API case: only the ROOT is linked to the step (via
+      // conditions_steps), the child is NOT linked but belongs to the same workflow.
+      Workflow sourceWorkflow = new Workflow();
+      sourceWorkflow.setId("src-wf");
+
+      Step sourceStep = new Step();
+      sourceStep.setId("src-step");
+      sourceStep.setWorkflow(sourceWorkflow);
+
+      Workflow targetWorkflow = new Workflow();
+      targetWorkflow.setId("tgt-wf");
+
+      Step targetStep = new Step();
+      targetStep.setId("tgt-step");
+      targetStep.setWorkflow(targetWorkflow);
+
+      Condition root =
+          Condition.builder()
+              .type(ConditionType.AND)
+              .name("EventApiEvent")
+              .workflowId("src-wf")
+              .mappingType(MappingType.GLOBAL)
+              .build();
+      root.setId("root-1");
+
+      Condition leaf =
+          Condition.builder()
+              .type(ConditionType.EQ)
+              .key("text")
+              .value("toto")
+              .workflowId("src-wf")
+              .mappingType(MappingType.LOCAL)
+              .conditionParent(root)
+              .build();
+      leaf.setId("leaf-1");
+
+      // findAllConditionsByStepId returns ONLY the root (Event-API links only root)
+      when(conditionService.findAllConditionsByStepId("src-step")).thenReturn(List.of(root));
+
+      // findAllNonMapperConditionsByWorkflowId returns root + child
+      when(conditionService.findAllNonMapperConditionsByWorkflowId("src-wf"))
+          .thenReturn(List.of(root, leaf));
+
+      List<Condition> savedConditions = new ArrayList<>();
+      when(conditionService.saveCondition(any(Condition.class)))
+          .thenAnswer(
+              invocation -> {
+                Condition c = invocation.getArgument(0);
+                c.setId(UUID.randomUUID().toString());
+                savedConditions.add(c);
+                return c;
+              });
+
+      // Act
+      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+
+      // Assert — both root and child are copied
+      assertEquals(2, savedConditions.size());
+      Condition copiedRoot = savedConditions.get(0);
+      Condition copiedChild = savedConditions.get(1);
+
+      assertEquals("toto", copiedChild.getValue());
+      assertSame(copiedRoot, copiedChild.getConditionParent());
+      assertEquals(1, copiedRoot.getConditionChildren().size());
+    }
+
+    @Test
+    void given_eventApiCreation_deepTree_should_copyAllLevels() {
+      // Deep tree: root -> group (OR) -> leaf (EQ), all from workflow query
+      Workflow sourceWorkflow = new Workflow();
+      sourceWorkflow.setId("src-wf");
+
+      Step sourceStep = new Step();
+      sourceStep.setId("src-step");
+      sourceStep.setWorkflow(sourceWorkflow);
+
+      Workflow targetWorkflow = new Workflow();
+      targetWorkflow.setId("tgt-wf");
+
+      Step targetStep = new Step();
+      targetStep.setId("tgt-step");
+      targetStep.setWorkflow(targetWorkflow);
+
+      Condition root =
+          Condition.builder()
+              .type(ConditionType.AND)
+              .name("DeepEvent")
+              .workflowId("src-wf")
+              .build();
+      root.setId("root-deep");
+
+      Condition group =
+          Condition.builder()
+              .type(ConditionType.OR)
+              .workflowId("src-wf")
+              .conditionParent(root)
+              .build();
+      group.setId("group-deep");
+
+      Condition leaf =
+          Condition.builder()
+              .type(ConditionType.EQ)
+              .key("field")
+              .value("deep-value")
+              .workflowId("src-wf")
+              .mappingType(MappingType.LOCAL)
+              .conditionParent(group)
+              .build();
+      leaf.setId("leaf-deep");
+
+      // Only root linked to step
+      when(conditionService.findAllConditionsByStepId("src-step")).thenReturn(List.of(root));
+
+      // Full workflow tree returned
+      when(conditionService.findAllNonMapperConditionsByWorkflowId("src-wf"))
+          .thenReturn(List.of(root, group, leaf));
+
+      List<Condition> savedConditions = new ArrayList<>();
+      when(conditionService.saveCondition(any(Condition.class)))
+          .thenAnswer(
+              invocation -> {
+                Condition c = invocation.getArgument(0);
+                c.setId(UUID.randomUUID().toString());
+                savedConditions.add(c);
+                return c;
+              });
+
+      // Act
+      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+
+      // Assert — all 3 levels copied
+      assertEquals(3, savedConditions.size());
+      Condition copiedRoot = savedConditions.get(0);
+      Condition copiedGroup = savedConditions.get(1);
+      Condition copiedLeaf = savedConditions.get(2);
+
+      // Structural links
+      assertSame(copiedRoot, copiedGroup.getConditionParent());
+      assertSame(copiedGroup, copiedLeaf.getConditionParent());
+
+      // Leaf value preserved
+      assertEquals("deep-value", copiedLeaf.getValue());
+
+      // In-memory tree is navigable from root
+      assertEquals(1, copiedRoot.getConditionChildren().size());
+      assertEquals(1, copiedGroup.getConditionChildren().size());
+      assertSame(copiedLeaf, copiedGroup.getConditionChildren().get(0));
     }
   }
 }

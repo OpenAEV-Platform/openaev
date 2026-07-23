@@ -374,12 +374,15 @@ public class StepService {
    */
   @Transactional(rollbackFor = Exception.class)
   void copyStepConditionTemplate(Step step, Step stepCopied) {
-    List<Condition> conditions = conditionService.findAllConditionsByStepId(step.getId());
-    if (conditions == null || conditions.isEmpty()) {
+    // Roots linked to this step (source of truth for which trees to copy)
+    List<Condition> linkedConditions = conditionService.findAllConditionsByStepId(step.getId());
+    if (linkedConditions == null || linkedConditions.isEmpty()) {
       return;
     }
     List<Condition> rootConditions =
-        conditions.stream().filter(condition -> condition.getConditionParent() == null).toList();
+        linkedConditions.stream()
+            .filter(condition -> condition.getConditionParent() == null)
+            .toList();
 
     if (rootConditions.isEmpty()) {
       throw new IllegalArgumentException(
@@ -395,6 +398,16 @@ public class StepService {
             "New step (TEMPLATE): Only 1 condition can be first parent");
       }
     }
+
+    // Full set of the source workflow's non-MAPPER conditions, to resolve children by parent id
+    // independent of conditions_steps linkage (Event-API links only the root to the step).
+    List<Condition> allSourceConditions =
+        conditionService.findAllNonMapperConditionsByWorkflowId(step.getWorkflow().getId());
+
+    Map<String, List<Condition>> temporaryConditions =
+        allSourceConditions.stream()
+            .filter(condition -> condition.getConditionParent() != null)
+            .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
 
     Map<String, Condition> temporaryIdAndSaveId = new HashMap<>();
 
@@ -422,11 +435,6 @@ public class StepService {
 
       temporaryIdAndSaveId.put(firstCondition.getId(), first);
     }
-
-    Map<String, List<Condition>> temporaryConditions =
-        conditions.stream()
-            .filter(condition -> condition.getConditionParent() != null)
-            .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
 
     Queue<String> currentId = new LinkedList<>();
     rootConditions.forEach(rc -> currentId.add(rc.getId()));

@@ -6,6 +6,7 @@ import static io.openaev.utils.JsonUtils.gson;
 import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
+import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.StepRepository;
@@ -306,6 +307,61 @@ public class ConditionService {
   public List<Condition> findNonMapperConditionsByWorkflowId(String workflowId) {
     return conditionRepository.findAllByWorkflowIdAndConditionParentIsNullAndTypeNot(
         workflowId, ConditionType.MAPPER);
+  }
+
+  /**
+   * Returns all non-MAPPER conditions (roots AND descendants) for a given workflow.
+   *
+   * @param workflowId the workflow identifier
+   * @return flat list of all non-MAPPER conditions belonging to the workflow
+   */
+  @Transactional(readOnly = true)
+  public List<Condition> findAllNonMapperConditionsByWorkflowId(String workflowId) {
+    return conditionRepository.findAllByWorkflowIdAndTypeNot(workflowId, ConditionType.MAPPER);
+  }
+
+  /**
+   * Returns complete event outputs for a workflow, with full condition trees resolved from a flat
+   * query. This avoids reliance on lazy-loaded {@code conditionChildren} collections, which may not
+   * be initialized in a cold read transaction.
+   *
+   * @param workflowId the workflow identifier
+   * @return list of fully populated {@link EventOutput} DTOs
+   */
+  @Transactional(readOnly = true)
+  public List<EventOutput> findEventsByWorkflowId(String workflowId) {
+    List<Condition> all =
+        conditionRepository.findAllByWorkflowIdAndTypeNot(workflowId, ConditionType.MAPPER);
+
+    // Index children by parent id for O(1) lookups
+    Map<String, List<Condition>> childrenByParentId = new HashMap<>();
+    for (Condition c : all) {
+      Condition parent = c.getConditionParent();
+      if (parent != null) {
+        childrenByParentId.computeIfAbsent(parent.getId(), k -> new ArrayList<>()).add(c);
+      }
+    }
+
+    List<Condition> roots = all.stream().filter(c -> c.getConditionParent() == null).toList();
+
+    List<EventOutput> events = new ArrayList<>();
+    for (Condition root : roots) {
+      List<Condition> subtree = new ArrayList<>();
+      collectSubtree(root, childrenByParentId, subtree);
+      events.add(ConditionMapper.toOutput(root, subtree));
+    }
+    return events;
+  }
+
+  private static void collectSubtree(
+      Condition node, Map<String, List<Condition>> childrenByParentId, List<Condition> acc) {
+    acc.add(node);
+    List<Condition> children = childrenByParentId.get(node.getId());
+    if (children != null) {
+      for (Condition child : children) {
+        collectSubtree(child, childrenByParentId, acc);
+      }
+    }
   }
 
   /**
