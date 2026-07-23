@@ -1,6 +1,7 @@
 import { alpha, useTheme } from '@mui/material/styles';
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps, getBezierPath } from '@xyflow/react';
 
+import { attackPathCausalColor } from '../attack-path-colors';
 import { type AttackPathFlowEdge } from '../attack-path-flow-helpers';
 
 // A causal kill-chain edge (issue 6647), drawn from a producing finding node to the execution/injector
@@ -33,10 +34,10 @@ const CausalEdge = ({
   const label = data?.label;
   const dimmed = data?.dimmed ?? false;
   // A matched finding chain reads as a real data-flow (solid); a bare dependsOn is speculative
-  // sequencing (dashed). Colour with a neutral secondary accent so it never reads as a
+  // sequencing (dashed). Colour with the dedicated causal magenta so it never reads as a
   // prevention/detection verdict (those are green/orange/red on the status edges).
   const isFinding = causalKind === 'finding';
-  let color = theme.palette.secondary.main;
+  let color = attackPathCausalColor(theme);
   if (selected) {
     color = theme.palette.primary.main;
   }

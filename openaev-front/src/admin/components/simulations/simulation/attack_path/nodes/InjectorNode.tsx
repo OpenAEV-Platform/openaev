@@ -63,11 +63,13 @@ const InjectorNode = ({ data }: NodeProps<AttackPathFlowNode>) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            // Injector logos are drawn on white; fill the whole diamond with white so the logo colour
-            // extends edge-to-edge instead of a small icon floating over the dark paper corners.
+            overflow: 'hidden',
+            // A SQUARE (not a diamond): injector logos are square, so the image fills the whole node
+            // edge-to-edge and the node reads in the icon's own colour (e.g. Nmap blue), instead of the
+            // logo floating over white/dark corners a diamond leaves. White backs any transparent logo.
             background: theme.palette.common.white,
             border: `1px solid ${theme.palette.text.secondary}`,
-            clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
+            borderRadius: 8,
           }}
         >
           {base
@@ -75,9 +77,9 @@ const InjectorNode = ({ data }: NodeProps<AttackPathFlowNode>) => {
                 <ImageWithFallback
                   src={buildTenantApiPath(`/api/injectors/${injectorSlug}/image`)}
                   alt={data.label ?? ''}
-                  width={56}
-                  height={56}
-                  style={{ objectFit: 'contain' }}
+                  width={AP_INJECTOR_SIZE}
+                  height={AP_INJECTOR_SIZE}
+                  style={{ objectFit: 'cover' }}
                   fallback={(
                     <BoltOutlined sx={{
                       fontSize: 34,
