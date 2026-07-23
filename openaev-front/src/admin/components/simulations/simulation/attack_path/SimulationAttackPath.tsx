@@ -1531,7 +1531,9 @@ const SimulationAttackPath = () => {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      height: 'calc(100vh - 260px)',
+      // Give the graph as much vertical room as possible (it grows with the endpoint count); the offset
+      // only reserves the page chrome above (header + tabs + the picker/cards strip).
+      height: 'calc(100vh - 200px)',
       gap: theme.spacing(1),
     }}
     >
