@@ -158,8 +158,8 @@ class SaveCorrelatedObjectDecompositionTest {
   class MonoFieldComplexObject {
 
     @Test
-    @DisplayName("single-field complex (truly one field) → NO Correlated, but input IS populated")
-    void givenMonoFieldObject_shouldNotCreateCorrelatedButShouldPopulateInput() {
+    @DisplayName("single-field complex (truly one field) → NO Correlated and NO input persisted")
+    void givenMonoFieldObject_shouldNotPersistAnyData() {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = Workflow.builder().id(workflowId).build();
       WorkflowState globalState = setupGlobalState(workflowId, workflow);
@@ -189,8 +189,9 @@ class SaveCorrelatedObjectDecompositionTest {
       // No Correlated (pairSet size == 1, under the guard)
       assertEquals(0, persisted.getCorrelated().size());
 
-      // But the primitive STILL lands in inputs
-      assertEquals(Set.of("lonely-user"), persisted.getInputByKey("Username").getValues());
+      // All-or-nothing: single-field correlated objects do not persist decomposed primitives
+      // either.
+      assertEquals(Set.of(), persisted.getInputByKey("Username").getValues());
     }
   }
 

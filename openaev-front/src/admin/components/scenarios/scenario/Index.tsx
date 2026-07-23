@@ -40,6 +40,7 @@ const ScenarioFindings = lazy(() => import('./findings/ScenarioFindings'));
 const ScenarioScope = lazy(() => import('./scope/ScenarioScope'));
 const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
 const ScenarioStatistics = lazy(() => import('./analysis/ScenarioAnalysis'));
+const ScenarioAttackPath = lazy(() => import('./attack_path/ScenarioAttackPath'));
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -47,6 +48,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
   const { t } = useFormatter();
   const location = useLocation();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
   const permissions = useScenarioPermissions(scenario.scenario_id);
   // The Tests tab only exists for email/SMS injects that have actually been
   // tested; hide it entirely otherwise.
@@ -179,6 +181,14 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
                     value={`/admin/scenarios/${scenario.scenario_id}/logic`}
                     label={t('Logic')}
                   />
+                  {isAttackPathEnabled && (
+                    <Tab
+                      component={Link}
+                      to={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
+                      value={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
+                      label={t('Attack path')}
+                    />
+                  )}
                   <Tab
                     component={Link}
                     to={`/admin/scenarios/${scenario.scenario_id}/statistics`}
@@ -227,6 +237,14 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
                     value={`/admin/scenarios/${scenario.scenario_id}/findings`}
                     label={t('Findings')}
                   />
+                  {isAttackPathEnabled && (
+                    <Tab
+                      component={Link}
+                      to={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
+                      value={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
+                      label={t('Attack path')}
+                    />
+                  )}
                   <Tab
                     component={Link}
                     to={`/admin/scenarios/${scenario.scenario_id}/statistics`}
@@ -262,6 +280,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
               <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
               <Route path="lessons" element={errorWrapper(Lessons)()} />
               <Route path="findings" element={errorWrapper(ScenarioFindings)()} />
+              {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(ScenarioAttackPath)()} />}
               {/* Scenario-scoped custom dashboard, surfaced as the Statistics tab. */}
               <Route path="statistics" element={errorWrapper(ScenarioStatistics)()} />
               {/* Statistics replaced the hero dashboard quick action and the old

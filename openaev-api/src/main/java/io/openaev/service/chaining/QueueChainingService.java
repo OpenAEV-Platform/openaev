@@ -88,7 +88,7 @@ public class QueueChainingService {
    * @throws IOException in case there is an error while sending the event
    */
   public void readyStep(Step stepExecution, Workflow workflowRun) throws IOException {
-    log.info("PUBLISH STEP READY : {}", stepExecution.getId());
+    log.info("[Chaining] PUBLISH STEP READY : {}", stepExecution.getId());
     StepEvent event = new StepEvent();
     event.setStepId(stepExecution.getId());
     event.setWorkflowId(workflowRun.getId());
@@ -103,7 +103,7 @@ public class QueueChainingService {
    * @throws IOException in case there is an error while sending the event
    */
   public void updateStep(String stepRunId) throws IOException {
-    log.info("PUBLISH STEP UPDATE : {}", stepRunId);
+    log.info("[Chaining] PUBLISH STEP UPDATE : {}", stepRunId);
     ExternalUpdateEvent event = new ExternalUpdateEvent();
     event.setStepId(stepRunId);
     event.setEmissionDate(Instant.now().toEpochMilli());
@@ -119,7 +119,10 @@ public class QueueChainingService {
    * @throws IOException in case there is an error while sending the event
    */
   public void republishReadyEvent(StepEvent event) throws IOException {
-    log.info("RE-PUBLISH STEP READY (retry {}): {}", event.getRetryCount(), event.getStepId());
+    log.info(
+        "[Chaining] RE-PUBLISH STEP READY (retry {}): {}",
+        event.getRetryCount(),
+        event.getStepId());
     readyQueueService.publish(event);
   }
 

@@ -20,6 +20,9 @@ import io.openaev.service.UserService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import java.util.Comparator;
@@ -105,6 +108,12 @@ public class PlayerApi extends RestBehavior {
     userService.delete(userId);
   }
 
+  @ApiResponses(
+      value = {@ApiResponse(responseCode = "200", description = "The ids of the deleted players")})
+  @Operation(
+      summary = "Bulk delete players",
+      description =
+          "Deletes players either from an explicit id list (user_ids_to_process) or from a select-all search scope (search_pagination_input) - the two are mutually exclusive. user_ids_to_ignore removes ids from a select-all scope. The current user, admin users and reserved service accounts are always excluded server-side.")
   @LogExecutionTime
   @DeleteMapping({PLAYER_URI, TENANT_PLAYER_URI})
   // SUPPORTS (not REQUIRED): the service deletes in small independent chunk transactions with

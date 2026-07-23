@@ -136,7 +136,6 @@ public class AttackPathExecutionIngestionService {
                   PrimitiveType.IPv4,
                   PrimitiveType.IPv6,
                   PrimitiveType.TargetedAsset,
-                  PrimitiveType.Hostname,
                   PrimitiveType.Host,
                   PrimitiveType.Domain,
                   PrimitiveType.IpSubnet);
@@ -260,7 +259,6 @@ public class AttackPathExecutionIngestionService {
                   PrimitiveType.IPv4,
                   PrimitiveType.IPv6,
                   PrimitiveType.TargetedAsset,
-                  PrimitiveType.Hostname,
                   PrimitiveType.Host,
                   PrimitiveType.Domain,
                   PrimitiveType.IpSubnet);
