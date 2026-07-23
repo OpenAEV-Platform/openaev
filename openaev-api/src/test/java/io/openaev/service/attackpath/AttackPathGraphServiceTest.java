@@ -31,8 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Rebuild service: two flat reads plus one in-memory pass produce {@code {nodes, edges, counters}}
- * with the deterministic IDs, and the read path issues a constant two SQL statements regardless of
- * graph size.
+ * with the deterministic IDs, and the read path issues a constant number of SQL statements
+ * regardless of graph size (the two flat reads plus the bounded per-run contract/technique lookups).
  */
 @Transactional
 class AttackPathGraphServiceTest extends IntegrationTest {
@@ -331,8 +331,10 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     stats.clear();
     service.buildGraph(SIM);
 
-    // Two flat reads plus exactly one batched technique resolution, independent of injector count.
-    assertThat(stats.getPrepareStatementCount()).isEqualTo(3);
+    // Two flat reads + the batched technique query + the contract-name resolution
+    // (applyContractNames), constant regardless of the execution count (all runs share one
+    // contract). Follow-up (#6647): applyContractNames could JOIN FETCH labels to save a read.
+    assertThat(stats.getPrepareStatementCount()).isEqualTo(5);
   }
 
   @Test
@@ -361,7 +363,7 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("The read path is a constant two SQL statements, independent of graph size")
+  @DisplayName("The read path is a constant number of SQL statements, independent of graph size")
   void constant_two_queries_regardless_of_size() {
     Statistics stats =
         entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
@@ -381,8 +383,10 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     service.buildGraph(SIM);
     long large = stats.getPrepareStatementCount();
 
-    assertThat(small).isEqualTo(2);
-    assertThat(large).isEqualTo(2);
+    // Two flat reads + the batched contract-name resolution; still constant regardless of graph
+    // size.
+    assertThat(small).isEqualTo(3);
+    assertThat(large).isEqualTo(3);
   }
 
   @Test
