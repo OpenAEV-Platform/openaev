@@ -39,9 +39,9 @@ public class V6_20260723200000000__Add_bulk_operations_history extends BaseJavaM
             CONSTRAINT pk_bulk_operations PRIMARY KEY (operation_id)
           );
           """);
-      // Idempotency helper for environments that created the table before the updated_at
-      // column landed (same unreleased branch): Java migrations carry no checksum, so the
-      // ALTER keeps them consistent without a repair.
+      // Forward-compat helper for environments that already created the table from an earlier
+      // pre-release revision of this same migration (before the updated_at column landed): the
+      // CREATE above is a no-op there, so the ALTER brings the schema up to date.
       statement.execute(
           "ALTER TABLE bulk_operations ADD COLUMN IF NOT EXISTS operation_updated_at"
               + " TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now();");

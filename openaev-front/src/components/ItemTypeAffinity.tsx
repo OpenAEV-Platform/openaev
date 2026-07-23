@@ -15,9 +15,9 @@ interface Props {
 const renderIcon = (affinity: string, size: Props['size']) => {
   switch (affinity) {
     case 'endpoint':
-      return <DevicesOtherOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <DevicesOtherOutlined fontSize={size ?? 'medium'} sx={{ marginRight: '10px' }} />;
     default:
-      return <HelpOutlineOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <HelpOutlineOutlined fontSize={size ?? 'medium'} sx={{ marginRight: '10px' }} />;
   }
 };
 
