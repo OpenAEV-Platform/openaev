@@ -50,6 +50,7 @@ import org.hibernate.TransientObjectException;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -227,7 +228,9 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The ids of the deleted teams")})
   @Operation(description = "Bulk delete of teams", summary = "Bulk delete teams")
-  @Transactional(rollbackFor = Exception.class)
+  // SUPPORTS (not REQUIRED): the service deletes in small independent chunk transactions with
+  // deadlock retry; a request-wide transaction would force everything back into one transaction.
+  @Transactional(propagation = Propagation.SUPPORTS)
   public List<String> bulkDeleteTeams(@RequestBody @Valid final TeamBulkProcessingInput input)
       throws ResourceInUseException {
     return this.teamService.bulkDelete(input);

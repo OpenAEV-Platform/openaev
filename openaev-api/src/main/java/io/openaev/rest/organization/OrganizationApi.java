@@ -17,6 +17,7 @@ import io.openaev.rest.organization.form.OrganizationBulkProcessingInput;
 import io.openaev.rest.organization.form.OrganizationCreateInput;
 import io.openaev.rest.organization.form.OrganizationUpdateInput;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.Valid;
@@ -24,6 +25,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,6 +39,7 @@ public class OrganizationApi extends RestBehavior {
   private final OrganizationRepository organizationRepository;
   private final TagRepository tagRepository;
   private final OrganizationService organizationService;
+  private final BulkDeleteExecutor bulkDeleteExecutor;
 
   @GetMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
   @Transactional
@@ -113,17 +116,25 @@ public class OrganizationApi extends RestBehavior {
   }
 
   @DeleteMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
-  @Transactional(rollbackFor = Exception.class)
+  // SUPPORTS (not REQUIRED): the deletion runs in small independent chunk transactions with
+  // deadlock retry; a request-wide transaction would force everything back into one transaction.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ORGANIZATION)
   public List<String> bulkDeleteOrganizations(
       @RequestBody @Valid final OrganizationBulkProcessingInput input) {
     // findAllById goes through a criteria query, so the Hibernate tenant filter applies and
     // organizations from other tenants are silently skipped.
-    List<Organization> organizations =
-        fromIterable(organizationRepository.findAllById(input.getOrganizationIds()));
-    List<String> deletedIds = organizations.stream().map(Organization::getId).toList();
-    organizationRepository.deleteAll(organizations);
-    return deletedIds;
+    List<String> organizationIds =
+        bulkDeleteExecutor.resolveInTransaction(
+            () ->
+                fromIterable(organizationRepository.findAllById(input.getOrganizationIds()))
+                    .stream()
+                    .map(Organization::getId)
+                    .toList());
+    return bulkDeleteExecutor.deleteInChunks(
+        "organizations",
+        organizationIds,
+        chunk -> organizationRepository.deleteAll(organizationRepository.findAllById(chunk)));
   }
 
   // -- OPTION --

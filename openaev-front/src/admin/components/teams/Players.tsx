@@ -237,7 +237,7 @@ const Players = () => {
           )}
         </ListItem>
         {loading
-          ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
+          ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={canManage} />
           : players.map((player: PlayerOutput) => (
               <ListItem
                 key={player.user_id}

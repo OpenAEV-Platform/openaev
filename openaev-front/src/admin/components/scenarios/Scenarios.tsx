@@ -274,7 +274,7 @@ const Scenarios = () => {
         </ListItem>
         {
           loading
-            ? <PaginatedListLoader Icon={RouteOutlined} headers={headers} headerStyles={inlineStyles} />
+            ? <PaginatedListLoader Icon={RouteOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={canManage} />
             : scenarios.map((scenario: Scenario) => {
                 return (
                   <ListItem

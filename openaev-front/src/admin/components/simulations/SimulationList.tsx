@@ -206,7 +206,7 @@ const SimulationList: FunctionComponent<Props> = ({
         )}
       {
         loading
-          ? <PaginatedListLoader Icon={PlayCircleOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
+          ? <PaginatedListLoader Icon={PlayCircleOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={!!entityToggle} />
           : exercises.map((exercise: ExerciseSimple) => (
               <ListItem
                 key={exercise.exercise_id}

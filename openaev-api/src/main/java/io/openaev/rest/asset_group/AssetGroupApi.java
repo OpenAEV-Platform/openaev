@@ -14,6 +14,7 @@ import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.rest.asset_group.form.AssetGroupBulkProcessingInput;
 import io.openaev.rest.asset_group.form.AssetGroupInput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.asset_group.form.UpdateAssetsOnAssetGroupInput;
@@ -37,6 +38,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -185,6 +187,21 @@ public class AssetGroupApi extends RestBehavior {
       throw new ElementNotFoundException(ex.getMessage());
     }
     this.assetGroupService.deleteAssetGroup(assetGroupId);
+  }
+
+  /**
+   * Bulk deletion of asset groups from an explicit id list or from a search input (select-all with
+   * optional exclusions).
+   */
+  @LogExecutionTime
+  @DeleteMapping({ASSET_GROUP_URI, TENANT_ASSET_GROUP_URI})
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ASSET_GROUP)
+  // SUPPORTS (not REQUIRED) on purpose: the service deletes in small independent transactions
+  // (chunked, with deadlock retry) - a request-wide transaction would defeat that.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  public List<String> bulkDeleteAssetGroups(
+      @RequestBody @Valid final AssetGroupBulkProcessingInput input) {
+    return this.assetGroupService.bulkDeleteAssetGroups(input);
   }
 
   // -- OPTION --

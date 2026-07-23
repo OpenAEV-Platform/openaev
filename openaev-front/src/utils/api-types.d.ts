@@ -625,6 +625,12 @@ export interface AssetAgentJob {
   listened?: boolean;
 }
 
+export interface AssetBulkProcessingInput {
+  asset_ids_to_ignore?: string[];
+  asset_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
 export interface AssetGroup {
   asset_group_assets?: string[];
   /** @format date-time */
@@ -641,6 +647,12 @@ export interface AssetGroup {
   /** @format date-time */
   asset_group_updated_at: string;
   listened?: boolean;
+}
+
+export interface AssetGroupBulkProcessingInput {
+  asset_group_ids_to_ignore?: string[];
+  asset_group_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
 }
 
 export interface AssetGroupInput {

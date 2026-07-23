@@ -83,7 +83,7 @@ const ExecutionFlowStrip: FunctionComponent<Props> = ({ injects }) => {
     <SamplePreview active={isSample}>
       <Box sx={{
         position: 'relative',
-        height: 160,
+        height: 132,
       }}
       >
         {/* Time axis */}
@@ -91,7 +91,7 @@ const ExecutionFlowStrip: FunctionComponent<Props> = ({ injects }) => {
           position: 'absolute',
           left: 0,
           right: 0,
-          bottom: 34,
+          bottom: 30,
           height: '1px',
           backgroundColor: axisColor,
         }}
@@ -106,7 +106,7 @@ const ExecutionFlowStrip: FunctionComponent<Props> = ({ injects }) => {
               key={position}
               sx={{
                 position: 'absolute',
-                bottom: 30,
+                bottom: 26,
                 left: `${position}%`,
                 transform: 'translateX(-50%)',
                 display: 'flex',

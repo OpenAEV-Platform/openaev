@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -106,7 +107,9 @@ public class PlayerApi extends RestBehavior {
 
   @LogExecutionTime
   @DeleteMapping({PLAYER_URI, TENANT_PLAYER_URI})
-  @Transactional(rollbackFor = Exception.class)
+  // SUPPORTS (not REQUIRED): the service deletes in small independent chunk transactions with
+  // deadlock retry; a request-wide transaction would force everything back into one transaction.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLAYER)
   public List<String> bulkDeletePlayers(@RequestBody @Valid final PlayerBulkProcessingInput input) {
     return playerService.bulkDeletePlayers(input);

@@ -60,7 +60,41 @@ const SelectList = <T extends object, V extends object = T>({
       {paginationComponent}
       <Grid container spacing={3}>
         <Grid size={{ xs: 8 }}>
-          {isLoadingValues ? <Skeleton height={40} /> : (
+          {/* Skeleton rows mirror the real row anatomy (icon column, then the
+              same column widths) so the picker does not reshape on load. */}
+          {isLoadingValues ? (
+            <List>
+              {[...Array(8)].map((_, index) => (
+                <ListItemButton
+                  key={index}
+                  divider
+                  style={{ pointerEvents: 'none' }}
+                >
+                  <ListItemIcon>
+                    <Skeleton variant="circular" width={24} height={24} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={(
+                      <Box sx={{ display: 'flex' }}>
+                        {elements.headers.map(header => (
+                          <Box
+                            key={header.field}
+                            sx={{
+                              height: 20,
+                              paddingRight: 1,
+                              width: `${header.width}%`,
+                            }}
+                          >
+                            <Skeleton width="70%" height={20} />
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
+                  />
+                </ListItemButton>
+              ))}
+            </List>
+          ) : (
             <List>
               {values.map((value) => {
                 const id = getId(value);

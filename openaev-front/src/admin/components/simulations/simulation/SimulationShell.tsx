@@ -45,6 +45,7 @@ const SimulationShell: FunctionComponent<{
         ['/logic', t('Logic')],
         ['/execution', t('Execution')],
         ...(isAttackPathEnabled ? [['/attack-path', t('Attack path')] as [string, string]] : []),
+        ['/statistics', t('Statistics')],
       ]
     : [
         ['', t('Overview')],
@@ -55,6 +56,7 @@ const SimulationShell: FunctionComponent<{
         ...(exercise.exercise_lessons_enabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
         ['/findings', t('Findings')],
         ...(isAttackPathEnabled ? [['/attack-path', t('Attack path')] as [string, string]] : []),
+        ['/statistics', t('Statistics')],
       ];
 
   // MUI Tabs requires the value to match one of the rendered tabs; screens

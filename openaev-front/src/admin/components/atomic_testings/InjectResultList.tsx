@@ -312,7 +312,7 @@ const InjectResultList: FunctionComponent<Props> = ({
         </ListItem>
         {
           loading
-            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
+            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={bulkDeleteEnabled} />
             : injects.map((injectResultOutput) => {
                 return (
                   <ListItem

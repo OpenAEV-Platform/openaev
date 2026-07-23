@@ -210,7 +210,7 @@ const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: 
             />
           </ListItem>
           {loading
-            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
+            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox />
             : actions.map(action => (
                 <ListItem
                   key={action.injector_contract_id}

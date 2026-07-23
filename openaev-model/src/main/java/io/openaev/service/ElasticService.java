@@ -336,7 +336,7 @@ public class ElasticService implements EngineService {
     try {
       SearchResponse<EsBase> response =
           elasticClient.search(
-              b -> b.index(engineConfig.getIndexPrefix() + "*").size(ids.size()).query(query),
+              b -> b.index(engineConfig.getIndexPattern()).size(ids.size()).query(query),
               EsBase.class);
       List<Hit<EsBase>> hits = response.hits().hits();
       return hits.stream()
@@ -497,7 +497,7 @@ public class ElasticService implements EngineService {
           BoolQuery.of(b -> b.should(directId, dependenciesId).minimumShouldMatch("1"))._toQuery();
       elasticClient.deleteByQuery(
           new DeleteByQueryRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .query(query)
               .refresh(true)
               .conflicts(Conflicts.Proceed)
@@ -509,7 +509,7 @@ public class ElasticService implements EngineService {
       // dataset (relaunching an atomic testing was observed blocking for over a minute).
       elasticClient.updateByQuery(
           new UpdateByQueryRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .query(sideReferencesQuery(ids))
               .script(
                   Script.of(
@@ -589,7 +589,7 @@ public class ElasticService implements EngineService {
               ._toQuery();
       elasticClient.deleteByQuery(
           new DeleteByQueryRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .query(query)
               .refresh(true)
               .conflicts(Conflicts.Proceed)
@@ -621,9 +621,7 @@ public class ElasticService implements EngineService {
         BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
         Query query = queryBuilder.must(countQuery).build()._toQuery();
         long allTimeCount =
-            elasticClient
-                .count(c -> c.index(engineConfig.getIndexPrefix() + "*").query(query))
-                .count();
+            elasticClient.count(c -> c.index(engineConfig.getIndexPattern()).query(query)).count();
         return new EsCountInterval(allTimeCount, 0L, allTimeCount);
       } else {
         // Compute the current interval count
@@ -639,8 +637,7 @@ public class ElasticService implements EngineService {
             currentBuilder.must(currentIntervalDateRangeQuery, countQuery).build()._toQuery();
         long currentIntervalCount =
             elasticClient
-                .count(
-                    c -> c.index(engineConfig.getIndexPrefix() + "*").query(currentIntervalQuery))
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(currentIntervalQuery))
                 .count();
 
         // Compute the previous interval
@@ -656,8 +653,7 @@ public class ElasticService implements EngineService {
             previousBuilder.must(previousIntervalDateRangeQuery, countQuery).build()._toQuery();
         long previousIntervalCount =
             elasticClient
-                .count(
-                    c -> c.index(engineConfig.getIndexPrefix() + "*").query(previousIntervalQuery))
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(previousIntervalQuery))
                 .count();
 
         return new EsCountInterval(
@@ -718,7 +714,7 @@ public class ElasticService implements EngineService {
 
       SearchRequest request =
           new SearchRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .size(0)
               .query(query)
               .aggregations(
@@ -823,10 +819,7 @@ public class ElasticService implements EngineService {
       String elasticField = toElasticField(field);
 
       SearchRequest.Builder searchBuilder =
-          new SearchRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
-              .size(0)
-              .query(query);
+          new SearchRequest.Builder().index(engineConfig.getIndexPattern()).size(0).query(query);
 
       // Avoid this exception
       // co.elastic.clients.elasticsearch._types.ElasticsearchException: [es/search] failed:
@@ -965,7 +958,7 @@ public class ElasticService implements EngineService {
       SearchResponse<Void> response =
           elasticClient.search(
               b ->
-                  b.index(engineConfig.getIndexPrefix() + "*")
+                  b.index(engineConfig.getIndexPattern())
                       .size(0)
                       .query(query)
                       .aggregations(
@@ -1059,7 +1052,7 @@ public class ElasticService implements EngineService {
       SearchResponse<?> response =
           elasticClient.search(
               b ->
-                  b.index(engineConfig.getIndexPrefix() + "*")
+                  b.index(engineConfig.getIndexPattern())
                       .size(runtime.getPagination().getSize())
                       .from(runtime.getPagination().getPage() * runtime.getPagination().getSize())
                       .query(finalQuery)
@@ -1131,7 +1124,7 @@ public class ElasticService implements EngineService {
       SearchResponse<EsSearch> response =
           elasticClient.search(
               b ->
-                  b.index(engineConfig.getIndexPrefix() + "*")
+                  b.index(engineConfig.getIndexPattern())
                       .size(engineConfig.getSearchCap())
                       .query(query)
                       .sort(

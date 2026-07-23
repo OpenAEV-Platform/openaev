@@ -53,6 +53,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -246,7 +247,10 @@ public class ScenarioApi extends RestBehavior {
       tags = {"Scenarios"})
   @LogExecutionTime
   @DeleteMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
-  @Transactional(rollbackFor = Exception.class)
+  // SUPPORTS (not REQUIRED) on purpose: the service deletes in small independent transactions
+  // (chunked, with deadlock retry) - a request-wide transaction would defeat that and used to
+  // deadlock in production against concurrent inject expectation updates.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.SCENARIO)
   public List<String> bulkDeleteScenarios(
       @RequestBody @Valid final ScenarioBulkProcessingInput input) {

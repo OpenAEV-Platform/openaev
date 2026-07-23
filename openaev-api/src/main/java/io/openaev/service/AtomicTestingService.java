@@ -16,6 +16,7 @@ import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
@@ -61,6 +62,7 @@ public class AtomicTestingService {
   private final InjectDocumentRepository injectDocumentRepository;
   private final InjectUtils injectUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
+  private final BulkDeleteExecutor bulkDeleteExecutor;
 
   // -- CRUD --
 
@@ -194,22 +196,28 @@ public class AtomicTestingService {
    * without scenario or simulation) the user is allowed to plan on.
    *
    * @param input the bulk processing input (ids or search input, plus ids to ignore)
+   *     <p>Not transactional as a whole: the deletion scope is resolved in a short transaction,
+   *     then atomic testings are deleted in small independent chunks (with deadlock retry) tracked
+   *     as a massive operation, so per-entity stream events are suppressed in favor of aggregated
+   *     progress events.
    * @return the list of deleted inject ids
    */
-  @Transactional(rollbackFor = Exception.class)
   public List<String> bulkDelete(@NotNull final InjectBulkProcessingInput input) {
     // The generic inject specification is unrestricted when no simulation/scenario id is given:
     // constrain it to atomic testings only so a select-all can never touch simulation or scenario
     // injects.
     input.setSimulationOrScenarioId(null);
-    Specification<Inject> specification =
-        injectService
-            .getInjectSpecification(input, Grant.GRANT_TYPE.PLANNER)
-            .and(InjectSpecification.isAtomicTesting());
-    List<String> deletedIds =
-        injectRepository.findAll(specification).stream().map(Inject::getId).toList();
-    injectService.deleteAllByIds(deletedIds);
-    return deletedIds;
+    List<String> injectIdsToDelete =
+        bulkDeleteExecutor.resolveInTransaction(
+            () -> {
+              Specification<Inject> specification =
+                  injectService
+                      .getInjectSpecification(input, Grant.GRANT_TYPE.PLANNER)
+                      .and(InjectSpecification.isAtomicTesting());
+              return injectRepository.findAll(specification).stream().map(Inject::getId).toList();
+            });
+    return bulkDeleteExecutor.deleteInChunks(
+        "atomic testings", injectIdsToDelete, injectService::deleteAllByIds);
   }
 
   // -- ACTIONS --

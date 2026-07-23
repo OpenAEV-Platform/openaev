@@ -13,6 +13,8 @@ import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.model.Widget;
 import io.openaev.database.raw.RawCustomDashboard;
 import io.openaev.database.repository.CustomDashboardRepository;
+import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.engine.query.*;
 import io.openaev.rest.custom_dashboard.form.CustomDashboardOutput;
 import io.openaev.rest.dashboard.DashboardService;
@@ -50,6 +52,8 @@ public class CustomDashboardService {
   private final CustomDashboardMapper customDashboardMapper;
   private final TenantSettingsService tenantSettingsService;
   private final DashboardService dashboardService;
+  private final ScenarioRepository scenarioRepository;
+  private final ExerciseRepository exerciseRepository;
 
   // -- CRUD --
 
@@ -220,18 +224,41 @@ public class CustomDashboardService {
   }
 
   /**
-   * Return the dashboard associated to a resource (scenario or simulation)
+   * Return the dashboard associated to a resource (scenario or simulation). When the resource has
+   * no dashboard explicitly attached, fall back to the tenant default scenario / simulation
+   * dashboard configured in the settings, so the Statistics tab always shows the default dashboard
+   * out of the box.
    *
    * @param resourceId simulation id or scenario id
-   * @return
+   * @return the effective dashboard for this resource
    */
   public CustomDashboard findCustomDashboardByResourceId(@NotBlank final String resourceId) {
     return customDashboardRepository
         .findByResourceId(resourceId)
+        .or(() -> findTenantDefaultDashboardForResource(resourceId))
         .orElseThrow(
             () ->
                 new EntityNotFoundException(
                     "Custom dashboard associated to resource: " + resourceId + " not found"));
+  }
+
+  private Optional<CustomDashboard> findTenantDefaultDashboardForResource(final String resourceId) {
+    final TenantSettingKeys defaultDashboardKey;
+    if (this.scenarioRepository.existsById(resourceId)) {
+      defaultDashboardKey = TenantSettingKeys.TENANT_SCENARIO_DASHBOARD;
+    } else if (this.exerciseRepository.existsById(resourceId)) {
+      defaultDashboardKey = TenantSettingKeys.TENANT_SIMULATION_DASHBOARD;
+    } else {
+      return Optional.empty();
+    }
+    String tenantId = TenantContext.getCurrentTenant();
+    return this.tenantSettingsService
+        .findSetting(tenantId, defaultDashboardKey.key())
+        .map(Setting::getValue)
+        .filter(value -> !value.isEmpty())
+        .flatMap(
+            dashboardId ->
+                this.customDashboardRepository.findByIdAndTenantId(dashboardId, tenantId));
   }
 
   /**

@@ -603,7 +603,7 @@ const Injects: FunctionComponent<Props> = ({
 
           </ListItem>
           {loading
-            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
+            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox />
             : injects.map((inject: InjectOutputType, index) => {
                 const injectContract = inject.inject_injector_contract?.convertedContent;
                 return (

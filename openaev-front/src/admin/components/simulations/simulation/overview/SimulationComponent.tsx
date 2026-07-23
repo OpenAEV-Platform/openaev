@@ -9,6 +9,7 @@ import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults, 
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { SectionBlock } from '../../../../../components/common/detail/EntityDetailCommon';
 import PostureGauges from '../../../../../components/common/detail/PostureGauges';
+import SAMPLE_POSTURE from '../../../../../components/common/detail/samplePosture';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
@@ -18,6 +19,7 @@ import { useHelper } from '../../../../../store';
 import { type Exercise, type ExpectationResultsByType, type InjectExpectationResultsByAttackPattern } from '../../../../../utils/api-types';
 import InjectResultList from '../../../atomic_testings/InjectResultList';
 import MitreCoverageMatrix from '../../../common/matrix/MitreCoverageMatrix';
+import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import SimulationMainInformation from '../SimulationMainInformation';
 
 // Empty-state placeholder shown inside a SectionBlock when a simulation has not
@@ -135,8 +137,16 @@ const SimulationComponent = () => {
           >
             {(() => {
               if (!results) return <Loader variant="inElement" />;
+              // No results yet (not run, or a run without expectations): preview
+              // the exact gauges a real run produces with illustrative sample
+              // data (greyed "Sample" chip), like the scenario overview - never
+              // an empty placeholder.
               if (results.length === 0) {
-                return <OverviewPlaceholder message={t('Prevention, detection and vulnerability results will appear here once the simulation runs.')} />;
+                return (
+                  <SamplePreview active variant="subtle">
+                    <PostureGauges expectationResultsByTypes={SAMPLE_POSTURE} />
+                  </SamplePreview>
+                );
               }
               return <PostureGauges expectationResultsByTypes={results} humanValidationLink={`/admin/simulations/${exerciseId}/execution/validations`} />;
             })()}

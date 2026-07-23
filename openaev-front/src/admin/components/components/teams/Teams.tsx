@@ -238,7 +238,7 @@ const Teams = () => {
           )}
         </ListItem>
         {loading
-          ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
+          ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={canManage} />
           : teams.map((team: Team) => (
               <ListItem
                 key={team.team_id}
