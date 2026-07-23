@@ -33,7 +33,7 @@ import ExportButton from '../../../components/common/ExportButton';
 import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
-import useBodyItemsStyles from '../../../components/common/queryable/style/style';
+import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
@@ -56,6 +56,7 @@ import { THREAT_ARSENAL_LIST_HEADERS, THREAT_ARSENAL_LIST_INLINE_STYLES } from '
 import ThreatArsenalListRow from './ThreatArsenalListRow';
 import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
 import ThreatArsenalSidebar from './ThreatArsenalSidebar';
+import ThreatArsenalSortSelect from './ThreatArsenalSortSelect';
 import useThreatArsenalAuthorFacet from './useThreatArsenalAuthorFacet';
 
 type ViewMode = 'grid' | 'list';
@@ -71,7 +72,6 @@ const readViewMode = (): ViewMode => {
 const ThreatArsenal = () => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const bodyItemsStyles = useBodyItemsStyles();
   const ability = useContext(AbilityContext);
   const canDeleteThreatArsenal = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS);
 
@@ -91,7 +91,12 @@ const ThreatArsenal = () => {
 
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
     'threat-arsenal',
-    buildSearchPagination({}),
+    buildSearchPagination({
+      sorts: [{
+        property: 'action_updated_at',
+        direction: 'DESC',
+      }],
+    }),
   );
 
   const [loading, setLoading] = useState<boolean>(false);
@@ -357,21 +362,11 @@ const ThreatArsenal = () => {
           <ListItemIcon style={{ minWidth: 40 }} />
           <ListItemText
             primary={(
-              <div style={bodyItemsStyles.bodyItems}>
-                {THREAT_ARSENAL_LIST_HEADERS.map(header => (
-                  <Typography
-                    key={header.field}
-                    variant="h4"
-                    sx={{
-                      ...bodyItemsStyles.bodyItem,
-                      ...THREAT_ARSENAL_LIST_INLINE_STYLES[header.field],
-                      margin: 0,
-                    }}
-                  >
-                    {t(header.label)}
-                  </Typography>
-                ))}
-              </div>
+              <SortHeadersComponentV2
+                headers={THREAT_ARSENAL_LIST_HEADERS}
+                inlineStylesHeaders={THREAT_ARSENAL_LIST_INLINE_STYLES}
+                sortHelpers={queryableHelpers.sortHelpers}
+              />
             )}
           />
         </ListItem>
@@ -401,6 +396,10 @@ const ThreatArsenal = () => {
 
   const headerRightSlot = (
     <>
+      {/* List view sorts via its column headers; the select is grid-only. */}
+      {viewMode === 'grid' && (
+        <ThreatArsenalSortSelect sortHelpers={queryableHelpers.sortHelpers} />
+      )}
       <ToggleButtonGroup
         value={viewMode}
         exclusive

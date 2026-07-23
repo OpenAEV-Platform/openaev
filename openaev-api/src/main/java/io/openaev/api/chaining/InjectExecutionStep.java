@@ -27,8 +27,11 @@ import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.payload.service.PayloadService;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
@@ -80,6 +83,9 @@ public class InjectExecutionStep implements ActionStep {
   private final ConditionService conditionService;
   private final WorkflowStateService workflowStateService;
   private final ScopeService scopeService;
+  private final PreviewFeatureService previewFeatureService;
+  private final AttackPathExecutionIngestionService attackPathIngestion;
+  private final InjectExpectationService injectExpectationService;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -89,6 +95,7 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectUtils injectUtils;
 
   private final Executor executor;
+  private PayloadService payloadService;
 
   @Resource protected ObjectMapper mapper;
   @PersistenceContext private EntityManager em;
@@ -186,6 +193,8 @@ public class InjectExecutionStep implements ActionStep {
                             + readyStep.getId()));
     prepareGetStatusPayloadFromInject(injectorContract);
 
+    recordAttackPathExecution(readyStep, inject);
+
     try {
       String data = setInjectId(inject.getId(), readyStep.getData());
       readyStep.setData(data);
@@ -211,6 +220,23 @@ public class InjectExecutionStep implements ActionStep {
     } catch (Exception e) {
       throw new ChainingException(
           "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
+    }
+  }
+
+  /**
+   * Records the run's attack-path rows: flag-gated and non-fatal. The whole ingestion (resolution +
+   * write) runs inside {@code onRun}, which opens its own tenant-scoped REQUIRES_NEW transaction,
+   * so a failure here is caught and logged and can never roll the inject execution back. Recover
+   * around this boundary, never inside {@code onRun} (activate-tenant-table skill).
+   */
+  private void recordAttackPathExecution(Step readyStep, Inject inject) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
+      return;
+    }
+    try {
+      attackPathIngestion.onRun(inject, readyStep, this.getCommand(inject));
+    } catch (Exception e) {
+      log.warn("Attack-path ingestion skipped for inject {} (non-fatal)", inject.getId(), e);
     }
   }
 
@@ -256,16 +282,12 @@ public class InjectExecutionStep implements ActionStep {
     if (injectStatus != null) {
       // FORMAT EXECUTION TRACE TO OUTPUT STEP
       formatExecutionTracesToOutput(injectStatus, output);
+      // FORMAT INJECT STATUS TO OUTPUT STEP
+      formatStatusToOutput(inject, output);
     }
 
-    // TODO FORMAT INJECT STATUS TO OUTPUT STEP
-    formatStatusToOutput(output);
-    // TODO FORMAT COLLECTOR EXPECTATION TO OUTPUT STEP
-    formatCollectorExpectationToOutput(output);
-    // TODO FORMAT EXPIRATION MANAGER TO OUTPUT STEP
-    formatExpirationManagerToOutput(output);
-    // TODO FORMAT MANUAL UPDATE TO OUTPUT STEP
-    formatManualUpdateToOutput(output);
+    // FORMAT EXPECTATION TO OUTPUT STEP
+    formatExpectationToOutput(injectId, output);
 
     // UPDATE step output
     if (!output.isEmpty()) {
@@ -290,7 +312,7 @@ public class InjectExecutionStep implements ActionStep {
    */
   private void processOutputAndStateSync(
       Step stepRun, List<Map<String, JsonElement>> output, Inject inject) {
-    Map<String, List<String>> outputData = extractDataFromParsed(output);
+    JsonObject outputData = extractDataFromParsed(output);
     if (outputData.isEmpty()) {
       return;
     }
@@ -298,12 +320,12 @@ public class InjectExecutionStep implements ActionStep {
     Workflow workflowRun = stepRun.getWorkflow();
     Map<String, ChainingMappedType> outputTypeMappings = buildTypeMappingsFromInject(inject);
     // Sync global state with execution output values mapped to chaining primitive/complex types.
-    workflowStateService.syncState(gson.toJsonTree(outputData), outputTypeMappings, workflowRun);
+    workflowStateService.syncState(outputData, outputTypeMappings, workflowRun);
   }
 
-  /** Extracts key-value pairs from structured "parsed" output entries. */
-  private Map<String, List<String>> extractDataFromParsed(List<Map<String, JsonElement>> output) {
-    Map<String, List<String>> result = new HashMap<>();
+  /** Extracts structured "parsed" output entries into normalized arrays by key. */
+  private JsonObject extractDataFromParsed(List<Map<String, JsonElement>> output) {
+    JsonObject result = new JsonObject();
 
     for (Map<String, JsonElement> entry : output) {
       JsonElement parsedElement = entry.get("parsed");
@@ -313,20 +335,37 @@ public class InjectExecutionStep implements ActionStep {
 
       JsonObject parsed = parsedElement.getAsJsonObject();
       for (Map.Entry<String, JsonElement> parsedEntry : parsed.entrySet()) {
-        JsonElement value = parsedEntry.getValue();
-        if (value == null || !value.isJsonArray()) {
-          continue;
-        }
-        for (JsonElement item : value.getAsJsonArray()) {
-          if (item.isJsonPrimitive()) {
-            result
-                .computeIfAbsent(parsedEntry.getKey(), ignored -> new ArrayList<>())
-                .add(item.getAsString());
-          }
-        }
+        addParsedValues(result, parsedEntry.getKey(), parsedEntry.getValue());
       }
     }
     return result;
+  }
+
+  private void addParsedValues(JsonObject result, String key, JsonElement parsedValueElement) {
+    if (parsedValueElement == null || parsedValueElement.isJsonNull()) {
+      return;
+    }
+    JsonArray target =
+        result.has(key) && result.get(key).isJsonArray()
+            ? result.getAsJsonArray(key)
+            : new JsonArray();
+    if (!result.has(key)) {
+      result.add(key, target);
+    }
+    if (parsedValueElement.isJsonArray()) {
+      for (JsonElement item : parsedValueElement.getAsJsonArray()) {
+        addParsedValue(target, item);
+      }
+      return;
+    }
+    addParsedValue(target, parsedValueElement);
+  }
+
+  private void addParsedValue(JsonArray target, JsonElement item) {
+    if (item == null || item.isJsonNull()) {
+      return;
+    }
+    target.add(item.deepCopy());
   }
 
   /**
@@ -512,6 +551,73 @@ public class InjectExecutionStep implements ActionStep {
    */
   private String setInjectId(String injectId, String dataStep) {
     return setField(dataStep, "inject_id", injectId);
+  }
+
+  private String getCommand(Inject inject) {
+    if (inject.getStatus().isEmpty()) return "";
+
+    InjectStatus status = inject.getStatus().get();
+    StatusPayload statusPayload = status.getPayloadOutput();
+    if (statusPayload == null || statusPayload.getPayloadCommandBlocks() == null) {
+      return "";
+    }
+    StringBuilder command = new StringBuilder();
+    statusPayload
+        .getPayloadCommandBlocks()
+        .forEach(
+            payloadCommandBlock -> {
+              command.append(payloadCommandBlock.getContent());
+              command.append("\n");
+            });
+    return command.toString();
+  }
+
+  private Map<String, StringBuilder> getExecutionTracesByEndpointIndex(Inject inject) {
+    Map<String, StringBuilder> tracesByEndpointSource = new HashMap<>();
+    if (inject.getStatus().isEmpty()) return tracesByEndpointSource;
+
+    InjectStatus status = inject.getStatus().get();
+    List<ExecutionTrace> executionTraces = status.getTraces();
+
+    if (inject.getInjector() == null) {
+      executionTraces.forEach(
+          executionTrace -> {
+            if (executionTrace.getAgent() == null || executionTrace.getAgent().getAsset() == null) {
+              return;
+            }
+            String agentId =
+                executionTrace.getAgent().getId() + executionTrace.getAgent().getAsset().getId();
+            StringBuilder agentTraces =
+                tracesByEndpointSource.computeIfAbsent(agentId, k -> new StringBuilder());
+            // A trace with no timestamp must not render a literal "null" at the start of the line.
+            if (executionTrace.getTime() != null) {
+              agentTraces.append(executionTrace.getTime()).append(" ");
+            }
+            agentTraces
+                .append(executionTrace.getStatus().name())
+                .append(" ")
+                .append(executionTrace.getMessage())
+                .append("\n");
+          });
+    } else {
+      // TODO BUILD INDEX
+      String injectorId = inject.getInjector().getId();
+      executionTraces.forEach(
+          executionTrace -> {
+            StringBuilder injectorTraces =
+                tracesByEndpointSource.computeIfAbsent(injectorId, k -> new StringBuilder());
+            // A trace with no timestamp must not render a literal "null" at the start of the line.
+            if (executionTrace.getTime() != null) {
+              injectorTraces.append(executionTrace.getTime()).append(" ");
+            }
+            injectorTraces
+                .append(executionTrace.getStatus().name())
+                .append(" ")
+                .append(executionTrace.getMessage())
+                .append("\n");
+          });
+    }
+    return tracesByEndpointSource;
   }
 
   /**
@@ -768,13 +874,125 @@ public class InjectExecutionStep implements ActionStep {
     }
   }
 
-  private static void formatStatusToOutput(List<Map<String, JsonElement>> output) {}
+  /**
+   * Formats the inject execution status (name + tracking dates) into the step output.
+   *
+   * @param inject the inject whose status is read
+   * @param output the output list to populate
+   */
+  private static void formatStatusToOutput(Inject inject, List<Map<String, JsonElement>> output) {
+    inject
+        .getStatus()
+        .ifPresent(
+            status -> {
+              if (status.getName() == null || status.getTrackingEndDate() == null) return;
+              Map<String, JsonElement> map = new HashMap<>();
+              map.put(
+                  "inject_status",
+                  gson.toJsonTree(status.getName() != null ? status.getName().name() : null));
+              map.put(
+                  "inject_status_tracking_end_date",
+                  gson.toJsonTree(
+                      status.getTrackingEndDate() != null
+                          ? status.getTrackingEndDate().toString()
+                          : null));
+              output.add(map);
+            });
+  }
 
-  private static void formatCollectorExpectationToOutput(List<Map<String, JsonElement>> output) {}
+  /**
+   * Formats expectations updated by an collector or expiration or manual update into the step
+   * output. Each entry contains the expectation type, name, score, collector source ID, and — when
+   * the expectation is agent-level — the associated agent ID and asset ID.
+   *
+   * <p>Some expectations may not match an actual execution. We observed duplicate expectation
+   * entries returned without an agent_id and only with an asset_id. These entries do not correspond
+   * to real executions; they are duplicated information.
+   *
+   * @param injectId Inject id
+   * @param output the output list to populate
+   */
+  private void formatExpectationToOutput(String injectId, List<Map<String, JsonElement>> output) {
+    List<BaseInjectExpectation> expectations = injectExpectationService.findAllByInjectId(injectId);
+    Inject inject = injectService.inject(injectId);
+    for (BaseInjectExpectation expectation : expectations) {
+      for (InjectExpectationResult result : expectation.getResults()) {
+        Map<String, JsonElement> map = getExpectationOutput(expectation, result);
+        addEndpointContext(inject, expectation, map);
+        // syncAttackPathExecutionStatus(injectId, expectation, result, map);
+        output.add(map);
+      }
+    }
+  }
 
-  private static void formatExpirationManagerToOutput(List<Map<String, JsonElement>> output) {}
+  /**
+   * Enriches an output map entry with endpoint context (agent_id, asset_id, asset_group_id, plus
+   * normalised target_type / target_id) when the expectation is a {@link
+   * TechnicalInjectExpectation} (i.e. PREVENTION or DETECTION).
+   *
+   * <p>Granularity priority:
+   *
+   * <ol>
+   *   <li>Agent-level: {@code agent != null} → target_type=AGENT, target_id=agent.id
+   *   <li>Asset-level (no agent): {@code asset != null} → target_type=ASSET, target_id=asset.id
+   *   <li>Asset-group-level: {@code assetGroup != null} → target_type=ASSET_GROUP,
+   *       target_id=assetGroup.id
+   * </ol>
+   *
+   * @param inject
+   * @param expectation the expectation to inspect
+   * @param map the output map to enrich
+   */
+  private static void addEndpointContext(
+      Inject inject, BaseInjectExpectation expectation, Map<String, JsonElement> map) {
+    if (!(expectation instanceof TechnicalInjectExpectation technical)) {
+      return;
+    }
+    Agent agent = technical.getAgent();
+    Asset asset = technical.getAsset();
+    AssetGroup assetGroup = technical.getAssetGroup();
 
-  private static void formatManualUpdateToOutput(List<Map<String, JsonElement>> output) {}
+    map.put("agent_id", gson.toJsonTree(agent != null ? agent.getId() : null));
+    map.put("asset_id", gson.toJsonTree(asset != null ? asset.getId() : null));
+    map.put("asset_name", gson.toJsonTree(asset != null ? asset.getName() : null));
+    map.put("asset_group_id", gson.toJsonTree(assetGroup != null ? assetGroup.getId() : null));
+
+    // Normalised target resolution for PREVENTION / DETECTION:
+    // the chaining engine uses target_type + target_id to correlate the result
+    // to the right scope without having to inspect every nullable field.
+    String targetType;
+    String targetId;
+    if (agent != null) {
+      targetType = "AGENT";
+      targetId = agent.getId();
+    } else if (asset != null) {
+      targetType = "ASSET";
+      targetId = asset.getId();
+    } else if (assetGroup != null) {
+      targetType = "ASSET_GROUP";
+      targetId = assetGroup.getId();
+    } else { // TODO
+      targetType = null;
+      targetId = null;
+    }
+    map.put("target_type", gson.toJsonTree(targetType));
+    map.put("target_id", gson.toJsonTree(targetId));
+  }
+
+  private static Map<String, JsonElement> getExpectationOutput(
+      BaseInjectExpectation expectation, InjectExpectationResult result) {
+    Map<String, JsonElement> map = new HashMap<>();
+    map.put("expectation_id", gson.toJsonTree(expectation.getId()));
+    map.put(
+        "expectation_type",
+        gson.toJsonTree(expectation.getType() != null ? expectation.getType().name() : null));
+    map.put("expectation_name", gson.toJsonTree(expectation.getName()));
+    map.put("expectation_score", gson.toJsonTree(expectation.getScore()));
+    map.put("source_type", gson.toJsonTree(result.getSourceType()));
+    map.put("source_name", gson.toJsonTree(result.getSourceName()));
+    map.put("result", gson.toJsonTree(result.getResult()));
+    return map;
+  }
 
   /**
    * Builds the type mapping used by the chaining engine to interpret structured output fields.

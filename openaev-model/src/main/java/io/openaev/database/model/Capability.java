@@ -121,6 +121,8 @@ public enum Capability {
   ACCESS_PAYLOADS(
       null,
       CapabilityGroup.THREAT_ARSENALS,
+      true,
+      true,
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.PAYLOAD, Action.READ),
       pair(ResourceType.PAYLOAD, Action.SEARCH)),
@@ -128,12 +130,13 @@ public enum Capability {
       since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
   MANAGE_PAYLOADS(
       ACCESS_PAYLOADS,
+      true,
       pair(ResourceType.PAYLOAD, Action.WRITE),
       pair(ResourceType.PAYLOAD, Action.CREATE),
       pair(ResourceType.PAYLOAD, Action.DUPLICATE)),
   @Deprecated(
       since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
-  DELETE_PAYLOADS(MANAGE_PAYLOADS, pair(ResourceType.PAYLOAD, Action.DELETE)),
+  DELETE_PAYLOADS(MANAGE_PAYLOADS, true, pair(ResourceType.PAYLOAD, Action.DELETE)),
 
   // Threat Arsenal —
   ACCESS_THREAT_ARSENALS(
@@ -292,8 +295,6 @@ public enum Capability {
       pair(ResourceType.USER_GROUP, Action.SEARCH),
       pair(ResourceType.USER, Action.READ),
       pair(ResourceType.USER, Action.SEARCH),
-      pair(ResourceType.MAPPER, Action.READ),
-      pair(ResourceType.MAPPER, Action.SEARCH),
       pair(ResourceType.COLLECTOR, Action.READ),
       pair(ResourceType.COLLECTOR, Action.SEARCH),
       pair(ResourceType.INJECTOR, Action.READ),

@@ -139,8 +139,6 @@ const DEFAULT_SETTINGS: Partial<PlatformSettings> = {
   platform_license: { license_is_validated: true } as PlatformSettings['platform_license'],
 };
 
-const UNREGISTER_BUTTON_TEXT = 'Disconnect from XTM Hub';
-
 // -- FACTORIZED HELPERS --
 
 interface RenderOptions {
@@ -188,7 +186,9 @@ const renderXtmHubTab = ({
     </ThemeProvider>
   );
 
-  return render(<XtmHubTab />, { wrapper });
+  const TRIGGER_LABEL = 'Trigger';
+  const triggerButton = (handleOpen: () => void) => <button data-testid="trigger-button" onClick={handleOpen}>{TRIGGER_LABEL}</button>;
+  return render(<XtmHubTab renderTrigger={triggerButton} />, { wrapper });
 };
 
 /** Args passed to useExternalTab on the first render. */
@@ -211,12 +211,8 @@ const buildRegistrationParams = (overrides: Record<string, string> = {}) =>
  * Opens the dialog, advances to the WAITING_HUB step, and returns the onMessage
  * handler captured at that point — avoiding reliance on render call count.
  */
-const openProcessToWaitingHub = (registrationStatus: 'REGISTERED' | null = null) => {
-  if (registrationStatus === 'REGISTERED') {
-    fireEvent.click(screen.getByText(UNREGISTER_BUTTON_TEXT));
-  } else {
-    fireEvent.click(screen.getByTestId('gradient-button'));
-  }
+const openProcessToWaitingHub = () => {
+  fireEvent.click(screen.getByTestId('trigger-button'));
   fireEvent.click(screen.getByTestId('continue-btn'));
   return vi.mocked(useExternalTab).mock.calls.at(-1)![0].onMessage;
 };
@@ -236,16 +232,15 @@ describe('XtmHubTab', () => {
   // ── 1. Rendering ──────────────────────────────────────────────────────────
 
   describe('Rendering', () => {
-    it('renders a GradientButton "Connect to XTM Hub" when not registered', () => {
+    it('renders the trigger button when not connected', () => {
       renderXtmHubTab({ registrationStatus: null });
-      expect(screen.getByTestId('gradient-button')).toBeDefined();
-      expect(screen.getByText('Connect to XTM Hub')).toBeDefined();
+      expect(screen.getByTestId('trigger-button')).toBeDefined();
     });
 
-    it('renders an outlined error Button "Disconnect from XTM Hub" when registered', () => {
+    it('renders the trigger button when connected (no gradient button)', () => {
       renderXtmHubTab({ registrationStatus: 'REGISTERED' });
       expect(screen.queryByTestId('gradient-button')).toBeNull();
-      expect(screen.getByText(UNREGISTER_BUTTON_TEXT)).toBeDefined();
+      expect(screen.getByTestId('trigger-button')).toBeDefined();
     });
 
     it('renders nothing when in demo mode', () => {
@@ -253,20 +248,47 @@ describe('XtmHubTab', () => {
       const { container } = renderXtmHubTab();
       expect(container.firstChild).toBeNull();
     });
+
+    it('does not crash when renderTrigger is omitted', () => {
+      vi.mocked(useHelper).mockReturnValue(null);
+
+      const userContext: UserContextType = {
+        me: { user_id: 'user-1' } as User,
+        settings: DEFAULT_SETTINGS as PlatformSettings,
+        isXTMHubAccessible: true,
+        userTenants: [TENANT],
+        currentUserTenant: TENANT,
+        switchUserTenant: vi.fn(),
+        reloadUserTenants: vi.fn(),
+      };
+
+      const wrapper = ({ children }: { children: ReactNode }) => (
+        <ThemeProvider theme={theme}>
+          <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
+            <MemoryRouter>
+              <UserContext.Provider value={userContext}>{children}</UserContext.Provider>
+            </MemoryRouter>
+          </IntlProvider>
+        </ThemeProvider>
+      );
+
+      const { container } = render(<XtmHubTab />, { wrapper });
+      expect(container).toBeDefined();
+    });
   });
 
   // ── 2. Dialog open / step transitions ────────────────────────────────────
 
   describe('Dialog lifecycle', () => {
-    it('opens the dialog and shows instructions step when clicking Register', () => {
+    it('opens the dialog and shows instructions step when clicking trigger (register)', () => {
       renderXtmHubTab({ registrationStatus: null });
-      fireEvent.click(screen.getByTestId('gradient-button'));
+      fireEvent.click(screen.getByTestId('trigger-button'));
       expect(screen.getByTestId('process-instructions')).toBeDefined();
     });
 
-    it('opens the dialog and shows instructions step when clicking Unregister', () => {
+    it('opens the dialog and shows instructions step when clicking trigger (disconnect)', () => {
       renderXtmHubTab({ registrationStatus: 'REGISTERED' });
-      fireEvent.click(screen.getByText(UNREGISTER_BUTTON_TEXT));
+      fireEvent.click(screen.getByTestId('trigger-button'));
       expect(screen.getByTestId('process-instructions')).toBeDefined();
     });
 
@@ -285,7 +307,7 @@ describe('XtmHubTab', () => {
 
     it('closes immediately (no confirmation) when dialog is closed from INSTRUCTIONS step', () => {
       renderXtmHubTab({ registrationStatus: null });
-      fireEvent.click(screen.getByTestId('gradient-button'));
+      fireEvent.click(screen.getByTestId('trigger-button'));
       expect(screen.getByTestId('process-instructions')).toBeDefined();
       fireEvent.click(screen.getByLabelText('close'));
       expect(screen.queryByTestId('process-instructions')).toBeNull();
@@ -359,7 +381,7 @@ describe('XtmHubTab', () => {
     it('dispatches unregisterPlatform and shows success notification on success', async () => {
       mockDispatch.mockResolvedValue(undefined);
       renderXtmHubTab({ registrationStatus: 'REGISTERED' });
-      const onMessage = openProcessToWaitingHub('REGISTERED');
+      const onMessage = openProcessToWaitingHub();
 
       onMessage(new MessageEvent('message', { data: { action: 'unregister' } }));
 
@@ -370,7 +392,7 @@ describe('XtmHubTab', () => {
     it('transitions to ERROR step when unregisterPlatform fails', async () => {
       mockDispatch.mockRejectedValue(new Error('Network error'));
       renderXtmHubTab({ registrationStatus: 'REGISTERED' });
-      const onMessage = openProcessToWaitingHub('REGISTERED');
+      const onMessage = openProcessToWaitingHub();
 
       onMessage(new MessageEvent('message', { data: { action: 'unregister' } }));
 

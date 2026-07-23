@@ -1,5 +1,5 @@
 import { PlayCircleOutlineOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -15,6 +15,7 @@ import ItemTargets from '../../../components/ItemTargets';
 import Loader from '../../../components/Loader';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type ExercisesGlobalScoresOutput, type ExerciseSimple, type ExpectationResultsByType } from '../../../utils/api-types';
+import { type UseEntityToggle } from '../../../utils/hooks/useEntityToggle';
 import AtomicTestingResult from '../atomic_testings/atomic_testing/AtomicTestingResult';
 import ExerciseStatus from './simulation/ExerciseStatus';
 
@@ -69,6 +70,9 @@ interface Props {
   secondaryAction?: (exercise: ExerciseSimple) => ReactNode;
   loading: boolean;
   isGlobalScoreAsync?: boolean;
+  // Optional bulk selection support (checkboxes + toolbar replacing the sort headers)
+  entityToggle?: UseEntityToggle<ExerciseSimple>;
+  toolBar?: ReactNode;
 }
 
 const SimulationList: FunctionComponent<Props> = ({
@@ -79,6 +83,8 @@ const SimulationList: FunctionComponent<Props> = ({
   secondaryAction,
   loading,
   isGlobalScoreAsync = false,
+  entityToggle,
+  toolBar,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -111,7 +117,7 @@ const SimulationList: FunctionComponent<Props> = ({
     },
     {
       field: 'exercise_start_date',
-      label: 'Start date',
+      label: 'Start time',
       isSortable: true,
       value: (exercise: ExerciseSimple) => {
         if (!exercise.exercise_start_date) {
@@ -164,19 +170,38 @@ const SimulationList: FunctionComponent<Props> = ({
           <ListItem
             classes={{ root: classes.itemHead }}
             divider={false}
-            style={{ paddingTop: 0 }}
-            secondaryAction={<>&nbsp;</>}
+            sx={{
+              paddingTop: 0,
+              ...(entityToggle && entityToggle.numberOfSelectedElements > 0 ? { backgroundColor: 'background.accent' } : {}),
+            }}
+            {...(!entityToggle || entityToggle.numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
           >
-            <ListItemIcon />
-            <ListItemText
-              primary={(
-                <SortHeadersComponentV2
-                  headers={headers}
-                  inlineStylesHeaders={inlineStyles}
-                  sortHelpers={queryableHelpers.sortHelpers}
+            {entityToggle && (
+              <ListItemIcon style={{ minWidth: 40 }}>
+                <Checkbox
+                  edge="start"
+                  checked={entityToggle.selectAll}
+                  disableRipple
+                  onChange={entityToggle.handleToggleSelectAll}
                 />
-              )}
-            />
+              </ListItemIcon>
+            )}
+            {entityToggle && entityToggle.numberOfSelectedElements > 0 ? (
+              <ListItemText primary={toolBar} />
+            ) : (
+              <>
+                <ListItemIcon />
+                <ListItemText
+                  primary={(
+                    <SortHeadersComponentV2
+                      headers={headers}
+                      inlineStylesHeaders={inlineStyles}
+                      sortHelpers={queryableHelpers.sortHelpers}
+                    />
+                  )}
+                />
+              </>
+            )}
           </ListItem>
         )}
       {
@@ -194,6 +219,21 @@ const SimulationList: FunctionComponent<Props> = ({
                   component={Link}
                   to={`/admin/simulations/${exercise.exercise_id}`}
                 >
+                  {entityToggle && (
+                    <ListItemIcon
+                      style={{ minWidth: 40 }}
+                      onClick={event => entityToggle.onToggleEntity(exercise, event)}
+                    >
+                      <Checkbox
+                        edge="start"
+                        checked={
+                          (entityToggle.selectAll && !(exercise.exercise_id in (entityToggle.deSelectedElements || {})))
+                          || exercise.exercise_id in (entityToggle.selectedElements || {})
+                        }
+                        disableRipple
+                      />
+                    </ListItemIcon>
+                  )}
                   <ListItemIcon>
                     <PlayCircleOutlineOutlined color="primary" />
                   </ListItemIcon>

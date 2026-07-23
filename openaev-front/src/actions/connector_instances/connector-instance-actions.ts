@@ -11,6 +11,7 @@ import {
 import {
   type ConnectorInstancePersisted,
   type CreateConnectorInstanceInput,
+  type SearchPaginationInput,
   type UpdateConnectorInstanceRequestedStatus,
 } from '../../utils/api-types';
 import { connectorInstance } from './connector-instance-schema';
@@ -44,7 +45,7 @@ export const deleteConnectorInstance = (instanceId: string) => (dispatch: Dispat
   return delReferential(uri, connectorInstance.key, instanceId)(dispatch);
 };
 
-export const fetchConnectorInstanceLogs = (instanceId: string) => () => {
-  const uri = `${CONNECTOR_INSTANCE_URI}/${instanceId}/logs`;
-  return simpleCall(uri);
+export const searchConnectorInstanceLogs = (instanceId: string, searchPaginationInput: SearchPaginationInput) => {
+  const uri = `${CONNECTOR_INSTANCE_URI}/${instanceId}/logs/search`;
+  return simplePostCall(uri, searchPaginationInput);
 };

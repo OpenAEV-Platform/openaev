@@ -13,6 +13,7 @@ import static io.openaev.service.ImportService.EXPORT_ENTRY_SCENARIO;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.constants.Constants.ARTICLES;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
@@ -34,6 +35,7 @@ import io.openaev.database.raw.RawScenario;
 import io.openaev.database.raw.RawScenarioSimpleIndexing;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
+import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.export.Mixins;
 import io.openaev.export.WorkflowExportInitializer;
@@ -41,6 +43,7 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
@@ -53,6 +56,7 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.openaev.rest.scenario.export.ScenarioFileExport;
+import io.openaev.rest.scenario.form.ScenarioBulkProcessingInput;
 import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.rest.scenario.response.ScenarioOutput;
@@ -62,6 +66,7 @@ import io.openaev.service.*;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
@@ -98,6 +103,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.validation.annotation.Validated;
 
 @RequiredArgsConstructor
@@ -501,6 +507,59 @@ public class ScenarioService {
   public void deleteScenario(@NotBlank final String scenarioId) {
     existsByIdAndTenantId(scenarioId);
     this.scenarioRepository.deleteById(scenarioId);
+  }
+
+  /**
+   * Bulk delete of scenarios, either from an explicit list of ids or from a search input
+   * (select-all with optional exclusions). Only scenarios the user is allowed to manage are
+   * deleted.
+   *
+   * @param input the bulk processing input (ids or search input, plus ids to ignore)
+   * @return the list of deleted scenario ids
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public List<String> bulkDeleteScenarios(@NotNull final ScenarioBulkProcessingInput input) {
+    if ((CollectionUtils.isEmpty(input.getScenarioIdsToProcess())
+            && input.getSearchPaginationInput() == null)
+        || (!CollectionUtils.isEmpty(input.getScenarioIdsToProcess())
+            && input.getSearchPaginationInput() != null)) {
+      throw new BadRequestException(
+          "Either scenario_ids_to_process or search_pagination_input must be provided, and not both at the same time");
+    }
+    Specification<Scenario> specification;
+    if (input.getSearchPaginationInput() != null) {
+      SearchPaginationInput searchPaginationInput = input.getSearchPaginationInput();
+      // Same specification chain as the list search: custom filters (recurrence) + filter group +
+      // text search, so the deletion scope matches exactly what the user sees in the list.
+      UnaryOperator<Specification<Scenario>> customSpecification =
+          handleCustomFilter(searchPaginationInput);
+      specification =
+          customSpecification.apply(
+              FilterUtilsJpa.<Scenario>computeFilterGroupJpa(searchPaginationInput.getFilterGroup())
+                  .and(computeSearchJpa(searchPaginationInput.getTextSearch())));
+    } else {
+      specification = SpecificationUtils.hasIdIn(input.getScenarioIdsToProcess());
+    }
+    if (!CollectionUtils.isEmpty(input.getScenarioIdsToIgnore())) {
+      List<String> idsToIgnore = input.getScenarioIdsToIgnore();
+      specification =
+          specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+    }
+    // Restrict to scenarios the user is granted to plan on (no-op for admins and users with the
+    // delete capability)
+    User currentUser = userService.currentUser();
+    specification =
+        specification.and(
+            SpecificationUtils.hasGrantAccess(
+                currentUser.getId(),
+                currentUser.isAdminOrBypass(),
+                currentUser.getCapabilities().contains(Capability.DELETE_ASSESSMENT),
+                Grant.GRANT_TYPE.PLANNER));
+    List<Scenario> scenariosToDelete = this.scenarioRepository.findAll(specification);
+    List<String> deletedIds = scenariosToDelete.stream().map(Scenario::getId).toList();
+    this.scenarioRepository.deleteAll(scenariosToDelete);
+    log.info("Bulk deleted {} scenarios by user {}", deletedIds.size(), currentUser.getId());
+    return deletedIds;
   }
 
   // -- EXPORT --

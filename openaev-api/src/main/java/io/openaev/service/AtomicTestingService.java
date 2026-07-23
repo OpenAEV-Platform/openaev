@@ -14,6 +14,7 @@ import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.InjectUtils;
@@ -185,6 +186,30 @@ public class AtomicTestingService {
     // Verify the inject exists and belongs to the current tenant before deleting
     findInject(injectId);
     injectService.delete(injectId);
+  }
+
+  /**
+   * Bulk delete of atomic testings, either from an explicit list of ids or from a search input
+   * (select-all with optional exclusions). The scope is restricted to atomic testings (injects
+   * without scenario or simulation) the user is allowed to plan on.
+   *
+   * @param input the bulk processing input (ids or search input, plus ids to ignore)
+   * @return the list of deleted inject ids
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public List<String> bulkDelete(@NotNull final InjectBulkProcessingInput input) {
+    // The generic inject specification is unrestricted when no simulation/scenario id is given:
+    // constrain it to atomic testings only so a select-all can never touch simulation or scenario
+    // injects.
+    input.setSimulationOrScenarioId(null);
+    Specification<Inject> specification =
+        injectService
+            .getInjectSpecification(input, Grant.GRANT_TYPE.PLANNER)
+            .and(InjectSpecification.isAtomicTesting());
+    List<String> deletedIds =
+        injectRepository.findAll(specification).stream().map(Inject::getId).toList();
+    injectService.deleteAllByIds(deletedIds);
+    return deletedIds;
   }
 
   // -- ACTIONS --

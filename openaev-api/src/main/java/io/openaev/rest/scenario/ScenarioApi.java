@@ -245,6 +245,18 @@ public class ScenarioApi extends RestBehavior {
     this.scenarioService.deleteScenario(scenarioId);
   }
 
+  @Operation(
+      description = "Bulk delete of scenarios",
+      tags = {"Scenarios"})
+  @LogExecutionTime
+  @DeleteMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
+  @Transactional(rollbackFor = Exception.class)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.SCENARIO)
+  public List<String> bulkDeleteScenarios(
+      @RequestBody @Valid final ScenarioBulkProcessingInput input) {
+    return this.scenarioService.bulkDeleteScenarios(input);
+  }
+
   // -- TAGS --
 
   @PutMapping({SCENARIO_URI + "/{scenarioId}/tags", TENANT_SCENARIO_URI + "/{scenarioId}/tags"})

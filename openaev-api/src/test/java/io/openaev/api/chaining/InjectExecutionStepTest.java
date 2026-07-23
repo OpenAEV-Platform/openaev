@@ -10,6 +10,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
@@ -217,6 +221,79 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // Assert
     assertNotNull(updated);
     assertTrue(updated.isEmpty());
+  }
+
+  @Test
+  void given_parsedContainsObjectArraysAndPrimitiveLists_should_extractValues() {
+    // Arrange
+    JsonObject parsed = new JsonObject();
+    JsonArray portscan = new JsonArray();
+    JsonObject portscanItem = new JsonObject();
+    portscanItem.addProperty("asset_id", (String) null);
+    portscanItem.addProperty("host", "0.0.0.0");
+    portscanItem.addProperty("port", 135);
+    portscanItem.addProperty("service", "TCP");
+    JsonObject secondPortscanItem = new JsonObject();
+    secondPortscanItem.addProperty("asset_id", (String) null);
+    secondPortscanItem.addProperty("host", "127.0.0.1");
+    secondPortscanItem.addProperty("port", 5432);
+    secondPortscanItem.addProperty("service", "TCP");
+    portscan.add(portscanItem);
+    portscan.add(secondPortscanItem);
+    parsed.add("portscan", portscan);
+
+    JsonArray ips = new JsonArray();
+    ips.add(new JsonPrimitive("0.0.0.0"));
+    ips.add(new JsonPrimitive("127.0.0.1"));
+    parsed.add("ips", ips);
+
+    JsonArray ports = new JsonArray();
+    ports.add(new JsonPrimitive(135));
+    ports.add(new JsonPrimitive(5432));
+    parsed.add("ports", ports);
+
+    Map<String, JsonElement> outputEntry = new HashMap<>();
+    outputEntry.put("parsed", parsed);
+
+    // Act
+    JsonObject extracted =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "extractDataFromParsed", List.of(outputEntry));
+
+    // Assert
+    assertNotNull(extracted);
+    assertTrue(extracted.get("portscan").isJsonArray());
+    assertEquals(2, extracted.getAsJsonArray("portscan").size());
+    assertEquals(portscanItem, extracted.getAsJsonArray("portscan").get(0).getAsJsonObject());
+    assertEquals(secondPortscanItem, extracted.getAsJsonArray("portscan").get(1).getAsJsonObject());
+    assertEquals("0.0.0.0", extracted.getAsJsonArray("ips").get(0).getAsString());
+    assertEquals("127.0.0.1", extracted.getAsJsonArray("ips").get(1).getAsString());
+    assertEquals(135, extracted.getAsJsonArray("ports").get(0).getAsInt());
+    assertEquals(5432, extracted.getAsJsonArray("ports").get(1).getAsInt());
+  }
+
+  @Test
+  void given_parsedContainsSingleObject_should_wrapValueIntoArray() {
+    // Arrange
+    JsonObject parsed = new JsonObject();
+    JsonObject credential = new JsonObject();
+    credential.addProperty("username", "admin");
+    credential.addProperty("password", "secret");
+    parsed.add("credentials", credential);
+
+    Map<String, JsonElement> outputEntry = new HashMap<>();
+    outputEntry.put("parsed", parsed);
+
+    // Act
+    JsonObject extracted =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "extractDataFromParsed", List.of(outputEntry));
+
+    // Assert
+    assertNotNull(extracted);
+    assertTrue(extracted.get("credentials").isJsonArray());
+    assertEquals(1, extracted.getAsJsonArray("credentials").size());
+    assertEquals(credential, extracted.getAsJsonArray("credentials").get(0).getAsJsonObject());
   }
 
   @Test
@@ -775,5 +852,176 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertEquals(
         PrimitiveType.IPv4.name(), StepService.getField(stepTemplate.getInput(), "input.keyType"));
     assertNull(StepService.getField(stepTemplate.getInput(), "input.keySubtype"));
+  }
+
+  @Test
+  void given_injectWithoutStatus_whenGetCommand_thenReturnEmptyString() {
+    // Arrange
+    Inject inject = new Inject();
+
+    // Act
+    String command = ReflectionTestUtils.invokeMethod(injectExecutionStep, "getCommand", inject);
+
+    // Assert
+    assertEquals("", command);
+  }
+
+  @Test
+  void given_injectWithPayloadCommands_whenGetCommand_thenConcatenateCommandContents() {
+    // Arrange
+    Inject inject = new Inject();
+    InjectStatus status = new InjectStatus();
+    StatusPayload payload = new StatusPayload();
+    payload.setPayloadCommandBlocks(
+        List.of(
+            new PayloadCommandBlock("bash", "whoami", List.of()),
+            new PayloadCommandBlock("cmd", "hostname", List.of())));
+    status.setPayloadOutput(payload);
+    inject.setStatus(status);
+
+    // Act
+    String command = ReflectionTestUtils.invokeMethod(injectExecutionStep, "getCommand", inject);
+
+    // Assert
+    assertEquals("whoami\nhostname\n", command);
+  }
+
+  @Test
+  void given_injectWithoutStatus_whenGetExecutionTracesByEndpointIndex_thenReturnEmptyMap() {
+    // Arrange
+    Inject inject = new Inject();
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertTrue(tracesByEndpointSource.isEmpty());
+  }
+
+  @Test
+  void given_injectWithInjector_whenGetExecutionTracesByEndpointIndex_thenGroupByInjectorId() {
+    // Arrange
+    Inject inject = new Inject();
+    Injector injector = new Injector();
+    injector.setId("injector-1");
+    inject.setInjector(injector);
+
+    ExecutionTrace firstTrace = new ExecutionTrace();
+    firstTrace.setStatus(ExecutionTraceStatus.EXECUTED);
+    firstTrace.setMessage("first");
+
+    ExecutionTrace secondTrace = new ExecutionTrace();
+    secondTrace.setStatus(ExecutionTraceStatus.ERROR);
+    secondTrace.setMessage("second");
+
+    InjectStatus status = new InjectStatus();
+    status.addTrace(firstTrace);
+    status.addTrace(secondTrace);
+    inject.setStatus(status);
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertEquals(1, tracesByEndpointSource.size());
+    assertTrue(tracesByEndpointSource.containsKey("injector-1"));
+    assertEquals(
+        "EXECUTED first\nERROR second\n", tracesByEndpointSource.get("injector-1").toString());
+  }
+
+  @Test
+  void
+      given_injectWithoutInjector_whenGetExecutionTracesByEndpointIndex_thenGroupByAgentAndAsset() {
+    // Arrange
+    Inject inject = new Inject();
+
+    Asset assetOne = new Asset();
+    assetOne.setId("asset-1");
+    Agent agentOne = new Agent();
+    agentOne.setId("agent-1");
+    agentOne.setAsset(assetOne);
+
+    Asset assetTwo = new Asset();
+    assetTwo.setId("asset-2");
+    Agent agentTwo = new Agent();
+    agentTwo.setId("agent-2");
+    agentTwo.setAsset(assetTwo);
+
+    ExecutionTrace firstTrace = new ExecutionTrace();
+    firstTrace.setAgent(agentOne);
+    firstTrace.setStatus(ExecutionTraceStatus.EXECUTED);
+    firstTrace.setMessage("first");
+
+    ExecutionTrace secondTrace = new ExecutionTrace();
+    secondTrace.setAgent(agentOne);
+    secondTrace.setStatus(ExecutionTraceStatus.ERROR);
+    secondTrace.setMessage("second");
+
+    ExecutionTrace thirdTrace = new ExecutionTrace();
+    thirdTrace.setAgent(agentTwo);
+    thirdTrace.setStatus(ExecutionTraceStatus.INFO);
+    thirdTrace.setMessage("third");
+
+    InjectStatus status = new InjectStatus();
+    status.addTrace(firstTrace);
+    status.addTrace(secondTrace);
+    status.addTrace(thirdTrace);
+    inject.setStatus(status);
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertEquals(2, tracesByEndpointSource.size());
+    assertEquals(
+        "EXECUTED first\nERROR second\n", tracesByEndpointSource.get("agent-1asset-1").toString());
+    assertEquals("INFO third\n", tracesByEndpointSource.get("agent-2asset-2").toString());
+  }
+
+  @Test
+  void given_injectWithoutInjector_whenTraceHasNoAgent_thenSkipAgentlessTrace() {
+    // Arrange
+    Inject inject = new Inject();
+
+    Asset asset = new Asset();
+    asset.setId("asset-1");
+    Agent agent = new Agent();
+    agent.setId("agent-1");
+    agent.setAsset(asset);
+
+    ExecutionTrace globalTrace = new ExecutionTrace();
+    globalTrace.setAgent(null);
+    globalTrace.setStatus(ExecutionTraceStatus.WARNING);
+    globalTrace.setMessage("global warning");
+
+    ExecutionTrace endpointTrace = new ExecutionTrace();
+    endpointTrace.setAgent(agent);
+    endpointTrace.setStatus(ExecutionTraceStatus.EXECUTED);
+    endpointTrace.setMessage("endpoint ok");
+
+    InjectStatus status = new InjectStatus();
+    status.addTrace(globalTrace);
+    status.addTrace(endpointTrace);
+    inject.setStatus(status);
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertEquals(1, tracesByEndpointSource.size());
+    assertTrue(tracesByEndpointSource.containsKey("agent-1asset-1"));
+    assertEquals("EXECUTED endpoint ok\n", tracesByEndpointSource.get("agent-1asset-1").toString());
   }
 }

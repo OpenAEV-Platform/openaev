@@ -3,10 +3,13 @@ package io.openaev.rest.payload;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.rest.payload.form.PayloadCreateInput;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class PayloadUtilsTest {
@@ -14,7 +17,7 @@ class PayloadUtilsTest {
   private final ObjectMapper mapper = new ObjectMapper();
 
   @Test
-  void given_legacyComplexArgumentWithSubtype_should_throw() throws Exception {
+  void given_legacyComplexArgument_should_mapToReplacementPrimitive() throws Exception {
     JsonNode payloadNode =
         mapper.readTree(
             """
@@ -25,12 +28,53 @@ class PayloadUtilsTest {
               "payload_status":"VERIFIED",
               "payload_platforms":["Linux"],
               "payload_arguments":[
-                {"type":"portscan","subtype":"host","key":"target","default_value":"srv-01","description":"d"}
+                {"type":"portscan","subtype":"host","key":"target","default_value":"srv-01","description":"d"},
+                {"type":"credentials","key":"client_id","default_value":"??","description":"d"}
+              ]
+            }
+            """);
+
+    PayloadCreateInput payload = PayloadUtils.buildPayload(payloadNode);
+
+    assertEquals(PrimitiveType.Port, payload.getArguments().get(0).getType());
+    assertEquals(PrimitiveType.Username, payload.getArguments().get(1).getType());
+  }
+
+  @Test
+  void given_unknownArgumentType_should_throw() throws Exception {
+    JsonNode payloadNode =
+        mapper.readTree(
+            """
+            {
+              "payload_type":"command",
+              "payload_name":"bad-payload",
+              "payload_source":"MANUAL",
+              "payload_status":"VERIFIED",
+              "payload_platforms":["Linux"],
+              "payload_arguments":[
+                {"type":"definitely-not-a-type","key":"target","default_value":"x","description":"d"}
               ]
             }
             """);
 
     assertThrows(IllegalArgumentException.class, () -> PayloadUtils.buildPayload(payloadNode));
+  }
+
+  @Test
+  void given_legacyArgumentTypeInStoredJson_should_deserializeThroughJackson() throws Exception {
+    // Mirrors the hypersistence JsonType read path on pre-#6536 rows (e.g. the NetExec payload):
+    // Jackson must accept legacy ArgumentType labels, otherwise the entity row is unreadable.
+    String storedColumn =
+        """
+        [{"key": "client_id", "type": "credentials", "separator": null, "description": null, "default_value": "??"},
+         {"key": "ip", "type": "targeted-asset", "separator": ",", "description": null, "default_value": "local_ip"}]
+        """;
+
+    List<PayloadArgument> arguments =
+        mapper.readValue(storedColumn, new TypeReference<List<PayloadArgument>>() {});
+
+    assertEquals(PrimitiveType.Username, arguments.get(0).getType());
+    assertEquals(PrimitiveType.TargetedAsset, arguments.get(1).getType());
   }
 
   @Test

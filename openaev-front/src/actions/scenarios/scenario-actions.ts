@@ -6,6 +6,7 @@ import {
   postReferential,
   putReferential,
   simpleCall,
+  simpleDelCall,
   simplePostCall, simplePutCall,
 } from '../../utils/Action';
 import {
@@ -17,7 +18,7 @@ import {
   type LessonsInput,
   type LessonsQuestionCreateInput,
   type LessonsQuestionUpdateInput, type Pagination,
-  type Scenario, type ScenarioAndInjectorContractsInputs, type ScenarioIdsAndInjectorContractsInputs,
+  type Scenario, type ScenarioAndInjectorContractsInputs, type ScenarioBulkProcessingInput, type ScenarioIdsAndInjectorContractsInputs,
   type ScenarioInput,
   type ScenarioRecurrenceInput,
   type ScenarioTeamPlayersEnableInput,
@@ -77,6 +78,10 @@ export const updateScenario = (
 export const deleteScenario = (scenarioId: Scenario['scenario_id']) => (dispatch: Dispatch) => {
   const uri = `${SCENARIO_URI}/${scenarioId}`;
   return delReferential(uri, scenario.key, scenarioId)(dispatch);
+};
+
+export const bulkDeleteScenarios = (input: ScenarioBulkProcessingInput) => {
+  return simpleDelCall(SCENARIO_URI, { data: input });
 };
 
 export const exportScenarioUri = (scenarioId: Scenario['scenario_id'], exportTeams: boolean, exportPlayers: boolean, exportVariableValues: boolean, exportScopeDefinition: boolean) => {

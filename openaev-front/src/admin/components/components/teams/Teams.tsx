@@ -1,10 +1,10 @@
 import { GroupsOutlined, HelpOutlineOutlined } from '@mui/icons-material';
-import { Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
+import { Checkbox, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
 import { type CSSProperties, useContext, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { searchTeams } from '../../../../actions/teams/team-actions';
+import { bulkDeleteTeams, searchTeams } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import PaginationComponent from '../../../../components/common/pagination/PaginationComponent';
@@ -18,8 +18,10 @@ import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { TEAM_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { type SearchPaginationInput, type Team } from '../../../../utils/api-types';
+import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import ToolBar from '../../common/ToolBar';
 import CreateTeam from './CreateTeam';
 import TeamPlayers from './TeamPlayers';
 import TeamPopover from './TeamPopover';
@@ -138,6 +140,33 @@ const Teams = () => {
     return searchTeams(input).finally(() => setLoading(false));
   };
 
+  // Bulk selection
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS);
+  const [totalElements, setTotalElements] = useState(0);
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    handleToggleSelectAll,
+    onToggleEntity,
+    numberOfSelectedElements,
+  } = useEntityToggle<Team>('team', teams, totalElements);
+
+  const bulkDelete = () => {
+    bulkDeleteTeams({
+      search_pagination_input: selectAll ? searchPaginationInput : undefined,
+      team_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
+      team_ids_to_ignore: Object.keys(deSelectedElements),
+    }).then((result) => {
+      const deletedIds: string[] = result.data ?? [];
+      setTeams(teams.filter(team => !deletedIds.includes(team.team_id)));
+      handleClearSelectedElements();
+      // Force a refetch so the pagination total stays accurate
+      setSearchPaginationInput(prev => ({ ...prev }));
+    });
+  };
+
   return (
     <>
       <Breadcrumbs
@@ -152,6 +181,7 @@ const Teams = () => {
         searchPaginationInput={searchPaginationInput}
         setContent={setTeams}
         exportProps={exportProps}
+        onTotalElementsChange={setTotalElements}
         createButton={(
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
             <CreateTeam onCreate={result => setTeams([result, ...teams])} />
@@ -162,20 +192,50 @@ const Teams = () => {
         <ListItem
           classes={{ root: classes.itemHead }}
           divider={false}
-          style={{ paddingTop: 0 }}
+          sx={{
+            paddingTop: 0,
+            ...(numberOfSelectedElements > 0 ? { backgroundColor: 'background.accent' } : {}),
+          }}
         >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponent
-                headers={headers}
-                inlineStylesHeaders={inlineStyles}
-                searchPaginationInput={searchPaginationInput}
-                setSearchPaginationInput={setSearchPaginationInput}
+          {canManage && (
+            <ListItemIcon style={{ minWidth: 40 }}>
+              <Checkbox
+                edge="start"
+                checked={selectAll}
+                disableRipple
+                onChange={handleToggleSelectAll}
               />
-            )}
-          />
-          <ListItemSecondaryAction> &nbsp; </ListItemSecondaryAction>
+            </ListItemIcon>
+          )}
+          {numberOfSelectedElements > 0 ? (
+            <ListItemText
+              primary={(
+                <ToolBar
+                  numberOfSelectedElements={numberOfSelectedElements}
+                  handleClearSelectedElements={handleClearSelectedElements}
+                  handleBulkDelete={bulkDelete}
+                  canManage={canManage}
+                  deleteConfirmationSingular={t('Do you want to delete this team?')}
+                  deleteConfirmationPlural={t('Do you want to delete these {count} teams?', { count: String(numberOfSelectedElements) })}
+                />
+              )}
+            />
+          ) : (
+            <>
+              <ListItemIcon />
+              <ListItemText
+                primary={(
+                  <SortHeadersComponent
+                    headers={headers}
+                    inlineStylesHeaders={inlineStyles}
+                    searchPaginationInput={searchPaginationInput}
+                    setSearchPaginationInput={setSearchPaginationInput}
+                  />
+                )}
+              />
+              <ListItemSecondaryAction> &nbsp; </ListItemSecondaryAction>
+            </>
+          )}
         </ListItem>
         {loading
           ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
@@ -195,6 +255,21 @@ const Teams = () => {
                 )}
               >
                 <ListItemButton classes={{ root: classes.item }} onClick={() => navigate(`${TEAM_BASE_URL}/${team.team_id}`)}>
+                  {canManage && (
+                    <ListItemIcon
+                      style={{ minWidth: 40 }}
+                      onClick={event => onToggleEntity(team, event)}
+                    >
+                      <Checkbox
+                        edge="start"
+                        checked={
+                          (selectAll && !(team.team_id in (deSelectedElements || {})))
+                          || team.team_id in (selectedElements || {})
+                        }
+                        disableRipple
+                      />
+                    </ListItemIcon>
+                  )}
                   <ListItemIcon>
                     <GroupsOutlined color="primary" />
                   </ListItemIcon>

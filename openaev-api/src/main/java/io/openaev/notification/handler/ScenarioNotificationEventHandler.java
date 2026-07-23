@@ -1,5 +1,7 @@
 package io.openaev.notification.handler;
 
+import static io.openaev.helper.UrlHelper.buildFrontScenarioUrl;
+
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.expectation.ExpectationType;
@@ -107,7 +109,10 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
     data.put("new_simulation_date", lastSimulation.getEnd().map(formatter::format).orElse("NA"));
     data.put("new_percentage_detection", Float.toString(lastSimulationDetectScore));
     data.put("new_percentage_prevention", Float.toString(lastSimulationPrevScore));
-    data.put("scenarioLink", String.format("%s/admin/scenarios/%s", url, scenarioId));
+    data.put(
+        "scenarioLink",
+        buildFrontScenarioUrl(
+            openAEVConfig.getBaseUrl(), scenario.getTenant().getId(), scenarioId));
     data.put("instanceLink", url);
     data.put("scenario_name", scenario.getName());
     return data;

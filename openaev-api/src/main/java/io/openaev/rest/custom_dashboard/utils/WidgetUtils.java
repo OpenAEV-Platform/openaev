@@ -24,6 +24,7 @@ public final class WidgetUtils {
               "inject_title",
               "inject_expectation_type",
               "inject_expectation_status",
+              "base_created_at",
               "inject_expectation_source");
       case "finding" -> List.of("finding_value", "finding_type", "base_updated_at");
       case "inject" -> List.of("inject_title", "base_attack_patterns_side", "execution_date");

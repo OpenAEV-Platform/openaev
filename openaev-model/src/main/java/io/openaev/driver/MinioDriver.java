@@ -49,9 +49,18 @@ public class MinioDriver {
     return minioClient;
   }
 
+  // OkHttp socket-level timeouts (connect / write / read). These are idle timeouts, not
+  // whole-request deadlines, so large uploads/downloads still work as long as bytes flow.
+  // Without them the client waits forever on an unresponsive endpoint; callers running inside
+  // a database transaction then pin their connection (and its row locks) indefinitely.
+  private static final long CONNECT_TIMEOUT_MS = 10_000L;
+  private static final long WRITE_TIMEOUT_MS = 60_000L;
+  private static final long READ_TIMEOUT_MS = 60_000L;
+
   @Bean
   public MinioClient minioClient() throws Exception {
     MinioClient minioClient = getMinioClient();
+    minioClient.setTimeout(CONNECT_TIMEOUT_MS, WRITE_TIMEOUT_MS, READ_TIMEOUT_MS);
     String bucket = minioConfig.getBucket();
 
     // Make bucket if not exist.

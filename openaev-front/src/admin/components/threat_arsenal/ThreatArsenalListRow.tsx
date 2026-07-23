@@ -99,7 +99,7 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
               <Tooltip title={name} enterDelay={500}>
                 <div style={{
                   ...bodyItemsStyles.bodyItem,
-                  ...THREAT_ARSENAL_LIST_INLINE_STYLES.action_name,
+                  ...THREAT_ARSENAL_LIST_INLINE_STYLES.action_labels,
                 }}
                 >
                   {name}
@@ -148,7 +148,7 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
                 variant="body2"
                 sx={{
                   ...bodyItemsStyles.bodyItem,
-                  ...THREAT_ARSENAL_LIST_INLINE_STYLES.action_updated,
+                  ...THREAT_ARSENAL_LIST_INLINE_STYLES.action_updated_at,
                   color: 'text.secondary',
                 }}
               >

@@ -1,10 +1,10 @@
 import { RouteOutlined } from '@mui/icons-material';
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButtonGroup } from '@mui/material';
-import { type CSSProperties, useMemo, useState } from 'react';
+import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButtonGroup } from '@mui/material';
+import { type CSSProperties, useContext, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { searchScenarios } from '../../../actions/scenarios/scenario-actions';
+import { bulkDeleteScenarios, searchScenarios } from '../../../actions/scenarios/scenario-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import ExportButton from '../../../components/common/ExportButton';
 import { initSorting } from '../../../components/common/queryable/Page';
@@ -21,10 +21,12 @@ import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import PlatformIconGroup from '../../../components/PlatformIconGroup';
 import { type Scenario, type SearchPaginationInput } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
-import { Can } from '../../../utils/permissions/permissionsContext';
+import useEntityToggle from '../../../utils/hooks/useEntityToggle';
+import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import ImportFromHubButton from '../common/ImportFromHubButton';
+import ToolBar from '../common/ToolBar';
 import ImportUploaderScenario from './ImportUploaderScenario';
 import ScenarioPopover from './scenario/ScenarioPopover';
 import ScenarioStatus from './scenario/ScenarioStatus';
@@ -156,6 +158,33 @@ const Scenarios = () => {
     return searchScenarios(input).finally(() => setLoading(false));
   };
 
+  // Bulk selection
+  const ability = useContext(AbilityContext);
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    handleToggleSelectAll,
+    onToggleEntity,
+    numberOfSelectedElements,
+  } = useEntityToggle<Scenario>('scenario', scenarios, queryableHelpers.paginationHelpers.getTotalElements());
+
+  const bulkDelete = () => {
+    bulkDeleteScenarios({
+      search_pagination_input: selectAll ? searchPaginationInput : undefined,
+      scenario_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
+      scenario_ids_to_ignore: Object.keys(deSelectedElements),
+    }).then((result) => {
+      const deletedIds: string[] = result.data ?? [];
+      const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
+      setScenarios(scenarios.filter(s => !deletedIds.includes(s.scenario_id)));
+      queryableHelpers.paginationHelpers.handleChangeTotalElements(newTotal);
+      handleClearSelectedElements();
+    });
+  };
+
   return (
     <>
       <Breadcrumbs
@@ -199,19 +228,49 @@ const Scenarios = () => {
       <List>
         <ListItem
           classes={{ root: classes.itemHead }}
-          style={{ paddingTop: 0 }}
-          secondaryAction={<>&nbsp;</>}
+          sx={{
+            paddingTop: 0,
+            ...(numberOfSelectedElements > 0 ? { backgroundColor: 'background.accent' } : {}),
+          }}
+          {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
         >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponentV2
-                headers={headers}
-                inlineStylesHeaders={inlineStyles}
-                sortHelpers={queryableHelpers.sortHelpers}
+          {canManage && (
+            <ListItemIcon style={{ minWidth: 40 }}>
+              <Checkbox
+                edge="start"
+                checked={selectAll}
+                disableRipple
+                onChange={handleToggleSelectAll}
               />
-            )}
-          />
+            </ListItemIcon>
+          )}
+          {numberOfSelectedElements > 0 ? (
+            <ListItemText
+              primary={(
+                <ToolBar
+                  numberOfSelectedElements={numberOfSelectedElements}
+                  handleClearSelectedElements={handleClearSelectedElements}
+                  handleBulkDelete={bulkDelete}
+                  canManage={canManage}
+                  deleteConfirmationSingular={t('Do you want to delete this scenario?')}
+                  deleteConfirmationPlural={t('Do you want to delete these {count} scenarios?', { count: String(numberOfSelectedElements) })}
+                />
+              )}
+            />
+          ) : (
+            <>
+              <ListItemIcon />
+              <ListItemText
+                primary={(
+                  <SortHeadersComponentV2
+                    headers={headers}
+                    inlineStylesHeaders={inlineStyles}
+                    sortHelpers={queryableHelpers.sortHelpers}
+                  />
+                )}
+              />
+            </>
+          )}
         </ListItem>
         {
           loading
@@ -246,6 +305,21 @@ const Scenarios = () => {
                       to={`/admin/scenarios/${scenario.scenario_id}`}
                       classes={{ root: classes.item }}
                     >
+                      {canManage && (
+                        <ListItemIcon
+                          style={{ minWidth: 40 }}
+                          onClick={event => onToggleEntity(scenario, event)}
+                        >
+                          <Checkbox
+                            edge="start"
+                            checked={
+                              (selectAll && !(scenario.scenario_id in (deSelectedElements || {})))
+                              || scenario.scenario_id in (selectedElements || {})
+                            }
+                            disableRipple
+                          />
+                        </ListItemIcon>
+                      )}
                       <ListItemIcon>
                         <RouteOutlined color="primary" />
                       </ListItemIcon>

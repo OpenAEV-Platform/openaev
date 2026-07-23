@@ -59,6 +59,13 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
         label={t('Overview')}
         className={classes.item}
       />
+      <Tab
+        component={Link}
+        to={`/admin/atomic_testings/${injectResultOverview.inject_id}/execution_details`}
+        value={`/admin/atomic_testings/${injectResultOverview.inject_id}/execution_details`}
+        label={t('Execution details')}
+        className={classes.item}
+      />
       {injectResultOverview.inject_injector_contract?.injector_contract_payload && (
         <Tab
           component={Link}
@@ -85,7 +92,10 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
           onClick={handleRemediationClick}
           value={`/admin/atomic_testings/${injectResultOverview.inject_id}/remediations`}
           label={(
-            <Box display="flex" alignItems="center">
+            // textTransform:none - the MuiTab `::first-letter` uppercase trick can't
+            // reach text nested inside this flex box, so without it the theme's forced
+            // lowercase would render "remediations" instead of the translated label.
+            <Box display="flex" alignItems="center" sx={{ textTransform: 'none' }}>
               {t('Remediations')}
               {!isValidatedEnterpriseEdition && (
                 <EEChip

@@ -71,6 +71,11 @@ class ExerciseServiceUnitTest {
   @Mock private InjectExpectationRepository injectExpectationRepository;
   @Mock private ArticleRepository articleRepository;
   @Mock private ExerciseRepository exerciseRepository;
+
+  @Mock
+  private io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService
+      attackPathExecutionService;
+
   @Mock private TeamRepository teamRepository;
   @Mock private UserRepository userRepository;
   @Mock private ExerciseTeamUserRepository exerciseTeamUserRepository;

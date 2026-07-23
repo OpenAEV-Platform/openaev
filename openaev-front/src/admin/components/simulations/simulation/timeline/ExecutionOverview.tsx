@@ -1,14 +1,13 @@
-import { ErrorOutlineOutlined, FactCheckOutlined, HourglassEmptyOutlined, InsightsOutlined, PendingActionsOutlined, RocketLaunchOutlined, TaskAltOutlined, TimelineOutlined } from '@mui/icons-material';
+import { ErrorOutlineOutlined, FactCheckOutlined, HourglassEmptyOutlined, PendingActionsOutlined, RocketLaunchOutlined, TaskAltOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemText, Paper, Typography, useTheme } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { type ComponentType, useEffect, useState } from 'react';
+import { type ComponentType, useState } from 'react';
 import { Link, useParams } from 'react-router';
 
 import { fetchExerciseChallenges } from '../../../../../actions/challenge-action';
 import type { ArticlesHelper } from '../../../../../actions/channels/article-helper';
 import { fetchExerciseDocuments } from '../../../../../actions/documents/documents-actions';
 import { fetchExerciseInjectExpectations, fetchExerciseTeams } from '../../../../../actions/Exercise';
-import { fetchExerciseExpectationResult } from '../../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { fetchExerciseInjects, updateInjectForExercise } from '../../../../../actions/Inject';
 import { type InjectStore } from '../../../../../actions/injects/Inject';
@@ -17,14 +16,12 @@ import { fetchVariablesForExercise } from '../../../../../actions/variables/vari
 import type { VariablesHelper } from '../../../../../actions/variables/variable-helper';
 import { BACK_LABEL, BACK_URI } from '../../../../../components/Breadcrumbs';
 import { HeroStat, HeroStats, SectionBlock } from '../../../../../components/common/detail/EntityDetailCommon';
-import PostureGauges from '../../../../../components/common/detail/PostureGauges';
 import { useFormatter } from '../../../../../components/i18n';
-import Loader from '../../../../../components/Loader';
 import ProgressBarCountdown from '../../../../../components/ProgressBarCountdown';
 import SearchFilter from '../../../../../components/SearchFilter';
 import Timeline from '../../../../../components/Timeline';
 import { useHelper } from '../../../../../store';
-import { type Exercise, type ExpectationResultsByType, type Inject, type InjectExpectationOutput } from '../../../../../utils/api-types';
+import { type Exercise, type Inject, type InjectExpectationOutput } from '../../../../../utils/api-types';
 import { EndpointContext } from '../../../../../utils/context/endpoint/EndpointContext';
 import endpointContextForExercise from '../../../../../utils/context/endpoint/EndpointContextForExercise';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -37,10 +34,12 @@ import InjectIcon from '../../../common/injects/InjectIcon';
 import InjectPopover from '../../../common/injects/InjectPopover';
 import InjectStatus from '../../../common/injects/status/InjectStatus';
 import UpdateInject from '../../../common/injects/UpdateInject';
+import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import articleContextForExercise from '../articles/articleContextForExercise';
 import ExecutionMenu from '../ExecutionMenu';
 import teamContextForExercise from '../teams/teamContextForExercise';
-import InjectOverTimeArea from './InjectOverTimeArea';
+import ExecutionFlowStrip from './ExecutionFlowStrip';
+import { sampleTimelineInjects, sampleTimelineTeams } from './executionSampleData';
 
 // Centered tinted-icon empty state used by every block of the execution
 // overview (same anatomy as the simulation overview placeholder).
@@ -88,17 +87,16 @@ const ExecutionPlaceholder = ({ icon: Icon, message }: {
   );
 };
 
-// The Execution tab landing screen: a live exposure-validation overview of the
-// simulation execution - headline progress metrics, prevention / detection /
-// human response posture, the attack timeline, pending vs executed injects and
-// the cumulative execution flow.
+// The Execution tab landing screen: a live overview of the simulation
+// execution - headline progress metrics, the attack timeline, pending vs
+// executed injects and the chronological execution flow. Exposure validation
+// posture intentionally lives on the Overview tab only.
 const ExecutionOverview = () => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
   const { t, fndt } = useFormatter();
   const [selectedInjectId, setSelectedInjectId] = useState<string | null>(null);
-  const [results, setResults] = useState<ExpectationResultsByType[] | null>(null);
 
   const {
     exercise,
@@ -126,13 +124,6 @@ const ExecutionOverview = () => {
     dispatch(fetchExerciseDocuments(exerciseId));
     dispatch(fetchExerciseInjectExpectations(exerciseId));
   });
-
-  useEffect(() => {
-    fetchExerciseExpectationResult(exerciseId)
-      .then((result: { data: ExpectationResultsByType[] }) => setResults(result.data))
-      // Degrade to the empty placeholder instead of an infinite loader on failure.
-      .catch(() => setResults([]));
-  }, [exerciseId]);
 
   // Sort
   const searchColumns = ['title', 'description', 'content'];
@@ -200,7 +191,7 @@ const ExecutionOverview = () => {
             borderRadius: 1,
           }}
         >
-          <HeroStats>
+          <HeroStats spread>
             <HeroStat
               icon={RocketLaunchOutlined}
               label={t('Execution progress')}
@@ -232,30 +223,6 @@ const ExecutionOverview = () => {
           </HeroStats>
         </Paper>
 
-        {/* Exposure validation posture */}
-        <SectionBlock title={t('Exposure validation')}>
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-          }}
-          >
-            {(() => {
-              if (!results) return <Loader variant="inElement" />;
-              if (results.length === 0) {
-                return (
-                  <ExecutionPlaceholder
-                    icon={InsightsOutlined}
-                    message={t('Prevention, detection and vulnerability results will appear here once the simulation runs.')}
-                  />
-                );
-              }
-              return <PostureGauges expectationResultsByTypes={results} humanValidationLink={`/admin/simulations/${exerciseId}/execution/validations`} />;
-            })()}
-          </Box>
-        </SectionBlock>
-
         {/* Scoping toolbar for the timeline and lists below */}
         <div style={{
           display: 'flex',
@@ -276,7 +243,8 @@ const ExecutionOverview = () => {
           />
         </div>
 
-        {/* Attack timeline */}
+        {/* Attack timeline - previews greyed sample data (like every widget of
+            the platform) while the simulation has no injects yet. */}
         <SectionBlock title={t('Attack timeline')}>
           {filteredInjects.length > 0 ? (
             <Timeline
@@ -285,10 +253,22 @@ const ExecutionOverview = () => {
               onSelectInject={(id: string) => setSelectedInjectId(id)}
             />
           ) : (
-            <ExecutionPlaceholder
-              icon={TimelineOutlined}
-              message={t('No injects to display in this simulation.')}
-            />
+            <SamplePreview active>
+              {/* flow-root contains the Timeline floated columns (without
+                  clipping its overhanging tick labels, unlike overflow:hidden)
+                  so the section keeps its height around the sample preview. */}
+              <Box sx={{
+                display: 'flow-root',
+                paddingBottom: 4,
+              }}
+              >
+                <Timeline
+                  injects={sampleTimelineInjects}
+                  teams={sampleTimelineTeams}
+                  onSelectInject={() => {}}
+                />
+              </Box>
+            </SamplePreview>
           )}
         </SectionBlock>
 
@@ -465,9 +445,9 @@ const ExecutionOverview = () => {
           </SectionBlock>
         </Box>
 
-        {/* Cumulative execution flow */}
-        <SectionBlock title={t('Sent injects over time')} disablePadding>
-          <InjectOverTimeArea injects={filteredInjects} />
+        {/* Chronological execution flow of the sent injects */}
+        <SectionBlock title={t('Sent injects over time')}>
+          <ExecutionFlowStrip injects={filteredInjects} />
         </SectionBlock>
       </Box>
       {selectedInjectId && (

@@ -2,11 +2,16 @@ package io.openaev.service.stix;
 
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.DomainObject;
@@ -29,6 +34,7 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.*;
+import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +58,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
   @Autowired private SecurityCoverageSendJobService securityCoverageSendJobService;
   @Autowired private ObjectMapper mapper;
   @Autowired private ResultUtils resultUtils;
+  @Autowired private OpenAEVConfig openAEVConfig;
   private Parser stixParser;
+  @Mock private PreviewFeatureService previewFeatureService;
 
   @BeforeEach
   public void setup() {
@@ -66,6 +74,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     scenarioComposer.reset();
     securityPlatformComposer.reset();
     securityCoverageSendJobComposer.reset();
+
+    when(previewFeatureService.isFeatureEnabled(PreviewFeature.TENANT_FIELDS_FOR_SECURITY_COVERAGE))
+        .thenReturn(true);
 
     stixParser = new Parser(mapper);
   }
@@ -229,6 +240,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
           .whenIgnoringPaths(
               CommonProperties.MODIFIED.toString(),
               CommonProperties.EXTERNAL_URI.toString(),
+              CommonProperties.TENANT_ID.toString(),
+              CommonProperties.TENANT_NAME.toString(),
               CommonProperties.AUTO_ENRICHMENT_DISABLE.toString())
           .isEqualTo(expectedAssessment.toStix(mapper));
     }
@@ -314,6 +327,13 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     platformSdo.getId(),
                     ExtendedProperties.COVERED.toString(),
                     new io.openaev.stix.types.Boolean(true),
+                    CommonProperties.EXTERNAL_URI.toString(),
+                    new StixString(
+                        openAEVConfig.getBaseUrl()
+                            + "/"
+                            + TenantContext.getCurrentTenant()
+                            + "/admin/simulations/"
+                            + exerciseWrapper.get().getScenario().getId()),
                     ExtendedProperties.COVERAGE.toString(),
                     toList(
                         List.of(
@@ -336,7 +356,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                                         ? 100
                                         : 0))))));
         assertThatJson(actualSro.toStix(mapper))
-            .whenIgnoringPaths(CommonProperties.ID.toString())
+            .whenIgnoringPaths(
+                CommonProperties.ID.toString(), CommonProperties.EXTERNAL_URI.toString())
             .isEqualTo(expectedSro.toStix(mapper));
       }
 
@@ -363,13 +384,21 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     new Identifier(stixRef.getStixRef()),
                     ExtendedProperties.COVERED.toString(),
                     new io.openaev.stix.types.Boolean(true),
+                    CommonProperties.EXTERNAL_URI.toString(),
+                    new StixString(
+                        openAEVConfig.getBaseUrl()
+                            + "/"
+                            + TenantContext.getCurrentTenant()
+                            + "/admin/scenarios/"
+                            + exerciseWrapper.get().getScenario().getId()),
                     ExtendedProperties.COVERAGE.toString(),
                     toList(
                         List.of(
                             new Complex<>(new CoverageResult("PREVENTION", 100)),
                             new Complex<>(new CoverageResult("DETECTION", 100))))));
         assertThatJson(actualSro.toStix(mapper))
-            .whenIgnoringPaths(CommonProperties.ID.toString())
+            .whenIgnoringPaths(
+                CommonProperties.ID.toString(), CommonProperties.EXTERNAL_URI.toString())
             .isEqualTo(expectedSro.toStix(mapper));
       }
     }
@@ -437,6 +466,13 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                       new Identifier(stixRef.getStixRef()),
                       ExtendedProperties.COVERED.toString(),
                       new io.openaev.stix.types.Boolean(true),
+                      CommonProperties.EXTERNAL_URI.toString(),
+                      new StixString(
+                          openAEVConfig.getBaseUrl()
+                              + "/"
+                              + TenantContext.getCurrentTenant()
+                              + "/admin/scenarios/"
+                              + exerciseWrapper.get().getScenario().getId()),
                       ExtendedProperties.COVERAGE.toString(),
                       toList(List.of(new Complex<>(new CoverageResult("VULNERABILITY", 100))))));
           assertThatJson(actualSro.toStix(mapper))
@@ -675,6 +711,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
         .whenIgnoringPaths(
             CommonProperties.MODIFIED.toString(),
             CommonProperties.EXTERNAL_URI.toString(),
+            CommonProperties.TENANT_ID.toString(),
+            CommonProperties.TENANT_NAME.toString(),
             CommonProperties.AUTO_ENRICHMENT_DISABLE.toString())
         .isEqualTo(expectedAssessmentWithCoverage.toStix(mapper));
 
@@ -710,6 +748,13 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   new Timestamp(nextSimulationStartTime),
                   ExtendedProperties.COVERED.toString(),
                   new io.openaev.stix.types.Boolean(true),
+                  CommonProperties.EXTERNAL_URI.toString(),
+                  new StixString(
+                      openAEVConfig.getBaseUrl()
+                          + "/"
+                          + TenantContext.getCurrentTenant()
+                          + "/admin/scenarios/"
+                          + scenarioWrapper.get().getId()),
                   ExtendedProperties.COVERAGE.toString(),
                   toList(
                       List.of(
@@ -732,7 +777,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                                       ? 50
                                       : 0))))));
       assertThatJson(actualSro.toStix(mapper))
-          .whenIgnoringPaths(CommonProperties.ID.toString())
+          .whenIgnoringPaths(
+              CommonProperties.ID.toString(), CommonProperties.EXTERNAL_URI.toString())
           .isEqualTo(expectedSro.toStix(mapper));
     }
 
@@ -762,6 +808,13 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   new Timestamp(nextSimulationStartTime),
                   ExtendedProperties.COVERED.toString(),
                   new io.openaev.stix.types.Boolean(true),
+                  CommonProperties.EXTERNAL_URI.toString(),
+                  new StixString(
+                      openAEVConfig.getBaseUrl()
+                          + "/"
+                          + TenantContext.getCurrentTenant()
+                          + "/admin/scenarios/"
+                          + scenarioWrapper.get().getId()),
                   ExtendedProperties.COVERAGE.toString(),
                   toList(
                       List.of(
@@ -774,7 +827,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                                   "DETECTION",
                                   stixRef.getExternalRefs().contains("T1234") ? 100 : 0))))));
       assertThatJson(actualSro.toStix(mapper))
-          .whenIgnoringPaths(CommonProperties.ID.toString())
+          .whenIgnoringPaths(
+              CommonProperties.ID.toString(), CommonProperties.EXTERNAL_URI.toString())
           .isEqualTo(expectedSro.toStix(mapper));
     }
   }

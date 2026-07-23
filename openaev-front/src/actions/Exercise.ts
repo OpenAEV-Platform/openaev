@@ -1,9 +1,10 @@
 import { type Dispatch } from 'redux';
 
-import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../utils/Action';
+import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall } from '../utils/Action';
 import type {
   CreateExerciseInput,
   Exercise,
+  ExerciseBulkProcessingInput,
   ExerciseTeamPlayersEnableInput,
   ExerciseUpdateStartDateInput,
   ExerciseUpdateStatusInput,
@@ -22,6 +23,8 @@ export const fetchExercises = () => (dispatch: AppDispatch) => getReferential(sc
 export const fetchExercisesById = (exerciseIds: string[]) => (dispatch: AppDispatch) => postReferential(schema.arrayOfExercises, '/api/exercises/search-by-id', exerciseIds, undefined, false)(dispatch);
 
 export const searchExercises = (paginationInput: SearchPaginationInput) => simplePostCall('/api/exercises/search', paginationInput);
+
+export const bulkDeleteExercises = (input: ExerciseBulkProcessingInput) => simpleDelCall('/api/exercises', { data: input });
 
 export const fetchExercise = (exerciseId: string) => (dispatch: AppDispatch) => getReferential(schema.exercise, `/api/exercises/${exerciseId}`)(dispatch);
 

@@ -37,6 +37,7 @@ import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.injector_contract.form.*;
 import io.openaev.rest.injector_contract.output.InjectorContractAuthorCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
@@ -103,6 +104,7 @@ public class InjectorContractService implements DependenciesManager {
   private final TagRepository tagRepository;
   private final InjectorService injectorService;
   private final OrganizationService organizationService;
+  private final InjectIndexCleanupService injectIndexCleanupService;
 
   private final List<String> listDefaultInjectorContract =
       List.of(
@@ -489,8 +491,14 @@ public class InjectorContractService implements DependenciesManager {
    * @param injectorContractId the contract ID to delete
    */
   public void deleteInjectorContractById(String injectorContractId) {
+    // The injects FK on injectors_contracts is ON DELETE CASCADE: collect the doomed inject ids
+    // before the delete and de-index them explicitly (no JPA lifecycle fires for DB cascades).
+    List<String> cascadeDeletedInjectIds =
+        injectIndexCleanupService.injectIdsByContractIds(
+            List.of(injectorContractId), TenantContext.getCurrentTenant());
     this.injectorContractRepository.deleteById(
         new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant()));
+    injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
   }
 
   /**

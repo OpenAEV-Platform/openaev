@@ -5,9 +5,11 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.attackpath.projection.AttackPathInjectorPatternRow;
 import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.raw.RawPayloadRelatedIds;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -106,6 +108,19 @@ public interface InjectorContractRepository
       "SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id = :id OR ic.externalId = :externalId")
   Optional<InjectorContract> findByIdOrExternalId(
       @Param("id") String id, @Param("externalId") String externalId);
+
+  /**
+   * Batched ATT&CK techniques for the attack-path injector nodes: one flat query returning the
+   * (contract external id, pattern) pairs for a set of contracts. A flat projection, not the
+   * entity, so it never pulls the contract's other eager collections into secondary selects.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathInjectorPatternRow("
+          + "ic.externalId, ap.externalId, ap.name) "
+          + "FROM InjectorContract ic JOIN ic.attackPatterns ap "
+          + "WHERE ic.externalId IN :externalIds")
+  List<AttackPathInjectorPatternRow> findInjectorAttackPatternsByExternalIdIn(
+      @Param("externalIds") Collection<String> externalIds);
 
   @NotNull
   @Query("SELECT ic FROM InjectorContract ic JOIN ic.injectorLinks l WHERE l.injector = :injector")

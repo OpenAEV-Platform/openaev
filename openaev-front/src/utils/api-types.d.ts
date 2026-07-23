@@ -904,6 +904,153 @@ export interface AtomicTestingUpdateTagsInput {
   atomic_tags?: string[];
 }
 
+export interface AttackPathAttackPatternDTO {
+  externalId?: string;
+  name?: string;
+}
+
+export interface AttackPathCounters {
+  /** @format int64 */
+  credentials?: number;
+  /** @format int64 */
+  cves?: number;
+  /** @format int64 */
+  endpoints?: number;
+  /** @format int64 */
+  ports?: number;
+  /** @format int64 */
+  users?: number;
+}
+
+export interface AttackPathDTO {
+  attackPathEdges?: AttackPathEdges[];
+  attackPathExecutions?: AttackPathNodeDTO[];
+  attackPathNodes?: AttackPathNodeDTO[];
+  counters?: AttackPathCounters;
+  mode?: string;
+  staticAttackPathFindings?: AttackPathNodeDTO[];
+}
+
+export interface AttackPathEdges {
+  /** @format int32 */
+  count?: number;
+  edgeId?: string;
+  edgeSourceId?: string;
+  edgeTargetId?: string;
+  executionIds?: string[];
+  label?: string;
+  type?: string;
+}
+
+export interface AttackPathEndpointRelationsDTO {
+  edges?: AttackPathEdges[];
+  executions?: AttackPathNodeDTO[];
+}
+
+export interface AttackPathExecutionDetailDTO {
+  agentName?: string;
+  agentPrivilege?: string;
+  attackPatterns?: AttackPathAttackPatternDTO[];
+  command?: string;
+  detectionRemediations?: DetectionRemediationOutput[];
+  detectionStatus?: string;
+  endpointKey?: string;
+  executedAt?: string;
+  findings?: AttackPathExecutionFindingItemDTO[];
+  injectId?: string;
+  payloadId?: string;
+  payloadName?: string;
+  preventionStatus?: string;
+  stepId?: string;
+  targetHostname?: string;
+  targetIp?: string;
+  targetPlatform?: string;
+  terminalOutput?: string;
+}
+
+export interface AttackPathExecutionFindingItemDTO {
+  type?: string;
+  value?: string;
+}
+
+export interface AttackPathExpandDTO {
+  findingTypes?: AttackPathNodeDTO[];
+  findings?: AttackPathNodeDTO[];
+}
+
+export interface AttackPathFindingItemDTO {
+  endpointKey?: string;
+  endpointNodeId?: string;
+  executionIds?: string[];
+  type?: string;
+  value?: string;
+}
+
+export interface AttackPathFindingPageDTO {
+  items?: AttackPathFindingItemDTO[];
+  /** @format int64 */
+  total?: number;
+}
+
+export interface AttackPathNodeDTO {
+  agentName?: string;
+  agents?: string[];
+  arguments?: any[];
+  assetNodeId?: string;
+  attackPatterns?: AttackPathAttackPatternDTO[];
+  command?: string;
+  consumedFindingKeys?: ConsumedFindingKeyDTO[];
+  contractName?: string;
+  criticality?: string;
+  dependsOn?: string[];
+  executedAt?: string;
+  executionsTraces?: any[];
+  expectations?: any[];
+  findingCounts?: Record<string, number>;
+  findingsNodeIds?: string[];
+  findingsTypeNodeId?: string;
+  hostname?: string;
+  id?: string;
+  injectorType?: string;
+  ip?: string;
+  label?: string;
+  payloadName?: string;
+  platform?: string;
+  privilege?: string;
+  ref?: string;
+  status?: string;
+  stepTemplateId?: string;
+  type?: string;
+  typeFindings?: string;
+  value?: string;
+}
+
+export interface AttackPathSeedInput {
+  preset?: string;
+  /** @format int64 */
+  seed?: number;
+  tenantId?: string;
+}
+
+export interface AttackPathSeedResultDTO {
+  /** @format int64 */
+  elapsedMs?: number;
+  /** @format int64 */
+  executions?: number;
+  /** @format int64 */
+  findings?: number;
+  /** @format int64 */
+  simulations?: number;
+}
+
+export interface AttackPathSimSummaryRow {
+  /** @format int64 */
+  endpointCount?: number;
+  /** @format int64 */
+  executionCount?: number;
+  simulationId?: string;
+}
+
 export interface AttackPattern {
   /** @format date-time */
   attack_pattern_created_at?: string;
@@ -1966,6 +2113,13 @@ export interface ConnectorInstancePersisted {
   connector_instance_started_at?: string;
   hashIdentity?: string;
   listened?: boolean;
+}
+
+export interface ConsumedFindingKeyDTO {
+  eventName?: string;
+  keyType?: string;
+  operator?: string;
+  value?: string;
 }
 
 export interface ContractOutputElement {
@@ -4250,6 +4404,12 @@ export interface Exercise {
   listened?: boolean;
 }
 
+export interface ExerciseBulkProcessingInput {
+  exercise_ids_to_ignore?: string[];
+  exercise_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
 export interface ExerciseSimple {
   /** Exercise Category */
   exercise_category?: string;
@@ -5840,7 +6000,8 @@ export interface KillChainPhaseCoverage {
 
 export interface KillChainPhaseCreateInput {
   phase_description?: string;
-  phase_external_id?: string;
+  /** @minLength 1 */
+  phase_external_id: string;
   /** @minLength 1 */
   phase_kill_chain_name: string;
   /** @minLength 1 */
@@ -5917,7 +6078,7 @@ export interface KillChainPhaseUpdateInput {
 }
 
 export interface KillChainPhaseUpsertInput {
-  kill_chain_phases?: KillChainPhaseCreateInput[];
+  kill_chain_phases: KillChainPhaseCreateInput[];
 }
 
 export interface LessonsAnswer {
@@ -6403,6 +6564,11 @@ export interface Organization {
   organization_updated_at: string;
 }
 
+export interface OrganizationBulkProcessingInput {
+  /** @minItems 1 */
+  organization_ids: string[];
+}
+
 export interface OrganizationCreateInput {
   organization_description?: string;
   /** @minLength 1 */
@@ -6534,6 +6700,25 @@ export interface PageAssetOutput {
 
 export interface PageAttackPattern {
   content?: AttackPattern[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageConnectorInstanceLog {
+  content?: ConnectorInstanceLog[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -7678,9 +7863,11 @@ export interface PlatformSettings {
     | "_RESERVED"
     | "FEATURE_FLAG_ALL"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
+    | "TENANT_FIELDS_FOR_SECURITY_COVERAGE"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
+    | "ATTACK_PATH"
     | "AUDIT_LOG"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
@@ -7809,6 +7996,12 @@ export interface PlatformSettings {
   xtm_hub_should_send_connectivity_email?: string;
   /** Url of XTM Hub */
   xtm_hub_url?: string;
+}
+
+export interface PlayerBulkProcessingInput {
+  search_pagination_input?: SearchPaginationInput;
+  user_ids_to_ignore?: string[];
+  user_ids_to_process?: string[];
 }
 
 export interface PlayerInput {
@@ -7964,9 +8157,11 @@ export interface PublicPlatformSettings {
     | "_RESERVED"
     | "FEATURE_FLAG_ALL"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
+    | "TENANT_FIELDS_FOR_SECURITY_COVERAGE"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
+    | "ATTACK_PATH"
     | "AUDIT_LOG"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
@@ -8461,6 +8656,12 @@ export interface ScenarioAndInjectorContractsInputs {
   /** @minLength 1 */
   locale: string;
   scenario_input: ScenarioInput;
+}
+
+export interface ScenarioBulkProcessingInput {
+  scenario_ids_to_ignore?: string[];
+  scenario_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
 }
 
 export interface ScenarioChallengesReader {
@@ -9375,6 +9576,12 @@ export interface Team {
    * @format int64
    */
   team_users_number?: number;
+}
+
+export interface TeamBulkProcessingInput {
+  search_pagination_input?: SearchPaginationInput;
+  team_ids_to_ignore?: string[];
+  team_ids_to_process?: string[];
 }
 
 export interface TeamCreateInput {

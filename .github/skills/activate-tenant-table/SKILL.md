@@ -588,6 +588,16 @@ inefficiency). The two forms behave very differently once the table is active:
   activating is a HARD BLOCKER: convert it to go through Hibernate (so it gets
   inspected) before go-live. Never `@AllowRawJdbc` a tenant table to make a job
   compile.
+- **Narrow exception — a provably insert-only bypass.** The rule above is
+  deliberately blunt: it cannot tell an `INSERT ... VALUES`-only path (which the
+  inspector would not scope anyway, since tenant assignment on a VALUES insert
+  stays an application concern) from a read/update bypass (which silently reads
+  or writes across tenants). A raw-JDBC path may keep `@AllowRawJdbc` on a tenant
+  table ONLY when all three hold: it emits nothing but `INSERT`, every insert
+  carries `tenant_id` as an explicit column, and a test enforces both on every
+  build so the exemption cannot silently widen. The seed generator for the
+  attack-path tables is the reference (`AttackPathSeedServiceTest`). Absent that
+  enforced insert-only proof, the HARD BLOCKER stands.
 
 Add a grep for both to the inventory and read each hit:
 
@@ -663,8 +673,16 @@ over them:**
   per task (see the scope table above), and concurrent scoped transactions are
   proven isolated by test, for reads and writes. Size such an executor against
   the connection pool: each concurrent task holds one pooled connection for its
-  whole transaction, and an oversized fan-out starves the HTTP path. And await
-  every task before the job method returns: a fire-and-forget job defeats
+  whole transaction, and an oversized fan-out starves the HTTP path. **A nested
+  `executeNew` holds two.** When the converted write is not a top-level job but a
+  hook inside an already-transactional caller (e.g. a per-inject write from the
+  run flow), `executeNew` opens a second, REQUIRES_NEW transaction, so that task
+  holds two pooled connections at once for the duration of the inner write.
+  Concurrency is then bounded by `pool_size / 2`, not `pool_size`, and K parallel
+  callers each demanding their second connection at once can deadlock on the pool
+  until the Hikari timeout. Size the caller's concurrency against half the pool,
+  or keep the inner write short so the second connection is held briefly. And
+  await every task before the job method returns: a fire-and-forget job defeats
   `@DisallowConcurrentExecution`, so the next fire could open a second
   transaction on the SAME tenant. If the SEQUENTIAL loop's runtime becomes the
   concern, raise it rather than hand-rolling a second loop idiom.

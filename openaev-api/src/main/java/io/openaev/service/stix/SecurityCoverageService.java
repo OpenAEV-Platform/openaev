@@ -1,6 +1,8 @@
 package io.openaev.service.stix;
 
 import static io.openaev.helper.CryptoHelper.md5Hex;
+import static io.openaev.helper.UrlHelper.buildFrontScenarioUrl;
+import static io.openaev.helper.UrlHelper.buildFrontSimulationUrl;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
 import static io.openaev.utils.constants.StixConstants.*;
@@ -43,7 +45,6 @@ import io.openaev.utils.ResultUtils;
 import io.openaev.utils.SecurityCoverageUtils;
 import io.openaev.utils.StringUtils;
 import io.openaev.utils.time.TimeUtils;
-import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -77,7 +78,7 @@ public class SecurityCoverageService {
   private final SecurityCoverageRepository securityCoverageRepository;
 
   private final Parser stixParser;
-  @Resource private OpenAEVConfig openAEVConfig;
+  private final OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;
   private final VulnerabilityService vulnerabilityService;
   private final OpenCTIConnectorService openCTIConnectorService;
@@ -365,10 +366,16 @@ public class SecurityCoverageService {
     }
 
     SecurityCoverage coverage = scenario.getSecurityCoverage();
-    String externalLink = openAEVConfig.getBaseUrl() + "/admin/scenarios/" + scenario.getId();
+    String externalLink =
+        buildFrontScenarioUrl(openAEVConfig.getBaseUrl(), tenant.getId(), scenario.getId());
 
     DomainObject sdo = (DomainObject) stixParser.parseObject(coverage.getContent());
     sdo.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
+    if (previewFeatureService.isFeatureEnabled(
+        PreviewFeature.TENANT_FIELDS_FOR_SECURITY_COVERAGE)) {
+      sdo.setProperty(CommonProperties.TENANT_ID.toString(), new StixString(tenant.getId()));
+      sdo.setProperty(CommonProperties.TENANT_NAME.toString(), new StixString(tenant.getName()));
+    }
 
     Bundle bundle =
         new Bundle(new Identifier("bundle", UUID.randomUUID().toString()), List.of(sdo));
@@ -452,16 +459,29 @@ public class SecurityCoverageService {
     }
   }
 
+  /**
+   * Builds the STIX bundle for the given send jobs inside its own short read-only transaction.
+   *
+   * <p>The transaction boundary is intentionally here and NOT around the caller's whole loop (which
+   * also pushes bundles to OpenCTI over HTTP): holding a pooled JDBC connection across external
+   * network calls exhausted the Hikari pool in production. Jobs may arrive detached, so the
+   * simulation is re-read within this transaction before navigating its lazy associations.
+   */
+  @Transactional(readOnly = true)
   public Bundle createBundleFromSendJobs(List<SecurityCoverageSendJob> securityCoverageSendJobs)
       throws ParsingException, JsonProcessingException {
     List<ObjectBase> objects = new ArrayList<>();
     for (SecurityCoverageSendJob securityCoverageSendJob : securityCoverageSendJobs) {
-      SecurityCoverage sa = securityCoverageSendJob.getSimulation().getSecurityCoverage();
-      if (sa == null) {
+      if (securityCoverageSendJob.getSimulation() == null) {
         continue;
       }
-
-      Exercise simulation = securityCoverageSendJob.getSimulation();
+      // Re-attach: the job entity may come from a closed session (the scheduler loads jobs
+      // outside a transaction). Lazy navigation on a detached Exercise would throw.
+      Exercise simulation =
+          exerciseService.exercise(securityCoverageSendJob.getSimulation().getId());
+      if (simulation.getSecurityCoverage() == null) {
+        continue;
+      }
       objects.addAll(this.getCoverageForSimulation(simulation));
     }
 
@@ -481,12 +501,25 @@ public class SecurityCoverageService {
     String externalLink;
     if (simulation.getScenario() != null) {
       externalLink =
-          openAEVConfig.getBaseUrl() + "/admin/scenarios/" + simulation.getScenario().getId();
+          buildFrontScenarioUrl(
+              openAEVConfig.getBaseUrl(),
+              simulation.getTenant().getId(),
+              simulation.getScenario().getId());
     } else {
-      externalLink = openAEVConfig.getBaseUrl() + "/admin/simulations/" + simulation.getId();
+      externalLink =
+          buildFrontSimulationUrl(
+              openAEVConfig.getBaseUrl(), simulation.getTenant().getId(), simulation.getId());
     }
 
     coverage.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
+    if (previewFeatureService.isFeatureEnabled(
+        PreviewFeature.TENANT_FIELDS_FOR_SECURITY_COVERAGE)) {
+      coverage.setProperty(
+          CommonProperties.TENANT_ID.toString(), new StixString(simulation.getTenant().getId()));
+      coverage.setProperty(
+          CommonProperties.TENANT_NAME.toString(),
+          new StixString(simulation.getTenant().getName()));
+    }
     coverage.setProperty(ExtendedProperties.COVERAGE.toString(), getOverallCoverage(simulation));
     objects.add(coverage);
 
@@ -510,7 +543,8 @@ public class SecurityCoverageService {
         coverage.getId(),
         sroStartTime,
         sroStopTime,
-        objects);
+        objects,
+        externalLink);
 
     if (previewFeatureService.isFeatureEnabled(
         PreviewFeature.STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES)) {
@@ -522,7 +556,8 @@ public class SecurityCoverageService {
           coverage.getId(),
           sroStartTime,
           sroStopTime,
-          objects);
+          objects,
+          externalLink);
     }
 
     if (simulation.getSecurityCoverage().getIndicatorsRefs() != null
@@ -534,7 +569,8 @@ public class SecurityCoverageService {
           coverage.getId(),
           sroStartTime,
           sroStopTime,
-          objects);
+          objects,
+          externalLink);
     }
 
     if (simulation.getSecurityCoverage().getArtifactsRefs() != null
@@ -546,7 +582,8 @@ public class SecurityCoverageService {
           coverage.getId(),
           sroStartTime,
           sroStopTime,
-          objects);
+          objects,
+          externalLink);
     }
 
     for (SecurityPlatform securityPlatform :
@@ -573,6 +610,10 @@ public class SecurityCoverageService {
                       platformIdentity.getId(),
                       ExtendedProperties.COVERED.toString(),
                       new io.openaev.stix.types.Boolean(covered))));
+      if (previewFeatureService.isFeatureEnabled(
+          PreviewFeature.TENANT_FIELDS_FOR_SECURITY_COVERAGE)) {
+        sro.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
+      }
       sroStartTime.ifPresent(
           instant -> sro.setProperty(RelationshipObject.Properties.START_TIME.toString(), instant));
       sroStopTime.ifPresent(
@@ -593,7 +634,8 @@ public class SecurityCoverageService {
       Identifier coverageId,
       Optional<Timestamp> sroStartTime,
       Optional<Timestamp> sroStopTime,
-      List<ObjectBase> objects) {
+      List<ObjectBase> objects,
+      String externalLink) {
     for (StixRefToExternalRef stixRef : refs) {
       BaseType<?> coverageResult = coverageFunction.apply(stixRef.getExternalRefs(), simulation);
       boolean covered = !((List<?>) coverageResult.getValue()).isEmpty();
@@ -614,7 +656,10 @@ public class SecurityCoverageService {
                       new Identifier(stixRef.getStixRef()),
                       ExtendedProperties.COVERED.toString(),
                       new io.openaev.stix.types.Boolean(covered))));
-
+      if (previewFeatureService.isFeatureEnabled(
+          PreviewFeature.TENANT_FIELDS_FOR_SECURITY_COVERAGE)) {
+        sro.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
+      }
       sroStartTime.ifPresent(
           instant -> sro.setProperty(RelationshipObject.Properties.START_TIME.toString(), instant));
       sroStopTime.ifPresent(
