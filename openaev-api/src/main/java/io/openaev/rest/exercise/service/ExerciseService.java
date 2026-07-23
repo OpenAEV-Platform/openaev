@@ -51,6 +51,7 @@ import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -150,6 +151,8 @@ public class ExerciseService {
   private final HealthCheckUtils healthCheckUtils;
 
   private final ApplicationEventPublisher eventPublisher;
+
+  private final AttackPathExecutionIngestionService attackPathExecutionService;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -557,8 +560,14 @@ public class ExerciseService {
    *
    * @param simulationId ID of the simulation to delete
    */
+  @Transactional(rollbackFor = Exception.class)
   public void deleteById(String simulationId) {
     existsByIdAndTenantId(simulationId);
+    // Attack-path rows have no FK to the simulation, so the native exercise delete does not cascade
+    // them: clear them explicitly under the caller's tenant (same primitive as the reset path),
+    // otherwise a deleted simulation leaves orphan attack-path executions and findings behind.
+    attackPathExecutionService.deleteAllBySimulationId(
+        simulationId, TenantContext.getCurrentTenant());
     exerciseRepository.deleteById(simulationId);
     // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
     // must be notified explicitly or the simulation (and its cascade-deleted injects,
@@ -648,6 +657,9 @@ public class ExerciseService {
         // DELETE injects
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
+        // Delete attack path execution
+        this.attackPathExecutionService.deleteAllBySimulationId(
+            exercise.getId(), exercise.getTenant().getId());
       }
       urlAccessTokenService.revokeAllForExercise(exercise.getId());
     }

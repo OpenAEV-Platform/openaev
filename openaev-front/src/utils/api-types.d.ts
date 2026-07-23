@@ -904,6 +904,153 @@ export interface AtomicTestingUpdateTagsInput {
   atomic_tags?: string[];
 }
 
+export interface AttackPathAttackPatternDTO {
+  externalId?: string;
+  name?: string;
+}
+
+export interface AttackPathCounters {
+  /** @format int64 */
+  credentials?: number;
+  /** @format int64 */
+  cves?: number;
+  /** @format int64 */
+  endpoints?: number;
+  /** @format int64 */
+  ports?: number;
+  /** @format int64 */
+  users?: number;
+}
+
+export interface AttackPathDTO {
+  attackPathEdges?: AttackPathEdges[];
+  attackPathExecutions?: AttackPathNodeDTO[];
+  attackPathNodes?: AttackPathNodeDTO[];
+  counters?: AttackPathCounters;
+  mode?: string;
+  staticAttackPathFindings?: AttackPathNodeDTO[];
+}
+
+export interface AttackPathEdges {
+  /** @format int32 */
+  count?: number;
+  edgeId?: string;
+  edgeSourceId?: string;
+  edgeTargetId?: string;
+  executionIds?: string[];
+  label?: string;
+  type?: string;
+}
+
+export interface AttackPathEndpointRelationsDTO {
+  edges?: AttackPathEdges[];
+  executions?: AttackPathNodeDTO[];
+}
+
+export interface AttackPathExecutionDetailDTO {
+  agentName?: string;
+  agentPrivilege?: string;
+  attackPatterns?: AttackPathAttackPatternDTO[];
+  command?: string;
+  detectionRemediations?: DetectionRemediationOutput[];
+  detectionStatus?: string;
+  endpointKey?: string;
+  executedAt?: string;
+  findings?: AttackPathExecutionFindingItemDTO[];
+  injectId?: string;
+  payloadId?: string;
+  payloadName?: string;
+  preventionStatus?: string;
+  stepId?: string;
+  targetHostname?: string;
+  targetIp?: string;
+  targetPlatform?: string;
+  terminalOutput?: string;
+}
+
+export interface AttackPathExecutionFindingItemDTO {
+  type?: string;
+  value?: string;
+}
+
+export interface AttackPathExpandDTO {
+  findingTypes?: AttackPathNodeDTO[];
+  findings?: AttackPathNodeDTO[];
+}
+
+export interface AttackPathFindingItemDTO {
+  endpointKey?: string;
+  endpointNodeId?: string;
+  executionIds?: string[];
+  type?: string;
+  value?: string;
+}
+
+export interface AttackPathFindingPageDTO {
+  items?: AttackPathFindingItemDTO[];
+  /** @format int64 */
+  total?: number;
+}
+
+export interface AttackPathNodeDTO {
+  agentName?: string;
+  agents?: string[];
+  arguments?: any[];
+  assetNodeId?: string;
+  attackPatterns?: AttackPathAttackPatternDTO[];
+  command?: string;
+  consumedFindingKeys?: ConsumedFindingKeyDTO[];
+  contractName?: string;
+  criticality?: string;
+  dependsOn?: string[];
+  executedAt?: string;
+  executionsTraces?: any[];
+  expectations?: any[];
+  findingCounts?: Record<string, number>;
+  findingsNodeIds?: string[];
+  findingsTypeNodeId?: string;
+  hostname?: string;
+  id?: string;
+  injectorType?: string;
+  ip?: string;
+  label?: string;
+  payloadName?: string;
+  platform?: string;
+  privilege?: string;
+  ref?: string;
+  status?: string;
+  stepTemplateId?: string;
+  type?: string;
+  typeFindings?: string;
+  value?: string;
+}
+
+export interface AttackPathSeedInput {
+  preset?: string;
+  /** @format int64 */
+  seed?: number;
+  tenantId?: string;
+}
+
+export interface AttackPathSeedResultDTO {
+  /** @format int64 */
+  elapsedMs?: number;
+  /** @format int64 */
+  executions?: number;
+  /** @format int64 */
+  findings?: number;
+  /** @format int64 */
+  simulations?: number;
+}
+
+export interface AttackPathSimSummaryRow {
+  /** @format int64 */
+  endpointCount?: number;
+  /** @format int64 */
+  executionCount?: number;
+  simulationId?: string;
+}
+
 export interface AttackPattern {
   /** @format date-time */
   attack_pattern_created_at?: string;
@@ -1966,6 +2113,13 @@ export interface ConnectorInstancePersisted {
   connector_instance_started_at?: string;
   hashIdentity?: string;
   listened?: boolean;
+}
+
+export interface ConsumedFindingKeyDTO {
+  eventName?: string;
+  keyType?: string;
+  operator?: string;
+  value?: string;
 }
 
 export interface ContractOutputElement {
@@ -7702,6 +7856,7 @@ export interface PlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
+    | "ATTACK_PATH"
     | "AUDIT_LOG"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
@@ -7989,6 +8144,7 @@ export interface PublicPlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
+    | "ATTACK_PATH"
     | "AUDIT_LOG"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];

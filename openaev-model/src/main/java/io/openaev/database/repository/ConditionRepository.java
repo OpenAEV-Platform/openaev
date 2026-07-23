@@ -30,6 +30,25 @@ public interface ConditionRepository extends JpaRepository<Condition, String> {
   List<Condition> findAllLinkedToStepId(@Param("stepId") String stepId);
 
   /**
+   * Batched variant of {@link #findAllLinkedToStepId}: retrieves the conditions linked to any of
+   * the given step ids, each paired with its step id so the caller can group by step in one read
+   * (issue 5048). Like the single-step query, this returns the conditions linked to a step (the
+   * tree roots); a composite AND/OR filter's leaf keys live in its {@code conditionChildren} and
+   * are reached by walking the tree, not by this query.
+   *
+   * @param stepIds the step ids to retrieve conditions for
+   * @return one row per (step, linked condition)
+   */
+  @Query(
+      """
+          SELECT new io.openaev.database.repository.StepConditionRow(cs.step.id, c)
+          FROM Condition c
+          JOIN c.conditionSteps cs
+          WHERE cs.step.id IN :stepIds
+          """)
+  List<StepConditionRow> findAllLinkedToStepIdIn(@Param("stepIds") Set<String> stepIds);
+
+  /**
    * Retrieves all root conditions (events) for a given workflow. A root condition has no parent.
    *
    * @param workflowId the workflow identifier

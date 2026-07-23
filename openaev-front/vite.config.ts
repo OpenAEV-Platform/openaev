@@ -62,6 +62,7 @@ export default ({ mode }: { mode: string }) => {
       port: 3001,
       proxy: {
         '/api': backProxy(),
+        '/csrf': backProxy(),
         '/login': backProxy(),
         '/logout': backProxy(),
         '/oauth2': backProxy(),
