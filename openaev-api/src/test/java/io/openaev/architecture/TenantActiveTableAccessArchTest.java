@@ -41,14 +41,11 @@ import io.openaev.rest.scenario.ScenarioImportApi;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.InjectExpectationTraceService;
 import io.openaev.service.MapperService;
-<<<<<<< HEAD
+import io.openaev.service.attackpath.AttackPathGraphService;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
-=======
-import io.openaev.service.attackpath.AttackPathGraphService;
-import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
->>>>>>> origin/main
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
 import io.openaev.utils.mapper.CveMapper;
 import io.openaev.utils.mapper.VulnerabilityMapper;
@@ -84,17 +81,14 @@ class TenantActiveTableAccessArchTest {
 
   /** Tables guarded by this test. Must cover every entry of the production allowlist. */
   private static final Set<String> GUARDED_TABLES =
-<<<<<<< HEAD
-      Set.of("import_mappers", "lessons_templates", "cwes", "mitigations", "collectors");
-=======
       Set.of(
           "import_mappers",
           "lessons_templates",
           "cwes",
           "mitigations",
+          "collectors",
           "attackpath_execution",
           "attackpath_finding");
->>>>>>> origin/main
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -195,7 +189,6 @@ class TenantActiveTableAccessArchTest {
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
-<<<<<<< HEAD
   static final ArchRule collectors_repository_access_is_reviewed =
       noClasses()
           .that()
@@ -229,7 +222,8 @@ class TenantActiveTableAccessArchTest {
           .because(
               "collectors is tenant-active: an accessor without a tenant scope silently reads zero"
                   + " rows. New accessors must carry a scope and be allowlisted here");
-=======
+
+  @ArchTest
   static final ArchRule attackpath_execution_repository_access_is_reviewed =
       noClasses()
           .that()
@@ -266,5 +260,4 @@ class TenantActiveTableAccessArchTest {
           .because(
               "attackpath_finding is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
->>>>>>> origin/main
 }
