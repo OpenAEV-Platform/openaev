@@ -4250,6 +4250,12 @@ export interface Exercise {
   listened?: boolean;
 }
 
+export interface ExerciseBulkProcessingInput {
+  exercise_ids_to_ignore?: string[];
+  exercise_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
 export interface ExerciseSimple {
   /** Exercise Category */
   exercise_category?: string;
@@ -6404,6 +6410,10 @@ export interface Organization {
   organization_updated_at: string;
 }
 
+export interface OrganizationBulkProcessingInput {
+  organization_ids: string[];
+}
+
 export interface OrganizationCreateInput {
   organization_description?: string;
   /** @minLength 1 */
@@ -7831,6 +7841,12 @@ export interface PlatformSettings {
   xtm_hub_url?: string;
 }
 
+export interface PlayerBulkProcessingInput {
+  search_pagination_input?: SearchPaginationInput;
+  user_ids_to_ignore?: string[];
+  user_ids_to_process?: string[];
+}
+
 export interface PlayerInput {
   /** @pattern ^$|^\+[\d\s\-.()]+$ */
   user_phone2?: string;
@@ -8481,6 +8497,12 @@ export interface ScenarioAndInjectorContractsInputs {
   /** @minLength 1 */
   locale: string;
   scenario_input: ScenarioInput;
+}
+
+export interface ScenarioBulkProcessingInput {
+  scenario_ids_to_ignore?: string[];
+  scenario_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
 }
 
 export interface ScenarioChallengesReader {
@@ -9395,6 +9417,12 @@ export interface Team {
    * @format int64
    */
   team_users_number?: number;
+}
+
+export interface TeamBulkProcessingInput {
+  search_pagination_input?: SearchPaginationInput;
+  team_ids_to_ignore?: string[];
+  team_ids_to_process?: string[];
 }
 
 export interface TeamCreateInput {

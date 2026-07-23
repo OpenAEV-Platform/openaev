@@ -597,6 +597,27 @@ public interface InjectRepository
       nativeQuery = true)
   void deleteAllByScenarioIdAndInjectorContract(String injectorContract, String scenarioId);
 
+  // Injects that would be cascade-deleted at the DATABASE level (injects.inject_injector_contract
+  // references injectors_contracts ON DELETE CASCADE) when the given contracts are deleted. Used
+  // to notify the search engine of the doomed inject documents BEFORE the delete, since no JPA
+  // lifecycle event fires for DB-level cascades.
+  @Query(
+      value =
+          "SELECT i.inject_id FROM injects i WHERE i.inject_injector_contract IN (:contractIds)",
+      nativeQuery = true)
+  List<String> findInjectIdsByInjectorContractIds(
+      @Param("contractIds") Collection<String> contractIds);
+
+  // Same purpose for payload deletion: payloads cascade to injectors_contracts, which cascade to
+  // injects — two DB-level hops with zero JPA lifecycle events.
+  @Query(
+      value =
+          "SELECT i.inject_id FROM injects i "
+              + "JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract "
+              + "WHERE ic.injector_contract_payload = :payloadId",
+      nativeQuery = true)
+  List<String> findInjectIdsByPayloadId(@Param("payloadId") String payloadId);
+
   @EntityGraph(attributePaths = {"expectations", "injectorContract"})
   @Query("SELECT i FROM Inject i WHERE i.id IN :ids")
   List<Inject> findAllByIdWithExpectations(@Param("ids") List<String> ids);

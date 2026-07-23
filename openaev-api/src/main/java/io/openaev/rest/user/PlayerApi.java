@@ -13,6 +13,7 @@ import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.user.form.player.PlayerBulkProcessingInput;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.rest.user.form.player.PlayerOutput;
 import io.openaev.service.UserService;
@@ -101,6 +102,14 @@ public class PlayerApi extends RestBehavior {
       resourceType = ResourceType.PLAYER)
   public void deletePlayer(@PathVariable String userId) {
     userService.delete(userId);
+  }
+
+  @LogExecutionTime
+  @DeleteMapping({PLAYER_URI, TENANT_PLAYER_URI})
+  @Transactional(rollbackFor = Exception.class)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLAYER)
+  public List<String> bulkDeletePlayers(@RequestBody @Valid final PlayerBulkProcessingInput input) {
+    return playerService.bulkDeletePlayers(input);
   }
 
   // -- OPTIONS (for the shared filter autocomplete: id + display name) --

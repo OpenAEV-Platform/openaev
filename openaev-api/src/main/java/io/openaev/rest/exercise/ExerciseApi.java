@@ -586,6 +586,18 @@ public class ExerciseApi extends RestBehavior {
     exerciseService.deleteById(exerciseId);
   }
 
+  @Operation(
+      description = "Bulk delete of simulations",
+      tags = {"Simulations"})
+  @LogExecutionTime
+  @DeleteMapping({EXERCISE_URI, TENANT_EXERCISE_URI})
+  @Transactional(rollbackFor = Exception.class)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.SIMULATION)
+  public List<String> bulkDeleteExercises(
+      @RequestBody @Valid final ExerciseBulkProcessingInput input) {
+    return exerciseService.bulkDelete(input);
+  }
+
   @GetMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
   @AccessControl(
       resourceId = "#exerciseId",

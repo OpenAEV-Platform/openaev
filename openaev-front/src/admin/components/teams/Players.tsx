@@ -1,12 +1,12 @@
 import { HelpOutlineOutlined, PersonOutlined } from '@mui/icons-material';
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useMemo, useState } from 'react';
+import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { type CSSProperties, useContext, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type OrganizationHelper, type UserHelper } from '../../../actions/helper';
 import { fetchOrganizations } from '../../../actions/Organization';
-import { searchPlayers } from '../../../actions/players/player-actions';
+import { bulkDeletePlayers, searchPlayers } from '../../../actions/players/player-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import ExportButton from '../../../components/common/ExportButton';
 import { initSorting } from '../../../components/common/queryable/Page';
@@ -24,8 +24,10 @@ import { useHelper } from '../../../store';
 import { type PlayerOutput, type SearchPaginationInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
-import { Can } from '../../../utils/permissions/permissionsContext';
+import useEntityToggle from '../../../utils/hooks/useEntityToggle';
+import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import ToolBar from '../common/ToolBar';
 import CreatePlayer from './players/CreatePlayer';
 import PlayerPopover from './players/PlayerPopover';
 
@@ -132,6 +134,33 @@ const Players = () => {
     return searchPlayers(input).finally(() => setLoading(false));
   };
 
+  // Bulk selection
+  const ability = useContext(AbilityContext);
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS);
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    handleToggleSelectAll,
+    onToggleEntity,
+    numberOfSelectedElements,
+  } = useEntityToggle<PlayerOutput>('user', players, queryableHelpers.paginationHelpers.getTotalElements());
+
+  const bulkDelete = () => {
+    bulkDeletePlayers({
+      search_pagination_input: selectAll ? searchPaginationInput : undefined,
+      user_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
+      user_ids_to_ignore: Object.keys(deSelectedElements),
+    }).then((result) => {
+      const deletedIds: string[] = result.data ?? [];
+      const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
+      setPlayers(players.filter(p => !deletedIds.includes(p.user_id)));
+      queryableHelpers.paginationHelpers.handleChangeTotalElements(newTotal);
+      handleClearSelectedElements();
+    });
+  };
+
   return (
     <>
       <Breadcrumbs
@@ -163,19 +192,49 @@ const Players = () => {
         <ListItem
           classes={{ root: classes.itemHead }}
           divider={false}
-          style={{ paddingTop: 0 }}
-          secondaryAction={<>&nbsp;</>}
+          style={{
+            paddingTop: 0,
+            ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)' } : {}),
+          }}
+          {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
         >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponentV2
-                headers={headers}
-                inlineStylesHeaders={inlineStyles}
-                sortHelpers={queryableHelpers.sortHelpers}
+          {canManage && (
+            <ListItemIcon style={{ minWidth: 40 }}>
+              <Checkbox
+                edge="start"
+                checked={selectAll}
+                disableRipple
+                onChange={handleToggleSelectAll}
               />
-            )}
-          />
+            </ListItemIcon>
+          )}
+          {numberOfSelectedElements > 0 ? (
+            <ListItemText
+              primary={(
+                <ToolBar
+                  numberOfSelectedElements={numberOfSelectedElements}
+                  handleClearSelectedElements={handleClearSelectedElements}
+                  handleBulkDelete={bulkDelete}
+                  canManage={canManage}
+                  deleteConfirmationSingular={t('Do you want to delete this player?')}
+                  deleteConfirmationPlural={t('Do you want to delete these {count} persons?', { count: String(numberOfSelectedElements) })}
+                />
+              )}
+            />
+          ) : (
+            <>
+              <ListItemIcon />
+              <ListItemText
+                primary={(
+                  <SortHeadersComponentV2
+                    headers={headers}
+                    inlineStylesHeaders={inlineStyles}
+                    sortHelpers={queryableHelpers.sortHelpers}
+                  />
+                )}
+              />
+            </>
+          )}
         </ListItem>
         {loading
           ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
@@ -192,6 +251,21 @@ const Players = () => {
                 )}
               >
                 <ListItemButton classes={{ root: classes.item }} onClick={() => navigate(`${PERSON_BASE_URL}/${player.user_id}`)}>
+                  {canManage && (
+                    <ListItemIcon
+                      style={{ minWidth: 40 }}
+                      onClick={event => onToggleEntity(player, event)}
+                    >
+                      <Checkbox
+                        edge="start"
+                        checked={
+                          (selectAll && !(player.user_id in (deSelectedElements || {})))
+                          || player.user_id in (selectedElements || {})
+                        }
+                        disableRipple
+                      />
+                    </ListItemIcon>
+                  )}
                   <ListItemIcon>
                     <PersonOutlined color="primary" />
                   </ListItemIcon>

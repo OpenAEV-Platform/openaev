@@ -1,12 +1,12 @@
 import { DomainOutlined, FileDownloadOutlined } from '@mui/icons-material';
-import { IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
-import { type CSSProperties } from 'react';
+import { Checkbox, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
+import { type CSSProperties, useContext } from 'react';
 import { CSVLink } from 'react-csv';
 import { useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type OrganizationHelper, type UserHelper } from '../../../actions/helper';
-import { fetchOrganizations } from '../../../actions/Organization';
+import { bulkDeleteOrganizations, fetchOrganizations } from '../../../actions/Organization';
 import { type TagHelper } from '../../../actions/tags/tag-helper';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import useBodyItemsStyles from '../../../components/common/queryable/style/style';
@@ -19,11 +19,13 @@ import { type Organization } from '../../../utils/api-types';
 import { exportData } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
-import { Can } from '../../../utils/permissions/permissionsContext';
+import useEntityToggle from '../../../utils/hooks/useEntityToggle';
+import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import useSearchAndFilter from '../../../utils/SortingFiltering';
 import { truncate } from '../../../utils/String';
 import TagsFilter from '../common/filters/TagsFilter';
+import ToolBar from '../common/ToolBar';
 import CreateOrganization from './organizations/CreateOrganization';
 import OrganizationPopover from './organizations/OrganizationPopover';
 
@@ -121,6 +123,30 @@ const OrganizationsList = () => {
 
   const sortedOrganizations: Organization[] = filtering.filterAndSort(organizations);
 
+  // Bulk selection (client-side list: the selection is always resolved to explicit ids)
+  const ability = useContext(AbilityContext);
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    handleToggleSelectAll,
+    onToggleEntity,
+    numberOfSelectedElements,
+  } = useEntityToggle<Organization>('organization', sortedOrganizations, sortedOrganizations.length);
+
+  const bulkDelete = () => {
+    const ids = selectAll
+      ? sortedOrganizations
+          .map(organization => organization.organization_id)
+          .filter(id => !(id in (deSelectedElements || {})))
+      : Object.keys(selectedElements);
+    dispatch(bulkDeleteOrganizations({ organization_ids: ids })).then(() => {
+      handleClearSelectedElements();
+    });
+  };
+
   return (
     <>
       <Breadcrumbs
@@ -180,35 +206,65 @@ const OrganizationsList = () => {
         <ListItem
           classes={{ root: classes.itemHead }}
           divider={false}
-          style={{ paddingTop: 0 }}
-          secondaryAction={<>&nbsp;</>}
+          style={{
+            paddingTop: 0,
+            ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)' } : {}),
+          }}
+          {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
         >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <div style={bodyItemsStyles.bodyItems}>
-                {filtering.buildHeader(
-                  'organization_name',
-                  'Name',
-                  true,
-                  inlineStylesHeaders,
+          {canManage && (
+            <ListItemIcon style={{ minWidth: 40 }}>
+              <Checkbox
+                edge="start"
+                checked={selectAll}
+                disableRipple
+                onChange={handleToggleSelectAll}
+              />
+            </ListItemIcon>
+          )}
+          {numberOfSelectedElements > 0 ? (
+            <ListItemText
+              primary={(
+                <ToolBar
+                  numberOfSelectedElements={numberOfSelectedElements}
+                  handleClearSelectedElements={handleClearSelectedElements}
+                  handleBulkDelete={bulkDelete}
+                  canManage={canManage}
+                  deleteConfirmationSingular={t('Do you want to delete this organization?')}
+                  deleteConfirmationPlural={t('Do you want to delete these {count} organizations?', { count: String(numberOfSelectedElements) })}
+                />
+              )}
+            />
+          ) : (
+            <>
+              <ListItemIcon />
+              <ListItemText
+                primary={(
+                  <div style={bodyItemsStyles.bodyItems}>
+                    {filtering.buildHeader(
+                      'organization_name',
+                      'Name',
+                      true,
+                      inlineStylesHeaders,
+                    )}
+                    {filtering.buildHeader(
+                      'organization_description',
+                      'Description',
+                      true,
+                      inlineStylesHeaders,
+                    )}
+                    {filtering.buildHeader(
+                      'organization_tags',
+                      'Tags',
+                      true,
+                      inlineStylesHeaders,
+                    )}
+                  </div>
                 )}
-                {filtering.buildHeader(
-                  'organization_description',
-                  'Description',
-                  true,
-                  inlineStylesHeaders,
-                )}
-                {filtering.buildHeader(
-                  'organization_tags',
-                  'Tags',
-                  true,
-                  inlineStylesHeaders,
-                )}
-              </div>
-            )}
-          />
-          <ListItemSecondaryAction> &nbsp; </ListItemSecondaryAction>
+              />
+              <ListItemSecondaryAction> &nbsp; </ListItemSecondaryAction>
+            </>
+          )}
         </ListItem>
         {sortedOrganizations.map(organization => (
           <ListItem
@@ -227,6 +283,21 @@ const OrganizationsList = () => {
               onClick={() => navigate(`${ORGANIZATION_BASE_URL}/${organization.organization_id}`)}
               sx={{ height: 50 }}
             >
+              {canManage && (
+                <ListItemIcon
+                  style={{ minWidth: 40 }}
+                  onClick={event => onToggleEntity(organization, event)}
+                >
+                  <Checkbox
+                    edge="start"
+                    checked={
+                      (selectAll && !(organization.organization_id in (deSelectedElements || {})))
+                      || organization.organization_id in (selectedElements || {})
+                    }
+                    disableRipple
+                  />
+                </ListItemIcon>
+              )}
               <ListItemIcon>
                 <DomainOutlined color="primary" />
               </ListItemIcon>

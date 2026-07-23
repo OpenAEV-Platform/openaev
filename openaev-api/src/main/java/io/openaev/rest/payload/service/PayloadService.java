@@ -40,6 +40,7 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
@@ -81,6 +82,7 @@ public class PayloadService {
   private final ResultsMetricCollector resultsMetricCollector;
   private final DomainService domainService;
   private final TagService tagService;
+  private final InjectIndexCleanupService injectIndexCleanupService;
 
   private final PayloadMapper payloadMapper;
 
@@ -578,6 +580,12 @@ public class PayloadService {
     payloadRepository
         .findById(payloadId)
         .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
+    // Payload deletion cascades at the DB level to its injector contract and then to the injects
+    // (both FKs are ON DELETE CASCADE): de-index the doomed injects explicitly, no JPA lifecycle
+    // event fires for them.
+    List<String> cascadeDeletedInjectIds =
+        injectIndexCleanupService.injectIdsByPayloadId(payloadId);
     payloadRepository.deleteById(payloadId);
+    injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
   }
 }

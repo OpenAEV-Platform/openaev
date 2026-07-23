@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, List, ListItem, ListItemText, Paper, Switch, Typography } from '@mui/material';
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, List, ListItem, ListItemText, Paper, Stack, Switch, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
 import { type ChangeEvent, useContext, useState } from 'react';
@@ -26,7 +26,6 @@ const EnterpriseEditionSettings: React.FC = () => {
 
   const isEnterpriseEditionActivated = settings.platform_license?.license_is_enterprise;
   const isEnterpriseEditionByConfig = settings.platform_license?.license_is_by_configuration;
-  const isEnterpriseEdition = settings.platform_license?.license_is_validated === true;
   const canManageSettings = ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
   const updateEnterpriseEdition = (data: SettingsEnterpriseEditionUpdateInput) => dispatch(updatePlatformEnterpriseEditionParameters(data));
 
@@ -63,21 +62,19 @@ const EnterpriseEditionSettings: React.FC = () => {
             >
               {t('Enterprise Edition')}
             </Typography>
-            {!isEnterpriseEditionByConfig && !isEnterpriseEdition && (
+            {!isEnterpriseEditionByConfig && (
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-                <EnterpriseEditionButton />
-              </Can>
-            )}
-            {!isEnterpriseEditionByConfig && isEnterpriseEdition && (
-              <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="primary"
-                  onClick={() => setOpenEEChanges(true)}
-                >
-                  {t('Disable Enterprise Edition')}
-                </Button>
+                <Stack direction="row" gap={1}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="primary"
+                    onClick={() => setOpenEEChanges(true)}
+                  >
+                    {t('Disable Enterprise Edition')}
+                  </Button>
+                  <EnterpriseEditionButton />
+                </Stack>
                 <Dialog
                   slotProps={{ paper: { elevation: 1 } }}
                   open={openEEChanges}

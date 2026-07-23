@@ -6,7 +6,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { fetchAssetGroup, searchEndpointsFromAssetGroup } from '../../../../actions/asset_groups/assetgroup-action';
 import { type AssetGroupsHelper } from '../../../../actions/asset_groups/assetgroup-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { DetailHero, DetailSections, Field, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, DetailSections, Field, InformationGrid, SectionBlock, SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
 import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
 import AssetTypeFragment from '../../../../components/common/list/fragments/AssetTypeFragment';
 import { initSorting } from '../../../../components/common/queryable/Page';
@@ -161,24 +161,21 @@ const AssetGroupDetail = () => {
         </SectionBlock>
       </DetailSections>
 
-      <SectionBlock title={t('Assets')} disablePadding>
-        <Box sx={{
-          padding: 2,
-          paddingBottom: 0,
-        }}
-        >
-          <PaginationComponentV2
-            fetch={(input: SearchPaginationInput) => searchEndpointsFromAssetGroup(input, assetGroupId)}
-            searchPaginationInput={searchPaginationInput}
-            setContent={setEndpoints}
-            entityPrefix="endpoint"
-            availableFilterNames={availableFilterNames}
-            queryableHelpers={queryableHelpers}
-            reloadContentCount={reloadContentCount}
-            contextId={assetGroupId}
-          />
-        </Box>
-        <List disablePadding>
+      {/* Flat list (no surrounding Paper): the section label sits directly above
+          the assets list, matching the standard entity lists on detail pages. */}
+      <div>
+        <SectionLabel>{t('Assets')}</SectionLabel>
+        <PaginationComponentV2
+          fetch={(input: SearchPaginationInput) => searchEndpointsFromAssetGroup(input, assetGroupId)}
+          searchPaginationInput={searchPaginationInput}
+          setContent={setEndpoints}
+          entityPrefix="endpoint"
+          availableFilterNames={availableFilterNames}
+          queryableHelpers={queryableHelpers}
+          reloadContentCount={reloadContentCount}
+          contextId={assetGroupId}
+        />
+        <List>
           <ListItem style={{
             paddingTop: 0,
             textTransform: 'uppercase',
@@ -228,7 +225,7 @@ const AssetGroupDetail = () => {
               ))
             : <Empty message={t('No asset in this asset group.')} />}
         </List>
-      </SectionBlock>
+      </div>
     </Box>
   );
 };

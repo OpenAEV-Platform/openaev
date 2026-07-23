@@ -6,9 +6,10 @@ import {
   postReferential,
   putReferential,
   simpleCall,
+  simpleDelCall,
   simplePostCall,
 } from '../../utils/Action';
-import { type SearchPaginationInput, type Team, type TeamCreateInput, type TeamUpdateInput, type User } from '../../utils/api-types';
+import { type SearchPaginationInput, type Team, type TeamBulkProcessingInput, type TeamCreateInput, type TeamUpdateInput, type User } from '../../utils/api-types';
 import * as schema from '../Schema';
 
 const TEAMS_URI = '/api/teams';
@@ -57,6 +58,10 @@ export const addTeam = (data: TeamCreateInput) => (dispatch: Dispatch) => {
 export const deleteTeam = (teamId: Team['team_id']) => (dispatch: Dispatch) => {
   const uri = `${TEAMS_URI}/${teamId}`;
   return delReferential(uri, 'teams', teamId)(dispatch);
+};
+
+export const bulkDeleteTeams = (input: TeamBulkProcessingInput) => {
+  return simpleDelCall(TEAMS_URI, { data: input });
 };
 
 export const searchTeamsAsOption = (searchText: string = '', sourceId: string = '', inputFilterOption: string = '') => {

@@ -1,5 +1,6 @@
 import {
   AutoAwesomeOutlined,
+  EmojiEventsOutlined,
   GroupsOutlined,
   HubOutlined,
   InsertChartOutlined,
@@ -15,9 +16,11 @@ import {
 import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type SetStateAction, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 
+import { fetchScenarioChallenges } from '../../../../actions/challenge-action';
 import { createCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
+import { type ChallengeHelper } from '../../../../actions/helper';
 import {
   createRunningExerciseFromScenario,
   searchScenarioHealthcheks,
@@ -34,6 +37,7 @@ import ItemSeverity from '../../../../components/ItemSeverity';
 import { SIMULATION_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import {
+  type Challenge,
   type CustomDashboard,
   type Exercise,
   type HealthCheck,
@@ -41,6 +45,7 @@ import {
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
+import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Cron } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
 import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExpressionHandler';
@@ -102,7 +107,21 @@ const ScenarioHeader = ({
     }
   }, [openScenarioAssistantQueryParam, scenarioId]);
   // Fetching data
-  const { scenario }: { scenario: Scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
+  const { scenario, challenges }: {
+    scenario: Scenario;
+    challenges: Challenge[];
+  } = useHelper((helper: ScenariosHelper & ChallengeHelper) => ({
+    scenario: helper.getScenario(scenarioId),
+    challenges: helper.getScenarioChallenges(scenarioId),
+  }));
+
+  // Challenges are authored inside injects (no configuration tab): as soon as
+  // at least one inject uses a challenge, expose the player-facing preview
+  // right in the hero.
+  useDataLoader(() => {
+    dispatch(fetchScenarioChallenges(scenarioId));
+  });
+  const hasChallenges = challenges.length > 0;
 
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
@@ -281,6 +300,21 @@ const ScenarioHeader = ({
                   tooltips) instead of being buried in the overflow menu. The
                   dashboard tooltip reflects whether a dashboard is already
                   attached (open) or still needs to be created. */}
+              {/* Visible as soon as one inject uses a challenge - opens the
+                  player-facing challenges page in a new tab. */}
+              {hasChallenges && (
+                <Tooltip title={t('Preview challenges page')}>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    component={Link}
+                    to={`/admin/scenarios/${scenarioId}/challenges`}
+                    target="_blank"
+                  >
+                    <EmojiEventsOutlined fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
               {canManage && (
                 <>
                   <Tooltip title={hasDashboard ? t('Open dashboard') : t('Create dashboard')}>

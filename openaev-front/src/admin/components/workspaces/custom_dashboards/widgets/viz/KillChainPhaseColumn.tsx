@@ -40,8 +40,6 @@ interface AttackPatternStats {
   success: number;
   failure: number;
   total: number;
-  successKeys: string[];
-  failureKeys: string[];
 }
 
 const KillChainPhaseColumn: FunctionComponent<{
@@ -98,8 +96,6 @@ const KillChainPhaseColumn: FunctionComponent<{
         success,
         failure,
         total: success + failure,
-        successKeys: successData.map(d => d.key).filter(Boolean) as string[],
-        failureKeys: failureData.map(d => d.key).filter(Boolean) as string[],
       };
     });
   }, [attackPatterns, successIndex, failureIndex]);
@@ -112,12 +108,20 @@ const KillChainPhaseColumn: FunctionComponent<{
   }, [attackPatternStats, coverageFilter]);
 
   const onAttackPatternBoxClick = useCallback((stat: AttackPatternStats) => {
+    // Deterministic drill-down scope: the clicked technique plus ALL of its
+    // sub-techniques from the referential. Using the raw aggregation bucket
+    // keys instead would silently drop any bucket truncated out of the terms
+    // aggregation, making the list disagree with the tile.
+    const clickedId = stat.attackPattern.attack_pattern_id;
+    const subTechniqueIds = Object.values(attackPatternMap)
+      .filter(attackPattern => attackPattern.attack_pattern_parent === clickedId)
+      .map(attackPattern => attackPattern.attack_pattern_id);
     openWidgetDataDrawer({
       widgetId,
-      filter_values_map: { [widgetConfig.field]: [stat.attackPattern.attack_pattern_id, ...stat.successKeys, ...stat.failureKeys] },
+      filter_values_map: { [widgetConfig.field]: [clickedId, ...subTechniqueIds] },
       series_index: 0,
     });
-  }, [openWidgetDataDrawer, widgetId]);
+  }, [openWidgetDataDrawer, widgetId, widgetConfig.field, attackPatternMap]);
 
   // Memoize title style
   const titleStyle = useMemo(() => ({ marginBottom: theme.spacing(2) }), [theme]);

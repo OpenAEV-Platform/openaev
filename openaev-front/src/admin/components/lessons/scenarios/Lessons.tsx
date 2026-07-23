@@ -24,6 +24,7 @@ import { type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type Le
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import ConfigurationSection from '../../common/ConfigurationSection';
 import { LessonContext, PermissionsContext } from '../../common/Context';
 import CreateLessonsCategory from '../categories/CreateLessonsCategory';
 import CreateObjective from '../CreateObjective';
@@ -115,7 +116,10 @@ const Lessons: FunctionComponent<Props> = ({
         alignItems: 'stretch',
       }}
       >
-        <InformationGrid title={t('Parameters')}>
+        {/* action={null} adopts the 32px action-row header so the Paper
+            top-aligns with the Objectives column (which carries a create
+            button in its header). */}
+        <InformationGrid title={t('Parameters')} action={null}>
           {permissions.canManage && (
             <Field label={t('Questionnaire mode')}>
               <FormControlLabel
@@ -175,27 +179,17 @@ const Lessons: FunctionComponent<Props> = ({
             </Field>
           )}
         </InformationGrid>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-        }}
+        <ConfigurationSection
+          title={t('Objectives')}
+          count={objectives.length}
+          action={source.isUpdatable ? <CreateObjective /> : undefined}
         >
-          <Typography sx={{
-            ...SECTION_LABEL_SX,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-          }}
-          >
-            {t('Objectives')}
-            {source.isUpdatable && (<CreateObjective />)}
-          </Typography>
           <LessonsObjectives
             objectives={objectives}
             setSelectedObjective={setSelectedObjective}
             source={source}
           />
-        </div>
+        </ConfigurationSection>
       </Box>
 
       {/* Categories and questions */}

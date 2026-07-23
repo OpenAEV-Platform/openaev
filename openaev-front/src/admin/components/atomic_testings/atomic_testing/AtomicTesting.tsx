@@ -4,14 +4,13 @@ import { type SyntheticEvent, useContext, useEffect, useMemo, useState } from 'r
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { getInjectStatusWithGlobalExecutionTraces, searchTargets } from '../../../../actions/injects/inject-action';
+import { searchTargets } from '../../../../actions/injects/inject-action';
 import { SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
-import { type InjectStatusOutput, type InjectTarget, type SearchPaginationInput } from '../../../../utils/api-types';
+import { type InjectTarget, type SearchPaginationInput } from '../../../../utils/api-types';
 import { isAgentless } from '../../../../utils/target/TargetUtils';
-import GlobalExecutionTraces from '../../common/injects/status/traces/GlobalExecutionTraces';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../InjectResultOverviewOutputContext';
 import PaginatedTargetTab from './PaginatedTargetTab';
 import TargetResultsDetail from './target_result/TargetResultsDetail';
@@ -74,7 +73,6 @@ const AtomicTesting = () => {
   const [hasPlayersChecked, setHasPlayersChecked] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState<InjectTarget>();
   const [pageTargets, setPageTargets] = useState<InjectTarget[]>([]);
-  const [injectStatus, setInjectStatus] = useState<InjectStatusOutput>();
 
   // Initial tab open
   const [searchParams, setSearchParams] = useSearchParams();
@@ -240,14 +238,6 @@ const AtomicTesting = () => {
     setReloadContentCount(reloadContentCount + 1);
   }, [injectResultOverviewOutput]);
 
-  useEffect(() => {
-    if (!injectId) return;
-    getInjectStatusWithGlobalExecutionTraces(injectId)
-      .then((response: { data: InjectStatusOutput }) => {
-        setInjectStatus(response.data);
-      });
-  }, [injectId, injectResultOverviewOutput]);
-
   // Handles
   const handleNewTargetClick = (target: InjectTarget) => {
     setSelectedTarget(target);
@@ -380,14 +370,6 @@ const AtomicTesting = () => {
           </Paper>
         )}
       </Grid>
-      {injectStatus && (
-        <Grid size={{ xs: 12 }}>
-          <SectionLabel>{t('Execution')}</SectionLabel>
-          <Paper classes={{ root: classes.paper }} variant="outlined">
-            <GlobalExecutionTraces injectStatus={injectStatus} />
-          </Paper>
-        </Grid>
-      )}
     </Grid>
   );
 };

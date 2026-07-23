@@ -8,6 +8,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.user.PlayerQueryHelper.execution;
 import static io.openaev.rest.user.PlayerQueryHelper.select;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 import static java.time.Instant.now;
 
@@ -16,11 +17,15 @@ import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.*;
+import io.openaev.database.specification.SpecificationUtils;
+import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.user.form.player.PlayerBulkProcessingInput;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.rest.user.form.player.PlayerOutput;
 import io.openaev.service.UserService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.tenants.TenantUserService;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -41,6 +46,8 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -56,6 +63,56 @@ public class PlayerService {
 
   private final UserRepository userRepository;
   private final UserService userService;
+
+  /**
+   * Bulk delete of players, either from an explicit list of ids or from a search input (select
+   * all). The current user, admin users and reserved service accounts are always excluded from the
+   * deletion scope.
+   *
+   * @param input the bulk processing input
+   * @return the ids of the deleted players
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public List<String> bulkDeletePlayers(@NotNull final PlayerBulkProcessingInput input) {
+    if ((CollectionUtils.isEmpty(input.getUserIdsToProcess())
+            && input.getSearchPaginationInput() == null)
+        || (!CollectionUtils.isEmpty(input.getUserIdsToProcess())
+            && input.getSearchPaginationInput() != null)) {
+      throw new BadRequestException(
+          "Either user_ids_to_process or search_pagination_input must be provided, and not both at the same time");
+    }
+    Specification<User> specification;
+    if (input.getSearchPaginationInput() != null) {
+      // Same specification chain as the list search (filter group + text search), so the deletion
+      // scope matches exactly what the user sees in the list.
+      specification =
+          FilterUtilsJpa.<User>computeFilterGroupJpa(
+                  input.getSearchPaginationInput().getFilterGroup())
+              .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
+    } else {
+      specification = SpecificationUtils.hasIdIn(input.getUserIdsToProcess());
+    }
+    // Users are a platform-level (dual-scope) entity: scope explicitly to the current tenant,
+    // like the players list search does.
+    specification = specification.and(inTenant(TenantContext.getCurrentTenant()));
+    if (!CollectionUtils.isEmpty(input.getUserIdsToIgnore())) {
+      List<String> idsToIgnore = input.getUserIdsToIgnore();
+      specification =
+          specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+    }
+    String currentUserId = userService.currentUser().getId();
+    List<String> deletedIds =
+        userRepository.findAll(specification).stream()
+            // Never delete yourself, admin accounts or reserved service accounts through a bulk
+            // players deletion (the single delete has per-resource RBAC checks instead).
+            .filter(user -> !user.getId().equals(currentUserId))
+            .filter(user -> !user.isAdmin())
+            .filter(user -> !ReservedKeyValidator.isReservedUserEmail(user.getEmail()))
+            .map(User::getId)
+            .toList();
+    deletedIds.forEach(userService::delete);
+    return deletedIds;
+  }
 
   public Page<PlayerOutput> playerPagination(@NotNull SearchPaginationInput searchPaginationInput) {
     Specification<User> tenantSpec = inTenant(TenantContext.getCurrentTenant());

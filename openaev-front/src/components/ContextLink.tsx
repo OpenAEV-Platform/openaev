@@ -11,10 +11,9 @@ interface Props {
   icon?: ReactElement;
 }
 
-// Plain text that navigates on click. Deliberately NOT a hyperlink (no
-// underline, no primary color) and NOT a button (no padding, background,
-// border or hover effect): it must read as regular cell text, with only the
-// cursor indicating it is clickable.
+// Plain text that navigates on click. At rest it reads as regular cell text
+// (no underline, no primary color, no button chrome); hovering reveals the
+// affordance by tinting the text and icon with the primary color.
 const ContextLink: FunctionComponent<Props> = ({
   title,
   url,
@@ -34,10 +33,16 @@ const ContextLink: FunctionComponent<Props> = ({
           'color': 'inherit',
           'textDecoration': 'none',
           'lineHeight': 1.4,
+          'transition': 'color 0.2s',
           '& > svg': {
             fontSize: '1rem',
             flexShrink: 0,
             color: 'text.secondary',
+            transition: 'color 0.2s',
+          },
+          '&:hover': {
+            'color': 'primary.main',
+            '& > svg': { color: 'primary.main' },
           },
         }}
       >

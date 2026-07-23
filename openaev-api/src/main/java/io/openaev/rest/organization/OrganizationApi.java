@@ -13,6 +13,7 @@ import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.organization.form.OrganizationBulkProcessingInput;
 import io.openaev.rest.organization.form.OrganizationCreateInput;
 import io.openaev.rest.organization.form.OrganizationUpdateInput;
 import io.openaev.service.organization.OrganizationService;
@@ -109,6 +110,20 @@ public class OrganizationApi extends RestBehavior {
       resourceType = ResourceType.ORGANIZATION)
   public void deleteOrganization(@PathVariable String organizationId) {
     organizationRepository.deleteById(organizationId);
+  }
+
+  @DeleteMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
+  @Transactional(rollbackFor = Exception.class)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ORGANIZATION)
+  public List<String> bulkDeleteOrganizations(
+      @RequestBody @Valid final OrganizationBulkProcessingInput input) {
+    // findAllById goes through a criteria query, so the Hibernate tenant filter applies and
+    // organizations from other tenants are silently skipped.
+    List<Organization> organizations =
+        fromIterable(organizationRepository.findAllById(input.getOrganizationIds()));
+    List<String> deletedIds = organizations.stream().map(Organization::getId).toList();
+    organizationRepository.deleteAll(organizations);
+    return deletedIds;
   }
 
   // -- OPTION --

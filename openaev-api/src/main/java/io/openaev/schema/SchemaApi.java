@@ -9,6 +9,7 @@ import io.openaev.schema.model.PropertySchemaDTO;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,15 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping
 public class SchemaApi extends RestBehavior {
+
+  /**
+   * Historical entity names still used by clients (and persisted filter configurations) whose
+   * backing class was renamed. The JPA-inheritance refactor renamed {@code InjectExpectation} to
+   * {@code BaseInjectExpectation} (with per-type subclasses); the public schema API keeps answering
+   * to the original name so existing callers do not break with a ClassNotFoundException.
+   */
+  private static final Map<String, String> RENAMED_ENTITIES =
+      Map.of("InjectExpectation", "BaseInjectExpectation");
 
   private final EngineContext engineContext;
 
@@ -36,7 +46,8 @@ public class SchemaApi extends RestBehavior {
     if (!isValidClassName(className)) {
       throw new IllegalArgumentException("Class not allowed : " + className);
     }
-    String completeClassName = basePackage + "." + className;
+    String completeClassName =
+        basePackage + "." + RENAMED_ENTITIES.getOrDefault(className, className);
 
     Class<?> clazz = Class.forName(completeClassName);
 
