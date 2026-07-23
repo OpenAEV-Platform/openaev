@@ -686,6 +686,11 @@ export interface PathFinding {
  * that produced it — the injector(s) that reached its endpoint, the endpoint, and the finding — all
  * highlighted. Everything else is dropped so the whole path fits in one overview.
  */
+// A node's internal id (e.g. "NODE_ENDPOINT|<uuid>") must never surface as a user-facing label. When a
+// node can't be resolved to a real name, strip the "NODE_*|" prefix so the worst case is a bare ref,
+// not the internal id the analyst has no use for.
+export const friendlyNodeId = (raw?: string): string => (raw ?? '').replace(/^NODE_[A-Z_]+\|/, '');
+
 // Human-readable plural noun for a finding type, used to give contextual cluster edges a label with
 // meaning (e.g. "6 credentials" instead of a bare "6+"). Mixed clusters fall back to "findings".
 export const findingCategoryNoun = (typeFindings?: string): string => {
@@ -708,7 +713,9 @@ export const findingCategoryNoun = (typeFindings?: string): string => {
     case 'sid':
       return 'SIDs';
     default:
-      return 'findings';
+      // Data-driven: an unmapped type (a finding type added later, e.g. from a new event field) still
+      // reads as itself, humanised (snake_case -> words) — never a generic "findings" that hides it.
+      return typeFindings ? typeFindings.replace(/_/g, ' ') : 'findings';
   }
 };
 
@@ -934,7 +941,9 @@ export const buildFindingPathFlow = (
   };
 };
 
-export type AttackPathFindingFilter = 'endpoints' | 'files' | 'credentials' | 'users' | 'cves';
+// 'endpoints' is the special backbone focus; any other value is a finding type (or curated grouping)
+// resolved through FILTER_TO_FINDING_TYPES, defaulting to the type itself so new types work with no code.
+export type AttackPathFindingFilter = 'endpoints' | string;
 
 // Finding types whose value is a captured secret; masked by default in the UI (spec §14). Revealing
 // them is an explicit, permission-gated action handled by the Result/Terminal increment.
@@ -1379,8 +1388,27 @@ export const buildCausalChainFlow = (
   edges: AttackPathFlowEdge[];
 } => {
   const dtoNodes = dto.attackPathNodes ?? [];
-  const injectorById = new Map(dtoNodes.filter(n => n.type === 'INJECTOR' && n.id).map(n => [n.id as string, n]));
-  const assetById = new Map(dtoNodes.filter(n => n.type === 'ASSET' && n.id).map(n => [n.id as string, n]));
+  // Index by BOTH node id and ref: an execution edge may key an endpoint/injector by either form, and a
+  // miss here is what surfaces a raw "NODE_ENDPOINT|<uuid>" label instead of the resolved hostname.
+  const injectorById = new Map<string, typeof dtoNodes[number]>();
+  const assetById = new Map<string, typeof dtoNodes[number]>();
+  dtoNodes.forEach((n) => {
+    let target: Map<string, typeof dtoNodes[number]> | null = null;
+    if (n.type === 'INJECTOR') {
+      target = injectorById;
+    } else if (n.type === 'ASSET') {
+      target = assetById;
+    }
+    if (!target) {
+      return;
+    }
+    if (n.id) {
+      target.set(n.id as string, n);
+    }
+    if (n.ref) {
+      target.set(n.ref as string, n);
+    }
+  });
   const findingById = new Map(dtoNodes.filter(n => n.type === 'FINDING' && n.id).map(n => [n.id as string, n]));
   const execByRef = new Map((dto.attackPathExecutions ?? []).filter(e => e.ref).map(e => [e.ref as string, e]));
   const execEdges = (dto.attackPathEdges ?? []).filter(e => e.type === EDGE_EXECUTIONS);
@@ -1520,6 +1548,9 @@ export const buildCausalChainFlow = (
       // Inject node, vertically centred against its whole block (keeps its real id + data so the icon,
       // ATT&CK and injector-click still resolve).
       const injDto = injectorById.get(injId);
+      // The full graph may omit injector nodes; label the action from its contract name rather than the
+      // raw step id, so the node never reads "NODE_*|<uuid>".
+      const injActionLabel = [...s.contractByEndpoint.values()][0];
       nodes.push({
         id: injId,
         type: AP_FLOW_NODE_TYPE.injector,
@@ -1527,7 +1558,7 @@ export const buildCausalChainFlow = (
           x,
           y: injCenterY - CLUSTER_INJECTOR_HALF_H,
         },
-        data: injDto ? nodeData(injDto) : { label: injId },
+        data: injDto ? nodeData(injDto) : { label: injActionLabel || friendlyNodeId(injId) },
       });
 
       let blockCursor = stepTop;
@@ -1542,7 +1573,7 @@ export const buildCausalChainFlow = (
             x: x + CHAIN_EP_DX,
             y: blockCenter - CLUSTER_EP_HALF_H,
           },
-          data: epDto ? nodeData(epDto) : { label: epId },
+          data: epDto ? nodeData(epDto) : { label: friendlyNodeId(epId) },
         });
         edges.push({
           id: `${injId}-${epNodeId}`,

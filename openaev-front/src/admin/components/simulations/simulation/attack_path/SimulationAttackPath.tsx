@@ -1,17 +1,20 @@
-import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LocalFireDepartment, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
-import { Alert, Autocomplete, Box, ButtonBase, Chip, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LabelOutlined, LocalFireDepartment, PlayArrowOutlined, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
+import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchExecutionDetail, fetchFindingsByCategory, fetchSimulationsMetaById } from '../../../../../actions/attack-path/attack-path-actions';
+import { createRunningExerciseFromScenario } from '../../../../../actions/scenarios/scenario-actions';
 import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
+import { SIMULATION_BASE_URL } from '../../../../../constants/BaseUrls';
 import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../../utils/Environment';
 import attackPathStatusColor, { attackPathChokepointColor } from './attack-path-colors';
-import { AP_ALL_ENDPOINTS, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
 import AttackPathTableView, { type AttackPathEndpointRow } from './AttackPathTableView';
@@ -67,6 +70,10 @@ const CRITICALITY_LABEL: Record<string, string> = {
 // Synthetic seeded simulations (POST /attack-path/seed) carry no real date/name; keep them hidden
 // from metadata resolution and fall back to their raw id in the picker.
 const isSeedId = (id?: string) => !!id && id.startsWith('ap-seed-');
+
+// Finding types already surfaced by the curated summary cards (endpoints/files/credentials/users/cves).
+// Every OTHER type present in the data gets an auto-generated card, so a new finding type needs no code.
+const COVERED_FINDING_TYPES = new Set(['share', 'credentials', 'username', 'admin_username', 'cve']);
 
 // Backend prevention/detection status -> a human label (also used for accessibility, so status is
 // never conveyed by colour alone). GREEN = prevented, ORANGE = detected, RED = neither.
@@ -178,9 +185,11 @@ interface SimulationAttackPathProps {
    * route's exerciseId — the current simulation only.
    */
   scenarioExerciseIds?: string[];
+  /** Scenario context: the scenario id, used by the empty-state "Launch a simulation" CTA. */
+  scenarioId?: string;
 }
 
-const SimulationAttackPath = ({ scenarioExerciseIds }: SimulationAttackPathProps) => {
+const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAttackPathProps) => {
   const { exerciseId } = useParams() as { exerciseId?: string };
   // Scenario context lists several runs to pick from; simulation context is locked to its own run.
   const showPicker = scenarioExerciseIds !== undefined;
@@ -1134,7 +1143,12 @@ const SimulationAttackPath = ({ scenarioExerciseIds }: SimulationAttackPathProps
     if (!activeCard) {
       return null;
     }
-    return activeCard === 'endpoints' ? 'endpoints' : FILTER_TO_FINDING_TYPES[activeCard];
+    if (activeCard === 'endpoints') {
+      return 'endpoints';
+    }
+    // Curated groupings map to several types (e.g. users = username + admin_username); any other card
+    // key is itself a finding type, so it focuses on exactly that type — no per-type code needed.
+    return FILTER_TO_FINDING_TYPES[activeCard] ?? [activeCard];
   }, [activeCard]);
 
   // Mark the selected endpoint, the highlighted finding path (blue), then apply the card focus.
@@ -1390,39 +1404,68 @@ const SimulationAttackPath = ({ scenarioExerciseIds }: SimulationAttackPathProps
         cves: counters?.cves ?? 0,
       };
 
-  const cards: FindingCard[] = useMemo(() => [
-    {
-      key: 'endpoints',
-      label: t('Discovered Endpoints'),
-      icon: <DnsOutlined fontSize="small" />,
-      count: effectiveCounters.endpoints,
-    },
-    {
-      key: 'files',
-      label: t('Captured Files'),
-      icon: <InsertDriveFileOutlined fontSize="small" />,
-      count: pathFinding ? focusedFilesCount : filesCount,
-      hint: t('Temporarily mapped to "share" findings'),
-    },
-    {
-      key: 'credentials',
-      label: t('Captured Credentials'),
-      icon: <VpnKeyOutlined fontSize="small" />,
-      count: effectiveCounters.credentials,
-    },
-    {
-      key: 'users',
-      label: t('Discovered Users'),
-      icon: <GroupOutlined fontSize="small" />,
-      count: effectiveCounters.users,
-    },
-    {
-      key: 'cves',
-      label: t('Detected CVEs'),
-      icon: <BugReportOutlined fontSize="small" />,
-      count: effectiveCounters.cves,
-    },
-  ], [t, effectiveCounters, pathFinding, focusedFilesCount, filesCount]);
+  const cards: FindingCard[] = useMemo(() => {
+    const base: FindingCard[] = [
+      {
+        key: 'endpoints',
+        label: t('Discovered Endpoints'),
+        icon: <DnsOutlined fontSize="small" />,
+        count: effectiveCounters.endpoints,
+      },
+      {
+        key: 'files',
+        label: t('Captured Files'),
+        icon: <InsertDriveFileOutlined fontSize="small" />,
+        count: pathFinding ? focusedFilesCount : filesCount,
+        hint: t('Temporarily mapped to "share" findings'),
+      },
+      {
+        key: 'credentials',
+        label: t('Captured Credentials'),
+        icon: <VpnKeyOutlined fontSize="small" />,
+        count: effectiveCounters.credentials,
+      },
+      {
+        key: 'users',
+        label: t('Discovered Users'),
+        icon: <GroupOutlined fontSize="small" />,
+        count: effectiveCounters.users,
+      },
+      {
+        key: 'cves',
+        label: t('Detected CVEs'),
+        icon: <BugReportOutlined fontSize="small" />,
+        count: effectiveCounters.cves,
+      },
+    ];
+    // Data-driven extras: any finding type present on the endpoints that no curated card covers gets its
+    // own card automatically (summed from per-endpoint findingCounts), so a finding type added later —
+    // e.g. exposed via a new event field — surfaces with zero code change. Scoped to the focused
+    // endpoint in the finding-path view, else aggregated across the whole graph.
+    const sourceNodes = pathFinding && focusedEndpoint
+      ? [focusedEndpoint]
+      : (dto?.attackPathNodes ?? []).filter(n => n.type === 'ASSET');
+    const extraTotals = new Map<string, number>();
+    sourceNodes.forEach((n) => {
+      Object.entries(n.findingCounts ?? {}).forEach(([type, count]) => {
+        if (type && !COVERED_FINDING_TYPES.has(type) && (count ?? 0) > 0) {
+          extraTotals.set(type, (extraTotals.get(type) ?? 0) + (count ?? 0));
+        }
+      });
+    });
+    const extras: FindingCard[] = [...extraTotals.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, count]) => {
+        const noun = t(findingCategoryNoun(type));
+        return {
+          key: type,
+          label: noun.charAt(0).toUpperCase() + noun.slice(1),
+          icon: <LabelOutlined fontSize="small" />,
+          count,
+        };
+      });
+    return [...base, ...extras];
+  }, [t, effectiveCounters, pathFinding, focusedFilesCount, filesCount, dto, focusedEndpoint]);
 
   // Click a summary card: focus the graph on that finding type and, for finding categories, open the
   // right drawer listing the (deduplicated, masked) items. Clicking again clears the focus/drawer.
@@ -1563,6 +1606,36 @@ const SimulationAttackPath = ({ scenarioExerciseIds }: SimulationAttackPathProps
       onCardClick(opt.card);
     }
   };
+
+  // Scenario context has runs to pick from; when it has none yet, the empty-state offers to launch one.
+  const scenarioHasNoSims = showPicker && simulations.length === 0;
+  const emptyStateMessage = (() => {
+    if (scenarioHasNoSims) {
+      return t('This scenario has no simulation with attack-path data yet. Launch one to reveal its attack path.');
+    }
+    if (showPicker) {
+      return t('No attack-path data for this simulation. Select a simulation with attack-path data above.');
+    }
+    return t('No attack-path data for this simulation.');
+  })();
+  const [launching, setLaunching] = useState(false);
+  // Empty-state CTA (scenario context): instantiate + start a fresh simulation from this scenario and
+  // jump to it — same flow as the scenario header's "Launch now".
+  const handleLaunchFromScenario = useCallback(() => {
+    if (!scenarioId) {
+      return;
+    }
+    setLaunching(true);
+    createRunningExerciseFromScenario(scenarioId)
+      .then((res) => {
+        MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
+        navigate(`${SIMULATION_BASE_URL}/${res.data.exercise_id}`);
+      })
+      .catch(() => {
+        MESSAGING$.notifyError(t('Error while launching the simulation'));
+        setLaunching(false);
+      });
+  }, [scenarioId, navigate, t]);
 
   return (
     <div style={{
@@ -1998,11 +2071,36 @@ const SimulationAttackPath = ({ scenarioExerciseIds }: SimulationAttackPathProps
                 </Alert>
               )}
               {!loading && !forbidden && !error && nodes.length === 0 && (
-                <Alert severity="info" sx={{ m: 2 }}>
-                  {t(showPicker
-                    ? 'No attack-path data for this simulation. Select a simulation with attack-path data above.'
-                    : 'No attack-path data for this simulation.')}
-                </Alert>
+                <Box sx={{
+                  m: 'auto',
+                  p: 4,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: theme.spacing(1.5),
+                  textAlign: 'center',
+                  color: 'text.secondary',
+                }}
+                >
+                  <AccountTreeOutlined sx={{
+                    fontSize: 48,
+                    opacity: 0.35,
+                  }}
+                  />
+                  <Typography variant="body1" sx={{ maxWidth: 440 }}>
+                    {emptyStateMessage}
+                  </Typography>
+                  {scenarioHasNoSims && scenarioId && (
+                    <Button
+                      variant="contained"
+                      startIcon={<PlayArrowOutlined />}
+                      onClick={handleLaunchFromScenario}
+                      disabled={launching}
+                    >
+                      {t('Launch a simulation')}
+                    </Button>
+                  )}
+                </Box>
               )}
               {!loading && !forbidden && !error && nodes.length > 0 && (
                 <ReactFlowProvider>

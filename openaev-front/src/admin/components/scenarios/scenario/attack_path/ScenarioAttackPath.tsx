@@ -14,7 +14,7 @@ const ScenarioAttackPath: FunctionComponent = () => {
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
   // Stable reference so the explorer's picker effect does not refetch on every render.
   const exerciseIds = useMemo(() => scenario?.scenario_exercises ?? [], [scenario?.scenario_exercises]);
-  return <SimulationAttackPath scenarioExerciseIds={exerciseIds} />;
+  return <SimulationAttackPath scenarioExerciseIds={exerciseIds} scenarioId={scenarioId} />;
 };
 
 export default ScenarioAttackPath;
