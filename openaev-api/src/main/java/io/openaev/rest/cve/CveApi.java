@@ -45,7 +45,8 @@ public class CveApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.VULNERABILITY)
   // TxCtx is resolved from the request and applied by the transaction aspect; it scopes the CWEs
   // reached through each vulnerability's association once the cwes table is active.
-  public Page<VulnerabilitySimple> searchCves(TxCtx ctx, @Valid @RequestBody SearchPaginationInput input) {
+  public Page<VulnerabilitySimple> searchCves(
+      TxCtx ctx, @Valid @RequestBody SearchPaginationInput input) {
     return vulnerabilityService
         .searchVulnerabilities(input)
         .map(vulnerabilityMapper::toVulnerabilitySimple);
@@ -80,7 +81,8 @@ public class CveApi extends RestBehavior {
   @PostMapping
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.VULNERABILITY)
   @Transactional(rollbackFor = Exception.class)
-  public VulnerabilitySimple createCve(TxCtx ctx, @Valid @RequestBody VulnerabilityCreateInput input) {
+  public VulnerabilitySimple createCve(
+      TxCtx ctx, @Valid @RequestBody VulnerabilityCreateInput input) {
     return vulnerabilityMapper.toVulnerabilitySimple(
         vulnerabilityService.createVulnerability(ctx, input));
   }

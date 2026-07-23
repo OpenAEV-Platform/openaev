@@ -28,7 +28,6 @@ import io.openaev.service.MapperService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
-import io.openaev.utils.mapper.CveMapper;
 import io.openaev.utils.mapper.VulnerabilityMapper;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -146,7 +145,7 @@ class TenantActiveTableAccessArchTest {
           .that()
           .doNotBelongToAnyOf(
               // Render responses inside the scoped transactions of the wired handlers:
-              VulnerabilityMapper.class, CveMapper.class)
+              VulnerabilityMapper.class)
           .should()
           .callMethod(Vulnerability.class, "getCwes")
           .because(
