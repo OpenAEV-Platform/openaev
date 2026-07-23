@@ -545,7 +545,7 @@ class WorkflowStateServiceTest {
           Condition.builder()
               .keyType(PrimitiveType.Host)
               .value("10.0.0.1")
-              .operator(ConditionKeyType.eq)
+              .type(ConditionType.EQ)
               .build();
       ConditionStep cs1 = new ConditionStep();
       cs1.setStep(stepTemplate);
@@ -629,7 +629,7 @@ class WorkflowStateServiceTest {
           Condition.builder()
               .keyType(PrimitiveType.Host)
               .value("192.168.1.1")
-              .operator(ConditionKeyType.eq)
+              .type(ConditionType.EQ)
               .build();
       ConditionStep cs2 = new ConditionStep();
       cs2.setStep(stepTemplate);
@@ -686,7 +686,7 @@ class WorkflowStateServiceTest {
 
       // Pre-existing correlated tuple in local state (same pair-set that will be produced)
       Set<WorkflowStateEntries.Pair> existingPairs = new HashSet<>();
-      existingPairs.add(new WorkflowStateEntries.Pair("IPv4", "10.0.0.1"));
+      existingPairs.add(new WorkflowStateEntries.Pair("Host", "10.0.0.1"));
       existingPairs.add(new WorkflowStateEntries.Pair("Port", "22"));
       WorkflowStateEntries.Correlated existingTuple =
           new WorkflowStateEntries.Correlated(existingPairs, "PortsScan");
@@ -720,7 +720,7 @@ class WorkflowStateServiceTest {
           Condition.builder()
               .keyType(PrimitiveType.Host)
               .value("10.0.0.1")
-              .operator(ConditionKeyType.eq)
+              .type(ConditionType.EQ)
               .build();
       ConditionStep cs3 = new ConditionStep();
       cs3.setStep(stepTemplate);
