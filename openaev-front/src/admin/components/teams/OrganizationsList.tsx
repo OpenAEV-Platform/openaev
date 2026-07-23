@@ -206,9 +206,9 @@ const OrganizationsList = () => {
         <ListItem
           classes={{ root: classes.itemHead }}
           divider={false}
-          style={{
+          sx={{
             paddingTop: 0,
-            ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)' } : {}),
+            ...(numberOfSelectedElements > 0 ? { backgroundColor: 'background.accent' } : {}),
           }}
           {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
         >

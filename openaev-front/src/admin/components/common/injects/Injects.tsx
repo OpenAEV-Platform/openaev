@@ -557,7 +557,7 @@ const Injects: FunctionComponent<Props> = ({
           <ListItem
             classes={{ root: classes.itemHead }}
             divider={false}
-            style={{ ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)' } : {}) }}
+            sx={{ ...(numberOfSelectedElements > 0 ? { backgroundColor: 'background.accent' } : {}) }}
             {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
           >
             <ListItemIcon style={{ minWidth: 40 }}>

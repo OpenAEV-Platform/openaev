@@ -170,9 +170,9 @@ const SimulationList: FunctionComponent<Props> = ({
           <ListItem
             classes={{ root: classes.itemHead }}
             divider={false}
-            style={{
+            sx={{
               paddingTop: 0,
-              ...(entityToggle && entityToggle.numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)' } : {}),
+              ...(entityToggle && entityToggle.numberOfSelectedElements > 0 ? { backgroundColor: 'background.accent' } : {}),
             }}
             {...(!entityToggle || entityToggle.numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
           >

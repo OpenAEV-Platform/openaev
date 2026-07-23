@@ -531,7 +531,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             alignItems: 'center',
             flex: '1 1 100%',
             width: '100%',
-            backgroundColor: 'rgb(15, 30, 56)',
+            backgroundColor: 'background.accent',
             pr: 1,
           }}
         >
