@@ -37,9 +37,9 @@ export const attackPathChokepointColor = (theme: Theme): string =>
   (theme.palette.mode === 'dark' ? '#b388ff' : '#7c4dff');
 
 // Causal / event edge accent (the "Triggered <event>" link between a finding and the action it
-// triggers). Deliberately a distinct magenta — not green/orange/red (verdicts), not the primary blue
-// (selection), not the violet chokepoint accent — so a causal link never reads as a prevention verdict.
+// triggers). A neutral grey — deliberately OUTSIDE the green/orange/red verdict scale (and not a
+// warm hue that could read as red), so a causal link never reads as a prevention/detection verdict.
 export const attackPathCausalColor = (theme: Theme): string =>
-  (theme.palette.mode === 'dark' ? '#ff80ab' : '#e91e63');
+  (theme.palette.mode === 'dark' ? '#9e9e9e' : '#757575');
 
 export default attackPathStatusColor;
