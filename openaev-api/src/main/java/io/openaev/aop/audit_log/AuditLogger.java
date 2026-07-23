@@ -2,16 +2,22 @@ package io.openaev.aop.audit_log;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.NullNode;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.SessionManager;
 import io.openaev.config.ShutdownService;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.EventStatus;
+import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
+import io.openaev.utils.log.LogUtils;
 import io.openaev.utils.object.ObjectDiffUtils;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -28,10 +34,16 @@ import org.springframework.stereotype.Component;
  * the transport failed, {@link AuditLogFailureException} is thrown on the caller's thread so it can
  * propagate through the transaction boundary and trigger a rollback.
  *
- * <p>Callers never need to handle halt-on-failure themselves — just call {@code logAuthEvent} or
- * {@code logAccessControlEvent} and the blocking/propagation is handled internally.
+ * <p>Three public entry points:
  *
- * <p>Phase 1: delegates to {@link LogService} for console-only output.
+ * <ul>
+ *   <li>{@link #logEvent(AuditEvent)} — generic entry point for any event type
+ *   <li>{@link #logAuthEvent} — convenience for authentication events
+ *   <li>{@link #logAccessControlEvent} — convenience for CRUD mutation events
+ * </ul>
+ *
+ * <p>Both convenience methods build an {@link AuditEvent} internally and delegate to {@link
+ * #logEvent(AuditEvent)}.
  */
 @Component
 @ConditionalOnExpression("!'${openaev.audit-logs.transports:}'.isEmpty()")
@@ -76,6 +88,41 @@ public class AuditLogger {
         "Audit transport failed with halt-on-failure enabled — transaction rolled back.");
   }
 
+  // -- GENERIC EVENT --
+
+  /**
+   * Logs a generic audit event. Submits asynchronously to the executor pool. When halt-on-failure
+   * is enabled, blocks and throws {@link AuditLogFailureException}.
+   *
+   * <p>The {@code logUUID} is always auto-generated internally — callers never provide one. For
+   * SYSTEM-origin events, user/request metadata is omitted (no servlet context).
+   */
+  public void logEvent(AuditEvent event) {
+    if (!isAuditLoggingEnabled()) return;
+
+    CompletableFuture<Boolean> future =
+        CompletableFuture.supplyAsync(() -> doLogEvent(event), taskLoggerExecutor);
+
+    awaitIfHaltOnFailure(future);
+  }
+
+  /** Internal: performs the generic audit log on the executor thread. */
+  private boolean doLogEvent(AuditEvent event) {
+    String logUUID = UUID.randomUUID().toString();
+    boolean status = false;
+    try {
+      status = logService.logGenericEvent(event, Level.WARNING, logUUID);
+    } catch (Exception e) {
+      log.warn("[AUDIT] Audit logging failed: {}", e.getMessage(), e);
+    }
+
+    if (!status) {
+      log.warn("[AUDIT] Failed to log event {}.{}", event.getEventType(), event.getEventScope());
+      prepareLogFailure();
+    }
+    return status;
+  }
+
   // -- AUTH EVENTS --
 
   /**
@@ -85,13 +132,14 @@ public class AuditLogger {
    */
   public void logAuthEventWithRequestContext(
       ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData rcd,
-      String eventScope,
-      String eventStatus,
+      AuditEventScope eventScope,
+      EventStatus eventStatus,
       String provider,
-      String reason,
-      String logUUID) {
+      String reason) {
 
     if (!isAuditLoggingEnabled()) return;
+
+    AuditEvent event = buildAuthAuditEvent(eventScope, eventStatus, provider, reason);
 
     CompletableFuture<Boolean> future =
         CompletableFuture.supplyAsync(
@@ -99,7 +147,7 @@ public class AuditLogger {
               if (rcd != null) {
                 ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.setRequestContextData(rcd);
               }
-              return doLogAuthEvent(eventScope, eventStatus, provider, reason, logUUID);
+              return doLogEvent(event);
             },
             taskLoggerExecutor);
 
@@ -107,116 +155,79 @@ public class AuditLogger {
   }
 
   /**
-   * Logs an authentication event (login success/failure, logout). The audit is submitted
-   * asynchronously. When halt-on-failure is enabled, blocks and rethrows {@link
-   * AuditLogFailureException} on the caller's thread.
+   * Logs an authentication event (login success/failure, logout). Builds an {@link AuditEvent}
+   * internally and delegates to {@link #logEvent(AuditEvent)}.
    */
   public void logAuthEvent(
-      String eventScope, String eventStatus, String provider, String reason, String logUUID) {
+      AuditEventScope eventScope, EventStatus eventStatus, String provider, String reason) {
 
     if (!isAuditLoggingEnabled()) return;
 
-    CompletableFuture<Boolean> future =
-        CompletableFuture.supplyAsync(
-            () -> doLogAuthEvent(eventScope, eventStatus, provider, reason, logUUID),
-            taskLoggerExecutor);
-
-    awaitIfHaltOnFailure(future);
+    logEvent(buildAuthAuditEvent(eventScope, eventStatus, provider, reason));
   }
 
-  /** Internal: performs the auth audit log on the executor thread. */
-  private boolean doLogAuthEvent(
-      String eventScope, String eventStatus, String provider, String reason, String logUUID) {
-    boolean status = false;
-    try {
-      status =
-          logService.logAuthEvent(
-              eventScope, eventStatus, provider, reason, Level.WARNING, logUUID);
-    } catch (Exception e) {
-      log.warn("[AUDIT] Audit auth logging failed: {}", e.getMessage(), e);
-    }
+  /** Builds an AuditEvent for authentication events. */
+  private AuditEvent buildAuthAuditEvent(
+      AuditEventScope eventScope, EventStatus eventStatus, String provider, String reason) {
+    Map<String, Object> ctx = new LinkedHashMap<>();
+    if (provider != null) ctx.put("provider", provider);
+    if (reason != null) ctx.put("reason", reason);
 
-    if (!status) {
-      log.warn("[AUDIT] Failed to log auth event for {}.{}", provider, eventScope);
-      prepareLogFailure();
-    }
-    return status;
+    return AuditEvent.builder()
+        .eventType(EventType.AUTHENTICATION)
+        .eventScope(eventScope)
+        .eventStatus(eventStatus)
+        .message(
+            LogUtils.buildAuthLogMessage(
+                eventScope.name().toLowerCase(), eventStatus.name().toLowerCase(), provider))
+        .contextData(ctx)
+        .origin(AuditEventOrigin.REQUEST)
+        .build();
   }
 
   // -- ACCESS CONTROL EVENTS --
 
   /**
-   * Logs an access control (mutation) event. Computes field-level diffs from raw snapshots
-   * asynchronously. When halt-on-failure is enabled, blocks and rethrows {@link
-   * AuditLogFailureException} on the caller's thread.
+   * Logs an access control (mutation) event. Computes field-level diffs from raw snapshots, builds
+   * an {@link AuditEvent}, and delegates to {@link #logEvent(AuditEvent)}.
    */
   public CompletableFuture<Boolean> logAccessControlEvent(
-      String eventScope,
-      String eventStatus,
+      AuditEventScope eventScope,
+      EventStatus eventStatus,
       ResourceType resourceType,
       String resourceId,
       JsonNode input,
       JsonNode output,
       JsonNode signatureNode,
-      Map<String, AuditLogContext.EntitySnapshot> snapshots,
-      String logUUID) {
+      Map<String, AuditLogContext.EntitySnapshot> snapshots) {
 
     if (!isAuditLoggingEnabled()) return CompletableFuture.completedFuture(true);
 
+    // Compute diffs synchronously (fast in-memory JSON operation)
+    JsonNode entityDiffsNode = ObjectDiffUtils.computeEntityDiffsNode(snapshots, objectMapper);
+
+    Map<String, Object> ctx = new LinkedHashMap<>();
+    ctx.put("input", input != null ? input : NullNode.getInstance());
+    ctx.put("output", output != null ? output : NullNode.getInstance());
+    ctx.put("signature", signatureNode != null ? signatureNode : NullNode.getInstance());
+
+    AuditEvent event =
+        AuditEvent.builder()
+            .eventType(EventType.MUTATION)
+            .eventScope(eventScope)
+            .eventStatus(eventStatus)
+            .resourceType(resourceType != null ? resourceType.name() : null)
+            .resourceId(resourceId)
+            .entityDiffs(entityDiffsNode)
+            .contextData(ctx)
+            .origin(AuditEventOrigin.REQUEST)
+            .build();
+
     CompletableFuture<Boolean> future =
-        CompletableFuture.supplyAsync(
-            () ->
-                doLogAccessControlEvent(
-                    eventScope,
-                    eventStatus,
-                    resourceType,
-                    resourceId,
-                    input,
-                    output,
-                    signatureNode,
-                    snapshots,
-                    logUUID),
-            taskLoggerExecutor);
+        CompletableFuture.supplyAsync(() -> doLogEvent(event), taskLoggerExecutor);
 
     awaitIfHaltOnFailure(future);
     return future;
-  }
-
-  /** Internal: performs the access control audit log on the executor thread. */
-  private boolean doLogAccessControlEvent(
-      String eventScope,
-      String eventStatus,
-      ResourceType resourceType,
-      String resourceId,
-      JsonNode input,
-      JsonNode output,
-      JsonNode signatureNode,
-      Map<String, AuditLogContext.EntitySnapshot> snapshots,
-      String logUUID) {
-    boolean status = false;
-    try {
-      JsonNode entityDiffsNode = ObjectDiffUtils.computeEntityDiffsNode(snapshots, objectMapper);
-      status =
-          logService.logRequestEvent(
-              eventScope,
-              eventStatus,
-              resourceType,
-              resourceId,
-              input,
-              output,
-              signatureNode,
-              entityDiffsNode,
-              Level.WARNING,
-              logUUID);
-    } catch (Exception e) {
-      log.warn("[AUDIT] Audit logging failed: {}", e.getMessage(), e);
-    }
-
-    if (!status) {
-      log.warn("[AUDIT] Failed to log access control event for {}.{}", resourceType, eventScope);
-      prepareLogFailure();
-    }
-    return status;
   }
 
   // -- OPTIONS --

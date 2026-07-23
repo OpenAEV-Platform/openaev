@@ -9,11 +9,8 @@ import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
-import io.openaev.service.LogService;
-import io.openaev.utils.log.LogUtils;
 import java.lang.annotation.Annotation;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import lombok.RequiredArgsConstructor;
@@ -95,18 +92,18 @@ public class AccessControlAuditLogAspect {
       if (isActive) {
         try {
           if (isRbacDeniedException(ex)) {
-            String eventScope = LogUtils.getEventScope(Action.UNAUTHORIZED);
-            String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
+            AuditEventScope eventScope = AuditEventScope.from(Action.UNAUTHORIZED);
             JsonNode errorNode = buildErrorNode(null, ex);
 
-            logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
+            logAccessControlEvent(
+                joinPoint, accessControl, eventScope, EventStatus.ERROR, errorNode);
           } else if (isActionActive) {
-            String eventScope = LogUtils.getEventScope(action);
-            String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
+            AuditEventScope eventScope = AuditEventScope.from(action);
             JsonNode resultNode = getOutputNode(result);
             JsonNode errorNode = buildErrorNode(resultNode, ex);
 
-            logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
+            logAccessControlEvent(
+                joinPoint, accessControl, eventScope, EventStatus.ERROR, errorNode);
           }
         } catch (AuditLogFailureException e) {
           throw e;
@@ -119,11 +116,11 @@ public class AccessControlAuditLogAspect {
 
     if (isActive && isActionActive && AuditLogContext.isEnabled()) {
       try {
-        String eventScope = LogUtils.getEventScope(action);
-        String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
+        AuditEventScope eventScope = AuditEventScope.from(action);
         JsonNode resultNode = getOutputNode(result);
 
-        logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, resultNode);
+        logAccessControlEvent(
+            joinPoint, accessControl, eventScope, EventStatus.SUCCESS, resultNode);
       } catch (AuditLogFailureException ex) {
         throw ex;
       } catch (Exception ex) {
@@ -137,11 +134,10 @@ public class AccessControlAuditLogAspect {
   private void logAccessControlEvent(
       JoinPoint joinPoint,
       AccessControl accessControl,
-      String eventScope,
-      String eventStatus,
+      AuditEventScope eventScope,
+      EventStatus eventStatus,
       JsonNode outputNode) {
     try {
-      String logUUID = UUID.randomUUID().toString();
       ResourceType resourceType = accessControl.resourceType();
       String resourceId = resolveResourceId(joinPoint, accessControl);
       JsonNode inputNode = getInputNode(joinPoint, eventScope);
@@ -170,8 +166,7 @@ public class AccessControlAuditLogAspect {
               inputNode,
               outputNode,
               signatureNode,
-              snapshots,
-              logUUID);
+              snapshots);
 
       auditFuture.whenComplete(logCompletion);
     } catch (AuditLogFailureException ex) {
@@ -215,12 +210,12 @@ public class AccessControlAuditLogAspect {
   }
 
   // Capture the input DTO for create/update/status_change
-  private JsonNode getInputNode(JoinPoint joinPoint, String eventScope) {
+  private JsonNode getInputNode(JoinPoint joinPoint, AuditEventScope eventScope) {
     JsonNode inputNode = null;
 
-    if ("create".equals(eventScope)
-        || "update".equals(eventScope)
-        || "status_change".equals(eventScope)) {
+    if (eventScope == AuditEventScope.CREATE
+        || eventScope == AuditEventScope.UPDATE
+        || eventScope == AuditEventScope.STATUS_CHANGE) {
       Object requestBody = findRequestBody(joinPoint);
 
       if (requestBody != null) {

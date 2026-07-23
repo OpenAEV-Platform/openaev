@@ -5,12 +5,18 @@ import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.helper.ExecutionTraceRepositoryHelper;
 import io.openaev.database.model.*;
+import io.openaev.database.model.EventStatus;
+import io.openaev.database.model.EventType;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
@@ -26,6 +32,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +51,7 @@ public class InjectStatusService {
   private final InjectUtils injectUtils;
   private final InjectStatusRepository injectStatusRepository;
   private final ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
+  private final Optional<AuditLogger> auditLogger;
   private final ApplicationEventPublisher eventPublisher;
   private final ObjectMapper mapper;
 
@@ -144,6 +152,7 @@ public class InjectStatusService {
   }
 
   public void updateFinalInjectStatus(InjectStatus injectStatus) {
+    ExecutionStatus previousStatus = injectStatus.getName();
     ExecutionStatus finalStatus =
         InjectStatusUtils.computeStatus(
             injectStatus.getTraces().stream()
@@ -152,6 +161,11 @@ public class InjectStatusService {
     injectStatus.setTrackingEndDate(Instant.now());
     injectStatus.setName(finalStatus);
     injectStatus.getInject().setUpdatedAt(Instant.now());
+
+    // Audit log: final inject status
+    if (previousStatus != finalStatus) {
+      logInjectStatusTransition(injectStatus.getInject(), previousStatus, finalStatus, null);
+    }
   }
 
   /**
@@ -224,6 +238,9 @@ public class InjectStatusService {
       Inject inject, Agent agent, InjectExecutionInput input, ObjectNode structuredOutput) {
     InjectStatus injectStatus = inject.getStatus().orElseThrow(ElementNotFoundException::new);
 
+    // Capture previous status for audit diff logging
+    ExecutionStatus previousStatus = injectStatus.getName();
+
     // Creating the Execution Trace
     ExecutionTrace executionTrace =
         createExecutionTrace(injectStatus, input, agent, structuredOutput);
@@ -249,6 +266,12 @@ public class InjectStatusService {
       // inject from "in flight" to "completed" without a page reload.
       publishInjectStatusUpdate(inject);
       log.debug("Successfully updated inject final status: {}", inject.getId());
+    }
+
+    // Audit log: inject status transition
+    ExecutionStatus newStatus = injectStatus.getName();
+    if (previousStatus != newStatus) {
+      logInjectStatusTransition(inject, previousStatus, newStatus, agent);
     }
 
     log.debug("Successfully updated inject: {}", inject.getId());
@@ -408,5 +431,35 @@ public class InjectStatusService {
             .flatMap(i -> i.map(InjectStatus::getId).stream())
             .toList();
     injectStatusRepository.deleteAllByIds(injectStatusIds);
+  }
+
+  // -- AUDIT HELPERS --
+
+  private void logInjectStatusTransition(
+      Inject inject, ExecutionStatus previousStatus, ExecutionStatus newStatus, Agent agent) {
+    auditLogger.ifPresent(
+        logger ->
+            logger.logEvent(
+                AuditEvent.builder()
+                    .eventType(EventType.EXECUTION)
+                    .eventScope(AuditEventScope.INJECT_STATUS_TRANSITION)
+                    .eventStatus(EventStatus.SUCCESS)
+                    .resourceType("Inject")
+                    .resourceId(inject.getId())
+                    .message(
+                        "Inject '%s' transitioned from %s to %s"
+                            .formatted(inject.getTitle(), previousStatus.name(), newStatus.name()))
+                    .contextData(
+                        Map.of(
+                            "inject_id", inject.getId(),
+                            "inject_name", inject.getTitle(),
+                            "previous_status", previousStatus.name(),
+                            "new_status", newStatus.name(),
+                            "executor_type",
+                                agent != null && agent.getExecutor() != null
+                                    ? agent.getExecutor().getType()
+                                    : "openaev"))
+                    .origin(AuditEventOrigin.SYSTEM)
+                    .build()));
   }
 }

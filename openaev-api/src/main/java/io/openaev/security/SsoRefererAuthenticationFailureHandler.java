@@ -2,11 +2,10 @@ package io.openaev.security;
 
 import static org.springframework.http.HttpHeaders.REFERER;
 
+import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
-import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.service.user_events.UserEventService;
-import io.openaev.utils.log.LogUtils;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -40,17 +39,14 @@ public class SsoRefererAuthenticationFailureHandler extends SimpleUrlAuthenticat
 
     auditLogger.ifPresent(
         logger -> {
-          String eventScope = LogUtils.getEventScope(Action.LOGIN);
-          String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
           logger.logAuthEvent(
-              eventScope,
-              eventStatus,
+              AuditEventScope.LOGIN,
+              EventStatus.ERROR,
               request
                   .getRequestURI(), // TODO This represents a security issue bc we can have malicius
               // log injection issues. Before log in, we should normalize and
               // sanitize this data.
-              exception.getClass().getSimpleName(),
-              null);
+              exception.getClass().getSimpleName());
         });
 
     this.saveException(request, exception);
