@@ -58,6 +58,10 @@ class StepEventServiceTest {
             })
         .when(tenantTx)
         .execute(any(TxCtx.class), any(Runnable.class));
+    // Tenant-propagation tests assert the scope opened around the event, not run() itself; make the
+    // step lookup explicitly empty so the primitive's Runnable takes the (harmless) not-found
+    // branch.
+    lenient().when(stepRepository.findById(any())).thenReturn(Optional.empty());
   }
 
   @AfterEach

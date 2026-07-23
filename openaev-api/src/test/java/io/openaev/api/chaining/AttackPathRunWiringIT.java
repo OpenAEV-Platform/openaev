@@ -313,10 +313,14 @@ class AttackPathRunWiringIT extends IntegrationTest {
           + " any thread)")
   void tenantProjectionsResolveTheRunTenant() throws Exception {
     Step committedStep = persistCommittedReadyStep();
+    // The producers run on scheduler/queue threads with NO tenant scope: clear TenantContext so
+    // this
+    // proves the projections are context-free (not silently relying on the ambient v1
+    // tenantFilter).
+    TenantContext.clearCurrentTenant();
 
     // The producer stamps events with these projections (step/workflow -> simulation -> tenant).
-    // Assert they resolve the tenant on a real graph: they must not depend on an open session (the
-    // producers run on scheduler/queue threads), which a projection query guarantees.
+    // Assert they resolve the tenant on a real graph regardless of ambient scope.
     assertThat(stepRepository.findTenantIdByStepId(committedStep.getId()))
         .as("step -> workflow -> simulation -> tenant projection")
         .contains(tenant.getId());

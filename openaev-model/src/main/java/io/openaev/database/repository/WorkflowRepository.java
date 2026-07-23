@@ -13,13 +13,24 @@ import org.springframework.stereotype.Repository;
 public interface WorkflowRepository extends JpaRepository<Workflow, String> {
 
   /**
-   * Resolves the tenant that owns a workflow, as a projection: workflow -&gt; simulation -&gt;
-   * tenant. Used to stamp the tenant on chaining ready events (#6357). A single query with no lazy
-   * association access, so it is safe on any thread with no open session (ready events are also
-   * produced from scheduler jobs where open-in-view is inactive). Empty for a workflow with no
-   * simulation (standalone run); the caller falls back to the default tenant.
+   * Resolves the tenant that owns a workflow: workflow -&gt; simulation -&gt; tenant. Used to stamp
+   * the tenant on chaining ready events (#6357). NATIVE on purpose: {@code exercises} is a v1
+   * {@code @Filter} entity ({@code tenantFilter}), so a JPQL path through it would be re-filtered
+   * by the ambient {@code TenantContext} and, on a scheduler producer thread ({@code
+   * QueueChainingJob}) that carries the default (or wrong) tenant, could silently return empty and
+   * stamp the event with null. A native query bypasses the Hibernate filter, so the stamp is truly
+   * context-free. Also no lazy navigation, so it is safe with no open session. Empty for a workflow
+   * with no simulation (standalone run); the caller falls back to the default tenant.
    */
-  @Query("SELECT w.simulation.tenant.id FROM Workflow w WHERE w.id = :workflowId")
+  @Query(
+      value =
+          """
+      SELECT e.tenant_id
+      FROM workflows w
+      JOIN exercises e ON e.exercise_id = w.workflow_simulation_id
+      WHERE w.workflow_id = :workflowId
+      """,
+      nativeQuery = true)
   Optional<String> findTenantIdByWorkflowId(@Param("workflowId") String workflowId);
 
   /**
