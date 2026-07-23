@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildKillChainMeta, maskFindingValue } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
+// Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
+// assertions read the English source strings.
+const tt = (key: string, params?: Record<string, string>): string =>
+  (params ? key.replace(/\{(\w+)\}/g, (_, n) => params[n] ?? '') : key);
+
 const dto: AttackPathDTO = {
   mode: 'full',
   counters: {
@@ -225,7 +230,7 @@ describe('buildClusteredAttackPathFlow', () => {
   };
 
   it('dedups endpoints into one shared hub with a global finding cluster per type', () => {
-    const { nodes, edges } = buildClusteredAttackPathFlow(clusteredDto, new Map());
+    const { nodes, edges } = buildClusteredAttackPathFlow(clusteredDto, new Map(), tt);
     const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
 
     expect(byId['inj'].type).toBe(AP_FLOW_NODE_TYPE.injector);
@@ -246,7 +251,7 @@ describe('buildClusteredAttackPathFlow', () => {
   });
 
   it('replaces the shared hub with the deduped real endpoints when expanded', () => {
-    const { nodes, edges } = buildClusteredAttackPathFlow(clusteredDto, new Map([[AP_ALL_ENDPOINTS, 15]]));
+    const { nodes, edges } = buildClusteredAttackPathFlow(clusteredDto, new Map([[AP_ALL_ENDPOINTS, 15]]), tt);
     const ids = nodes.map(n => n.id);
     expect(ids).toContain('ep1');
     expect(ids).toContain('ep2');
@@ -382,7 +387,7 @@ describe('buildCausalEdges', () => {
     const meta = buildKillChainMeta(killChainDto);
     const nodes = [injectorNode('inj-smb'), findingNode('find-share', 'share', 'ADMIN$')];
     // Act
-    const edges = buildCausalEdges(nodes, id => (id ? meta.get(id) : undefined));
+    const edges = buildCausalEdges(nodes, id => (id ? meta.get(id) : undefined), tt);
     // Assert
     expect(edges).toHaveLength(1);
     expect(edges[0].type).toBe(AP_FLOW_CAUSAL_EDGE_TYPE);
@@ -394,7 +399,7 @@ describe('buildCausalEdges', () => {
   it('emits no edge when no produced finding matches the consumed key', () => {
     const meta = buildKillChainMeta(killChainDto);
     const nodes = [injectorNode('inj-nmap'), findingNode('find-cve', 'cve', 'CVE-2024-0001')];
-    const edges = buildCausalEdges(nodes, id => (id ? meta.get(id) : undefined));
+    const edges = buildCausalEdges(nodes, id => (id ? meta.get(id) : undefined), tt);
     expect(edges).toHaveLength(0);
   });
 });
@@ -470,7 +475,7 @@ const chainDto: AttackPathDTO = {
 describe('buildCausalChainFlow', () => {
   it('lays the chain out in dependsOn order with a forward causal edge finding -> consumer', () => {
     // Act
-    const { nodes, edges } = buildCausalChainFlow(chainDto);
+    const { nodes, edges } = buildCausalChainFlow(chainDto, tt);
     const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
 
     // The producer (nmap) sits upstream (left) of the consumer (netexec).
@@ -517,7 +522,7 @@ describe('buildCausalChainFlow', () => {
         },
       ],
     };
-    const { edges } = buildCausalChainFlow(noMatch);
+    const { edges } = buildCausalChainFlow(noMatch, tt);
     const causal = edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE);
     expect(causal).toHaveLength(1);
     expect(causal[0].source).toBe('inj-nmap');
