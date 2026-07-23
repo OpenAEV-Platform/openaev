@@ -195,9 +195,14 @@ public class StreamApi extends RestBehavior {
           // Set the tenant context for permission checks on the async thread.
           // Without this, TenantContext defaults to DEFAULT_TENANT_UUID, causing
           // tenant-scoped capabilities to be invisible and incorrect DELETE events
-          // to be sent for entities on non-default tenants.
+          // to be sent for entities on non-default tenants. Legacy consumers
+          // (blank tenant) are explicitly cleared so a reused @Async pool thread
+          // can never evaluate (and cache) their decisions under a tenant leaked
+          // by a previous task.
           if (consumer.tenantId() != null && !consumer.tenantId().isBlank()) {
             TenantContext.setCurrentTenant(consumer.tenantId());
+          } else {
+            TenantContext.clearCurrentTenant();
           }
 
           try {
@@ -226,10 +231,9 @@ public class StreamApi extends RestBehavior {
               sendStreamEvent(fluxSink, event);
             }
           } finally {
-            // Reset tenant context to avoid leaking into other consumers in the loop
-            if (consumer.tenantId() != null && !consumer.tenantId().isBlank()) {
-              TenantContext.clearCurrentTenant();
-            }
+            // Reset tenant context unconditionally to avoid leaking into other
+            // consumers in the loop or into later tasks on this pooled thread
+            TenantContext.clearCurrentTenant();
           }
         });
   }
