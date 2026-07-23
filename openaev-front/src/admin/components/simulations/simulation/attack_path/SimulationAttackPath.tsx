@@ -170,8 +170,20 @@ interface SearchOption {
  * findings list) that cross-focuses the graph and the execution feed. Clicking a feed entry opens the
  * execution Result & Terminal panel.
  */
-const SimulationAttackPath = () => {
-  const { exerciseId } = useParams() as { exerciseId: string };
+interface SimulationAttackPathProps {
+  /**
+   * Scenario context: the ids of the scenario's simulations. When provided, the simulation picker is
+   * shown but restricted to these runs (a scenario groups several simulations) and defaults to the most
+   * recent one. When omitted (simulation context) the picker is hidden and the view is locked to the
+   * route's exerciseId — the current simulation only.
+   */
+  scenarioExerciseIds?: string[];
+}
+
+const SimulationAttackPath = ({ scenarioExerciseIds }: SimulationAttackPathProps) => {
+  const { exerciseId } = useParams() as { exerciseId?: string };
+  // Scenario context lists several runs to pick from; simulation context is locked to its own run.
+  const showPicker = scenarioExerciseIds !== undefined;
   const theme = useTheme();
   const { t, fldt } = useFormatter();
   const navigate = useNavigate();
@@ -362,24 +374,49 @@ const SimulationAttackPath = () => {
   }, [simulationId, simulations]);
 
   // Load the picker options once (simulations that have attack-path data in this tenant), then
-  // resolve real simulations' date + name so the picker reads dates instead of raw ids.
+  // resolve real simulations' date + name so the picker reads dates instead of raw ids. In scenario
+  // context the list is narrowed to the scenario's own runs and the view defaults to the most recent.
   useEffect(() => {
     fetchAttackPathSimulations()
       .then((r) => {
-        const rows = r.data ?? [];
+        const all = r.data ?? [];
+        // Scenario context: only this scenario's runs that actually have attack-path data. Simulation
+        // context: every run in the tenant (the picker is hidden, so this is just the summary source).
+        const rows = scenarioExerciseIds
+          ? all.filter(s => !!s.simulationId && scenarioExerciseIds.includes(s.simulationId))
+          : all;
         setSimulations(rows);
+        // Scenario context has no route exerciseId, so pick a default run: the most recent by start
+        // date once meta resolves, falling back to the first available run if meta is unavailable so
+        // the view is never stuck empty. `prev || …` never overrides a run the user has picked.
+        const seedScenarioDefault = (simId?: string) => {
+          if (showPicker && simId) {
+            setSimulationId(prev => prev || simId);
+          }
+        };
         const ids = Array.from(new Set([
           ...rows.map(s => s.simulationId).filter((id): id is string => !isSeedId(id) && !!id),
           ...(!isSeedId(exerciseId) && exerciseId ? [exerciseId] : []),
         ]));
         if (ids.length > 0) {
           fetchSimulationsMetaById(ids)
-            .then(m => setMetaById(new Map((m.data ?? []).map(e => [e.exercise_id, e]))))
-            .catch(() => undefined);
+            .then((m) => {
+              const metaMap = new Map((m.data ?? []).map(e => [e.exercise_id, e]));
+              setMetaById(metaMap);
+              const mostRecent = [...rows].sort((a, b) => {
+                const da = metaMap.get(a.simulationId ?? '')?.exercise_start_date ?? '';
+                const db = metaMap.get(b.simulationId ?? '')?.exercise_start_date ?? '';
+                return db.localeCompare(da);
+              })[0];
+              seedScenarioDefault(mostRecent?.simulationId);
+            })
+            .catch(() => seedScenarioDefault(rows[0]?.simulationId));
+        } else {
+          seedScenarioDefault(rows[0]?.simulationId);
         }
       })
       .catch(() => setSimulations([]));
-  }, [exerciseId]);
+  }, [exerciseId, scenarioExerciseIds, showPicker]);
 
   // Readable label for a simulation id: "date · name" for real simulations, raw id for seeds/unknowns.
   const labelFor = useCallback((simId?: string): string => {
@@ -1544,46 +1581,48 @@ const SimulationAttackPath = () => {
         flexWrap: 'wrap',
       }}
       >
-        <Autocomplete
-          size="small"
-          options={pickerOptions}
-          value={selectedRow}
-          isOptionEqualToValue={(o, v) => o.simulationId === v.simulationId}
-          getOptionLabel={o => labelFor(o.simulationId)}
-          onChange={(_, v) => {
-            if (v?.simulationId) {
-              setSimulationId(v.simulationId);
-            }
-          }}
-          renderOption={(props, o) => {
-            const { key, ...rest } = props as { key: string } & Record<string, unknown>;
-            return (
-              <li
-                key={key}
-                {...rest}
-                style={{
-                  display: 'flex',
-                  gap: 8,
-                }}
-              >
-                <span>{labelFor(o.simulationId)}</span>
-                <span style={{
-                  marginLeft: 'auto',
-                  opacity: 0.65,
-                  fontSize: 12,
-                }}
+        {showPicker && (
+          <Autocomplete
+            size="small"
+            options={pickerOptions}
+            value={selectedRow}
+            isOptionEqualToValue={(o, v) => o.simulationId === v.simulationId}
+            getOptionLabel={o => labelFor(o.simulationId)}
+            onChange={(_, v) => {
+              if (v?.simulationId) {
+                setSimulationId(v.simulationId);
+              }
+            }}
+            renderOption={(props, o) => {
+              const { key, ...rest } = props as { key: string } & Record<string, unknown>;
+              return (
+                <li
+                  key={key}
+                  {...rest}
+                  style={{
+                    display: 'flex',
+                    gap: 8,
+                  }}
                 >
-                  {`${o.endpointCount ?? 0} ${t('endpoints')} · ${o.executionCount ?? 0} ${t('exec.')}`}
-                </span>
-              </li>
-            );
-          }}
-          renderInput={params => <TextField {...params} label={t('Simulation')} />}
-          sx={{
-            maxWidth: 520,
-            flex: '1 1 320px',
-          }}
-        />
+                  <span>{labelFor(o.simulationId)}</span>
+                  <span style={{
+                    marginLeft: 'auto',
+                    opacity: 0.65,
+                    fontSize: 12,
+                  }}
+                  >
+                    {`${o.endpointCount ?? 0} ${t('endpoints')} · ${o.executionCount ?? 0} ${t('exec.')}`}
+                  </span>
+                </li>
+              );
+            }}
+            renderInput={params => <TextField {...params} label={t('Simulation')} />}
+            sx={{
+              maxWidth: 520,
+              flex: '1 1 320px',
+            }}
+          />
+        )}
         <div style={{
           display: 'flex',
           gap: theme.spacing(1),
@@ -1960,7 +1999,9 @@ const SimulationAttackPath = () => {
               )}
               {!loading && !forbidden && !error && nodes.length === 0 && (
                 <Alert severity="info" sx={{ m: 2 }}>
-                  {t('No attack-path data for this simulation. Select a simulation with attack-path data above.')}
+                  {t(showPicker
+                    ? 'No attack-path data for this simulation. Select a simulation with attack-path data above.'
+                    : 'No attack-path data for this simulation.')}
                 </Alert>
               )}
               {!loading && !forbidden && !error && nodes.length > 0 && (

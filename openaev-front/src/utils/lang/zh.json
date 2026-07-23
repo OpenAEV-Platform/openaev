@@ -1871,6 +1871,7 @@
   "No asset selected. Add asset manually by typing IPs, CIDRs or hostnames or select some in the asset list.": "未选择资产。通过键入 IP、CIDR 或主机名手动添加资产，或在资产列表中选择某些资产。",
   "No asset selected. Add asset manually or select some in the asset list.": "未选择资产。手动添加资产或在资产列表中选择一些。",
   "No assets in the allow list.": "允许列表中没有资产。",
+  "No attack-path data for this simulation.": "No attack-path data for this simulation.",
   "No attack-path data for this simulation. Seed data (POST /attack-path/seed) or enter a seeded simulation id above.": "No attack-path data for this simulation. Seed data (POST /attack-path/seed) or enter a seeded simulation id above.",
   "No attack-path data for this simulation. Select a simulation with attack-path data above.": "No attack-path data for this simulation. Select a simulation with attack-path data above.",
   "No author": "无作者",
