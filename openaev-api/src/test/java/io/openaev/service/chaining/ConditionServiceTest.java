@@ -465,6 +465,52 @@ public class ConditionServiceTest {
     }
 
     @Test
+    void
+        given_portInLocalCorrelatedAndHostInGlobalState_should_completeHostFromGlobalMappingType() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-local-port-global-host");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.LOCAL, PrimitiveType.Port, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Host, null));
+
+      WorkflowStateEntries localEntries =
+          entries(
+              List.of(),
+              List.of(
+                  correlated(
+                      "PortsScan",
+                      new WorkflowStateEntries.Pair("Port", "5040"),
+                      new WorkflowStateEntries.Pair("Filename", "scan.txt"))));
+      WorkflowStateEntries globalEntries =
+          entries(List.of(input("Host", "1.1.1.1", "2.2.2.2")), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-local-port-global-host"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(2, batches.size());
+      Set<String> hostPorts =
+          batches.stream()
+              .map(
+                  b -> {
+                    JsonObject json = inputJson(b);
+                    return json.get("Host").getAsString() + ":" + json.get("Port").getAsString();
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("1.1.1.1:5040", "2.2.2.2:5040"), hostPorts);
+    }
+
+    @Test
     void given_fullCorrelatedCoverageButAlreadyExecuted_shouldKeepBestEffortCombinations() {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
