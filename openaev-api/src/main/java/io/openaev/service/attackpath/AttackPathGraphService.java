@@ -613,7 +613,10 @@ public class AttackPathGraphService {
       node.setHostname(e.targetHostname());
       node.setIp(e.targetIp());
       node.setPlatform(e.targetPlatform());
-      node.setLabel(e.targetHostname() != null ? e.targetHostname() : e.targetKey());
+      node.setLabel(
+          e.targetHostname() != null && !e.targetHostname().isBlank()
+              ? e.targetHostname()
+              : e.targetKey());
       node.setStatus(collapsedColour(e.redCount(), e.orangeCount()));
       node.setFindingCounts(findingCountsByEndpoint.get(e.targetKey()));
       nodes.put(nodeId, node);
@@ -754,7 +757,9 @@ public class AttackPathGraphService {
     node.setIp(representative.targetIp());
     node.setPlatform(representative.targetPlatform());
     node.setLabel(
-        representative.targetHostname() != null ? representative.targetHostname() : targetKey);
+        representative.targetHostname() != null && !representative.targetHostname().isBlank()
+            ? representative.targetHostname()
+            : targetKey);
     node.setAgents(
         executions.stream()
             .map(AttackPathExecutionRow::agentName)

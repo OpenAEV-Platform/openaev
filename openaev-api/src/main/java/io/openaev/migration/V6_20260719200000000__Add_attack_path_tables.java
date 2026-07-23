@@ -36,7 +36,7 @@ public class V6_20260719200000000__Add_attack_path_tables extends BaseJavaMigrat
       statement.execute(
           """
           CREATE TABLE IF NOT EXISTS attackpath_execution (
-              attackpath_execution_id                   varchar(255) NOT NULL
+              attackpath_execution_id                   text NOT NULL
                   CONSTRAINT attackpath_execution_pkey PRIMARY KEY,
               tenant_id                                 varchar(255) NOT NULL
                   CONSTRAINT attackpath_execution_tenant_fk
@@ -112,7 +112,7 @@ public class V6_20260719200000000__Add_attack_path_tables extends BaseJavaMigrat
       statement.execute(
           """
           CREATE TABLE IF NOT EXISTS attackpath_execution_finding (
-              execution_id varchar(255) NOT NULL
+              execution_id text NOT NULL
                   CONSTRAINT attackpath_ef_execution_fk
                       REFERENCES attackpath_execution (attackpath_execution_id) ON DELETE CASCADE,
               finding_id   varchar(255) NOT NULL

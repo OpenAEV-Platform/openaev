@@ -191,20 +191,18 @@ public class AttackPathExecutionIngestionService {
           attackPathExecution.setTargetDiscoveredInformation(injectorTargets);
           attackPathExecutions.add(attackPathExecution);
         }
-      } else if (targetSelector.equals("asset")) { // ASSETS
+      } else if (targetSelector.equals("assets")) {
+        // The injector "assets" selector (the only stored value; the contract choices are
+        // {assets, manual}) targets both the inject's direct assets and its asset groups. Resolve
+        // both, exactly as the executor path does via getAgentsAndAgentlessAssetsByInject.
         for (Asset asset : inject.getAssets()) {
-          AttackPathExecution attackPathExecution =
-              setSourceInjectorTargetAsset(asset, inject, step);
-          attackPathExecutions.add(attackPathExecution);
+          attackPathExecutions.add(setSourceInjectorTargetAsset(asset, inject, step));
         }
-      } else if (targetSelector.equals("asset_group")) { // ASSET
         for (AssetGroup assetGroup : inject.getAssetGroups()) {
           // assetsFromAssetGroup resolves static AND dynamic (filter-matched) members and unproxies
           // them; assetGroup.getAssets() only returns the statically pinned ones.
           for (Asset asset : assetGroupService.assetsFromAssetGroup(assetGroup)) {
-            AttackPathExecution attackPathExecution =
-                setSourceInjectorTargetAsset(asset, inject, step);
-            attackPathExecutions.add(attackPathExecution);
+            attackPathExecutions.add(setSourceInjectorTargetAsset(asset, inject, step));
           }
         }
       }
@@ -290,20 +288,12 @@ public class AttackPathExecutionIngestionService {
         }
       }
 
-    } else { // INJECTOR -> 1 Execution by target
+    } else { // INJECTOR -> one execution per target
       String targetSelector = inject.getContent().get("target_selector").asText();
-
-      if (targetSelector.equals("manual")) { // DISCOVERY
-        String[] targets = inject.getContent().get("targets").asText().split(",");
-        if (targets.length < 1) return null;
-
-        target = inject.getContent().get("targets").asText().split(",")[0];
+      if (targetSelector.equals("manual") || targetSelector.equals("assets")) {
+        // 'target' is the per-execution discriminator (the manual target or the asset id) and the
+        // injector is the source, mirroring the write side executionNode(inject, target, injector).
         return AttackPathIds.executionNode(inject.getId(), target, inject.getInjector().getId());
-
-      } else if (targetSelector.equals("asset") || targetSelector.equals("asset_group")) { // ASSET
-        if (inject.getAssets().isEmpty()) return null;
-        target = inject.getAssets().getFirst().getId();
-        AttackPathIds.executionNode(inject.getId(), target, inject.getInjector().getId());
       }
     }
     return null;
