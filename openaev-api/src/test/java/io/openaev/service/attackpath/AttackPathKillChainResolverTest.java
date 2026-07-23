@@ -39,7 +39,7 @@ class AttackPathKillChainResolverTest {
     KillChainMeta meta = resolver.resolve(List.of(portLeaf));
 
     assertThat(meta.consumedFindingKeys())
-        .containsExactly(new ConsumedFindingKeyDTO("port", "EQ", "445"));
+        .containsExactly(new ConsumedFindingKeyDTO("port", "EQ", "445", null));
     assertThat(meta.dependsOn()).isEmpty();
   }
 
@@ -57,15 +57,17 @@ class AttackPathKillChainResolverTest {
     Condition andRoot =
         Condition.builder()
             .type(ConditionType.AND)
+            .name("SMB UP")
             .conditionChildren(List.of(portLeaf, serviceLeaf))
             .build();
 
     KillChainMeta meta = resolver.resolve(List.of(andRoot));
 
+    // Every leaf key carries the root event's name so the front can name the triggering event.
     assertThat(meta.consumedFindingKeys())
         .containsExactlyInAnyOrder(
-            new ConsumedFindingKeyDTO("port", "EQ", "445"),
-            new ConsumedFindingKeyDTO("service", "EQ", "smb"));
+            new ConsumedFindingKeyDTO("port", "EQ", "445", "SMB UP"),
+            new ConsumedFindingKeyDTO("service", "EQ", "smb", "SMB UP"));
   }
 
   @Test

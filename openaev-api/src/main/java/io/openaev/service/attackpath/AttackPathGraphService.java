@@ -12,6 +12,7 @@ import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
 import io.openaev.database.model.attackpath.projection.AttackPathInjectorMetaRow;
 import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
+import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
@@ -99,6 +100,7 @@ public class AttackPathGraphService {
   private final PayloadMapper payloadMapper;
   private final AttackPathKillChainResolver killChainResolver;
   private final ConditionRepository conditionRepository;
+  private final AssetRepository assetRepository;
 
   /**
    * Above this many executions a simulation is served collapsed by default. Tied to the front
@@ -385,7 +387,7 @@ public class AttackPathGraphService {
         executionRepository.findByTarget(simulationId, targetKey);
     String targetNodeId = AttackPathIds.endpointNode(targetKey);
     Map<String, AttackPathEdges> edges = new LinkedHashMap<>();
-    List<AttackPathNodeDTO> feed = new ArrayList<>();
+    Map<String, AttackPathNodeDTO> feedByExecutionId = new LinkedHashMap<>();
     for (AttackPathExecutionRow e : executions) {
       String sourceNodeId = sourceNodeId(e);
       String edgeId = AttackPathIds.executionsEdge(sourceNodeId, targetNodeId);
@@ -393,9 +395,11 @@ public class AttackPathGraphService {
           edges.computeIfAbsent(edgeId, id -> executionEdge(id, sourceNodeId, targetNodeId));
       edge.setCount(edge.getCount() + 1);
       edge.getExecutionIds().add(e.id());
-      feed.add(executionFeedNode(e));
+      feedByExecutionId.put(e.id(), executionFeedNode(e));
     }
-    return new AttackPathEndpointRelationsDTO(feed, new ArrayList<>(edges.values()));
+    applyContractNames(executions, feedByExecutionId);
+    return new AttackPathEndpointRelationsDTO(
+        new ArrayList<>(feedByExecutionId.values()), new ArrayList<>(edges.values()));
   }
 
   private AttackPathDTO assemble(
@@ -428,6 +432,7 @@ public class AttackPathGraphService {
       feedByExecutionId.put(e.id(), executionFeedNode(e));
     }
     applyKillChain(executions, feedByExecutionId);
+    applyContractNames(executions, feedByExecutionId);
 
     // Endpoint (ASSET) nodes, with attributes and colour from the executions targeting them.
     for (Map.Entry<String, List<AttackPathExecutionRow>> entry : byTarget.entrySet()) {
@@ -496,6 +501,7 @@ public class AttackPathGraphService {
         });
 
     resolveInjectorAttackPatterns(nodes, contractsByInjectorNode);
+    applyEndpointCriticality(nodes);
 
     AttackPathCounters counters =
         new AttackPathCounters(
@@ -635,6 +641,7 @@ public class AttackPathGraphService {
     }
 
     enrichCollapsedInjectors(simulationId, nodes);
+    applyEndpointCriticality(nodes);
 
     return new AttackPathDTO(
         List.of(),
@@ -847,6 +854,93 @@ public class AttackPathGraphService {
         node.setConsumedFindingKeys(meta.consumedFindingKeys());
       }
     }
+  }
+
+  /**
+   * Resolves each execution's injector-contract name (e.g. "NMAP SYN Scan") from its contract external
+   * id and sets it on the execution feed node, so the front can name WHAT was launched on the
+   * inject→endpoint edge. Batched over the DISTINCT external ids (a run uses a handful of contracts, not
+   * one per execution), so this is a few reads regardless of the execution count. No-op when no
+   * execution carries a contract.
+   */
+  private void applyContractNames(
+      List<AttackPathExecutionRow> executions, Map<String, AttackPathNodeDTO> feedByExecutionId) {
+    Set<String> externalIds =
+        executions.stream()
+            .map(AttackPathExecutionRow::contractExternalId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    if (externalIds.isEmpty()) {
+      return;
+    }
+    Map<String, String> nameByExternalId = new HashMap<>();
+    for (String externalId : externalIds) {
+      injectorContractRepository
+          .findByIdOrExternalId(externalId, externalId)
+          .ifPresent(
+              contract -> {
+                String name = contractLabel(contract.getLabels());
+                if (name != null) {
+                  nameByExternalId.put(externalId, name);
+                }
+              });
+    }
+    if (nameByExternalId.isEmpty()) {
+      return;
+    }
+    for (AttackPathExecutionRow e : executions) {
+      String externalId = e.contractExternalId();
+      if (externalId == null) {
+        continue;
+      }
+      AttackPathNodeDTO node = feedByExecutionId.get(e.id());
+      if (node != null) {
+        node.setContractName(nameByExternalId.get(externalId));
+      }
+    }
+  }
+
+  /**
+   * Sets each endpoint (ASSET) node's business criticality from its backing asset, in one batched read
+   * over the asset ids (endpoint node refs). Discovered endpoints (raw values, not asset ids) simply
+   * match nothing and stay null. Feeds the front's chokepoint score (findings weighted by criticality).
+   */
+  private void applyEndpointCriticality(Map<String, AttackPathNodeDTO> nodes) {
+    Map<String, AttackPathNodeDTO> assetNodesByRef = new HashMap<>();
+    for (AttackPathNodeDTO node : nodes.values()) {
+      if (TYPE_ASSET.equals(node.getType()) && node.getRef() != null) {
+        assetNodesByRef.put(node.getRef(), node);
+      }
+    }
+    if (assetNodesByRef.isEmpty()) {
+      return;
+    }
+    for (Object[] row : assetRepository.findCriticalityByIds(assetNodesByRef.keySet())) {
+      String assetId = (String) row[0];
+      Object criticality = row[1];
+      String name = (String) row[2];
+      AttackPathNodeDTO node = assetNodesByRef.get(assetId);
+      if (node == null) {
+        continue;
+      }
+      if (criticality != null) {
+        node.setCriticality(criticality.toString());
+      }
+      // Prefer the asset's friendly name over the raw id fallback (an ASSET endpoint with no hostname
+      // otherwise reads as its uuid on the map and in the chokepoint list).
+      if (name != null && !name.isBlank()) {
+        node.setLabel(name);
+      }
+    }
+  }
+
+  /** The contract's display name from its locale labels: English if present, else any label. */
+  private static String contractLabel(Map<String, String> labels) {
+    if (labels == null || labels.isEmpty()) {
+      return null;
+    }
+    String en = labels.get("en");
+    return en != null ? en : labels.values().iterator().next();
   }
 
   private AttackPathNodeDTO executionFeedNode(AttackPathExecutionRow e) {

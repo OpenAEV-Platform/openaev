@@ -4,7 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import { useEffect, useRef, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
-import { attackPathChokepointColor } from './attack-path-colors';
+import { attackPathCausalColor, attackPathChokepointColor } from './attack-path-colors';
 
 interface Props {
   // Bumped by the parent whenever a side panel/drawer opens, so the legend folds away to avoid
@@ -17,7 +17,9 @@ interface Props {
 const AttackPathLegend = ({ collapseSignal }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const [open, setOpen] = useState(true);
+  // Collapsed by default: the graph reads on its own, and the folded state still shows the verdict-colour
+  // key. The analyst expands the full legend on demand.
+  const [open, setOpen] = useState(false);
 
   // Fold the legend when a panel opens (ignoring the initial mount), without locking it: reopening is
   // still up to the user.
@@ -30,11 +32,11 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
   }, [collapseSignal]);
 
   const shapes: {
-    shape: 'diamond' | 'dashedCircle' | 'pill' | 'circle';
+    shape: 'square' | 'dashedCircle' | 'pill' | 'circle';
     label: string;
   }[] = [
     {
-      shape: 'diamond',
+      shape: 'square',
       label: t('Injector — click for the executed action'),
     },
     {
@@ -79,12 +81,16 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
       label: t('Chokepoint (most exposed endpoint)'),
     },
     {
+      color: attackPathCausalColor(theme),
+      label: t('Event link — a finding that triggered the next action'),
+    },
+    {
       color: theme.palette.primary.main,
       label: t('Selected attack path'),
     },
   ];
 
-  const renderShape = (shape: 'diamond' | 'dashedCircle' | 'pill' | 'circle') => {
+  const renderShape = (shape: 'square' | 'dashedCircle' | 'pill' | 'circle') => {
     const base = {
       width: 16,
       height: 16,
@@ -92,11 +98,11 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
       border: `1.5px solid ${theme.palette.text.secondary}`,
       background: theme.palette.background.default,
     };
-    if (shape === 'diamond') {
+    if (shape === 'square') {
       return (
         <span style={{
           ...base,
-          clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
+          borderRadius: 3,
         }}
         />
       );

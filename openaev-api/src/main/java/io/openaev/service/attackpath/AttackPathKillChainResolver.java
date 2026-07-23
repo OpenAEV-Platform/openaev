@@ -47,14 +47,17 @@ public class AttackPathKillChainResolver {
         }
       } else if (conditionUtils.isFilterCondition(condition)) {
         // A filter root may be an AND/OR tree with no key of its own; the consumed keys live at the
-        // leaves, so walk the whole tree and collect every leaf that carries a key type.
-        collectConsumedKeys(condition, consumedFindingKeys);
+        // leaves, so walk the whole tree and collect every leaf that carries a key type. The root
+        // filter condition is the event: its name is carried onto every key it produces so the front
+        // can name the event that triggered the consuming action.
+        collectConsumedKeys(condition, condition.getName(), consumedFindingKeys);
       }
     }
     return new KillChainMeta(dependsOn, consumedFindingKeys);
   }
 
-  private void collectConsumedKeys(Condition condition, List<ConsumedFindingKeyDTO> out) {
+  private void collectConsumedKeys(
+      Condition condition, String eventName, List<ConsumedFindingKeyDTO> out) {
     if (condition == null) {
       return;
     }
@@ -63,11 +66,12 @@ public class AttackPathKillChainResolver {
           new ConsumedFindingKeyDTO(
               condition.getKeyType().label,
               condition.getType() != null ? condition.getType().name() : null,
-              condition.getValue()));
+              condition.getValue(),
+              eventName));
     }
     if (condition.getConditionChildren() != null) {
       for (Condition child : condition.getConditionChildren()) {
-        collectConsumedKeys(child, out);
+        collectConsumedKeys(child, eventName, out);
       }
     }
   }

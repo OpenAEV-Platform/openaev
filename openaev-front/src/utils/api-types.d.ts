@@ -999,6 +999,8 @@ export interface AttackPathNodeDTO {
   attackPatterns?: AttackPathAttackPatternDTO[];
   command?: string;
   consumedFindingKeys?: ConsumedFindingKeyDTO[];
+  contractName?: string;
+  criticality?: string;
   dependsOn?: string[];
   executedAt?: string;
   executionsTraces?: any[];
@@ -2113,6 +2115,7 @@ export interface ConnectorInstancePersisted {
 }
 
 export interface ConsumedFindingKeyDTO {
+  eventName?: string;
   keyType?: string;
   operator?: string;
   value?: string;

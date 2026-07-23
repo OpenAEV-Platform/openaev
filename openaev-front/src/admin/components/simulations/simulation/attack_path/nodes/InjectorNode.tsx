@@ -1,9 +1,10 @@
 import { BoltOutlined } from '@mui/icons-material';
-import { Typography } from '@mui/material';
+import { Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Handle, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
+import AttackPatternChip from '../../../../../../components/AttackPatternChip';
 import { buildTenantApiPath } from '../../../../../../utils/url-helper';
 import { type AttackPathFlowNode } from '../attack-path-flow-helpers';
 import ImageWithFallback from '../ImageWithFallback';
@@ -14,12 +15,38 @@ import { AP_INJECTOR_SIZE } from './node-sizes';
 // below the diamond (not truncated). Source of the execution edges.
 const InjectorNode = ({ data }: NodeProps<AttackPathFlowNode>) => {
   const theme = useTheme();
-  // The injector image endpoint expects the full injector slug (e.g. "openaev_netexec"). The graph
-  // node carries the short tool name, so map it to the slug (with a small alias for renamed tools).
-  // TODO(#6647): have the backend expose the injector type/slug on the node instead of guessing.
+  // The injector image endpoint expects the full injector slug (e.g. "openaev_netexec"). Prefer the
+  // backend-provided injector type; fall back to guessing from the short tool name (with a small alias
+  // for renamed tools) for synthetic seed injectors that carry no type.
   const raw = (data.label ?? '').toLowerCase();
   const aliases: Record<string, string> = { crackmapexec: 'netexec' };
-  const injectorSlug = raw.startsWith('openaev_') ? raw : `openaev_${aliases[raw] ?? raw}`;
+  const base = (data.injectorType ?? '').toLowerCase() || aliases[raw] || raw;
+  const injectorSlug = base.startsWith('openaev_') ? base : `openaev_${base}`;
+  // ATT&CK techniques resolved by the backend for this injector's contract; rendered with the shared
+  // AttackPatternChip (the platform's canonical attack-pattern taxonomy component) in a hover tooltip,
+  // plus a small count badge so the analyst sees them on the node without opening the drawer.
+  const techniques = data.attackPatterns ?? [];
+  const techniqueTitle = techniques.length > 0
+    ? (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+        }}
+        >
+          {techniques.map(tp => (
+            <AttackPatternChip
+              key={tp.externalId ?? tp.name}
+              attackPattern={{
+                attack_pattern_id: tp.externalId ?? '',
+                attack_pattern_external_id: tp.externalId ?? '',
+                attack_pattern_name: tp.name ?? '',
+              }}
+            />
+          ))}
+        </div>
+      )
+    : '';
   return (
     <div style={{
       position: 'relative',
@@ -28,43 +55,70 @@ const InjectorNode = ({ data }: NodeProps<AttackPathFlowNode>) => {
     }}
     >
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
-      <div
-        style={{
-          width: AP_INJECTOR_SIZE,
-          height: AP_INJECTOR_SIZE,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: theme.palette.background.paper,
-          border: `1px solid ${theme.palette.text.secondary}`,
-          clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
-        }}
-      >
-        {raw
-          ? (
-              <ImageWithFallback
-                src={buildTenantApiPath(`/api/injectors/${injectorSlug}/image`)}
-                alt={data.label ?? ''}
-                width={40}
-                height={40}
-                style={{ objectFit: 'contain' }}
-                fallback={(
-                  <BoltOutlined sx={{
-                    fontSize: 34,
-                    color: theme.palette.text.secondary,
-                  }}
-                  />
-                )}
-              />
-            )
-          : (
-              <BoltOutlined sx={{
-                fontSize: 34,
-                color: theme.palette.text.secondary,
-              }}
-              />
-            )}
-      </div>
+      <Tooltip title={techniqueTitle} arrow>
+        <div
+          style={{
+            width: AP_INJECTOR_SIZE,
+            height: AP_INJECTOR_SIZE,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            // A SQUARE (not a diamond): injector logos are square, so the image fills the whole node
+            // edge-to-edge and the node reads in the icon's own colour (e.g. Nmap blue), instead of the
+            // logo floating over white/dark corners a diamond leaves. White backs any transparent logo.
+            background: theme.palette.common.white,
+            border: `1px solid ${theme.palette.text.secondary}`,
+            borderRadius: 8,
+          }}
+        >
+          {base
+            ? (
+                <ImageWithFallback
+                  src={buildTenantApiPath(`/api/injectors/${injectorSlug}/image`)}
+                  alt={data.label ?? ''}
+                  width={AP_INJECTOR_SIZE}
+                  height={AP_INJECTOR_SIZE}
+                  style={{ objectFit: 'cover' }}
+                  fallback={(
+                    <BoltOutlined sx={{
+                      fontSize: 34,
+                      color: theme.palette.grey[700],
+                    }}
+                    />
+                  )}
+                />
+              )
+            : (
+                <BoltOutlined sx={{
+                  fontSize: 34,
+                  color: theme.palette.text.secondary,
+                }}
+                />
+              )}
+        </div>
+      </Tooltip>
+      {techniques.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: -4,
+            right: -4,
+            minWidth: 16,
+            height: 16,
+            padding: '0 4px',
+            borderRadius: 8,
+            background: theme.palette.primary.main,
+            color: theme.palette.primary.contrastText,
+            fontSize: 10,
+            fontWeight: 700,
+            lineHeight: '16px',
+            textAlign: 'center',
+          }}
+        >
+          {techniques.length}
+        </div>
+      )}
       <Typography
         variant="caption"
         fontWeight={700}

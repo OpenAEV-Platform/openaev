@@ -95,8 +95,8 @@ class AttackPathKillChainResolutionIntegrationTest extends IntegrationTest {
     assertThat(meta.dependsOn()).containsExactly("prereq-step-tpl");
     assertThat(meta.consumedFindingKeys())
         .containsExactlyInAnyOrder(
-            new ConsumedFindingKeyDTO("port", "EQ", "445"),
-            new ConsumedFindingKeyDTO("port", "EQ", "139"),
-            new ConsumedFindingKeyDTO("service", "EQ", "smb"));
+            new ConsumedFindingKeyDTO("port", "EQ", "445", null),
+            new ConsumedFindingKeyDTO("port", "EQ", "139", null),
+            new ConsumedFindingKeyDTO("service", "EQ", "smb", null));
   }
 }

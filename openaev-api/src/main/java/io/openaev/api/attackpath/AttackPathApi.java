@@ -147,12 +147,17 @@ public class AttackPathApi extends RestBehavior {
    * snapshot. 404 when the execution is not in the caller's simulation (unknown id or another
    * tenant's, since the read is tenant-scoped through the {@link TxCtx}). Credentials are masked
    * server-side in the command, the output, and the findings.
+   *
+   * <p>The execution id is passed as a URL-encoded {@code ref} query parameter (like the endpoint
+   * reads), not a path variable: an injector-sourced execution id ends with the null-agent marker
+   * {@code \0} (a backslash), and an encoded backslash in the path is rejected by the servlet
+   * container before it reaches the controller. A query parameter carries it safely.
    */
-  @GetMapping("/simulations/{simulationId}/executions/{executionId}")
+  @GetMapping("/simulations/{simulationId}/execution")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
   public AttackPathExecutionDetailDTO executionDetail(
-      TxCtx ctx, @PathVariable String simulationId, @PathVariable String executionId) {
+      TxCtx ctx, @PathVariable String simulationId, @RequestParam("ref") String executionId) {
     requireAttackPathFeature();
     AttackPathExecutionDetailDTO detail = graphService.executionDetail(simulationId, executionId);
     if (detail == null) {
