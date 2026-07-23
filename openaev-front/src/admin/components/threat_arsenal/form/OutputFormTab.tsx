@@ -30,9 +30,9 @@ const OutputFormTab = () => {
     <>
       <Typography>
         {t('Define structured outputs by parsing the raw output of your action.')}
-&nbsp;
+                &nbsp;
         <a
-          href="https://docs.openaev.io/latest/usage/payloads/payloads/#output-parser"
+          href="https://docs.openaev.io/latest/usage/threat-arsenals/threat-arsenals/#output-parsers"
           target="_blank"
           rel="noreferrer"
         >
@@ -47,7 +47,7 @@ const OutputFormTab = () => {
       >
         <Typography sx={{ marginBottom: 0 }} variant="h3">
           {`${t('Output mode')} :`}
-&nbsp;
+                    &nbsp;
         </Typography>
         <Typography>{t('Stdout')}</Typography>
         <Typography
@@ -58,7 +58,7 @@ const OutputFormTab = () => {
           variant="h3"
         >
           {`${t('Parsing')} :`}
-&nbsp;
+                    &nbsp;
         </Typography>
         <Typography>{t('Regex')}</Typography>
         <Button

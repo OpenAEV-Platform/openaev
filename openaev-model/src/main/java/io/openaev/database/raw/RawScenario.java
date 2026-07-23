@@ -78,6 +78,13 @@ public interface RawScenario {
   boolean getScenario_lessons_anonymized();
 
   /**
+   * Returns whether the lessons learned module is enabled for this scenario.
+   *
+   * @return {@code true} if the lessons learned module is enabled, {@code false} otherwise
+   */
+  boolean getScenario_lessons_enabled();
+
+  /**
    * Returns the email address used as the sender for scenario communications.
    *
    * @return the "from" email address

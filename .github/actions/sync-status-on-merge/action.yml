@@ -163,6 +163,10 @@ runs:
               NEW_STATUS="Final product validation"
               CLOSE_ISSUE="true"
               MOVE_MILESTONE="true"
+            elif [ "$CURRENT_STATUS" == "In review" ]; then
+              NEW_STATUS="Done"
+              CLOSE_ISSUE="true"
+              MOVE_MILESTONE="true"
             fi
           fi
 

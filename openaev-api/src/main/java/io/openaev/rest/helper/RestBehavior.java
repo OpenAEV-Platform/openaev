@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
+import io.openaev.aop.audit_log.AuditLogFailureException;
 import io.openaev.aop.lock.LockAcquisitionException;
 import io.openaev.config.TenantFilteringException;
 import io.openaev.database.model.User;
@@ -230,6 +231,14 @@ public class RestBehavior {
   }
 
   // -- 500 INTERNAL_SERVER_ERROR --
+
+  @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+  @ExceptionHandler(AuditLogFailureException.class)
+  public ResponseEntity<ErrorMessage> handleAuditLogFailureException(AuditLogFailureException ex) {
+    log.error("[AUDIT] Audit transport failure propagated to response: {}", ex.getMessage());
+    return new ResponseEntity<>(
+        new ErrorMessage("AUDIT_TRANSPORT_FAILURE"), HttpStatus.INTERNAL_SERVER_ERROR);
+  }
 
   @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
   @ExceptionHandler(TenantFilteringException.class)

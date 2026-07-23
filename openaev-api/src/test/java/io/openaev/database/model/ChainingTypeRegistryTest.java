@@ -1,7 +1,9 @@
 package io.openaev.database.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -53,6 +55,15 @@ class ChainingTypeRegistryTest {
   }
 
   @Test
+  @DisplayName("Should keep a controlled failure on null or unknown primitive labels")
+  void given_nullOrUnknownLabel_should_throwIllegalArgument() {
+    assertThatThrownBy(() -> PrimitiveType.fromLabel(null))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> PrimitiveType.fromLabel("definitely-not-a-type"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
   @DisplayName("Should map scope value types to primitive chaining types")
   void given_scopeValueTypes_should_mapToPrimitiveTypes() {
     assertThat(
@@ -89,5 +100,34 @@ class ChainingTypeRegistryTest {
         assertThat(kind).isNotEqualTo(ChainingTypeKind.NOT_CHAINABLE);
       }
     }
+  }
+
+  @Test
+  @DisplayName("Complex type should retain its origin ContractOutputType")
+  void given_credentials_should_retainOriginAndBeComplex() {
+    ChainingMappedType mapped =
+        ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.Credentials);
+    assertThat(mapped.kind()).isEqualTo(ChainingTypeKind.COMPLEX);
+    assertThat(mapped.origin()).isEqualTo(ContractOutputType.Credentials);
+  }
+
+  @Test
+  @DisplayName("Primitive type should have empty recipe")
+  void given_primitiveType_should_haveEmptyRecipe() {
+    ChainingMappedType mapped =
+        ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.Text);
+    assertThat(mapped.kind()).isEqualTo(ChainingTypeKind.PRIMITIVE);
+    assertThat(mapped.primitiveTypes()).containsExactly(PrimitiveType.Text);
+    assertThat(mapped.origin()).isNull();
+  }
+
+  @Test
+  @DisplayName("fromLabelOptional should resolve known labels and return empty for unknown")
+  void given_labels_should_resolveOptionally() {
+    assertThat(PrimitiveType.fromLabelOptional("username"))
+        .isEqualTo(Optional.of(PrimitiveType.Username));
+    assertThat(PrimitiveType.fromLabelOptional("password"))
+        .isEqualTo(Optional.of(PrimitiveType.Password));
+    assertThat(PrimitiveType.fromLabelOptional("nonexistent")).isEmpty();
   }
 }

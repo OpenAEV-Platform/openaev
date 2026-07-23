@@ -406,7 +406,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseGenMessageOptions}>
+            <Button variant="outlined" color="primary" onClick={handleCloseGenMessageOptions}>
               {t('Cancel')}
             </Button>
             <Button
@@ -428,7 +428,8 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
                   handleAskAi('genMessage');
                 }
               }}
-              color="secondary"
+              variant="contained"
+              color="primary"
             >
               {t('Generate')}
             </Button>
@@ -497,7 +498,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseGenMediaOptions}>
+            <Button variant="outlined" color="primary" onClick={handleCloseGenMediaOptions}>
               {t('Cancel')}
             </Button>
             <Button
@@ -519,7 +520,8 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
                   handleAskAi('genMedia');
                 }
               }}
-              color="secondary"
+              variant="contained"
+              color="primary"
             >
               {t('Generate')}
             </Button>
@@ -555,7 +557,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
             </FormControl>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseToneOptions}>
+            <Button variant="outlined" color="primary" onClick={handleCloseToneOptions}>
               {t('Cancel')}
             </Button>
             <Button
@@ -564,7 +566,8 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
                 handleCloseToneOptions();
                 handleAskAi('tone');
               }}
-              color="secondary"
+              variant="contained"
+              color="primary"
             >
               {t('Generate')}
             </Button>

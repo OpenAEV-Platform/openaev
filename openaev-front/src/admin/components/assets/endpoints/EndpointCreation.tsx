@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Step, StepButton, Stepper } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import { addAiTarget } from '../../../../actions/assets/aiTarget-actions';
@@ -62,38 +62,49 @@ const EndpointCreation: FunctionComponent<Props> = ({
     });
   };
 
+  const renderStepContent = () => {
+    if (!category) {
+      return <AssetCategoryPicker onSelect={setCategory} />;
+    }
+    if (category === 'AI_TARGET') {
+      return <AiTargetForm onSubmit={onSubmitAiTarget} handleClose={handleClose} />;
+    }
+    return (
+      <AssetForm
+        category={category}
+        agentless={agentless}
+        onSubmit={onSubmit}
+        handleClose={handleClose}
+      />
+    );
+  };
+
   return (
     <>
       <ButtonCreate onClick={() => setOpen(true)} />
       <Drawer
         open={open}
         handleClose={handleClose}
-        title={category ? t(getCategoryDef(category).label) : t('Create a new asset')}
+        title={t('Create a new asset')}
       >
-        {!category
-          ? (<AssetCategoryPicker onSelect={setCategory} />)
-          : (
-              <>
-                <Button size="small" onClick={() => setCategory(null)} style={{ alignSelf: 'flex-start' }}>
-                  {t('Change category')}
-                </Button>
-                {category === 'AI_TARGET'
-                  ? (
-                      <AiTargetForm
-                        onSubmit={onSubmitAiTarget}
-                        handleClose={handleClose}
-                      />
-                    )
-                  : (
-                      <AssetForm
-                        category={category}
-                        agentless={agentless}
-                        onSubmit={onSubmit}
-                        handleClose={handleClose}
-                      />
-                    )}
-              </>
-            )}
+        <>
+          {/* Two-step flow: pick a category, then fill the form. The stepper lets
+              the user jump back to step 1 to reselect the category (replacing the
+              old "Change category" text button). */}
+          <Stepper nonLinear activeStep={category ? 1 : 0} sx={{ marginBottom: 3 }}>
+            <Step completed={!!category}>
+              <StepButton onClick={() => setCategory(null)}>
+                {t('Category')}
+              </StepButton>
+            </Step>
+            <Step>
+              <StepButton disabled={!category}>
+                {category ? t(getCategoryDef(category).label) : t('Details')}
+              </StepButton>
+            </Step>
+          </Stepper>
+          {renderStepContent()}
+        </>
       </Drawer>
     </>
   );

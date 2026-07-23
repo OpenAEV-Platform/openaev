@@ -114,6 +114,10 @@ public class ScenarioOutput {
   @Schema(description = "Lesson anonymized state of the scenario")
   private boolean lessonsAnonymized;
 
+  @JsonProperty("scenario_lessons_enabled")
+  @Schema(description = "Whether the lessons learned module is enabled for the scenario")
+  private boolean lessonsEnabled;
+
   @JsonProperty("scenario_dependencies")
   @ArraySchema(schema = @Schema(description = "Dependencies of the scenario"))
   private Set<String> dependencies;

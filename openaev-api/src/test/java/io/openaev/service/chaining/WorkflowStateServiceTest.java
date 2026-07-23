@@ -242,7 +242,7 @@ class WorkflowStateServiceTest {
 
       Map<Set<WorkflowStateEntries.Pair>, WorkflowStateEntries.Correlated> existingIndex =
           new HashMap<>();
-      existingIndex.put(existingPairs, new WorkflowStateEntries.Correlated(existingPairs));
+      existingIndex.put(existingPairs, new WorkflowStateEntries.Correlated(existingPairs, null));
 
       WorkflowStateEntries stateEntries = mock(WorkflowStateEntries.class);
       when(stateEntries.isPathCorrelated(path)).thenReturn(true);
@@ -431,6 +431,83 @@ class WorkflowStateServiceTest {
       assertEquals(Set.of(validAssetId), persistedEntries.getInputByKey("AssetId").getValues());
       assertEquals(
           Set.of(validAssetGroupId), persistedEntries.getInputByKey("AssetGroupId").getValues());
+    }
+  }
+
+  // ========================================================================
+  // saveCorrelatedObject — key normalization and attachment exclusion
+  // ========================================================================
+  @Nested
+  @DisplayName("syncState - correlated object key normalization")
+  class SaveCorrelatedObjectTests {
+
+    @Test
+    @DisplayName(
+        "complex object {username, password, host, asset_id} should yield Correlated with all known PrimitiveType keys")
+    void givenComplexCredentialObject_shouldNormalizeKeysAndIncludeAll() {
+      // ...existing code...
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = Workflow.builder().id(workflowId).build();
+
+      WorkflowStateEntries initialEntries =
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      WorkflowState globalState =
+          WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
+
+      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
+          .thenReturn(globalState);
+      when(workflowStateRepository.save(any(WorkflowState.class)))
+          .thenAnswer(inv -> inv.getArgument(0));
+
+      PrimitiveValidationContext validationContext =
+          new PrimitiveValidationContext(
+              Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
+              Set.of(), Set.of());
+      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflow)))
+          .thenReturn(validationContext);
+
+      // A complex output field containing an array of credential objects
+      JsonObject dataToSync =
+          JsonParser.parseString(
+                  """
+                  {
+                    "credentials": [
+                      {"username": "admin", "password": "s3cret", "host": "10.0.0.1", "asset_id": "asset-42"}
+                    ]
+                  }
+                  """)
+              .getAsJsonObject();
+
+      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+      typeMappings.put(
+          "credentials",
+          ChainingMappedType.complex(
+              List.of(PrimitiveType.Username, PrimitiveType.Password),
+              ContractOutputType.Credentials));
+
+      workflowStateService.syncState(dataToSync, typeMappings, workflow);
+
+      WorkflowStateEntries persistedEntries =
+          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+
+      // Exactly one Correlated should exist
+      assertEquals(1, persistedEntries.getCorrelated().size());
+
+      Set<WorkflowStateEntries.Pair> pairs =
+          persistedEntries.getCorrelated().getFirst().getValues();
+
+      // All known PrimitiveType fields are included — no exclusion
+      assertEquals(
+          Set.of(
+              new WorkflowStateEntries.Pair("Username", "admin"),
+              new WorkflowStateEntries.Pair("Password", "s3cret"),
+              new WorkflowStateEntries.Pair("Host", "10.0.0.1"),
+              new WorkflowStateEntries.Pair("AssetId", "asset-42")),
+          pairs);
+
+      // Business type must be stamped from the ContractOutputType origin
+      assertEquals("Credentials", persistedEntries.getCorrelated().getFirst().getType());
     }
   }
 }

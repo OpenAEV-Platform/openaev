@@ -48,4 +48,20 @@ public class ThemeInput {
   @JsonProperty("logo_login_url")
   @Schema(description = "Url of the login logo")
   private String logoLoginUrl;
+
+  @JsonProperty("login_aside_color")
+  @Schema(description = "Solid color of the login page aside")
+  private String loginAsideColor;
+
+  @JsonProperty("login_aside_gradient_start")
+  @Schema(description = "Gradient start color of the login page aside")
+  private String loginAsideGradientStart;
+
+  @JsonProperty("login_aside_gradient_end")
+  @Schema(description = "Gradient end color of the login page aside")
+  private String loginAsideGradientEnd;
+
+  @JsonProperty("login_aside_image")
+  @Schema(description = "Url of the login page aside background image")
+  private String loginAsideImage;
 }

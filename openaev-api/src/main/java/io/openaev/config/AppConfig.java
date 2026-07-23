@@ -25,9 +25,9 @@ import org.springframework.web.client.RestTemplate;
 @Component
 @EnableAsync
 @EnableScheduling
-// The transaction advisor runs just inside @Lock and just outside the @Before aspects that must
-// see an open transaction (tenant scope, Hibernate filter), so the chain is lock -> tx -> scope.
-@EnableTransactionManagement(order = Ordered.LOWEST_PRECEDENCE - 1)
+// The transaction advisor runs just inside @Lock and just outside the audit aspect,
+// so the chain is lock -> tx -> audit -> scope/rbac.
+@EnableTransactionManagement(order = Ordered.LOWEST_PRECEDENCE - 2)
 public class AppConfig {
 
   static {

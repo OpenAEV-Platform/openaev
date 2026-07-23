@@ -1,4 +1,4 @@
-import { ExpandLessOutlined, ExpandMoreOutlined } from '@mui/icons-material';
+import { ArrowDropDown, ArrowDropUp } from '@mui/icons-material';
 import { ListItemIcon, ListItemText, MenuItem } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { Link, useLocation } from 'react-router';
@@ -42,10 +42,7 @@ const MenuItemGroup: FunctionComponent<Props> = ({ item, state, helpers }) => {
           aria-label={t(item.label)}
           selected={isCurrentTab}
           dense
-          sx={{
-            paddingRight: '2px',
-            height: 35,
-          }}
+          sx={leftMenuStyle.menuItemSx}
           {...(isCollapsed
             ? {
                 component: Link,
@@ -66,9 +63,9 @@ const MenuItemGroup: FunctionComponent<Props> = ({ item, state, helpers }) => {
                 slotProps={{ primary: { sx: { ...leftMenuStyle.listItemText } } }}
               />
               {selectedMenu === item.href ? (
-                <ExpandLessOutlined />
+                <ArrowDropUp sx={{ fontSize: 20 }} />
               ) : (
-                <ExpandMoreOutlined />
+                <ArrowDropDown sx={{ fontSize: 20 }} />
               )}
             </>
           )}

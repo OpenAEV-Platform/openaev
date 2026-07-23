@@ -1,6 +1,6 @@
 import { type FunctionComponent, useState } from 'react';
 
-import { checkScenarioTagRules, updateScenario } from '../../../../actions/scenarios/scenario-actions';
+import { checkScenarioTagRules, updateScenario, updateScenarioLessons } from '../../../../actions/scenarios/scenario-actions';
 import DialogApplyTagRule from '../../../../components/common/DialogApplyTagRule';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
@@ -12,6 +12,8 @@ import {
 import { useAppDispatch } from '../../../../utils/hooks';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import ScenarioForm from '../ScenarioForm';
+
+type ScenarioUpdateFormInput = UpdateScenarioInput & { scenario_lessons_enabled?: boolean };
 
 interface Props {
   scenario: Scenario;
@@ -50,6 +52,7 @@ const ScenarioUpdate: FunctionComponent<Props> = ({
     scenario_mail_from_name,
     scenario_mails_reply_to,
     scenario_custom_dashboard,
+    scenario_lessons_enabled,
   }) => ({
     scenario_name,
     scenario_subtitle: scenario_subtitle ?? '',
@@ -65,16 +68,27 @@ const ScenarioUpdate: FunctionComponent<Props> = ({
     scenario_mail_from_name: scenario_mail_from_name ?? '',
     scenario_mails_reply_to: scenario_mails_reply_to ?? [],
     scenario_custom_dashboard: scenario_custom_dashboard ?? '',
+    scenario_lessons_enabled: scenario_lessons_enabled ?? false,
   }))(scenario);
 
-  const [scenarioFormData, setScenarioFormData] = useState<UpdateScenarioInput>(initialValues);
+  const [scenarioFormData, setScenarioFormData] = useState<ScenarioUpdateFormInput>(initialValues);
 
-  const submitScenarioUpdate = (data: UpdateScenarioInput) => {
-    dispatch(updateScenario(scenario.scenario_id, data));
+  const submitScenarioUpdate = (data: ScenarioUpdateFormInput) => {
+    // The lessons learned module flag lives behind its own endpoint (partial
+    // update) so external API consumers of the general update can never
+    // accidentally reset it. Sequential on purpose: the general update saves
+    // the whole entity, so a concurrent lessons update could be overwritten.
+    const { scenario_lessons_enabled: lessonsEnabledValue, ...input } = data;
+    const lessonsEnabled = lessonsEnabledValue ?? false;
+    dispatch(updateScenario(scenario.scenario_id, input)).then(() => {
+      if (lessonsEnabled !== (scenario.scenario_lessons_enabled ?? false)) {
+        dispatch(updateScenarioLessons(scenario.scenario_id, { lessons_enabled: lessonsEnabled }));
+      }
+    });
     handleClose();
   };
 
-  const submitEdit = (data: UpdateScenarioInput) => {
+  const submitEdit = (data: ScenarioUpdateFormInput) => {
     setScenarioFormData(data);
 
     // before updating the scenario we are checking if tag rules could apply

@@ -15,6 +15,7 @@ import type { Header } from '../../../../components/common/SortHeadersList';
 import FindingIcon from '../../../../components/FindingIcon';
 import ItemTargets from '../../../../components/ItemTargets';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
+import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
 import type { AggregatedFindingOutput, FilterGroup, RelatedFindingOutput, SearchPaginationInput, TargetSimple } from '../../../../utils/api-types';
 import ContractOutputElementType from '../../findings/ContractOutputElementType';
 
@@ -81,6 +82,7 @@ const RelatedInjectsTab = ({ searchFindings, finding, contextId, additionalHeade
             target_type: 'ASSETS',
           })) as TargetSimple[]}
           variant="reduced-view"
+          getTargetLink={target => `${ASSET_BASE_URL}/${target.target_id}`}
         />
       ),
     },
@@ -106,7 +108,6 @@ const RelatedInjectsTab = ({ searchFindings, finding, contextId, additionalHeade
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         contextId={contextId}
-        topPagination
       />
       <List>
         <ListItem

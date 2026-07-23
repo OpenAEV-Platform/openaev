@@ -122,7 +122,11 @@ const UpdateInject: React.FC<Props> = ({
 
   const getInjectHeaderTitle = (): string => {
     if (injectorContract?.injector_contract_needs_executor && inject?.inject_attack_patterns?.length !== 0) {
-      return `${inject?.inject_kill_chain_phases?.map((value: KillChainPhase) => value.phase_name)?.join(', ')} / ${inject?.inject_attack_patterns?.map((value: AttackPattern) => value.attack_pattern_external_id)?.join(', ')}`;
+      const phases = (inject?.inject_kill_chain_phases ?? []).map((value: KillChainPhase) => value.phase_name).filter(Boolean).join(', ');
+      const patterns = (inject?.inject_attack_patterns ?? []).map((value: AttackPattern) => value.attack_pattern_external_id).filter(Boolean).join(', ');
+      // Join with " / " only when both segments exist, so an empty kill chain
+      // never renders a dangling "/ T1234".
+      return [phases, patterns].filter(Boolean).join(' / ');
     }
     if (injectorContract?.injector_contract_needs_executor) {
       return t('TTP Unknown');

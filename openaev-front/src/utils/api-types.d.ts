@@ -4337,6 +4337,7 @@ export interface Exercise {
   /** @format int64 */
   exercise_lessons_answers_number?: number;
   exercise_lessons_categories?: string[];
+  exercise_lessons_enabled?: boolean;
   exercise_logo_dark?: string;
   exercise_logo_light?: string;
   /** @format int64 */
@@ -5992,7 +5993,8 @@ export interface KillChainPhaseCoverage {
 
 export interface KillChainPhaseCreateInput {
   phase_description?: string;
-  phase_external_id?: string;
+  /** @minLength 1 */
+  phase_external_id: string;
   /** @minLength 1 */
   phase_kill_chain_name: string;
   /** @minLength 1 */
@@ -6069,7 +6071,7 @@ export interface KillChainPhaseUpdateInput {
 }
 
 export interface KillChainPhaseUpsertInput {
-  kill_chain_phases?: KillChainPhaseCreateInput[];
+  kill_chain_phases: KillChainPhaseCreateInput[];
 }
 
 export interface LessonsAnswer {
@@ -6137,7 +6139,10 @@ export interface LessonsCategoryUpdateInput {
 }
 
 export interface LessonsInput {
+  /** Whether questionnaire answers are anonymized (unchanged when absent) */
   lessons_anonymized?: boolean;
+  /** Whether the lessons learned module is enabled (unchanged when absent) */
+  lessons_enabled?: boolean;
 }
 
 export interface LessonsQuestion {
@@ -8557,6 +8562,7 @@ export interface Scenario {
   scenario_kill_chain_phases?: KillChainPhase[];
   scenario_lessons_anonymized?: boolean;
   scenario_lessons_categories?: string[];
+  scenario_lessons_enabled?: boolean;
   /**
    * @format email
    * @minLength 1
@@ -8683,6 +8689,8 @@ export interface ScenarioOutput {
   scenario_id: string;
   /** @uniqueItems true */
   scenario_kill_chain_phases?: KillChainPhaseOutput[];
+  /** Whether the lessons learned module is enabled for the scenario */
+  scenario_lessons_enabled?: boolean;
   /**
    * From value of the scenario
    * @minLength 1
@@ -9178,6 +9186,7 @@ export interface SimulationDetails {
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;
+  exercise_lessons_enabled?: boolean;
   /** @format int64 */
   exercise_logs_number?: number;
   /** @minLength 1 */
@@ -9703,6 +9712,14 @@ export interface ThemeInput {
   accent_color?: string;
   /** Background color of the theme */
   background_color?: string;
+  /** Solid color of the login page aside */
+  login_aside_color?: string;
+  /** Gradient end color of the login page aside */
+  login_aside_gradient_end?: string;
+  /** Gradient start color of the login page aside */
+  login_aside_gradient_start?: string;
+  /** Url of the login page aside background image */
+  login_aside_image?: string;
   /** Url of the login logo */
   logo_login_url?: string;
   /** Url of the logo */
@@ -9862,6 +9879,20 @@ export interface ThreatArsenalActionFullOutput {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  /** Security platform types expected to fulfil each predefined technical expectation (empty or absent = any security platform) */
+  action_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+    )[]
+  >;
   /** External reference identifier */
   action_external_id?: string;
   /**

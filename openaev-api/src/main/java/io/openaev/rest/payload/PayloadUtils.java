@@ -48,6 +48,14 @@ public class PayloadUtils {
       platforms[i] = Endpoint.PLATFORM_TYPE.valueOf(platformsNode.get(i).textValue());
     }
     payloadCreateInput.setPlatforms(platforms);
+    ArrayNode expectationsNode = safeArray(payloadNode, "payload_expectations");
+    BaseInjectExpectation.EXPECTATION_TYPE[] expectationTypes =
+        new BaseInjectExpectation.EXPECTATION_TYPE[expectationsNode.size()];
+    for (int i = 0; i < expectationsNode.size(); i++) {
+      expectationTypes[i] =
+          BaseInjectExpectation.EXPECTATION_TYPE.valueOf(expectationsNode.get(i).textValue());
+    }
+    payloadCreateInput.setExpectations(expectationTypes);
     if (payloadNode.has("payload_description")) {
       payloadCreateInput.setDescription(payloadNode.get("payload_description").textValue());
     }

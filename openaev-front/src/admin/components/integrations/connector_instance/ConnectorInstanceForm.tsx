@@ -346,14 +346,15 @@ const ConnectorInstanceForm = ({
         >
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             type="submit"
             disabled={isSubmitting || disabled}
           >
             {t(getActionLabel())}
           </Button>
           <Button
-            variant="contained"
+            variant="outlined"
+            color="primary"
             onClick={onClose}
             disabled={isSubmitting}
           >

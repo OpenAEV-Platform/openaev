@@ -296,12 +296,19 @@ const PostureGauges: FunctionComponent<Props> = ({ expectationResultsByTypes, hu
       display: 'flex',
       flexDirection: 'column',
       gap: 2,
+      width: '100%',
     }}
     >
+      {/* Distribute gauges across the full available width; wrap to an
+          (equally distributed) extra row only when they no longer fit. */}
       <Box sx={{
-        display: 'grid',
-        gridTemplateColumns: `repeat(${entries.length}, minmax(140px, 1fr))`,
-        gap: 2,
+        display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: 'space-evenly',
+        alignItems: 'flex-start',
+        columnGap: 2,
+        rowGap: 3,
+        width: '100%',
       }}
       >
         {entries.map(entry => (

@@ -187,6 +187,52 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
         .isPositive();
   }
 
+  @Test
+  @DisplayName("an agentless injector inject targeting assets records injector->asset rows")
+  void injectorAssetsAreRecorded() {
+    // Regression for the target_selector "asset" vs stored "assets" mismatch: an agentless injector
+    // inject (needsExecutor=false) with target_selector="assets" must record one injector->asset
+    // row
+    // per targeted asset. The source is the injector, so the endpoint needs no agent.
+    TenantContext.setCurrentTenant(tenant.getId());
+    io.openaev.database.model.Endpoint endpoint =
+        endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get();
+    TenantContext.clearCurrentTenant();
+
+    Inject inject = new Inject();
+    inject.setId(INJECT_ID);
+    Exercise exercise = new Exercise();
+    exercise.setId(SIM);
+    inject.setExercise(exercise);
+    Injector injector = new Injector();
+    injector.setId("injector-nmap");
+    injector.setName("Nmap");
+    injector.setType("openaev_nmap");
+    inject.setInjector(injector);
+    inject.setInjectorContract(injectorContract());
+    inject.setAssets(java.util.List.of(endpoint));
+    inject.setAssetGroups(java.util.List.of());
+    inject.setContent(
+        com.fasterxml.jackson.databind.node.JsonNodeFactory.instance
+            .objectNode()
+            .put("target_selector", "assets"));
+    inject.setTenant(tenant);
+
+    runAsTheExecutorWould(() -> ingestionService.onRun(inject, step(), ""));
+
+    String rowId = AttackPathIds.executionNode(INJECT_ID, endpoint.getId(), "injector-nmap");
+    assertThat(rawTenantOf(rowId))
+        .as("the injector 'assets' selector must record an injector->asset row for the target")
+        .isEqualTo(tenant.getId());
+  }
+
+  private InjectorContract injectorContract() {
+    InjectorContract contract = new InjectorContract();
+    contract.setNeedsExecutor(false);
+    contract.setExternalId("contract-nmap");
+    return contract;
+  }
+
   // No test pins the direct+grouped dedup on purpose: the deterministic row id plus ON CONFLICT DO
   // NOTHING already collapse any duplicate to one row, so the dedup has no observable effect on the
   // result and a behaviour test cannot distinguish it. It stays in the code as an efficiency
