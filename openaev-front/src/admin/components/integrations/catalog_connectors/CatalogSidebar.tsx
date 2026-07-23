@@ -8,7 +8,7 @@ import {
   TerminalOutlined,
   VerifiedOutlined,
 } from '@mui/icons-material';
-import { Button, ButtonBase, Typography } from '@mui/material';
+import { Box, Button, ButtonBase, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, useMemo } from 'react';
 
@@ -240,15 +240,34 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
   }, [connectors, filters, keyword, t]);
 
   return (
-    <aside
-      style={{
-        width: 250,
+    // Fixed sticky column on md+; below md the marketplace stacks it
+    // full-width above the cards (sticky + max-height would then trap the
+    // whole page behind the filters, so both are disabled).
+    <Box
+      component="aside"
+      sx={{
+        width: {
+          xs: '100%',
+          md: 250,
+        },
         flexShrink: 0,
-        position: 'sticky',
+        position: {
+          xs: 'static',
+          md: 'sticky',
+        },
         top: theme.spacing(2),
-        alignSelf: 'flex-start',
-        maxHeight: `calc(100vh - ${theme.spacing(20)})`,
-        overflowY: 'auto',
+        alignSelf: {
+          xs: 'stretch',
+          md: 'flex-start',
+        },
+        maxHeight: {
+          xs: 'none',
+          md: `calc(100vh - ${theme.spacing(20)})`,
+        },
+        overflowY: {
+          xs: 'visible',
+          md: 'auto',
+        },
       }}
     >
       <div style={{
@@ -323,7 +342,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
           </section>
         ))}
       </div>
-    </aside>
+    </Box>
   );
 };
 

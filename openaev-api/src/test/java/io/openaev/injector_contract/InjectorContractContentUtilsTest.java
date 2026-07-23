@@ -1,5 +1,6 @@
 package io.openaev.injector_contract;
 
+import static io.openaev.database.model.InjectorContract.AVAILABLE_EXPECTATIONS;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_CARDINALITY;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSETS;
@@ -10,9 +11,9 @@ import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_EXPECTATION;
-import static io.openaev.database.model.InjectorContract.PREDEFINED_EXPECTATIONS;
-import static io.openaev.rest.injector_contract.InjectorContractContentUtils.FIELDS;
-import static io.openaev.rest.injector_contract.InjectorContractContentUtils.MULTIPLE;
+import static io.openaev.database.model.InjectorContract.IS_PREDEFINED_EXPECTATION;
+import static io.openaev.utils.injector_contract.InjectorContractContentUtils.FIELDS;
+import static io.openaev.utils.injector_contract.InjectorContractContentUtils.MULTIPLE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -26,8 +27,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
 import java.util.Set;
@@ -138,7 +139,11 @@ public class InjectorContractContentUtilsTest {
   public static ObjectNode createContentWithFieldExpectations(
       String key, String type, String cardinality, ArrayNode predefinedExpectations) {
     ObjectNode field = createContentWithField(key, type, cardinality);
-    field.set(PREDEFINED_EXPECTATIONS, predefinedExpectations);
+    // Mark each expectation as predefined before setting as availableExpectations
+    for (JsonNode exp : predefinedExpectations) {
+      ((ObjectNode) exp).put(IS_PREDEFINED_EXPECTATION, true);
+    }
+    field.set(AVAILABLE_EXPECTATIONS, predefinedExpectations);
     return wrapFieldInContent(field);
   }
 

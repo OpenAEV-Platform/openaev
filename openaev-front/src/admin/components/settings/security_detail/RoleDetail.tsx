@@ -200,17 +200,18 @@ const RoleDetail = () => {
                 )}
           />
 
-          <InformationGrid title={t('Information')}>
-            <Field label={t('Description')}>{description || '-'}</Field>
-            {!isPlatform && (
-              <>
-                <Field label={t('Creation date')}>{role!.role_created_at ? fldt(role!.role_created_at) : '-'}</Field>
-                <Field label={t('Update date')}>{role!.role_updated_at ? fldt(role!.role_updated_at) : '-'}</Field>
-              </>
-            )}
-          </InformationGrid>
-
+          {/* All short sections share one adaptive grid so the overview stays
+              compact (they stack automatically on narrow viewports). */}
           <DetailSections>
+            <InformationGrid title={t('Information')}>
+              <Field label={t('Description')}>{description || '-'}</Field>
+              {!isPlatform && (
+                <>
+                  <Field label={t('Creation date')}>{role!.role_created_at ? fldt(role!.role_created_at) : '-'}</Field>
+                  <Field label={t('Update date')}>{role!.role_updated_at ? fldt(role!.role_updated_at) : '-'}</Field>
+                </>
+              )}
+            </InformationGrid>
             <Section title={t('Capabilities')}>
               {capabilities.length === 0
                 ? <Empty message={t('No capability granted by this role.')} />

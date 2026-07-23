@@ -30,6 +30,7 @@ import PermissionsProvider from './utils/permissions/PermissionsProvider';
 import { buildTenantUrl, DEFAULT_TENANT_UUID, extractTenantFromUrl } from './utils/url-helper';
 
 const RootPublic = lazy(() => import('./public/Root'));
+const XtmHubRedirect = lazy(() => import('./admin/components/xtm_hub/XtmHubRedirect'));
 const IndexPrivate = lazy(() => import('./private/Index'));
 const IndexAdmin = lazy(() => import('./admin/Index'));
 const Comcheck = lazy(() => import('./public/components/comcheck/Comcheck'));
@@ -153,6 +154,7 @@ const Root = () => {
                     {/* Add challenge preview routes here to ensure they are rendered without the top & left bar */}
                     <Route path="admin/simulations/:exerciseId/challenges" element={errorWrapper(SimulationChallengesPreview)()} />
                     <Route path="admin/scenarios/:scenarioId/challenges" element={errorWrapper(ScenarioChallengesPreview)()} />
+                    <Route path="redirect/*" element={errorWrapper(XtmHubRedirect)()} />
                     <Route path="admin/*" element={errorWrapper(IndexAdmin)()} />
                     {/* Routes from /public/Index that need to be accessible for logged user are duplicated here */}
                     <Route path="comcheck/:statusId" element={errorWrapper(Comcheck)()} />

@@ -259,9 +259,10 @@ const ArticleAddDocuments = (props) => {
             </GridLegacy>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleClose}>{t('Cancel')}</Button>
+            <Button variant="outlined" color="primary" onClick={handleClose}>{t('Cancel')}</Button>
             <Button
-              color="secondary"
+              variant="contained"
+              color="primary"
               onClick={submitAddDocuments}
             >
               {t('Add')}

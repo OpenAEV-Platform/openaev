@@ -10,6 +10,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
+import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import { useFormatter } from '../../../components/i18n';
 import {
   type ScopeVariableInput,
@@ -62,12 +63,13 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
     >
       {/* Header */}
       <Typography
-        variant="h4"
         sx={{
+          ...SECTION_LABEL_SX,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           m: 0,
+          minHeight: 34,
         }}
       >
         {t('Variables')}

@@ -71,7 +71,8 @@ class KillChainPhaseFormComponent extends Component {
             }}
             >
               <Button
-                variant="contained"
+                variant="outlined"
+                color="primary"
                 onClick={handleClose.bind(this)}
                 style={{ marginRight: 10 }}
                 disabled={submitting}
@@ -80,7 +81,7 @@ class KillChainPhaseFormComponent extends Component {
               </Button>
               <Button
                 variant="contained"
-                color="secondary"
+                color="primary"
                 type="submit"
                 disabled={pristine || submitting}
               >

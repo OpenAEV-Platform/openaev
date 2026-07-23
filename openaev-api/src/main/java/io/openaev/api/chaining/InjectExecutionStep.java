@@ -26,7 +26,6 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.settings.PreviewFeature;
@@ -40,6 +39,7 @@ import io.openaev.service.chaining.WorkflowStateService;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -312,7 +312,7 @@ public class InjectExecutionStep implements ActionStep {
    */
   private void processOutputAndStateSync(
       Step stepRun, List<Map<String, JsonElement>> output, Inject inject) {
-    Map<String, List<String>> outputData = extractDataFromParsed(output);
+    JsonObject outputData = extractDataFromParsed(output);
     if (outputData.isEmpty()) {
       return;
     }
@@ -320,12 +320,12 @@ public class InjectExecutionStep implements ActionStep {
     Workflow workflowRun = stepRun.getWorkflow();
     Map<String, ChainingMappedType> outputTypeMappings = buildTypeMappingsFromInject(inject);
     // Sync global state with execution output values mapped to chaining primitive/complex types.
-    workflowStateService.syncState(gson.toJsonTree(outputData), outputTypeMappings, workflowRun);
+    workflowStateService.syncState(outputData, outputTypeMappings, workflowRun);
   }
 
-  /** Extracts key-value pairs from structured "parsed" output entries. */
-  private Map<String, List<String>> extractDataFromParsed(List<Map<String, JsonElement>> output) {
-    Map<String, List<String>> result = new HashMap<>();
+  /** Extracts structured "parsed" output entries into normalized arrays by key. */
+  private JsonObject extractDataFromParsed(List<Map<String, JsonElement>> output) {
+    JsonObject result = new JsonObject();
 
     for (Map<String, JsonElement> entry : output) {
       JsonElement parsedElement = entry.get("parsed");
@@ -335,20 +335,37 @@ public class InjectExecutionStep implements ActionStep {
 
       JsonObject parsed = parsedElement.getAsJsonObject();
       for (Map.Entry<String, JsonElement> parsedEntry : parsed.entrySet()) {
-        JsonElement value = parsedEntry.getValue();
-        if (value == null || !value.isJsonArray()) {
-          continue;
-        }
-        for (JsonElement item : value.getAsJsonArray()) {
-          if (item.isJsonPrimitive()) {
-            result
-                .computeIfAbsent(parsedEntry.getKey(), ignored -> new ArrayList<>())
-                .add(item.getAsString());
-          }
-        }
+        addParsedValues(result, parsedEntry.getKey(), parsedEntry.getValue());
       }
     }
     return result;
+  }
+
+  private void addParsedValues(JsonObject result, String key, JsonElement parsedValueElement) {
+    if (parsedValueElement == null || parsedValueElement.isJsonNull()) {
+      return;
+    }
+    JsonArray target =
+        result.has(key) && result.get(key).isJsonArray()
+            ? result.getAsJsonArray(key)
+            : new JsonArray();
+    if (!result.has(key)) {
+      result.add(key, target);
+    }
+    if (parsedValueElement.isJsonArray()) {
+      for (JsonElement item : parsedValueElement.getAsJsonArray()) {
+        addParsedValue(target, item);
+      }
+      return;
+    }
+    addParsedValue(target, parsedValueElement);
+  }
+
+  private void addParsedValue(JsonArray target, JsonElement item) {
+    if (item == null || item.isJsonNull()) {
+      return;
+    }
+    target.add(item.deepCopy());
   }
 
   /**

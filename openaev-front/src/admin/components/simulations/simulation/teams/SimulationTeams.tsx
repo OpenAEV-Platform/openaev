@@ -3,20 +3,22 @@ import { useParams } from 'react-router';
 
 import { fetchExerciseTeams } from '../../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
+import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type Exercise, type Team } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import ConfigurationSection from '../../../common/ConfigurationSection';
 import { PermissionsContext, TeamContext } from '../../../common/Context';
 import ContextualTeams from '../../../components/teams/ContextualTeams';
 import UpdateTeams from '../../../components/teams/UpdateTeams';
-import ConfigurationFab from '../../../scenarios/scenario/ConfigurationFab';
 import teamContextForExercise from './teamContextForExercise';
 
 interface Props { exerciseTeamsUsers: Exercise['exercise_teams_users'] }
 
 const SimulationTeams: FunctionComponent<Props> = ({ exerciseTeamsUsers }) => {
   // Standard hooks
+  const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const { permissions } = useContext(PermissionsContext);
 
@@ -29,16 +31,17 @@ const SimulationTeams: FunctionComponent<Props> = ({ exerciseTeamsUsers }) => {
 
   return (
     <TeamContext.Provider value={teamContextForExercise(exerciseId, exerciseTeamsUsers)}>
-      {/* No inner Paper / section title: the Configuration tab already labels
-          this section, and the list sits directly on the drawer surface. */}
-      {permissions.canManage && (
-        <ConfigurationFab>
+      <ConfigurationSection
+        title={t('Teams')}
+        count={teamsStore.length}
+        action={permissions.canManage && (
           <UpdateTeams addedTeamIds={teamsStore.map((team: Team) => team.team_id)} />
-        </ConfigurationFab>
-      )}
-      <div data-testid="teams-list-section">
-        <ContextualTeams teams={teamsStore} />
-      </div>
+        )}
+      >
+        <div data-testid="teams-list-section">
+          <ContextualTeams teams={teamsStore} />
+        </div>
+      </ConfigurationSection>
     </TeamContext.Provider>
   );
 };

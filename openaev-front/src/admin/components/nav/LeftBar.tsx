@@ -31,6 +31,7 @@ import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
 import settingsEntries from './config/settings.config';
+import LeftBarHeader from './LeftBarHeader';
 import TenantSwitcher from './LeftBarTenantSwitcher';
 
 const LeftBar = () => {
@@ -114,19 +115,19 @@ const LeftBar = () => {
       userRight: true,
       items: [
         {
-          path: `/admin/teams/persons`,
+          path: `/admin/persons`,
           icon: () => (<PersonOutlined />),
           label: 'Persons',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
         },
         {
-          path: `/admin/teams/teams`,
+          path: `/admin/teams`,
           icon: () => (<GroupsOutlined />),
           label: 'Teams',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
         },
         {
-          path: `/admin/teams/organizations`,
+          path: `/admin/organizations`,
           icon: () => (<DomainOutlined />),
           label: 'Organizations',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
@@ -211,6 +212,7 @@ const LeftBar = () => {
     <LeftMenu
       entries={entries}
       bottomEntries={bottomEntries}
+      logoHeader={(navOpen: boolean) => <LeftBarHeader navOpen={navOpen} />}
       headerElement={hasTenantSwitcher ? (navOpen: boolean) => <TenantSwitcher navOpen={navOpen} /> : undefined}
     />
   );

@@ -71,8 +71,8 @@ const Reset = ({ onCancel }) => {
                   <Button
                     type="submit"
                     variant="contained"
+                    color="primary"
                     disabled={pristine || submitting}
-                    onClick={handleSubmit}
                     style={{ marginTop: 30 }}
                   >
                     {t('Send reset code')}
@@ -99,8 +99,8 @@ const Reset = ({ onCancel }) => {
                   <Button
                     type="submit"
                     variant="contained"
+                    color="primary"
                     disabled={pristine || submitting}
-                    onClick={handleSubmit}
                     style={{ marginTop: 30 }}
                   >
                     {t('Continue')}
@@ -135,8 +135,8 @@ const Reset = ({ onCancel }) => {
                   <Button
                     type="submit"
                     variant="contained"
+                    color="primary"
                     disabled={pristine || submitting}
-                    onClick={handleSubmit}
                     style={{ marginTop: 30 }}
                   >
                     {t('Change your password')}

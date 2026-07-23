@@ -240,10 +240,11 @@ const FileTransferDialog: FunctionComponent<Props> = ({
         </GridLegacy>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>{t('Cancel')}</Button>
+        <Button variant="outlined" color="primary" onClick={handleClose}>{t('Cancel')}</Button>
         {multiple && (
           <Button
-            color="secondary"
+            variant="contained"
+            color="primary"
             onClick={handleSubmitAddDocuments}
           >
             {t('Add')}

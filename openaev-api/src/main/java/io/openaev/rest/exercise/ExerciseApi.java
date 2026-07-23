@@ -565,7 +565,14 @@ public class ExerciseApi extends RestBehavior {
   public Exercise updateExerciseLessons(
       @PathVariable String exerciseId, @Valid @RequestBody LessonsInput input) {
     Exercise exercise = exerciseService.exercise(exerciseId);
-    exercise.setLessonsAnonymized(input.isLessonsAnonymized());
+    // Partial update: absent fields keep their current value (older API consumers
+    // only send lessons_anonymized and must not reset the enabled flag).
+    if (input.getLessonsAnonymized() != null) {
+      exercise.setLessonsAnonymized(input.getLessonsAnonymized());
+    }
+    if (input.getLessonsEnabled() != null) {
+      exercise.setLessonsEnabled(input.getLessonsEnabled());
+    }
     return exerciseRepository.save(exercise);
   }
 

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.OutputParser;
 import io.openaev.output_processor.OutputProcessorFactory;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;

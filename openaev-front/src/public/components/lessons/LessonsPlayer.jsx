@@ -268,13 +268,16 @@ const LessonsPlayer = (props) => {
                   </DialogContent>
                   <DialogActions>
                     <Button
+                      variant="outlined"
+                      color="primary"
                       onClick={() => setOpenValidate(false)}
                       disabled={submitting}
                     >
                       {t('Cancel')}
                     </Button>
                     <Button
-                      color="secondary"
+                      variant="contained"
+                      color="primary"
                       onClick={handleSubmit}
                       disabled={submitting}
                     >

@@ -61,6 +61,8 @@ const LessonsQuestionForm = (props) => {
           }}
           >
             <Button
+              variant="outlined"
+              color="primary"
               onClick={handleClose}
               style={{ marginRight: 10 }}
               disabled={submitting}
@@ -68,7 +70,8 @@ const LessonsQuestionForm = (props) => {
               {t('Cancel')}
             </Button>
             <Button
-              color="secondary"
+              variant="contained"
+              color="primary"
               type="submit"
               disabled={submitting || Object.keys(errors).length > 0}
             >

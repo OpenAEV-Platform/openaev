@@ -634,8 +634,22 @@ public class ExerciseService {
       entityManager.clear();
       // Reload exercise after clearing entity manager to avoid detached entity issues
       exercise = this.exercise(exerciseId);
-      // Delete exercise transient files (communications, ...)
-      fileService.deleteDirectory(exerciseId);
+      // Delete exercise transient files (communications, ...) AFTER commit: this is an external
+      // MinIO/S3 call. Running it inside the transaction pinned the DB connection and every row
+      // lock taken by the deletes above for the whole duration of the object-storage roundtrips,
+      // which starved the Hikari pool platform-wide when storage was slow (simulation reset
+      // outage). Also avoids deleting files if the transaction ends up rolling back.
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              try {
+                fileService.deleteDirectory(exerciseId);
+              } catch (Exception e) {
+                log.error("Failed to delete directory for exercise {}", exerciseId, e);
+              }
+            }
+          });
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
           && workflowService.isSimulationChaining(exercise.getId())) {
         // DELETE workflow states

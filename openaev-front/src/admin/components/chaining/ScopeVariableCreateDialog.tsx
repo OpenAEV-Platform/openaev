@@ -131,12 +131,12 @@ const ScopeVariableCreateDialog = ({ open, onClose, onSubmit }: ScopeVariableCre
             />
           </DialogContent>
           <DialogActions>
-            <Button variant="contained" onClick={handleClose} disabled={isSubmitting}>
+            <Button variant="outlined" color="primary" onClick={handleClose} disabled={isSubmitting}>
               {t('Cancel')}
             </Button>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={!isDirty || isSubmitting}
             >

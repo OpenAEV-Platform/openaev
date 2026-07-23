@@ -2,6 +2,7 @@ import { useNavigate, useParams } from 'react-router';
 
 import { importScenario } from '../../../actions/scenarios/scenario-actions';
 import Loader from '../../../components/Loader';
+import { REDIRECT_CONNECT_XTM_HUB_URL } from '../../../constants/BaseUrls';
 import { MESSAGING$ } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useXtmHubDownloadDocument from '../../../utils/hooks/useXtmHubDownloadDocument';
@@ -30,7 +31,7 @@ const DeployScenario: React.FC = async () => {
   });
 
   const onConfirm = () => {
-    navigate('/admin/settings/experience');
+    navigate(REDIRECT_CONNECT_XTM_HUB_URL);
   };
 
   const onCancel = () => {

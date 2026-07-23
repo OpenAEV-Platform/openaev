@@ -14,6 +14,7 @@ import io.openaev.utils.log.LogUtils;
 import java.lang.annotation.Annotation;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,15 +39,23 @@ import org.springframework.web.server.ResponseStatusException;
  * AOP aspect that intercepts {@link AccessControl}-annotated controller methods to produce audit
  * log events for CRUD operations.
  *
- * <p>Runs <b>after</b> {@link AccessControlAspect} (which uses {@code @Before}) — the RBAC check
- * has already passed when this aspect's {@code @Around} advice executes.
+ * <p>This {@code @Around} aspect <b>wraps</b> the {@link AccessControlAspect} ({@code @Before},
+ * {@code @Order(LOWEST_PRECEDENCE)}). The RBAC check runs <b>during</b> {@code proceed()} — if it
+ * denies access, the thrown {@code ResponseStatusException(403)} is caught here and logged as an
+ * "unauthorized" audit event before being re-thrown.
+ *
+ * <p>The aspect order is {@code LOWEST_PRECEDENCE - 1} so it runs <b>inside</b> the transaction
+ * boundary ({@code LOWEST_PRECEDENCE - 2}) and <b>outside</b> the RBAC aspect ({@code
+ * LOWEST_PRECEDENCE}). When halt-on-failure is active and the audit transport fails, the thrown
+ * {@link AuditLogFailureException} propagates through the transaction interceptor, which rolls back
+ * the mutation.
  *
  * <p>Phase 1: delegates to {@link LogService} for console-only output.
  */
 @Aspect
 @Component
 @ConditionalOnExpression("!'${openaev.audit-logs.transports:}'.isEmpty()")
-@Order(Ordered.HIGHEST_PRECEDENCE)
+@Order(Ordered.LOWEST_PRECEDENCE - 1)
 @RequiredArgsConstructor
 @Slf4j
 public class AccessControlAuditLogAspect {
@@ -99,6 +108,8 @@ public class AccessControlAuditLogAspect {
 
             logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
           }
+        } catch (AuditLogFailureException e) {
+          throw e;
         } catch (Exception e) {
           log.warn(LOG_ERROR_MSG, e);
         }
@@ -113,6 +124,8 @@ public class AccessControlAuditLogAspect {
         JsonNode resultNode = getOutputNode(result);
 
         logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, resultNode);
+      } catch (AuditLogFailureException ex) {
+        throw ex;
       } catch (Exception ex) {
         log.warn(LOG_ERROR_MSG, ex);
       }
@@ -148,8 +161,8 @@ public class AccessControlAuditLogAspect {
             }
           };
 
-      auditLogger
-          .logAccessControlEvent(
+      CompletableFuture<Boolean> auditFuture =
+          auditLogger.logAccessControlEvent(
               eventScope,
               eventStatus,
               resourceType,
@@ -158,8 +171,11 @@ public class AccessControlAuditLogAspect {
               outputNode,
               signatureNode,
               snapshots,
-              logUUID)
-          .whenComplete(logCompletion);
+              logUUID);
+
+      auditFuture.whenComplete(logCompletion);
+    } catch (AuditLogFailureException ex) {
+      throw ex;
     } catch (Exception ex) {
       log.warn(LOG_ERROR_MSG, ex);
     }

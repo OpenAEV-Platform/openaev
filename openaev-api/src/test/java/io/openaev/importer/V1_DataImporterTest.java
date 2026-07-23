@@ -738,6 +738,72 @@ class V1_DataImporterTest extends IntegrationTest {
     assertEquals(Boolean.TRUE, shouldResolve);
   }
 
+  @Test
+  @Transactional
+  void given_scenarioWithLegacyPredefinedExpectations_should_migrateToAvailableExpectations()
+      throws IOException {
+    // Arrange
+    ObjectMapper mapper = new ObjectMapper();
+    String jsonContent =
+        new String(
+            Files.readAllBytes(
+                Paths.get(
+                    "src/test/resources/importer-v1/scenario_with_injects_from_injector.json")));
+    JsonNode importNode = mapper.readTree(jsonContent);
+
+    // Act
+    this.importer.importData(
+        importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // Assert — the injector contract should have been created with migrated expectations
+    InjectorContract importedContract =
+        this.injectorContractRepository
+            .findById("93d27459-68d0-43b1-ad65-eacc3cfa5cf7")
+            .orElseThrow();
+
+    JsonNode content = mapper.readTree(importedContract.getContent());
+    assertNotNull(content.get("fields"), "Contract content should have fields");
+
+    JsonNode expectationsField =
+        java.util.stream.StreamSupport.stream(content.get("fields").spliterator(), false)
+            .filter(f -> "expectations".equals(f.path("key").asText()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Missing expectations field in contract"));
+
+    // predefinedExpectations should no longer exist
+    assertFalse(
+        expectationsField.has("predefinedExpectations"),
+        "predefinedExpectations should have been removed after import");
+
+    // availableExpectations should be present
+    assertTrue(
+        expectationsField.has("availableExpectations"),
+        "availableExpectations should be present after migration");
+    JsonNode available = expectationsField.get("availableExpectations");
+    assertTrue(available.isArray());
+    assertFalse(available.isEmpty(), "availableExpectations should not be empty");
+
+    // Every expectation must have the expectation_is_predefined flag
+    for (JsonNode exp : available) {
+      assertTrue(
+          exp.has("expectation_is_predefined"),
+          "Expectation "
+              + exp.path("expectation_type").asText()
+              + " should have expectation_is_predefined flag");
+    }
+
+    // DETECTION was in predefinedExpectations → should be marked as predefined
+    long predefinedCount =
+        java.util.stream.StreamSupport.stream(available.spliterator(), false)
+            .filter(e -> e.path("expectation_is_predefined").asBoolean())
+            .count();
+    assertTrue(predefinedCount > 0, "At least one expectation should be marked as predefined");
+
+    // Verify the inject was also created
+    List<Inject> injects = injectRepository.findAll();
+    assertFalse(injects.isEmpty(), "Injects should have been created from the scenario import");
+  }
+
   // -- UTILS --
 
   private static Specification<Exercise> exerciseByName(@NotNull final String name) {

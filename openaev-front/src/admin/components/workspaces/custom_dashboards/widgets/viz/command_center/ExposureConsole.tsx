@@ -700,10 +700,11 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
 
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
+          <Button variant="outlined" color="primary" onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
           {onInvestigate && (
             <Button
               variant="contained"
+              color="primary"
               onClick={() => {
                 setExplainOpen(false);
                 onInvestigate();
