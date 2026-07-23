@@ -99,9 +99,7 @@ public class AttackPathApi extends RestBehavior {
   public List<AttackPathSimSummaryRow> simulations(
       TxCtx ctx, @RequestParam(required = false) String scenarioId) {
     requireAttackPathFeature();
-    return graphService.listSimulations(scenarioId).stream()
-        .filter(row -> attackPathAccessControl.canReadSimulation(row.simulationId()))
-        .toList();
+    return attackPathAccessControl.retainReadable(graphService.listSimulations(scenarioId));
   }
 
   /**

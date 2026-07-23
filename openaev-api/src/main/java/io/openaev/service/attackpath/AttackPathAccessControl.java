@@ -3,8 +3,10 @@ package io.openaev.service.attackpath;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
+import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,18 +33,26 @@ public class AttackPathAccessControl {
 
   /** Throws 403 unless the caller can READ the simulation; a seed id is always allowed. */
   public void assertCanReadSimulation(String simulationId) {
-    if (!canReadSimulation(simulationId)) {
+    if (!canRead(userService.currentUser(), simulationId)) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied on simulation");
     }
   }
 
-  /** Whether the caller can READ the simulation; seed ids are always readable. */
-  public boolean canReadSimulation(String simulationId) {
-    if (AttackPathIds.isSeedId(simulationId)) {
-      return true;
-    }
+  /**
+   * Keeps only the picker rows the caller can READ (seed rows always kept). Resolves the current
+   * user ONCE, not per row: {@link UserService#currentUser()} is DB-backed for non-admins, so a
+   * per-row call would be an N+1 on tenants with many simulations. The remaining per-row check is
+   * capability-first (in memory on the user) and only falls back to a grant lookup for a user that
+   * relies on resource grants.
+   */
+  public List<AttackPathSimSummaryRow> retainReadable(List<AttackPathSimSummaryRow> rows) {
     User user = userService.currentUser();
-    return permissionService.hasPermission(
-        user, Optional.empty(), simulationId, ResourceType.SIMULATION, Action.READ);
+    return rows.stream().filter(row -> canRead(user, row.simulationId())).toList();
+  }
+
+  private boolean canRead(User user, String simulationId) {
+    return AttackPathIds.isSeedId(simulationId)
+        || permissionService.hasPermission(
+            user, Optional.empty(), simulationId, ResourceType.SIMULATION, Action.READ);
   }
 }

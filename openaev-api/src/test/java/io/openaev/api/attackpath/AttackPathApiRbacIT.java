@@ -68,10 +68,15 @@ class AttackPathApiRbacIT extends IntegrationTest {
   private String simulationId;
   private Authentication withGrant;
   private Authentication withoutGrant;
+  private String originalDevFeatures;
 
   @BeforeEach
   void setUp() {
-    setAttackPathFeature(true);
+    // Store and restore the dev-feature flag around the test (the Spring context is shared), so
+    // this
+    // class never wipes another test's configured dev features.
+    originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
+    setDevFeatures(PreviewFeature.ATTACK_PATH.getValue());
     Exercise simulation =
         exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
     simulationId = simulation.getId();
@@ -81,7 +86,7 @@ class AttackPathApiRbacIT extends IntegrationTest {
 
   @AfterEach
   void tearDown() {
-    setAttackPathFeature(false);
+    setDevFeatures(originalDevFeatures);
     userComposer.reset();
     grantComposer.reset();
     tenantGroupComposer.reset();
@@ -327,8 +332,10 @@ class AttackPathApiRbacIT extends IntegrationTest {
         .get();
   }
 
-  private void setAttackPathFeature(boolean enabled) {
-    openAEVConfig.setEnabledDevFeatures(enabled ? PreviewFeature.ATTACK_PATH.getValue() : null);
+  // Sets the raw dev-features value (may be the stored original, which can be null) and evicts the
+  // @Cacheable("global") isFeatureEnabled cache so the change is observed.
+  private void setDevFeatures(String value) {
+    openAEVConfig.setEnabledDevFeatures(value);
     if (cacheManager.getCache("global") != null) {
       cacheManager.getCache("global").clear();
     }
