@@ -845,8 +845,9 @@ public class ConditionService {
    * <p>For each mapper on the template, this method collects candidate values from the relevant
    * partition (GLOBAL or LOCAL), computes the Cartesian product of all dynamic values, merges
    * DEFAULT mapper values, and keeps only combinations that satisfy required execution keys. Unique
-   * combinations are tracked via hash to avoid duplicate executions, persisted into LOCAL state,
-   * and returned as ready-to-run input batches with resolved mapper conditions.
+   * combinations are tracked via hash to avoid duplicate executions and returned as ready-to-run
+   * input batches with resolved mapper conditions. Hashes are only prepared in memory here and are
+   * committed later by the caller through {@link #commitHashes(WorkflowState, List)}.
    *
    * @param stepTemplate step template for which input combinations are generated
    * @param workflowRun active workflow run used to resolve global/local workflow states
@@ -867,13 +868,14 @@ public class ConditionService {
     MapperInputPreparation preparation =
         prepareMapperInputs(mappers, context.localEntries(), context.globalEntries());
 
+    // Invalid dynamic mapper definitions cannot produce executable combinations.
     if (preparation.hasMissingDynamicValues()) {
       return Collections.emptyList();
     }
 
     Set<String> requiredKeys = extractRequiredExecutionKeys(mappers);
 
-    // Build execution batches which be used as input for the step execution.
+    // Build execution batches used as inputs for step execution.
     // Hashes are not committed here. The caller commits only hashes of batches
     // that actually proceed (i.e. are not rate-limited) via commitHashes().
     List<ExecutionBatch> batches =
@@ -947,8 +949,8 @@ public class ConditionService {
    * Prepares mapper inputs.
    *
    * <p>DEFAULT values are stored as static values. Dynamic mapper values are collected from their
-   * source pool when available. Missing dynamic values are allowed because correlated data may still
-   * produce valid batches.
+   * source pool when available. Missing dynamic values are allowed because correlated data may
+   * still produce valid batches.
    */
   private MapperInputPreparation prepareMapperInputs(
       List<Condition> mappers,
