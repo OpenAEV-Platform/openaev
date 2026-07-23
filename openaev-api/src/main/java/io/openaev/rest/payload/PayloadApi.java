@@ -3,6 +3,7 @@ package io.openaev.rest.payload;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.rest.collector.service.CollectorService;
@@ -106,7 +107,10 @@ public class PayloadApi extends RestBehavior {
   @PostMapping({PAYLOAD_URI + "/upsert", TENANT_PAYLOAD_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
-  public Payload upsertPayload(@Valid @RequestBody PayloadUpsertInput input) {
+  public Payload upsertPayload(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx, @Valid @RequestBody PayloadUpsertInput input) {
     return this.payloadUpsertService.upsertPayload(input);
   }
 
@@ -163,7 +167,10 @@ public class PayloadApi extends RestBehavior {
             responseCode = "200",
             description = "The list of Collectors used in a payload remediation")
       })
-  public List<Collector> collectorsFromPayload(@PathVariable String payloadId) {
+  public List<Collector> collectorsFromPayload(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx, @PathVariable String payloadId) {
     return collectorsService.collectorsForPayload(payloadId);
   }
 }

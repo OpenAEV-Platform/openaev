@@ -15,20 +15,32 @@ import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
 import io.openaev.database.repository.MitigationRepository;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
+import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.collector.CollectorApi;
 import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.rest.exercise.ExerciseApi;
 import io.openaev.rest.exercise.ExerciseImportApi;
+import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.inject.InjectApi;
+import io.openaev.rest.inject.ScenarioInjectApi;
+import io.openaev.rest.inject.SimulationInjectApi;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.ScenarioInjectService;
 import io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi;
 import io.openaev.rest.lessons.ExerciseLessonsApi;
 import io.openaev.rest.lessons.ScenarioLessonsApi;
 import io.openaev.rest.lessons_template.LessonsTemplateApi;
 import io.openaev.rest.mapper.MapperApi;
 import io.openaev.rest.mitigation.MitigationApi;
+import io.openaev.rest.payload.PayloadApi;
+import io.openaev.rest.payload.service.PayloadUpsertService;
+import io.openaev.rest.scenario.ScenarioApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.InjectExpectationTraceService;
 import io.openaev.service.MapperService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
 import io.openaev.utils.mapper.CveMapper;
@@ -173,9 +185,21 @@ class TenantActiveTableAccessArchTest {
               // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
               CollectorApi.class,
               InjectExpectationTraceApi.class,
-              // Services behind those handlers; every caller is a wired handler:
+              PayloadApi.class,
+              AtomicTestingApi.class,
+              InjectApi.class,
+              SimulationInjectApi.class,
+              ScenarioInjectApi.class,
+              ScenarioApi.class,
+              ExerciseApi.class,
+              // Intermediate services behind the TxCtx-carrying handlers above:
               CollectorService.class,
               InjectExpectationTraceService.class,
+              InjectService.class,
+              ScenarioInjectService.class,
+              ScenarioService.class,
+              ExerciseService.class,
+              PayloadUpsertService.class,
               // Explicit tenantId param threaded from the caller (native DELETE ... AND
               // tenant_id = ?), not inspector-scoped: safe regardless of activation:
               ConnectorInstanceService.class,

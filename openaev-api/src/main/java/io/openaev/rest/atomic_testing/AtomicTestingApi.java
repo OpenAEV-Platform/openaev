@@ -6,6 +6,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.expectations.dto.InjectExpectationOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
@@ -240,7 +241,10 @@ public class AtomicTestingApi extends RestBehavior {
             responseCode = "200",
             description = "The list of Collectors used in an atomic testing remediation")
       })
-  public List<Collector> collectorsFromAtomicTesting(@PathVariable String injectId) {
+  public List<Collector> collectorsFromAtomicTesting(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx, @PathVariable String injectId) {
     return collectorsService.collectorsForAtomicTesting(injectId);
   }
 

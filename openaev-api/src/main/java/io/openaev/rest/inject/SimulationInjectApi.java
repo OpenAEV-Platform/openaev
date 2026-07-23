@@ -10,6 +10,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -181,7 +182,9 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public InjectOutput exerciseInject(
-      @PathVariable String exerciseId, @PathVariable String injectId) {
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
     Inject inject = simulationInjectService.findInjectForSimulation(exerciseId, injectId);
     return injectMapper.toInjectOutput(inject, injectService.runChecks(inject));
   }
@@ -226,7 +229,9 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public InjectOutput createInjectForExercise(
-      @PathVariable String exerciseId, @Valid @RequestBody InjectInput input) {
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody InjectInput input) {
     Exercise exercise =
         exerciseRepository
             .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
@@ -263,6 +268,9 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.INJECT)
   public InjectOutput duplicateInjectForExercise(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String injectId) {
     Inject persistedInject =
