@@ -27,6 +27,8 @@ import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.StepRepository;
+import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.executors.Executor;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
@@ -36,6 +38,8 @@ import io.openaev.service.UserService;
 import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ConditionService;
+import io.openaev.service.chaining.StepEvent;
+import io.openaev.service.chaining.StepEventService;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.AgentFixture;
@@ -48,6 +52,7 @@ import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
@@ -100,6 +105,9 @@ class AttackPathRunWiringIT extends IntegrationTest {
   @MockitoSpyBean private AttackPathExecutionIngestionService attackPathIngestion;
 
   @Autowired private InjectExecutionStep injectExecutionStep;
+  @Autowired private StepEventService stepEventService;
+  @Autowired private StepRepository stepRepository;
+  @Autowired private WorkflowRepository workflowRepository;
   @Autowired private OpenAEVConfig openAEVConfig;
   @Autowired private CacheManager cacheManager;
   @Autowired private DataSource dataSource;
@@ -110,6 +118,7 @@ class AttackPathRunWiringIT extends IntegrationTest {
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private PayloadComposer payloadComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
 
   private JdbcTemplate jdbc;
   private Tenant tenant;
@@ -118,6 +127,7 @@ class AttackPathRunWiringIT extends IntegrationTest {
   private Inject fixtureInject;
   private Payload commandPayload;
   private String injectInputJson;
+  private String persistedWorkflowId;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -194,6 +204,10 @@ class AttackPathRunWiringIT extends IntegrationTest {
     jdbc.update(
         "DELETE FROM attackpath_execution WHERE attackpath_execution_simulation_id = ?",
         "SIM-WIRING");
+    // Remove the committed workflow_run (steps cascade on the FK) seeded by the consumer tests.
+    if (persistedWorkflowId != null) {
+      jdbc.update("DELETE FROM workflows WHERE workflow_id = ?", persistedWorkflowId);
+    }
     // The tenant-active FKs are ON DELETE CASCADE (e.g. injectors_contracts.tenant_id -> tenants,
     // migration V4_88), so deleting the tenant removes the committed contract, injector, payload,
     // agent and endpoint in one shot.
@@ -243,6 +257,74 @@ class AttackPathRunWiringIT extends IntegrationTest {
         .isZero();
   }
 
+  @Test
+  @DisplayName(
+      "W4 — #6357 consumer: handleReadyStepEvent scopes the run to the EVENT's tenant with no ambient"
+          + " scope; the v1 @Filter contract resolves and the row lands")
+  void consumerScopesRunToEventTenantWithoutAmbientScope() throws Exception {
+    setAttackPathFeature(true);
+    Step committedStep = persistCommittedReadyStep();
+    // The real chaining worker carries NO tenant scope: the fix must restore it from the event, not
+    // from an ambient ThreadLocal. Clear it so a regression that drops the propagation goes red
+    // (the
+    // v1 injector_contract read would resolve under the default tenant and find nothing).
+    TenantContext.clearCurrentTenant();
+
+    stepEventService.handleReadyStepEvent(
+        StepEvent.builder().stepId(committedStep.getId()).tenantId(tenant.getId()).build());
+
+    String rowId =
+        AttackPathIds.executionNode(fixtureInject.getId(), endpoint.getId(), agent.getId());
+    // A present row proves getInjectFromDataStep resolved the tenant-B contract under the scope the
+    // consumer set from the event (a run that could not resolve it throws before onRun and writes
+    // nothing). onRun stamps the tenant from the inject, hence == tenant.getId().
+    assertThat(rawTenantOf(rowId))
+        .as("consumer must scope run() to the event tenant so the v1 contract resolves")
+        .isEqualTo(tenant.getId());
+  }
+
+  @Test
+  @DisplayName(
+      "W5 — #6357 isolation: an event carrying the WRONG tenant cannot resolve the tenant-B contract,"
+          + " so the run writes no row")
+  void consumerWithWrongEventTenantResolvesNothing() throws Exception {
+    setAttackPathFeature(true);
+    Step committedStep = persistCommittedReadyStep();
+    TenantContext.clearCurrentTenant();
+
+    // The default tenant is not tenant B: its scope cannot see the committed injector_contract, so
+    // getInjectFromDataStep finds nothing and the run ends before onRun. Proves the scoping is a
+    // real
+    // tenant boundary, not an always-on write.
+    stepEventService.handleReadyStepEvent(
+        StepEvent.builder()
+            .stepId(committedStep.getId())
+            .tenantId(Tenant.DEFAULT_TENANT_UUID)
+            .build());
+
+    assertThat(rawRowCount())
+        .as("a wrong-tenant event must not resolve the contract nor write a row")
+        .isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "W6 — #6357 producer: the tenant projections resolve the run tenant from a real graph (no lazy,"
+          + " any thread)")
+  void tenantProjectionsResolveTheRunTenant() throws Exception {
+    Step committedStep = persistCommittedReadyStep();
+
+    // The producer stamps events with these projections (step/workflow -> simulation -> tenant).
+    // Assert they resolve the tenant on a real graph: they must not depend on an open session (the
+    // producers run on scheduler/queue threads), which a projection query guarantees.
+    assertThat(stepRepository.findTenantIdByStepId(committedStep.getId()))
+        .as("step -> workflow -> simulation -> tenant projection")
+        .contains(tenant.getId());
+    assertThat(workflowRepository.findTenantIdByWorkflowId(persistedWorkflowId))
+        .as("workflow -> simulation -> tenant projection")
+        .contains(tenant.getId());
+  }
+
   // Handed to run() in memory (via the createInject stub) with contract + exercise attached. The
   // resolution then runs on the executor-backed contract; the agent's own endpoint is source and
   // target. Same shape as the onRun tenant test's fixture.
@@ -289,6 +371,40 @@ class AttackPathRunWiringIT extends IntegrationTest {
     return injectExecutionStep
         .ready(stepTemplate, "{\"input\":\"do defined\"}", workflowRun)
         .orElseThrow();
+  }
+
+  // Commits the READY step (its workflow_run and its TEMPLATE step) so the consumer's
+  // findById(stepId) resolves it - create/ready build transient steps (the production persistence
+  // is
+  // QueueChainingService's job). steps.step_workflow_id is NOT NULL, so the workflow_run is
+  // committed first; step_template_id is an FK to steps and setGlobalInformation dereferences
+  // step.getStepTemplate().getId(), so the template step is committed too. The IT is not
+  // @Transactional, so each save auto-commits and is visible to the primitive's REQUIRES_NEW tx.
+  private Step persistCommittedReadyStep() throws Exception {
+    // workflows carries a check constraint (simulation OR scenario); attach a committed simulation.
+    // It is only there to satisfy the FK/constraint - run() uses the fixture inject's own exercise.
+    Exercise simulation =
+        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
+    Workflow workflow = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    workflow.setSimulation(simulation);
+    Workflow workflowRun = workflowRepository.save(workflow);
+    persistedWorkflowId = workflowRun.getId();
+
+    InjectInput injectInput = new ObjectMapper().readValue(injectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput stepInput =
+        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    Step template = injectExecutionStep.create(stepInput, workflowRun).orElseThrow();
+    template.setWorkflow(workflowRun);
+    template.setLimitExecution(0);
+    template = stepRepository.save(template);
+
+    Step ready =
+        injectExecutionStep
+            .ready(template, "{\"input\":\"do defined\"}", workflowRun)
+            .orElseThrow();
+    ready.setWorkflow(workflowRun);
+    ready.setLimitExecution(0);
+    return stepRepository.save(ready);
   }
 
   private void setAttackPathFeature(boolean enabled) {

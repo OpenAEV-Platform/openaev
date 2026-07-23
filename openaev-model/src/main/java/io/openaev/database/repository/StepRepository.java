@@ -126,6 +126,16 @@ public interface StepRepository extends JpaRepository<Step, String> {
   Optional<String> findStepIdByInjectId(@Param("injectId") String injectId);
 
   /**
+   * Resolves the tenant that owns a step, as a projection: step -&gt; workflow -&gt; simulation
+   * -&gt; tenant. Used to stamp the tenant on chaining events (#6357). A single query with no lazy
+   * association access, so it is safe on any thread with no open session (the update-event producer
+   * runs on scheduler/queue threads where open-in-view is inactive). Empty for a workflow with no
+   * simulation (standalone run); the caller falls back to the default tenant.
+   */
+  @Query("SELECT s.workflow.simulation.tenant.id FROM Step s WHERE s.id = :stepId")
+  Optional<String> findTenantIdByStepId(@Param("stepId") String stepId);
+
+  /**
    * Return the injectId frozen in a step's data, if present. The engine writes it into {@code
    * step_data} at run ({@code InjectExecutionStep.setInjectId}), so the attack-path read can
    * resolve the "Action details" inject link from the durable step rather than storing it on the

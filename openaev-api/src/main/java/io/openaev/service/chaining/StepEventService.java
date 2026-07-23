@@ -1,6 +1,11 @@
 package io.openaev.service.chaining;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+
 import io.openaev.api.chaining.ActionStep;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepStatus;
 import io.openaev.database.model.Workflow;
@@ -13,8 +18,6 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Handles step lifecycle events consumed from the chaining queues: ready events (execute a step)
@@ -32,10 +35,21 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
   private final QueueChainingService queueChainingService;
 
   /**
-   * Programmatic transaction manager used exclusively for {@link #handleReadyStepEvent}. Do NOT use
-   * it elsewhere — prefer {@code @Transactional} on public methods called from outside this class.
+   * MT v2 background transaction primitive (activate-tenant-table skill, Phase 5b). The chaining
+   * queue consumers run on worker threads that carry no tenant scope; they open a per-event
+   * tenant-scoped transaction through this primitive rather than {@code @Transactional} or a raw
+   * {@code TransactionTemplate}. This sets the v2 GUC ({@code app.current_tenants}), scoping the
+   * tenant-active tables the run writes (e.g. {@code attackpath_execution}).
+   *
+   * <p>The GUC alone is not enough here: a step run also reads v1 {@code @Filter} entities that are
+   * not yet migrated to v2 (injector contract, endpoints, assets). Those are scoped by the
+   * thread-local {@link TenantContext} via {@link io.openaev.aop.HibernateFilterTransactionAspect},
+   * not by the GUC. Each consumer therefore also sets {@link TenantContext} to the run's tenant for
+   * the duration of the event (set-then-finally-clear on the pooled worker thread), mirroring the
+   * background scheduler jobs (e.g. {@code ScenarioExecutionJob}). Both scopes carry the same
+   * tenant and cohabit: the primitive covers v2, {@link TenantContext} covers v1.
    */
-  private final TransactionTemplate transactionTemplate;
+  private final TenantScopedTransaction tenantTx;
 
   // -- READY EVENTS --
 
@@ -57,13 +71,24 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    */
   @Override
   public void handleReadyStepEvent(StepEvent stepEvent) {
+    // #6357: the chaining worker thread carries no tenant scope. Scope the event to its run's
+    // tenant
+    // on both mechanisms so run() resolves the right rows: the MT v2 primitive sets the GUC for the
+    // tenant-active tables the run writes (attackpath_execution), and TenantContext scopes the v1
+    // @Filter entities the run reads (injector contract, endpoints, assets) that are not yet
+    // migrated to v2. TenantContext is set on the pooled worker thread and cleared in finally so it
+    // never leaks to the next event (mirrors ScenarioExecutionJob). A null tenantId
+    // (legacy/in-flight
+    // message) falls back to the default tenant, today's behaviour. Per-event scoping keeps a
+    // failing
+    // event from rolling the rest of the batch back.
+    String tenantId =
+        stepEvent.getTenantId() != null ? stepEvent.getTenantId() : DEFAULT_TENANT_UUID;
+    TenantContext.setCurrentTenant(tenantId);
     try {
-      // Using TransactionTemplate instead of @Transactional because this method is called from
-      // handleReadyEvent() within the same class (self-invocation).
-      // We can't put the transactional annotation on handleReadyEvent as it would rollback the
-      // whole batch being treated instead of just the one faulty event.
-      transactionTemplate.executeWithoutResult(
-          status ->
+      tenantTx.execute(
+          TxCtx.forTenant(tenantId),
+          () ->
               stepRepository
                   .findById(stepEvent.getStepId())
                   .ifPresentOrElse(
@@ -96,6 +121,8 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
             chainingConfig.getMaxRetryCount(),
             e);
       }
+    } finally {
+      TenantContext.clearCurrentTenant();
     }
   }
 
@@ -156,7 +183,15 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    * @param events list of events
    * @return consumed list of events
    */
-  @Transactional(rollbackFor = Exception.class)
+  // #6357: NOT @Transactional. A batch-level transaction would fire
+  // HibernateFilterTransactionAspect
+  // once with the (context-less) default tenant and pin the tenantFilter to it for every event in
+  // the
+  // batch, defeating the per-event tenant restore below. Each event runs in its own transaction
+  // with
+  // its tenant set first (mirrors handleReadyStepEvent), which also isolates a failing event from
+  // the
+  // rest of the batch.
   public List<ExternalUpdateEvent> handleExternalUpdateEvent(List<ExternalUpdateEvent> events) {
     events.forEach(this::handleExternalUpdateEvent);
     return events;
@@ -169,6 +204,21 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    */
   @Override
   public void handleExternalUpdateEvent(ExternalUpdateEvent stepEvent) {
+    // #6357: same dual scoping as the ready path (see handleReadyStepEvent) - the MT v2 primitive
+    // for the tenant-active writes, TenantContext for the v1 @Filter reads, both on the run's
+    // tenant, set-then-finally-clear on the pooled worker thread. Null tenantId (legacy/in-flight
+    // message) falls back to the default tenant.
+    String tenantId =
+        stepEvent.getTenantId() != null ? stepEvent.getTenantId() : DEFAULT_TENANT_UUID;
+    TenantContext.setCurrentTenant(tenantId);
+    try {
+      tenantTx.execute(TxCtx.forTenant(tenantId), () -> processExternalUpdateEvent(stepEvent));
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+
+  private void processExternalUpdateEvent(ExternalUpdateEvent stepEvent) {
     Step stepRun;
     try {
       stepRun = stepService.findByIdAndStatus(stepEvent.getStepId(), StepStatus.RUN);
