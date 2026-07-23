@@ -650,6 +650,108 @@ public class ThreatArsenalApiTest extends IntegrationTest {
           "No result should contain domain1");
     }
 
+    @Test
+    @DisplayName("given action_platforms eq filter should match by array membership")
+    void given_actionPlatformsEqFilter_should_returnMatchingContracts() throws Exception {
+      // Arrange — eq on a text[] column (platforms) used to fail with a 500
+      // because lower() cannot be applied to an array expression.
+      injectorContractComposer
+          .forInjectorContract(
+              InjectorContractFixture.createInjectorContractWithPlatforms(
+                  new Endpoint.PLATFORM_TYPE[] {
+                    Endpoint.PLATFORM_TYPE.Windows, Endpoint.PLATFORM_TYPE.Linux
+                  }))
+          .withInjector(injectorFixture.getWellKnownEmailInjector(false))
+          .withDomain(domain1)
+          .persist();
+
+      // Act & Assert — single value (or mode) matches only the Windows contract
+      String response =
+          searchWith(
+              buildSearchInputForActionPlatformsEq(List.of("Windows"), Filters.FilterMode.or));
+      assertEquals(
+          1, (int) JsonPath.read(response, "$.totalElements"), "Windows should match one contract");
+
+      // and mode requires every value to be present in the array
+      response =
+          searchWith(
+              buildSearchInputForActionPlatformsEq(
+                  List.of("Windows", "Linux"), Filters.FilterMode.and));
+      assertEquals(
+          1,
+          (int) JsonPath.read(response, "$.totalElements"),
+          "Windows and Linux should match one contract");
+
+      response =
+          searchWith(
+              buildSearchInputForActionPlatformsEq(
+                  List.of("Windows", "MacOS"), Filters.FilterMode.and));
+      assertEquals(
+          0,
+          (int) JsonPath.read(response, "$.totalElements"),
+          "Windows and MacOS should match no contract");
+
+      // not_eq is the negation of the membership predicate: contracts without the
+      // value — including those with an empty platforms array — are kept.
+      SearchPaginationInput notEqInput =
+          buildSearchInputForActionPlatformsEq(List.of("Windows"), Filters.FilterMode.and);
+      notEqInput
+          .getFilterGroup()
+          .getFilters()
+          .getFirst()
+          .setOperator(Filters.FilterOperator.not_eq);
+      response = searchWith(notEqInput);
+      assertEquals(
+          4,
+          (int) JsonPath.read(response, "$.totalElements"),
+          "not_eq Windows should keep the four contracts without platforms");
+
+      // The facet count endpoints receive the same filter group and must not fail either
+      SearchPaginationInput input =
+          buildSearchInputForActionPlatformsEq(List.of("Windows"), Filters.FilterMode.and);
+      mvc.perform(
+              post(THREAT_ARSENAL_URI + "/domain-counts")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk());
+      mvc.perform(
+              post(THREAT_ARSENAL_URI + "/author-counts")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk());
+    }
+
+    private String searchWith(SearchPaginationInput input) throws Exception {
+      return mvc.perform(
+              post(THREAT_ARSENAL_URI + "/search")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    private SearchPaginationInput buildSearchInputForActionPlatformsEq(
+        List<String> platforms, Filters.FilterMode mode) {
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("action_platforms");
+      filter.setOperator(Filters.FilterOperator.eq);
+      filter.setMode(mode);
+      filter.setValues(platforms);
+
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.and);
+      filterGroup.setFilters(new ArrayList<>(List.of(filter)));
+
+      SearchPaginationInput input = PaginationFixture.getDefault().build();
+      input.setFilterGroup(filterGroup);
+      return input;
+    }
+
     private SearchPaginationInput buildSearchInputForActionDomainsNotEqAnd(List<String> domainIds) {
       Filters.Filter filter = new Filters.Filter();
       filter.setKey("action_domains");
