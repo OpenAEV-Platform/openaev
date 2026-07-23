@@ -961,6 +961,7 @@ export interface AttackPathExecutionDetailDTO {
   payloadId?: string;
   payloadName?: string;
   preventionStatus?: string;
+  stepId?: string;
   targetHostname?: string;
   targetIp?: string;
   targetPlatform?: string;
