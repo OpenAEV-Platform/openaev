@@ -1,5 +1,6 @@
 package io.openaev.engine;
 
+import io.openaev.annotation.AllowRawJdbc;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -35,6 +36,12 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Slf4j
+@AllowRawJdbc(
+    reason =
+        "engine_deletions is a platform-level bookkeeping table with no tenant column: ids are"
+            + " globally-unique UUIDs and engine deletions are deliberately not tenant-filtered,"
+            + " so bypassing the tenant statement inspector is safe. The journal must also commit"
+            + " independently of the (already committed) deleting transaction.")
 public class EngineDeletionJournal {
 
   /**

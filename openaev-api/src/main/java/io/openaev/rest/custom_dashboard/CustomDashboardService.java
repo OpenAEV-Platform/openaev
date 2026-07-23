@@ -236,6 +236,13 @@ public class CustomDashboardService {
   // existence checks of the fallback, whatever the caller's context.
   @Transactional(readOnly = true)
   public CustomDashboard findCustomDashboardByResourceId(@NotBlank final String resourceId) {
+    return resolveCustomDashboardByResourceId(resourceId);
+  }
+
+  // Shared by the transactional public entry point above and the internal callers of this class
+  // (which run inside their caller's transaction): intra-class calls must not target the
+  // @Transactional method directly, the proxy would be bypassed.
+  private CustomDashboard resolveCustomDashboardByResourceId(final String resourceId) {
     return customDashboardRepository
         .findByResourceId(resourceId)
         .or(() -> findTenantDefaultDashboardForResource(resourceId))
@@ -273,7 +280,7 @@ public class CustomDashboardService {
    */
   public boolean isWidgetInResourceDashboard(
       @NotBlank final String resourceId, @NotBlank final String widgetId) {
-    if (findCustomDashboardByResourceId(resourceId).getWidgets().stream()
+    if (resolveCustomDashboardByResourceId(resourceId).getWidgets().stream()
         .map(Widget::getId)
         .collect(Collectors.toSet())
         .contains(widgetId)) {
