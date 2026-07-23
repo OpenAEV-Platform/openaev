@@ -130,7 +130,7 @@ const InjectResultList: FunctionComponent<Props> = ({
     },
     {
       field: 'inject_status.tracking_sent_date',
-      label: 'Execution Date',
+      label: 'Start time',
       isSortable: false,
       value: (injectResultOutput: InjectResultOutput) => {
         const trackingDate = injectResultOutput.inject_status?.tracking_sent_date;
