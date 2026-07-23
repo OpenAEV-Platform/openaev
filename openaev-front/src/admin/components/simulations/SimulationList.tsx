@@ -111,7 +111,7 @@ const SimulationList: FunctionComponent<Props> = ({
     },
     {
       field: 'exercise_start_date',
-      label: 'Start date',
+      label: 'Start time',
       isSortable: true,
       value: (exercise: ExerciseSimple) => {
         if (!exercise.exercise_start_date) {
