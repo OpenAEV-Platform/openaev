@@ -88,4 +88,15 @@ class AttackPathIdsTest {
     assertThat(AttackPathIds.findingNode("credentials", "admin"))
         .isEqualTo("NODE_FINDING|credentials|admin");
   }
+
+  @Test
+  @DisplayName("isSeedId recognises synthetic seed simulation ids, and only those")
+  void is_seed_id() {
+    // A synthetic seed simulation id (the shape AttackPathSeedService builds) is a seed.
+    assertThat(AttackPathIds.isSeedId(AttackPathIds.SEED_ID_PREFIX + "42-sim-0")).isTrue();
+    // A real simulation id (a UUID) and null/blank are not seeds.
+    assertThat(AttackPathIds.isSeedId("02d737db-d12f-40bf-b427-c70ef8bac6e0")).isFalse();
+    assertThat(AttackPathIds.isSeedId(null)).isFalse();
+    assertThat(AttackPathIds.isSeedId("")).isFalse();
+  }
 }

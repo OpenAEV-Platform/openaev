@@ -180,6 +180,22 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   List<AttackPathSimSummaryRow> findSimulationSummaries();
 
   /**
+   * Same summary, restricted to one scenario's simulations (the picker's scenario context, #6647
+   * B0). The subquery maps each {@code simulation_id} back to its {@code exercise} and keeps only
+   * those whose scenario is the requested one; ad-hoc simulations (no scenario) and seed rows (no
+   * real exercise) are naturally excluded.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow("
+          + "e.simulationId, count(distinct e.targetKey), count(e)) "
+          + "FROM AttackPathExecution e "
+          + "WHERE e.simulationId IN "
+          + "(SELECT ex.id FROM Exercise ex WHERE ex.scenario.id = :scenarioId) "
+          + "GROUP BY e.simulationId ORDER BY count(e) DESC")
+  List<AttackPathSimSummaryRow> findSimulationSummariesByScenario(
+      @Param("scenarioId") String scenarioId);
+
+  /**
    * Collapsed mode: one endpoint per {@code target_key}, with a representative of its frozen
    * display attributes ({@code max} per column, which is the constant value within one simulation)
    * and its per-endpoint RED (neither prevented nor detected) and ORANGE (detected but not
