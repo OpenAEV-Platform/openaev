@@ -45,7 +45,7 @@ public class StepDelayQueueService {
       Workflow workflowRun,
       Instant goal) {
     log.debug(
-        "Delay step template: {} condition time after: {} + {} milliseconds => goal: {}",
+        "[Chaining] Delay step template: {} condition time after: {} + {} milliseconds => goal: {}",
         stepTemplate.getId(),
         now,
         delay,
