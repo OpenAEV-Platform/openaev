@@ -120,14 +120,11 @@ public enum PrimitiveType {
           Map.entry("credentials", "username"),
           Map.entry("portscan", "port"),
           Map.entry("share", "share_name"),
-          Map.entry("admin_username", "admin_username"),
           Map.entry("group", "group_name"),
           Map.entry("computer", "computer_name"),
           Map.entry("password_policy", "text"),
           Map.entry("delegation", "delegation_account"),
-          Map.entry("vulnerability", "cve"),
-          Map.entry("asreproastable_account", "asreproastable_account"),
-          Map.entry("kerberoastable_account", "kerberoastable_account"));
+          Map.entry("vulnerability", "cve"));
 
   PrimitiveType(String label) {
     this.label = label;

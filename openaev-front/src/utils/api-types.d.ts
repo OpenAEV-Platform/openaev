@@ -1927,17 +1927,27 @@ export interface ConditionCreateInput {
   condition_key?: string;
   /** Path to the value in the output of the step from */
   condition_key_type?:
+    | "account"
+    | "account_with_password_not_required"
+    | "admin_username"
+    | "asreproastable_account"
     | "asset_group_id"
     | "asset_id"
+    | "computer_name"
     | "cve"
     | "document"
     | "domain"
+    | "group"
+    | "group_name"
     | "hash"
     | "host"
     | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "key_file"
     | "number"
     | "password"
     | "permissions"
@@ -1945,9 +1955,14 @@ export interface ConditionCreateInput {
     | "service"
     | "severity"
     | "share_name"
+    | "sid"
     | "targeted-asset"
     | "text"
-    | "username";
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status"
+    | "delegation";
   /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   /** ID of the step linked to the key */
@@ -1981,17 +1996,27 @@ export interface ConditionOutput {
   condition_id?: string;
   condition_key?: string;
   condition_key_type?:
+    | "account"
+    | "account_with_password_not_required"
+    | "admin_username"
+    | "asreproastable_account"
     | "asset_group_id"
     | "asset_id"
+    | "computer_name"
     | "cve"
     | "document"
     | "domain"
+    | "group"
+    | "group_name"
     | "hash"
     | "host"
     | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "key_file"
     | "number"
     | "password"
     | "permissions"
@@ -1999,9 +2024,14 @@ export interface ConditionOutput {
     | "service"
     | "severity"
     | "share_name"
+    | "sid"
     | "targeted-asset"
     | "text"
-    | "username";
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status"
+    | "delegation";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_parent_id?: string;
   condition_type?: string;
@@ -6343,17 +6373,27 @@ export interface LoginUserInput {
 export interface MapperConditionOutput {
   condition_key?: string;
   condition_key_type?:
+    | "account"
+    | "account_with_password_not_required"
+    | "admin_username"
+    | "asreproastable_account"
     | "asset_group_id"
     | "asset_id"
+    | "computer_name"
     | "cve"
     | "document"
     | "domain"
+    | "group"
+    | "group_name"
     | "hash"
     | "host"
     | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "key_file"
     | "number"
     | "password"
     | "permissions"
@@ -6361,9 +6401,14 @@ export interface MapperConditionOutput {
     | "service"
     | "severity"
     | "share_name"
+    | "sid"
     | "targeted-asset"
     | "text"
-    | "username";
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status"
+    | "delegation";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_value?: string;
 }
@@ -7389,17 +7434,27 @@ export interface PayloadArgument {
   key: string;
   separator?: string | null;
   type:
+    | "account"
+    | "account_with_password_not_required"
+    | "admin_username"
+    | "asreproastable_account"
     | "asset_group_id"
     | "asset_id"
+    | "computer_name"
     | "cve"
     | "document"
     | "domain"
+    | "group"
+    | "group_name"
     | "hash"
     | "host"
     | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "key_file"
     | "number"
     | "password"
     | "permissions"
@@ -7407,9 +7462,14 @@ export interface PayloadArgument {
     | "service"
     | "severity"
     | "share_name"
+    | "sid"
     | "targeted-asset"
     | "text"
-    | "username";
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status"
+    | "delegation";
 }
 
 export interface PayloadCommandBlock {
@@ -8864,17 +8924,27 @@ export interface ScopeVariableInput {
   scope_variable_key: string;
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type:
+    | "account"
+    | "account_with_password_not_required"
+    | "admin_username"
+    | "asreproastable_account"
     | "asset_group_id"
     | "asset_id"
+    | "computer_name"
     | "cve"
     | "document"
     | "domain"
+    | "group"
+    | "group_name"
     | "hash"
     | "host"
     | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "key_file"
     | "number"
     | "password"
     | "permissions"
@@ -8882,9 +8952,14 @@ export interface ScopeVariableInput {
     | "service"
     | "severity"
     | "share_name"
+    | "sid"
     | "targeted-asset"
     | "text"
-    | "username";
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status"
+    | "delegation";
   /**
    * Value of the variable.
    * @minLength 1
@@ -8902,17 +8977,27 @@ export interface ScopeVariableOutput {
   scope_variable_key?: string;
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type?:
+    | "account"
+    | "account_with_password_not_required"
+    | "admin_username"
+    | "asreproastable_account"
     | "asset_group_id"
     | "asset_id"
+    | "computer_name"
     | "cve"
     | "document"
     | "domain"
+    | "group"
+    | "group_name"
     | "hash"
     | "host"
     | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "key_file"
     | "number"
     | "password"
     | "permissions"
@@ -8920,9 +9005,14 @@ export interface ScopeVariableOutput {
     | "service"
     | "severity"
     | "share_name"
+    | "sid"
     | "targeted-asset"
     | "text"
-    | "username";
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status"
+    | "delegation";
   /** Value of the variable. */
   scope_variable_value?: string;
 }
@@ -9364,17 +9454,27 @@ export interface StepInput {
 export interface StepOutput {
   step_condition_ids?: string[];
   step_condition_key_types?: (
+    | "account"
+    | "account_with_password_not_required"
+    | "admin_username"
+    | "asreproastable_account"
     | "asset_group_id"
     | "asset_id"
+    | "computer_name"
     | "cve"
     | "document"
     | "domain"
+    | "group"
+    | "group_name"
     | "hash"
     | "host"
     | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "key_file"
     | "number"
     | "password"
     | "permissions"
@@ -9382,9 +9482,14 @@ export interface StepOutput {
     | "service"
     | "severity"
     | "share_name"
+    | "sid"
     | "targeted-asset"
     | "text"
     | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status"
+    | "delegation"
   )[];
   /** @format date-time */
   step_created_at?: string;
