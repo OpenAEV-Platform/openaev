@@ -150,9 +150,11 @@ public class InjectExecutionStep implements ActionStep {
   @Override
   public Optional<Step> ready(Step stepTemplate, String input, Workflow workflowRun)
       throws ChainingException {
+    // CALL BY when new input or start simulation
     Step readyStep = new Step();
     readyStep.setWorkflow(workflowRun);
     readyStep.setStepTemplate(stepTemplate);
+    // TODO manage input from output paser from payload or nuclei or nmap
     readyStep.setInput(input);
     readyStep.setStatus(StepStatus.READY);
     readyStep.setStepAction(StepActionClass.INJECT_EXECUTION);
@@ -182,7 +184,6 @@ public class InjectExecutionStep implements ActionStep {
     // CREATE & SAVE INJECT
     inject = injectService.createInject(inject);
     String injectId = inject.getId();
-
     InjectorContract injectorContract =
         inject
             .getInjectorContract()
@@ -275,8 +276,10 @@ public class InjectExecutionStep implements ActionStep {
     Inject inject = injectService.inject(injectId);
     List<Map<String, JsonElement>> output = new ArrayList<>();
 
+    // GET INJECT STATUS
     InjectStatus injectStatus = inject.getStatus().orElse(null);
     if (injectStatus != null) {
+      // FORMAT EXECUTION TRACE TO OUTPUT STEP
       formatExecutionTracesToOutput(injectStatus, output);
     }
 
