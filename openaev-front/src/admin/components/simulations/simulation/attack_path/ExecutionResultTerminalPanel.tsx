@@ -5,6 +5,7 @@ import { useTheme } from '@mui/material/styles';
 import DOMPurify from 'dompurify';
 import { useEffect, useRef, useState } from 'react';
 
+import { searchTargets } from '../../../../../actions/injects/inject-action';
 import AttackPatternChip from '../../../../../components/AttackPatternChip';
 import Tabs from '../../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../../components/common/tabs/useTabs';
@@ -12,9 +13,10 @@ import Terminal, { type TerminalLine } from '../../../../../components/common/te
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { CROWDSTRIKE, SPLUNK } from '../../../../../constants/Entities';
-import type { AttackPathExecutionDetailDTO } from '../../../../../utils/api-types';
+import type { AttackPathExecutionDetailDTO, InjectTarget } from '../../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import expectationIconByType from '../../../common/ExpectationIconByType';
+import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
 import ImageWithFallback from './ImageWithFallback';
 
 interface Props {
@@ -149,6 +151,53 @@ const SecurityPlatformItem = ({ platform, alerts }: {
   );
 };
 
+// Live terminal for a real execution: the attack-path DTO only carries `command`/`terminalOutput` on
+// seeded runs, so for a real inject we reuse the shared `TerminalViewTab`, fed by the live
+// `execution_traces` — exactly like the inject detail view. The DTO exposes `injectId` but not the
+// executed target, so we resolve the inject's asset targets and pick the one matching this execution's
+// endpoint (falling back to the first asset), then hand it to `TerminalViewTab`.
+const LiveExecutionTerminal = ({ injectId, endpointName }: {
+  injectId: string;
+  endpointName?: string;
+}) => {
+  const { t } = useFormatter();
+  const [target, setTarget] = useState<InjectTarget | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    searchTargets(injectId, 'ASSETS', {
+      filterGroup: {
+        mode: 'and',
+        filters: [],
+      },
+      size: 50,
+      page: 0,
+    })
+      .then((response) => {
+        if (!active) {
+          return;
+        }
+        const targets: InjectTarget[] = response.data?.content ?? [];
+        const match = targets.find(tg => tg.target_name && tg.target_name === endpointName);
+        setTarget(match ?? targets[0] ?? null);
+      })
+      .catch(() => active && setTarget(null))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [injectId, endpointName]);
+
+  if (loading) {
+    return <Loader variant="inElement" size="sm" />;
+  }
+  if (!target?.target_id || !target.target_type) {
+    return <Typography variant="body2" color="text.secondary">{t('No traces on this target.')}</Typography>;
+  }
+  return <TerminalViewTab injectId={injectId} target={target} />;
+};
+
 // The Result & Terminal panel for one execution (issue 5048): an in-flow panel between the execution
 // feed and the map (product mockup), not an overlay. Reuses the platform's shared `Terminal` renderer,
 // fed by the frozen snapshot's masked command and output. The Result tab shows the target and the
@@ -181,6 +230,9 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
     return () => observer.disconnect();
   }, [loading, detail]);
 
+  // Seeded runs carry a frozen command/output snapshot on the DTO; a real inject leaves them empty and
+  // is rendered live from execution traces instead (see hasSnapshot below).
+  const hasSnapshot = Boolean(detail?.command || detail?.terminalOutput);
   const terminalLines: TerminalLine[] = [];
   if (detail?.command) {
     terminalLines.push({
@@ -424,7 +476,9 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
             )}
 
             {currentTab === TERMINAL_TAB && (
-              <Terminal lines={terminalLines} maxHeight={terminalMaxHeight} />
+              hasSnapshot || !detail.injectId
+                ? <Terminal lines={terminalLines} maxHeight={terminalMaxHeight} />
+                : <LiveExecutionTerminal injectId={detail.injectId} endpointName={detail.targetHostname || detail.endpointKey} />
             )}
 
             {currentTab === REMEDIATION_TAB && (
