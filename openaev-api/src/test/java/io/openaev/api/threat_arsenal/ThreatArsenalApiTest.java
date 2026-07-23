@@ -710,6 +710,34 @@ public class ThreatArsenalApiTest extends IntegrationTest {
           (int) JsonPath.read(response, "$.totalElements"),
           "not_eq Windows should keep every contract except the Windows one");
 
+      // starts_with exercises the symmetric array branch of startWithText (same
+      // lower()-on-array 500 failure mode as eq). It matches on the joined array string.
+      SearchPaginationInput startsWithInput =
+          buildSearchInputForActionPlatformsEq(List.of("Wind"), Filters.FilterMode.or);
+      startsWithInput
+          .getFilterGroup()
+          .getFilters()
+          .getFirst()
+          .setOperator(Filters.FilterOperator.starts_with);
+      response = searchWith(startsWithInput);
+      assertEquals(
+          1,
+          (int) JsonPath.read(response, "$.totalElements"),
+          "starts_with Wind should match the Windows contract");
+
+      SearchPaginationInput startsWithMissInput =
+          buildSearchInputForActionPlatformsEq(List.of("Sola"), Filters.FilterMode.or);
+      startsWithMissInput
+          .getFilterGroup()
+          .getFilters()
+          .getFirst()
+          .setOperator(Filters.FilterOperator.starts_with);
+      response = searchWith(startsWithMissInput);
+      assertEquals(
+          0,
+          (int) JsonPath.read(response, "$.totalElements"),
+          "starts_with Sola should match no contract");
+
       // The facet count endpoints receive the same filter group and must not fail either
       SearchPaginationInput input =
           buildSearchInputForActionPlatformsEq(List.of("Windows"), Filters.FilterMode.and);
