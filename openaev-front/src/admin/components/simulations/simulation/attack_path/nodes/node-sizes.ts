@@ -4,4 +4,6 @@
 export const AP_ENDPOINT_SIZE = 96;
 export const AP_ENDPOINT_CLUSTER_SIZE = 84;
 export const AP_FINDING_SIZE = 56;
-export const AP_INJECTOR_SIZE = 84;
+// Injector node is deliberately a bit smaller than the endpoint (96) so the endpoints read as the
+// primary targets on the map.
+export const AP_INJECTOR_SIZE = 72;

@@ -217,7 +217,7 @@ const CLUSTER_EP_ROW_H = 124;
 const CLUSTER_FINDING_ROW_H = 100;
 const CLUSTER_FINDING_GAP = 52;
 const CLUSTER_FINDING_DETAIL_ROW = 70;
-const CLUSTER_INJECTOR_HALF_H = 34;
+const CLUSTER_INJECTOR_HALF_H = 36;
 const CLUSTER_EP_HALF_H = 42;
 // Vertical spacing between the stacked injectors on the left band of the deduped view.
 const CLUSTER_INJECTOR_ROW_H = 120;
