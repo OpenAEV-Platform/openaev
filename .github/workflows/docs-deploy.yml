@@ -9,11 +9,6 @@ on:
         description: 'Documentation version label (e.g. "2.260717.0")'
         required: true
         type: string
-      set_latest:
-        description: 'Update the "latest" alias to point to this version'
-        required: false
-        type: boolean
-        default: true
     secrets:
       RELEASE_TOKEN:
         required: false
@@ -23,11 +18,6 @@ on:
         description: 'Documentation version label (e.g. "2.260717.0")'
         required: true
         type: string
-      set_latest:
-        description: 'Update the "latest" alias to point to this version'
-        required: false
-        type: boolean
-        default: true
 
 concurrency:
   group: docs-deploy
@@ -45,6 +35,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.version }}
           fetch-depth: 0 # full history required by mike and git-based plugins
           token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
@@ -62,16 +53,30 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Resolve latest tag
+        id: latest-tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! git tag --list "$VERSION" | grep -q .; then
+            echo "::error::Tag '${VERSION}' does not exist. The version must match an existing git tag."
+            exit 1
+          fi
+          LATEST_TAG=$(git tag --sort=-v:refname | head -n1)
+          IS_LATEST=$( [ "$VERSION" = "$LATEST_TAG" ] && echo "true" || echo "false" )
+          echo "is_latest=${IS_LATEST}" >> "$GITHUB_OUTPUT"
+          echo "Resolved latest tag: ${LATEST_TAG}, input version is latest: ${IS_LATEST}"
+
       - name: Deploy with mike
         working-directory: docs
         env:
           MKDOCS_GIT_COMMITTERS_APIKEY: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
           VERSION: ${{ inputs.version }}
-          SET_LATEST: ${{ inputs.set_latest }}
+          IS_LATEST: ${{ steps.latest-tag.outputs.is_latest }}
         run: |
-          if [ "$SET_LATEST" = "true" ]; then
+          if [ "$IS_LATEST" = "true" ]; then
             mike deploy --push --update-aliases "$VERSION" latest
           else
             mike deploy --push "$VERSION"
           fi
-          echo "Documentation deployed: version=${VERSION}, latest=${SET_LATEST}"
+          echo "Documentation deployed: version=${VERSION}, latest=${IS_LATEST}"
