@@ -22,6 +22,11 @@ const ConnectorLogs = ({ connectorInstanceId }: ConnectorLogsProps) => {
   const [size, setSize] = useState(ROWS_PER_PAGE_OPTIONS[0]);
   const [totalElements, setTotalElements] = useState(0);
 
+  // Restart from the first page when switching to another connector instance.
+  useEffect(() => {
+    setPage(0);
+  }, [connectorInstanceId]);
+
   useEffect(() => {
     if (connectorInstanceId) {
       searchConnectorInstanceLogs(connectorInstanceId, {

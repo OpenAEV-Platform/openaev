@@ -4,7 +4,6 @@ import io.openaev.database.model.ConnectorInstanceLog;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -72,22 +71,13 @@ public class ConnectorInstanceLogService {
   }
 
   /**
-   * Retrieves all logs for a specific connector instance.
-   *
-   * @param connectorInstanceId the connector instance identifier
-   * @return list of logs for the connector instance, empty if none found
-   */
-  public List<ConnectorInstanceLog> findLogsByConnectorInstanceId(String connectorInstanceId) {
-    return connectorInstanceLogRepository.findByConnectorInstanceId(connectorInstanceId);
-  }
-
-  /**
    * Searches logs for a specific connector instance with pagination.
    *
    * @param connectorInstanceId the connector instance identifier
    * @param input the search pagination input
    * @return a page of logs for the connector instance
    */
+  @Transactional(readOnly = true)
   public Page<ConnectorInstanceLog> searchLogsByConnectorInstanceId(
       String connectorInstanceId, SearchPaginationInput input) {
     return connectorInstanceLogRepository.searchByConnectorInstanceId(

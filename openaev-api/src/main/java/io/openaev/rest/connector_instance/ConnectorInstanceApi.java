@@ -144,12 +144,14 @@ public class ConnectorInstanceApi extends RestBehavior {
         TENANT_CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/logs/search"
       })
   @Operation(summary = "Search connector instance logs")
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponse(
       responseCode = "200",
       content =
-          @Content(mediaType = "application/json", schema = @Schema(implementation = Page.class)))
+          @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = PageConnectorInstanceLog.class)))
   public Page<ConnectorInstanceLog> searchConnectorInstanceLogs(
       @PathVariable @NotBlank final String connectorInstanceId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {

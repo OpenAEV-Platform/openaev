@@ -246,7 +246,7 @@ const AtomicTesting = () => {
       .then((response: { data: InjectStatusOutput }) => {
         setInjectStatus(response.data);
       });
-  }, [injectResultOverviewOutput]);
+  }, [injectId, injectResultOverviewOutput]);
 
   // Handles
   const handleNewTargetClick = (target: InjectTarget) => {
