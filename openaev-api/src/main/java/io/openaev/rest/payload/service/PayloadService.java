@@ -577,14 +577,15 @@ public class PayloadService {
   }
 
   public void delete(String payloadId) {
-    payloadRepository
-        .findById(payloadId)
-        .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
+    Payload payload =
+        payloadRepository
+            .findById(payloadId)
+            .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
     // Payload deletion cascades at the DB level to its injector contract and then to the injects
     // (both FKs are ON DELETE CASCADE): de-index the doomed injects explicitly, no JPA lifecycle
     // event fires for them.
     List<String> cascadeDeletedInjectIds =
-        injectIndexCleanupService.injectIdsByPayloadId(payloadId);
+        injectIndexCleanupService.injectIdsByPayloadId(payloadId, payload.getTenant().getId());
     payloadRepository.deleteById(payloadId);
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
   }

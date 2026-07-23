@@ -595,7 +595,12 @@ public class OpenSearchService implements EngineService {
    * through the field wildcard).
    */
   private static Query sideReferencesQuery(List<String> ids) {
-    String quotedIds = ids.stream().map(id -> "\"" + id + "\"").collect(Collectors.joining(" OR "));
+    // Escape backslashes and quotes so an unexpected character in an id cannot break out of the
+    // quoted phrase and change the query_string semantics.
+    String quotedIds =
+        ids.stream()
+            .map(id -> "\"" + id.replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
+            .collect(Collectors.joining(" OR "));
     return QueryStringQuery.of(q -> q.fields("base_*_side.keyword").query(quotedIds).lenient(true))
         .toQuery();
   }

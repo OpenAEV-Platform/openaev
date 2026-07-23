@@ -314,7 +314,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     // Contract deletion cascades to injects at the DB level (ON DELETE CASCADE): de-index the
     // doomed injects explicitly, no JPA lifecycle event fires for them.
     List<String> cascadeDeletedInjectIds =
-        injectIndexCleanupService.injectIdsByContractIds(toDeletes);
+        injectIndexCleanupService.injectIdsByContractIds(toDeletes, injector.getTenantId());
     injectorContractRepository.deleteAllByIdAndTenantId(
         toDeletes.toArray(new String[0]), injector.getTenantId());
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
@@ -515,7 +515,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     // Persist changes. Contract deletion cascades to injects at the DB level (ON DELETE
     // CASCADE): de-index the doomed injects explicitly, no JPA lifecycle event fires for them.
     List<String> cascadeDeletedInjectIds =
-        injectIndexCleanupService.injectIdsByContractIds(toDelete);
+        injectIndexCleanupService.injectIdsByContractIds(toDelete, injector.getTenantId());
     injectorContractRepository.deleteAllByIdAndTenantId(
         toDelete.toArray(new String[0]), injector.getTenantId());
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);

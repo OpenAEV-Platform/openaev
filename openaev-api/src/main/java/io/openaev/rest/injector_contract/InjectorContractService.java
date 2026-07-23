@@ -494,7 +494,8 @@ public class InjectorContractService implements DependenciesManager {
     // The injects FK on injectors_contracts is ON DELETE CASCADE: collect the doomed inject ids
     // before the delete and de-index them explicitly (no JPA lifecycle fires for DB cascades).
     List<String> cascadeDeletedInjectIds =
-        injectIndexCleanupService.injectIdsByContractIds(List.of(injectorContractId));
+        injectIndexCleanupService.injectIdsByContractIds(
+            List.of(injectorContractId), TenantContext.getCurrentTenant());
     this.injectorContractRepository.deleteById(
         new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant()));
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);

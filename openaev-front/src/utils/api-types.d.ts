@@ -6411,6 +6411,7 @@ export interface Organization {
 }
 
 export interface OrganizationBulkProcessingInput {
+  /** @minItems 1 */
   organization_ids: string[];
 }
 

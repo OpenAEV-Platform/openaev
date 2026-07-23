@@ -31,17 +31,23 @@ public class InjectIndexCleanupService {
   private final InjectRepository injectRepository;
   private final ApplicationEventPublisher eventPublisher;
 
-  /** Inject ids that will be cascade-deleted when the given contracts are deleted. */
-  public List<String> injectIdsByContractIds(Collection<String> contractIds) {
+  /**
+   * Inject ids that will be cascade-deleted when the given contracts are deleted, scoped to the
+   * given tenant (contract ids are shared across tenants for built-in contracts).
+   */
+  public List<String> injectIdsByContractIds(Collection<String> contractIds, String tenantId) {
     if (contractIds == null || contractIds.isEmpty()) {
       return List.of();
     }
-    return injectRepository.findInjectIdsByInjectorContractIds(contractIds);
+    return injectRepository.findInjectIdsByInjectorContractIds(contractIds, tenantId);
   }
 
-  /** Inject ids that will be cascade-deleted when the given payload is deleted. */
-  public List<String> injectIdsByPayloadId(String payloadId) {
-    return injectRepository.findInjectIdsByPayloadId(payloadId);
+  /**
+   * Inject ids that will be cascade-deleted when the given payload is deleted, scoped to the given
+   * tenant.
+   */
+  public List<String> injectIdsByPayloadId(String payloadId, String tenantId) {
+    return injectRepository.findInjectIdsByPayloadId(payloadId, tenantId);
   }
 
   /**
