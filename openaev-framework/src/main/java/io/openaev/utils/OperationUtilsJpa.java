@@ -463,9 +463,11 @@ public final class OperationUtilsJpa {
 
   // -- BASE FUNCTION --
 
-  private static Expression<Boolean> arrayPosition(
+  // array_position_wrapper RETURNS INT (V3_50__Adding_wrapper_functions): declare the matching
+  // Java type; membership call sites only wrap the result in isNotNull().
+  private static Expression<Integer> arrayPosition(
       Expression<String[]> paths, CriteriaBuilder cb, Expression<String> text) {
-    return cb.function("array_position_wrapper", Boolean.class, paths, text);
+    return cb.function("array_position_wrapper", Integer.class, paths, text);
   }
 
   private static Expression<String> lower(Expression<String> paths, CriteriaBuilder cb) {
