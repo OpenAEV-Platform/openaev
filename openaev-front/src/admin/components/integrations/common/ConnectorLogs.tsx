@@ -1,42 +1,54 @@
-import { Paper } from '@mui/material';
-import { useState } from 'react';
+import { Paper, TablePagination } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchConnectorInstanceLogs } from '../../../../actions/connector_instances/connector-instance-actions';
+import { searchConnectorInstanceLogs } from '../../../../actions/connector_instances/connector-instance-actions';
+import { type Page } from '../../../../components/common/queryable/Page';
+import { ROWS_PER_PAGE_OPTIONS } from '../../../../components/common/queryable/pagination/usePaginationState';
 import Terminal from '../../../../components/common/terminal/Terminal';
 import { useFormatter } from '../../../../components/i18n';
 import { type ConnectorInstanceLog } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
 
-const useStyles = makeStyles()(theme => ({
-  paper: {
-    padding: theme.spacing(2),
-    margin: theme.spacing(2),
-  },
-}));
+const useStyles = makeStyles()(theme => ({ paper: { padding: theme.spacing(2) } }));
 
 type ConnectorLogsProps = { connectorInstanceId: string };
-type ConnectorInstanceLogResponse = { data: ConnectorInstanceLog[] };
 
 const ConnectorLogs = ({ connectorInstanceId }: ConnectorLogsProps) => {
-  const dispatch = useAppDispatch();
   const { classes } = useStyles();
   const { t, fldt } = useFormatter();
 
   const [logs, setLogs] = useState<ConnectorInstanceLog[]>([]);
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(ROWS_PER_PAGE_OPTIONS[0]);
+  const [totalElements, setTotalElements] = useState(0);
 
-  useDataLoader(() => {
+  useEffect(() => {
     if (connectorInstanceId) {
-      dispatch(fetchConnectorInstanceLogs(connectorInstanceId))
-        .then((result: ConnectorInstanceLogResponse) =>
-          setLogs(result.data),
-        );
+      searchConnectorInstanceLogs(connectorInstanceId, {
+        page,
+        size,
+      })
+        .then((result: { data: Page<ConnectorInstanceLog> }) => {
+          setLogs(result.data.content);
+          setTotalElements(result.data.totalElements);
+        });
     }
-  }, [connectorInstanceId]);
+  }, [connectorInstanceId, page, size]);
 
   return (
     <Paper variant="outlined" className={classes.paper}>
+      <TablePagination
+        component="div"
+        rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+        count={totalElements}
+        page={page}
+        onPageChange={(_, newPage) => setPage(newPage)}
+        rowsPerPage={size}
+        onRowsPerPageChange={(e) => {
+          setSize(parseInt(e.target.value, 10));
+          setPage(0);
+        }}
+      />
       {logs.length > 0 ? (
         <Terminal
           maxHeight={400}
