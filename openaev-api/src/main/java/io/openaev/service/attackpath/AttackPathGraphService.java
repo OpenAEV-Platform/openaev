@@ -906,9 +906,18 @@ public class AttackPathGraphService {
     for (Object[] row : assetRepository.findCriticalityByIds(assetNodesByRef.keySet())) {
       String assetId = (String) row[0];
       Object criticality = row[1];
+      String name = (String) row[2];
       AttackPathNodeDTO node = assetNodesByRef.get(assetId);
-      if (node != null && criticality != null) {
+      if (node == null) {
+        continue;
+      }
+      if (criticality != null) {
         node.setCriticality(criticality.toString());
+      }
+      // Prefer the asset's friendly name over the raw id fallback (an ASSET endpoint with no hostname
+      // otherwise reads as its uuid on the map and in the chokepoint list).
+      if (name != null && !name.isBlank()) {
+        node.setLabel(name);
       }
     }
   }
