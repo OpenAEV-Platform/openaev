@@ -17,7 +17,6 @@ import io.openaev.rest.organization.form.OrganizationBulkProcessingInput;
 import io.openaev.rest.organization.form.OrganizationCreateInput;
 import io.openaev.rest.organization.form.OrganizationUpdateInput;
 import io.openaev.service.organization.OrganizationService;
-import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.Valid;
@@ -39,7 +38,6 @@ public class OrganizationApi extends RestBehavior {
   private final OrganizationRepository organizationRepository;
   private final TagRepository tagRepository;
   private final OrganizationService organizationService;
-  private final BulkDeleteExecutor bulkDeleteExecutor;
 
   @GetMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
   @Transactional
@@ -122,19 +120,7 @@ public class OrganizationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ORGANIZATION)
   public List<String> bulkDeleteOrganizations(
       @RequestBody @Valid final OrganizationBulkProcessingInput input) {
-    // findAllById goes through a criteria query, so the Hibernate tenant filter applies and
-    // organizations from other tenants are silently skipped.
-    List<String> organizationIds =
-        bulkDeleteExecutor.resolveInTransaction(
-            () ->
-                fromIterable(organizationRepository.findAllById(input.getOrganizationIds()))
-                    .stream()
-                    .map(Organization::getId)
-                    .toList());
-    return bulkDeleteExecutor.deleteInChunks(
-        "organizations",
-        organizationIds,
-        chunk -> organizationRepository.deleteAll(organizationRepository.findAllById(chunk)));
+    return organizationService.bulkDelete(input);
   }
 
   // -- OPTION --

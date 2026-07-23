@@ -6592,8 +6592,9 @@ export interface Organization {
 }
 
 export interface OrganizationBulkProcessingInput {
-  /** @minItems 1 */
-  organization_ids: string[];
+  organization_ids_to_ignore?: string[];
+  organization_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
 }
 
 export interface OrganizationCreateInput {

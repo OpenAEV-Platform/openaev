@@ -14,6 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 class BulkOperationMonitorTest {
 
@@ -23,7 +24,9 @@ class BulkOperationMonitorTest {
   @BeforeEach
   void setUp() {
     eventPublisher = mock(ApplicationEventPublisher.class);
-    monitor = new BulkOperationMonitor(eventPublisher);
+    // Mocked journal: queries return empty lists, so findForUser only sees the in-memory
+    // registry - which is exactly what these unit tests exercise.
+    monitor = new BulkOperationMonitor(eventPublisher, mock(JdbcTemplate.class));
   }
 
   @Test
@@ -54,22 +57,43 @@ class BulkOperationMonitorTest {
     monitor.progress(operationId, 25);
     monitor.fail(operationId);
 
-    List<BulkOperation> operations = monitor.findForTenant(null);
+    List<BulkOperation> operations = monitor.findForUser(null, null);
     assertThat(operations).hasSize(1);
     assertThat(operations.get(0).status()).isEqualTo(BulkOperationStatus.FAILED);
     assertThat(operations.get(0).processed()).isEqualTo(25);
   }
 
   @Test
-  @DisplayName("Given operations of several tenants, should only list the requested tenant's ones")
+  @DisplayName("Given operations of another tenant, should not list them for a tenant consumer")
   void given_operationsOfSeveralTenants_should_onlyListRequestedTenant() {
     // Started without a tenant context: tenantId is whatever TenantContext resolves to here.
     String operationId = monitor.start("delete", "players", 10);
-    List<BulkOperation> visible = monitor.findForTenant(null);
+    List<BulkOperation> visible = monitor.findForUser(null, null);
     assertThat(visible).extracting(BulkOperation::id).contains(operationId);
-    assertThat(monitor.findForTenant("another-tenant"))
+    assertThat(monitor.findForUser(null, "another-tenant"))
         .extracting(BulkOperation::id)
         .doesNotContain(operationId);
+  }
+
+  @Test
+  @DisplayName("Given operations of another user, should not list them for a user")
+  void given_operationsOfAnotherUser_should_notListThemForAUser() {
+    // Started without an authenticated user: userId is null.
+    String operationId = monitor.start("delete", "assets", 10);
+    assertThat(monitor.findForUser("another-user", null))
+        .extracting(BulkOperation::id)
+        .doesNotContain(operationId);
+  }
+
+  @Test
+  @DisplayName("Given running operations, should list them before finished ones")
+  void given_runningOperations_should_listThemFirst() {
+    String finishedId = monitor.start("delete", "teams", 5);
+    monitor.complete(finishedId);
+    String runningId = monitor.start("delete", "scenarios", 50);
+
+    List<BulkOperation> operations = monitor.findForUser(null, null);
+    assertThat(operations).extracting(BulkOperation::id).containsExactly(runningId, finishedId);
   }
 
   @Test

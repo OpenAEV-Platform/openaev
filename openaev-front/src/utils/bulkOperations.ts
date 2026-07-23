@@ -17,12 +17,11 @@ export interface BulkOperation {
   bulk_operation_finished_at?: string | null;
 }
 
-// Keep finished operations visible in the header popover for a short while (the user sees the
-// bar reach 100%), then drop them so the indicator eventually disappears.
-const FINISHED_DISPLAY_TIME = 15000;
+// The indicator is permanent: finished operations stay listed as a per-user history (the
+// backend journals the last operations per user), capped so the popover stays lightweight.
+const HISTORY_SIZE = 100;
 
 const operations = new Map<string, BulkOperation>();
-const evictionTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 const subscribers = new Set<() => void>();
 // Cached immutable snapshot: useSyncExternalStore requires getSnapshot to return a stable
 // reference between emits, otherwise it loops re-rendering.
@@ -35,21 +34,16 @@ let finishedCount = 0;
 const isFinished = (operation: BulkOperation) => operation.bulk_operation_status !== 'RUNNING';
 
 const rebuildSnapshot = () => {
-  snapshot = [...operations.values()].sort(
-    (a, b) => new Date(b.bulk_operation_started_at).getTime() - new Date(a.bulk_operation_started_at).getTime(),
-  );
+  // Running operations first, then the history by recency, mirroring the backend ordering.
+  const sorted = [...operations.values()].sort((a, b) => {
+    if (isFinished(a) !== isFinished(b)) {
+      return isFinished(a) ? 1 : -1;
+    }
+    return new Date(b.bulk_operation_started_at).getTime() - new Date(a.bulk_operation_started_at).getTime();
+  });
+  snapshot = sorted.slice(0, HISTORY_SIZE);
+  sorted.slice(HISTORY_SIZE).forEach(operation => operations.delete(operation.bulk_operation_id));
   subscribers.forEach(notify => notify());
-};
-
-const scheduleEviction = (operationId: string) => {
-  if (evictionTimeouts.has(operationId)) {
-    return;
-  }
-  evictionTimeouts.set(operationId, setTimeout(() => {
-    evictionTimeouts.delete(operationId);
-    operations.delete(operationId);
-    rebuildSnapshot();
-  }, FINISHED_DISPLAY_TIME));
 };
 
 /**
@@ -65,9 +59,6 @@ export const ingestBulkOperation = (operation: BulkOperation): boolean => {
     return false;
   }
   operations.set(operation.bulk_operation_id, operation);
-  if (isFinished(operation)) {
-    scheduleEviction(operation.bulk_operation_id);
-  }
   const justFinished = isFinished(operation) && (!previous || !isFinished(previous));
   if (justFinished) {
     finishedCount += 1;

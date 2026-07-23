@@ -1930,6 +1930,7 @@
   "No inject in this scenario": "В этом сценарии нет инъекций",
   "No injector contracts found": "Контракты инжектора не найдены",
   "No injects processed yet.": "Инъекции ещё не обработаны.",
+  "No massive operation yet": "Пока нет массовых операций",
   "No injects to display in this simulation.": "Нет инжектов для отображения в этой симуляции.",
   "No injects to send in this platform.": "Нет инъекций для отправки в этой платформе.",
   "No lessons learned categories yet. Apply a template or create a category to build the questionnaire.": "Пока нет категорий извлеченных уроков. Примените шаблон или создайте категорию, чтобы составить анкету.",

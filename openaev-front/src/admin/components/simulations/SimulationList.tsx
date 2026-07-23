@@ -170,10 +170,14 @@ const SimulationList: FunctionComponent<Props> = ({
           <ListItem
             classes={{ root: classes.itemHead }}
             divider={false}
-            sx={{
-              paddingTop: 0,
-              ...(entityToggle && entityToggle.numberOfSelectedElements > 0 ? { backgroundColor: 'background.accent' } : {}),
-            }}
+            sx={entityToggle && entityToggle.numberOfSelectedElements > 0
+              ? {
+                  // Massive-operations toolbar: symmetric vertical padding keeps the
+                  // checkbox and actions vertically centered in the accent band.
+                  backgroundColor: 'background.accent',
+                  paddingBlock: 0.5,
+                }
+              : { paddingTop: 0 }}
             {...(!entityToggle || entityToggle.numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
           >
             {entityToggle && (

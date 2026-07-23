@@ -242,24 +242,32 @@ public class StreamApi extends RestBehavior {
   }
 
   /**
-   * Broadcasts massive-operation progress snapshots to the connected consumers of the operation's
-   * tenant. These aggregated events replace the per-entity events suppressed during bulk operations
-   * (see {@link io.openaev.context.BulkOperationContext}): the frontend renders a progress
-   * indicator from them and refreshes its data once, on the terminal event. The payload carries
-   * only counts and an entity label, so no per-resource permission check is needed.
+   * Delivers massive-operation progress snapshots to the stream consumers of the user who launched
+   * the operation (massive operations are per user, never shared). These aggregated events replace
+   * the per-entity events suppressed during bulk operations (see {@link
+   * io.openaev.context.BulkOperationContext}): the frontend renders a progress indicator from them
+   * and refreshes its data once, on the terminal event. The payload carries only counts and an
+   * entity label, so no per-resource permission check is needed.
    */
   @Async("streamExecutor")
   @EventListener
   public void listenBulkOperation(BulkOperationMonitor.BulkOperationEvent event) {
     BulkOperationMonitor.BulkOperation operation = event.operation();
+    if (operation.userId() == null) {
+      // System operations (no launching user) belong to no one's history or stream.
+      return;
+    }
     ServerSentEvent<BulkOperationMonitor.BulkOperation> message =
         ServerSentEvent.builder(operation).event(EVENT_TYPE_BULK_OPERATION).build();
     consumers.forEach(
         (key, consumer) -> {
-          // Legacy consumers (no tenant in the stream URL) receive everything, mirroring
-          // isVisibleForTenant; tenant-scoped consumers only see operations carrying exactly
-          // their tenant id (an operation without a tenant id stays off tenant streams, so no
-          // cross-tenant operational metadata can leak).
+          if (!operation.userId().equals(consumer.principal().getId())) {
+            return;
+          }
+          // Defensive tenant check on top of the user scoping, mirroring isVisibleForTenant:
+          // tenant-scoped consumers only see operations carrying exactly their tenant id (an
+          // operation without a tenant id stays off tenant streams, so no cross-tenant
+          // operational metadata can leak).
           if (consumer.tenantId() != null
               && !consumer.tenantId().isBlank()
               && !consumer.tenantId().equals(operation.tenantId())) {

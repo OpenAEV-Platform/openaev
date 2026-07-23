@@ -1,4 +1,4 @@
-import { CheckCircleOutlined, DeleteSweepOutlined, ErrorOutlined } from '@mui/icons-material';
+import { AutoAwesomeMotionOutlined, CheckCircleOutlined, ErrorOutlined } from '@mui/icons-material';
 import { Badge, Box, CircularProgress, IconButton, LinearProgress, Popover, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useEffect, useState } from 'react';
@@ -7,24 +7,21 @@ import { useFormatter } from '../../../components/i18n';
 import { type BulkOperation, seedBulkOperations, useBulkOperations } from '../../../utils/bulkOperations';
 
 /**
- * Top bar indicator for massive (bulk) operations in progress: a badge with the number of running
- * operations and a popover detailing each one with a live progress bar. Fed by the aggregated
- * `bulk-operation` SSE events (per-entity events are suppressed during massive operations), and
- * seeded from GET /api/bulk-operations on mount so a page refresh mid-operation still shows it.
+ * Permanent top bar entry for massive (bulk) operations: a badge with the number of running
+ * operations and a popover listing the current user's operations (live progress bars plus the
+ * recent history journaled by the backend - operations are per user, never shared). Fed by the
+ * user-scoped aggregated `bulk-operation` SSE events (per-entity events are suppressed during
+ * massive operations), and seeded from GET /api/bulk-operations on mount.
  */
 const BulkOperationsIndicator: FunctionComponent = () => {
   const theme = useTheme();
-  const { t } = useFormatter();
+  const { t, nsdt } = useFormatter();
   const operations = useBulkOperations();
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     seedBulkOperations();
   }, []);
-
-  if (operations.length === 0) {
-    return null;
-  }
 
   const runningCount = operations.filter(operation => operation.bulk_operation_status === 'RUNNING').length;
 
@@ -77,6 +74,7 @@ const BulkOperationsIndicator: FunctionComponent = () => {
             'width': 36,
             'height': 36,
             'borderRadius': 1,
+            // Blue like every other top bar icon (running state adds badge + spinner).
             'color': theme.palette.primary.main,
             'backgroundColor': anchorEl ? alpha(theme.palette.primary.main, 0.15) : 'transparent',
             '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.15) },
@@ -94,7 +92,7 @@ const BulkOperationsIndicator: FunctionComponent = () => {
               },
             }}
           >
-            <DeleteSweepOutlined fontSize="medium" />
+            <AutoAwesomeMotionOutlined fontSize="medium" />
           </Badge>
           {runningCount > 0 && (
             <CircularProgress
@@ -145,6 +143,27 @@ const BulkOperationsIndicator: FunctionComponent = () => {
           overflowY: 'auto',
         }}
         >
+          {operations.length === 0 && (
+            <Box
+              sx={{
+                px: 2,
+                py: 3,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 1,
+              }}
+            >
+              <AutoAwesomeMotionOutlined sx={{
+                fontSize: 28,
+                color: theme.palette.text.secondary,
+              }}
+              />
+              <Typography variant="body2" color="textSecondary">
+                {t('No massive operation yet')}
+              </Typography>
+            </Box>
+          )}
           {operations.map((operation) => {
             const color = statusColor(operation);
             return (
@@ -220,9 +239,19 @@ const BulkOperationsIndicator: FunctionComponent = () => {
                     },
                   }}
                 />
-                <Typography variant="caption" color="textSecondary">
-                  {`${operation.bulk_operation_processed} / ${operation.bulk_operation_total}`}
-                </Typography>
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+                >
+                  <Typography variant="caption" color="textSecondary">
+                    {`${operation.bulk_operation_processed} / ${operation.bulk_operation_total}`}
+                  </Typography>
+                  <Typography variant="caption" color="textSecondary">
+                    {nsdt(operation.bulk_operation_started_at)}
+                  </Typography>
+                </Box>
               </Box>
             );
           })}

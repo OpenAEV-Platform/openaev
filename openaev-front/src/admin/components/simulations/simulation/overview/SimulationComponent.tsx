@@ -127,14 +127,10 @@ const SimulationComponent = () => {
         <SectionBlock title={t('Information')}>
           <SimulationMainInformation exercise={exercise} embedded />
         </SectionBlock>
-        <SectionBlock title={t('Results')}>
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-          }}
-          >
+        <SectionBlock title={t('Results')} centerContent>
+          {/* Full-width child of the centering Paper: the gauges distribute
+              across the section width while sitting vertically centered. */}
+          <Box sx={{ width: '100%' }}>
             {(() => {
               if (!results) return <Loader variant="inElement" />;
               // No results yet (not run, or a run without expectations): preview

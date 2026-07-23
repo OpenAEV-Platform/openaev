@@ -228,10 +228,14 @@ const Scenarios = () => {
       <List>
         <ListItem
           classes={{ root: classes.itemHead }}
-          sx={{
-            paddingTop: 0,
-            ...(numberOfSelectedElements > 0 ? { backgroundColor: 'background.accent' } : {}),
-          }}
+          sx={numberOfSelectedElements > 0
+            ? {
+                // Massive-operations toolbar: symmetric vertical padding keeps the
+                // checkbox and actions vertically centered in the accent band.
+                backgroundColor: 'background.accent',
+                paddingBlock: 0.5,
+              }
+            : { paddingTop: 0 }}
           {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
         >
           {canManage && (

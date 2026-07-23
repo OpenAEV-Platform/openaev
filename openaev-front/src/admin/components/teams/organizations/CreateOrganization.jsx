@@ -29,7 +29,15 @@ class CreateOrganizationComponent extends Component {
     )(data);
     return this.props
       .addOrganization(inputValues)
-      .then(result => (result.result ? this.handleClose() : result));
+      .then((result) => {
+        if (result.result) {
+          if (this.props.onCreate) {
+            this.props.onCreate(result.entities.organizations[result.result]);
+          }
+          return this.handleClose();
+        }
+        return result;
+      });
   }
 
   render() {
@@ -56,6 +64,7 @@ class CreateOrganizationComponent extends Component {
 CreateOrganizationComponent.propTypes = {
   t: PropTypes.func,
   addOrganization: PropTypes.func,
+  onCreate: PropTypes.func,
 };
 
 const CreateOrganization = R.compose(

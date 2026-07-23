@@ -131,10 +131,15 @@ export const SectionLabel = ({ children }: { children: ReactNode }) => (
   <Typography sx={SECTION_LABEL_SX}>{children}</Typography>
 );
 
-export const SectionBlock = ({ title, children, disablePadding }: {
+export const SectionBlock = ({ title, children, disablePadding, centerContent }: {
   title: string;
   children: ReactNode;
   disablePadding?: boolean;
+  // Vertically centers the content when a side-by-side sibling stretches the
+  // Paper taller than the content (grid alignItems: stretch). A plain
+  // `height: 100%` on the child does not resolve inside the flex-grown Paper,
+  // so the Paper itself must become the centering flex container.
+  centerContent?: boolean;
 }) => (
   <div style={{
     display: 'flex',
@@ -149,6 +154,10 @@ export const SectionBlock = ({ title, children, disablePadding }: {
         padding: disablePadding ? 0 : 2,
         borderRadius: 1,
         flex: 1,
+        ...(centerContent && {
+          display: 'flex',
+          alignItems: 'center',
+        }),
       }}
     >
       {children}

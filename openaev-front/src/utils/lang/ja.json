@@ -1930,6 +1930,7 @@
   "No inject in this scenario": "このシナリオではインジェクトはありません",
   "No injector contracts found": "インジェクター契約なし",
   "No injects processed yet.": "まだ処理されたインジェクトはありません。",
+  "No massive operation yet": "まだ大規模な操作はありません",
   "No injects to display in this simulation.": "このシミュレーションに表示するインジェクトはありません。",
   "No injects to send in this platform.": "このプラットフォームで送信するインジェクトはありません。",
   "No lessons learned categories yet. Apply a template or create a category to build the questionnaire.": "学んだことのカテゴリはまだありません。テンプレートを適用するか、カテゴリを作成してアンケートを作成してください。",
