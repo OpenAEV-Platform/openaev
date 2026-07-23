@@ -57,6 +57,9 @@ interface Props<T> {
   // Extra control rendered in the top-right bar, between the pagination arrows
   // and the export button (e.g. a cards/list view switcher).
   topRightSlot?: ReactElement | null;
+  // Notified whenever the total number of elements changes (e.g. for bulk
+  // select-all counting in the parent list).
+  onTotalElementsChange?: (totalElements: number) => void;
 }
 
 /**
@@ -75,6 +78,7 @@ const PaginationComponent = <T extends object>({
   children,
   createButton,
   topRightSlot,
+  onTotalElementsChange,
 }: Props<T>) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -121,6 +125,7 @@ const PaginationComponent = <T extends object>({
       const { data } = result;
       setContent(data.content);
       setTotalElements(data.totalElements);
+      onTotalElementsChange?.(data.totalElements);
     });
   }, [searchPaginationInput, page, rowsPerPage, textSearch]);
 

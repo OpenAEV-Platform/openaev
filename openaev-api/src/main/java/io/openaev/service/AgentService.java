@@ -60,6 +60,9 @@ public class AgentService {
   }
 
   public void deleteAgent(@NotBlank final String agentId) {
+    // Touch first (the subselect needs the agent row), so the search engine re-feeds the
+    // endpoint documents that denormalize this agent's data once it is gone.
+    this.agentRepository.touchAssetOfAgent(agentId);
     this.agentRepository.deleteByAgentId(agentId);
   }
 

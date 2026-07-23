@@ -1,7 +1,7 @@
 import { type Dispatch } from 'redux';
 
 import { getReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import { type AtomicTestingInput, type SearchPaginationInput } from '../../utils/api-types';
+import { type AtomicTestingInput, type InjectBulkProcessingInput, type SearchPaginationInput } from '../../utils/api-types';
 import { MESSAGING$ } from '../../utils/Environment';
 import * as schema from '../Schema';
 
@@ -27,6 +27,10 @@ export const fetchAtomicTestingPayload = (injectId: string) => {
 export const deleteAtomicTesting = (injectId: string) => {
   const uri = `${ATOMIC_TESTING_URI}/${injectId}`;
   return simpleDelCall(uri);
+};
+
+export const bulkDeleteAtomicTestings = (input: InjectBulkProcessingInput) => {
+  return simpleDelCall(ATOMIC_TESTING_URI, { data: input });
 };
 
 export const updateAtomicTesting = (injectId: string, data: AtomicTestingInput) => {

@@ -13,6 +13,7 @@ import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.UnprocessableContentException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.service.AtomicTestingService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectImportService;
@@ -106,6 +107,18 @@ public class AtomicTestingApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   public void deleteAtomicTesting(@PathVariable @NotBlank final String injectId) {
     atomicTestingService.deleteAtomicTesting(injectId);
+  }
+
+  @Operation(
+      description = "Bulk delete of atomic testings",
+      tags = {"Atomic testings"})
+  @LogExecutionTime
+  @DeleteMapping()
+  @Transactional(rollbackFor = Exception.class)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ATOMIC_TESTING)
+  public List<String> bulkDeleteAtomicTestings(
+      @RequestBody @Valid final InjectBulkProcessingInput input) {
+    return atomicTestingService.bulkDelete(input);
   }
 
   @PostMapping("/{atomicTestingId}/duplicate")

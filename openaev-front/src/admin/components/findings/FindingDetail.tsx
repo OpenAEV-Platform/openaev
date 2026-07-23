@@ -120,11 +120,15 @@ const FindingDetail = ({
 
   return (
     <>
-      <Tabs
-        entries={tabEntries}
-        currentTab={currentTab}
-        onChange={newValue => handleChangeTab(newValue)}
-      />
+      {/* A lone tab (non-CVE findings only have "Related Injects") carries no
+          navigation value: render the tab bar only when there is a choice. */}
+      {tabEntries.length > 1 && (
+        <Tabs
+          entries={tabEntries}
+          currentTab={currentTab}
+          onChange={newValue => handleChangeTab(newValue)}
+        />
+      )}
       {renderTabPanels()}
     </>
   );

@@ -223,6 +223,28 @@ public class OpenSearchService implements EngineService {
                 .toList();
         boolQuery.mustNot(notContainsQueries);
         break;
+      case gt:
+      case gte:
+      case lt:
+      case lte:
+        // Single-bound date comparisons: the filter UI only offers these operators
+        // for "instant" properties (e.g. the drill-down "created at" chip). Values
+        // are ISO dates, so toVal() is bypassed on purpose - it has no Instant case.
+        if (hasFilteringValues) {
+          List<Query> compareQueries =
+              filter.getValues().stream()
+                  .map(
+                      v ->
+                          buildDateCompareQuery(
+                              elasticField, operator, parameters.getOrDefault(v, v)))
+                  .toList();
+          if (filterMode == Filters.FilterMode.and) {
+            boolQuery.must(compareQueries);
+          } else {
+            boolQuery.should(compareQueries).minimumShouldMatch("1");
+          }
+        }
+        break;
       case empty:
         boolQuery
             .should(List.of(notExistsQuery(elasticField), emptyFieldQuery(elasticField)))
@@ -540,31 +562,24 @@ public class OpenSearchService implements EngineService {
               .index(engineConfig.getIndexPrefix() + "*")
               .query(query)
               .refresh(Refresh.True)
+              .conflicts(Conflicts.Proceed)
               .build());
-      // Delete the id in the attributes of the documents including the id
+      // Remove the deleted ids from the denormalized "base_XXX_side" attributes of the documents
+      // that reference them. The update-by-query MUST be scoped to those documents only: this
+      // runs synchronously after every entity delete (the HTTP response waits for it), and an
+      // unscoped request rewrites every document of every index - minutes on a production
+      // dataset (relaunching an atomic testing was observed blocking for over a minute).
       openSearchClient.updateByQuery(
           new UpdateByQueryRequest.Builder()
               .index(engineConfig.getIndexPrefix() + "*")
+              .query(sideReferencesQuery(ids))
               .script(
                   Script.of(
                       s ->
                           s.inline(
                               InlineScript.of(
                                   is ->
-                                      is.source(
-                                              """
-                                                      // For each EsBase attribute of each document
-                                                      for (String key : ctx._source.keySet().toArray()) {
-                                                        // If it's a "base_XXX_side" (means String id or List of ids), remove all deleted ids from this field.
-                                                        if(key.startsWith("base_") && key.endsWith("_side") && ctx._source[key] != null) {
-                                                            if (ctx._source[key] instanceof List) {
-                                                                ctx._source[key].removeIf(item -> params.valuesToRemove.contains(item));
-                                                            } else if (ctx._source[key] instanceof String && params.valuesToRemove.contains(ctx._source[key])) {
-                                                                ctx._source.remove(key);
-                                                            }
-                                                        }
-                                                      }
-                                                    """)
+                                      is.source(ElasticService.SIDE_CLEANUP_SCRIPT)
                                           .params("valuesToRemove", JsonData.of(ids))))))
               .refresh(Refresh.True)
               .conflicts(Conflicts.Proceed)
@@ -572,6 +587,22 @@ public class OpenSearchService implements EngineService {
     } catch (IOException e) {
       log.error(String.format("bulkDelete exception: %s", e.getMessage()), e);
     }
+  }
+
+  /**
+   * Matches only the documents that reference one of the deleted ids in a denormalized {@code
+   * base_XXX_side} field (exact match on the dynamic keyword sub-fields, expanded by the engine
+   * through the field wildcard).
+   */
+  private static Query sideReferencesQuery(List<String> ids) {
+    // Escape backslashes and quotes so an unexpected character in an id cannot break out of the
+    // quoted phrase and change the query_string semantics.
+    String quotedIds =
+        ids.stream()
+            .map(id -> "\"" + id.replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
+            .collect(Collectors.joining(" OR "));
+    return QueryStringQuery.of(q -> q.fields("base_*_side.keyword").query(quotedIds).lenient(true))
+        .toQuery();
   }
 
   @Override

@@ -64,6 +64,12 @@ type ToolBarOwnProps = {
   showUpdate?: boolean;
   showBulkTest?: boolean;
   showBulkDelete?: boolean;
+  /**
+   * Already-translated delete confirmation texts. Defaults to the inject wording
+   * for backward compatibility with the injects lists.
+   */
+  deleteConfirmationSingular?: string;
+  deleteConfirmationPlural?: string;
 };
 
 type ReduxProps = {
@@ -504,9 +510,11 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
     const canTest = showBulkTest ?? (canManage && Boolean(this.props.handleBulkTest));
     const canDelete = showBulkDelete ?? (canManage && Boolean(this.props.handleBulkDelete));
     const confirmationText = () => {
-      return numberOfSelectedElements === 1
-        ? t('Do you want to delete this inject?')
-        : t('Do you want to delete these {count} injects?', { count: numberOfSelectedElements });
+      if (numberOfSelectedElements === 1) {
+        return this.props.deleteConfirmationSingular ?? t('Do you want to delete this inject?');
+      }
+      return this.props.deleteConfirmationPlural
+        ?? t('Do you want to delete these {count} injects?', { count: numberOfSelectedElements });
     };
     const testConfirmationText = () => {
       return numberOfSelectedElements === 1
@@ -523,7 +531,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             alignItems: 'center',
             flex: '1 1 100%',
             width: '100%',
-            backgroundColor: 'rgb(15, 30, 56)',
+            backgroundColor: 'background.accent',
             pr: 1,
           }}
         >

@@ -221,7 +221,10 @@ const AtomicTestingRemediations = () => {
                       <Tab
                         key={tab.collector_type}
                         label={(
-                          <Box display="flex" alignItems="center">
+                          // textTransform:capitalize - the collector name arrives
+                          // lowercase from the backend, and the MuiTab `::first-letter`
+                          // uppercase trick can't reach text nested inside this flex box.
+                          <Box display="flex" alignItems="center" sx={{ textTransform: 'capitalize' }}>
                             <img
                               src={buildTenantApiPath(`/api/collectors/${tab.collector_type}/image`)}
                               alt={tab.collector_type}

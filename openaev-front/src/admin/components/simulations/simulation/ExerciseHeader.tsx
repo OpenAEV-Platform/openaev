@@ -1,5 +1,6 @@
 import {
   CancelOutlined,
+  EmojiEventsOutlined,
   GroupsOutlined,
   InsertChartOutlined,
   PauseOutlined,
@@ -14,12 +15,14 @@ import {
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 
 import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
+import { fetchExerciseChallenges } from '../../../../actions/challenge-action';
 import { createCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
 import { searchExerciseHealthchecks, updateExercise, updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
+import { type ChallengeHelper } from '../../../../actions/helper';
 import { DetailHero, HeroStat } from '../../../../components/common/detail/EntityDetailCommon';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
@@ -27,8 +30,9 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemCategory from '../../../../components/ItemCategory';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import { useHelper } from '../../../../store';
-import { type CustomDashboard, type Exercise, type Exercise as ExerciseType, type HealthCheck, type SimulationDetails } from '../../../../utils/api-types';
+import { type Challenge, type CustomDashboard, type Exercise, type Exercise as ExerciseType, type HealthCheck, type SimulationDetails } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
+import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
@@ -227,10 +231,21 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   const dispatch = useAppDispatch();
 
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
-  const { exercise } = useHelper((helper: ExercisesHelper) => {
-    return { exercise: helper.getExercise(exerciseId) as SimulationDetails };
+  const { exercise, challenges } = useHelper((helper: ExercisesHelper & ChallengeHelper) => {
+    return {
+      exercise: helper.getExercise(exerciseId) as SimulationDetails,
+      challenges: helper.getExerciseChallenges(exerciseId) as Challenge[],
+    };
   });
   const permissions = useSimulationPermissions(exerciseId, exercise);
+
+  // Challenges are authored inside injects (no configuration tab): as soon as
+  // at least one inject uses a challenge, expose the player-facing preview
+  // right in the hero.
+  useDataLoader(() => {
+    dispatch(fetchExerciseChallenges(exerciseId));
+  });
+  const hasChallenges = challenges.length > 0;
 
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const exerciseWorkflowId = exercise.exercise_workflow_id as string | undefined;
@@ -350,6 +365,21 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                   dashboard tooltip reflects whether a dashboard is already
                   attached (open) or still needs to be created. Scheduling can
                   only be modified while the simulation is still SCHEDULED. */}
+              {/* Visible as soon as one inject uses a challenge - opens the
+                  player-facing challenges page in a new tab. */}
+              {hasChallenges && (
+                <Tooltip title={t('Preview challenges page')}>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    component={Link}
+                    to={`/admin/simulations/${exerciseId}/challenges`}
+                    target="_blank"
+                  >
+                    <EmojiEventsOutlined fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
               {permissions.canManage && (
                 <>
                   <Tooltip title={hasDashboard ? t('Open dashboard') : t('Create dashboard')}>

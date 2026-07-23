@@ -45,11 +45,12 @@ const CatalogLayout = () => {
     });
   }, []);
 
+  // Keep the trail short: "Integrations / <connector>" - the Integrations
+  // crumb links back to the catalog tab the user came from.
   const breadcrumbElements = catalogConnectorId
     ? [
-        { label: t('Integrations') },
         {
-          label: t('Available'),
+          label: t('Integrations'),
           link: '/admin/integrations/available',
         },
         {
@@ -58,10 +59,8 @@ const CatalogLayout = () => {
         },
       ]
     : [
-        { label: t('Integrations') },
         {
-          label: t('Available'),
-          link: '/admin/integrations/available',
+          label: t('Integrations'),
           current: true,
         },
       ];

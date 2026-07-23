@@ -30,6 +30,13 @@ const useStyles = makeStyles()(theme => ({
     'cursor': 'pointer',
     '&:hover': { textDecorationLine: 'underline' },
   },
+  // The theme lowercases the whole chip and re-capitalizes via ::first-letter,
+  // but that pseudo-element is inert inside the chip's flex layout. Making the
+  // leading key an inline-block (a block container) restores the capital.
+  key: {
+    'display': 'inline-block',
+    '&::first-letter': { textTransform: 'uppercase' },
+  },
 }));
 
 interface Props {
@@ -97,7 +104,7 @@ const FilterChipValues: FunctionComponent<Props> = ({
     return (
       <>
         <strong
-          className={cx({ [classes.label]: !!handleOpen })}
+          className={cx(classes.key, { [classes.label]: !!handleOpen })}
           onClick={handleOpen}
         >
           {t(filter.key)}
@@ -129,7 +136,7 @@ const FilterChipValues: FunctionComponent<Props> = ({
     (
       <span className={classes.container}>
         <strong
-          className={cx({ [classes.label]: !!handleOpen })}
+          className={cx(classes.key, { [classes.label]: !!handleOpen })}
           onClick={handleOpen}
         >
           {t(filter.key)}
