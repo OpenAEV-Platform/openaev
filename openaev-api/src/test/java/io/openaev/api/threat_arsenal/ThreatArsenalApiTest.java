@@ -692,7 +692,11 @@ public class ThreatArsenalApiTest extends IntegrationTest {
           "Windows and MacOS should match no contract");
 
       // not_eq is the negation of the membership predicate: contracts without the
-      // value — including those with an empty platforms array — are kept.
+      // value — including those with an empty platforms array — are kept. Assert
+      // relative to the unfiltered total: the environment may register extra
+      // contracts (without platforms) after the setup's deleteAll.
+      int unfilteredTotal =
+          JsonPath.read(searchWith(PaginationFixture.getDefault().build()), "$.totalElements");
       SearchPaginationInput notEqInput =
           buildSearchInputForActionPlatformsEq(List.of("Windows"), Filters.FilterMode.and);
       notEqInput
@@ -702,9 +706,9 @@ public class ThreatArsenalApiTest extends IntegrationTest {
           .setOperator(Filters.FilterOperator.not_eq);
       response = searchWith(notEqInput);
       assertEquals(
-          4,
+          unfilteredTotal - 1,
           (int) JsonPath.read(response, "$.totalElements"),
-          "not_eq Windows should keep the four contracts without platforms");
+          "not_eq Windows should keep every contract except the Windows one");
 
       // The facet count endpoints receive the same filter group and must not fail either
       SearchPaginationInput input =
