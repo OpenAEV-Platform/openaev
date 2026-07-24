@@ -209,10 +209,13 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
               {view === 'list' ? (
                 <Box
                   sx={{
-                    borderRadius: 1,
-                    border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-                    backgroundColor: theme.palette.background.paper,
-                    overflow: 'hidden',
+                    'borderRadius': 1,
+                    'border': `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+                    'backgroundColor': theme.palette.background.paper,
+                    'overflow': 'hidden',
+                    // Row dividers live here (not on the row's own sx) so they
+                    // don't depend on adjacent rows sharing an emotion class.
+                    '& [data-testid="connector-line"] + [data-testid="connector-line"]': { borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.05)}` },
                   }}
                 >
                   <CatalogConnectorLinesHeader />

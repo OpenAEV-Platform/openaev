@@ -158,20 +158,38 @@ const CatalogConnectorLine = ({ connector, footerAction }: Props) => {
     EXECUTOR: t('Executor'),
   };
 
+  const isClickable = detailUrl != null;
+
   return (
+    // Keyboard parity with the card variant (whose CardActionArea is natively
+    // focusable): clickable rows are tab stops activated with Enter or Space.
+    // The row divider lives on the list container (ConnectorMarketplace), not
+    // here: `& + &` would rely on every row sharing the same emotion class,
+    // which breaks as soon as rows mix clickable and non-clickable styles.
     <Box
       data-testid="connector-line"
-      onClick={detailUrl ? () => navigate(detailUrl) : undefined}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onClick={isClickable ? () => navigate(detailUrl) : undefined}
+      onKeyDown={isClickable
+        ? (event) => {
+            // Ignore key events bubbling from the interactive action cell.
+            if (event.target !== event.currentTarget) return;
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              navigate(detailUrl);
+            }
+          }
+        : undefined}
       sx={{
         'display': 'flex',
         'alignItems': 'center',
         'gap': 1.5,
         'paddingInline': 1.5,
         'paddingBlock': 0.75,
-        'cursor': detailUrl ? 'pointer' : 'default',
+        'cursor': isClickable ? 'pointer' : 'default',
         'transition': 'background-color 0.2s ease-in-out',
-        '&:hover': { backgroundColor: theme.palette.action.hover },
-        '& + &': { borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.05)}` },
+        '&:hover': isClickable ? { backgroundColor: theme.palette.action.hover } : undefined,
       }}
     >
       {/* Name column: logo and title. */}
