@@ -558,9 +558,9 @@ public class InjectExecutionStep implements ActionStep {
 
     String workflowId = workflowRun.getId();
     List<Asset> validAssets = scopeService.getValidAssets(workflowId);
-    List<String> validIps = scopeService.getValidIpsFromScope(workflowId);
+    List<String> validManualTargets = scopeService.getValidIpsFromScope(workflowId);
 
-    if (validAssets.isEmpty() && validIps.isEmpty()) {
+    if (validAssets.isEmpty() && validManualTargets.isEmpty()) {
       return batches;
     }
 
@@ -584,12 +584,12 @@ public class InjectExecutionStep implements ActionStep {
                 addTargetToInput(batch.inputString(), target), batch.usedMappers(), null));
       }
 
-      // One batch per manual IP
-      Set<String> uniqueIps = new LinkedHashSet<>(validIps);
-      for (String ip : uniqueIps) {
+      // One batch per manual data
+      Set<String> uniqueManualTargets = new LinkedHashSet<>(validManualTargets);
+      for (String manualTarget : uniqueManualTargets) {
         JsonObject target = new JsonObject();
-        target.addProperty("type", "IP");
-        target.addProperty("ip", ip);
+        target.addProperty("type", "MANUAL");
+        target.addProperty("manual", manualTarget);
         expanded.add(
             new ConditionService.ExecutionBatch(
                 addTargetToInput(batch.inputString(), target), batch.usedMappers(), null));
@@ -666,7 +666,7 @@ public class InjectExecutionStep implements ActionStep {
    * <ul>
    *   <li>ASSET: sets a single asset and, for external injectors, rewrites the content target
    *       fields (targets_assets, target_selector, targets/IPs).
-   *   <li>IP: sets manual targeting in content and clears asset fields.
+   *   <li>MANUAL: sets manual targeting in content and clears asset fields.
    *   <li>No target present: inject runs with its template defaults.
    * </ul>
    *
@@ -710,15 +710,15 @@ public class InjectExecutionStep implements ActionStep {
         inject.setContent(content);
       }
       return true;
-    } else if ("IP".equals(type)) {
-      String ip = target.has("ip") ? target.get("ip").getAsString() : null;
-      if (ip == null) {
+    } else if ("MANUAL".equals(type)) {
+      String manualTarget = target.has("manual") ? target.get("manual").getAsString() : null;
+      if (manualTarget == null) {
         return false;
       }
       ObjectNode content =
           inject.getContent() != null ? inject.getContent().deepCopy() : mapper.createObjectNode();
       content.put("target_selector", "manual");
-      content.put("targets", ip);
+      content.put("targets", manualTarget);
       content.remove("targets_assets");
       inject.setContent(content);
       inject.setAssets(List.of());
