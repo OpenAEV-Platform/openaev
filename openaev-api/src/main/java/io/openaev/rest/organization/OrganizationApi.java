@@ -123,7 +123,11 @@ public class OrganizationApi extends RestBehavior {
   @Operation(
       summary = "Bulk delete organizations",
       description =
-          "Deletes the organizations matching the given ids (organization_ids). Organizations from other tenants are silently skipped.")
+          "Deletes the organizations matching either an explicit id list"
+              + " (organization_ids_to_process) or a search scope (search_pagination_input) with"
+              + " optional exclusions (organization_ids_to_ignore) - exactly one of the two"
+              + " selection modes must be provided. Organizations from other tenants or outside"
+              + " the caller's grants are silently skipped.")
   @DeleteMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
   // SUPPORTS (not REQUIRED): the deletion runs in small independent chunk transactions with
   // deadlock retry; a request-wide transaction would force everything back into one transaction.
