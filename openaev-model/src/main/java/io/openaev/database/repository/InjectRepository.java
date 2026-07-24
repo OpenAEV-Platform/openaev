@@ -4,6 +4,7 @@ import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
 import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 
 import io.openaev.database.model.Inject;
+import io.openaev.database.raw.RawExerciseInjectSummary;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.raw.RawInjectIndexing;
 import jakarta.validation.constraints.NotBlank;
@@ -376,6 +377,33 @@ public interface InjectRepository
               + "WHERE i.inject_id IN (:ids);",
       nativeQuery = true)
   List<RawInject> findRawByIds(@Param("ids") List<String> ids);
+
+  /**
+   * Returns aggregated inject metadata for an exercise in a single query: distinct platforms, total
+   * communications count, and distinct kill-chain phase IDs. Avoids loading all individual inject
+   * rows for exercises with thousands of injects.
+   */
+  @Query(
+      value =
+          "SELECT "
+              + "  COALESCE((SELECT array_agg(DISTINCT x) FROM ("
+              + "    SELECT unnest(injcon.injector_contract_platforms) AS x "
+              + "    FROM injects i "
+              + "    JOIN injectors_contracts injcon ON injcon.injector_contract_id = i.inject_injector_contract "
+              + "    WHERE i.inject_exercise = :exerciseId"
+              + "  ) sub), '{}') AS platforms, "
+              + "  (SELECT count(*) FROM communications "
+              + "    WHERE communication_inject IN ("
+              + "      SELECT inject_id FROM injects WHERE inject_exercise = :exerciseId"
+              + "  )) AS communications_number, "
+              + "  COALESCE((SELECT array_agg(DISTINCT apkcp.phase_id) "
+              + "    FROM injects i "
+              + "    JOIN injectors_contracts_attack_patterns icap ON icap.injector_contract_id = i.inject_injector_contract "
+              + "    JOIN attack_patterns_kill_chain_phases apkcp ON apkcp.attack_pattern_id = icap.attack_pattern_id "
+              + "    WHERE i.inject_exercise = :exerciseId"
+              + "  ), '{}') AS kill_chain_phase_ids",
+      nativeQuery = true)
+  RawExerciseInjectSummary findInjectSummaryByExerciseId(@Param("exerciseId") String exerciseId);
 
   @Query(
       value =

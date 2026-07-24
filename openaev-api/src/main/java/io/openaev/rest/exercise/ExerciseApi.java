@@ -595,9 +595,9 @@ public class ExerciseApi extends RestBehavior {
   public SimulationDetails exercise(@PathVariable String exerciseId) {
     // We get the raw exercise
     RawSimulationIndexing rawSimulation = exerciseService.rawSimulation(exerciseId);
-    // We get the injects linked to this exercise
-    List<RawInject> rawInjects =
-        injectRepository.findRawByIds(rawSimulation.getInject_ids().stream().distinct().toList());
+    // We get aggregated inject metadata (platforms, comms count, kill chain phases) in one query
+    RawExerciseInjectSummary injectSummary =
+        injectRepository.findInjectSummaryByExerciseId(exerciseId);
     // We get the tuple exercise/team/user
     List<RawExerciseTeamUser> listRawExerciseTeamUsers =
         exerciseTeamUserRepository.rawByExerciseIds(List.of(exerciseId));
@@ -617,10 +617,7 @@ public class ExerciseApi extends RestBehavior {
     List<KillChainPhase> killChainPhase =
         StreamSupport.stream(
                 killChainPhaseRepository
-                    .findAllById(
-                        rawInjects.stream()
-                            .flatMap(rawInject -> rawInject.getInject_kill_chain_phases().stream())
-                            .toList())
+                    .findAllById(injectSummary.getKill_chain_phase_ids())
                     .spliterator(),
                 false)
             .collect(Collectors.toList());
@@ -652,15 +649,8 @@ public class ExerciseApi extends RestBehavior {
 
     // We create an ExerciseDetails object and populate it
     SimulationDetails detail = fromRawExercise(rawSimulation, listExerciseTeamUsers, objectives);
-    detail.setPlatforms(
-        rawInjects.stream()
-            .flatMap(inject -> inject.getInject_platforms().stream())
-            .distinct()
-            .toList());
-    detail.setCommunicationsNumber(
-        rawInjects.stream()
-            .mapToLong(rawInject -> rawInject.getInject_communications().size())
-            .sum());
+    detail.setPlatforms(injectSummary.getPlatforms());
+    detail.setCommunicationsNumber(injectSummary.getCommunications_number());
     detail.setKillChainPhases(killChainPhase);
     if (rawGrants.get(Grant.GRANT_TYPE.OBSERVER.name()) != null) {
       detail.setObservers(

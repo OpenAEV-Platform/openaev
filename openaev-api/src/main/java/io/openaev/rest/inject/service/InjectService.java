@@ -1481,7 +1481,19 @@ public class InjectService {
    * @return the list of matching injects in Raw format
    */
   public List<RawInject> findRawByIds(List<String> ids) {
-    return injectRepository.findRawByIds(ids);
+    // The findRawByIds query uses the :ids parameter 8 times across CTEs.
+    // PostgreSQL limits PreparedStatements to 65,535 parameters, so we batch
+    // to keep under that limit: 65535 / 8 ≈ 8191, rounded down to 8000.
+    int batchSize = 8000;
+    if (ids == null || ids.size() <= batchSize) {
+      return injectRepository.findRawByIds(ids);
+    }
+    List<RawInject> results = new ArrayList<>();
+    for (int i = 0; i < ids.size(); i += batchSize) {
+      List<String> batch = ids.subList(i, Math.min(i + batchSize, ids.size()));
+      results.addAll(injectRepository.findRawByIds(batch));
+    }
+    return results;
   }
 
   /**
