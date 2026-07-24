@@ -888,10 +888,10 @@ public class InjectExecutionStep implements ActionStep {
       }
     }
 
-    Map<String, AttackPathExecutionIngestionService.ExecutionExpectationResults> expectationResults =
-        attackPathIngestion.getExpectationByEndpointIndex(inject, expectations);
+    Map<String, AttackPathExecutionIngestionService.ExecutionExpectationResults>
+        expectationResults =
+            attackPathIngestion.getExpectationByEndpointIndex(inject, expectations);
     attackPathIngestion.updateExpectationByExecutionIndex(inject, expectationResults);
-  
   }
 
   /**

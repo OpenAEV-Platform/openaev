@@ -18,7 +18,6 @@ import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.*;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -60,26 +59,28 @@ public class AttackPathExecutionIngestionService {
 
   public void updateTerminalView(Inject inject) {
 
-    Map<String, StringBuilder> executionTracesAttackPath = getExecutionTracesByEndpointIndex(inject);
+    Map<String, StringBuilder> executionTracesAttackPath =
+        getExecutionTracesByEndpointIndex(inject);
     tenantTx.executeNew(
         TxCtx.forTenant(inject.getTenant().getId()),
         () -> {
           for (String executionIndex : executionTracesAttackPath.keySet()) {
-          executionRepository.updateTerminalViewByExecutionIndex(
-              executionIndex,
-              executionTracesAttackPath.get(executionIndex).toString(), inject.getTenant().getId());
+            executionRepository.updateTerminalViewByExecutionIndex(
+                executionIndex,
+                executionTracesAttackPath.get(executionIndex).toString(),
+                inject.getTenant().getId());
           }
         });
   }
-  
+
   /**
    * Updates the prevention/detection/vulnerability status columns of the execution rows identified
    * by their index. For each list, selects the {@link InjectExpectationResult} whose {@code result}
    * label has the highest priority (success > partial > pending > failure) according to the
    * corresponding {@link ExpectationType} labels, then persists that label as the status value.
    */
-  public void updateExpectationByExecutionIndex(Inject inject,
-      Map<String, ExecutionExpectationResults> expectationResults) {
+  public void updateExpectationByExecutionIndex(
+      Inject inject, Map<String, ExecutionExpectationResults> expectationResults) {
     tenantTx.executeNew(
         TxCtx.forTenant(inject.getTenant().getId()),
         () ->
@@ -89,7 +90,8 @@ public class AttackPathExecutionIngestionService {
                       resolveHighestPriorityResult(
                           expectation.prevention(), ExpectationType.PREVENTION);
                   String detectionStatus =
-                      resolveHighestPriorityResult(expectation.detection(), ExpectationType.DETECTION);
+                      resolveHighestPriorityResult(
+                          expectation.detection(), ExpectationType.DETECTION);
                   String vulnerabilityStatus =
                       resolveHighestPriorityResult(
                           expectation.vulnerability(), ExpectationType.VULNERABILITY);
@@ -380,10 +382,10 @@ public class AttackPathExecutionIngestionService {
         target = inject.getContent().get("targets").asText().split(",")[0];
         return AttackPathIds.executionNode(inject.getId(), target, inject.getInjector().getId());
 
-      } else if (targetSelector.equals("asset") || targetSelector.equals("asset_group")) { // ASSET
+      } else if (targetSelector.equals("assets") || targetSelector.equals("asset_group")) { // ASSET
         if (inject.getAssets().isEmpty()) return null;
         target = inject.getAssets().getFirst().getId();
-        AttackPathIds.executionNode(inject.getId(), target, inject.getInjector().getId());
+        return AttackPathIds.executionNode(inject.getId(), target, inject.getInjector().getId());
       }
     }
     return null;
@@ -413,8 +415,8 @@ public class AttackPathExecutionIngestionService {
   private Map<String, StringBuilder> getExecutionTracesByEndpointIndex(Inject inject) {
     Map<String, StringBuilder> tracesByEndpointSource = new HashMap<>();
     if (inject.getStatus().isEmpty()) return tracesByEndpointSource;
-    if( inject.getInjectorContract().isEmpty()) return tracesByEndpointSource;
-    
+    if (inject.getInjectorContract().isEmpty()) return tracesByEndpointSource;
+
     InjectStatus status = inject.getStatus().get();
     List<ExecutionTrace> executionTraces = status.getTraces();
 
@@ -437,8 +439,7 @@ public class AttackPathExecutionIngestionService {
 
             TraceOutput parsed = parseTraceMessage(executionTrace.getMessage());
             // A trace with no timestamp must not render a literal "null" at the start of the line.
-            String prefix =
-                executionTrace.getTime() != null ? executionTrace.getTime() + " " : "";
+            String prefix = executionTrace.getTime() != null ? executionTrace.getTime() + " " : "";
             if (!parsed.stdout().isBlank()) {
               agentTraces.append(prefix).append(parsed.stdout()).append("\n");
             }
@@ -475,7 +476,8 @@ public class AttackPathExecutionIngestionService {
       List<InjectExpectationResult> vulnerability) {
 
     private static ExecutionExpectationResults empty() {
-      return new ExecutionExpectationResults(new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+      return new ExecutionExpectationResults(
+          new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
     }
   }
 
@@ -497,7 +499,8 @@ public class AttackPathExecutionIngestionService {
           }
 
           ExecutionExpectationResults groupedResults =
-              expectationByEndpointIndex.computeIfAbsent(index, k -> ExecutionExpectationResults.empty());
+              expectationByEndpointIndex.computeIfAbsent(
+                  index, k -> ExecutionExpectationResults.empty());
 
           if (expectation instanceof PreventionInjectExpectation) {
             groupedResults.prevention().addAll(expectation.getResults());

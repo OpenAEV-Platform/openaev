@@ -29,7 +29,6 @@ import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import java.util.Map;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -221,8 +220,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName(
-      "given_mixedExpectationResults_should_updateExecutionWithHighestPriorityLabels")
+  @DisplayName("given_mixedExpectationResults_should_updateExecutionWithHighestPriorityLabels")
   void given_mixedExpectationResults_should_updateExecutionWithHighestPriorityLabels() {
     // Arrange
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-expectation-priority"));
@@ -233,20 +231,21 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     Inject inject = new Inject();
     inject.setTenant(tenant);
 
-    Map<String, AttackPathExecutionIngestionService.ExecutionExpectationResults> expectationResults =
-        Map.of(
-            executionId,
-            new AttackPathExecutionIngestionService.ExecutionExpectationResults(
-                List.of(
-                    expectationResult("Not Prevented"),
-                    expectationResult("Pending"),
-                    expectationResult("Partially Prevented"),
-                    expectationResult("Prevented")),
-                List.of(
-                    expectationResult("Not Detected"),
-                    expectationResult("Pending"),
-                    expectationResult("Partially Detected")),
-                List.of(expectationResult("Vulnerable"), expectationResult("Pending"))));
+    Map<String, AttackPathExecutionIngestionService.ExecutionExpectationResults>
+        expectationResults =
+            Map.of(
+                executionId,
+                new AttackPathExecutionIngestionService.ExecutionExpectationResults(
+                    List.of(
+                        expectationResult("Not Prevented"),
+                        expectationResult("Pending"),
+                        expectationResult("Partially Prevented"),
+                        expectationResult("Prevented")),
+                    List.of(
+                        expectationResult("Not Detected"),
+                        expectationResult("Pending"),
+                        expectationResult("Partially Detected")),
+                    List.of(expectationResult("Vulnerable"), expectationResult("Pending"))));
 
     // Act
     ingestionService.updateExpectationByExecutionIndex(inject, expectationResults);

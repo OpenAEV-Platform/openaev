@@ -31,10 +31,10 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Transactional
   @Query(
       "UPDATE AttackPathExecution e "
-      + "SET e.preventionStatus = :preventionStatus "
-      + ", e.detectionStatus = :detectionStatus "
-      + ", e.vulnerabilityStatus = :vulnerabilityStatus "
-      + "WHERE e.id =:id AND e.tenant.id = :tenantId")
+          + "SET e.preventionStatus = :preventionStatus "
+          + ", e.detectionStatus = :detectionStatus "
+          + ", e.vulnerabilityStatus = :vulnerabilityStatus "
+          + "WHERE e.id =:id AND e.tenant.id = :tenantId")
   int updateExpectationStatusByExecutionId(
       @Param("id") String id,
       @Param("preventionStatus") String preventionStatus,
