@@ -1,12 +1,7 @@
-import { Paper, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { fetchTargetResultAssetWithAgents } from '../../../../../actions/atomic_testings/atomic-testing-actions';
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
-import ExpandableSection from '../../../../../components/common/ExpandableSection';
-import { useFormatter } from '../../../../../components/i18n';
-import ItemStatus from '../../../../../components/ItemStatus';
 import Loader from '../../../../../components/Loader';
 import { useHelper } from '../../../../../store';
 import type {
@@ -16,20 +11,18 @@ import type {
 } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
-import { computeInjectExpectationLabel } from '../../../../../utils/statusUtils';
 import type { InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
-import InjectExpectationResultList from './InjectExpectationResultList';
+import InjectExpectationResultList, { type AgentResultBreakdownEntry } from './InjectExpectationResultList';
 
 interface Props {
   inject: InjectResultOverviewOutput;
+  injectExpectation: InjectExpectationsStore;
   expectationType: string;
   target: InjectTarget;
 }
 
-const InjectExpectationAggregatedAgentsView = ({ inject, expectationType, target }: Props) => {
+const InjectExpectationAggregatedAgentsView = ({ inject, injectExpectation, expectationType, target }: Props) => {
   const dispatch = useAppDispatch();
-  const { t } = useFormatter();
-  const theme = useTheme();
   const [loading, setLoading] = useState(false);
 
   useDataLoader(() => {
@@ -40,61 +33,46 @@ const InjectExpectationAggregatedAgentsView = ({ inject, expectationType, target
   const { injectExpectationsWithAgents } = useHelper((helper: InjectHelper) =>
     ({ injectExpectationsWithAgents: helper.getInjectExpectationsByAssetAndInject(target.target_id, inject.inject_id, expectationType) }));
 
+  // Roll the per-agent results up per security-platform source so the aggregated
+  // endpoint row can surface the per-agent breakdown in an "i" tooltip instead of
+  // rendering a heavy expandable table for every agent of the endpoint.
+  const agentBreakdownBySource = useMemo(() => {
+    const map: Record<string, AgentResultBreakdownEntry[]> = {};
+    (injectExpectationsWithAgents ?? []).forEach((agentExpectation: InjectExpectationAgentOutput) => {
+      if (!agentExpectation.inject_expectation_agent) return;
+      const agentName = agentExpectation.inject_expectation_agent_name ?? '-';
+      (agentExpectation.inject_expectation_results ?? []).forEach((result) => {
+        const key = result.sourceId ?? result.sourceName ?? '';
+        if (!key) return;
+        (map[key] ??= []).push({
+          agentName,
+          result: result.result,
+          score: result.score,
+          date: result.date,
+        });
+      });
+    });
+    return map;
+  }, [injectExpectationsWithAgents]);
+
   if (loading) {
     return <Loader variant="inElement" />;
   }
 
+  const results = injectExpectation.inject_expectation_results ?? [];
+  if (results.length === 0) {
+    return null;
+  }
+
   return (
-    <>
-      {!loading && injectExpectationsWithAgents && injectExpectationsWithAgents.length > 0 && (
-        <>
-          {injectExpectationsWithAgents.map((injectExpectationAgent: InjectExpectationAgentOutput) => {
-            const statusResult = computeInjectExpectationLabel(injectExpectationAgent.inject_expectation_status, injectExpectationAgent.inject_expectation_type);
-            const header = (
-              <>
-                <Typography gutterBottom sx={{ mr: theme.spacing(1.5) }}>
-                  {injectExpectationAgent.inject_expectation_agent_name}
-                </Typography>
-                <ItemStatus label={t(`${statusResult}`)} status={injectExpectationAgent.inject_expectation_status} />
-              </>
-            );
-            // DETECTION / PREVENTION expectations stay PENDING until they expire, even after a
-            // collector (e.g. Microsoft Defender) has already reported a result. Rendering only
-            // non-pending agents therefore dropped the security-platform breakdown that the
-            // per-agent view shows. Show the agent block as soon as it has results too, so the
-            // endpoints view stays consistent with the agents view (gated on results, not status).
-            const hasResults = (injectExpectationAgent.inject_expectation_results?.length ?? 0) > 0;
-            return injectExpectationAgent?.inject_expectation_agent
-              && (injectExpectationAgent?.inject_expectation_status !== 'PENDING' || hasResults)
-              && (
-                <Paper
-                  variant="outlined"
-                  style={{
-                    padding: theme.spacing(2, 0),
-                    margin: theme.spacing(2, 0),
-                  }}
-                >
-                  <ExpandableSection
-                    forceExpanded
-                    header={header}
-                    key={injectExpectationAgent.inject_expectation_id}
-                  >
-                    <div style={{ margin: theme.spacing(0, 2) }}>
-                      <InjectExpectationResultList
-                        injectExpectation={injectExpectationAgent as InjectExpectationsStore}
-                        injectExpectationResults={injectExpectationAgent.inject_expectation_results ?? []}
-                        injectExpectationAgent={injectExpectationAgent.inject_expectation_agent}
-                        injectorContractPayload={inject.inject_injector_contract?.injector_contract_payload}
-                        injectType={inject.inject_type}
-                      />
-                    </div>
-                  </ExpandableSection>
-                </Paper>
-              );
-          })}
-        </>
-      )}
-    </>
+    <InjectExpectationResultList
+      injectExpectation={injectExpectation}
+      injectExpectationResults={results}
+      injectExpectationAgent={undefined}
+      injectorContractPayload={inject.inject_injector_contract?.injector_contract_payload}
+      injectType={inject.inject_type}
+      agentBreakdownBySource={agentBreakdownBySource}
+    />
   );
 };
 

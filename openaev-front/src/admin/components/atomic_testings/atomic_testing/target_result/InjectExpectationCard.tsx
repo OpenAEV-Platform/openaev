@@ -241,27 +241,19 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
 
       {
         // If endpoint with agents, show the aggregated security-platform results of the endpoint
-        // (union of the agents' results, answered results preferred) followed by the per-agent
-        // breakdown. Else show the injects expectations for the selected target (agents,
-        // endpoints agentless,...)
+        // (union of the agents' results, answered results preferred); the per-agent detail is
+        // surfaced in a per-line "i" tooltip rather than a heavy expandable table. Else show the
+        // injects expectations for the selected target (agents, endpoints agentless,...)
         (isAssets(target) && !isAgentless) ? (
-          <>
-            {['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type)
-              && (injectExpectation.inject_expectation_results?.length ?? 0) > 0 && (
-              <InjectExpectationResultList
-                injectExpectation={injectExpectation}
-                injectExpectationResults={injectExpectation.inject_expectation_results ?? []}
-                injectExpectationAgent={undefined}
-                injectorContractPayload={inject.inject_injector_contract?.injector_contract_payload}
-                injectType={inject.inject_type}
-              />
-            )}
+          ['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type)
+          && (injectExpectation.inject_expectation_results?.length ?? 0) > 0 && (
             <InjectExpectationAggregatedAgentsView
               inject={inject}
+              injectExpectation={injectExpectation}
               expectationType={injectExpectation.inject_expectation_type}
               target={target}
             />
-          </>
+          )
         ) : (
           (!isAssetGroupExpectation(injectExpectation) && ['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type) && (injectExpectation.inject_expectation_results?.length ?? 0) > 0)
           && (

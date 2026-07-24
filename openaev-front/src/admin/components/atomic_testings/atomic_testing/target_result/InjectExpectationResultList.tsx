@@ -1,9 +1,11 @@
-import { Box, Chip, Typography } from '@mui/material';
+import { InfoOutlined } from '@mui/icons-material';
+import { Box, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Fragment, useContext } from 'react';
 
 import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import { useFormatter } from '../../../../../components/i18n';
+import ItemSecurityPlatformType from '../../../../../components/ItemSecurityPlatformType';
 import {
   type Inject,
   type InjectExpectationOutput,
@@ -18,24 +20,15 @@ import InjectExpectationContext from '../context/InjectExpectationContext';
 import StatusPill from './StatusPill';
 import TargetResultAlertNumber from './TargetResultAlertNumber';
 
-// Stable accent per security-platform category (kept in sync with the exposure
-// console orbit colors), so each platform type reads as a distinct chip.
-const PLATFORM_TYPE_COLORS: Record<string, string> = {
-  EDR: '#0fbcff',
-  XDR: '#00bcd4',
-  SIEM: '#ffb300',
-  SOAR: '#9575cd',
-  NDR: '#26a96c',
-  ISPM: '#ff7043',
-  LLM_FIREWALL: '#00f1bd',
-  AI_GATEWAY: '#7e57c2',
-};
-
-// "LLM_FIREWALL" -> "LLM firewall": first token upper (acronym), rest lower.
-const humanizePlatformType = (type: string): string => type
-  .split('_')
-  .map((word, index) => (index === 0 ? word : word.toLowerCase()))
-  .join(' ');
+// One agent's contribution to an aggregated (endpoint-level) security-platform
+// result. Surfaced in the per-line "i" tooltip so the endpoint view keeps the
+// per-agent detail without the heavy expandable per-agent tables.
+export interface AgentResultBreakdownEntry {
+  agentName: string;
+  result: string;
+  score?: number;
+  date?: string;
+}
 
 interface Props {
   injectExpectation: InjectExpectationsStore;
@@ -43,6 +36,9 @@ interface Props {
   injectExpectationAgent: InjectExpectationOutput['inject_expectation_agent'];
   injectorContractPayload?: PayloadSimple;
   injectType: Inject['inject_type'];
+  // When set (endpoint aggregation), each source id/name maps to the per-agent
+  // results that rolled up into the aggregated row, shown in an "i" tooltip.
+  agentBreakdownBySource?: Record<string, AgentResultBreakdownEntry[]>;
 }
 
 const GRID_TEMPLATE_COLUMNS = 'minmax(180px, 2fr) 150px 140px 160px 80px 40px';
@@ -53,9 +49,72 @@ const InjectExpectationResultList = ({
   injectExpectationAgent,
   injectorContractPayload,
   injectType,
+  agentBreakdownBySource,
 }: Props) => {
   const { nsdt, t } = useFormatter();
   const theme = useTheme();
+
+  const renderBreakdownTooltip = (entries: AgentResultBreakdownEntry[]) => (
+    <Box sx={{
+      paddingBlock: 0.5,
+      minWidth: 220,
+    }}
+    >
+      <Typography sx={{
+        fontSize: 11,
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+        color: 'text.secondary',
+        fontFamily: theme.typography.h1.fontFamily,
+        marginBottom: 0.5,
+      }}
+      >
+        {t('Per-agent results')}
+      </Typography>
+      {entries.map((entry, entryIndex) => (
+        <Box
+          key={`${entry.agentName}-${entryIndex}`}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1.5,
+            paddingBlock: 0.5,
+            ...(entryIndex > 0 && { borderTop: `1px solid ${alpha(theme.palette.common.white, 0.12)}` }),
+          }}
+        >
+          <Typography sx={{
+            fontSize: 12,
+            minWidth: 0,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+          >
+            {entry.agentName}
+          </Typography>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing(1),
+            flexShrink: 0,
+          }}
+          >
+            <StatusPill label={t(entry.result)} status={entry.result} />
+            <Typography sx={{
+              fontSize: 11,
+              color: 'text.secondary',
+              fontVariantNumeric: 'tabular-nums',
+              whiteSpace: 'nowrap',
+            }}
+            >
+              {entry.date ? nsdt(entry.date) : '-'}
+            </Typography>
+          </div>
+        </Box>
+      ))}
+    </Box>
+  );
 
   const { onOpenDeleteInjectExpectationResult, onOpenEditInjectExpectationResultResult, onOpenSecurityPlatform } = useContext(InjectExpectationContext);
 
@@ -149,10 +208,9 @@ const InjectExpectationResultList = ({
           };
 
           const sourceName = expectationResult.sourceName?.trim() || '-';
+          const breakdownKey = expectationResult.sourceId ?? expectationResult.sourceName ?? '';
+          const agentBreakdown = breakdownKey ? agentBreakdownBySource?.[breakdownKey] : undefined;
           const platformType = expectationResult.sourcePlatform?.trim();
-          const typeColor = platformType
-            ? (PLATFORM_TYPE_COLORS[platformType.toUpperCase()] ?? theme.palette.primary.main)
-            : theme.palette.primary.main;
 
           return (
             <Fragment key={`${expectationResult.sourceName}-${index}`}>
@@ -199,26 +257,25 @@ const InjectExpectationResultList = ({
                   >
                     {sourceName}
                   </Typography>
+                  {agentBreakdown && agentBreakdown.length > 0 && (
+                    <Tooltip title={renderBreakdownTooltip(agentBreakdown)} arrow>
+                      <InfoOutlined
+                        sx={{
+                          'fontSize': 15,
+                          'flexShrink': 0,
+                          'color': 'text.secondary',
+                          'cursor': 'help',
+                          '&:hover': { color: 'text.primary' },
+                        }}
+                        onClick={e => e.stopPropagation()}
+                      />
+                    </Tooltip>
+                  )}
                 </div>
               </Box>
               <Box sx={cellSx} onClick={handleRowClick}>
                 {platformType
-                  ? (
-                      <Chip
-                        label={humanizePlatformType(platformType)}
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                          height: 22,
-                          fontSize: 11,
-                          fontWeight: 600,
-                          borderRadius: 1,
-                          color: typeColor,
-                          borderColor: alpha(typeColor, 0.4),
-                          backgroundColor: alpha(typeColor, 0.08),
-                        }}
-                      />
-                    )
+                  ? <ItemSecurityPlatformType type={platformType} />
                   : (
                       <Typography sx={{
                         fontSize: 13,

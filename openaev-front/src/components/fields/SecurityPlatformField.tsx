@@ -8,6 +8,7 @@ import { type SecurityPlatformHelper } from '../../actions/assets/asset-helper';
 import { useHelper } from '../../store';
 import { type SecurityPlatform } from '../../utils/api-types';
 import { buildTenantApiPath } from '../../utils/url-helper';
+import { securityPlatformTypeLabel } from '../securityPlatformType';
 
 const useStyles = makeStyles()(() => ({
   icon: {
@@ -77,7 +78,7 @@ const SecurityPlatformField: FunctionComponent<Props> = ({
         clearOnBlur={false}
         clearOnEscape={false}
         options={securityPlatformsOptions}
-        getOptionLabel={option => option ? `${option.label} (${option.type})` : ''}
+        getOptionLabel={option => option ? `${option.label} (${securityPlatformTypeLabel(option.type)})` : ''}
         disabled={editing}
         onChange={(_, value) => {
           fieldOnChange(value?.id ?? '');
@@ -97,7 +98,7 @@ const SecurityPlatformField: FunctionComponent<Props> = ({
                 />
               </div>
               <div className={classes.text}>
-                {`${option.label} (${option.type})`}
+                {`${option.label} (${securityPlatformTypeLabel(option.type)})`}
               </div>
             </Box>
           );

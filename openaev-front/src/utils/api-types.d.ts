@@ -5150,6 +5150,19 @@ export interface InjectExpectationOutput {
   inject_expectation_created_at?: string;
   /** Description of the inject expectation */
   inject_expectation_description?: string;
+  /**
+   * Security platform types expected to fulfil this technical expectation. Empty means any security platform.
+   */
+  inject_expectation_expected_security_platforms?: (
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY"
+  )[];
   /** Exercise ID associated with the inject expectation */
   inject_expectation_exercise?: string;
   /**
