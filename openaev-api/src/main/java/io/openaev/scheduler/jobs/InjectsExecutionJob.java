@@ -29,7 +29,6 @@ import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ExecutionTraceUtils;
-import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -49,7 +48,6 @@ import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.env.Environment;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.EvaluationException;
 import org.springframework.expression.Expression;
@@ -65,7 +63,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class InjectsExecutionJob implements Job {
 
-  public static final String DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES = "10";
+  public static final int DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES = 10;
 
   // Thread-safe and expensive to instantiate; never recreate per dependency evaluation
   private static final ExpressionParser SPEL_PARSER = new SpelExpressionParser();
@@ -73,8 +71,9 @@ public class InjectsExecutionJob implements Job {
   @Value("${openaev.notification.simulation-completed-delay-seconds:3600}")
   private long delayForSimulationCompletedEvent;
 
-  private final Environment env;
-  private int injectExecutionThreshold;
+  @Value(
+      "${inject.execution.threshold.minutes:" + DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES + "}")
+  private Integer injectExecutionThreshold;
 
   private final InjectHelper injectHelper;
   private final InjectService injectService;
@@ -102,15 +101,6 @@ public class InjectsExecutionJob implements Job {
 
   private final WorkflowService workflowService;
   private final HealthCheckUtils healthCheckUtils;
-
-  @PostConstruct
-  private void init() {
-    String threshold = env.getProperty("inject.execution.threshold.minutes");
-    if (threshold == null || threshold.isBlank()) {
-      threshold = DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES;
-    }
-    this.injectExecutionThreshold = Integer.parseInt(threshold);
-  }
 
   public void handleAutoStartExercises() {
     // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant

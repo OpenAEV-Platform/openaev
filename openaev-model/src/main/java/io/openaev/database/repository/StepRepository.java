@@ -105,7 +105,7 @@ public interface StepRepository extends JpaRepository<Step, String> {
   List<Step> findAllByStepTemplateIdAndWorkflowId(String stepTemplateId, String idWorkflowRun);
 
   /**
-   * Return the stepId associated to a given injectId if it exists
+   * Return the stepId associated to a given injectId if it exists.
    *
    * @param injectId the injectId for which we want the associated step
    * @return An optional filled with the stepId if found
