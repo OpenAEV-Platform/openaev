@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
@@ -17,7 +18,20 @@ public class Filters {
 
   public enum FilterMode {
     and,
-    or
+    or;
+
+    @JsonCreator
+    public static FilterMode fromValue(String value) {
+      if (value == null) {
+        return and;
+      }
+      for (FilterMode mode : FilterMode.values()) {
+        if (mode.name().equalsIgnoreCase(value)) {
+          return mode;
+        }
+      }
+      return and;
+    }
   }
 
   public enum FilterOperator {
@@ -32,7 +46,20 @@ public class Filters {
     lt,
     lte,
     empty,
-    not_empty,
+    not_empty;
+
+    @JsonCreator
+    public static FilterOperator fromValue(String value) {
+      if (value == null) {
+        return eq;
+      }
+      for (FilterOperator operator : FilterOperator.values()) {
+        if (operator.name().equalsIgnoreCase(value)) {
+          return operator;
+        }
+      }
+      return eq;
+    }
   }
 
   @Data

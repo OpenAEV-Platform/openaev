@@ -6,6 +6,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import io.openaev.aop.audit_log.AuditLogFailureException;
 import io.openaev.aop.lock.LockAcquisitionException;
@@ -29,6 +30,7 @@ import org.springdoc.api.ErrorMessage;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -56,6 +58,26 @@ public class RestBehavior {
   }
 
   // -- 400 BAD_REQUEST --
+
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<ErrorMessage> handleHttpMessageNotReadable(
+      HttpMessageNotReadableException ex) {
+    String detail;
+    if (ex.getCause() instanceof InvalidFormatException ife) {
+      String path =
+          ife.getPath().stream()
+              .map(
+                  ref ->
+                      ref.getFieldName() != null ? ref.getFieldName() : "[" + ref.getIndex() + "]")
+              .collect(Collectors.joining("."));
+      detail = "Invalid value '%s' for field '%s'".formatted(ife.getValue(), path);
+    } else {
+      detail = "Malformed or unreadable request body";
+    }
+    log.warn("HttpMessageNotReadableException: {}", detail);
+    return new ResponseEntity<>(new ErrorMessage(detail), HttpStatus.BAD_REQUEST);
+  }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   @ExceptionHandler(MethodArgumentNotValidException.class)

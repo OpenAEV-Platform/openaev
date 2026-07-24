@@ -304,6 +304,9 @@ public class EndpointService implements AuditLoggedService {
   }
 
   public Page<Endpoint> searchManagedEndpoints(SearchPaginationInput searchPaginationInput) {
+    if (searchPaginationInput.getFilterGroup() == null) {
+      throw new IllegalArgumentException("filterGroup must not be null");
+    }
     Specification<Endpoint> finalSpec =
         buildAdditionalEndpointSpecifications(searchPaginationInput);
     Filters.FilterMode mode = searchPaginationInput.getFilterGroup().getMode();
