@@ -12,6 +12,23 @@ export const EXPECTATIONS_CONTENT_KEY = 'expectations';
  */
 const AUTO_LINK_BY_FIELD_TYPE: Partial<Record<ContractType, string>> = { 'targeted-asset': 'targeted-asset' };
 
+const resolveDefaultOutputType = (
+  field: ContractElement,
+  argumentWithDefaultValueTypes: Set<string>,
+): string | undefined => {
+  const strictAutoType = AUTO_LINK_BY_FIELD_TYPE[field.type];
+  if (strictAutoType) {
+    return strictAutoType;
+  }
+  if (argumentWithDefaultValueTypes.has(field.type)) {
+    return field.type;
+  }
+  if (argumentWithDefaultValueTypes.has(field.key)) {
+    return field.key;
+  }
+  return undefined;
+};
+
 /**
  * Returns an updated fieldLinks record with auto-links applied for fields whose type
  * has a known primitive type mapping. Existing links are never overwritten.
@@ -19,11 +36,12 @@ const AUTO_LINK_BY_FIELD_TYPE: Partial<Record<ContractType, string>> = { 'target
 export const applyAutoLinks = (
   contractFields: ContractElement[],
   existingLinks: Record<string, FieldLink>,
+  argumentWithDefaultValueTypes: Set<string>,
 ): Record<string, FieldLink> => {
   const updates: Record<string, FieldLink> = {};
   for (const field of contractFields) {
     if (existingLinks[field.key]) continue;
-    const outputType = AUTO_LINK_BY_FIELD_TYPE[field.type];
+    const outputType = resolveDefaultOutputType(field, argumentWithDefaultValueTypes);
     if (outputType) {
       updates[field.key] = {
         outputTypes: [outputType],

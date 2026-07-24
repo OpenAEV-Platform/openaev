@@ -62,13 +62,15 @@ public class AttackPathKillChainResolver {
     if (condition == null) {
       return;
     }
-    if (condition.getKeyType() != null) {
-      out.add(
-          new ConsumedFindingKeyDTO(
-              condition.getKeyType().label,
-              condition.getType() != null ? condition.getType().name() : null,
-              condition.getValue(),
-              eventName));
+    if (condition.getKeyTypes() != null && !condition.getKeyTypes().isEmpty()) {
+      for (var keyType : condition.getKeyTypes()) {
+        out.add(
+            new ConsumedFindingKeyDTO(
+                keyType.label,
+                condition.getType() != null ? condition.getType().name() : null,
+                condition.getValue(),
+                eventName));
+      }
     }
     if (condition.getConditionChildren() != null) {
       for (Condition child : condition.getConditionChildren()) {

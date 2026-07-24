@@ -25,6 +25,8 @@ public class V6_20260724130000000__Add_condition_key_types_jsonb extends BaseJav
           """);
       statement.addBatch(
           "CREATE INDEX IF NOT EXISTS idx_conditions_key_types_gin ON conditions USING GIN (condition_key_types);");
+      statement.addBatch("DROP INDEX IF EXISTS idx_conditions_key_type;");
+      statement.addBatch("ALTER TABLE conditions DROP COLUMN IF EXISTS condition_key_type;");
       statement.executeBatch();
     }
   }

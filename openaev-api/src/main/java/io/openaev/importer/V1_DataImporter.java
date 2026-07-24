@@ -2109,12 +2109,6 @@ public class V1_DataImporter implements Importer {
                     condNode.has("condition_key") && !condNode.get("condition_key").isNull()
                         ? condNode.get("condition_key").asText()
                         : null)
-                .keyType(
-                    condNode.has("condition_key_type")
-                            && !condNode.get("condition_key_type").isNull()
-                        ? mapper.convertValue(
-                            condNode.get("condition_key_type").asText(), PrimitiveType.class)
-                        : null)
                 .keyTypes(
                     condNode.has("condition_key_types")
                             && condNode.get("condition_key_types").isArray()
@@ -2124,13 +2118,7 @@ public class V1_DataImporter implements Importer {
                             .filter(node -> !node.isNull())
                             .map(node -> mapper.convertValue(node.asText(), PrimitiveType.class))
                             .toList()
-                        : condNode.has("condition_key_type")
-                                && !condNode.get("condition_key_type").isNull()
-                            ? List.of(
-                                mapper.convertValue(
-                                    condNode.get("condition_key_type").asText(),
-                                    PrimitiveType.class))
-                            : null)
+                        : null)
                 .type(conditionType)
                 .mappingType(
                     condNode.has("condition_mapping_type")

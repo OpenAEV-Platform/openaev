@@ -17,9 +17,6 @@ public class MapperConditionOutput {
   @JsonProperty("condition_key_types")
   private List<PrimitiveType> conditionKeyTypes;
 
-  @JsonProperty("condition_key_type")
-  private PrimitiveType conditionKeyType;
-
   @JsonProperty("condition_key")
   private String conditionKey;
 

@@ -252,7 +252,6 @@ public class ConditionService {
     root.setWorkflowId(input.getWorkflowId());
     root.setType(rootInput.getType());
     root.setKeyTypes(resolveInputKeyTypes(rootInput));
-    root.setKeyType(resolveFirstInputKeyType(rootInput));
     root.setMappingType(resolveMappingType(rootInput));
 
     if (root.getConditionChildren() != null) {
@@ -621,10 +620,10 @@ public class ConditionService {
     for (Condition filterCondition : filterConditions) {
       if (!isFilterTreeSatisfied(filterCondition, contextSupplier)) {
         log.info(
-            "[Chaining] Filter tree NOT satisfied: rootId={}, rootType={}, rootKeyType={}, childrenCount={}",
+            "[Chaining] Filter tree NOT satisfied: rootId={}, rootType={}, rootKeyTypes={}, childrenCount={}",
             filterCondition.getId(),
             filterCondition.getType(),
-            filterCondition.getKeyType(),
+            filterCondition.getKeyTypes(),
             filterCondition.getConditionChildren() != null
                 ? filterCondition.getConditionChildren().size()
                 : 0);
@@ -687,9 +686,9 @@ public class ConditionService {
             .anyMatch(val -> conditionUtils.evaluateLeafCondition(val, condition));
     if (!result) {
       log.info(
-          "[Chaining] Filter leaf NOT satisfied: type={}, keyType={}, conditionValue={}, resolvedValues={}",
+          "[Chaining] Filter leaf NOT satisfied: type={}, keyTypes={}, conditionValue={}, resolvedValues={}",
           condition.getType(),
-          condition.getKeyType(),
+          condition.getKeyTypes(),
           condition.getValue(),
           valuesToCheck);
     }
@@ -1228,7 +1227,6 @@ public class ConditionService {
     resolved.setType(ConditionType.MAPPER);
     resolved.setKey(template.getKey());
     resolved.setKeyTypes(template.getKeyTypes());
-    resolved.setKeyType(template.getKeyType());
     resolved.setMappingType(template.getMappingType());
     resolved.setDescription(template.getDescription());
     resolved.setName(template.getName());
@@ -1258,9 +1256,6 @@ public class ConditionService {
           .distinct()
           .toList();
     }
-    if (mapper.getKeyType() != null) {
-      return List.of(mapper.getKeyType().name());
-    }
     return List.of();
   }
 
@@ -1268,17 +1263,7 @@ public class ConditionService {
     if (input.getKeyTypes() != null && !input.getKeyTypes().isEmpty()) {
       return input.getKeyTypes().stream().filter(Objects::nonNull).distinct().toList();
     }
-    if (input.getKeyType() != null) {
-      return List.of(input.getKeyType());
-    }
     return null;
-  }
-
-  private PrimitiveType resolveFirstInputKeyType(ConditionCreateInput input) {
-    if (input.getKeyTypes() != null && !input.getKeyTypes().isEmpty()) {
-      return input.getKeyTypes().getFirst();
-    }
-    return input.getKeyType();
   }
 
   private List<String> resolveConditionKeyNames(Condition condition) {
@@ -1287,9 +1272,6 @@ public class ConditionService {
           .filter(Objects::nonNull)
           .map(PrimitiveType::name)
           .toList();
-    }
-    if (condition.getKeyType() != null) {
-      return List.of(condition.getKeyType().name());
     }
     if (condition.getKey() != null) {
       return List.of(condition.getKey());

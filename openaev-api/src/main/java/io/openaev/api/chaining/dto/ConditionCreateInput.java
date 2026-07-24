@@ -34,11 +34,6 @@ public class ConditionCreateInput {
   @JsonProperty("condition_key_types")
   private List<PrimitiveType> keyTypes;
 
-  /** Legacy scalar condition key type. */
-  @Schema(description = "Legacy path to the value in the output of the step from")
-  @JsonProperty("condition_key_type")
-  private PrimitiveType keyType;
-
   /** Condition value: Value to be compared */
   @Schema(description = "Value to be compared")
   @JsonProperty("condition_value")

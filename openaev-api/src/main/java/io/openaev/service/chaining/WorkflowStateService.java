@@ -275,9 +275,6 @@ public class WorkflowStateService {
     if (condition.getKeyTypes() != null && !condition.getKeyTypes().isEmpty()) {
       return condition.getKeyTypes().stream().map(PrimitiveType::name).collect(Collectors.toSet());
     }
-    if (condition.getKeyType() != null) {
-      return Set.of(condition.getKeyType().name());
-    }
     return Set.of();
   }
 

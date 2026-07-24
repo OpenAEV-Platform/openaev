@@ -18,7 +18,6 @@ import type { ActionMeta, EventMeta } from './types';
 
 export interface MapperConditionRow {
   condition_key_types?: string[];
-  condition_key_type?: string;
   condition_key_subtype?: string;
   condition_key: string;
   condition_value?: string;
@@ -94,8 +93,7 @@ export const buildActionMetas = (steps: StepOutput[]): Record<string, ActionMeta
         step_conditions: (s.step_mapper_conditions ?? []).map(mc => ({
           condition_key_types: mc.condition_key_types && mc.condition_key_types.length > 0
             ? mc.condition_key_types
-            : [mc.condition_key_type ?? 'text'],
-          condition_key_type: mc.condition_key_type ?? mc.condition_key_types?.[0] ?? 'text',
+            : ['text'],
           condition_key: mc.condition_key ?? '',
           condition_value: mc.condition_value,
           condition_mapping_type: mc.condition_mapping_type ?? 'GLOBAL',
@@ -186,10 +184,9 @@ const reconstructConditionGroups = (
       if (isLogical) {
         subGroups.push(buildGroup(child));
       } else {
-        const keyType = child.condition_key_types?.[0] ?? child.condition_key_type;
         conditions.push({
           id: child.condition_id ?? generateId(),
-          field: (keyType as ConditionKeyType) ?? 'text',
+          field: (child.condition_key_types?.[0] as ConditionKeyType) ?? 'text',
           operator: (child.condition_type as ComparisonOperator) ?? 'IN',
           value: child.condition_value ?? '',
           caseSensitive: child.condition_case_sensitive !== false,
@@ -241,10 +238,8 @@ const reconstructConditionGroups = (
       id: rootId,
       operator: (rootNode.condition_type as LogicalOperator) ?? 'AND',
       conditions: topConditions.map(c => ({
-        // Event leaves are single-select in UI; we read the first key type from the list payload.
-        // Fallback to legacy scalar key type for backward compatibility.
         id: c.condition_id ?? generateId(),
-        field: ((c.condition_key_types?.[0] ?? c.condition_key_type) as ConditionKeyType) ?? 'text',
+        field: (c.condition_key_types?.[0] as ConditionKeyType) ?? 'text',
         operator: (c.condition_type as ComparisonOperator) ?? 'IN',
         value: c.condition_value ?? '',
         caseSensitive: c.condition_case_sensitive !== false,

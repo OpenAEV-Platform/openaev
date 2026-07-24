@@ -111,7 +111,7 @@ const ChainingFlowConfiguration = ({
         if (cond.condition_key) {
           const outputTypes = cond.condition_key_types && cond.condition_key_types.length > 0
             ? cond.condition_key_types
-            : [cond.condition_key_type ?? 'text'];
+            : ['text'];
           links[cond.condition_key] = {
             outputTypes,
             localScope: cond.condition_mapping_type === 'LOCAL',

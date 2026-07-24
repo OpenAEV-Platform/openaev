@@ -112,7 +112,7 @@ const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEvent
       condition_key_types: (
         c.condition_key_types && c.condition_key_types.length > 0
           ? c.condition_key_types
-          : [c.condition_key_type ?? 'text']
+          : ['text']
       ) as ConditionCreateInput['condition_key_types'],
       condition_key: c.condition_key,
       condition_value: c.condition_value,

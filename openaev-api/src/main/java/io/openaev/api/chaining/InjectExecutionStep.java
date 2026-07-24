@@ -555,7 +555,11 @@ public class InjectExecutionStep implements ActionStep {
 
         Map<String, Object> input = new HashMap<>();
         input.put("key", condition.getKey());
-        input.put("keyType", condition.getKeyType() != null ? condition.getKeyType().name() : null);
+        input.put(
+            "keyTypes",
+            condition.getKeyTypes() != null
+                ? condition.getKeyTypes().stream().map(Enum::name).toList()
+                : List.of());
         input.put("path", condition.getValue());
         input.put("mappingType", condition.getMappingType());
         input.put("id_step_from", condition.getStepFrom());
@@ -1067,7 +1071,7 @@ public class InjectExecutionStep implements ActionStep {
     List<String> keyTypes =
         mapping.getKeyTypes() != null && !mapping.getKeyTypes().isEmpty()
             ? mapping.getKeyTypes().stream().map(Enum::name).toList()
-            : mapping.getKeyType() != null ? List.of(mapping.getKeyType().name()) : List.of();
+            : List.of();
     if (keyTypes.isEmpty()) {
       log.warn(
           "[Chaining] Skipping mapper condition {} because keyTypes are empty", mapping.getId());

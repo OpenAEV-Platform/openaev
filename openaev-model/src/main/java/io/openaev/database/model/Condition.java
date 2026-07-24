@@ -50,12 +50,6 @@ public class Condition implements Base {
   @Schema(description = "Key types")
   private List<PrimitiveType> keyTypes;
 
-  @Column(name = "condition_key_type")
-  @Enumerated(EnumType.STRING)
-  @JsonProperty("condition_key_type")
-  @Schema(description = "Legacy key type")
-  private PrimitiveType keyType;
-
   @Column(name = "condition_type")
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)

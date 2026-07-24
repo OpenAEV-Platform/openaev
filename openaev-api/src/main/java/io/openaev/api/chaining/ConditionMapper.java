@@ -84,12 +84,6 @@ public class ConditionMapper {
         .id(c.getId())
         .key(c.getKey())
         .keyTypes(c.getKeyTypes())
-        .keyType(
-            c.getKeyType() != null
-                ? c.getKeyType()
-                : (c.getKeyTypes() != null && !c.getKeyTypes().isEmpty()
-                    ? c.getKeyTypes().getFirst()
-                    : null))
         .type(c.getType() != null ? c.getType().name() : null)
         .value(c.getValue())
         .caseSensitive(c.isCaseSensitive())
@@ -124,7 +118,6 @@ public class ConditionMapper {
     return Condition.builder()
         .key(input.getKey())
         .keyTypes(resolveKeyTypes(input))
-        .keyType(resolveFirstKeyType(input))
         .type(input.getType())
         .value(input.getValue())
         .caseSensitive(input.isCaseSensitive())
@@ -137,16 +130,6 @@ public class ConditionMapper {
     if (input.getKeyTypes() != null && !input.getKeyTypes().isEmpty()) {
       return input.getKeyTypes();
     }
-    if (input.getKeyType() != null) {
-      return List.of(input.getKeyType());
-    }
     return null;
-  }
-
-  private static PrimitiveType resolveFirstKeyType(ConditionCreateInput input) {
-    if (input.getKeyTypes() != null && !input.getKeyTypes().isEmpty()) {
-      return input.getKeyTypes().getFirst();
-    }
-    return input.getKeyType();
   }
 }

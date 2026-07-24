@@ -23,10 +23,6 @@ public class ConditionOutput {
   @JsonProperty("condition_key_types")
   private List<PrimitiveType> keyTypes;
 
-  @JsonProperty("condition_key_type")
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  private PrimitiveType keyType;
-
   @JsonProperty("condition_type")
   private String type;
 
