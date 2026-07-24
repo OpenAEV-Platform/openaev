@@ -2257,22 +2257,31 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               )}
               {!loading && !forbidden && !error && !graphHasContent && (
                 <Box sx={{
-                  m: 'auto',
+                  // Fill the (relative) graph Paper and centre both ways so the empty-state is the focal point.
+                  position: 'absolute',
+                  inset: 0,
                   p: 4,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: theme.spacing(1.5),
+                  justifyContent: 'center',
+                  gap: theme.spacing(2),
                   textAlign: 'center',
                   color: 'text.secondary',
                 }}
                 >
                   <AccountTreeOutlined sx={{
-                    fontSize: 48,
-                    opacity: 0.35,
+                    fontSize: 88,
+                    opacity: 0.4,
                   }}
                   />
-                  <Typography variant="body1" sx={{ maxWidth: 440 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      maxWidth: 520,
+                      fontWeight: 500,
+                    }}
+                  >
                     {emptyStateMessage}
                   </Typography>
                   {scenarioHasNoSims && scenarioId && (
