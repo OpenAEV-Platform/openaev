@@ -451,6 +451,7 @@
   "Case-insensitive": "Sans distinction de majuscules/minuscules",
   "Case-sensitive": "Avec distinction de majuscules/minuscules",
   "Catalog": "Catalogue",
+  "Catalog version": "Version du catalogue",
   "Categories": "Catégories",
   "Categories and questions": "Catégories et questions",
   "Category": "Catégorie",
@@ -2382,6 +2383,7 @@
   "Reset filters": "Réinitialiser les filtres",
   "Reset to default values": "Réinitialiser les valeurs par défaut",
   "Resilience": "Résilience",
+  "Resize panel": "Redimensionner le panneau",
   "Resolve": "Resolve",
   "Resolve IP from hostname": "Resolve IP from hostname",
   "Resource ID / ARN": "Resource ID / ARN",
@@ -2611,6 +2613,7 @@
   "Simulation rate limit": "Limite du taux de simulation",
   "Simulation results": "Résultats de la simulation",
   "Simulation results statistics": "Statistiques des résultats de la simulation",
+  "Simulation running — waiting for the first inject executions…": "Simulation en cours — en attente des premières exécutions d’injects…",
   "Simulation time out": "Temps d'attente de la simulation",
   "simulation-plural": "simulations",
   "simulation-singular": "simulation",
@@ -3108,6 +3111,7 @@
   "VERIFIED": "Verified",
   "Verified and tested by OpenAEV": "Vérifié et testé par OpenAEV",
   "Version": "Version",
+  "Version referenced in the integration catalog. The running instance may use a different version if it was manually overridden.": "Version référencée dans le catalogue d'intégrations. L'instance en cours d'exécution peut utiliser une version différente si elle a été remplacée manuellement.",
   "Very high": "Très élevé",
   "Very_high": "Very High",
   "View": "Voir",
@@ -3232,7 +3236,5 @@
   "Your overall evaluation about this question.": "Votre évaluation globale de cette question.",
   "Your threat arsenal is empty": "Votre arsenal est vide",
   "your trial license online": "votre licence d'essai en ligne",
-  "YYYY": "AAAA",
-  "Simulation running — waiting for the first inject executions…": "Simulation en cours — en attente des premières exécutions d’injects…",
-  "Resize panel": "Redimensionner le panneau"
+  "YYYY": "AAAA"
 }

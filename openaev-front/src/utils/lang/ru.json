@@ -450,6 +450,7 @@
   "Case-insensitive": "Без учета регистра",
   "Case-sensitive": "С учетом регистра",
   "Catalog": "Каталог",
+  "Catalog version": "Версия каталога",
   "Categories": "Категории",
   "Categories and questions": "Категории и вопросы",
   "Category": "Категория",
@@ -2375,6 +2376,7 @@
   "Reset filters": "Сбросить фильтры",
   "Reset to default values": "Сбросить значения по умолчанию",
   "Resilience": "Устойчивость",
+  "Resize panel": "Resize panel",
   "Resolve": "Resolve",
   "Resolve IP from hostname": "Resolve IP from hostname",
   "Resource ID / ARN": "Resource ID / ARN",
@@ -2603,6 +2605,7 @@
   "Simulation rate limit": "Предел скорости симуляции",
   "Simulation results": "Результаты моделирования",
   "Simulation results statistics": "Статистика результатов моделирования",
+  "Simulation running — waiting for the first inject executions…": "Simulation running — waiting for the first inject executions…",
   "Simulation time out": "Время отключения симуляции",
   "simulation-plural": "симуляции",
   "simulation-singular": "симуляция",
@@ -3098,6 +3101,7 @@
   "VERIFIED": "Проверено",
   "Verified and tested by OpenAEV": "Проверено и протестировано OpenAEV",
   "Version": "Версия",
+  "Version referenced in the integration catalog. The running instance may use a different version if it was manually overridden.": "Версия, указанная в каталоге интеграций. Запущенный экземпляр может использовать другую версию, если она была переопределена вручную.",
   "Very_high": "Very High",
   "View": "Вид",
   "view custom variables": "просмотр пользовательских переменных",
@@ -3221,7 +3225,5 @@
   "Your overall evaluation about this question.": "Ваша общая оценка этого вопроса.",
   "Your threat arsenal is empty": "Ваш арсенал пуст",
   "your trial license online": "ваша пробная лицензия онлайн",
-  "YYYY": "ГГГГ",
-  "Simulation running — waiting for the first inject executions…": "Simulation running — waiting for the first inject executions…",
-  "Resize panel": "Resize panel"
+  "YYYY": "ГГГГ"
 }
