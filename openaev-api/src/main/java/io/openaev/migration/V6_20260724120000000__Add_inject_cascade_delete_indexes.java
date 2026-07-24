@@ -11,8 +11,8 @@ import org.springframework.stereotype.Component;
  * <p>Re-dated (2026-07-24, formerly 6.20260723093548596): the original timestamp sorted BEFORE
  * migrations already applied on deployed databases, so Flyway validation failed with "resolved
  * migration not applied" and out-of-order disabled. Idempotent (IF NOT EXISTS), so databases that
- * already ran the old version re-run this one as a no-op; their orphaned old history row is
- * covered by the default {@code ignore-migration-patterns=*:missing}.
+ * already ran the old version re-run this one as a no-op; their orphaned old history row is covered
+ * by the default {@code ignore-migration-patterns=*:missing}.
  */
 @Component
 public class V6_20260724120000000__Add_inject_cascade_delete_indexes extends BaseJavaMigration {
