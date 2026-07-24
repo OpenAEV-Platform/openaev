@@ -1364,8 +1364,8 @@ const CHAIN_COL_W = 620; // horizontal span of one causal depth (inject + endpoi
 const CHAIN_EP_DX = 210; // inject → endpoint horizontal offset within a step
 const CHAIN_FIND_DX = 400; // inject → produced-finding horizontal offset within a step
 const CHAIN_FIND_ROW = 96; // vertical gap between findings stacked on the SAME endpoint
-const CHAIN_EP_GAP = 56; // vertical gap between an injector's endpoint blocks
-const CHAIN_STEP_GAP = 80; // vertical gap between two injectors sharing a depth (same column)
+const CHAIN_STEP_GAP = 80; // vertical gap between two asset blocks sharing a depth (same column)
+const CHAIN_INJECTOR_ROW = 110; // vertical slot per injector when several share one endpoint block
 const CHAIN_EP_BLOCK_MIN = 120; // minimum height of one endpoint block (endpoint node + breathing room)
 const CHAIN_FIND_HALF = 28; // half of AP_FINDING_SIZE (56), to centre a finding node on its row
 
@@ -1584,50 +1584,81 @@ export const buildCausalChainFlow = (
     const x = depthX.get(d) as number;
     const chainEpDx = depthEpDx.get(d) as number;
     const chainFindDx = depthFindDx.get(d) as number;
-    let cursorY = PADDING;
+    // Merge endpoints by ASSET within this depth: injectors sharing a depth are never causally linked (a
+    // dependency pushes the consumer into a deeper column), so several independent injectors hitting the
+    // same asset converge on ONE endpoint node instead of one copy per injector. Aggregate, per distinct
+    // asset at this depth: the injectors targeting it (first-seen order) and the union of their findings.
+    const assetOrder: string[] = [];
+    const assetInjectors = new Map<string, string[]>();
+    const assetFindings = new Map<string, string[]>();
     ids.forEach((injId) => {
       const s = steps.get(injId) as ChainStep;
-      const endpointEntries = [...s.endpoints.entries()];
-      // Each endpoint is a vertical block sized to hold the endpoint node and its stacked findings.
-      const blocks = endpointEntries.map(([epId, findingIds]) => ({
-        epId,
-        findingIds,
-        h: Math.max(CHAIN_EP_BLOCK_MIN, findingIds.length * CHAIN_FIND_ROW),
-      }));
-      const totalH = blocks.reduce((sum, b) => sum + b.h, 0) + Math.max(0, blocks.length - 1) * CHAIN_EP_GAP;
-      const stepTop = cursorY;
-      const injCenterY = stepTop + Math.max(totalH, CHAIN_EP_BLOCK_MIN) / 2;
+      for (const [epId, findingIds] of s.endpoints.entries()) {
+        if (!assetInjectors.has(epId)) {
+          assetOrder.push(epId);
+          assetInjectors.set(epId, []);
+          assetFindings.set(epId, []);
+        }
+        assetInjectors.get(epId)!.push(injId);
+        const fset = assetFindings.get(epId)!;
+        findingIds.forEach((fid) => {
+          if (!fset.includes(fid)) {
+            fset.push(fid);
+          }
+        });
+      }
+    });
 
-      // Inject node, vertically centred against its whole block (keeps its real id + data so the icon,
-      // ATT&CK and injector-click still resolve).
-      const injDto = injectorById.get(injId);
-      // The full graph may omit injector nodes; label the action from its contract name rather than the
-      // raw step id, so the node never reads "NODE_*|<uuid>".
-      const injActionLabel = [...s.contractByEndpoint.values()][0];
+    // One vertical block per distinct asset, tall enough for BOTH its stacked injectors (left) and its
+    // stacked findings (right). An injector that hits several assets is positioned once (first block).
+    let cursorY = PADDING;
+    const injectorPlaced = new Set<string>();
+    for (const epId of assetOrder) {
+      const injectors = assetInjectors.get(epId) as string[];
+      const findingIds = assetFindings.get(epId) as string[];
+      const h = Math.max(
+        CHAIN_EP_BLOCK_MIN,
+        findingIds.length * CHAIN_FIND_ROW,
+        injectors.length * CHAIN_INJECTOR_ROW,
+      );
+      const blockTop = cursorY;
+      const blockCenter = blockTop + h / 2;
+
+      const epDto = assetById.get(epId);
+      // Endpoint id keyed by depth+asset (not by injector), so injectors at this depth share this node.
+      const epNodeId = `chain-ep|${d}|${epId}`;
       nodes.push({
-        id: injId,
-        type: AP_FLOW_NODE_TYPE.injector,
+        id: epNodeId,
+        type: AP_FLOW_NODE_TYPE.asset,
         position: {
-          x,
-          y: injCenterY - CLUSTER_INJECTOR_HALF_H,
+          x: x + chainEpDx,
+          y: blockCenter - CLUSTER_EP_HALF_H,
         },
-        data: injDto ? nodeData(injDto) : { label: injActionLabel || friendlyNodeId(injId) },
+        data: epDto ? nodeData(epDto) : { label: friendlyNodeId(epId) },
       });
 
-      let blockCursor = stepTop;
-      blocks.forEach(({ epId, findingIds, h }) => {
-        const blockCenter = blockCursor + h / 2;
-        const epDto = assetById.get(epId);
-        const epNodeId = `chain-ep|${injId}|${epId}`;
-        nodes.push({
-          id: epNodeId,
-          type: AP_FLOW_NODE_TYPE.asset,
-          position: {
-            x: x + chainEpDx,
-            y: blockCenter - CLUSTER_EP_HALF_H,
-          },
-          data: epDto ? nodeData(epDto) : { label: friendlyNodeId(epId) },
-        });
+      // Injectors that hit this asset, stacked within the block, each with its own labelled edge.
+      injectors.forEach((injId, i) => {
+        const s = steps.get(injId) as ChainStep;
+        if (!injectorPlaced.has(injId)) {
+          injectorPlaced.add(injId);
+          const injCenterY = injectors.length === 1
+            ? blockCenter
+            : blockTop + (i + 0.5) * (h / injectors.length);
+          const injDto = injectorById.get(injId);
+          // The full graph may omit injector nodes; label the action from its contract name rather than
+          // the raw step id, so the node never reads "NODE_*|<uuid>".
+          const injActionLabel = [...s.contractByEndpoint.values()][0];
+          nodes.push({
+            id: injId,
+            type: AP_FLOW_NODE_TYPE.injector,
+            position: {
+              x,
+              y: injCenterY - CLUSTER_INJECTOR_HALF_H,
+            },
+            data: injDto ? nodeData(injDto) : { label: injActionLabel || friendlyNodeId(injId) },
+          });
+        }
         edges.push({
           id: `${injId}-${epNodeId}`,
           source: injId,
@@ -1641,46 +1672,45 @@ export const buildCausalChainFlow = (
             label: s.contractByEndpoint.get(epId),
           },
         });
-
-        // The findings discovered on THIS endpoint, stacked and centred against the block.
-        findingIds.forEach((fid, k) => {
-          const fDto = findingById.get(fid);
-          const fY = blockCenter + (k - (findingIds.length - 1) / 2) * CHAIN_FIND_ROW;
-          if (!placedFindings.has(fid)) {
-            placedFindings.add(fid);
-            nodes.push({
-              id: fid,
-              type: AP_FLOW_NODE_TYPE.finding,
-              position: {
-                x: x + chainFindDx,
-                y: fY - CHAIN_FIND_HALF,
-              },
-              data: {
-                label: fDto?.value ?? fDto?.label,
-                value: fDto?.value,
-                typeFindings: fDto?.typeFindings,
-                assetNodeId: fDto?.assetNodeId,
-                status: fDto?.status ?? 'RED',
-              },
-            });
-          }
-          edges.push({
-            id: `${epNodeId}-${fid}`,
-            source: epNodeId,
-            target: fid,
-            type: AP_FLOW_EDGE_TYPE,
-            data: {
-              count: 1,
-              status: fDto?.status ?? 'RED',
-              label: fDto?.typeFindings ? t('{type} found', { type: fDto.typeFindings }) : undefined,
-            },
-          });
-        });
-        blockCursor += h + CHAIN_EP_GAP;
       });
 
-      cursorY = stepTop + Math.max(totalH, CHAIN_EP_BLOCK_MIN) + CHAIN_STEP_GAP;
-    });
+      // Findings discovered on this asset (union across the injectors), stacked and centred on the block.
+      findingIds.forEach((fid, k) => {
+        const fDto = findingById.get(fid);
+        const fY = blockCenter + (k - (findingIds.length - 1) / 2) * CHAIN_FIND_ROW;
+        if (!placedFindings.has(fid)) {
+          placedFindings.add(fid);
+          nodes.push({
+            id: fid,
+            type: AP_FLOW_NODE_TYPE.finding,
+            position: {
+              x: x + chainFindDx,
+              y: fY - CHAIN_FIND_HALF,
+            },
+            data: {
+              label: fDto?.value ?? fDto?.label,
+              value: fDto?.value,
+              typeFindings: fDto?.typeFindings,
+              assetNodeId: fDto?.assetNodeId,
+              status: fDto?.status ?? 'RED',
+            },
+          });
+        }
+        edges.push({
+          id: `${epNodeId}-${fid}`,
+          source: epNodeId,
+          target: fid,
+          type: AP_FLOW_EDGE_TYPE,
+          data: {
+            count: 1,
+            status: fDto?.status ?? 'RED',
+            label: fDto?.typeFindings ? t('{type} found', { type: fDto.typeFindings }) : undefined,
+          },
+        });
+      });
+
+      cursorY = blockTop + h + CHAIN_STEP_GAP;
+    }
   }
 
   // Forward causal links: a produced finding → the downstream inject that consumes a matching key. When a
