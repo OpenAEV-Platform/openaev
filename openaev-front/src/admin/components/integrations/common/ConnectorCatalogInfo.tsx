@@ -78,6 +78,7 @@ const ResourceRow = ({ icon: Icon, title, caption, href, endAdornment }: {
               fontSize: theme.typography.h4.fontSize,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
             {caption}
