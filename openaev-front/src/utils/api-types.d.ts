@@ -5081,7 +5081,11 @@ export interface InjectExecutionInput {
     | "file_drop"
     | "data"
     | "complete";
-  /** Ids of the targets (assets / AI targets) this trace relates to. When set on an injector callback (no agent), the trace becomes target-scoped and shows up in the per-target execution view instead of the global timeline. */
+  /**
+   * Ids of the targets (assets / AI targets) this trace relates to. When set on an injector callback (no agent), the trace becomes target-scoped and shows up in the per-target execution view instead of the global timeline.
+   * @maxItems 1000
+   * @minItems 0
+   */
   execution_context_identifiers?: string[];
   /**
    * Duration of the execution in miliseconds
