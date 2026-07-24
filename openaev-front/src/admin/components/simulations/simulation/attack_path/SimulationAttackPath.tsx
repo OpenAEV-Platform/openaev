@@ -75,6 +75,9 @@ const isSeedId = (id?: string) => !!id && id.startsWith('ap-seed-');
 // Every OTHER type present in the data gets an auto-generated card, so a new finding type needs no code.
 const COVERED_FINDING_TYPES = new Set(['share', 'credentials', 'username', 'admin_username', 'cve']);
 
+// Finding categories fetched (with per-finding executionIds) to attribute findings to an injector.
+const INJECTOR_FINDING_CATEGORIES = ['credentials', 'users', 'cves', 'files'];
+
 // Backend prevention/detection status -> a human label (also used for accessibility, so status is
 // never conveyed by colour alone). GREEN = prevented, ORANGE = detected, RED = neither.
 const statusLabelKey = (status?: string): string => {
@@ -241,6 +244,13 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // the injector panel — the action-side mirror of the endpoint panel. Label = the injector's name.
   const [injectorExecutions, setInjectorExecutions] = useState<AttackPathNodeDTO[]>([]);
   const [injectorPanelLabel, setInjectorPanelLabel] = useState<string>('');
+  // The clicked injector's findings, grouped by type — attributed to THIS injector (findings produced by
+  // its own executions), shown in the injector panel's Findings section like an endpoint's.
+  const [injectorFindingGroups, setInjectorFindingGroups] = useState<{
+    type: string;
+    values: string[];
+  }[]>([]);
+  const [injectorFindingsLoading, setInjectorFindingsLoading] = useState(false);
   const [endpointRelationEdges, setEndpointRelationEdges] = useState<AttackPathEdges[]>([]);
   // The clicked endpoint's own findings (deduplicated by type+value), shown in the side panel.
   const [endpointFindings, setEndpointFindings] = useState<AttackPathNodeDTO[]>([]);
@@ -581,6 +591,22 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           arr.push(ref);
         }
         map.set(e.edgeSourceId, arr);
+      }
+    }
+    return map;
+  }, [dto]);
+
+  // Endpoint ref (the raw key an execution carries) -> its friendly name, so the execution panel shows
+  // "kingslanding" instead of the raw UUID/IP the execution DTO carries.
+  const endpointLabelByRef = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const n of dto?.attackPathNodes ?? []) {
+      if (n.type === 'ASSET') {
+        const ref = n.ref ?? n.id;
+        const name = n.hostname || n.label;
+        if (ref && name) {
+          map.set(ref, name);
+        }
       }
     }
     return map;
@@ -1119,6 +1145,42 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     setSelectedFindingId(prev => (prev === nodeId ? null : nodeId));
   }, [pathFinding, highlightGraphFinding, openFindingFromGraph]);
 
+  // An injector's own findings, grouped by type: attributed to this injector by keeping only category
+  // findings produced by one of ITS execution refs (the category endpoint carries executionIds; the raw
+  // endpoint-findings endpoint does not), so a shared endpoint's findings are not wrongly credited here.
+  const loadInjectorFindings = useCallback((ownedRefs: Set<string>) => {
+    setInjectorFindingGroups([]);
+    if (ownedRefs.size === 0) {
+      return;
+    }
+    setInjectorFindingsLoading(true);
+    Promise.all(
+      INJECTOR_FINDING_CATEGORIES.map(cat => fetchFindingsByCategory(simulationId, cat, 0, DRAWER_FETCH_SIZE)
+        .then(r => (r.data.items ?? []).filter(it => (it.executionIds ?? []).some(id => ownedRefs.has(id))))
+        .catch(() => [] as AttackPathFindingItemDTO[])),
+    )
+      .then((lists) => {
+        const byType = new Map<string, string[]>();
+        for (const it of lists.flat()) {
+          const type = it.type ?? '';
+          const value = maskFindingValue(type, it.value);
+          if (!type || !value) {
+            continue;
+          }
+          const arr = byType.get(type) ?? [];
+          if (!arr.includes(value)) {
+            arr.push(value);
+          }
+          byType.set(type, arr);
+        }
+        setInjectorFindingGroups([...byType.entries()].map(([type, values]) => ({
+          type,
+          values,
+        })));
+      })
+      .finally(() => setInjectorFindingsLoading(false));
+  }, [simulationId]);
+
   // Load an injector's own executions (its contracts) across every endpoint it reached, for the injector
   // panel — the action-side mirror of the endpoint panel. Executions are gathered from the injector's
   // reached endpoints and filtered to the injector's own execution refs (from the graph edges), so the
@@ -1126,6 +1188,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   const loadInjectorExecutions = useCallback((injectorId: string, label?: string) => {
     setInjectorPanelLabel(label || friendlyNodeId(injectorId));
     setInjectorExecutions([]);
+    setInjectorFindingGroups([]);
     const refs = injectorEndpointRefs.get(injectorId) ?? [];
     if (refs.length === 0) {
       return;
@@ -1154,8 +1217,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           }
         }
         setInjectorExecutions(execs);
+        // Attribute findings to this injector via its own execution refs.
+        loadInjectorFindings(new Set(execs.map(e => e.ref).filter((r): r is string => !!r)));
       });
-  }, [injectorEndpointRefs, simulationId]);
+  }, [injectorEndpointRefs, simulationId, loadInjectorFindings]);
 
   // Click an injector (action) node. In the focused view it reverse-highlights on the focused
   // endpoint; in the clustered view it toggles a downstream highlight of the action's reach AND opens
@@ -1189,6 +1254,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     } else {
       // Toggling the same injector off also clears its panel.
       setInjectorExecutions([]);
+      setInjectorFindingGroups([]);
     }
   }, [pathFinding, highlightGraphInjector, endpointRelationEdges, openExecutionDetail, selectedInjectorId, loadInjectorExecutions]);
 
@@ -2222,15 +2288,14 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               />
             )}
 
-            {/* Injector master panel: the same component as the endpoint panel, but listing this
-                injector's own contracts/executions (findings section hidden). One click opens their
+            {/* Injector master panel: the same component as the endpoint panel — its findings (attributed
+                to this injector's executions) and its contracts/executions. One click opens their
                 Result / Execution details / Remediation detail (the global command it ran). */}
             {!pathFinding && !findingDetail && !selectedNodeId && selectedInjectorId && !detailExecutionId && (
               <EndpointDetailPanel
                 endpointLabel={injectorPanelLabel || t('Injector')}
-                hideFindings
-                findingsLoading={false}
-                findingGroups={[]}
+                findingsLoading={injectorFindingsLoading}
+                findingGroups={injectorFindingGroups}
                 executions={injectorExecutions}
                 execDisplayCap={EXEC_DISPLAY_CAP}
                 highlightedExecutionIds={highlightedExecutionIds}
@@ -2240,6 +2305,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                 onClose={() => {
                   setSelectedInjectorId(null);
                   setInjectorExecutions([]);
+                  setInjectorFindingGroups([]);
                   setDetailExecutionId(null);
                 }}
               />
@@ -2249,6 +2315,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               <ExecutionResultTerminalPanel
                 loading={detailLoading}
                 detail={detail}
+                endpointLabel={detail?.endpointKey ? endpointLabelByRef.get(detail.endpointKey) : undefined}
                 // Back returns to the master panel (endpoint/finding/injector) it was opened from; close
                 // dismisses the whole drawer.
                 onBack={() => setDetailExecutionId(null)}
@@ -2257,6 +2324,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                   setSelectedNodeId(null);
                   setSelectedInjectorId(null);
                   setInjectorExecutions([]);
+                  setInjectorFindingGroups([]);
                   setFindingDetail(null);
                 }}
                 onOpenInject={(detail as { injectId?: string } | null)?.injectId

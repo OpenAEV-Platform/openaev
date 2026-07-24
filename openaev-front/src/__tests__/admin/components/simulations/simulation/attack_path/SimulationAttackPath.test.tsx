@@ -246,9 +246,11 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     });
 
     // The injector panel lists this injector's own executions (scoped via the endpoint-relations edges),
-    // under an "Executions" section — same component as the endpoint panel, findings section omitted.
+    // under an "Executions" section — same component as the endpoint panel.
     expect(await screen.findByText('Executions (1)')).toBeTruthy();
-    expect(screen.queryByText('Findings')).toBeNull();
+    // Its Findings section shows only findings attributed to this injector's executions (exec-1), via the
+    // category endpoint's executionIds — here the captured credential.
+    expect(await screen.findByText('admin : ••••••')).toBeTruthy();
 
     // Clicking the listed execution opens its Result / Execution details / Remediation detail (fetched by
     // its raw ref), showing the global command it ran.

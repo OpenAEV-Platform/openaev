@@ -29,6 +29,9 @@ interface Props {
   onBack?: () => void;
   // Open the originating inject (pending backend: needs the inject id on the execution detail).
   onOpenInject?: () => void;
+  // Friendly endpoint name (e.g. "kingslanding"), resolved by the caller from the graph node — the
+  // execution DTO only carries the raw endpoint key (a UUID) and the IP, neither of which reads well.
+  endpointLabel?: string;
 }
 
 const RESULT_TAB = 'result';
@@ -234,7 +237,7 @@ const InjectorExecutionTraces = ({ injectId }: { injectId: string }) => {
 // feed and the map (product mockup), not an overlay. Reuses the platform's shared `Terminal` renderer,
 // fed by the frozen snapshot's masked command and output. The Result tab shows the target and the
 // security platforms that prevented/detected the action (with their linked alerts on click).
-const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpenInject }: Props) => {
+const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpenInject, endpointLabel }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const { currentTab, handleChangeTab } = useTabs(RESULT_TAB);
@@ -486,10 +489,9 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
               }}
               >
                 <div>
-                  <Typography variant="subtitle2">{detail.targetHostname || detail.endpointKey}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {[detail.targetIp, detail.targetPlatform].filter(Boolean).join(' · ')}
-                  </Typography>
+                  {/* The friendly endpoint name (kingslanding), not the raw endpoint key/UUID, to stay
+                      consistent with the graph node; fall back to the IP only when no name is known. */}
+                  <Typography variant="subtitle2">{endpointLabel || detail.targetHostname || detail.targetIp || detail.endpointKey}</Typography>
                 </div>
                 {renderExpectationRow('prevention', t('Prevented by'), t('Not Prevented'), preventedBy)}
                 {renderExpectationRow('detection', t('Detected by'), t('Not Detected'), detectedBy)}
@@ -516,7 +518,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 return <Terminal lines={terminalLines} maxHeight={terminalMaxHeight} />;
               }
               return detail.payloadId
-                ? <LiveExecutionTerminal injectId={detail.injectId} endpointName={detail.targetHostname || detail.endpointKey} />
+                ? <LiveExecutionTerminal injectId={detail.injectId} endpointName={endpointLabel || detail.targetHostname || detail.endpointKey} />
                 : <InjectorExecutionTraces injectId={detail.injectId} />;
             })()}
 
