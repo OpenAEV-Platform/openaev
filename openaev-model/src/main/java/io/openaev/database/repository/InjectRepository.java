@@ -4,6 +4,7 @@ import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
 import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectorContract;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.raw.RawInjectIndexing;
 import jakarta.validation.constraints.NotBlank;
@@ -376,6 +377,20 @@ public interface InjectRepository
               + "WHERE i.inject_id IN (:ids);",
       nativeQuery = true)
   List<RawInject> findRawByIds(@Param("ids") List<String> ids);
+
+  @Query("SELECT COUNT(c) FROM Communication c WHERE c.inject.exercise.id = :exerciseId")
+  long countCommunicationsByExerciseId(@Param("exerciseId") String exerciseId);
+
+  @Query(
+      "SELECT DISTINCT kcp.id FROM Inject i JOIN i.injectorContract ic"
+          + " JOIN ic.attackPatterns ap JOIN ap.killChainPhases kcp"
+          + " WHERE i.exercise.id = :exerciseId")
+  List<String> findDistinctKillChainPhaseIdsByExerciseId(@Param("exerciseId") String exerciseId);
+
+  @Query(
+      "SELECT DISTINCT ic FROM Inject i JOIN i.injectorContract ic"
+          + " WHERE i.exercise.id = :exerciseId")
+  List<InjectorContract> findDistinctContractsByExerciseId(@Param("exerciseId") String exerciseId);
 
   @Query(
       value =

@@ -595,9 +595,18 @@ public class ExerciseApi extends RestBehavior {
   public SimulationDetails exercise(@PathVariable String exerciseId) {
     // We get the raw exercise
     RawSimulationIndexing rawSimulation = exerciseService.rawSimulation(exerciseId);
-    // We get the injects linked to this exercise
-    List<RawInject> rawInjects =
-        injectRepository.findRawByIds(rawSimulation.getInject_ids().stream().distinct().toList());
+    // We get aggregated inject metadata: platforms, comms count, kill chain phases
+    long communicationsNumber = injectRepository.countCommunicationsByExerciseId(exerciseId);
+    List<String> killChainPhaseIds =
+        injectRepository.findDistinctKillChainPhaseIdsByExerciseId(exerciseId);
+    List<String> platforms =
+        injectRepository.findDistinctContractsByExerciseId(exerciseId).stream()
+            .map(InjectorContract::getInjectorContractPlatformEffective)
+            .filter(Objects::nonNull)
+            .flatMap(Arrays::stream)
+            .distinct()
+            .map(Enum::name)
+            .toList();
     // We get the tuple exercise/team/user
     List<RawExerciseTeamUser> listRawExerciseTeamUsers =
         exerciseTeamUserRepository.rawByExerciseIds(List.of(exerciseId));
@@ -616,13 +625,7 @@ public class ExerciseApi extends RestBehavior {
     // We get all the kill chain phases
     List<KillChainPhase> killChainPhase =
         StreamSupport.stream(
-                killChainPhaseRepository
-                    .findAllById(
-                        rawInjects.stream()
-                            .flatMap(rawInject -> rawInject.getInject_kill_chain_phases().stream())
-                            .toList())
-                    .spliterator(),
-                false)
+                killChainPhaseRepository.findAllById(killChainPhaseIds).spliterator(), false)
             .collect(Collectors.toList());
 
     // We create objectives and fill them with evaluations
@@ -652,15 +655,8 @@ public class ExerciseApi extends RestBehavior {
 
     // We create an ExerciseDetails object and populate it
     SimulationDetails detail = fromRawExercise(rawSimulation, listExerciseTeamUsers, objectives);
-    detail.setPlatforms(
-        rawInjects.stream()
-            .flatMap(inject -> inject.getInject_platforms().stream())
-            .distinct()
-            .toList());
-    detail.setCommunicationsNumber(
-        rawInjects.stream()
-            .mapToLong(rawInject -> rawInject.getInject_communications().size())
-            .sum());
+    detail.setPlatforms(platforms);
+    detail.setCommunicationsNumber(communicationsNumber);
     detail.setKillChainPhases(killChainPhase);
     if (rawGrants.get(Grant.GRANT_TYPE.OBSERVER.name()) != null) {
       detail.setObservers(
