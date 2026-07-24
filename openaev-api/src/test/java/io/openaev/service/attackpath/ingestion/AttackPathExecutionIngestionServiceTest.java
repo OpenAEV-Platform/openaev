@@ -9,6 +9,7 @@ import io.openaev.database.model.Command;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Tenant;
@@ -27,6 +28,8 @@ import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
+import java.util.Map;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -215,5 +218,61 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     // Assert
     assertThat(rows).isEmpty();
     assertThat(executionRepository.count()).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "given_mixedExpectationResults_should_updateExecutionWithHighestPriorityLabels")
+  void given_mixedExpectationResults_should_updateExecutionWithHighestPriorityLabels() {
+    // Arrange
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-expectation-priority"));
+    TenantContext.setCurrentTenant(tenant.getId());
+    String executionId = "exec-priority-1";
+    executionRepository.save(createExecutionRow(executionId, tenant));
+
+    Inject inject = new Inject();
+    inject.setTenant(tenant);
+
+    Map<String, AttackPathExecutionIngestionService.ExecutionExpectationResults> expectationResults =
+        Map.of(
+            executionId,
+            new AttackPathExecutionIngestionService.ExecutionExpectationResults(
+                List.of(
+                    expectationResult("Not Prevented"),
+                    expectationResult("Pending"),
+                    expectationResult("Partially Prevented"),
+                    expectationResult("Prevented")),
+                List.of(
+                    expectationResult("Not Detected"),
+                    expectationResult("Pending"),
+                    expectationResult("Partially Detected")),
+                List.of(expectationResult("Vulnerable"), expectationResult("Pending"))));
+
+    // Act
+    ingestionService.updateExpectationByExecutionIndex(inject, expectationResults);
+
+    // Assert
+    AttackPathExecution updated = executionRepository.findById(executionId).orElseThrow();
+    assertThat(updated.getPreventionStatus()).isEqualTo("Prevented");
+    assertThat(updated.getDetectionStatus()).isEqualTo("Partially Detected");
+    assertThat(updated.getVulnerabilityStatus()).isEqualTo("Pending");
+  }
+
+  private static AttackPathExecution createExecutionRow(String id, Tenant tenant) {
+    AttackPathExecution execution = new AttackPathExecution();
+    execution.setId(id);
+    execution.setTenant(tenant);
+    execution.setSimulationId("SIM-EXPECTATION");
+    execution.setSourceKind("AGENT");
+    execution.setTargetKind("ASSET");
+    execution.setTargetKey("target-key-1");
+    execution.setExecutedAt(java.time.Instant.now());
+    return execution;
+  }
+
+  private static InjectExpectationResult expectationResult(String result) {
+    InjectExpectationResult expectationResult = new InjectExpectationResult();
+    expectationResult.setResult(result);
+    return expectationResult;
   }
 }
