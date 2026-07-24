@@ -8,6 +8,8 @@ import io.openaev.aop.UserRoleDescription;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.PermissionService;
+import io.openaev.service.UserService;
 import io.openaev.service.notification.NotifierService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,6 +42,19 @@ public class NotifierApi {
 
   private final NotifierService notifierService;
   private final NotifierMapper notifierMapper;
+  private final PermissionService permissionService;
+  private final UserService userService;
+
+  /**
+   * NOTIFIER is an open resource for READ/SEARCH so any user can pick notifiers when creating
+   * notification triggers, but the configuration payload (webhook URLs, headers, templates...) can
+   * hold sensitive values: it is only exposed to users holding the tenant-settings capability that
+   * normally grants notifier reads.
+   */
+  private boolean canSeeConfiguration() {
+    return permissionService.hasCapabilityPermission(
+        userService.currentUser(), ResourceType.NOTIFIER, Action.READ);
+  }
 
   @LogExecutionTime
   @GetMapping({NOTIFIER_URI, TENANT_NOTIFIER_URI})
@@ -48,7 +63,10 @@ public class NotifierApi {
   @Transactional
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of notifiers")})
   public List<NotifierOutput> notifiers() {
-    return notifierService.findAll().stream().map(notifierMapper::toNotifierOutput).toList();
+    boolean includeConfiguration = canSeeConfiguration();
+    return notifierService.findAll().stream()
+        .map(notifier -> notifierMapper.toNotifierOutput(notifier, includeConfiguration))
+        .toList();
   }
 
   @LogExecutionTime
@@ -63,9 +81,10 @@ public class NotifierApi {
       })
   public NotifierOutput notifier(
       @PathVariable @NotBlank @Schema(description = "ID of the notifier") final String notifierId) {
+    boolean includeConfiguration = canSeeConfiguration();
     return notifierService
         .findById(notifierId)
-        .map(notifierMapper::toNotifierOutput)
+        .map(notifier -> notifierMapper.toNotifierOutput(notifier, includeConfiguration))
         .orElseThrow(() -> new ElementNotFoundException("Notifier not found: " + notifierId));
   }
 
@@ -78,7 +97,10 @@ public class NotifierApi {
       value = {@ApiResponse(responseCode = "200", description = "The paginated notifiers")})
   public Page<NotifierOutput> searchNotifiers(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
-    return notifierService.search(searchPaginationInput).map(notifierMapper::toNotifierOutput);
+    boolean includeConfiguration = canSeeConfiguration();
+    return notifierService
+        .search(searchPaginationInput)
+        .map(notifier -> notifierMapper.toNotifierOutput(notifier, includeConfiguration));
   }
 
   @LogExecutionTime
@@ -88,8 +110,9 @@ public class NotifierApi {
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Notifier created")})
   public NotifierOutput createNotifier(@Valid @RequestBody final NotifierInput input) {
+    // caller passed the CREATE capability gate, so the configuration is safe to return
     return notifierMapper.toNotifierOutput(
-        notifierService.create(notifierMapper.toNotifier(input)));
+        notifierService.create(notifierMapper.toNotifier(input)), true);
   }
 
   @LogExecutionTime
@@ -108,8 +131,9 @@ public class NotifierApi {
   public NotifierOutput updateNotifier(
       @PathVariable @NotBlank @Schema(description = "ID of the notifier") final String notifierId,
       @Valid @RequestBody final NotifierInput input) {
+    // caller passed the WRITE capability gate, so the configuration is safe to return
     return notifierMapper.toNotifierOutput(
-        notifierService.update(notifierId, notifierMapper.toNotifier(input)));
+        notifierService.update(notifierId, notifierMapper.toNotifier(input)), true);
   }
 
   @LogExecutionTime

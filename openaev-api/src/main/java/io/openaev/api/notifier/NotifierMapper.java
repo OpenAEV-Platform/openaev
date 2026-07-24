@@ -17,13 +17,20 @@ public class NotifierMapper {
     return notifier;
   }
 
-  public NotifierOutput toNotifierOutput(final Notifier notifier) {
+  /**
+   * Maps a notifier to its output DTO. The configuration (webhook URLs, headers, templates...) can
+   * contain sensitive values, so it is only included when the caller is allowed to see it
+   * (capability-gated, see NotifierApi); plain users picking notifiers for their triggers only get
+   * id/name/type metadata.
+   */
+  public NotifierOutput toNotifierOutput(
+      final Notifier notifier, final boolean includeConfiguration) {
     return NotifierOutput.builder()
         .id(notifier.getId())
         .name(notifier.getName())
         .description(notifier.getDescription())
         .type(notifier.getType())
-        .configuration(notifier.getConfiguration())
+        .configuration(includeConfiguration ? notifier.getConfiguration() : null)
         .builtIn(notifier.isBuiltIn())
         .createdAt(notifier.getCreatedAt())
         .updatedAt(notifier.getUpdatedAt())

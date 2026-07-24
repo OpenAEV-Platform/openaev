@@ -14,7 +14,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Capability;
+import io.openaev.database.model.Notifier;
 import io.openaev.database.model.NotifierType;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.NotifierRepository;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -64,6 +67,49 @@ public class NotifierApiTest extends IntegrationTest {
     List<Boolean> builtIns =
         JsonPath.read(response, "$[?(@.notifier_type == 'UI')].notifier_built_in");
     assertTrue(builtIns.stream().allMatch(Boolean::booleanValue));
+  }
+
+  @Test
+  @WithMockUser
+  @DisplayName("A plain user can list notifiers but does not receive their configuration")
+  void plainUserDoesNotSeeNotifierConfiguration() throws Exception {
+    seedWebhookNotifierWithSecret();
+
+    String response =
+        mvc.perform(get(NOTIFIER_URI).accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    List<String> names = JsonPath.read(response, "$[*].notifier_name");
+    assertTrue(names.contains("Secret webhook"));
+    assertFalse(response.contains("secret-token"));
+  }
+
+  @Test
+  @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
+  @DisplayName("A user with the tenant settings capability receives notifier configurations")
+  void tenantSettingsUserSeesNotifierConfiguration() throws Exception {
+    seedWebhookNotifierWithSecret();
+
+    String response =
+        mvc.perform(get(NOTIFIER_URI).accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertTrue(response.contains("secret-token"));
+  }
+
+  private void seedWebhookNotifierWithSecret() {
+    Notifier webhook = new Notifier();
+    webhook.setName("Secret webhook");
+    webhook.setType(NotifierType.WEBHOOK);
+    webhook.setConfiguration(Map.of("url", "https://hooks.example.org/secret-token"));
+    webhook.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    notifierRepository.save(webhook);
   }
 
   @Test

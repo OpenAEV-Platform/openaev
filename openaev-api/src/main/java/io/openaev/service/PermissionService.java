@@ -40,7 +40,9 @@ public class PermissionService {
           ResourceType.INJECTOR,
           ResourceType.MAPPER,
           // NOTIFIER is open for READ/SEARCH so any user can pick notifiers when creating
-          // notification triggers; write operations stay gated by tenant settings capabilities.
+          // notification triggers; write operations stay gated by tenant settings capabilities
+          // and notifier_configuration is masked in outputs for users without those capabilities
+          // (see NotifierApi).
           ResourceType.NOTIFIER);
 
   private static final EnumSet<ResourceType> RESOURCES_MANAGED_BY_GRANTS =
@@ -174,6 +176,23 @@ public class PermissionService {
       @NotNull final Action action) {
 
     if (isOpenResource(resourceType, action)) {
+      return true;
+    }
+
+    return hasCapabilityPermission(user, resourceType, action);
+  }
+
+  /**
+   * Checks admin/bypass/capability only, ignoring the open-resource shortcut. Used to decide
+   * whether sensitive fields of open resources (e.g. notifier configuration) can be exposed to the
+   * user, where the endpoint itself is open but the field is capability-gated.
+   */
+  public boolean hasCapabilityPermission(
+      @NotNull final User user,
+      @NotNull final ResourceType resourceType,
+      @NotNull final Action action) {
+
+    if (user.isAdmin()) {
       return true;
     }
 
