@@ -10,6 +10,8 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Short-TTL, cross-tenant cache of enabled live notification triggers grouped by watched resource
@@ -40,6 +42,25 @@ public class NotificationTriggerCacheService {
   /** Invalidates the cache (called on trigger CRUD so changes apply immediately). */
   public void invalidate() {
     cacheExpiry = Instant.EPOCH;
+  }
+
+  /**
+   * Invalidates the cache once the surrounding transaction has committed, so a concurrent refresh
+   * cannot re-cache the not-yet-committed state. Falls back to immediate invalidation when no
+   * transaction is active.
+   */
+  public void invalidateAfterCommit() {
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              invalidate();
+            }
+          });
+    } else {
+      invalidate();
+    }
   }
 
   private synchronized void refresh() {

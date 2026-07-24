@@ -117,6 +117,25 @@ class NotificationEngineServiceTest {
   }
 
   @Test
+  @DisplayName("Events without a resolved tenant are dropped (fail-closed tenant isolation)")
+  void nullTenantEventsAreSkipped() {
+    ResolvedNotificationTrigger trigger =
+        liveTrigger(Set.of(NotificationTriggerEventType.CREATE), TENANT_A, List.of("user-1"));
+    when(cacheService.getLiveTriggers(ResourceType.SCENARIO)).thenReturn(List.of(trigger));
+
+    engineService.handleEvent(
+        NotificationResourceCatalog.SCENARIO,
+        "scenario-id",
+        null,
+        NotificationTriggerEventType.CREATE,
+        "My scenario");
+
+    verify(matchingService, never()).matches(any(), any(), anyString());
+    verify(eventRecordRepository, never()).saveAll(anyCollection());
+    verify(dispatchService, never()).dispatch(any(), any(), anyList(), anyList());
+  }
+
+  @Test
   @DisplayName("Events of an unsubscribed type are skipped")
   void unsubscribedEventTypesAreSkipped() {
     ResolvedNotificationTrigger trigger =

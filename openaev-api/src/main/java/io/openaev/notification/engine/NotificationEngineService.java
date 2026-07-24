@@ -67,31 +67,32 @@ public class NotificationEngineService {
         if (!trigger.eventTypes().contains(eventType)) {
           continue;
         }
-        // Tenant isolation: a trigger only sees events of its own tenant
-        if (entityTenantId != null && !entityTenantId.equals(trigger.tenantId())) {
+        // Tenant isolation (fail-closed): a trigger only sees events of its own tenant, and
+        // events without a resolved tenant are dropped - every catalog entity is tenant-scoped
+        // and user events are fanned out per tenant by the listener.
+        if (entityTenantId == null || !entityTenantId.equals(trigger.tenantId())) {
           continue;
         }
-        // The filter re-check must run with the trigger's tenant so the Hibernate tenant
-        // filter (enabled by HibernateFilterTransactionAspect) scopes the query correctly.
-        boolean matches;
+        // The whole matched-trigger processing (filter re-check, outbox records, dispatch)
+        // runs with the trigger's tenant so the Hibernate tenant filter (enabled by
+        // HibernateFilterTransactionAspect) scopes every query correctly.
         TenantContext.setCurrentTenant(trigger.tenantId());
         try {
-          matches = matchingService.matches(trigger, entry, entityId);
+          if (!matchingService.matches(trigger, entry, entityId)) {
+            continue;
+          }
+          recordEvents(trigger, entry, entityId, eventType, message);
+          NotificationContent.Group group =
+              new NotificationContent.Group(
+                  trigger.name(),
+                  List.of(
+                      new NotificationContent.Event(
+                          eventType, message, entry.getResourceType(), entityId)));
+          dispatchService.dispatch(
+              trigger, NotificationTriggerType.LIVE, trigger.recipientUserIds(), List.of(group));
         } finally {
           TenantContext.clearCurrentTenant();
         }
-        if (!matches) {
-          continue;
-        }
-        recordEvents(trigger, entry, entityId, eventType, message);
-        NotificationContent.Group group =
-            new NotificationContent.Group(
-                trigger.name(),
-                List.of(
-                    new NotificationContent.Event(
-                        eventType, message, entry.getResourceType(), entityId)));
-        dispatchService.dispatch(
-            trigger, NotificationTriggerType.LIVE, trigger.recipientUserIds(), List.of(group));
       } catch (Exception e) {
         log.error(
             "Notification trigger {} processing failed for {} {}",

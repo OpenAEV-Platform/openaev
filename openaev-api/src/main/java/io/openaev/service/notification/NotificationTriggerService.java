@@ -29,10 +29,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class NotificationTriggerService {
 
-  private static final Pattern DAY_TIME = Pattern.compile("^\\d{2}:\\d{2}$");
-  private static final Pattern WEEK_TIME = Pattern.compile("^[1-7]-\\d{2}:\\d{2}$");
+  private static final String HOUR_MINUTE = "([01]\\d|2[0-3]):[0-5]\\d";
+  private static final Pattern DAY_TIME = Pattern.compile("^" + HOUR_MINUTE + "$");
+  private static final Pattern WEEK_TIME = Pattern.compile("^[1-7]-" + HOUR_MINUTE + "$");
   private static final Pattern MONTH_TIME =
-      Pattern.compile("^([1-9]|[12]\\d|3[01])-\\d{2}:\\d{2}$");
+      Pattern.compile("^([1-9]|[12]\\d|3[01])-" + HOUR_MINUTE + "$");
 
   private final NotificationTriggerRepository notificationTriggerRepository;
   private final NotificationTriggerCacheService triggerCacheService;
@@ -71,7 +72,7 @@ public class NotificationTriggerService {
     enforceRecipientTargeting(trigger, currentUser);
     validate(trigger);
     NotificationTrigger saved = notificationTriggerRepository.save(trigger);
-    triggerCacheService.invalidate();
+    triggerCacheService.invalidateAfterCommit();
     return saved;
   }
 
@@ -95,7 +96,7 @@ public class NotificationTriggerService {
     enforceRecipientTargeting(trigger, currentUser);
     validate(trigger);
     NotificationTrigger saved = notificationTriggerRepository.save(trigger);
-    triggerCacheService.invalidate();
+    triggerCacheService.invalidateAfterCommit();
     return saved;
   }
 
@@ -103,7 +104,7 @@ public class NotificationTriggerService {
   public void delete(@NotBlank final String id) {
     requireOwnedTrigger(id, "Notification trigger not found: " + id);
     notificationTriggerRepository.deleteById(id);
-    triggerCacheService.invalidate();
+    triggerCacheService.invalidateAfterCommit();
   }
 
   // -- HELPERS --

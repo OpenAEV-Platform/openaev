@@ -12,14 +12,15 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.NotifierRepository;
 import io.openaev.notification.engine.NotificationContent;
 import io.openaev.notification.engine.NotificationDispatchService;
+import io.openaev.notification.engine.NotificationTriggerCacheService;
 import io.openaev.notification.engine.ResolvedNotificationTrigger;
 import io.openaev.notification.engine.ResolvedNotifier;
+import io.openaev.notification.engine.WebhookTargetValidator;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,6 +40,8 @@ public class NotifierService {
   private final NotifierRepository notifierRepository;
   private final NotificationDispatchService notificationDispatchService;
   private final UserService userService;
+  private final NotificationTriggerCacheService triggerCacheService;
+  private final WebhookTargetValidator webhookTargetValidator;
 
   public Optional<Notifier> findById(@NotBlank final String id) {
     return notifierRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant());
@@ -75,7 +78,10 @@ public class NotifierService {
     notifier.setDescription(input.getDescription());
     notifier.setType(input.getType());
     notifier.setConfiguration(input.getConfiguration());
-    return notifierRepository.save(notifier);
+    Notifier saved = notifierRepository.save(notifier);
+    // Live triggers cache resolved notifier configurations: drop them once the change is visible
+    triggerCacheService.invalidateAfterCommit();
+    return saved;
   }
 
   @Transactional
@@ -86,13 +92,14 @@ public class NotifierService {
       throw new IllegalArgumentException("Built-in notifiers cannot be deleted");
     }
     notifierRepository.deleteById(id);
+    triggerCacheService.invalidateAfterCommit();
   }
 
   /**
    * Sends a canned sample notification through the real dispatch pipeline to the current user,
-   * mirroring OpenCTI's notifier test endpoint.
+   * mirroring OpenCTI's notifier test endpoint. Deliberately not transactional: webhook/email
+   * dispatch is blocking I/O and must not hold a database connection for its duration.
    */
-  @Transactional
   public void test(@NotBlank final String id) {
     Notifier notifier =
         findById(id).orElseThrow(() -> new ElementNotFoundException("Notifier not found: " + id));
@@ -164,10 +171,10 @@ public class NotifierService {
       if (!(url instanceof String urlValue) || urlValue.isBlank()) {
         throw new IllegalArgumentException("Webhook notifiers require a url in configuration");
       }
-      String scheme = URI.create(urlValue).getScheme();
-      if (scheme == null
-          || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))) {
-        throw new IllegalArgumentException("Webhook notifier url must be http(s)");
+      webhookTargetValidator.validateUrl(urlValue);
+      Object verb = configuration.get("verb");
+      if (verb instanceof String verbValue) {
+        webhookTargetValidator.validateVerb(verbValue);
       }
     }
   }

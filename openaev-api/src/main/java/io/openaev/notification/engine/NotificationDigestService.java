@@ -47,7 +47,7 @@ public class NotificationDigestService {
       return;
     }
     Instant to = now.truncatedTo(ChronoUnit.MINUTES);
-    Instant from = to.minus(NotificationTriggerTimeUtils.periodDuration(digest.period()));
+    Instant from = NotificationTriggerTimeUtils.windowStart(digest.period(), to);
     List<NotificationEventRecord> events =
         triggerLoader.loadEventsWindow(digest.childTriggerIds(), from, to);
     if (events.isEmpty()) {

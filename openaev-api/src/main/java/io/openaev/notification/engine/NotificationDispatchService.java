@@ -48,6 +48,7 @@ public class NotificationDispatchService {
   private final ResourceLoader resourceLoader;
   private final ObjectMapper mapper;
   private final OpenAEVConfig openAEVConfig;
+  private final WebhookTargetValidator webhookTargetValidator;
 
   private final HttpClient httpClient =
       HttpClient.newBuilder().connectTimeout(WEBHOOK_TIMEOUT).build();
@@ -157,12 +158,10 @@ public class NotificationDispatchService {
     String url =
         stringConfig(notifier, "url")
             .orElseThrow(() -> new IllegalStateException("Webhook notifier has no url"));
-    URI uri = URI.create(url);
-    String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase() : "";
-    if (!"http".equals(scheme) && !"https".equals(scheme)) {
-      throw new IllegalStateException("Webhook notifier url must be http(s): " + url);
-    }
-    String verb = stringConfig(notifier, "verb").orElse("POST").toUpperCase();
+    // Re-validated at dispatch time: the stored configuration is raw JSON and could have
+    // bypassed the API-time check (SSRF guard).
+    URI uri = webhookTargetValidator.validateUrl(url);
+    String verb = webhookTargetValidator.validateVerb(stringConfig(notifier, "verb").orElse(null));
 
     Map<String, Object> data = buildTemplateData(trigger, notificationType, user, groups);
     String body;
