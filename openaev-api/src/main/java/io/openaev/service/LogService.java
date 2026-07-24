@@ -235,6 +235,12 @@ public class LogService {
       Map<String, Object> ctx =
           new LinkedHashMap<>(event.getContextData() != null ? event.getContextData() : Map.of());
 
+      // Capture raw JsonNode input BEFORE processMutationContext converts it to Map
+      JsonNode rawInputNode =
+          (event.getEventType() == EventType.MUTATION && ctx.get("input") instanceof JsonNode jn)
+              ? jn
+              : null;
+
       // MUTATION events: normalize, redact, and build message from input/output
       if (event.getEventType() == EventType.MUTATION) {
         processMutationContext(ctx, resourceType, eventScope, doc);
@@ -244,18 +250,15 @@ public class LogService {
         ctx.put("message", event.getMessage());
       } else if (event.getEventType() == EventType.MUTATION) {
         // Build message from mutation context if not explicitly provided
-        String entityTypeName = formatResourceType(resourceType);
-        String displayName = null;
-        Object inputObj = ctx.get("input");
-        if (inputObj instanceof JsonNode inputNode) {
-          displayName = LogUtils.extractNameFromSnapshot(inputNode);
-        }
+        String entityTypeName =
+            resourceType != null ? formatResourceType(resourceType) : event.getResourceType();
+        String displayName =
+            rawInputNode != null ? LogUtils.extractNameFromSnapshot(rawInputNode) : null;
         displayName = displayName != null ? displayName : event.getResourceId();
 
         String message;
         if ("status_change".equals(eventScope)) {
-          JsonNode inputNode = inputObj instanceof JsonNode jn ? jn : null;
-          message = LogUtils.buildStatusChangeMessage(inputNode, entityTypeName, displayName);
+          message = LogUtils.buildStatusChangeMessage(rawInputNode, entityTypeName, displayName);
         } else {
           message = LogUtils.buildRequestLogMessage(eventScope, entityTypeName, displayName);
         }
@@ -263,7 +266,9 @@ public class LogService {
       }
 
       if (event.getResourceType() != null && !ctx.containsKey("entity_type")) {
-        ctx.put("entity_type", formatResourceType(resourceType));
+        ctx.put(
+            "entity_type",
+            resourceType != null ? formatResourceType(resourceType) : event.getResourceType());
       }
       if (event.getResourceId() != null && !ctx.containsKey("resource_id")) {
         ctx.put("resource_id", event.getResourceId());

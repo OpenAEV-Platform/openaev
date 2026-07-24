@@ -188,8 +188,8 @@ public class AuditLogger {
   // -- ACCESS CONTROL EVENTS --
 
   /**
-   * Logs an access control (mutation) event. Computes field-level diffs from raw snapshots, builds
-   * an {@link AuditEvent}, and delegates to {@link #logEvent(AuditEvent)}.
+   * Logs an access control (mutation) event. Builds the {@link AuditEvent} and computes field-level
+   * diffs asynchronously on the executor thread to avoid adding latency to the request path.
    */
   public CompletableFuture<Boolean> logAccessControlEvent(
       AuditEventScope eventScope,
@@ -203,28 +203,32 @@ public class AuditLogger {
 
     if (!isAuditLoggingEnabled()) return CompletableFuture.completedFuture(true);
 
-    // Compute diffs synchronously (fast in-memory JSON operation)
-    JsonNode entityDiffsNode = ObjectDiffUtils.computeEntityDiffsNode(snapshots, objectMapper);
-
-    Map<String, Object> ctx = new LinkedHashMap<>();
-    ctx.put("input", input != null ? input : NullNode.getInstance());
-    ctx.put("output", output != null ? output : NullNode.getInstance());
-    ctx.put("signature", signatureNode != null ? signatureNode : NullNode.getInstance());
-
-    AuditEvent event =
-        AuditEvent.builder()
-            .eventType(EventType.MUTATION)
-            .eventScope(eventScope)
-            .eventStatus(eventStatus)
-            .resourceType(resourceType != null ? resourceType.name() : null)
-            .resourceId(resourceId)
-            .entityDiffs(entityDiffsNode)
-            .contextData(ctx)
-            .origin(AuditEventOrigin.REQUEST)
-            .build();
-
     CompletableFuture<Boolean> future =
-        CompletableFuture.supplyAsync(() -> doLogEvent(event), taskLoggerExecutor);
+        CompletableFuture.supplyAsync(
+            () -> {
+              JsonNode entityDiffsNode =
+                  ObjectDiffUtils.computeEntityDiffsNode(snapshots, objectMapper);
+
+              Map<String, Object> ctx = new LinkedHashMap<>();
+              ctx.put("input", input != null ? input : NullNode.getInstance());
+              ctx.put("output", output != null ? output : NullNode.getInstance());
+              ctx.put("signature", signatureNode != null ? signatureNode : NullNode.getInstance());
+
+              AuditEvent event =
+                  AuditEvent.builder()
+                      .eventType(EventType.MUTATION)
+                      .eventScope(eventScope)
+                      .eventStatus(eventStatus)
+                      .resourceType(resourceType != null ? resourceType.name() : null)
+                      .resourceId(resourceId)
+                      .entityDiffs(entityDiffsNode)
+                      .contextData(ctx)
+                      .origin(AuditEventOrigin.REQUEST)
+                      .build();
+
+              return doLogEvent(event);
+            },
+            taskLoggerExecutor);
 
     awaitIfHaltOnFailure(future);
     return future;

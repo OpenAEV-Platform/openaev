@@ -9,6 +9,8 @@ import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.lang.annotation.Annotation;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -61,6 +63,7 @@ public class AccessControlAuditLogAspect {
 
   private final ObjectMapper objectMapper;
   private final ExpressionParser parser = new SpelExpressionParser();
+  @PersistenceContext private EntityManager entityManager;
 
   private static final String LOG_ERROR_MSG = "Error during audit logging";
 
@@ -177,11 +180,20 @@ public class AccessControlAuditLogAspect {
   }
 
   /**
-   * Captures all pending entity snapshots from {@link AuditLogContext}. Must be called on the
-   * servlet thread before any async handoff, since {@link AuditLogContext} is request-scoped.
+   * Flushes pending Hibernate changes and captures all entity snapshots from {@link
+   * AuditLogContext}. Must be called on the servlet thread before any async handoff, since {@link
+   * AuditLogContext} is request-scoped.
+   *
+   * <p>The flush triggers {@code @PreUpdate} / {@code @PreRemove} JPA callbacks that store
+   * before/after snapshots in {@link AuditLogContext}. Without it, the callbacks would only fire at
+   * transaction commit time — after {@code consumeAllSnapshots()} has already cleared the context.
+   *
+   * <p>This is safe because the aspect runs inside the transaction boundary; if the flush reveals a
+   * constraint violation, it would have failed at commit anyway.
    */
   private Map<String, AuditLogContext.EntitySnapshot> captureEntitySnapshots() {
     try {
+      entityManager.flush();
       return AuditLogContext.consumeAllSnapshots();
     } catch (Exception e) {
       log.debug("[AUDIT] Failed to capture entity snapshots: {}", e.getMessage());
