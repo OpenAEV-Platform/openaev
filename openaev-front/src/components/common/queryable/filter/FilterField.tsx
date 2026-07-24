@@ -35,8 +35,17 @@ const FilterField: FunctionComponent<Props> = ({
   const [properties, setProperties] = useState<PropertySchemaDTO[]>([]);
   const [options, setOptions] = useState<OptionPropertySchema[]>([]);
 
+  // Serialized keys keep the effect stable when callers pass inline array literals,
+  // while still refreshing the options when the actual filter names change.
+  const availableFilterNamesKey = availableFilterNames.join('|');
+  const excludedFilterNamesKey = excludedFilterNames.join('|');
+
   useEffect(() => {
+    let cancelled = false;
     useFilterableProperties(entityPrefix, availableFilterNames).then((propertySchemas: PropertySchemaDTO[]) => {
+      if (cancelled) {
+        return;
+      }
       const retainedProperties = propertySchemas.filter(property => !excludedFilterNames.includes(property.schema_property_name));
       const newOptions = retainedProperties.map(property => (
         {
@@ -48,7 +57,11 @@ const FilterField: FunctionComponent<Props> = ({
       setOptions(newOptions);
       setProperties(retainedProperties);
     });
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+    // `t` is recreated on every render (non-memoized formatter) and must stay out of the deps.
+  }, [entityPrefix, availableFilterNamesKey, excludedFilterNamesKey]);
 
   return (
     <>

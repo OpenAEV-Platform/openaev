@@ -10,6 +10,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.function.Function;
 import lombok.*;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -56,7 +57,7 @@ public class ZipJsonApi<T extends Base> {
         prefix + "-" + entity.getId() + "-" + ZonedDateTime.now().format(FORMATTER) + ".zip";
 
     HttpHeaders headers = new HttpHeaders();
-    headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
+    headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
 
     return ResponseEntity.ok()
         .headers(headers)
