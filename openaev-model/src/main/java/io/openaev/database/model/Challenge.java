@@ -5,6 +5,7 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdListSerializer;
@@ -54,11 +55,13 @@ public class Challenge implements TenantBase {
 
   @Column(name = "challenge_name")
   @JsonProperty("challenge_name")
+  @Queryable(filterable = true, searchable = true, sortable = true)
   @NotBlank
   private String name;
 
   @Column(name = "challenge_category")
   @JsonProperty("challenge_category")
+  @Queryable(filterable = true, sortable = true)
   private String category;
 
   @Column(name = "challenge_content")
@@ -88,6 +91,7 @@ public class Challenge implements TenantBase {
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
   @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("challenge_tags")
+  @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
 
   @Schema(implementation = String[].class)

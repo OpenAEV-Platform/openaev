@@ -18,9 +18,11 @@ import { searchTagByIdAsOption } from '../../../../actions/tags/tag-action';
 import { searchTeamByIdAsOption } from '../../../../actions/teams/team-actions';
 import { searchPlayerByIdAsOption } from '../../../../actions/users/User';
 import ContractOutputElementType from '../../../../admin/components/findings/ContractOutputElementType';
+import { scenarioCategories } from '../../../../admin/components/scenarios/constants';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { useFormatter } from '../../../i18n';
 import { CUSTOM_DASHBOARD, SCENARIOS, SIMULATIONS } from './constants';
 
 interface RetrieveOptionsConfig {
@@ -30,6 +32,7 @@ interface RetrieveOptionsConfig {
 }
 
 const useRetrieveOptions = () => {
+  const { t } = useFormatter();
   const [options, setOptions] = useState<Option[]>([]);
   const ability = useContext(AbilityContext);
 
@@ -121,6 +124,8 @@ const useRetrieveOptions = () => {
       case 'team_tags':
       case 'finding_tags':
       case 'user_tags':
+      case 'document_tags':
+      case 'challenge_tags':
       case 'base_tags_side':
         searchTagByIdAsOption(ids).then((response) => {
           setOptions(response.data);
@@ -150,13 +155,26 @@ const useRetrieveOptions = () => {
         break;
       case 'inject_teams':
       case 'finding_teams':
+      case 'user_teams':
       case 'base_teams_side':
         searchTeamByIdAsOption(ids).then((response) => {
           setOptions(response.data);
         });
         break;
       case 'finding_users':
+      case 'payload_author_user':
+      case 'asset_linked_person':
         searchPlayerByIdAsOption(ids).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'payload_author_team':
+        searchTeamByIdAsOption(ids).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'payload_author_organization':
+        searchOrganizationByIdAsOptions(ids).then((response) => {
           setOptions(response.data);
         });
         break;
@@ -188,6 +206,13 @@ const useRetrieveOptions = () => {
         searchOrganizationByIdAsOptions(ids).then((response) => {
           setOptions(response.data);
         });
+        break;
+      case 'scenario_category':
+        // Predefined categories have a display label; custom ones show as-is.
+        setOptions(ids.map(id => ({
+          id,
+          label: scenarioCategories.has(id) ? t(scenarioCategories.get(id) as string) : id,
+        })));
         break;
       // Author filter: an id may belong to a person, a team or an organization -
       // resolve across all three and merge (each id only matches its own type).

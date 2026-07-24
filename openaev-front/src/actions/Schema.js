@@ -269,6 +269,13 @@ export const mitigation = new schema.Entity(
 );
 export const arrayOfMitigations = new schema.Array(mitigation);
 
+export const notification = new schema.Entity(
+  'notifications',
+  {},
+  { idAttribute: 'notification_id' },
+);
+export const arrayOfNotifications = new schema.Array(notification);
+
 token.define({ token_user: user });
 user.define({ user_organization: organization });
 
@@ -295,6 +302,8 @@ export const storeHelper = state => ({
     return userLang;
   },
   getStatistics: () => state.referential.getIn(['entities', 'statistics', 'openaev']),
+  // notifications (SSE-fed, used to refresh the top bar bell)
+  getNotifications: () => entities('notifications', state),
   // exercises
   getExercises: () => entities('exercises', state),
   getExercisesMap: () => maps('exercises', state),

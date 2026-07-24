@@ -36,6 +36,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
@@ -753,6 +754,36 @@ public class ThreatArsenalApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(input)))
           .andExpect(status().isOk());
+      String facetResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/facet-counts")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      // Under the Windows filter, the Windows+Linux contract is the only match:
+      // both of its platforms count 1, MacOS counts 0.
+      assertEquals(
+          1,
+          (int) JsonPath.read(facetResponse, "$.platforms.Windows"),
+          "Windows facet count should match the filtered contract");
+      assertEquals(
+          1,
+          (int) JsonPath.read(facetResponse, "$.platforms.Linux"),
+          "Linux facet count should include the Windows+Linux contract");
+      assertEquals(
+          0,
+          (int) JsonPath.read(facetResponse, "$.platforms.MacOS"),
+          "No MacOS contract should match under the Windows filter");
+      // The matched contract has no payload: contracts without a payload are excluded from the
+      // status facet, so the statuses map is present but empty.
+      Map<String, Integer> statuses = JsonPath.read(facetResponse, "$.statuses");
+      assertTrue(
+          statuses.isEmpty(),
+          "Contracts without a payload should not contribute to status facet counts");
     }
 
     private String searchWith(SearchPaginationInput input) throws Exception {
@@ -1527,7 +1558,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               content()
                   .string(
                       containsString(
-                          "Only payload-based injector contracts can provide collectors for action remediation.")));
+                          "Only payload-based threat arsenal items can provide collectors for action remediation.")));
     }
 
     @Test

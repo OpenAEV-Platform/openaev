@@ -1739,6 +1739,7 @@ export interface CheckScenarioRulesOutput {
 }
 
 export interface Collector {
+  collector_author?: string;
   /** @format date-time */
   collector_created_at: string;
   collector_external?: boolean;
@@ -1760,6 +1761,7 @@ export interface Collector {
 }
 
 export interface CollectorCreateInput {
+  collector_author?: string;
   /** @minLength 1 */
   collector_id: string;
   /** @minLength 1 */
@@ -2345,14 +2347,6 @@ export interface CreateExerciseInput {
   exercise_start_date?: string | null;
   exercise_subtitle?: string;
   exercise_tags?: string[];
-}
-
-export interface CreateNotificationRuleInput {
-  resource_id: string;
-  resource_type: string;
-  subject: string;
-  trigger: string;
-  type: string;
 }
 
 export interface CustomDashboard {
@@ -5088,6 +5082,12 @@ export interface InjectExecutionInput {
     | "data"
     | "complete";
   /**
+   * Ids of the targets (assets / AI targets) this trace relates to. When set on an injector callback (no agent), the trace becomes target-scoped and shows up in the per-target execution view instead of the global timeline.
+   * @maxItems 1000
+   * @minItems 0
+   */
+  execution_context_identifiers?: string[];
+  /**
    * Duration of the execution in miliseconds
    * @format int32
    */
@@ -5110,6 +5110,7 @@ export interface InjectExpectationAgentOutput {
   inject_expectation_group?: boolean;
   /** @minLength 1 */
   inject_expectation_id: string;
+  inject_expectation_inject?: string;
   inject_expectation_name?: string;
   inject_expectation_results?: InjectExpectationResult[];
   /** @format double */
@@ -5160,6 +5161,17 @@ export interface InjectExpectationOutput {
    * @format double
    */
   inject_expectation_expected_score: number;
+  /** Security platform types expected to fulfil this technical expectation. Empty means any security platform. */
+  inject_expectation_expected_security_platforms?: (
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY"
+  )[];
   /** Whether this expectation is a group expectation */
   inject_expectation_group?: boolean;
   /**
@@ -5554,8 +5566,6 @@ export interface InjectStatus {
     | "EXECUTED"
     | "PARTIAL"
     | "ERROR"
-    | "MAYBE_PREVENTED"
-    | "MAYBE_PARTIAL_PREVENTED"
     | "DRAFT"
     | "QUEUING"
     | "EXECUTING"
@@ -6554,19 +6564,256 @@ export interface NetworkTraffic {
     | "AI_ATTACK";
 }
 
-export interface NotificationRuleOutput {
-  /** ID of the notification rule */
-  notification_rule_id: string;
-  /** Owner of the notification rule */
-  notification_rule_owner?: string;
-  /** Resource id of the resource associated with the rule */
-  notification_rule_resource_id?: string;
-  /** Resource type of the resource associated with the rule */
-  notification_rule_resource_type?: string;
-  /** Subject of the notification rule */
-  notification_rule_subject?: string;
-  /** Event that will trigger the notification */
-  notification_rule_trigger?: string;
+export interface NotificationOutput {
+  /** Content groups: [{title, events: [{operation, message, ...}]}] */
+  notification_content?: Record<string, any>[];
+  /**
+   * Creation date
+   * @format date-time
+   */
+  notification_created_at?: string;
+  /** ID of the notification */
+  notification_id: string;
+  /** Whether the notification has been read */
+  notification_is_read?: boolean;
+  /** Name of the trigger that produced the notification */
+  notification_name?: string;
+  /** Type of the notification (LIVE or DIGEST) */
+  notification_type?: "LIVE" | "DIGEST";
+}
+
+export interface NotificationTriggerInput {
+  /** Composed live trigger ids for a digest */
+  notification_trigger_children?: string[];
+  /** Whether the trigger is enabled */
+  notification_trigger_enabled?: boolean;
+  /** Subscribed lifecycle operations (CREATE, UPDATE, DELETE) */
+  notification_trigger_event_types?: (
+    | "CREATE"
+    | "UPDATE"
+    | "DELETE"
+    | "SCORE_DEGRADATION"
+  )[];
+  /** Filter group applied to matching entities */
+  notification_trigger_filters?: FilterGroup;
+  /** Entity id for instance triggers */
+  notification_trigger_instance_id?: string;
+  /**
+   * Name of the notification trigger
+   * @minLength 1
+   */
+  notification_trigger_name: string;
+  /** Notifier ids used for delivery */
+  notification_trigger_notifiers?: string[];
+  /** Digest period (HOUR, DAY, WEEK, MONTH) */
+  notification_trigger_period?: "HOUR" | "DAY" | "WEEK" | "MONTH";
+  /** Targeted recipient group ids (admins only) */
+  notification_trigger_recipient_groups?: string[];
+  /** Targeted recipient user ids (admins only; empty = owner) */
+  notification_trigger_recipient_users?: string[];
+  /** Resource type watched by a live trigger */
+  notification_trigger_resource_type?:
+    | "ASSET"
+    | "AGENT"
+    | "SCENARIO"
+    | "SIMULATION"
+    | "PLAYER"
+    | "USER"
+    | "TEAM"
+    | "ATOMIC_TESTING"
+    | "NOTIFICATION_TRIGGER"
+    | "NOTIFIER"
+    | "NOTIFICATION"
+    | "PAYLOAD"
+    | "THREAT_ARSENAL"
+    | "RESOURCE_TYPE"
+    | "SECURITY_PLATFORM"
+    | "DOCUMENT"
+    | "CHANNEL"
+    | "FINDING"
+    | "DASHBOARD"
+    | "PLATFORM_SETTING"
+    | "LESSON_LEARNED"
+    | "CHALLENGE"
+    | "INJECT"
+    | "JOB"
+    | "TAG"
+    | "TAG_RULE"
+    | "KILL_CHAIN_PHASE"
+    | "ATTACK_PATTERN"
+    | "ASSET_GROUP"
+    | "VULNERABILITY"
+    | "USER_GROUP"
+    | "INJECTOR"
+    | "INJECTOR_CONTRACT"
+    | "MAPPER"
+    | "GROUP_ROLE"
+    | "ORGANIZATION"
+    | "COLLECTOR"
+    | "STIX_BUNDLE"
+    | "DOMAIN"
+    | "OBJECTIVE"
+    | "EVALUATION"
+    | "CATALOG"
+    | "CONNECTOR_INSTANCE_LOG"
+    | "TENANT"
+    | "TENANT_SETTING"
+    | "PLATFORM_ROLE"
+    | "PLATFORM_GROUP"
+    | "PLATFORM_USER"
+    | "XTM_HUB_REGISTRATION"
+    | "UNKNOWN"
+    | "SIMULATION_OR_SCENARIO"
+    | "WORKFLOW"
+    | "STEP"
+    | "CONDITION"
+    | "SKIP_RBAC";
+  /** Digest firing time (UTC): DAY=HH:mm, WEEK=<1-7>-HH:mm, MONTH=<1-31>-HH:mm */
+  notification_trigger_time?: string;
+  /** Type of the trigger (LIVE or DIGEST) */
+  notification_trigger_type: "LIVE" | "DIGEST";
+}
+
+export interface NotificationTriggerOutput {
+  /** Composed live trigger ids for a digest */
+  notification_trigger_children?: string[];
+  /**
+   * Creation date
+   * @format date-time
+   */
+  notification_trigger_created_at?: string;
+  /** Whether the trigger is enabled */
+  notification_trigger_enabled?: boolean;
+  /** Subscribed lifecycle operations */
+  notification_trigger_event_types?: (
+    | "CREATE"
+    | "UPDATE"
+    | "DELETE"
+    | "SCORE_DEGRADATION"
+  )[];
+  /** Filter group applied to matching entities */
+  notification_trigger_filters?: FilterGroup;
+  /** ID of the notification trigger */
+  notification_trigger_id: string;
+  /** Entity id for instance triggers */
+  notification_trigger_instance_id?: string;
+  /** Name of the notification trigger */
+  notification_trigger_name?: string;
+  /** Notifier ids used for delivery */
+  notification_trigger_notifiers?: string[];
+  /** Owner user id */
+  notification_trigger_owner?: string;
+  /** Digest period */
+  notification_trigger_period?: "HOUR" | "DAY" | "WEEK" | "MONTH";
+  /** Targeted recipient group ids */
+  notification_trigger_recipient_groups?: string[];
+  /** Targeted recipient user ids */
+  notification_trigger_recipient_users?: string[];
+  /** Resource type watched by a live trigger */
+  notification_trigger_resource_type?:
+    | "ASSET"
+    | "AGENT"
+    | "SCENARIO"
+    | "SIMULATION"
+    | "PLAYER"
+    | "USER"
+    | "TEAM"
+    | "ATOMIC_TESTING"
+    | "NOTIFICATION_TRIGGER"
+    | "NOTIFIER"
+    | "NOTIFICATION"
+    | "PAYLOAD"
+    | "THREAT_ARSENAL"
+    | "RESOURCE_TYPE"
+    | "SECURITY_PLATFORM"
+    | "DOCUMENT"
+    | "CHANNEL"
+    | "FINDING"
+    | "DASHBOARD"
+    | "PLATFORM_SETTING"
+    | "LESSON_LEARNED"
+    | "CHALLENGE"
+    | "INJECT"
+    | "JOB"
+    | "TAG"
+    | "TAG_RULE"
+    | "KILL_CHAIN_PHASE"
+    | "ATTACK_PATTERN"
+    | "ASSET_GROUP"
+    | "VULNERABILITY"
+    | "USER_GROUP"
+    | "INJECTOR"
+    | "INJECTOR_CONTRACT"
+    | "MAPPER"
+    | "GROUP_ROLE"
+    | "ORGANIZATION"
+    | "COLLECTOR"
+    | "STIX_BUNDLE"
+    | "DOMAIN"
+    | "OBJECTIVE"
+    | "EVALUATION"
+    | "CATALOG"
+    | "CONNECTOR_INSTANCE_LOG"
+    | "TENANT"
+    | "TENANT_SETTING"
+    | "PLATFORM_ROLE"
+    | "PLATFORM_GROUP"
+    | "PLATFORM_USER"
+    | "XTM_HUB_REGISTRATION"
+    | "UNKNOWN"
+    | "SIMULATION_OR_SCENARIO"
+    | "WORKFLOW"
+    | "STEP"
+    | "CONDITION"
+    | "SKIP_RBAC";
+  /** Digest firing time (UTC) */
+  notification_trigger_time?: string;
+  /** Type of the trigger (LIVE or DIGEST) */
+  notification_trigger_type?: "LIVE" | "DIGEST";
+  /**
+   * Last update date
+   * @format date-time
+   */
+  notification_trigger_updated_at?: string;
+}
+
+export interface NotifierInput {
+  /** Type-specific configuration: email = subject/template (FreeMarker), webhook = url/verb/headers/template */
+  notifier_configuration?: Record<string, any>;
+  /** Description of the notifier */
+  notifier_description?: string;
+  /**
+   * Name of the notifier
+   * @minLength 1
+   */
+  notifier_name: string;
+  /** Type of the notifier (UI, EMAIL, WEBHOOK) */
+  notifier_type: "UI" | "EMAIL" | "WEBHOOK";
+}
+
+export interface NotifierOutput {
+  /** Whether the notifier is built-in (read-only) */
+  notifier_built_in?: boolean;
+  /** Type-specific configuration */
+  notifier_configuration?: Record<string, any>;
+  /**
+   * Creation date of the notifier
+   * @format date-time
+   */
+  notifier_created_at?: string;
+  /** Description of the notifier */
+  notifier_description?: string;
+  /** ID of the notifier */
+  notifier_id: string;
+  /** Name of the notifier */
+  notifier_name?: string;
+  /** Type of the notifier (UI, EMAIL, WEBHOOK) */
+  notifier_type?: "UI" | "EMAIL" | "WEBHOOK";
+  /**
+   * Last update date of the notifier
+   * @format date-time
+   */
+  notifier_updated_at?: string;
 }
 
 export interface OAuthProvider {
@@ -7063,8 +7310,46 @@ export interface PageMitigation {
   totalPages?: number;
 }
 
-export interface PageNotificationRuleOutput {
-  content?: NotificationRuleOutput[];
+export interface PageNotificationOutput {
+  content?: NotificationOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageNotificationTriggerOutput {
+  content?: NotificationTriggerOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageNotifierOutput {
+  content?: NotifierOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -10204,6 +10489,13 @@ export interface ThreatArsenalBulkDeleteOutput {
   deleted_ids?: string[];
 }
 
+export interface ThreatArsenalFacetCountsOutput {
+  /** Number of contracts per platform under the current filters */
+  platforms?: Record<string, number>;
+  /** Number of contracts per payload status under the current filters */
+  statuses?: Record<string, number>;
+}
+
 export interface Token {
   listened?: boolean;
   /** @format date-time */
@@ -10255,10 +10547,6 @@ export interface UpdateMePasswordInput {
   user_current_password: string;
   /** @minLength 1 */
   user_plain_password: string;
-}
-
-export interface UpdateNotificationRuleInput {
-  subject: string;
 }
 
 export interface UpdateProfileInput {

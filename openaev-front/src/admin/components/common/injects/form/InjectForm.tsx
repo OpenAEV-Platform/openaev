@@ -277,6 +277,9 @@ const InjectForm = ({
         inject_documents: data.inject_documents,
         inject_depends_duration,
         inject_depends_on: data.inject_depends_on ? data.inject_depends_on : [],
+        // Preserve the activation state: the backend input defaults inject_enabled to true, so
+        // omitting it would silently re-enable a disabled inject on every update.
+        inject_enabled: defaultInject.inject_enabled ?? true,
         ...(data.inject_injector ? { inject_injector: data.inject_injector } : {}),
       } as InjectInput;
       cleanInvisibleFields(values);

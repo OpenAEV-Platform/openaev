@@ -25,6 +25,7 @@ import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpdateService;
 import io.openaev.schema.SchemaUtils;
 import io.openaev.schema.model.PropertySchemaDTO;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -48,6 +49,7 @@ public class ThreatArsenalService {
   private final InjectorContractService injectorContractService;
   private final ThreatArsenalMapper threatArsenalMapper;
   private final CollectorService collectorService;
+  private final BulkDeleteExecutor bulkDeleteExecutor;
 
   /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
   public static final List<String> TABLETOP_INJECTOR_TYPES =
@@ -144,6 +146,19 @@ public class ThreatArsenalService {
   }
 
   /**
+   * Platform and payload-status facet counts for the current filters, so the sidebar can display
+   * live counts on its fixed-universe facets (like the domain and author facets). Uses the same
+   * {@code action_*} -> {@code injector_contract_*} translation as the search route.
+   */
+  public ThreatArsenalFacetCountsOutput getFacetCounts(SearchPaginationInput input) {
+    SearchPaginationInput filtered =
+        handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
+    return new ThreatArsenalFacetCountsOutput(
+        injectorContractService.getPlatformCounts(filtered),
+        injectorContractService.getStatusCounts(filtered));
+  }
+
+  /**
    * Populates a {@link PayloadUpdateInput} with the fields common to all action inputs.
    *
    * @param source the action input holding the common field values
@@ -198,7 +213,7 @@ public class ThreatArsenalService {
     Payload payload = injectorContract.getPayload();
     if (payload == null) {
       throw new ElementNotFoundException(
-          "Only payload-based injector contracts can provide collectors for action remediation.");
+          "Only payload-based threat arsenal items can provide collectors for action remediation.");
     }
 
     return collectorService.collectorsForPayload(payload.getId());
@@ -300,7 +315,7 @@ public class ThreatArsenalService {
     Payload payload = injectorContract.getPayload();
     if (payload == null) {
       throw new ElementNotFoundException(
-          "Only injector contract based on payload can be duplicated.");
+          "Only threat arsenal items based on a payload can be duplicated.");
     }
 
     PayloadCreationService.PayloadInjectorContractCreationResult result =
@@ -389,20 +404,22 @@ public class ThreatArsenalService {
    * deleted (payload-based, and - for collector-sourced payloads - only when deprecated), mirroring
    * the per-row delete eligibility. Non-eligible actions are silently skipped.
    *
+   * <p>Deliberately NOT transactional as a whole: the scope and eligibility are resolved in a short
+   * read transaction, then the actions are deleted in small independent chunks through {@link
+   * BulkDeleteExecutor}, which also tracks the deletion as a massive operation (header progress
+   * indicator) and suppresses the per-entity stream events.
+   *
    * @param input the search + selection input
    * @return the ids that were actually deleted
    */
-  @Transactional(rollbackFor = Exception.class)
   public List<String> bulkDelete(InjectorContractSearchPaginationInput input) {
-    List<String> candidateIds = resolveCandidateIds(input);
-    List<String> deleted = new ArrayList<>();
-    for (String actionId : candidateIds) {
-      if (isEligibleForDeletion(actionId)) {
-        injectorContractService.deleteInjectorContractById(actionId);
-        deleted.add(actionId);
-      }
-    }
-    return deleted;
+    List<String> eligibleIds =
+        bulkDeleteExecutor.resolveInTransaction(
+            () -> resolveCandidateIds(input).stream().filter(this::isEligibleForDeletion).toList());
+    return bulkDeleteExecutor.deleteInChunks(
+        "threat arsenal items",
+        eligibleIds,
+        chunk -> chunk.forEach(injectorContractService::deleteInjectorContractById));
   }
 
   private List<String> resolveCandidateIds(InjectorContractSearchPaginationInput input) {

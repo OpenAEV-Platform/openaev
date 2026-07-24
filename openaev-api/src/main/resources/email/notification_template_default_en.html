@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="x-apple-disable-message-reformatting">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta name="supported-color-schemes" content="light dark">
+    <title>OpenAEV - Notification</title>
+</head>
+<body style="margin: 0; width: 100%; background-color: #F1F5F9; padding: 0; -webkit-font-smoothing: antialiased; word-break: break-word">
+<div role="article" aria-roledescription="email" aria-label="OpenAEV - Notification" lang="en">
+    <div style="background-color: #F1F5F9; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif">
+        <table align="center" cellpadding="0" cellspacing="0" role="none">
+            <tr>
+                <td style="width: 552px; max-width: 100%">
+                    <div style="margin-bottom: 40px; margin-top: 40px; text-align: center">
+                        <h2 style="margin: 0; font-size: 20px; font-weight: 700; color: #00020c">OpenAEV</h2>
+                    </div>
+                    <table style="width: 100%;" cellpadding="0" cellspacing="0" role="none">
+                        <tr>
+                            <td style="border-radius: 4px; background-color: #fff; padding: 48px; font-size: 16px; color: #00020c; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05)">
+                                <h2 style="margin: 0 0 8px; text-align: center; font-size: 24px; font-weight: 700">
+                                    ${notification_name}
+                                </h2>
+                                <p style="margin: 0 0 24px; text-align: center; font-size: 13px; color: #64748B; text-transform: uppercase; letter-spacing: 1px">
+                                    ${notification_type} notification
+                                </p>
+                                <#list content as group>
+                                    <h4 style="margin: 24px 0 8px; font-size: 16px; font-weight: 700">${group.title}</h4>
+                                    <ul style="margin: 0; padding-left: 20px">
+                                        <#list group.events as event>
+                                            <li style="margin-bottom: 6px; font-size: 14px">${event.message}</li>
+                                        </#list>
+                                    </ul>
+                                </#list>
+                                <table style="width: 100%;" cellpadding="0" cellspacing="0" role="none">
+                                    <tr>
+                                        <td>
+                                            <div style="padding-top: 32px">
+                                                <div style="text-align: center;">
+                                                    <a href="${platform_url}"
+                                                       style="display: inline-block; border-radius: 4px; padding: 16px 24px; font-size: 16px; line-height: 1; font-weight: 600; text-decoration: none; color: #F4F4F6; background-color: #001BDB">
+                                                        <span style="mso-text-raise: 16px">Access platform</span>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                    <p style="padding: 28px 24px; text-align: center; font-size: 12px; color: #00020c">
+                        OpenAEV - Open Adversarial Exposure Validation Platform
+                    </p>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+</body>
+</html>

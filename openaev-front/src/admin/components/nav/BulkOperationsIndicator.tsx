@@ -33,7 +33,13 @@ const BulkOperationsIndicator: FunctionComponent = () => {
   const operationTitle = (operation: BulkOperation) => {
     // Composes the i18n key from the action and the backend entity label, e.g.
     // "Deleting scenarios": the key itself is readable English if no translation exists yet.
-    const action = operation.bulk_operation_action === 'delete' ? 'Deleting' : 'Processing';
+    const actionVerbs: Record<string, string> = {
+      delete: 'Deleting',
+      update: 'Updating',
+      test: 'Testing',
+      create: 'Creating',
+    };
+    const action = actionVerbs[operation.bulk_operation_action] ?? 'Processing';
     return t(`${action} ${operation.bulk_operation_entity}`);
   };
 

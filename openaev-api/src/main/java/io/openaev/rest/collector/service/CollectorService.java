@@ -179,6 +179,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    * @param period polling period in seconds (only relevant for external collectors)
    * @param securityPlatformId optional security platform reference
    * @param iconStream optional PNG icon data — uploaded to the file store when present
+   * @param author optional source-declared author override for the collector's payloads and
+   *     contracts; when null or blank the collector name is used as author
    * @return the persisted collector
    */
   @Transactional
@@ -190,7 +192,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       boolean external,
       int period,
       String securityPlatformId,
-      InputStream iconStream)
+      InputStream iconStream,
+      String author)
       throws Exception {
 
     if (iconStream != null) {
@@ -227,6 +230,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     collector.setType(type);
     collector.setCollectorType(collectorType);
     collector.setExternal(external);
+    collector.setAuthor(author != null && !author.isBlank() ? author : null);
     if (external) {
       collector.setUpdatedAt(Instant.now());
     }

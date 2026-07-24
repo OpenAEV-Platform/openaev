@@ -3,7 +3,7 @@ package io.openaev.service;
 import static org.mockito.Mockito.verify;
 
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.NotificationRuleResourceType;
+import io.openaev.database.model.ResourceType;
 import io.openaev.notification.handler.ScenarioNotificationEventHandler;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
@@ -40,7 +40,7 @@ public class NotificationEvenServiceTest extends IntegrationTest {
     NotificationEvent notificationEvent =
         NotificationEvent.builder()
             .eventType(NotificationEventType.SIMULATION_COMPLETED)
-            .resourceType(NotificationRuleResourceType.SCENARIO)
+            .resourceType(ResourceType.SCENARIO)
             .timestamp(Instant.now())
             .resourceId("id")
             .build();
@@ -53,7 +53,7 @@ public class NotificationEvenServiceTest extends IntegrationTest {
     NotificationEvent notificationEvent =
         NotificationEvent.builder()
             .eventType(NotificationEventType.SIMULATION_COMPLETED)
-            .resourceType(NotificationRuleResourceType.SCENARIO)
+            .resourceType(ResourceType.SCENARIO)
             .timestamp(Instant.now())
             .resourceId("id")
             .build();

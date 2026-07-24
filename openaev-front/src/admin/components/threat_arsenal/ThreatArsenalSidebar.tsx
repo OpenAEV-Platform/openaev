@@ -16,6 +16,7 @@ import { useFormatter } from '../../../components/i18n';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { type Filter, type SearchPaginationInput } from '../../../utils/api-types';
 import { type IconBarElement } from '../common/domains/IconBar-model';
+import { type ThreatArsenalFacetCounts } from './useThreatArsenalFacetCounts';
 
 const PLATFORM_FILTER_KEY = 'action_platforms';
 const STATUS_FILTER_KEY = 'action_payload_status';
@@ -47,6 +48,8 @@ interface Props {
   domainElements: IconBarElement[];
   /** Distinct authors present in the loaded page (id + label + type). */
   authorOptions: AuthorOption[];
+  /** Platform + status counts under the current filters (null until loaded). */
+  facetCounts: ThreatArsenalFacetCounts | null;
   searchPaginationInput: SearchPaginationInput;
   filterHelpers: FilterHelpers;
 }
@@ -55,7 +58,7 @@ interface Props {
 // integrations marketplace CatalogSidebar) whose rows toggle REAL backend
 // filters through `filterHelpers`. The generic "Add filter" bar still handles
 // every other property (injectors, tags, dates...).
-const ThreatArsenalSidebar = ({ domainElements, authorOptions, searchPaginationInput, filterHelpers }: Props) => {
+const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, searchPaginationInput, filterHelpers }: Props) => {
   const { t } = useFormatter();
 
   const filters = useMemo(
@@ -208,9 +211,12 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, searchPaginationI
       onToggle: element.function,
     }));
 
+    // Counts stay undefined (no badge, row clickable) until the aggregation
+    // endpoint answers; afterwards zero-count rows grey out like the domain facet.
     const platformRows: FacetRow[] = PLATFORMS.map(platform => ({
       value: platform,
       label: t(platform),
+      count: facetCounts ? facetCounts.platforms[platform] ?? 0 : undefined,
       icon: () => <PlatformIcon platform={platform} width={16} />,
       checked: platformValues.includes(platform),
       onToggle: () => toggleValue(PLATFORM_FILTER_KEY, platformValues, platform),
@@ -219,6 +225,7 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, searchPaginationI
     const statusRows: FacetRow[] = statusMeta.map(status => ({
       value: status.value,
       label: status.label,
+      count: facetCounts ? facetCounts.statuses[status.value] ?? 0 : undefined,
       icon: status.icon,
       checked: statusValues.includes(status.value),
       onToggle: () => toggleValue(STATUS_FILTER_KEY, statusValues, status.value),
@@ -279,7 +286,7 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, searchPaginationI
         rows: authorRows,
       },
     ].filter(section => section.rows.length > 0);
-  }, [domainElements, authorOptions, platformValues, statusValues, authorValues, noAuthorActive, statusMeta, toggleValue, toggleAuthorValue, toggleNoAuthor, t]);
+  }, [domainElements, authorOptions, facetCounts, platformValues, statusValues, authorValues, noAuthorActive, statusMeta, toggleValue, toggleAuthorValue, toggleNoAuthor, t]);
 
   const anyActive = platformValues.length > 0
     || statusValues.length > 0

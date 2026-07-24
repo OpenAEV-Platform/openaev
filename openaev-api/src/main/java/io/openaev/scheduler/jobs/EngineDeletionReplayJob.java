@@ -41,16 +41,37 @@ public class EngineDeletionReplayJob implements Job {
   @Override
   public void execute(JobExecutionContext context) throws JobExecutionException {
     List<String> pendingIds = deletionJournal.findPendingIds();
+    boolean allReplayed = true;
     for (int start = 0; start < pendingIds.size(); start += REPLAY_BATCH_SIZE) {
       List<String> batch =
           pendingIds.subList(start, Math.min(start + REPLAY_BATCH_SIZE, pendingIds.size()));
-      engineService.bulkDelete(batch);
+      try {
+        engineService.bulkDelete(batch);
+        // Prune aged entries per successful batch: a persistently failing batch elsewhere in the
+        // journal must not starve the pruning of entries that did replay.
+        deletionJournal.pruneAged(batch);
+      } catch (RuntimeException e) {
+        // Keep replaying the remaining batches: one transient engine rejection must not starve
+        // every other journaled deletion until the next pass.
+        allReplayed = false;
+        log.error(
+            "Engine deletion replay failed for a batch of {} id(s), will retry on the next pass: {}",
+            batch.size(),
+            e.getMessage(),
+            e);
+      }
     }
     if (!pendingIds.isEmpty()) {
       log.debug("Replayed {} journaled engine deletion(s)", pendingIds.size());
     }
-    // Prune only after replaying: entries older than the retention window have been replayed at
-    // least once by this very pass, even after a long platform downtime.
-    deletionJournal.prune();
+    if (allReplayed) {
+      // Prune only after a fully successful replay: entries older than the retention window have
+      // been replayed at least once by this very pass, even after a long platform downtime.
+      deletionJournal.prune();
+    } else {
+      // Poison ids the engine keeps rejecting are dropped past the hard cap so they cannot grow
+      // the journal and the replay workload without bound.
+      deletionJournal.pruneStale();
+    }
   }
 }

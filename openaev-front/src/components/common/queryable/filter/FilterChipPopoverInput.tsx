@@ -55,7 +55,7 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
   // Standard hooks
   const { t } = useFormatter();
   const [inputValue, setInputValue] = useState('');
-  const { options, setOptions, searchOptions } = useSearchOptions();
+  const { options, setOptions, searchOptions, loading } = useSearchOptions();
   const { defaultValues } = useContext(FilterContext);
   const selectedOptions = getSelectedOptions(options, filter.values ?? [], t);
   const mergedOptions = [
@@ -125,7 +125,7 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
           size="small"
         />
       )}
-      loading
+      loading={loading}
       renderOption={(props, option) => {
         const checked = filter.values?.includes(option.id);
         return (

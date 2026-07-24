@@ -6,7 +6,6 @@ import {
   HubOutlined,
   LanOutlined,
   NewspaperOutlined,
-  NotificationsOutlined,
   PersonOutlined,
   PlayArrowOutlined,
   RouteOutlined,
@@ -56,6 +55,7 @@ import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
+import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
 import ScenarioConfiguration from './ScenarioConfiguration';
 import ScenarioPopover from './ScenarioPopover';
 import ScenarioRecurringFormDialog from './ScenarioRecurringFormDialog';
@@ -70,8 +70,6 @@ interface ScenarioHeaderProps {
   openScenarioRecurringFormDialog: boolean;
   openInstantiateSimulationAndStart: boolean;
   noRepeat: boolean;
-  editNotification: boolean;
-  setOpenScenarioNotificationRuleDrawer: Dispatch<SetStateAction<boolean>>;
 }
 
 const ScenarioHeader = ({
@@ -84,8 +82,6 @@ const ScenarioHeader = ({
   setOpenScenarioRecurringFormDialog,
   openInstantiateSimulationAndStart,
   setOpenInstantiateSimulationAndStart,
-  editNotification,
-  setOpenScenarioNotificationRuleDrawer,
 }: ScenarioHeaderProps) => {
   // Standard hooks
   const { t, locale, fld } = useFormatter();
@@ -295,11 +291,11 @@ const ScenarioHeader = ({
               )}
               {canManage && (
                 <>
-                  <Tooltip title={t('Notification rules')}>
-                    <IconButton size="small" color="primary" onClick={() => setOpenScenarioNotificationRuleDrawer(true)}>
-                      <NotificationsOutlined fontSize="small" color={editNotification ? 'success' : undefined} />
-                    </IconButton>
-                  </Tooltip>
+                  <TriggerSubscribeButton
+                    resourceType="SCENARIO"
+                    resourceId={scenarioId}
+                    resourceName={scenario.scenario_name}
+                  />
                   <Tooltip title={t('Scheduling')}>
                     <IconButton size="small" color="primary" onClick={() => setOpenScenarioRecurringFormDialog(true)}>
                       <UpdateOutlined fontSize="small" />

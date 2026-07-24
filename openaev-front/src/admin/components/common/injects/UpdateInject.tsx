@@ -200,9 +200,11 @@ const UpdateInject: React.FC<Props> = ({
           {!isInjectLoading && inject && (
             <InjectForm
               handleClose={handleClose}
+              // A disabled inject stays fully editable: "disabled" only means it is excluded from
+              // execution, it is not a read-only state. Only missing contract content and
+              // permissions make the form read-only.
               disabled={
-                !inject.inject_enabled
-                || !injectorContractContent
+                !injectorContractContent
                 || permissions.readOnly
                 || (inherited_context === INHERITED_CONTEXT.NONE
                   && ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId)
@@ -246,9 +248,8 @@ const UpdateInject: React.FC<Props> = ({
               onUpdateInject={massUpdateInject}
               injects={injects}
               isDisabled={
-                !inject.inject_enabled
-                || (!permissions.canManage
-                  && ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId))
+                !permissions.canManage
+                && ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId)
               }
             />
           )}

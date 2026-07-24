@@ -54,6 +54,10 @@ interface Props<T> {
   queryableHelpers: QueryableHelpers;
   topBarButtons?: ReactElement | null;
   leftSlot?: ReactElement | null;
+  // Rendered inline at the end of the filter row, right after the clear-filters
+  // ("empty") icon of the filter autocomplete. Used e.g. for the card-view sort
+  // control so it sits in the filter toolbar instead of the page hero.
+  filtersEndSlot?: ReactElement | null;
   attackPatterns?: AttackPattern[];
   reloadContentCount?: number;
   contextId?: string;
@@ -74,6 +78,7 @@ const PaginationComponentV2 = <T extends object>({
   attackPatterns,
   topBarButtons,
   leftSlot,
+  filtersEndSlot,
   reloadContentCount = 0,
   contextId,
   topPagination = false,
@@ -223,6 +228,7 @@ const PaginationComponentV2 = <T extends object>({
               </Drawer>
             </>
           )}
+          {filtersEndSlot}
         </div>
         {!topPagination
           && (
