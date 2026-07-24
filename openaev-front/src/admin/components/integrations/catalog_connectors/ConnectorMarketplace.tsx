@@ -13,9 +13,10 @@ import {
 } from './catalog-facets';
 import CatalogActiveFilters from './CatalogActiveFilters';
 import CatalogConnectorCard from './CatalogConnectorCard';
+import CatalogConnectorLine, { CatalogConnectorLinesHeader } from './CatalogConnectorLine';
 import CatalogEmptyState from './CatalogEmptyState';
 import CatalogSidebar from './CatalogSidebar';
-import CatalogToolbar from './CatalogToolbar';
+import CatalogToolbar, { type MarketplaceView } from './CatalogToolbar';
 import useCatalogFilters from './useCatalogFilters';
 
 interface Props {
@@ -24,6 +25,8 @@ interface Props {
   renderFooterAction?: (item: ConnectorItem) => ReactNode;
   searchPlaceholder?: string;
 }
+
+const VIEW_STORAGE_KEY = 'integrations_marketplace_view';
 
 /**
  * The shared faceted marketplace browser: sticky filter sidebar, toolbar
@@ -39,6 +42,16 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
   const { filters, keyword, setKeyword, sort, setSort, onToggleFacet, onClearFacets } = useCatalogFilters();
   // SearchFilter is uncontrolled; bumping this key remounts it to clear its value.
   const [searchResetKey, setSearchResetKey] = useState(0);
+
+  // Persisted so dense fleets keep the compact lines view across navigations
+  // (same behavior as the OpenCTI integrations marketplace).
+  const [view, setView] = useState<MarketplaceView>(
+    () => (localStorage.getItem(VIEW_STORAGE_KEY) === 'list' ? 'list' : 'cards'),
+  );
+  const onViewChange = (value: MarketplaceView) => {
+    localStorage.setItem(VIEW_STORAGE_KEY, value);
+    setView(value);
+  };
 
   const onResetAll = () => {
     onClearFacets();
@@ -118,6 +131,8 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
           onSortChange={setSort}
           resultCount={filteredItems.length}
           searchPlaceholder={searchPlaceholder}
+          view={view}
+          onViewChange={onViewChange}
         />
         <CatalogActiveFilters
           filters={filters}
@@ -191,30 +206,50 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
                 }}
                 />
               </header>
-              {/* Capped at 4 columns like OpenCTI (Grid2 xs-12 sm-6 lg-4 xl-3):
-                  cards grow with the screen instead of multiplying columns.
-                  minmax(0, 1fr) keeps every track the same width even when a
-                  card's intrinsic content would otherwise stretch its column. */}
-              <Box
-                sx={{
-                  display: 'grid',
-                  gap: 2,
-                  gridTemplateColumns: {
-                    xs: 'minmax(0, 1fr)',
-                    sm: 'repeat(2, minmax(0, 1fr))',
-                    lg: 'repeat(3, minmax(0, 1fr))',
-                    xl: 'repeat(4, minmax(0, 1fr))',
-                  },
-                }}
-              >
-                {section.items.map(item => (
-                  <CatalogConnectorCard
-                    key={item.id}
-                    connector={item}
-                    footerAction={renderFooterAction?.(item)}
-                  />
-                ))}
-              </Box>
+              {view === 'list' ? (
+                <Box
+                  sx={{
+                    borderRadius: 1,
+                    border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+                    backgroundColor: theme.palette.background.paper,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <CatalogConnectorLinesHeader />
+                  {section.items.map(item => (
+                    <CatalogConnectorLine
+                      key={item.id}
+                      connector={item}
+                      footerAction={renderFooterAction?.(item)}
+                    />
+                  ))}
+                </Box>
+              ) : (
+                /* Capped at 4 columns like OpenCTI (Grid2 xs-12 sm-6 lg-4 xl-3):
+                   cards grow with the screen instead of multiplying columns.
+                   minmax(0, 1fr) keeps every track the same width even when a
+                   card's intrinsic content would otherwise stretch its column. */
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gap: 2,
+                    gridTemplateColumns: {
+                      xs: 'minmax(0, 1fr)',
+                      sm: 'repeat(2, minmax(0, 1fr))',
+                      lg: 'repeat(3, minmax(0, 1fr))',
+                      xl: 'repeat(4, minmax(0, 1fr))',
+                    },
+                  }}
+                >
+                  {section.items.map(item => (
+                    <CatalogConnectorCard
+                      key={item.id}
+                      connector={item}
+                      footerAction={renderFooterAction?.(item)}
+                    />
+                  ))}
+                </Box>
+              )}
             </section>
           );
         })}
