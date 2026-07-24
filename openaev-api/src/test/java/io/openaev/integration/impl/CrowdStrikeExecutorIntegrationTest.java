@@ -128,6 +128,10 @@ public class CrowdStrikeExecutorIntegrationTest {
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
         connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
+    // The migrated instance requests 'starting' (legacy config enabled): request a stop
+    // so the sync exercises the stopped path instead of attempting a real start.
+    instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    connectorInstanceService.save(instances.getFirst());
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);
@@ -151,6 +155,10 @@ public class CrowdStrikeExecutorIntegrationTest {
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
         connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
+    // The migrated instance requests 'starting' (legacy config enabled): request a stop
+    // so the sync exercises the stopped path instead of attempting a real start.
+    instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    connectorInstanceService.save(instances.getFirst());
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);
