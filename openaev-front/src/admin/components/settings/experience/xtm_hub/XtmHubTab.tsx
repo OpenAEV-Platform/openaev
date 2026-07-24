@@ -12,7 +12,6 @@ import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import useExternalTab from '../../../../../utils/hooks/useExternalTab';
 import { getCurrentTenantId } from '../../../../../utils/url-helper';
-import GradientButton from '../../../common/GradientButton';
 import { XTM_HUB_AUTO_REGISTER_QUERY_PARAM } from '../../../xtm_hub/XtmHubRedirect';
 import XtmHubConfirmationDialog from './XtmHubConfirmationDialog';
 import XtmHubProcessDialog from './XtmHubProcessDialog';
@@ -31,7 +30,9 @@ enum OperationType {
   UNREGISTER = 'unregister',
 }
 
-const XtmHubTab: React.FC = () => {
+interface XtmHubTabProps { renderTrigger?: (handleOpen: () => void) => React.ReactNode }
+
+const XtmHubTab: React.FC<XtmHubTabProps> = ({ renderTrigger }) => {
   const { t } = useFormatter();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isAutoRegistrationPromptOpen, setIsAutoRegistrationPromptOpen] = useState(false);
@@ -264,45 +265,7 @@ const XtmHubTab: React.FC = () => {
     return renderer && isDialogOpen ? renderer() : null;
   };
 
-  const getButtonText = () => {
-    if (isRegistered) {
-      return t('Disconnect from XTM Hub');
-    }
-    return t('Connect to XTM Hub');
-  };
-
   if (isDemoMode) return null;
-
-  if (isRegistered) {
-    return (
-      <>
-        <Button
-          variant="outlined"
-          size="small"
-          color="error"
-          onClick={handleOpenDialog}
-        >
-          {getButtonText()}
-        </Button>
-        <XtmHubProcessDialog
-          open={isDialogOpen}
-          title={config.dialogTitle}
-          onClose={handleAttemptClose}
-        >
-          {renderDialogContent()}
-        </XtmHubProcessDialog>
-        <XtmHubConfirmationDialog
-          open={showConfirmation}
-          title={config.confirmationTitle}
-          message={config.confirmationMessage}
-          confirmButtonText={t('Yes, close')}
-          cancelButtonText={config.continueButtonText}
-          onConfirm={handleCloseDialog}
-          onCancel={handleCancelClose}
-        />
-      </>
-    );
-  }
 
   return (
     <>
@@ -327,13 +290,7 @@ const XtmHubTab: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-      <GradientButton
-        size="small"
-        title={getButtonText()}
-        onClick={handleOpenDialog}
-      >
-        {getButtonText()}
-      </GradientButton>
+      {renderTrigger?.(handleOpenDialog)}
       <XtmHubProcessDialog
         open={isDialogOpen}
         title={config.dialogTitle}

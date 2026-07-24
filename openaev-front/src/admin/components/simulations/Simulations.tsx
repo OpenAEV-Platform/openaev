@@ -1,7 +1,7 @@
 import { Box, ToggleButtonGroup } from '@mui/material';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 
-import { searchExercises } from '../../../actions/Exercise';
+import { bulkDeleteExercises, searchExercises } from '../../../actions/Exercise';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import ExportButton from '../../../components/common/ExportButton';
 import { initSorting } from '../../../components/common/queryable/Page';
@@ -10,9 +10,11 @@ import { buildSearchPagination } from '../../../components/common/queryable/Quer
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../components/i18n';
 import { type ExerciseSimple, type SearchPaginationInput } from '../../../utils/api-types';
-import { Can } from '../../../utils/permissions/permissionsContext';
+import useEntityToggle from '../../../utils/hooks/useEntityToggle';
+import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
+import ToolBar from '../common/ToolBar';
 import ImportUploaderExercise from './ImportUploaderExercise';
 import ExerciseCreation from './simulation/ExerciseCreation';
 import ExercisePopover from './simulation/ExercisePopover';
@@ -31,6 +33,7 @@ const Simulations = () => {
     'exercise_kill_chain_phases',
     'exercise_name',
     'exercise_scenario',
+    'exercise_severity',
     'exercise_start_date',
     'exercise_status',
     'exercise_tags',
@@ -81,6 +84,32 @@ const Simulations = () => {
     });
   };
 
+  // Bulk selection
+  const ability = useContext(AbilityContext);
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+  const entityToggle = useEntityToggle<ExerciseSimple>('exercise', exercises, queryableHelpers.paginationHelpers.getTotalElements());
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    numberOfSelectedElements,
+  } = entityToggle;
+
+  const bulkDelete = () => {
+    bulkDeleteExercises({
+      search_pagination_input: selectAll ? searchPaginationInput : undefined,
+      exercise_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
+      exercise_ids_to_ignore: Object.keys(deSelectedElements),
+    }).then((result) => {
+      const deletedIds: string[] = result.data ?? [];
+      const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
+      setExercises(exercises.filter(e => !deletedIds.includes(e.exercise_id)));
+      queryableHelpers.paginationHelpers.handleChangeTotalElements(newTotal);
+      handleClearSelectedElements();
+    });
+  };
+
   return (
     <>
       <Breadcrumbs
@@ -119,6 +148,17 @@ const Simulations = () => {
         queryableHelpers={queryableHelpers}
         secondaryAction={secondaryAction}
         loading={loading}
+        entityToggle={canManage ? entityToggle : undefined}
+        toolBar={(
+          <ToolBar
+            numberOfSelectedElements={numberOfSelectedElements}
+            handleClearSelectedElements={handleClearSelectedElements}
+            handleBulkDelete={bulkDelete}
+            canManage={canManage}
+            deleteConfirmationSingular={t('Do you want to delete this simulation?')}
+            deleteConfirmationPlural={t('Do you want to delete these {count} simulations?', { count: String(numberOfSelectedElements) })}
+          />
+        )}
       />
     </>
   );

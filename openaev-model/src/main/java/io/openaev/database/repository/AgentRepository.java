@@ -44,4 +44,16 @@ public interface AgentRepository
   @Query(value = "DELETE FROM agents agent where agent.agent_id = :agentId;", nativeQuery = true)
   @Transactional
   void deleteByAgentId(String agentId);
+
+  // Native agent deletion bypasses the JPA lifecycle: bump the parent asset's updated_at BEFORE
+  // deleting so the polling indexer re-feeds the endpoint (and derived vulnerable-endpoint)
+  // documents that denormalize agent data (privileges, activity), instead of keeping them stale.
+  @Modifying
+  @Query(
+      value =
+          "UPDATE assets SET asset_updated_at = now() "
+              + "WHERE asset_id = (SELECT agent_asset FROM agents WHERE agent_id = :agentId);",
+      nativeQuery = true)
+  @Transactional
+  void touchAssetOfAgent(@Param("agentId") String agentId);
 }

@@ -92,11 +92,13 @@ const ConnectorLayout = () => {
     loadConnectorData();
   }, [loadConnectorData]);
 
+  // Keep the trail short: "Integrations / <connector>" - the connector-type
+  // segment (Injectors / Collectors / Executors) is not a navigable page of
+  // its own, so it only adds noise between the list and the detail.
   const breadcrumbElements = connectorId
     ? [
-        { label: t('Integrations') },
         {
-          label: capitalize(t(`${connectorType}s`)),
+          label: t('Integrations'),
           link: routes.list,
         },
         {
@@ -105,7 +107,10 @@ const ConnectorLayout = () => {
         },
       ]
     : [
-        { label: t('Integrations') },
+        {
+          label: t('Integrations'),
+          link: routes.list,
+        },
         {
           label: capitalize(t(`${connectorType}s`)),
           current: true,

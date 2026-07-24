@@ -11,6 +11,7 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.BulkOperationContext;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
@@ -53,6 +54,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -123,29 +125,39 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/with-injector-contracts",
     TENANT_SCENARIO_URI + "/with-injector-contracts"
   })
-  @Transactional
+  // SUPPORTS (not REQUIRED) on purpose: the creation runs in the service's own transaction,
+  // wrapped in a massive-operation scope (per-entity stream event suppression) that must cover the
+  // commit-time flush - the arsenal selection can create thousands of injects.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public Scenario createScenarioWithInjectorContracts(
       @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
-    return this.scenarioService.createScenarioWithInjectorContracts(
-        TenantContext.getCurrentTenant(),
-        inputs.getScenarioInput(),
-        inputs.getInjectorContractSearchPaginationInput(),
-        inputs.getLocale());
+    return BulkOperationContext.runSuppressed(
+        () ->
+            this.scenarioService.createScenarioWithInjectorContracts(
+                TenantContext.getCurrentTenant(),
+                inputs.getScenarioInput(),
+                inputs.getInjectorContractSearchPaginationInput(),
+                inputs.getLocale()));
   }
 
   @PutMapping({
     SCENARIO_URI + "/with-injector-contracts",
     TENANT_SCENARIO_URI + "/with-injector-contracts"
   })
-  @Transactional
+  // SUPPORTS (not REQUIRED) on purpose: the update runs in the service's own transaction, wrapped
+  // in a massive-operation scope (per-entity stream event suppression) that must cover the
+  // commit-time flush - the arsenal selection can create thousands of injects.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
   public List<Scenario> updateScenariosWithInjectorContracts(
       @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
-    return this.scenarioService.updateScenariosWithInjectorContracts(
-        inputs.getScenarioIds(),
-        inputs.getInjectorContractSearchPaginationInput(),
-        inputs.getLocale());
+    return BulkOperationContext.runSuppressed(
+        () ->
+            this.scenarioService.updateScenariosWithInjectorContracts(
+                inputs.getScenarioIds(),
+                inputs.getInjectorContractSearchPaginationInput(),
+                inputs.getLocale()));
   }
 
   @PostMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
@@ -239,6 +251,21 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public void deleteScenario(@PathVariable @NotBlank final String scenarioId) {
     this.scenarioService.deleteScenario(scenarioId);
+  }
+
+  @Operation(
+      description = "Bulk delete of scenarios",
+      tags = {"Scenarios"})
+  @LogExecutionTime
+  @DeleteMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
+  // SUPPORTS (not REQUIRED) on purpose: the service deletes in small independent transactions
+  // (chunked, with deadlock retry) - a request-wide transaction would defeat that and used to
+  // deadlock in production against concurrent inject expectation updates.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.SCENARIO)
+  public List<String> bulkDeleteScenarios(
+      @RequestBody @Valid final ScenarioBulkProcessingInput input) {
+    return this.scenarioService.bulkDeleteScenarios(input);
   }
 
   // -- TAGS --

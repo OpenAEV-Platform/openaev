@@ -1,5 +1,5 @@
 import { CloudUploadOutlined, HelpOutlineOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButton, Tooltip } from '@mui/material';
+import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButton, Tooltip } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, type ReactElement, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -21,6 +21,7 @@ import {
   type InjectStatus as InjectStatusType,
   type SearchPaginationInput,
 } from '../../../utils/api-types';
+import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isNotEmptyField } from '../../../utils/utils';
@@ -28,6 +29,7 @@ import InjectIcon from '../common/injects/InjectIcon';
 import InjectImportJsonDialog from '../common/injects/InjectImportJsonDialog';
 import InjectorContract from '../common/injects/InjectorContract';
 import InjectStatus from '../common/injects/status/InjectStatus';
+import ToolBar from '../common/ToolBar';
 import AtomicTestingPopover from './atomic_testing/AtomicTestingPopover';
 import AtomicTestingResult from './atomic_testing/AtomicTestingResult';
 
@@ -58,6 +60,15 @@ interface Props {
   // Optional creation button rendered at the top right of the list header
   // (OpenCTI-aligned placement), next to the import action.
   createButton?: ReactElement | null;
+  // Optional bulk delete support (checkboxes + toolbar replacing the sort headers).
+  // The handler receives the current selection and must return the deleted inject ids.
+  onBulkDelete?: (params: {
+    selectAll: boolean;
+    selectedIds: string[];
+    deSelectedIds: string[];
+  }) => Promise<string[]>;
+  // Already-translated delete confirmation text builder (count-aware)
+  deleteConfirmation?: (count: number) => string;
 }
 
 const InjectResultList: FunctionComponent<Props> = ({
@@ -68,6 +79,8 @@ const InjectResultList: FunctionComponent<Props> = ({
   searchPaginationInput,
   contextId,
   createButton,
+  onBulkDelete,
+  deleteConfirmation,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -130,7 +143,7 @@ const InjectResultList: FunctionComponent<Props> = ({
     },
     {
       field: 'inject_status.tracking_sent_date',
-      label: 'Execution Date',
+      label: 'Start time',
       isSortable: false,
       value: (injectResultOutput: InjectResultOutput) => {
         const trackingDate = injectResultOutput.inject_status?.tracking_sent_date;
@@ -176,6 +189,31 @@ const InjectResultList: FunctionComponent<Props> = ({
   const search = (input: SearchPaginationInput) => {
     setLoading(true);
     return fetchInjects(input).finally(() => setLoading(false));
+  };
+
+  // Bulk selection
+  const bulkDeleteEnabled = Boolean(onBulkDelete);
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    handleToggleSelectAll,
+    onToggleEntity,
+    numberOfSelectedElements,
+  } = useEntityToggle<InjectResultOutput>('inject', injects, queryableHelpers.paginationHelpers.getTotalElements());
+
+  const bulkDelete = () => {
+    onBulkDelete?.({
+      selectAll,
+      selectedIds: Object.keys(selectedElements),
+      deSelectedIds: Object.keys(deSelectedElements),
+    }).then((deletedIds) => {
+      const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
+      setInjects(injects.filter(inject => !deletedIds.includes(inject.inject_id)));
+      queryableHelpers.paginationHelpers.handleChangeTotalElements(newTotal);
+      handleClearSelectedElements();
+    });
   };
 
   const handleOpenJsonImportDialog = () => {
@@ -228,23 +266,57 @@ const InjectResultList: FunctionComponent<Props> = ({
         <ListItem
           classes={{ root: classes.itemHead }}
           divider={false}
-          style={{ paddingTop: 0 }}
-          secondaryAction={showActions ? <>&nbsp;</> : null}
+          sx={numberOfSelectedElements > 0
+            ? {
+                // Massive-operations toolbar: symmetric vertical padding keeps the
+                // checkbox and actions vertically centered in the accent band.
+                backgroundColor: 'background.accent',
+                paddingBlock: 0.5,
+              }
+            : { paddingTop: 0 }}
+          secondaryAction={showActions && numberOfSelectedElements === 0 ? <>&nbsp;</> : null}
         >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponentV2
-                headers={headers}
-                inlineStylesHeaders={inlineStyles}
-                sortHelpers={queryableHelpers.sortHelpers}
+          {bulkDeleteEnabled && (
+            <ListItemIcon style={{ minWidth: 40 }}>
+              <Checkbox
+                edge="start"
+                checked={selectAll}
+                disableRipple
+                onChange={handleToggleSelectAll}
               />
-            )}
-          />
+            </ListItemIcon>
+          )}
+          {bulkDeleteEnabled && numberOfSelectedElements > 0 ? (
+            <ListItemText
+              primary={(
+                <ToolBar
+                  numberOfSelectedElements={numberOfSelectedElements}
+                  handleClearSelectedElements={handleClearSelectedElements}
+                  handleBulkDelete={bulkDelete}
+                  canManage
+                  deleteConfirmationSingular={deleteConfirmation?.(1)}
+                  deleteConfirmationPlural={deleteConfirmation?.(numberOfSelectedElements)}
+                />
+              )}
+            />
+          ) : (
+            <>
+              <ListItemIcon />
+              <ListItemText
+                primary={(
+                  <SortHeadersComponentV2
+                    headers={headers}
+                    inlineStylesHeaders={inlineStyles}
+                    sortHelpers={queryableHelpers.sortHelpers}
+                  />
+                )}
+              />
+            </>
+          )}
         </ListItem>
         {
           loading
-            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
+            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={bulkDeleteEnabled} />
             : injects.map((injectResultOutput) => {
                 return (
                   <ListItem
@@ -265,6 +337,21 @@ const InjectResultList: FunctionComponent<Props> = ({
                       classes={{ root: classes.item }}
                       to={goTo(injectResultOutput.inject_id)}
                     >
+                      {bulkDeleteEnabled && (
+                        <ListItemIcon
+                          style={{ minWidth: 40 }}
+                          onClick={event => onToggleEntity(injectResultOutput, event)}
+                        >
+                          <Checkbox
+                            edge="start"
+                            checked={
+                              (selectAll && !(injectResultOutput.inject_id in (deSelectedElements || {})))
+                              || injectResultOutput.inject_id in (selectedElements || {})
+                            }
+                            disableRipple
+                          />
+                        </ListItemIcon>
+                      )}
                       <ListItemIcon>
                         <InjectIcon
                           isPayload={isNotEmptyField(injectResultOutput.inject_injector_contract?.injector_contract_payload?.payload_id)}

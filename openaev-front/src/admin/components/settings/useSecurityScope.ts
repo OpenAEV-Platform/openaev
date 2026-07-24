@@ -34,9 +34,11 @@ const useSecurityScope = (): UseSecurityScope => {
     : searchParams.get('scope');
 
   // Honor the requested scope when the user has access to it, otherwise fall
-  // back to whichever scope is available (tenant first).
+  // back to whichever scope is available (tenant first). The platform scope is
+  // an EE feature, so a `?scope=platform` request is ignored in Community
+  // Edition (where the scope switcher is not displayed).
   let scope: SecurityScope;
-  if (requested === 'platform' && canAccessPlatform) {
+  if (requested === 'platform' && canAccessPlatform && isEnterpriseEdition) {
     scope = 'platform';
   } else if (requested === 'tenant' && canAccessTenant) {
     scope = 'tenant';

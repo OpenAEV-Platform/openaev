@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import io.openaev.IntegrationTest;
-import io.openaev.migration.V6_20260719200000000__Add_attack_path_tables;
+import io.openaev.migration.V6_20260723160000000__Add_attack_path_tables;
 import io.openaev.utils.mockUser.WithMockUser;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.Context;
@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 class AttackPathSchemaMigrationTest extends IntegrationTest {
 
-  @Autowired private V6_20260719200000000__Add_attack_path_tables migration;
+  @Autowired private V6_20260723160000000__Add_attack_path_tables migration;
 
   private long tableCount(String table) {
     return ((Number)

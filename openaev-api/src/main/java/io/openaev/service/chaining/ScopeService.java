@@ -19,6 +19,39 @@ public class ScopeService {
   private final AssetGroupService assetGroupService;
 
   /**
+   * Returns the asset groups (ASSET_GROUP_ID allowlist rules) that are not explicitly denied as a
+   * whole group. Used at inject execution time to populate inject.assetGroups.
+   */
+  public List<AssetGroup> getValidAssetGroupsFromScope(String workflowId) {
+    List<WorkflowScopeRule> allRules = workflowScopeRuleRepository.findAllByWorkflowId(workflowId);
+
+    PrimitiveValidationContext context =
+        new PrimitiveValidationContext(
+            collectRuleValues(
+                allRules, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.ASSET_GROUP_ID),
+            Set.of(),
+            Set.of(),
+            Set.of(),
+            Set.of(),
+            collectRuleValues(
+                allRules, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.ASSET_GROUP_ID),
+            Set.of(),
+            Set.of(),
+            Set.of(),
+            Set.of());
+
+    List<String> allowedGroupIds =
+        allRules.stream()
+            .filter(r -> ScopeRuleSelectedMode.ALLOWLIST.equals(r.getSelectedMode()))
+            .filter(r -> ScopeRuleValueType.ASSET_GROUP_ID.equals(r.getValueType()))
+            .map(WorkflowScopeRule::getRuleValue)
+            .filter(id -> PrimitiveValueValidator.isAssetGroupIdAllowedByScope(id, context))
+            .toList();
+
+    return allowedGroupIds.isEmpty() ? List.of() : assetGroupService.assetGroups(allowedGroupIds);
+  }
+
+  /**
    * Returns the assets that are in scope for the given workflow and that are not denied by a value
    * in the denylist
    *
@@ -114,6 +147,59 @@ public class ScopeService {
       }
     }
     return deniedAssetIds;
+  }
+
+  /**
+   * Returns the raw IP/subnet strings from IP and IP_SUBNET allowlist rules that are not denied.
+   *
+   * <p>Each returned value is suitable for use as a manual target (e.g. in the {@code targets}
+   * field of an inject content with {@code target_selector = "manual"}). Subnets are returned in
+   * their CIDR notation as-is, since tools like nmap accept them directly.
+   *
+   * <p>Denylist filtering: an individual IP is removed if it exactly matches a denied IP rule or
+   * falls inside a denied IP_SUBNET rule. A subnet value is removed only on exact match against a
+   * denied IP_SUBNET rule (partial overlap is not computed).
+   */
+  public List<String> getValidIpsFromScope(String workflowId) {
+    List<WorkflowScopeRule> allRules = workflowScopeRuleRepository.findAllByWorkflowId(workflowId);
+
+    PrimitiveValidationContext context =
+        new PrimitiveValidationContext(
+            Set.of(),
+            Set.of(),
+            Set.of(),
+            collectRuleValues(allRules, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.IP),
+            collectRuleValues(
+                allRules, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.IP_SUBNET),
+            Set.of(),
+            Set.of(),
+            Set.of(),
+            collectRuleValues(allRules, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.IP),
+            collectRuleValues(
+                allRules, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.IP_SUBNET));
+
+    return allRules.stream()
+        .filter(r -> ScopeRuleSelectedMode.ALLOWLIST.equals(r.getSelectedMode()))
+        .filter(
+            r ->
+                ScopeRuleValueType.IP.equals(r.getValueType())
+                    || ScopeRuleValueType.IP_SUBNET.equals(r.getValueType()))
+        .filter(
+            r ->
+                ScopeRuleValueType.IP.equals(r.getValueType())
+                    ? PrimitiveValueValidator.isIpAllowedByScope(r.getRuleValue(), context)
+                    : PrimitiveValueValidator.isSubnetAllowedByScope(r.getRuleValue(), context))
+        .map(WorkflowScopeRule::getRuleValue)
+        .toList();
+  }
+
+  private Set<String> collectRuleValues(
+      List<WorkflowScopeRule> rules, ScopeRuleSelectedMode mode, ScopeRuleValueType valueType) {
+    return rules.stream()
+        .filter(r -> mode.equals(r.getSelectedMode()))
+        .filter(r -> valueType.equals(r.getValueType()))
+        .map(WorkflowScopeRule::getRuleValue)
+        .collect(Collectors.toSet());
   }
 
   /** Returns {@code true} if {@code targetIp} matches any of the endpoint's IPs or its seen IP. */

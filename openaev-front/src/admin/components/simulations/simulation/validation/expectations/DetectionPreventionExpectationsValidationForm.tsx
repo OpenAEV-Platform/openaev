@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, TextField as MuiTextField, Typography } from '@mui/material';
+import { Alert, AlertTitle, Button, TextField as MuiTextField, Typography } from '@mui/material';
 import { type FunctionComponent, useContext } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -21,6 +21,7 @@ import RestrictionAccess from '../../../../../../utils/permissions/RestrictionAc
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import { zodImplement } from '../../../../../../utils/Zod';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
+import { isAssetExpectation } from '../../../../common/injects/expectations/ExpectationUtils';
 
 const useStyles = makeStyles()(theme => ({
   marginTop_2: { marginTop: theme.spacing(2) },
@@ -86,8 +87,20 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
     },
   });
 
-  // Security Platform Options
-  const filterOptions = (n: SecurityPlatform) => (n.asset_external_reference === null && !sourceIds.includes(n.asset_id));
+  // Security Platform Options. Only propose platforms whose type matches the
+  // expectation's expected security platform types (EDR, SIEM, ...). An empty /
+  // missing list means "any platform" (legacy behaviour), so we do not filter.
+  const expectedPlatformTypes = expectation.inject_expectation_expected_security_platforms ?? [];
+  const filterOptions = (n: SecurityPlatform) => (
+    n.asset_external_reference === null
+    && !sourceIds.includes(n.asset_id)
+    && (expectedPlatformTypes.length === 0 || expectedPlatformTypes.includes(n.security_platform_type))
+  );
+
+  // Asset (endpoint) expectations aggregate their agents: a manual result added
+  // here is written on every agent of the endpoint. Surface that so the behavior
+  // is not surprising (mirrors the team -> players notice on manual expectations).
+  const appliesToAllAgents = isAssetExpectation(expectation);
 
   return (
     <form id="expectationForm" onSubmit={handleSubmit(onSubmit)}>
@@ -95,6 +108,17 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
         <div style={{ float: 'right' }}>
           <ItemStatus label={result?.result} status={result?.result} />
         </div>
+      )}
+      {appliesToAllAgents && (
+        <Alert
+          severity="info"
+          variant="outlined"
+          style={{ marginBottom: 20 }}
+        >
+          <AlertTitle>
+            {t('The result added here will also be applied to all agents of this endpoint')}
+          </AlertTitle>
+        </Alert>
       )}
       <Typography variant="h3">{t('Name')}</Typography>
       {expectation.inject_expectation_name}

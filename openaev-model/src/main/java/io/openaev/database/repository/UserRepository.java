@@ -99,6 +99,11 @@ public interface UserRepository
   List<String> findUserIdsByTenantId(@Param("tenantId") String tenantId);
 
   @Query(
+      value = "select ut.tenant_id from users_tenants ut where ut.user_id = :userId",
+      nativeQuery = true)
+  List<String> findTenantIdsByUserId(@Param("userId") String userId);
+
+  @Query(
       value =
           "SELECT "
               + "us.user_id AS user_id, "

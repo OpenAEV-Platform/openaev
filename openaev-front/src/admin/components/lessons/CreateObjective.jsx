@@ -1,8 +1,8 @@
-import { Add } from '@mui/icons-material';
-import { Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import { Component } from 'react';
 
+import ButtonCreate from '../../../components/common/ButtonCreate';
 import Transition from '../../../components/common/Transition';
 import inject18n from '../../../components/i18n';
 import { LessonContext } from '../common/Context';
@@ -40,14 +40,7 @@ class CreateObjectiveComponent extends Component {
     const { t } = this.props;
     return (
       <>
-        <IconButton
-          color="secondary"
-          aria-label="Add"
-          onClick={this.handleOpen.bind(this)}
-          size="small"
-        >
-          <Add fontSize="small" />
-        </IconButton>
+        <ButtonCreate onClick={this.handleOpen.bind(this)} />
         <Dialog
           open={this.state.open}
           TransitionComponent={Transition}

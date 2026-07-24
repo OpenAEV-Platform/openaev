@@ -10,6 +10,7 @@ type FlowProps = {
   focusRequest?: { nodeId: string };
   fitRequest?: number;
   onEndpointClick?: (nodeId: string, ref?: string, label?: string) => void;
+  onInjectorSelect?: (injectorId: string, label?: string) => void;
 };
 
 // Capture the props AttackPathFlow receives (mocked so ReactFlow is not instantiated), and stub the
@@ -140,7 +141,13 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
           payloadName: 'nmap',
           status: 'RED',
         }],
-        edges: [],
+        // The injector's execution edge, so the injector panel can scope to its own executions.
+        edges: [{
+          edgeSourceId: 'NODE_INJECTOR|nmap',
+          edgeTargetId: ENDPOINT_NODE,
+          type: 'EDGE_EXECUTIONS',
+          executionIds: ['exec-1'],
+        }],
       },
     });
     mocks.fetchFindingsByCategory.mockResolvedValue({
@@ -227,6 +234,29 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Terminal view' }));
     expect(await screen.findByText('$ nmap -p 445 host-x -u admin -p ••••')).toBeTruthy();
     expect(screen.getByText('open')).toBeTruthy();
+  });
+
+  it('opens the injector panel listing its own executions, one click from the execution detail', async () => {
+    setup();
+    await screen.findByTestId('attack-path-flow');
+
+    // Click the injector (action) node on the map.
+    await act(async () => {
+      mocks.flowProps.current?.onInjectorSelect?.('NODE_INJECTOR|nmap', 'nmap');
+    });
+
+    // The injector panel lists this injector's own executions (scoped via the endpoint-relations edges),
+    // under an "Executions" section — same component as the endpoint panel.
+    expect(await screen.findByText('Executions (1)')).toBeTruthy();
+    // Its Findings section shows only findings attributed to this injector's executions (exec-1), via the
+    // category endpoint's executionIds — here the captured credential.
+    expect(await screen.findByText('admin : ••••••')).toBeTruthy();
+
+    // Clicking the listed execution opens its Result / Execution details / Remediation detail (fetched by
+    // its raw ref), showing the global command it ran.
+    const execRow = screen.getAllByRole('button').find(b => /nmap/i.test(b.textContent ?? '') && /button/i.test(b.getAttribute('role') ?? 'button'));
+    fireEvent.click(execRow as HTMLElement);
+    await waitFor(() => expect(mocks.fetchExecutionDetail).toHaveBeenCalledWith('sim-1', 'exec-1'));
   });
 
   it('switches to the table view, lists the exposed endpoint and exposes CSV export', async () => {

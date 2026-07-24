@@ -41,7 +41,7 @@ public class SimulationRateLimitService {
 
     if (workflowRun.getMaxAttempts() == null || workflowRun.getMaxTemporalRateSeconds() == null) {
       log.warn(
-          "Rate limit is enabled for workflow {} but maxAttempts or maxTemporalRateSeconds is null. Failing open.",
+          "[Chaining] Rate limit is enabled for workflow {} but maxAttempts or maxTemporalRateSeconds is null. Failing open.",
           workflowRun.getId());
       return true;
     }
@@ -55,7 +55,7 @@ public class SimulationRateLimitService {
 
     if (count >= workflowRun.getMaxAttempts()) {
       log.info(
-          "Rate limit reached for workflow {} ({}/{} in {}s window, including {} pending)",
+          "[Chaining] Rate limit reached for workflow {} ({}/{} in {}s window, including {} pending)",
           workflowRun.getId(),
           count,
           workflowRun.getMaxAttempts(),
@@ -92,7 +92,7 @@ public class SimulationRateLimitService {
     stepDelayQueueService.pushStepTemplateIntoStepDelayQueue(
         stepTemplate, now, input, backoffMillis, workflowRun, now.plusMillis(backoffMillis));
     log.info(
-        "Rate limit reached — delaying template {} for workflow {} (backoff: {}ms)",
+        "[Chaining] Rate limit reached — delaying template {} for workflow {} (backoff: {}ms)",
         stepTemplate.getId(),
         workflowRun.getId(),
         backoffMillis);

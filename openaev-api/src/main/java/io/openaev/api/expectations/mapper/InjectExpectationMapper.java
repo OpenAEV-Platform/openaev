@@ -57,7 +57,8 @@ public final class InjectExpectationMapper {
                 && challengeInjectExpectation.getChallenge() != null
             ? challengeInjectExpectation.getChallenge().getId()
             : null,
-        resolveTargetId(expectation));
+        resolveTargetId(expectation),
+        expectation.getExpectedSecurityPlatforms());
   }
 
   public static List<InjectExpectationOutput> toOutputs(

@@ -30,6 +30,7 @@ import {
   type EsBase,
   type EsEntities,
   type EsFinding,
+  type Filter,
   type ListConfiguration,
   type PropertySchemaDTO,
 } from '../../../utils/api-types';
@@ -42,7 +43,7 @@ import EndpointElementStyles from '../workspaces/custom_dashboards/widgets/viz/l
 import listConfigRenderer, { defaultRenderer } from '../workspaces/custom_dashboards/widgets/viz/list/elements/ListColumnConfig';
 import navigationHandlers from '../workspaces/custom_dashboards/widgets/viz/list/elements/ListNavigationHandler';
 import { BASE_ENTITY_FILTER_KEY, excludeBaseEntities, getBaseEntities } from '../workspaces/custom_dashboards/widgets/WidgetUtils';
-import { buildDefaultHomeWidgets, type DefaultTimeRange } from './defaultHomeWidgets';
+import { buildDefaultHomeWidgets, type DefaultTimeRange, timeRangeStartDate } from './defaultHomeWidgets';
 
 const RESERVED_PARAMS = ['widget_id', 'series_index'];
 
@@ -75,6 +76,12 @@ const useStyles = makeStyles()(() => ({
 interface ExplorerProps {
   listConfig: ListConfiguration;
   initialEntities?: EsEntities;
+  /**
+   * The widget's implicit time scope materialized as regular, editable date
+   * filters (see DefaultHomeResults). Seeded into the filter chips so the list
+   * openly shows - and lets the user amend - the dashboard time range.
+   */
+  seedDateFilters?: Filter[];
 }
 
 /**
@@ -83,7 +90,7 @@ interface ExplorerProps {
  * filters added, columns sorted) and every refinement re-queries the ad-hoc
  * list endpoint with the amended filter group.
  */
-const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initialEntities }) => {
+const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initialEntities, seedDateFilters = [] }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const navigate = useNavigate();
@@ -101,10 +108,15 @@ const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initial
     [columns, baseEntity],
   );
 
-  // The clicked widget scope becomes the initial filter state; clearing the
-  // filters falls back to the whole entity perspective.
+  // The clicked widget scope becomes the initial filter state (including the
+  // materialized dashboard time range); clearing the filters falls back to the
+  // whole entity perspective, all time.
+  const scopedFilterGroup = excludeBaseEntities(listConfig.perspective?.filter);
   const { queryableHelpers, searchPaginationInput } = useQueryable({}, buildSearchPagination({
-    filterGroup: excludeBaseEntities(listConfig.perspective?.filter),
+    filterGroup: {
+      mode: scopedFilterGroup?.mode ?? 'and',
+      filters: [...(scopedFilterGroup?.filters ?? []), ...seedDateFilters],
+    },
     sorts: (listConfig.sorts ?? []).map(sort => ({
       property: sort.fieldName,
       direction: sort.direction,
@@ -136,11 +148,14 @@ const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initial
     });
   }, [baseEntity]);
 
+  // Column headers are translated from the field name (like the filter chips
+  // and every hand-written list page: "base_created_at" -> "Created at"), not
+  // from the raw lowercase engine schema label.
   const headers: Header[] = useMemo(() => columns.map(column => ({
     field: column,
-    label: properties.find(p => p.schema_property_name === column)?.schema_property_label ?? column,
+    label: column,
     isSortable: SORTABLE_COLUMNS.has(column),
-  })), [columns, properties]);
+  })), [columns]);
 
   const [elements, setElements] = useState<EsBase[]>(initialEntities?.es_datas ?? []);
   const [loading, setLoading] = useState(false);
@@ -168,9 +183,15 @@ const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initial
     requestIdRef.current += 1;
     const requestId = requestIdRef.current;
     setLoading(true);
-    // Re-issue the list query with the user-amended filters and sorts.
+    // Re-issue the list query with the user-amended filters and sorts. The
+    // widget's implicit time scope is materialized as an editable date chip
+    // (seedDateFilters), so it is neutralized here: otherwise editing or
+    // removing the chip would silently keep the original window applied.
     const config: ListConfiguration = {
       ...listConfig,
+      time_range: 'ALL_TIME',
+      start: null,
+      end: null,
       perspective: {
         ...listConfig.perspective,
         filter: {
@@ -390,6 +411,27 @@ const DefaultHomeResults = () => {
     };
   }, [widget, filterValues, seriesIndex]);
 
+  // The widget scope is implicitly time-bounded (its time_range is applied
+  // server-side when resolving the drill-down). Materialize that bound as
+  // regular date filter chips so the list openly shows the dashboard time
+  // range and lets the user widen or narrow it. Temporal bucket clicks come
+  // back as a CUSTOM range (the clicked interval) and take precedence over
+  // the dashboard-wide range.
+  const seedDateFilters = useMemo((): Filter[] => {
+    if (seed == null) {
+      return [];
+    }
+    const dateAttribute = seed.listConfig.date_attribute ?? 'base_created_at';
+    if (seed.listConfig.time_range === 'CUSTOM') {
+      return [
+        ...(seed.listConfig.start ? [buildFilter(dateAttribute, [seed.listConfig.start], 'gte')] : []),
+        ...(seed.listConfig.end ? [buildFilter(dateAttribute, [seed.listConfig.end], 'lte')] : []),
+      ];
+    }
+    const start = timeRangeStartDate(timeRange);
+    return start ? [buildFilter(dateAttribute, [start], 'gte')] : [];
+  }, [seed, timeRange]);
+
   // Titles are already localized at build time (buildDefaultHomeWidgets).
   const widgetTitle = widget?.widget_config.title ?? t('Results');
 
@@ -427,6 +469,7 @@ const DefaultHomeResults = () => {
           key={`${widgetId}-${seriesIndex}`}
           listConfig={seed.listConfig}
           initialEntities={seed.entities}
+          seedDateFilters={seedDateFilters}
         />
       )}
     </>

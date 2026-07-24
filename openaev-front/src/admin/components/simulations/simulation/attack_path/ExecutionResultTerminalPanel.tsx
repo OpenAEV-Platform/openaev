@@ -1,10 +1,11 @@
-import { Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
+import { ArrowBack, Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
 import { Button, IconButton, Paper, Popover, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
 import { useEffect, useRef, useState } from 'react';
 
+import { getInjectStatusWithGlobalExecutionTraces, searchTargets } from '../../../../../actions/injects/inject-action';
 import AttackPatternChip from '../../../../../components/AttackPatternChip';
 import Tabs from '../../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../../components/common/tabs/useTabs';
@@ -12,17 +13,25 @@ import Terminal, { type TerminalLine } from '../../../../../components/common/te
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { CROWDSTRIKE, SPLUNK } from '../../../../../constants/Entities';
-import type { AttackPathExecutionDetailDTO } from '../../../../../utils/api-types';
+import type { AttackPathExecutionDetailDTO, InjectStatusOutput, InjectTarget } from '../../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import expectationIconByType from '../../../common/ExpectationIconByType';
+import GlobalExecutionTraces from '../../../common/injects/status/traces/GlobalExecutionTraces';
+import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
 import ImageWithFallback from './ImageWithFallback';
 
 interface Props {
   loading: boolean;
   detail: AttackPathExecutionDetailDTO | null;
   onClose: () => void;
+  // Return to the endpoint/finding panel this execution was opened from (master→detail navigation). When
+  // set, a back arrow sits left of the title; `onClose` still fully closes the panel.
+  onBack?: () => void;
   // Open the originating inject (pending backend: needs the inject id on the execution detail).
   onOpenInject?: () => void;
+  // Friendly endpoint name (e.g. "kingslanding"), resolved by the caller from the graph node — the
+  // execution DTO only carries the raw endpoint key (a UUID) and the IP, neither of which reads well.
+  endpointLabel?: string;
 }
 
 const RESULT_TAB = 'result';
@@ -149,11 +158,86 @@ const SecurityPlatformItem = ({ platform, alerts }: {
   );
 };
 
+// Live terminal for a real execution: the attack-path DTO only carries `command`/`terminalOutput` on
+// seeded runs, so for a real inject we reuse the shared `TerminalViewTab`, fed by the live
+// `execution_traces` — exactly like the inject detail view. The DTO exposes `injectId` but not the
+// executed target, so we resolve the inject's asset targets and pick the one matching this execution's
+// endpoint (falling back to the first asset), then hand it to `TerminalViewTab`.
+const LiveExecutionTerminal = ({ injectId, endpointName }: {
+  injectId: string;
+  endpointName?: string;
+}) => {
+  const { t } = useFormatter();
+  const [target, setTarget] = useState<InjectTarget | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    searchTargets(injectId, 'ASSETS', {
+      filterGroup: {
+        mode: 'and',
+        filters: [],
+      },
+      size: 50,
+      page: 0,
+    })
+      .then((response) => {
+        if (!active) {
+          return;
+        }
+        const targets: InjectTarget[] = response.data?.content ?? [];
+        const match = targets.find(tg => tg.target_name && tg.target_name === endpointName);
+        setTarget(match ?? targets[0] ?? null);
+      })
+      .catch(() => active && setTarget(null))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [injectId, endpointName]);
+
+  if (loading) {
+    return <Loader variant="inElement" size="sm" />;
+  }
+  if (!target?.target_id || !target.target_type) {
+    return <Typography variant="body2" color="text.secondary">{t('No traces on this target.')}</Typography>;
+  }
+  return <TerminalViewTab injectId={injectId} target={target} />;
+};
+
+// Terminal for a network injector's execution (NetExec, Nmap…): these have no per-agent terminal, so the
+// per-target `TerminalViewTab` above shows nothing. Instead render the inject's global execution traces —
+// the very same "Traces" the inject execution-details page shows (the "<tool> succeeded: …" output).
+const InjectorExecutionTraces = ({ injectId }: { injectId: string }) => {
+  const { t } = useFormatter();
+  const [injectStatus, setInjectStatus] = useState<InjectStatusOutput | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    getInjectStatusWithGlobalExecutionTraces(injectId)
+      .then((response: { data: InjectStatusOutput }) => active && setInjectStatus(response.data))
+      .catch(() => active && setInjectStatus(null))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [injectId]);
+
+  if (loading) {
+    return <Loader variant="inElement" size="sm" />;
+  }
+  if (!injectStatus) {
+    return <Typography variant="body2" color="text.secondary">{t('No data available')}</Typography>;
+  }
+  return <GlobalExecutionTraces injectStatus={injectStatus} />;
+};
+
 // The Result & Terminal panel for one execution (issue 5048): an in-flow panel between the execution
 // feed and the map (product mockup), not an overlay. Reuses the platform's shared `Terminal` renderer,
 // fed by the frozen snapshot's masked command and output. The Result tab shows the target and the
 // security platforms that prevented/detected the action (with their linked alerts on click).
-const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }: Props) => {
+const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpenInject, endpointLabel }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const { currentTab, handleChangeTab } = useTabs(RESULT_TAB);
@@ -181,6 +265,13 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
     return () => observer.disconnect();
   }, [loading, detail]);
 
+  // Seeded runs carry a frozen command/output snapshot on the DTO; a real inject leaves them empty and
+  // is rendered live from execution traces instead (see hasSnapshot below).
+  const hasSnapshot = Boolean(detail?.command || detail?.terminalOutput);
+  // On the terminal tab a network injector shows its execution traces (a plain list that grows), unlike
+  // the snapshot/payload `Terminal` which is sized to fill and scrolls internally. The list needs the
+  // outer box to scroll, otherwise long traces are clipped.
+  const injectorTracesView = !hasSnapshot && !!detail?.injectId && !detail?.payloadId;
   const terminalLines: TerminalLine[] = [];
   if (detail?.command) {
     terminalLines.push({
@@ -277,7 +368,8 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
     <Paper
       variant="outlined"
       style={{
-        width: 400,
+        // Fills the resizable drawer container (drag the handle to widen when traces overflow).
+        flex: 1,
         minWidth: 0,
         display: 'flex',
         flexDirection: 'column',
@@ -288,38 +380,34 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
+        gap: theme.spacing(1),
         padding: theme.spacing(2, 2.5, 1),
         flexShrink: 0,
       }}
       >
-        <div style={{ minWidth: 0 }}>
+        {/* Back to the endpoint/finding panel this execution was opened from. */}
+        {onBack && (
+          <IconButton
+            size="small"
+            aria-label={t('Back')}
+            onClick={onBack}
+            sx={{
+              flexShrink: 0,
+              mt: 0.25,
+            }}
+          >
+            <ArrowBack fontSize="small" />
+          </IconButton>
+        )}
+        <div style={{
+          minWidth: 0,
+          flex: 1,
+        }}
+        >
           <Typography variant="h6" noWrap>{detail?.payloadName || t('Execution')}</Typography>
           <Typography variant="caption" color="text.secondary">
             {[detail?.agentName, detail?.agentPrivilege].filter(Boolean).join(' · ')}
           </Typography>
-          {/* Path story: injector -> endpoint -> finding type, resolved for this execution. Finding
-              values are omitted here (they can be secrets); only the type is shown. */}
-          {(() => {
-            const crumb = [
-              detail?.payloadName,
-              detail?.targetHostname || detail?.endpointKey,
-              detail?.findings?.[0]?.type,
-            ].filter(Boolean);
-            return crumb.length > 1 && (
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{
-                  display: 'block',
-                  mt: 0.25,
-                }}
-                title={crumb.join(' › ')}
-                noWrap
-              >
-                {crumb.join('  ›  ')}
-              </Typography>
-            );
-          })()}
           {/* MITRE ATT&CK technique(s) this action maps to, resolved server-side from the
               execution's injector contract (AttackPathExecutionDetailDTO.attackPatterns). */}
           {(detail?.attackPatterns?.length ?? 0) > 0 && (
@@ -371,7 +459,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
               },
               {
                 key: TERMINAL_TAB,
-                label: t('Terminal view'),
+                // The tab label follows its content: a seeded snapshot or a payload-backed inject shows a
+                // real terminal ("Terminal view"); a network injector shows its execution traces instead
+                // ("Execution details").
+                label: hasSnapshot || detail.payloadId ? t('Terminal view') : t('Execution details'),
               },
               {
                 key: REMEDIATION_TAB,
@@ -387,9 +478,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
             style={{
               flex: 1,
               minHeight: 0,
-              // The Result tab owns its scroll; the Terminal tab is sized to fill this box and scrolls
-              // internally, so the outer box must not add a second scrollbar.
-              overflow: currentTab === TERMINAL_TAB ? 'hidden' : 'auto',
+              // The Result tab owns its scroll; the snapshot/payload Terminal scrolls internally so its
+              // outer box must not add a second scrollbar. The injector traces list, however, needs this
+              // box to scroll or long output is clipped.
+              overflow: currentTab === TERMINAL_TAB && !injectorTracesView ? 'hidden' : 'auto',
               paddingTop: theme.spacing(2),
             }}
           >
@@ -401,10 +493,9 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
               }}
               >
                 <div>
-                  <Typography variant="subtitle2">{detail.targetHostname || detail.endpointKey}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {[detail.targetIp, detail.targetPlatform].filter(Boolean).join(' · ')}
-                  </Typography>
+                  {/* The friendly endpoint name (kingslanding), not the raw endpoint key/UUID, to stay
+                      consistent with the graph node; fall back to the IP only when no name is known. */}
+                  <Typography variant="subtitle2">{endpointLabel || detail.targetHostname || detail.targetIp || detail.endpointKey}</Typography>
                 </div>
                 {renderExpectationRow('prevention', t('Prevented by'), t('Not Prevented'), preventedBy)}
                 {renderExpectationRow('detection', t('Detected by'), t('Not Detected'), detectedBy)}
@@ -423,9 +514,17 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
               </div>
             )}
 
-            {currentTab === TERMINAL_TAB && (
-              <Terminal lines={terminalLines} maxHeight={terminalMaxHeight} />
-            )}
+            {currentTab === TERMINAL_TAB && (() => {
+              // Seeded runs show their frozen snapshot. For a real inject: a payload-backed execution runs
+              // on an agent and has a per-target terminal (keep it); a network injector (NetExec, Nmap…)
+              // has none, so show its global execution traces instead.
+              if (hasSnapshot || !detail.injectId) {
+                return <Terminal lines={terminalLines} maxHeight={terminalMaxHeight} />;
+              }
+              return detail.payloadId
+                ? <LiveExecutionTerminal injectId={detail.injectId} endpointName={endpointLabel || detail.targetHostname || detail.endpointKey} />
+                : <InjectorExecutionTraces injectId={detail.injectId} />;
+            })()}
 
             {currentTab === REMEDIATION_TAB && (
               <div style={{

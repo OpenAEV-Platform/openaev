@@ -10,6 +10,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.JpaUtils.arrayAggOnId;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.constants.Constants.ARTICLES;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilderWithNullHandling;
 import static java.time.Duration.between;
 import static java.time.Instant.now;
@@ -33,14 +34,17 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.LessonsAnswerSpecification;
 import io.openaev.database.specification.LessonsCategorySpecification;
 import io.openaev.database.specification.LessonsQuestionSpecification;
+import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.form.ExerciseBulkProcessingInput;
 import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.exercise.response.ExercisesGlobalScoresOutput;
@@ -55,6 +59,7 @@ import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionServi
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
@@ -91,6 +96,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
@@ -124,6 +130,7 @@ public class ExerciseService {
   private final InjectExpectationRepository injectExpectationRepository;
   private final ArticleRepository articleRepository;
   private final ExerciseRepository exerciseRepository;
+  private final BulkDeleteExecutor bulkDeleteExecutor;
   private final InjectStatusRepository injectStatusRepository;
   private final PauseRepository pauseRepository;
   private final LessonsQuestionRepository lessonsQuestionRepository;
@@ -574,6 +581,64 @@ public class ExerciseService {
     // expectations, findings...) would remain in the indexes forever.
     eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, simulationId));
     log.info("Simulation {} deleted by user {}", simulationId, currentUser().getId());
+  }
+
+  /**
+   * Bulk delete of simulations, either from an explicit list of ids or from a search input
+   * (select-all with optional exclusions). Only simulations the user is allowed to manage are
+   * deleted.
+   *
+   * <p>Deliberately NOT transactional as a whole: the scope is resolved in a short read
+   * transaction, then simulations are deleted in small independent chunks (with deadlock retry). A
+   * single all-encompassing transaction holds row locks on {@code exercises} for its whole duration
+   * and deadlocks against concurrent inject expectation updates.
+   *
+   * @param input the bulk processing input (ids or search input, plus ids to ignore)
+   * @return the list of deleted simulation ids
+   */
+  public List<String> bulkDelete(@NotNull final ExerciseBulkProcessingInput input) {
+    if ((CollectionUtils.isEmpty(input.getExerciseIdsToProcess())
+            && input.getSearchPaginationInput() == null)
+        || (!CollectionUtils.isEmpty(input.getExerciseIdsToProcess())
+            && input.getSearchPaginationInput() != null)) {
+      throw new BadRequestException(
+          "Either exercise_ids_to_process or search_pagination_input must be provided, and not both at the same time");
+    }
+    User user = userService.currentUser();
+    List<String> exerciseIdsToDelete =
+        bulkDeleteExecutor.resolveInTransaction(
+            () -> {
+              Specification<Exercise> specification;
+              if (input.getSearchPaginationInput() != null) {
+                // Same specification chain as the list search (filter group + text search), so the
+                // deletion scope matches exactly what the user sees in the list.
+                specification =
+                    FilterUtilsJpa.<Exercise>computeFilterGroupJpa(
+                            input.getSearchPaginationInput().getFilterGroup())
+                        .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
+              } else {
+                specification = SpecificationUtils.hasIdIn(input.getExerciseIdsToProcess());
+              }
+              if (!CollectionUtils.isEmpty(input.getExerciseIdsToIgnore())) {
+                List<String> idsToIgnore = input.getExerciseIdsToIgnore();
+                specification =
+                    specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+              }
+              // Restrict to simulations the user is granted to plan on (no-op for admins and users
+              // with the delete capability)
+              specification =
+                  specification.and(
+                      SpecificationUtils.hasGrantAccess(
+                          user.getId(),
+                          user.isAdminOrBypass(),
+                          user.getCapabilities().contains(Capability.DELETE_ASSESSMENT),
+                          Grant.GRANT_TYPE.PLANNER));
+              return exerciseRepository.findAll(specification).stream()
+                  .map(Exercise::getId)
+                  .toList();
+            });
+    return bulkDeleteExecutor.deleteInChunks(
+        "simulations", exerciseIdsToDelete, chunk -> chunk.forEach(this::deleteById));
   }
 
   @Transactional(rollbackFor = Exception.class)

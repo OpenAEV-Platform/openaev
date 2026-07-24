@@ -23,6 +23,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ResourceInUseException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.helper.TeamHelper;
+import io.openaev.rest.team.form.TeamBulkProcessingInput;
 import io.openaev.rest.team.form.TeamCreateInput;
 import io.openaev.rest.team.form.TeamUpdateInput;
 import io.openaev.rest.team.form.UpdateUsersTeamInput;
@@ -49,6 +50,7 @@ import org.hibernate.TransientObjectException;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -218,6 +220,20 @@ public class TeamApi extends RestBehavior {
           "Cannot delete this team because it is still in use. Please remove its dependencies first.",
           ex);
     }
+  }
+
+  @LogExecutionTime
+  @DeleteMapping({TEAM_URI, TENANT_TEAM_URI})
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.TEAM)
+  @ApiResponses(
+      value = {@ApiResponse(responseCode = "200", description = "The ids of the deleted teams")})
+  @Operation(description = "Bulk delete of teams", summary = "Bulk delete teams")
+  // SUPPORTS (not REQUIRED): the service deletes in small independent chunk transactions with
+  // deadlock retry; a request-wide transaction would force everything back into one transaction.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  public List<String> bulkDeleteTeams(@RequestBody @Valid final TeamBulkProcessingInput input)
+      throws ResourceInUseException {
+    return this.teamService.bulkDelete(input);
   }
 
   @PutMapping({"/api/teams/{teamId}", TENANT_TEAM_URI + "/{teamId}"})

@@ -93,7 +93,7 @@ const WidgetSecurityCoverageSeriesSelection: FunctionComponent<Props> = ({ value
   };
 
   if (loader) {
-    return <Loader />;
+    return <Loader variant="inElement" />;
   }
 
   return (

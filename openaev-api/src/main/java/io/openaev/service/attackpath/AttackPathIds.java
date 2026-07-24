@@ -16,6 +16,19 @@ public final class AttackPathIds {
   private static final char DELIMITER = '|';
 
   /**
+   * Prefix of a synthetic seed simulation id ({@code AttackPathSeedService} builds ids as {@code
+   * <prefix><seed>-sim-<n>}). Seed simulations are not real {@code exercises}, so resource-level
+   * RBAC cannot resolve them; callers use {@link #isSeedId} to keep them reachable (see {@code
+   * AttackPathAccessControl}).
+   */
+  public static final String SEED_ID_PREFIX = "ap-seed-";
+
+  /** Whether {@code id} is a synthetic seed simulation id (not a real exercise). */
+  public static boolean isSeedId(String id) {
+    return id != null && id.startsWith(SEED_ID_PREFIX);
+  }
+
+  /**
    * Marker for a {@code null} component. The two chars {@code \0} can never occur in an escaped
    * non-null component (there, a {@code \} is always followed by {@code \} or {@code |}), so a null
    * component never collides with a real value.

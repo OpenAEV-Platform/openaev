@@ -45,6 +45,17 @@ export const numberFormat = (number: number, digits = 2) => {
   };
 };
 
+/**
+ * Human-friendly short form for KPI/stat numbers: 1234 -> "1.2K",
+ * 70926 -> "70.9K", 1500000 -> "1.5M". Values below 1000 are returned as-is.
+ * Handles negative values (numberFormat alone does not).
+ */
+export const compactNumber = (value: number, digits = 1): string => {
+  const sign = value < 0 ? '-' : '';
+  const { number, symbol } = numberFormat(Math.abs(value), digits);
+  return `${sign}${number}${symbol}`;
+};
+
 export const bytesFormat = (number: number, digits = 2) => {
   const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
   const sizes = [' Bytes', 'KB', 'MB', 'GB', 'TB'];

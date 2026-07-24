@@ -17,6 +17,7 @@ import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-hel
 import { Field, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import KillChainTimeline from '../../../../components/common/detail/KillChainTimeline';
 import PostureGauges from '../../../../components/common/detail/PostureGauges';
+import SAMPLE_POSTURE from '../../../../components/common/detail/samplePosture';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -27,8 +28,8 @@ import ItemCategory from '../../../../components/ItemCategory';
 import ItemMainFocus from '../../../../components/ItemMainFocus';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import ItemTags from '../../../../components/ItemTags';
+import ItemTypeAffinity from '../../../../components/ItemTypeAffinity';
 import PlatformIconGroup from '../../../../components/PlatformIconGroup';
-import TypeAffinityChip from '../../../../components/TypeAffinityChip';
 import octiDark from '../../../../static/images/xtm/octi_dark.png';
 import octiLight from '../../../../static/images/xtm/octi_light.png';
 import { useHelper } from '../../../../store';
@@ -51,86 +52,6 @@ import ExercisePopover from '../../simulations/simulation/ExercisePopover';
 import SimulationList from '../../simulations/SimulationList';
 import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import ScenarioDistributionByExercise from './ScenarioDistributionByExercise';
-
-// Illustrative posture used only when a scenario has never run, so the overview
-// previews the exact insights a real run produces instead of an empty CTA. The
-// distribution labels map through getStatusColor to success/partial/failed/pending.
-const SAMPLE_POSTURE: ExpectationResultsByType[] = [
-  {
-    type: 'PREVENTION',
-    avgResult: 'SUCCESS',
-    distribution: [
-      {
-        id: 'PREVENTED',
-        label: 'Prevented',
-        value: 34,
-      },
-      {
-        id: 'PARTIAL',
-        label: 'Partially prevented',
-        value: 5,
-      },
-      {
-        id: 'FAILED',
-        label: 'Failed',
-        value: 9,
-      },
-    ],
-  },
-  {
-    type: 'DETECTION',
-    avgResult: 'SUCCESS',
-    distribution: [
-      {
-        id: 'DETECTED',
-        label: 'Detected',
-        value: 41,
-      },
-      {
-        id: 'FAILED',
-        label: 'Failed',
-        value: 6,
-      },
-    ],
-  },
-  {
-    type: 'VULNERABILITY',
-    avgResult: 'FAILED',
-    distribution: [
-      {
-        id: 'NOT_VULNERABLE',
-        label: 'Not vulnerable',
-        value: 13,
-      },
-      {
-        id: 'VULNERABLE',
-        label: 'Vulnerable',
-        value: 27,
-      },
-    ],
-  },
-  {
-    type: 'HUMAN_RESPONSE',
-    avgResult: 'PARTIAL',
-    distribution: [
-      {
-        id: 'SUCCESS',
-        label: 'Successful',
-        value: 18,
-      },
-      {
-        id: 'PENDING',
-        label: 'Pending',
-        value: 7,
-      },
-      {
-        id: 'FAILED',
-        label: 'Failed',
-        value: 5,
-      },
-    ],
-  },
-];
 
 const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>> }) => {
   const theme = useTheme();
@@ -299,6 +220,19 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   const showPosture = isSample || hasPosture;
   const showMitre = isSample || hasMitreResults;
 
+  // Even without any run result we know which MITRE techniques the scenario's
+  // injects target: feed them to the matrix with empty expectation results so
+  // the REAL techniques render (muted, coverage unknown) instead of a greyed
+  // empty sample.
+  const plannedInjectResults: InjectExpectationResultsByAttackPattern[] = useMemo(
+    () => (injects ?? []).flatMap((inject: Inject) =>
+      (inject.inject_attack_patterns ?? []).map(attackPattern => ({
+        inject_attack_pattern: attackPattern.attack_pattern_id,
+        inject_expectation_results: [],
+      }))),
+    [injects],
+  );
+
   const killChainPhases = sortByOrder(scenario.scenario_kill_chain_phases ?? []) as KillChainPhase[];
   const hasExternalUrl = !isEmptyField(scenario.scenario_external_url);
 
@@ -409,7 +343,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
                 <ItemMainFocus mainFocus={scenario.scenario_main_focus} label={t(scenario.scenario_main_focus ?? 'Unknown')} />
               </Field>
               <Field label={t('Type Affinity')}>
-                <TypeAffinityChip affinity_text={scenario?.scenario_type_affinity} />
+                <ItemTypeAffinity typeAffinity={scenario?.scenario_type_affinity} />
               </Field>
               <Field label={t('Platforms')}>
                 <PlatformIconGroup platforms={scenario.scenario_platforms} width={25} />
@@ -463,10 +397,14 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
 
       {showMitre && (
         <SectionBlock title={t('MITRE ATT&CK Results')}>
-          <SamplePreview active={isSample} variant="subtle">
+          {/* In sample mode the matrix lists the REAL techniques targeted by
+              the scenario's injects (muted boxes, coverage unknown): only grey
+              it as an illustrative sample when even the techniques are not
+              known yet (no injects with attack patterns). */}
+          <SamplePreview active={isSample && plannedInjectResults.length === 0} variant="subtle">
             <MitreCoverageMatrix
               widgetId={`scenario-mitre-${scenarioId}`}
-              injectResults={lastInjectResults}
+              injectResults={isSample ? plannedInjectResults : lastInjectResults}
             />
           </SamplePreview>
         </SectionBlock>

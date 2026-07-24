@@ -66,6 +66,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -584,6 +585,21 @@ public class ExerciseApi extends RestBehavior {
   @Transactional
   public void deleteExercise(@PathVariable String exerciseId) {
     exerciseService.deleteById(exerciseId);
+  }
+
+  @Operation(
+      description = "Bulk delete of simulations",
+      tags = {"Simulations"})
+  @LogExecutionTime
+  @DeleteMapping({EXERCISE_URI, TENANT_EXERCISE_URI})
+  // SUPPORTS (not REQUIRED) on purpose: the service deletes in small independent transactions
+  // (chunked, with deadlock retry) - a request-wide transaction would defeat that and deadlock
+  // against concurrent inject expectation updates.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.SIMULATION)
+  public List<String> bulkDeleteExercises(
+      @RequestBody @Valid final ExerciseBulkProcessingInput input) {
+    return exerciseService.bulkDelete(input);
   }
 
   @GetMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})

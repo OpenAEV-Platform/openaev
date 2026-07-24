@@ -612,6 +612,34 @@ public interface InjectRepository
       nativeQuery = true)
   void deleteAllByScenarioIdAndInjectorContract(String injectorContract, String scenarioId);
 
+  // Injects that would be cascade-deleted at the DATABASE level (injects.inject_injector_contract
+  // references injectors_contracts ON DELETE CASCADE) when the given contracts are deleted. Used
+  // to notify the search engine of the doomed inject documents BEFORE the delete, since no JPA
+  // lifecycle event fires for DB-level cascades.
+  // Tenant-scoped: contract ids are shared across tenants (built-in contracts are seeded with the
+  // same UUIDs in every tenant), so without the tenant predicate this would return other tenants'
+  // inject ids and de-index their documents.
+  @Query(
+      value =
+          "SELECT i.inject_id FROM injects i "
+              + "WHERE i.inject_injector_contract IN (:contractIds) AND i.tenant_id = :tenantId",
+      nativeQuery = true)
+  List<String> findInjectIdsByInjectorContractIds(
+      @Param("contractIds") Collection<String> contractIds, @Param("tenantId") String tenantId);
+
+  // Same purpose for payload deletion: payloads cascade to injectors_contracts, which cascade to
+  // injects — two DB-level hops with zero JPA lifecycle events. Tenant-scoped like above (the
+  // contract join must also match on tenant_id since injectors_contracts has a composite key).
+  @Query(
+      value =
+          "SELECT i.inject_id FROM injects i "
+              + "JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract "
+              + "AND ic.tenant_id = i.tenant_id "
+              + "WHERE ic.injector_contract_payload = :payloadId AND i.tenant_id = :tenantId",
+      nativeQuery = true)
+  List<String> findInjectIdsByPayloadId(
+      @Param("payloadId") String payloadId, @Param("tenantId") String tenantId);
+
   @EntityGraph(attributePaths = {"expectations", "injectorContract"})
   @Query("SELECT i FROM Inject i WHERE i.id IN :ids")
   List<Inject> findAllByIdWithExpectations(@Param("ids") List<String> ids);

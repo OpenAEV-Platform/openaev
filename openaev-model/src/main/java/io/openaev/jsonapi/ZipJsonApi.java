@@ -10,6 +10,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.function.Function;
 import lombok.*;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -35,20 +36,28 @@ public class ZipJsonApi<T extends Base> {
 
   public ResponseEntity<byte[]> handleExport(
       T entity, Map<String, byte[]> extras, IncludeOptions includeOptions) throws IOException {
+    return handleExport(entity, extras, includeOptions, null);
+  }
+
+  /**
+   * Exports the entity as a ZIP, optionally overriding the download filename prefix. The JSON:API
+   * document type stays untouched (import compatibility); only the user-facing filename changes.
+   *
+   * @param filenamePrefix the filename prefix, or null to default to the JSON:API resource type
+   */
+  public ResponseEntity<byte[]> handleExport(
+      T entity, Map<String, byte[]> extras, IncludeOptions includeOptions, String filenamePrefix)
+      throws IOException {
 
     JsonApiDocument<ResourceObject> resource = exporter.handleExport(entity, includeOptions);
     byte[] zipBytes = this.zipJsonService.handleExportResource(entity, extras, resource);
 
+    String prefix = filenamePrefix != null ? filenamePrefix : resource.data().type();
     String filename =
-        resource.data().type()
-            + "-"
-            + entity.getId()
-            + "-"
-            + ZonedDateTime.now().format(FORMATTER)
-            + ".zip";
+        prefix + "-" + entity.getId() + "-" + ZonedDateTime.now().format(FORMATTER) + ".zip";
 
     HttpHeaders headers = new HttpHeaders();
-    headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
+    headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
 
     return ResponseEntity.ok()
         .headers(headers)

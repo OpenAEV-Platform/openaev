@@ -9,6 +9,7 @@ import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.attackpath.AttackPathAccessControl;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.AttackPathSeedService;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
@@ -57,6 +58,7 @@ public class AttackPathApi extends RestBehavior {
   private final AttackPathGraphService graphService;
   private final AttackPathSeedService seedService;
   private final PreviewFeatureService previewFeatureService;
+  private final AttackPathAccessControl attackPathAccessControl;
 
   /** Runtime feature gate: return 404 unless the {@code ATTACK_PATH} preview feature is enabled. */
   private void requireAttackPathFeature() {
@@ -66,12 +68,13 @@ public class AttackPathApi extends RestBehavior {
   }
 
   /**
-   * Full graph of a simulation, built from two flat reads plus one in-memory pass. {@code
-   * skipRBAC}: synthetic seeded simulations are not real {@code exercises}, so resource-level RBAC
-   * cannot resolve them; tenant isolation is still enforced by the statement inspector.
+   * Full graph of a simulation, built from two flat reads plus one in-memory pass.
    *
-   * <p>TODO(#6647): {@code skipRBAC} is a concession while the store is fed by the synthetic seed.
-   * Once these tables are fed from real simulations, resource-level RBAC must apply on every read.
+   * <p>RBAC: the annotation stays {@code skipRBAC = true} because it cannot express the seed
+   * exception; resource-level {@code SIMULATION READ} is enforced in-method by {@link
+   * AttackPathAccessControl#assertCanReadSimulation}, which lets synthetic seed ids through (they
+   * are not real {@code exercises}). Every per-simulation read below does the same. Tenant
+   * isolation is still enforced by the statement inspector.
    */
   @GetMapping("/simulations/{simulationId}/graph")
   @Transactional(readOnly = true)
@@ -79,19 +82,24 @@ public class AttackPathApi extends RestBehavior {
   public AttackPathDTO graph(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam(required = false) String mode) {
     requireAttackPathFeature();
+    attackPathAccessControl.assertCanReadSimulation(simulationId);
     return graphService.buildGraph(simulationId, mode);
   }
 
   /**
-   * Simulations that have attack-path data in the caller's tenant (id, endpoint count, execution
-   * count), for the front's picker. Tenant-scoped through the {@link TxCtx} like every other read.
+   * Simulations that have attack-path data (id, endpoint count, execution count), for the front's
+   * picker. Tenant-scoped through the {@link TxCtx}. When {@code scenarioId} is given (scenario
+   * context, #6647 B0), the query is restricted to that scenario's simulations server-side. The
+   * rows are then grant-filtered to the ones the caller can READ (seed rows kept), so the picker
+   * never leaks a simulation the user is not granted on.
    */
   @GetMapping("/simulations")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
-  public List<AttackPathSimSummaryRow> simulations(TxCtx ctx) {
+  public List<AttackPathSimSummaryRow> simulations(
+      TxCtx ctx, @RequestParam(required = false) String scenarioId) {
     requireAttackPathFeature();
-    return graphService.listSimulations();
+    return attackPathAccessControl.retainReadable(graphService.listSimulations(scenarioId));
   }
 
   /**
@@ -104,6 +112,7 @@ public class AttackPathApi extends RestBehavior {
   public AttackPathExpandDTO expandEndpointFindings(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam String ref) {
     requireAttackPathFeature();
+    attackPathAccessControl.assertCanReadSimulation(simulationId);
     return graphService.expandEndpoint(simulationId, ref);
   }
 
@@ -117,6 +126,7 @@ public class AttackPathApi extends RestBehavior {
   public AttackPathEndpointRelationsDTO relations(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam String ref) {
     requireAttackPathFeature();
+    attackPathAccessControl.assertCanReadSimulation(simulationId);
     return graphService.endpointRelations(simulationId, ref);
   }
 
@@ -137,6 +147,7 @@ public class AttackPathApi extends RestBehavior {
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "50") int size) {
     requireAttackPathFeature();
+    attackPathAccessControl.assertCanReadSimulation(simulationId);
     int safePage = Math.max(page, 0);
     int safeSize = Math.min(Math.max(size, 1), MAX_FINDINGS_PAGE_SIZE);
     return graphService.listFindings(simulationId, category, PageRequest.of(safePage, safeSize));
@@ -159,6 +170,7 @@ public class AttackPathApi extends RestBehavior {
   public AttackPathExecutionDetailDTO executionDetail(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam("ref") String executionId) {
     requireAttackPathFeature();
+    attackPathAccessControl.assertCanReadSimulation(simulationId);
     AttackPathExecutionDetailDTO detail = graphService.executionDetail(simulationId, executionId);
     if (detail == null) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND);

@@ -146,8 +146,30 @@ public class WorkflowStateEntries {
     return Hashing.murmur3_128().hashString(sb.toString(), StandardCharsets.UTF_8).toString();
   }
 
-  public boolean comboContainAllExecutionKeys(
-      Set<String> executionKeys, Map<String, String> combo) {
-    return combo.keySet().containsAll(executionKeys);
+  /**
+   * Returns correlated tuples that share at least one required key.
+   *
+   * @param requiredKeys required dynamic mapper keys
+   * @return tuples whose pair keys intersect with requiredKeys
+   */
+  public List<Correlated> findCandidateCorrelated(Set<String> requiredKeys) {
+    return correlated.stream()
+        .filter(tuple -> tuple.getValues().stream().anyMatch(p -> requiredKeys.contains(p.key())))
+        .toList();
+  }
+
+  /**
+   * Projects a correlated tuple to required keys only.
+   *
+   * @param tuple the correlated tuple to project
+   * @param requiredKeys the keys to keep
+   * @return key-value pairs present in both the tuple and requiredKeys
+   */
+  public Map<String, String> projectTuple(Correlated tuple, Set<String> requiredKeys) {
+    Map<String, String> projection = new HashMap<>();
+    tuple.getValues().stream()
+        .filter(pair -> requiredKeys.contains(pair.key()))
+        .forEach(pair -> projection.put(pair.key(), pair.value()));
+    return projection;
   }
 }

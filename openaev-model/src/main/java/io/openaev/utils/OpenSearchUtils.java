@@ -1,5 +1,6 @@
 package io.openaev.utils;
 
+import io.openaev.database.model.Filters;
 import io.openaev.engine.api.HistogramInterval;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -68,6 +69,34 @@ public class OpenSearchUtils {
   public static Query buildDateRangeQuery(
       @NotBlank final String field, @NotNull final Instant start, @NotNull final Instant end) {
     return RangeQuery.of(d -> d.field(field).gt(JsonData.of(start)).lt(JsonData.of(end))).toQuery();
+  }
+
+  /**
+   * Build a single-bound comparison query (gt / gte / lt / lte) on a date field, as produced by the
+   * filter UI for "instant" properties (e.g. a "created at &gt;= X" filter chip).
+   *
+   * @param field the date field name (must not be blank)
+   * @param operator the comparison operator (must be gt, gte, lt or lte)
+   * @param value the ISO-8601 date value (must not be blank)
+   */
+  public static Query buildDateCompareQuery(
+      @NotBlank final String field,
+      @NotNull final Filters.FilterOperator operator,
+      @NotBlank final String value) {
+    return RangeQuery.of(
+            d -> {
+              d.field(field);
+              return switch (operator) {
+                case gt -> d.gt(JsonData.of(value));
+                case gte -> d.gte(JsonData.of(value));
+                case lt -> d.lt(JsonData.of(value));
+                case lte -> d.lte(JsonData.of(value));
+                default ->
+                    throw new UnsupportedOperationException(
+                        "Not a comparison operator: " + operator);
+              };
+            })
+        .toQuery();
   }
 
   /**

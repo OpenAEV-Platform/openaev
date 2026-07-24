@@ -199,15 +199,21 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
     'endpoint_platform',
     'endpoint_arch',
   ];
+  // endpoint_platform / endpoint_arch are single-value enums: their only valid
+  // operator is 'eq' (the filter UI exposes eq/not_eq/empty/not_empty - 'contains'
+  // is not selectable). Only add each scoping filter when the caller actually
+  // restricts the selection (e.g. an inject payload); the asset-group flow passes
+  // no platforms, so it must open with no predefined filter at all.
   const quickFilter: FilterGroup = {
     mode: 'and',
-    filters: [
-      buildFilter('endpoint_platform', platforms ?? [], 'contains'),
-    ],
+    filters: [],
   };
+  if (platforms && platforms.length > 0) {
+    quickFilter.filters?.push(buildFilter('endpoint_platform', platforms, 'eq'));
+  }
   // only add an architecture filter if the payload is not compatible with all archs
-  if (quickFilter.filters && payloadArch && payloadArch !== 'ALL_ARCHITECTURES') {
-    quickFilter.filters?.push(buildFilter('endpoint_arch', [payloadArch], 'contains'));
+  if (payloadArch && payloadArch !== 'ALL_ARCHITECTURES') {
+    quickFilter.filters?.push(buildFilter('endpoint_arch', [payloadArch], 'eq'));
   }
   const { queryableHelpers, searchPaginationInput } = useQueryable(buildSearchPagination({ filterGroup: quickFilter }));
 
