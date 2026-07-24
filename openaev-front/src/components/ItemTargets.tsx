@@ -1,4 +1,4 @@
-import { DevicesOtherOutlined, Groups3Outlined } from '@mui/icons-material';
+import { DevicesOtherOutlined, DnsOutlined, Groups3Outlined } from '@mui/icons-material';
 import { Chip, Tooltip } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { type FunctionComponent } from 'react';
@@ -62,6 +62,9 @@ const ItemTargets: FunctionComponent<Props> = ({
     }
     if (type === 'ASSETS_GROUPS') {
       return <SelectGroup style={{ fontSize: '1rem' }} />;
+    }
+    if (type === 'MANUAL') {
+      return <DnsOutlined style={{ fontSize: '1rem' }} />;
     }
     return <Groups3Outlined style={{ fontSize: '1rem' }} />; // Teams
   };

@@ -8,6 +8,7 @@ import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteri
 import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
@@ -395,10 +396,11 @@ public class InjectSearchService {
       Map<String, List<Object[]>> teamMap = fetchRelatedTargets(injectIds, "teams");
       Map<String, List<Object[]>> assetMap = fetchRelatedTargets(injectIds, "assets");
       Map<String, List<Object[]>> assetGroupMap = fetchRelatedTargets(injectIds, "assetGroups");
+      Map<String, List<Object[]>> manualMap = buildManualTargetMap(injects);
       Map<String, List<RawInjectExpectationIndexing>> expectationMap = fetchExpectations(injectIds);
 
       // Map results to InjectResultOutput and set targets
-      mapResultsToInjects(injects, teamMap, assetMap, assetGroupMap, expectationMap);
+      mapResultsToInjects(injects, teamMap, assetMap, assetGroupMap, manualMap, expectationMap);
     }
   }
 
@@ -443,11 +445,32 @@ public class InjectSearchService {
         .collect(Collectors.groupingBy(RawInjectExpectationIndexing::getInject_id));
   }
 
+  private Map<String, List<Object[]>> buildManualTargetMap(List<InjectResultOutput> injects) {
+    Map<String, List<Object[]>> result = new HashMap<>();
+    for (InjectResultOutput inject : injects) {
+      if (inject.getId() == null || inject.getContent() == null) {
+        continue;
+      }
+      JsonNode selector = inject.getContent().get("target_selector");
+      JsonNode targets = inject.getContent().get("targets");
+      if (selector != null
+          && "manual".equals(selector.asText())
+          && targets != null
+          && !targets.isNull()
+          && !targets.asText().isBlank()) {
+        String value = targets.asText().trim();
+        result.put(inject.getId(), List.<Object[]>of(new Object[] {inject.getId(), value, value}));
+      }
+    }
+    return result;
+  }
+
   private void mapResultsToInjects(
       List<InjectResultOutput> injects,
       Map<String, List<Object[]>> teamMap,
       Map<String, List<Object[]>> assetMap,
       Map<String, List<Object[]>> assetGroupMap,
+      Map<String, List<Object[]>> manualMap,
       Map<String, List<RawInjectExpectationIndexing>> expectationMap) {
 
     for (InjectResultOutput inject : injects) {
@@ -459,7 +482,7 @@ public class InjectSearchService {
                 expectationMap.getOrDefault(inject.getId(), emptyList()),
                 InjectExpectationResultUtils::getScoresFromRaw));
 
-        // Set targets (teams, assets, asset groups)
+        // Set targets (teams, assets, asset groups, and manual IP/hostname from content)
         List<TargetSimple> allTargets =
             Stream.concat(
                     injectMapper
@@ -472,11 +495,17 @@ public class InjectSearchService {
                                 assetMap.getOrDefault(inject.getId(), emptyList()),
                                 TargetType.ASSETS)
                             .stream(),
-                        injectMapper
-                            .toTargetSimple(
-                                assetGroupMap.getOrDefault(inject.getId(), emptyList()),
-                                TargetType.ASSETS_GROUPS)
-                            .stream()))
+                        Stream.concat(
+                            injectMapper
+                                .toTargetSimple(
+                                    assetGroupMap.getOrDefault(inject.getId(), emptyList()),
+                                    TargetType.ASSETS_GROUPS)
+                                .stream(),
+                            injectMapper
+                                .toTargetSimple(
+                                    manualMap.getOrDefault(inject.getId(), emptyList()),
+                                    TargetType.MANUAL)
+                                .stream())))
                 .toList();
 
         inject.getTargets().addAll(allTargets);
