@@ -56,6 +56,8 @@ public interface AssetRepository
       "SELECT a.id, a.name FROM Asset a "
           + "WHERE a.type <> 'SecurityPlatform' "
           + "AND lower(a.name) LIKE lower(concat('%', :name, '%')) "
-          + "ORDER BY a.name")
+          // id tie-breaker: names are not unique, and a fixed page size over a
+          // non-deterministic order would return unstable option subsets
+          + "ORDER BY a.name, a.id")
   List<Object[]> findAllOptionsByName(@Param("name") String name, Pageable pageable);
 }
