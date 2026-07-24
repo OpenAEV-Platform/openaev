@@ -425,11 +425,11 @@ public class StepService {
               .keyType(firstCondition.getKeyType())
               .value(firstCondition.getValue())
               .caseSensitive(firstCondition.isCaseSensitive())
-.mappingType(firstCondition.getMappingType())
-.name(firstCondition.getName())
-.description(firstCondition.getDescription())
-.workflowId(stepCopied.getWorkflow().getId())
-.stepFrom(stepFrom)
+              .mappingType(firstCondition.getMappingType())
+              .name(firstCondition.getName())
+              .description(firstCondition.getDescription())
+              .workflowId(stepCopied.getWorkflow().getId())
+              .stepFrom(stepFrom)
               .build();
 
       conditionService.linkToStep(first, stepCopied, true);
