@@ -3215,5 +3215,6 @@
   "Your overall evaluation about this question.": "Ваша общая оценка этого вопроса.",
   "Your threat arsenal is empty": "Ваш арсенал пуст",
   "your trial license online": "ваша пробная лицензия онлайн",
-  "YYYY": "ГГГГ"
+  "YYYY": "ГГГГ",
+  "Simulation running — waiting for the first inject executions…": "Simulation running — waiting for the first inject executions…"
 }

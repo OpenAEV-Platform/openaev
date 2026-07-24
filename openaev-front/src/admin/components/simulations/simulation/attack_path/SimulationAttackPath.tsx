@@ -1740,9 +1740,16 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
 
   // Scenario context has runs to pick from; when it has none yet, the empty-state offers to launch one.
   const scenarioHasNoSims = showPicker && simulations.length === 0;
+  // A run still in progress hasn't produced anything yet — say so (and the graph live-refreshes), rather
+  // than showing the "no data" message that suggests something is wrong.
+  const selectedRunStatus = metaById.get(simulationId)?.exercise_status;
+  const runInProgress = selectedRunStatus === 'RUNNING' || selectedRunStatus === 'PAUSED';
   const emptyStateMessage = (() => {
     if (scenarioHasNoSims) {
       return t('This scenario has no simulation with attack-path data yet. Launch one to reveal its attack path.');
+    }
+    if (runInProgress) {
+      return t('Simulation running — waiting for the first inject executions…');
     }
     if (showPicker) {
       return t('No attack-path data for this simulation. Select a simulation with attack-path data above.');

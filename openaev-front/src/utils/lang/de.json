@@ -3215,5 +3215,6 @@
   "Your overall evaluation about this question.": "Ihre Gesamteinschätzung zu dieser Frage.",
   "Your threat arsenal is empty": "Dein Threat Arsenal ist leer",
   "your trial license online": "ihre Testlizenz online",
-  "YYYY": "JJJJ"
+  "YYYY": "JJJJ",
+  "Simulation running — waiting for the first inject executions…": "Simulation running — waiting for the first inject executions…"
 }
