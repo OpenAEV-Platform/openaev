@@ -1,6 +1,8 @@
 package io.openaev.rest.inject.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.ExecutionTrace;
@@ -10,6 +12,7 @@ import io.openaev.database.model.InjectStatus;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -27,6 +30,10 @@ class InjectStatusServiceTest {
     return new ExecutionTrace(
         status, ExecutionTraceStatus.INFO, null, "start", ExecutionTraceAction.START, agent, time);
   }
+
+  @Nested
+  @DisplayName("Audit event on status transition")
+  class AuditEventOnStatusTransition {
 
   @Test
   @DisplayName("Agent-less START traces (global distribution trace) are skipped, not NPE'd")
@@ -58,4 +65,182 @@ class InjectStatusServiceTest {
 
     assertThat(executionTime).isAfterOrEqualTo(before);
   }
+
+  @Nested
+  class InjectStatusServiceTest {
+
+      @Mock private InjectRepository injectRepository;
+      @Mock private AgentRepository agentRepository;
+      @Mock private InjectService injectService;
+      @Mock private InjectUtils injectUtils;
+      @Mock private InjectStatusRepository injectStatusRepository;
+      @Mock private ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
+      @Mock private AuditLogger auditLogger;
+      @Mock private EntityManager entityManager;
+
+      private InjectStatusService injectStatusService;
+
+      @BeforeEach
+      void setUp() {
+          injectStatusService =
+                  new InjectStatusService(
+                          injectRepository,
+                          agentRepository,
+                          injectService,
+                          injectUtils,
+                          injectStatusRepository,
+                          executionTraceRepositoryHelper,
+                          Optional.of(auditLogger),
+                          entityManager);
+      }
+
+      @Nested
+      @DisplayName("Audit event on status transition")
+      class AuditEventOnStatusTransition {
+
+          @Test
+          @DisplayName(
+                  "given_statusTransitionInUpdateInjectStatus_should_emitInjectStatusTransitionAuditEvent")
+          void given_statusTransitionInUpdateInjectStatus_should_emitInjectStatusTransitionAuditEvent() {
+              // Arrange
+              Inject inject = new Inject();
+              inject.setId("inject-1");
+              inject.setTitle("Test Inject");
+
+              InjectStatus injectStatus = new InjectStatus();
+              injectStatus.setId("status-1");
+              injectStatus.setName(ExecutionStatus.PENDING);
+              injectStatus.setInject(inject);
+              injectStatus.setTraces(new ArrayList<>());
+              injectStatus.setExpectedAgentCount(1);
+              inject.setStatus(injectStatus);
+
+              Agent agent = new Agent();
+              agent.setId("agent-1");
+              Executor executor = new Executor();
+              executor.setType("openaev");
+              agent.setExecutor(executor);
+
+              InjectExecutionInput input = new InjectExecutionInput();
+              input.setAction(InjectExecutionAction.complete);
+              input.setStatus("SUCCESS");
+              input.setMessage("done");
+              input.setDuration(0);
+
+              when(executionTraceRepositoryHelper.saveExecutionTrace(any())).thenReturn("trace-id");
+              when(injectRepository.updateUpdatedAt(any(), any())).thenReturn(1);
+
+              // Act
+              injectStatusService.updateInjectStatus(inject, agent, input, null);
+
+              // Assert
+              ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+              verify(auditLogger, atLeastOnce()).logEvent(eventCaptor.capture());
+
+              AuditEvent event = eventCaptor.getValue();
+              assertThat(event.getEventType()).isEqualTo(EventType.EXECUTION);
+              assertThat(event.getEventScope()).isEqualTo(AuditEventScope.INJECT_STATUS_TRANSITION);
+              assertThat(event.getEventStatus()).isEqualTo(EventStatus.SUCCESS);
+              assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SYSTEM);
+              assertThat(event.getResourceId()).isEqualTo("inject-1");
+              assertThat(event.getContextData().get("previous_status")).isEqualTo("PENDING");
+              assertThat(event.getContextData()).containsKey("new_status");
+              assertThat(event.getContextData().get("executor_type")).isEqualTo("openaev");
+          }
+
+          @Test
+          @DisplayName("given_noStatusChange_should_notEmitAuditEvent")
+          void given_noStatusChange_should_notEmitAuditEvent() {
+              // Arrange — a non-complete trace that doesn't change the status
+              Inject inject = new Inject();
+              inject.setId("inject-2");
+              inject.setTitle("Test Inject 2");
+
+              InjectStatus injectStatus = new InjectStatus();
+              injectStatus.setId("status-2");
+              injectStatus.setName(ExecutionStatus.PENDING);
+              injectStatus.setInject(inject);
+              injectStatus.setTraces(new ArrayList<>());
+              inject.setStatus(injectStatus);
+
+              InjectExecutionInput input = new InjectExecutionInput();
+              input.setAction(InjectExecutionAction.command_execution);
+              input.setStatus("SUCCESS");
+              input.setMessage("running");
+              input.setDuration(0);
+
+              when(executionTraceRepositoryHelper.saveExecutionTrace(any())).thenReturn("trace-id");
+
+              // Act
+              injectStatusService.updateInjectStatus(inject, null, input, null);
+
+              // Assert — no audit event since status remains PENDING
+              verify(auditLogger, never()).logEvent(any());
+          }
+
+          @Test
+          @DisplayName("given_statusTransitionInUpdateFinalInjectStatus_should_emitAuditEvent")
+          void given_statusTransitionInUpdateFinalInjectStatus_should_emitAuditEvent() {
+              // Arrange
+              Inject inject = new Inject();
+              inject.setId("inject-3");
+              inject.setTitle("Final Status Inject");
+
+              InjectStatus injectStatus = new InjectStatus();
+              injectStatus.setId("status-3");
+              injectStatus.setName(ExecutionStatus.PENDING);
+              injectStatus.setInject(inject);
+              inject.setStatus(injectStatus);
+
+              // Add a COMPLETE trace with EXECUTED status to force final status computation
+              ExecutionTrace completeTrace = new ExecutionTrace();
+              completeTrace.setAction(ExecutionTraceAction.COMPLETE);
+              completeTrace.setStatus(ExecutionTraceStatus.EXECUTED);
+              injectStatus.setTraces(new ArrayList<>());
+              injectStatus.getTraces().add(completeTrace);
+
+              // Act
+              injectStatusService.updateFinalInjectStatus(injectStatus);
+
+              // Assert — status changed from PENDING to EXECUTED
+              ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+              verify(auditLogger).logEvent(eventCaptor.capture());
+
+              AuditEvent event = eventCaptor.getValue();
+              assertThat(event.getEventType()).isEqualTo(EventType.EXECUTION);
+              assertThat(event.getEventScope()).isEqualTo(AuditEventScope.INJECT_STATUS_TRANSITION);
+              assertThat(event.getEventStatus()).isEqualTo(EventStatus.SUCCESS);
+              assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SYSTEM);
+              assertThat(event.getResourceId()).isEqualTo("inject-3");
+              assertThat(event.getContextData().get("previous_status")).isEqualTo("PENDING");
+              assertThat(event.getContextData().get("new_status")).isEqualTo("EXECUTED");
+          }
+
+          @Test
+          @DisplayName("given_noStatusChangeInUpdateFinalInjectStatus_should_notEmitAuditEvent")
+          void given_noStatusChangeInUpdateFinalInjectStatus_should_notEmitAuditEvent() {
+              // Arrange — already EXECUTED, stays EXECUTED
+              Inject inject = new Inject();
+              inject.setId("inject-4");
+              inject.setTitle("No Change Inject");
+
+              InjectStatus injectStatus = new InjectStatus();
+              injectStatus.setId("status-4");
+              injectStatus.setName(ExecutionStatus.EXECUTED);
+              injectStatus.setInject(inject);
+              inject.setStatus(injectStatus);
+
+              ExecutionTrace completeTrace = new ExecutionTrace();
+              completeTrace.setAction(ExecutionTraceAction.COMPLETE);
+              completeTrace.setStatus(ExecutionTraceStatus.EXECUTED);
+              injectStatus.setTraces(new ArrayList<>());
+              injectStatus.getTraces().add(completeTrace);
+
+              // Act
+              injectStatusService.updateFinalInjectStatus(injectStatus);
+
+              // Assert — no event because status didn't change
+              verify(auditLogger, never()).logEvent(any());
+          }
+      }
 }
