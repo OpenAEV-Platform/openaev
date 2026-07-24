@@ -8,6 +8,7 @@ import { searchAttackPatternsByNameAsOption } from '../../../../actions/AttackPa
 import { searchCustomDashboardAsOptions } from '../../../../actions/custom_dashboards/customdashboard-action';
 import { searchDomainsByNameAsOption } from '../../../../actions/domains/domain-actions';
 import { searchExerciseLinkedToFindingsAsOption } from '../../../../actions/exercises/exercise-action';
+import { searchInjectorContracts } from '../../../../actions/InjectorContracts';
 import { searchInjectorsByNameAsOption } from '../../../../actions/injectors/injector-action';
 import { searchInjectLinkedToFindingsAsOption, searchTargetOptions } from '../../../../actions/injects/inject-action';
 import { searchKillChainPhasesByNameAsOption } from '../../../../actions/kill_chain_phases/killChainPhase-action';
@@ -20,8 +21,10 @@ import { searchTeamsAsOption } from '../../../../actions/teams/team-actions';
 import { searchPlayersAsOption } from '../../../../actions/users/User';
 import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../../../../admin/components/findings/ContractOutputElementType';
 import { scenarioCategories } from '../../../../admin/components/scenarios/constants';
+import { type InjectorContract } from '../../../../utils/api-types';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { useFormatter } from '../../../i18n';
+import { initSorting, type Page } from '../Page';
 import { CUSTOM_DASHBOARD, SCENARIO_SIMULATIONS, SCENARIOS, SIMULATIONS } from './constants';
 
 export interface SearchOptionsConfig {
@@ -32,7 +35,7 @@ export interface SearchOptionsConfig {
 
 const useSearchOptions = () => {
   // Standard hooks
-  const { t } = useFormatter();
+  const { t, tPick } = useFormatter();
 
   const [options, setOptionsState] = useState<GroupOption[] | Option[]>([]);
   const [loading, setLoading] = useState(false);
@@ -258,6 +261,28 @@ const useSearchOptions = () => {
               label: t(d.label),
             }));
           setOptions([...predefined, ...existing].sort((a, b) => a.label.localeCompare(b.label)));
+        });
+        break;
+      case 'inject_type':
+        // The inject_type filter matches injector contract label text: offer the
+        // existing contract labels as options (the filter value is the label itself).
+        searchInjectorContracts({
+          textSearch: search,
+          page: 0,
+          size: 100,
+          sorts: initSorting('injector_contract_labels'),
+        }).then((result: { data: Page<InjectorContract> }) => {
+          const labels = Array.from(new Set(
+            result.data.content
+              .map(contract => tPick(contract.injector_contract_labels))
+              .filter(label => !!label),
+          ));
+          setOptions(labels
+            .sort((a, b) => a.localeCompare(b))
+            .map(label => ({
+              id: label,
+              label,
+            })));
         });
         break;
       case 'user_organization':

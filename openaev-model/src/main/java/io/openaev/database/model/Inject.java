@@ -536,7 +536,13 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   }
 
   @JsonProperty("inject_type")
-  @Queryable(filterable = true, path = "injectorContract.labels", clazz = Map.class)
+  // dynamicValues: the filter matches contract label text, so the UI offers an autocomplete of
+  // injector contract labels instead of a free-text input.
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      path = "injectorContract.labels",
+      clazz = Map.class)
   public String getType() {
     if (this.injector != null) {
       return this.injector.getType();

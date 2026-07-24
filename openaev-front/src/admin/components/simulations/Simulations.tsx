@@ -33,6 +33,7 @@ const Simulations = () => {
     'exercise_kill_chain_phases',
     'exercise_name',
     'exercise_scenario',
+    'exercise_severity',
     'exercise_start_date',
     'exercise_status',
     'exercise_tags',

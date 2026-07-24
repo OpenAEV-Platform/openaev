@@ -338,9 +338,11 @@ public class Asset implements TenantBase {
     this.tags = tags;
   }
 
+  // Not @Queryable: without a @JsonProperty the schema property has no name, so it can never be
+  // referenced by a filter key - it only leaked a nameless entry into "all filterable
+  // properties" consumers (e.g. notification trigger filters).
   @JsonIgnore
   @ManyToMany(mappedBy = "assets")
-  @Queryable(filterable = true, dynamicValues = true, path = "assetGroups.id")
   @AuditStateIgnore
   private Set<AssetGroup> assetGroups = new HashSet<>();
 

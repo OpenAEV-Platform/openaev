@@ -93,6 +93,8 @@ public class Exercise implements GrantableBase, TenantBase {
   @Column(name = "exercise_severity")
   @Enumerated(EnumType.STRING)
   @JsonProperty("exercise_severity")
+  // Filterable for parity with scenario_severity (enum values are exposed automatically)
+  @Queryable(filterable = true, sortable = true)
   private SEVERITY severity;
 
   @Column(name = "exercise_pause_date")

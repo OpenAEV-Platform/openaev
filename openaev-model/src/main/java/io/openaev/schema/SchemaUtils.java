@@ -34,6 +34,15 @@ public class SchemaUtils {
   private static final ConcurrentHashMap<Class<?>, List<PropertySchema>> cacheMap =
       new ConcurrentHashMap<>();
 
+  // Boolean properties have a closed value set: exposing it lets clients render a
+  // select instead of a free-text input (the JPA filter engine already parses
+  // "true"/"false" strings for boolean paths).
+  private static final List<String> BOOLEAN_AVAILABLE_VALUES = List.of("true", "false");
+
+  private static boolean isBooleanType(Class<?> type) {
+    return boolean.class.equals(type) || Boolean.class.equals(type);
+  }
+
   // -- SCHEMA --
   public static List<PropertySchema> schemaWithSubtypes(@NotNull Class<?> clazz)
       throws ClassNotFoundException {
@@ -95,6 +104,8 @@ public class SchemaUtils {
       builder.availableValues(
           getEnumNames(
               field.getType().isArray() ? field.getType().getComponentType() : field.getType()));
+    } else if (isBooleanType(field.getType())) {
+      builder.availableValues(BOOLEAN_AVAILABLE_VALUES);
     }
 
     for (Annotation annotation : field.getDeclaredAnnotations()) {
@@ -124,6 +135,8 @@ public class SchemaUtils {
 
     if (method.getReturnType().isEnum()) {
       builder.availableValues(getEnumNames(method.getReturnType()));
+    } else if (isBooleanType(method.getReturnType())) {
+      builder.availableValues(BOOLEAN_AVAILABLE_VALUES);
     } else if (method.getReturnType().isArray()
         || method.getGenericReturnType() instanceof ParameterizedType) {
       Class enumType = null;
