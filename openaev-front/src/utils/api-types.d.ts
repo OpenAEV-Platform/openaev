@@ -5150,9 +5150,14 @@ export interface InjectExpectationOutput {
   inject_expectation_created_at?: string;
   /** Description of the inject expectation */
   inject_expectation_description?: string;
+  /** Exercise ID associated with the inject expectation */
+  inject_expectation_exercise?: string;
   /**
-   * Security platform types expected to fulfil this technical expectation. Empty means any security platform.
+   * Expected score of the inject expectation
+   * @format double
    */
+  inject_expectation_expected_score: number;
+  /** Security platform types expected to fulfil this technical expectation. Empty means any security platform. */
   inject_expectation_expected_security_platforms?: (
     | "EDR"
     | "XDR"
@@ -5163,13 +5168,6 @@ export interface InjectExpectationOutput {
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
   )[];
-  /** Exercise ID associated with the inject expectation */
-  inject_expectation_exercise?: string;
-  /**
-   * Expected score of the inject expectation
-   * @format double
-   */
-  inject_expectation_expected_score: number;
   /** Whether this expectation is a group expectation */
   inject_expectation_group?: boolean;
   /**
