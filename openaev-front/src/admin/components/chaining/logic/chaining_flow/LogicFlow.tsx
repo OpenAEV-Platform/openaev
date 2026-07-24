@@ -43,7 +43,6 @@ import nodeTypes from './nodes';
 interface LogicFlowProps {
   workflowId: string;
   reloadTrigger?: number;
-  onAddComponent: () => void;
   onEditStep?: (stepId: string, meta: ActionMeta) => void;
   onEditEvent?: (eventId: string, meta: EventMeta) => void;
   /** Called after each graph refresh so the parent can drive the warning banner. */
@@ -60,7 +59,7 @@ const proOptions = {
  * grouped into MITRE tactic columns. Supports connecting events to actions, editing,
  * deleting nodes, and adding new components.
  */
-const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep, onEditEvent, onEventMetasChange }: LogicFlowProps) => {
+const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEventMetasChange }: LogicFlowProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const { setProviders: setContextProviders } = useOutputProviders();

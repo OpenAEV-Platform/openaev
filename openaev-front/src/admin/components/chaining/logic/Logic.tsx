@@ -35,7 +35,7 @@ const Logic = ({ workflowId, context }: LogicProps) => {
     stepId: string;
     meta: ActionMeta;
   } | null>(null);
-  // Output type required by the "Add Compatible Action" banner (pre-filters the action list)
+    // Output type required by the "Add Compatible Action" banner (pre-filters the action list)
   const [compatibleActionFilter, setCompatibleActionFilter] = useState<string | undefined>();
 
   // Event currently being edited
@@ -136,7 +136,6 @@ const Logic = ({ workflowId, context }: LogicProps) => {
                   <LogicFlow
                     reloadTrigger={refreshKey}
                     workflowId={workflowId}
-                    onAddComponent={handleOpenDrawer}
                     onEditStep={handleEditStep}
                     onEditEvent={handleEditEvent}
                     onEventMetasChange={setEventMetas}
