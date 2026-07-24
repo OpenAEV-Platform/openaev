@@ -172,7 +172,7 @@ public class NotifierService {
   private void requireCustomizableType(NotifierType type) {
     if (type == NotifierType.UI) {
       throw new IllegalArgumentException(
-          "The user interface notifier is built-in: only email and webhook notifiers can be created");
+          "The user interface notifier is built-in: custom notifiers must use the email or webhook type");
     }
   }
 

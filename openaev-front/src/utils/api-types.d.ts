@@ -222,7 +222,7 @@ export interface AggregatedFindingOutput {
    * Last time the finding was seen
    * @format date-time
    */
-  finding_updated_at?: string;
+  finding_updated_at: string;
   /**
    * Finding Value
    * @minLength 1
@@ -8748,7 +8748,7 @@ export interface RelatedFindingOutput {
    * Last time the finding was seen
    * @format date-time
    */
-  finding_updated_at?: string;
+  finding_updated_at: string;
   /**
    * Finding Value
    * @minLength 1

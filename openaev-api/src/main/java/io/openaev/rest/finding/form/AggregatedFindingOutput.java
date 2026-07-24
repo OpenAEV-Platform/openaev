@@ -44,6 +44,7 @@ public class AggregatedFindingOutput {
 
   @Schema(description = "Last time the finding was seen")
   @JsonProperty("finding_updated_at")
+  @NotNull
   private Instant updateDate;
 
   @Schema(description = "Assets linked to the finding (any asset type, not only endpoints)")
