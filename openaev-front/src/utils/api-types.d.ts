@@ -188,11 +188,6 @@ export interface AggregatedFindingOutput {
    */
   finding_created_at: string;
   /**
-   * Last time the finding was seen
-   * @format date-time
-   */
-  finding_updated_at?: string;
-  /**
    * Finding Id
    * @minLength 1
    */
@@ -223,6 +218,11 @@ export interface AggregatedFindingOutput {
     | "asreproastable_account"
     | "kerberoastable_account"
     | "expectation_signature";
+  /**
+   * Last time the finding was seen
+   * @format date-time
+   */
+  finding_updated_at?: string;
   /**
    * Finding Value
    * @minLength 1
@@ -8708,11 +8708,6 @@ export interface RelatedFindingOutput {
    */
   finding_created_at: string;
   /**
-   * Last time the finding was seen
-   * @format date-time
-   */
-  finding_updated_at?: string;
-  /**
    * Finding Id
    * @minLength 1
    */
@@ -8749,6 +8744,11 @@ export interface RelatedFindingOutput {
     | "asreproastable_account"
     | "kerberoastable_account"
     | "expectation_signature";
+  /**
+   * Last time the finding was seen
+   * @format date-time
+   */
+  finding_updated_at?: string;
   /**
    * Finding Value
    * @minLength 1
