@@ -201,8 +201,11 @@ public class AssetService {
    * surface in the unified inventory options.
    */
   public List<FilterUtilsJpa.Option> getOptionsByIds(@NotNull final List<String> ids) {
+    // instanceof rather than the type discriminator string: the discriminator field is
+    // read-only (insertable = false) and not hydrated on entities created in the current
+    // persistence context, while the concrete class is always reliable.
     return fromIterable(this.assetRepository.findAllById(ids)).stream()
-        .filter(a -> !AssetType.Values.SECURITY_PLATFORM_TYPE.equals(a.getType()))
+        .filter(a -> !(a instanceof SecurityPlatform))
         .map(a -> new FilterUtilsJpa.Option(a.getId(), a.getName()))
         .toList();
   }

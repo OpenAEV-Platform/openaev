@@ -144,13 +144,12 @@ public class CatalogConnector implements Base {
   // One-shot marker for the legacy properties-to-instance migration. Once true,
   // the migration never runs again for this connector, even if the migrated
   // instance is later deleted by an admin (deletions must stick across restarts).
-  // Fixes a bug due to a new version of jackson and lombok
-  // cf: https://github.com/projectlombok/lombok/issues/3978
-  @Getter(onMethod_ = @JsonProperty("catalog_connector_properties_migrated"))
+  // Named without the 'is' prefix so Lombok and Jackson agree on the property
+  // (cf https://github.com/projectlombok/lombok/issues/3978).
   @Column(name = "catalog_connector_properties_migrated")
   @JsonProperty("catalog_connector_properties_migrated")
   @Schema(description = "Whether the legacy properties configuration has already been migrated")
-  private boolean isPropertiesMigrated;
+  private boolean propertiesMigrated;
 
   @OneToMany(
       mappedBy = "catalogConnector",
