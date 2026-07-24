@@ -219,7 +219,7 @@ public class AuditLogger {
                       .eventType(EventType.MUTATION)
                       .eventScope(eventScope)
                       .eventStatus(eventStatus)
-                      .resourceType(resourceType != null ? resourceType.name() : null)
+                      .resourceType(resourceType)
                       .resourceId(resourceId)
                       .entityDiffs(entityDiffsNode)
                       .contextData(ctx)

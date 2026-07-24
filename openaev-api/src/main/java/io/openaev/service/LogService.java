@@ -218,13 +218,8 @@ public class LogService {
 
       // For MUTATION events, resolve access based on ResourceType
       String eventAccess;
-      ResourceType resourceType = null;
-      if (event.getEventType() == EventType.MUTATION && event.getResourceType() != null) {
-        try {
-          resourceType = ResourceType.valueOf(event.getResourceType());
-        } catch (IllegalArgumentException ignored) {
-          // Non-enum resource type — use extended access
-        }
+      ResourceType resourceType = event.getResourceType();
+      if (event.getEventType() == EventType.MUTATION && resourceType != null) {
         eventAccess = LogUtils.getEventAccess(resourceType);
       } else {
         eventAccess = resolveEventAccess(event);
@@ -250,8 +245,7 @@ public class LogService {
         ctx.put("message", event.getMessage());
       } else if (event.getEventType() == EventType.MUTATION) {
         // Build message from mutation context if not explicitly provided
-        String entityTypeName =
-            resourceType != null ? formatResourceType(resourceType) : event.getResourceType();
+        String entityTypeName = resourceType != null ? formatResourceType(resourceType) : null;
         String displayName =
             rawInputNode != null ? LogUtils.extractNameFromSnapshot(rawInputNode) : null;
         displayName = displayName != null ? displayName : event.getResourceId();
@@ -265,10 +259,8 @@ public class LogService {
         ctx.put("message", message);
       }
 
-      if (event.getResourceType() != null && !ctx.containsKey("entity_type")) {
-        ctx.put(
-            "entity_type",
-            resourceType != null ? formatResourceType(resourceType) : event.getResourceType());
+      if (resourceType != null && !ctx.containsKey("entity_type")) {
+        ctx.put("entity_type", formatResourceType(resourceType));
       }
       if (event.getResourceId() != null && !ctx.containsKey("resource_id")) {
         ctx.put("resource_id", event.getResourceId());
