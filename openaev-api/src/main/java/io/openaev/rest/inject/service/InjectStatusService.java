@@ -58,6 +58,8 @@ public class InjectStatusService {
 
   private final EntityManager entityManager;
 
+  private static final String NO_STATUS = "NONE";
+
   /**
    * Streams the parent inject (with its embedded status) to the SSE consumers.
    *
@@ -448,10 +450,6 @@ public class InjectStatusService {
             .toList();
     injectStatusRepository.deleteAllByIds(injectStatusIds);
   }
-
-  // -- AUDIT HELPERS --
-
-  private static final String NO_STATUS = "NONE";
 
   private void logInjectStatusTransition(
       Inject inject, ExecutionStatus previousStatus, ExecutionStatus newStatus, Agent agent) {
