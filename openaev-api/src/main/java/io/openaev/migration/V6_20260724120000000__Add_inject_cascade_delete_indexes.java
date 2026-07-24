@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /** Adds missing FK-supporting indexes used when injects are deleted in large cascades. */
 @Component
-public class V6_20260723093548596__Add_inject_cascade_delete_indexes extends BaseJavaMigration {
+public class V6_20260724120000000__Add_inject_cascade_delete_indexes extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
