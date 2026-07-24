@@ -40,6 +40,7 @@ const ThreatArsenalSortSelect: FunctionComponent<Props> = ({ sortHelpers }) => {
       display: 'flex',
       alignItems: 'center',
       gap: 0.5,
+      marginLeft: 1.25,
     }}
     >
       <FormControl size="small" sx={{ minWidth: 140 }}>

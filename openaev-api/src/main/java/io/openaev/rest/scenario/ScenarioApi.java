@@ -11,6 +11,7 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.BulkOperationContext;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
@@ -124,29 +125,39 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/with-injector-contracts",
     TENANT_SCENARIO_URI + "/with-injector-contracts"
   })
-  @Transactional
+  // SUPPORTS (not REQUIRED) on purpose: the creation runs in the service's own transaction,
+  // wrapped in a massive-operation scope (per-entity stream event suppression) that must cover the
+  // commit-time flush - the arsenal selection can create thousands of injects.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public Scenario createScenarioWithInjectorContracts(
       @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
-    return this.scenarioService.createScenarioWithInjectorContracts(
-        TenantContext.getCurrentTenant(),
-        inputs.getScenarioInput(),
-        inputs.getInjectorContractSearchPaginationInput(),
-        inputs.getLocale());
+    return BulkOperationContext.runSuppressed(
+        () ->
+            this.scenarioService.createScenarioWithInjectorContracts(
+                TenantContext.getCurrentTenant(),
+                inputs.getScenarioInput(),
+                inputs.getInjectorContractSearchPaginationInput(),
+                inputs.getLocale()));
   }
 
   @PutMapping({
     SCENARIO_URI + "/with-injector-contracts",
     TENANT_SCENARIO_URI + "/with-injector-contracts"
   })
-  @Transactional
+  // SUPPORTS (not REQUIRED) on purpose: the update runs in the service's own transaction, wrapped
+  // in a massive-operation scope (per-entity stream event suppression) that must cover the
+  // commit-time flush - the arsenal selection can create thousands of injects.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
   public List<Scenario> updateScenariosWithInjectorContracts(
       @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
-    return this.scenarioService.updateScenariosWithInjectorContracts(
-        inputs.getScenarioIds(),
-        inputs.getInjectorContractSearchPaginationInput(),
-        inputs.getLocale());
+    return BulkOperationContext.runSuppressed(
+        () ->
+            this.scenarioService.updateScenariosWithInjectorContracts(
+                inputs.getScenarioIds(),
+                inputs.getInjectorContractSearchPaginationInput(),
+                inputs.getLocale()));
   }
 
   @PostMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})

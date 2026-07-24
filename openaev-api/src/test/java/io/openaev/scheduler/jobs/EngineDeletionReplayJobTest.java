@@ -1,7 +1,9 @@
 package io.openaev.scheduler.jobs;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -61,6 +63,26 @@ class EngineDeletionReplayJobTest {
         .hasSize(EngineDeletionReplayJob.REPLAY_BATCH_SIZE);
     assertThat(batchCaptor.getAllValues().get(1)).hasSize(10);
     assertThat(batchCaptor.getAllValues().stream().flatMap(List::stream).toList()).isEqualTo(ids);
+  }
+
+  @Test
+  @DisplayName("Given a failing batch, should replay remaining batches and keep the journal")
+  void given_failingBatch_should_replayRemainingBatchesAndSkipPrune() {
+    List<String> ids =
+        IntStream.range(0, EngineDeletionReplayJob.REPLAY_BATCH_SIZE + 10)
+            .mapToObj(i -> "id-" + i)
+            .toList();
+    when(deletionJournal.findPendingIds()).thenReturn(ids);
+    // First batch fails (e.g. transient engine rejection), second must still be attempted.
+    doThrow(new RuntimeException("engine down"))
+        .when(engineService)
+        .bulkDelete(ids.subList(0, EngineDeletionReplayJob.REPLAY_BATCH_SIZE));
+
+    assertThatCode(() -> job.execute(null)).doesNotThrowAnyException();
+
+    // Both batches attempted; journal kept so the failed ids are retried on the next pass.
+    verify(engineService, times(2)).bulkDelete(anyList());
+    verify(deletionJournal, never()).prune();
   }
 
   @Test

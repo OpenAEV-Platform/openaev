@@ -59,6 +59,14 @@ public class Collector extends BaseConnectorEntity implements TenantIdBase {
   @JsonProperty("collector_period")
   private int period;
 
+  /**
+   * Optional source-declared author override. When set, the collector's payloads (and their arsenal
+   * contracts) are attributed to this author organization instead of the collector's display name.
+   */
+  @Column(name = "collector_author")
+  @JsonProperty("collector_author")
+  private String author;
+
   @Column(name = "collector_external")
   @JsonProperty("collector_external")
   private boolean external = false;

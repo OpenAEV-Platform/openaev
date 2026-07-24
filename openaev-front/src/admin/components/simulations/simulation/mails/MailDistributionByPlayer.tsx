@@ -7,7 +7,6 @@ import { type CommunicationHelper } from '../../../../../actions/communications/
 import { type UserHelper } from '../../../../../actions/helper';
 import { fetchPlayers } from '../../../../../actions/users/User';
 import Chart from '../../../../../components/Chart';
-import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type Communication, type Exercise, type User } from '../../../../../utils/api-types';
@@ -15,6 +14,8 @@ import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { resolveUserName } from '../../../../../utils/String';
+import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
+import { sampleMailsByPlayer } from './mailsSampleData';
 
 interface Props { exerciseId: Exercise['exercise_id'] }
 
@@ -75,11 +76,17 @@ const MailDistributionByPlayer: FunctionComponent<Props> = ({ exerciseId }) => {
           height={50 + communicationsUsers.length * 50}
         />
       ) : (
-        <Empty
-          message={t(
-            'No data to display or the simulation has not started yet',
-          )}
-        />
+        // No mail traffic yet: preview the widget with greyed sample data
+        // (like every widget of the platform) instead of an empty box.
+        <SamplePreview active>
+          <Chart
+            options={horizontalBarsChartOptions({ theme })}
+            series={sampleMailsByPlayer(t('Total mails'))}
+            type="bar"
+            width="100%"
+            height={300}
+          />
+        </SamplePreview>
       )}
     </>
   );

@@ -30,6 +30,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -98,6 +99,15 @@ public class ThreatArsenalApi {
   public List<InjectorContractAuthorCountOutput> getAuthorCounts(
       @RequestBody @Valid final SearchPaginationInput input) {
     return threatArsenalService.getAuthorCounts(input);
+  }
+
+  @Operation(summary = "Platform and payload-status facet counts for the sidebar")
+  @PostMapping({THREAT_ARSENAL_URL + "/facet-counts", TENANT_THREAT_ARSENAL_URL + "/facet-counts"})
+  @Transactional
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  public ThreatArsenalFacetCountsOutput getFacetCounts(
+      @RequestBody @Valid final SearchPaginationInput input) {
+    return threatArsenalService.getFacetCounts(input);
   }
 
   @Operation(summary = "Search threat arsenal")
@@ -212,7 +222,9 @@ public class ThreatArsenalApi {
 
   @Operation(summary = "Bulk delete threat arsenal actions")
   @PostMapping({THREAT_ARSENAL_URL + "/bulk-delete", TENANT_THREAT_ARSENAL_URL + "/bulk-delete"})
-  @Transactional
+  // SUPPORTS (not REQUIRED) on purpose: the service resolves the scope in a short read transaction
+  // and deletes chunk by chunk (each chunk in its own transaction), tracked as a massive operation.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalBulkDeleteOutput bulkDeleteActions(
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {

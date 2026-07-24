@@ -58,6 +58,7 @@ import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
 import ThreatArsenalSidebar from './ThreatArsenalSidebar';
 import ThreatArsenalSortSelect from './ThreatArsenalSortSelect';
 import useThreatArsenalAuthorFacet from './useThreatArsenalAuthorFacet';
+import useThreatArsenalFacetCounts from './useThreatArsenalFacetCounts';
 
 type ViewMode = 'grid' | 'list';
 
@@ -132,12 +133,10 @@ const ThreatArsenal = () => {
     domainFilterKey: 'action_domains',
   });
 
-  // Per-status counts are intentionally NOT computed from `threatArsenalActions`
-  // here: that array only holds the currently loaded page, while `totalElements`
-  // covers the full filtered dataset, so page-bound counts would be misleading
-  // (e.g. "Verified: 23" on page 1, "Verified: 8" on page 2). Users can drill
-  // by status via the Status quick filter underneath the hero. If a global
-  // aggregation endpoint is ever added, status chips can be wired here.
+  // Platform + status counts come from a global aggregation endpoint (never
+  // from `threatArsenalActions`, which only holds the currently loaded page and
+  // would yield misleading page-bound counts).
+  const facetCounts = useThreatArsenalFacetCounts(searchPaginationInput);
 
   const availableFilterNames = [
     'action_injectors',
@@ -414,10 +413,6 @@ const ThreatArsenal = () => {
 
   const headerRightSlot = (
     <>
-      {/* List view sorts via its column headers; the select is grid-only. */}
-      {viewMode === 'grid' && (
-        <ThreatArsenalSortSelect sortHelpers={queryableHelpers.sortHelpers} />
-      )}
       <ToggleButtonGroup
         value={viewMode}
         exclusive
@@ -489,6 +484,7 @@ const ThreatArsenal = () => {
           <ThreatArsenalSidebar
             domainElements={iconBarOrderedDomains}
             authorOptions={authorOptions}
+            facetCounts={facetCounts}
             searchPaginationInput={searchPaginationInput}
             filterHelpers={queryableHelpers.filterHelpers}
           />
@@ -509,6 +505,14 @@ const ThreatArsenal = () => {
                 entityPrefix="threat_arsenal"
                 availableFilterNames={availableFilterNames}
                 queryableHelpers={queryableHelpers}
+                filtersEndSlot={viewMode === 'grid'
+                  ? (
+                      // List view sorts via its column headers; the select is grid-only.
+                      // Sits at the end of the filter row (after the clear-filters icon),
+                      // matching the OpenCTI card-view sort placement.
+                      <ThreatArsenalSortSelect sortHelpers={queryableHelpers.sortHelpers} />
+                    )
+                  : null}
                 topBarButtons={(
                   <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
                     <CreateThreatArsenalAction

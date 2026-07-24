@@ -616,7 +616,7 @@ const Injects: FunctionComponent<Props> = ({
                 return (
                   <CustomTooltip
                     key={inject.inject_id}
-                    title={!injectContract || !inject.inject_enabled ? t('No match found in OpenAEV') : ''}
+                    title={!injectContract ? t('No match found in OpenAEV') : ''}
                   >
                     <ListItem
                       divider
@@ -626,7 +626,6 @@ const Injects: FunctionComponent<Props> = ({
                           canBeTested
                           setSelectedInjectId={setSelectedInjectId}
                           isDisabled={!injectContract}
-                          isUpdateDisabled={!inject.inject_enabled}
                           onCreate={onCreate}
                           onUpdate={onUpdate}
                           onDelete={onDelete}

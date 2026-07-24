@@ -137,7 +137,8 @@ public class InjectorContractService implements DependenciesManager {
   public InjectorContract injectorContract(@NotBlank final String id) {
     return injectorContractRepository
         .findByIdOrExternalId(id, id)
-        .orElseThrow(() -> new ElementNotFoundException("Injector contract not found"));
+        // User-facing wording: the entity is exposed as "threat arsenal item" everywhere.
+        .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
   }
 
   // -- OTHERS --
@@ -462,10 +463,10 @@ public class InjectorContractService implements DependenciesManager {
             .orElseThrow(
                 () ->
                     new ElementNotFoundException(
-                        "Injector contract not found: " + injectorContractId));
+                        "Threat arsenal item not found: " + injectorContractId));
     if (!injectorContract.getCustom()) {
       throw new IllegalArgumentException(
-          "This injector contract can't be removed because is not a custom one: "
+          "This threat arsenal item can't be removed because it is not a custom one: "
               + injectorContractId);
     }
     deleteInjectorContract(injectorContract);
@@ -931,6 +932,21 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
+   * Shared base specification for the facet-count aggregations: current filters + text search +
+   * access control, exactly like the search route.
+   */
+  private Specification<InjectorContract> facetBaseSpec(SearchPaginationInput input) {
+    Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
+    Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
+    Specification<InjectorContract> accessSpec =
+        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
+    return Specification.<InjectorContract>unrestricted()
+        .and(filterSpec)
+        .and(searchSpec)
+        .and(accessSpec);
+  }
+
+  /**
    * Computes the count of injector contracts grouped by domain.
    *
    * @param input the search and filtering criteria
@@ -938,17 +954,7 @@ public class InjectorContractService implements DependenciesManager {
    */
   public List<InjectorContractDomainCountOutput> getDomainCounts(SearchPaginationInput input) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-
-    Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
-    Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
-    Specification<InjectorContract> accessSpec =
-        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
-
-    Specification<InjectorContract> baseSpec =
-        Specification.<InjectorContract>unrestricted()
-            .and(filterSpec)
-            .and(searchSpec)
-            .and(accessSpec);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
 
     CriteriaQuery<InjectorContractDomainCountOutput> qDirect =
         cb.createQuery(InjectorContractDomainCountOutput.class);
@@ -974,16 +980,7 @@ public class InjectorContractService implements DependenciesManager {
    */
   public List<InjectorContractAuthorCountOutput> getAuthorCounts(SearchPaginationInput input) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-
-    Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
-    Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
-    Specification<InjectorContract> accessSpec =
-        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
-    Specification<InjectorContract> baseSpec =
-        Specification.<InjectorContract>unrestricted()
-            .and(filterSpec)
-            .and(searchSpec)
-            .and(accessSpec);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
 
     CriteriaQuery<InjectorContractAuthorCountOutput> q =
         cb.createQuery(InjectorContractAuthorCountOutput.class);
@@ -1031,6 +1028,61 @@ public class InjectorContractService implements DependenciesManager {
     q.groupBy(authorId, authorName, authorType);
 
     return entityManager.createQuery(q).getResultList();
+  }
+
+  /**
+   * Number of contracts per platform under the given filters. The platforms column is a Postgres
+   * {@code text[]} array, which JPA criteria cannot group by, so a bounded count query runs per
+   * known platform value using the same {@code array_position_wrapper} membership test as the
+   * filter engine ({@link io.openaev.utils.OperationUtilsJpa}).
+   */
+  public Map<String, Long> getPlatformCounts(SearchPaginationInput input) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+
+    Map<String, Long> counts = new LinkedHashMap<>();
+    for (Endpoint.PLATFORM_TYPE platform : Endpoint.PLATFORM_TYPE.values()) {
+      CriteriaQuery<Long> q = cb.createQuery(Long.class);
+      Root<InjectorContract> root = q.from(InjectorContract.class);
+      Predicate predicate = baseSpec.toPredicate(root, q, cb);
+      Predicate containsPlatform =
+          cb.isNotNull(
+              cb.function(
+                  "array_position_wrapper",
+                  Integer.class,
+                  root.get("platforms"),
+                  cb.literal(platform.name())));
+      q.where(predicate != null ? cb.and(predicate, containsPlatform) : containsPlatform);
+      q.select(cb.countDistinct(root));
+      counts.put(platform.name(), entityManager.createQuery(q).getSingleResult());
+    }
+    return counts;
+  }
+
+  /**
+   * Number of contracts per payload status under the given filters. Contracts without a payload
+   * carry no status and are excluded (like the author facet excludes authorless contracts).
+   */
+  public Map<String, Long> getStatusCounts(SearchPaginationInput input) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+
+    CriteriaQuery<Tuple> q = cb.createTupleQuery();
+    Root<InjectorContract> root = q.from(InjectorContract.class);
+    Join<InjectorContract, Payload> payloadJoin = root.join("payload", JoinType.LEFT);
+    Path<Payload.PAYLOAD_STATUS> status = payloadJoin.get("status");
+
+    Predicate predicate = baseSpec.toPredicate(root, q, cb);
+    Predicate hasStatus = cb.isNotNull(status);
+    q.where(predicate != null ? cb.and(predicate, hasStatus) : hasStatus);
+    q.multiselect(status, cb.countDistinct(root));
+    q.groupBy(status);
+
+    Map<String, Long> counts = new LinkedHashMap<>();
+    for (Tuple tuple : entityManager.createQuery(q).getResultList()) {
+      counts.put(String.valueOf(tuple.get(0)), (Long) tuple.get(1));
+    }
+    return counts;
   }
 
   @Override

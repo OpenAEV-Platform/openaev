@@ -4,6 +4,8 @@ import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_TRIGGER;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_TRIGGER;
+import static io.openaev.scheduler.jobs.notification.NotificationDigestJob.NOTIFICATION_DIGEST_TRIGGER;
+import static io.openaev.scheduler.jobs.notification.NotificationEventRetentionJob.NOTIFICATION_EVENT_RETENTION_TRIGGER;
 import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_TRIGGER;
 import static org.quartz.CronScheduleBuilder.cronSchedule;
 import static org.quartz.SimpleScheduleBuilder.*;
@@ -161,6 +163,26 @@ public class PlatformTriggers {
         .forJob(this.platformJobs.tenantPurgeJobDetail())
         .withIdentity(TENANT_PURGE_TRIGGER)
         .withSchedule(cronSchedule("0 0 2 * * ?")) // Daily at 2:00 AM
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
+  public Trigger notificationDigestTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.notificationDigestJobDetail())
+        .withIdentity(NOTIFICATION_DIGEST_TRIGGER)
+        .withSchedule(cronSchedule("0 0/1 * * * ?")) // Every minute align on clock
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
+  public Trigger notificationEventRetentionTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.notificationEventRetentionJobDetail())
+        .withIdentity(NOTIFICATION_EVENT_RETENTION_TRIGGER)
+        .withSchedule(cronSchedule("0 15 1 * * ?")) // Daily at 1:15 AM
         .build();
   }
 

@@ -69,6 +69,15 @@ const WidgetWrapper = ({
     isListWidget ? `widget-list-${widget.widget_id}` : undefined,
   );
 
+  // The 'average' transform colors its output from the CURRENT theme, read through a
+  // ref: widgetConfig feeds fetchWidgetData, so keying it on the theme object would
+  // refetch every widget over the network whenever the theme instance is rebuilt (a
+  // pure styling change). The ref is always up to date by the time the transform runs
+  // (fetch callbacks resolve after commit).
+  const themeRef = useRef(theme);
+  useEffect(() => {
+    themeRef.current = theme;
+  });
   const widgetConfig = useMemo<Record<string, WidgetFetchConfig>>(() => ({
     'attack-path': {
       vizType: WidgetVizDataType.ATTACK_PATHS,
@@ -81,13 +90,13 @@ const WidgetWrapper = ({
     'average': {
       vizType: WidgetVizDataType.AVERAGE,
       fetchFn: fetchAverage,
-      transformData: data => determinePercentage(data as EsAvgs, theme),
+      transformData: data => determinePercentage(data as EsAvgs, themeRef.current),
     },
     'list': {
       vizType: WidgetVizDataType.ENTITIES,
       fetchFn: fetchEntities,
     },
-  }), [fetchAttackPaths, fetchCount, fetchAverage, fetchEntities, theme]);
+  }), [fetchAttackPaths, fetchCount, fetchAverage, fetchEntities]);
 
   const defaultConfig = useMemo<WidgetFetchConfig>(() => ({
     vizType: WidgetVizDataType.SERIES,

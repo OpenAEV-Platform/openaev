@@ -254,7 +254,7 @@ class InjectsExecutionJobUnitTest {
 
       NotificationEvent event = notificationEventCaptor.getValue();
       assertEquals(NotificationEventType.SIMULATION_COMPLETED, event.getEventType());
-      assertEquals(NotificationRuleResourceType.SCENARIO, event.getResourceType());
+      assertEquals(ResourceType.SCENARIO, event.getResourceType());
       assertEquals(scenarioId, event.getResourceId());
       assertNotNull(event.getTimestamp());
     }

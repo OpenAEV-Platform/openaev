@@ -87,11 +87,15 @@ public class PayloadUpsertService {
   }
 
   /**
-   * Finds or creates the {@link Organization} that authors a collector's payloads, keyed on the
-   * collector's display name within the current tenant.
+   * Finds or creates the {@link Organization} that authors a collector's payloads. The collector's
+   * source-declared author override wins when present; otherwise the collector's display name is
+   * used, keyed within the current tenant.
    */
   private Organization resolveCollectorOrganization(Collector collector) {
-    String name = collector.getName();
+    String name =
+        collector.getAuthor() != null && !collector.getAuthor().isBlank()
+            ? collector.getAuthor()
+            : collector.getName();
     if (name == null || name.isBlank()) {
       return null;
     }

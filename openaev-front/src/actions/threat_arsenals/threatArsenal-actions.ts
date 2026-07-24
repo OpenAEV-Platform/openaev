@@ -62,6 +62,12 @@ export const fetchThreatArsenalAuthorCounts = (input: SearchPaginationInput) => 
   return simplePostCall(`${THREAT_ARSENAL_URI}/author-counts`, input);
 };
 
+// Platform + payload-status counts for the current filters, so the fixed-universe
+// sidebar facets show live counts like the domain and author facets.
+export const fetchThreatArsenalFacetCounts = (input: SearchPaginationInput) => {
+  return simplePostCall(`${THREAT_ARSENAL_URI}/facet-counts`, input);
+};
+
 export const fetchCollectorsForActionRemediation = (actionId: string) => (dispatch: Dispatch) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}/collectors`;
   return getReferential(schema.arrayOfCollectors, uri)(dispatch);

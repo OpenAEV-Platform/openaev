@@ -58,7 +58,14 @@ const InjectExpectationAggregatedAgentsView = ({ inject, expectationType, target
                 <ItemStatus label={t(`${statusResult}`)} status={injectExpectationAgent.inject_expectation_status} />
               </>
             );
-            return injectExpectationAgent?.inject_expectation_status !== 'PENDING' && injectExpectationAgent?.inject_expectation_agent
+            // DETECTION / PREVENTION expectations stay PENDING until they expire, even after a
+            // collector (e.g. Microsoft Defender) has already reported a result. Rendering only
+            // non-pending agents therefore dropped the security-platform breakdown that the
+            // per-agent view shows. Show the agent block as soon as it has results too, so the
+            // endpoints view stays consistent with the agents view (gated on results, not status).
+            const hasResults = (injectExpectationAgent.inject_expectation_results?.length ?? 0) > 0;
+            return injectExpectationAgent?.inject_expectation_agent
+              && (injectExpectationAgent?.inject_expectation_status !== 'PENDING' || hasResults)
               && (
                 <Paper
                   variant="outlined"
@@ -68,7 +75,7 @@ const InjectExpectationAggregatedAgentsView = ({ inject, expectationType, target
                   }}
                 >
                   <ExpandableSection
-                    forceExpanded={false}
+                    forceExpanded
                     header={header}
                     key={injectExpectationAgent.inject_expectation_id}
                   >

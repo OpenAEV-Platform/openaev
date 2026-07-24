@@ -66,8 +66,17 @@ const rebuildSnapshot = () => {
  * Ingests a bulk operation snapshot (from an SSE event or the seed endpoint) into the store.
  * Returns true when this snapshot is the transition to a terminal state (completed or failed),
  * so the caller can refresh the data of mounted screens exactly once per operation.
+ *
+ * `countTransitions` must be false when replaying history (the seed endpoint): those
+ * operations finished BEFORE the page loaded, and counting them would bump
+ * {@link useBulkOperationsFinishedCount} right after mount - which made every
+ * engine-backed dashboard refetch all its widgets once the seed landed (visible
+ * as a full-dashboard blink a couple of seconds after the home page loaded).
  */
-export const ingestBulkOperation = (operation: GeneratedBulkOperation): boolean => {
+export const ingestBulkOperation = (
+  operation: GeneratedBulkOperation,
+  countTransitions = true,
+): boolean => {
   if (!isUsableBulkOperation(operation)) {
     return false;
   }
@@ -79,11 +88,11 @@ export const ingestBulkOperation = (operation: GeneratedBulkOperation): boolean 
   }
   operations.set(operation.bulk_operation_id, operation);
   const justFinished = isFinished(operation) && (!previous || !isFinished(previous));
-  if (justFinished) {
+  if (justFinished && countTransitions) {
     finishedCount += 1;
   }
   rebuildSnapshot();
-  return justFinished;
+  return justFinished && countTransitions;
 };
 
 /** Seeds the store from the backend registry (page load, SSE reconnect). */
@@ -91,7 +100,9 @@ export const seedBulkOperations = async () => {
   try {
     const result = await simpleCall('/api/bulk-operations', undefined, false);
     (result.data as GeneratedBulkOperation[]).forEach((operation) => {
-      ingestBulkOperation(operation);
+      // History replay: populate the indicator without signalling "just finished"
+      // (see ingestBulkOperation above).
+      ingestBulkOperation(operation, false);
     });
   } catch {
     // Seeding is best-effort: live SSE events will populate the store anyway.

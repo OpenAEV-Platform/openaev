@@ -38,13 +38,14 @@ const CtemCommandCenterButton = () => {
         target="_blank"
         rel="noopener noreferrer"
         sx={{
-          // Same 36px squared blue anatomy as the other top bar icon buttons:
-          // the AI purple stays reserved for the Ask Ariane label.
+          // Same 36px squared anatomy as the other top bar icon buttons, but
+          // painted with the AI purple: this shortcut belongs to XTM One
+          // (agentic AI), like the Ask Ariane button next to it.
           'width': 36,
           'height': 36,
           'borderRadius': 1,
-          'color': theme.palette.primary.main,
-          '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.15) },
+          'color': theme.palette.ai.main,
+          '&:hover': { backgroundColor: alpha(theme.palette.ai.main, 0.15) },
         }}
         aria-label={t('CTEM Command Center')}
       >

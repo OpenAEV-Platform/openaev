@@ -541,6 +541,15 @@ public class OpenSearchService implements EngineService {
     if (ids == null || ids.isEmpty()) {
       return;
     }
+    // Batch internally: a bulk deletion cascade can journal thousands of ids in one flush, and
+    // both the terms clauses and the painless "valuesToRemove" params must stay bounded.
+    for (int start = 0; start < ids.size(); start += EngineService.BULK_DELETE_BATCH_SIZE) {
+      bulkDeleteBatch(
+          ids.subList(start, Math.min(start + EngineService.BULK_DELETE_BATCH_SIZE, ids.size())));
+    }
+  }
+
+  private void bulkDeleteBatch(List<String> ids) {
     try {
       List<FieldValue> values = ids.stream().map(FieldValue::of).toList();
       // Delete the direct document corresponding to the id
@@ -569,10 +578,14 @@ public class OpenSearchService implements EngineService {
       // runs synchronously after every entity delete (the HTTP response waits for it), and an
       // unscoped request rewrites every document of every index - minutes on a production
       // dataset (relaunching an atomic testing was observed blocking for over a minute).
+      Query sideReferences = sideReferencesQuery(values);
+      if (sideReferences == null) {
+        return;
+      }
       openSearchClient.updateByQuery(
           new UpdateByQueryRequest.Builder()
               .index(engineConfig.getIndexPattern())
-              .query(sideReferencesQuery(ids))
+              .query(sideReferences)
               .script(
                   Script.of(
                       s ->
@@ -585,24 +598,41 @@ public class OpenSearchService implements EngineService {
               .conflicts(Conflicts.Proceed)
               .build());
     } catch (IOException e) {
-      log.error(String.format("bulkDelete exception: %s", e.getMessage()), e);
+      // Propagate: callers decide resilience (the after-commit flush swallows and relies on the
+      // deletion journal + replay job; the replay job retries on its next pass).
+      throw new RuntimeException(
+          String.format("bulkDelete failed for %d id(s): %s", ids.size(), e.getMessage()), e);
     }
   }
 
   /**
    * Matches only the documents that reference one of the deleted ids in a denormalized {@code
-   * base_XXX_side} field (exact match on the dynamic keyword sub-fields, expanded by the engine
-   * through the field wildcard).
+   * base_XXX_side} field, with one {@code terms} clause per concrete side field.
+   *
+   * <p>The field list comes from the indexed model classes instead of a {@code base_*_side.keyword}
+   * field wildcard on purpose: a {@code query_string} wildcard expands to (#ids x #fields) boolean
+   * clauses, which blows past the engine's {@code max_clause_count} on large deletion cascades
+   * (bulk scenario deletions were observed failing every shard with
+   * search_phase_execution_exception). A {@code terms} query is a single clause regardless of the
+   * number of ids.
+   *
+   * @return the scoped query, or {@code null} when no side field exists (nothing to clean)
    */
-  private static Query sideReferencesQuery(List<String> ids) {
-    // Escape backslashes and quotes so an unexpected character in an id cannot break out of the
-    // quoted phrase and change the query_string semantics.
-    String quotedIds =
-        ids.stream()
-            .map(id -> "\"" + id.replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
-            .collect(Collectors.joining(" OR "));
-    return QueryStringQuery.of(q -> q.fields("base_*_side.keyword").query(quotedIds).lenient(true))
-        .toQuery();
+  private Query sideReferencesQuery(List<FieldValue> values) {
+    List<Query> perField =
+        commonSearchService.getSideFieldNames().stream()
+            .map(
+                field ->
+                    TermsQuery.of(
+                            t ->
+                                t.field(field + ".keyword")
+                                    .terms(TermsQueryField.of(tq -> tq.value(values))))
+                        .toQuery())
+            .toList();
+    if (perField.isEmpty()) {
+      return null;
+    }
+    return BoolQuery.of(b -> b.should(perField).minimumShouldMatch("1")).toQuery();
   }
 
   @Override

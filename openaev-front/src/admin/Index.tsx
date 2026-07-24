@@ -35,6 +35,8 @@ const DefaultHomeResults = lazy(() => import('./components/default_dashboard/Def
 // Lazy like every other route: keeps the inject detail tree (incl. charts) out of the main admin chunk
 const InjectIndex = lazy(() => import('./components/simulations/simulation/injects/InjectIndex'));
 const IndexProfile = lazy(() => import('./components/profile/Index'));
+const ProfileNotifications = lazy(() => import('./components/profile/notifications/Notifications'));
+const ProfileTriggers = lazy(() => import('./components/profile/triggers/Triggers'));
 const FullTextSearch = lazy(() => import('./components/search/FullTextSearch'));
 const Findings = lazy(() => import('./components/findings/Findings'));
 const FindingOverview = lazy(() => import('./components/findings/FindingOverview'));
@@ -136,6 +138,9 @@ const Index = () => {
         <div className={classes.toolbar} />
         <Suspense fallback={<Loader />}>
           <Routes>
+            {/* Static segments rank above the profile wildcard in React Router */}
+            <Route path="profile/notifications" element={errorWrapper(ProfileNotifications)()} />
+            <Route path="profile/triggers" element={errorWrapper(ProfileTriggers)()} />
             <Route path="profile/*" element={errorWrapper(IndexProfile)()} />
             <Route path="" element={errorWrapper(Home)()} />
             <Route path="results" element={errorWrapper(DefaultHomeResults)()} />

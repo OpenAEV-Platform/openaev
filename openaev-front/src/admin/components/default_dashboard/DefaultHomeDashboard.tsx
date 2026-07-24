@@ -1,7 +1,7 @@
 import { RefreshOutlined } from '@mui/icons-material';
 import { Box, IconButton, MenuItem, Select, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 
@@ -54,12 +54,16 @@ const DefaultHomeDashboard = () => {
 
   // Massive operations no longer stream one event per deleted entity (which used to force a
   // widget refresh per delete): refresh the engine-backed widgets once per finished operation,
-  // after a short delay so the search engine has flushed the deletions.
+  // after a short delay so the search engine has flushed the deletions. Only INCREASES after
+  // mount count: a nonzero value at mount is history (operations finished earlier in the
+  // session), and refreshing for it would refetch every widget right after the initial load.
   const finishedBulkOperations = useBulkOperationsFinishedCount();
+  const seenFinishedOperations = useRef(finishedBulkOperations);
   useEffect(() => {
-    if (finishedBulkOperations === 0) {
+    if (finishedBulkOperations <= seenFinishedOperations.current) {
       return undefined;
     }
+    seenFinishedOperations.current = finishedBulkOperations;
     const timeout = setTimeout(() => setRefreshCount(count => count + 1), 2500);
     return () => clearTimeout(timeout);
   }, [finishedBulkOperations]);
