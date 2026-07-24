@@ -916,6 +916,13 @@ export interface AtomicTestingUpdateTagsInput {
   atomic_tags?: string[];
 }
 
+export interface AttackPathAlertDTO {
+  date?: string;
+  id?: string;
+  link?: string;
+  title?: string;
+}
+
 export interface AttackPathAttackPatternDTO {
   externalId?: string;
   name?: string;
@@ -973,6 +980,7 @@ export interface AttackPathExecutionDetailDTO {
   payloadId?: string;
   payloadName?: string;
   preventionStatus?: string;
+  securityPlatforms?: AttackPathSecurityPlatformDTO[];
   stepId?: string;
   targetHostname?: string;
   targetIp?: string;
@@ -1035,6 +1043,15 @@ export interface AttackPathNodeDTO {
   type?: string;
   typeFindings?: string;
   value?: string;
+}
+
+export interface AttackPathSecurityPlatformDTO {
+  alerts?: AttackPathAlertDTO[];
+  bucket?: string;
+  detectedAt?: string;
+  platformName?: string;
+  platformType?: string;
+  status?: string;
 }
 
 export interface AttackPathSeedInput {
