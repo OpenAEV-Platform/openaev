@@ -95,18 +95,24 @@ public class AccessControlAuditLogAspect {
       if (isActive) {
         try {
           if (isRbacDeniedException(ex)) {
-            AuditEventScope eventScope = AuditEventScope.from(Action.UNAUTHORIZED);
             JsonNode errorNode = buildErrorNode(null, ex);
 
             logAccessControlEvent(
-                joinPoint, accessControl, eventScope, EventStatus.ERROR, errorNode);
+                joinPoint,
+                accessControl,
+                AuditEventScope.from(Action.UNAUTHORIZED),
+                EventStatus.ERROR,
+                errorNode);
           } else if (isActionActive) {
-            AuditEventScope eventScope = AuditEventScope.from(action);
             JsonNode resultNode = getOutputNode(result);
             JsonNode errorNode = buildErrorNode(resultNode, ex);
 
             logAccessControlEvent(
-                joinPoint, accessControl, eventScope, EventStatus.ERROR, errorNode);
+                joinPoint,
+                accessControl,
+                AuditEventScope.from(action),
+                EventStatus.ERROR,
+                errorNode);
           }
         } catch (AuditLogFailureException e) {
           throw e;
@@ -119,11 +125,14 @@ public class AccessControlAuditLogAspect {
 
     if (isActive && isActionActive && AuditLogContext.isEnabled()) {
       try {
-        AuditEventScope eventScope = AuditEventScope.from(action);
         JsonNode resultNode = getOutputNode(result);
 
         logAccessControlEvent(
-            joinPoint, accessControl, eventScope, EventStatus.SUCCESS, resultNode);
+            joinPoint,
+            accessControl,
+            AuditEventScope.from(action),
+            EventStatus.SUCCESS,
+            resultNode);
       } catch (AuditLogFailureException ex) {
         throw ex;
       } catch (Exception ex) {

@@ -467,7 +467,7 @@ public class InjectStatusService {
                     .eventType(EventType.EXECUTION)
                     .eventScope(AuditEventScope.INJECT_STATUS_TRANSITION)
                     .eventStatus(EventStatus.SUCCESS)
-                    .resourceType("Inject")
+                    .resourceType(ResourceType.INJECT)
                     .resourceId(inject.getId())
                     .message(
                         "Inject '%s' transitioned from %s to %s"

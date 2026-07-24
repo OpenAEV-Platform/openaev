@@ -696,7 +696,7 @@ class LogServiceTest {
               .eventType(EventType.EXECUTION)
               .eventScope(AuditEventScope.INJECT_STATUS_TRANSITION)
               .eventStatus(EventStatus.SUCCESS)
-              .resourceType("INJECT")
+              .resourceType(ResourceType.INJECT)
               .resourceId("inject-1")
               .message("Inject transitioned from PENDING to EXECUTED")
               .contextData(
