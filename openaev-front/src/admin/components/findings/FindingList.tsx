@@ -48,8 +48,9 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
 
   const [findings, setFindings] = useState<AggregatedFindingOutput[]>([]);
   // Default sort on last seen: the most recent activity is what tells whether a finding is still
-  // alive or has been solved.
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(filterLocalStorageKey, buildSearchPagination({ sorts: initSorting('finding_updated_at', 'DESC') }));
+  // alive or has been solved. The storage key is suffixed (-v2) so browsers that persisted the
+  // previous "first seen" default pick up the new one instead of restoring the stale sort.
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(`${filterLocalStorageKey}-v2`, buildSearchPagination({ sorts: initSorting('finding_updated_at', 'DESC') }));
   const searchFindingsToload = (input: SearchPaginationInput) => {
     setLoading(true);
     return searchDistinctFindings(input).finally(() => {
