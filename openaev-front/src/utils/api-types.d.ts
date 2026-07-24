@@ -5549,8 +5549,6 @@ export interface InjectStatus {
     | "EXECUTED"
     | "PARTIAL"
     | "ERROR"
-    | "MAYBE_PREVENTED"
-    | "MAYBE_PARTIAL_PREVENTED"
     | "DRAFT"
     | "QUEUING"
     | "EXECUTING"
