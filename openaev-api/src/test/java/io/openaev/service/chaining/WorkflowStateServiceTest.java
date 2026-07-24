@@ -555,8 +555,7 @@ class WorkflowStateServiceTest {
               .conditionSteps(List.of(cs1))
               .build();
 
-      when(conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
-              eq(workflowTemplateId), anySet(), anySet()))
+      when(conditionRepository.findFilterConditionsByWorkflowId(eq(workflowTemplateId), anySet()))
           .thenReturn(List.of(rootCondition));
 
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
@@ -639,8 +638,7 @@ class WorkflowStateServiceTest {
               .conditionSteps(List.of(cs2))
               .build();
 
-      when(conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
-              eq(workflowTemplateId), anySet(), anySet()))
+      when(conditionRepository.findFilterConditionsByWorkflowId(eq(workflowTemplateId), anySet()))
           .thenReturn(List.of(rootCondition));
 
       // no matchesAnyLeafCondition returns true
@@ -730,8 +728,7 @@ class WorkflowStateServiceTest {
               .conditionSteps(List.of(cs3))
               .build();
 
-      when(conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
-              eq(workflowTemplateId), anySet(), anySet()))
+      when(conditionRepository.findFilterConditionsByWorkflowId(eq(workflowTemplateId), anySet()))
           .thenReturn(List.of(rootCondition));
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
               stepTemplateId, workflowId))

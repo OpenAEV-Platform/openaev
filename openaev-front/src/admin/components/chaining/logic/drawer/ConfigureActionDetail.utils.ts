@@ -26,7 +26,7 @@ export const applyAutoLinks = (
     const outputType = AUTO_LINK_BY_FIELD_TYPE[field.type];
     if (outputType) {
       updates[field.key] = {
-        outputType,
+        outputTypes: [outputType],
         localScope: false,
       };
     }
@@ -127,4 +127,24 @@ export const applyPredefinedExpectations = (
     ...content,
     [EXPECTATIONS_CONTENT_KEY]: defaultExpectations,
   };
+};
+
+export const normalizeFieldLinks = (
+  links: Record<string, FieldLink> | undefined,
+): Record<string, FieldLink> => {
+  if (!links) {
+    return {};
+  }
+  const normalized: Record<string, FieldLink> = {};
+  for (const [fieldKey, link] of Object.entries(links)) {
+    let outputTypes = link.outputTypes ?? [];
+    if (outputTypes.length === 0 && link.outputType) {
+      outputTypes = [link.outputType];
+    }
+    normalized[fieldKey] = {
+      ...link,
+      outputTypes,
+    };
+  }
+  return normalized;
 };

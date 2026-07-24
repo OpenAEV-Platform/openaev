@@ -2115,6 +2115,19 @@ public class V1_DataImporter implements Importer {
                         ? mapper.convertValue(
                             condNode.get("condition_key_type").asText(), PrimitiveType.class)
                         : null)
+                .keyTypes(
+                    condNode.has("condition_key_types") && condNode.get("condition_key_types").isArray()
+                        ? StreamSupport.stream(condNode.get("condition_key_types").spliterator(), false)
+                            .filter(Objects::nonNull)
+                            .filter(node -> !node.isNull())
+                            .map(node -> mapper.convertValue(node.asText(), PrimitiveType.class))
+                            .toList()
+                        : condNode.has("condition_key_type")
+                                && !condNode.get("condition_key_type").isNull()
+                            ? List.of(
+                                mapper.convertValue(
+                                    condNode.get("condition_key_type").asText(), PrimitiveType.class))
+                            : null)
                 .type(conditionType)
                 .mappingType(
                     condNode.has("condition_mapping_type")

@@ -50,7 +50,13 @@ public final class StepMapper {
               .map(
                   c ->
                       MapperConditionOutput.builder()
-                          .conditionKeyType(c.getKeyType())
+                          .conditionKeyTypes(c.getKeyTypes())
+                          .conditionKeyType(
+                              c.getKeyType() != null
+                                  ? c.getKeyType()
+                                  : (c.getKeyTypes() != null && !c.getKeyTypes().isEmpty()
+                                      ? c.getKeyTypes().getFirst()
+                                      : null))
                           .conditionKey(c.getKey())
                           .conditionValue(c.getValue())
                           .conditionMappingType(c.getMappingType())

@@ -2,7 +2,6 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
-import io.openaev.database.model.PrimitiveType;
 import java.util.List;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -76,17 +75,14 @@ public interface ConditionRepository extends JpaRepository<Condition, String> {
    */
   List<Condition> findAllByWorkflowIdAndTypeNot(String workflowId, ConditionType excludedType);
 
-  List<Condition> findAllByKeyTypeIn(Set<PrimitiveType> outputKeyTypes);
-
   /**
-   * Retrieves root filter conditions for a given workflow that have at least one child condition
-   * with a matching key type. The root condition is linked to steps (via conditionSteps), while the
-   * keyType is on child conditions (the actual filter leaves).
+   * Retrieves root filter conditions for a given workflow that are linked to steps and contain at
+   * least one non-excluded child condition. The caller performs key-type matching in memory against
+   * child condition key-type lists.
    *
    * @param workflowId the workflow identifier
-   * @param keyTypes the key types to look for in child conditions
    * @param excludedTypes the condition types to exclude from child matching
-   * @return a list of root conditions whose children match the criteria
+   * @return a list of root conditions eligible for in-memory key-type matching
    */
   @Query(
       """
@@ -100,12 +96,9 @@ public interface ConditionRepository extends JpaRepository<Condition, String> {
             AND EXISTS (
               SELECT 1 FROM Condition child
               WHERE child.conditionParent = root
-                AND child.keyType IN :keyTypes
                 AND child.type NOT IN :excludedTypes
             )
           """)
-  List<Condition> findFilterConditionsByWorkflowIdAndKeyTypes(
-      @Param("workflowId") String workflowId,
-      @Param("keyTypes") Set<PrimitiveType> keyTypes,
-      @Param("excludedTypes") Set<ConditionType> excludedTypes);
+  List<Condition> findFilterConditionsByWorkflowId(
+      @Param("workflowId") String workflowId, @Param("excludedTypes") Set<ConditionType> excludedTypes);
 }

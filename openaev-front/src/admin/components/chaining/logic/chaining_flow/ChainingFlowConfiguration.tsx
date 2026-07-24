@@ -104,13 +104,16 @@ const ChainingFlowConfiguration = ({
 
     if (meta.step_conditions) {
       const links: Record<string, {
-        outputType: string;
+        outputTypes: string[];
         localScope: boolean;
       }> = {};
       for (const cond of meta.step_conditions) {
         if (cond.condition_key) {
+          const outputTypes = cond.condition_key_types && cond.condition_key_types.length > 0
+            ? cond.condition_key_types
+            : [cond.condition_key_type ?? 'text'];
           links[cond.condition_key] = {
-            outputType: cond.condition_key_type ?? 'text',
+            outputTypes,
             localScope: cond.condition_mapping_type === 'LOCAL',
           };
         }
@@ -199,10 +202,17 @@ const ChainingFlowConfiguration = ({
     if (!workflowId) return;
 
     const stepConditions: ConditionCreateInput[] = Object.entries(data.inject_field_links).map(([fieldKey, link], i) => {
+      let keyTypes = link.outputTypes ?? [];
+      if (keyTypes.length === 0 && link.outputType) {
+        keyTypes = [link.outputType];
+      }
+      if (keyTypes.length === 0) {
+        keyTypes = ['text'];
+      }
       return {
         condition_temporary_id: String(i),
         condition_type: 'MAPPER' as const,
-        condition_key_type: link.outputType as ConditionCreateInput['condition_key_type'],
+        condition_key_types: keyTypes as ConditionCreateInput['condition_key_types'],
         condition_key: fieldKey,
         condition_mapping_type: (link.localScope ? 'LOCAL' : 'GLOBAL') as ConditionCreateInput['condition_mapping_type'],
       };

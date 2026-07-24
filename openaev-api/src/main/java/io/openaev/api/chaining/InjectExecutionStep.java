@@ -1064,15 +1064,21 @@ public class InjectExecutionStep implements ActionStep {
    * @param inputValues the source JSON containing the values to map
    */
   private void applyMapping(ObjectNode contentNode, Condition mapping, JsonNode inputValues) {
-    if (mapping.getKeyType() == null) {
-      log.warn("[Chaining] Skipping mapper condition {} because keyType is null", mapping.getId());
+    List<String> keyTypes =
+        mapping.getKeyTypes() != null && !mapping.getKeyTypes().isEmpty()
+            ? mapping.getKeyTypes().stream().map(Enum::name).toList()
+            : mapping.getKeyType() != null ? List.of(mapping.getKeyType().name()) : List.of();
+    if (keyTypes.isEmpty()) {
+      log.warn("[Chaining] Skipping mapper condition {} because keyTypes are empty", mapping.getId());
       return;
     }
-    String inputKey = mapping.getKeyType().name(); // e.g., "IPv4"
     String targetJsonKey = mapping.getKey();
 
-    if (inputValues.has(inputKey)) {
-      contentNode.set(targetJsonKey, inputValues.get(inputKey));
+    for (String inputKey : keyTypes) {
+      if (inputValues.has(inputKey)) {
+        contentNode.set(targetJsonKey, inputValues.get(inputKey));
+        return;
+      }
     }
   }
 

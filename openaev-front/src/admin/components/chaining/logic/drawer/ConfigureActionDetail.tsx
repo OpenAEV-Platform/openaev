@@ -26,6 +26,7 @@ import {
   getAutoLinkedFieldKeys,
   getContractFieldDefaultValue,
   isExpectationInput,
+  normalizeFieldLinks,
 } from './ConfigureActionDetail.utils';
 import { type FieldLink } from './InjectDataFieldItem';
 
@@ -97,7 +98,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
         ?? (action.action_labels ? tPick(action.action_labels) : '');
       reset({ inject_title: label });
       setFieldValues(initialData?.inject_content ?? {});
-      setFieldLinks(initialData?.inject_field_links ?? {});
+      setFieldLinks(normalizeFieldLinks(initialData?.inject_field_links));
       setContractFields(initialData?.contract_fields ?? []);
 
       // Fetch injector contract content

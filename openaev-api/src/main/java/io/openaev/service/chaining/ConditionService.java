@@ -57,6 +57,7 @@ public class ConditionService {
     if (conditionInputs == null || conditionInputs.isEmpty()) {
       throw new BadRequestException("At least one condition is required");
     }
+    validateConditionInputKeyTypes(conditionInputs);
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
 
     Condition root =
@@ -65,7 +66,8 @@ public class ConditionService {
             .name(input.getName())
             .description(input.getDescription())
             .type(rootInput.getType())
-            .keyType(rootInput.getKeyType())
+            .keyTypes(resolveInputKeyTypes(rootInput))
+            .keyType(resolveFirstInputKeyType(rootInput))
             .mappingType(resolveMappingType(rootInput))
             .build();
 
@@ -109,6 +111,7 @@ public class ConditionService {
     if (conditionInputs == null || conditionInputs.isEmpty()) {
       throw new BadRequestException("At least one condition is required");
     }
+    validateConditionInputKeyTypes(conditionInputs);
     List<ConditionCreateInput> rootInputs = findRootConditionInputs(conditionInputs);
 
     // Allow one event/filter root plus any number of mapper roots.
@@ -240,6 +243,7 @@ public class ConditionService {
     if (conditionInputs == null || conditionInputs.isEmpty()) {
       throw new BadRequestException("At least one condition is required");
     }
+    validateConditionInputKeyTypes(conditionInputs);
     Condition root = findConditionRootById(conditionRootId);
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
 
@@ -247,7 +251,8 @@ public class ConditionService {
     root.setDescription(input.getDescription());
     root.setWorkflowId(input.getWorkflowId());
     root.setType(rootInput.getType());
-    root.setKeyType(rootInput.getKeyType());
+    root.setKeyTypes(resolveInputKeyTypes(rootInput));
+    root.setKeyType(resolveFirstInputKeyType(rootInput));
     root.setMappingType(resolveMappingType(rootInput));
 
     if (root.getConditionChildren() != null) {
@@ -708,18 +713,16 @@ public class ConditionService {
   private List<String> resolveAllFilterValues(
       Condition condition, WorkflowStateEntries globalEntries, WorkflowStateEntries localEntries) {
 
-    String key =
-        condition.getKeyType() != null ? condition.getKeyType().name() : condition.getKey();
-
     List<String> candidates = new ArrayList<>();
+    for (String key : resolveConditionKeyNames(condition)) {
+      // 1. Try local state pool (step-specific accumulated values from propagation)
+      Set<String> localValues = getAllValuesFromEntries(localEntries, key);
+      candidates.addAll(localValues);
 
-    // 1. Try local state pool (step-specific accumulated values from propagation)
-    Set<String> localValues = getAllValuesFromEntries(localEntries, key);
-    candidates.addAll(localValues);
-
-    // 2. Try global state pool (finding pool from other actions)
-    Set<String> globalValues = getAllValuesFromEntries(globalEntries, key);
-    candidates.addAll(globalValues);
+      // 2. Try global state pool (finding pool from other actions)
+      Set<String> globalValues = getAllValuesFromEntries(globalEntries, key);
+      candidates.addAll(globalValues);
+    }
 
     return candidates;
   }
@@ -802,6 +805,19 @@ public class ConditionService {
     steps.forEach(step -> linkToStep(root, step, true));
 
     conditionRepository.save(root);
+  }
+
+  private void validateConditionInputKeyTypes(List<ConditionCreateInput> conditionInputs) {
+    for (ConditionCreateInput conditionInput : conditionInputs) {
+      List<PrimitiveType> keyTypes = resolveInputKeyTypes(conditionInput);
+      if (keyTypes == null || keyTypes.size() <= 1) {
+        continue;
+      }
+      if (conditionInput.getType() != ConditionType.MAPPER) {
+        throw new BadRequestException(
+            "Only mapper conditions can define multiple condition_key_types");
+      }
+    }
   }
 
   /**
@@ -936,14 +952,11 @@ public class ConditionService {
       return Collections.emptyList();
     }
 
-    Set<String> requiredKeys = extractRequiredExecutionKeys(mappers);
-
     // Build execution batches used as inputs for step execution.
     // Hashes are not committed here. The caller commits only hashes of batches
     // that actually proceed (i.e. are not rate-limited) via commitHashes().
     List<ExecutionBatch> batches =
-        buildExecutionBatches(
-            mappers, context.localEntries(), context.globalEntries(), preparation, requiredKeys);
+        buildExecutionBatches(mappers, context.localEntries(), context.globalEntries(), preparation);
 
     return batches;
   }
@@ -1019,15 +1032,6 @@ public class ConditionService {
     workflowStateService.save(localState);
   }
 
-  /** Returns dynamic mapper keys required in every batch (DEFAULT mappers are excluded). */
-  private Set<String> extractRequiredExecutionKeys(List<Condition> mappers) {
-    return mappers.stream()
-        .filter(mapper -> mapper.getMappingType() != MappingType.DEFAULT)
-        .map(this::resolveMapperKey)
-        .filter(Objects::nonNull)
-        .collect(Collectors.toSet());
-  }
-
   /**
    * Prepares mapper inputs.
    *
@@ -1040,36 +1044,37 @@ public class ConditionService {
       WorkflowStateEntries localEntries,
       WorkflowStateEntries globalEntries) {
     List<List<WorkflowStateEntries.Pair>> allPairsList = new ArrayList<>();
-    Map<String, MappingType> keyToMappingType = new HashMap<>();
+    List<DynamicMapperContext> dynamicMappers = new ArrayList<>();
     Map<String, String> staticValues = new HashMap<>();
 
     for (Condition mapper : mappers) {
-      String key = resolveMapperKey(mapper);
-      if (key == null) {
+      List<String> sourceKeys = resolveMapperSourceKeys(mapper);
+      if (sourceKeys.isEmpty()) {
         log.warn(
-            "[Chaining] Skipping mapper {} because keyType and key are both missing",
+            "[Chaining] Skipping mapper {} because keyTypes are missing",
             mapper.getId());
-        return new MapperInputPreparation(List.of(), Map.of(), Map.of(), true);
+        return new MapperInputPreparation(List.of(), List.of(), Map.of(), true);
       }
 
       if (mapper.getMappingType() == MappingType.DEFAULT) {
-        staticValues.put(key, mapper.getValue());
+        staticValues.put(sourceKeys.getFirst(), mapper.getValue());
         continue;
       }
 
-      keyToMappingType.put(key, mapper.getMappingType());
-      Set<String> values =
-          resolveValuesByMappingType(key, mapper.getMappingType(), localEntries, globalEntries);
-
-      if (values == null || values.isEmpty()) {
-        continue;
+      List<WorkflowStateEntries.Pair> pairs =
+          resolveMapperPairs(
+              new DynamicMapperContext(mapper, sourceKeys, mapper.getMappingType()),
+              localEntries,
+              globalEntries);
+      if (pairs.isEmpty()) {
+        return new MapperInputPreparation(List.of(), List.of(), Map.of(), true);
       }
 
-      allPairsList.add(
-          values.stream().map(value -> new WorkflowStateEntries.Pair(key, value)).toList());
+      allPairsList.add(pairs);
+      dynamicMappers.add(new DynamicMapperContext(mapper, sourceKeys, mapper.getMappingType()));
     }
 
-    return new MapperInputPreparation(allPairsList, keyToMappingType, staticValues, false);
+    return new MapperInputPreparation(allPairsList, dynamicMappers, staticValues, false);
   }
 
   /**
@@ -1087,56 +1092,51 @@ public class ConditionService {
       List<Condition> mappers,
       WorkflowStateEntries localEntries,
       WorkflowStateEntries globalEntries,
-      MapperInputPreparation preparation,
-      Set<String> requiredKeys) {
+      MapperInputPreparation preparation) {
 
     List<ConditionService.ExecutionBatch> batches = new ArrayList<>();
     Set<String> pendingHashes = new HashSet<>();
-    // Step 1: correlated-first (useful only with >= 2 dynamic inputs)
-    if (requiredKeys.size() >= 2) {
+    // Step 1: correlated-first (useful only with >= 2 dynamic mappers)
+    if (preparation.dynamicMappers().size() >= 2) {
       WorkflowStateEntries correlatedPool =
           preparation.hasAnyLocal() ? localEntries : globalEntries;
+      Set<String> candidateKeys =
+          preparation.dynamicMappers().stream()
+              .flatMap(mapper -> mapper.sourceKeys().stream())
+              .collect(Collectors.toSet());
       List<WorkflowStateEntries.Correlated> candidates =
-          correlatedPool.findCandidateCorrelated(requiredKeys);
+          correlatedPool.findCandidateCorrelated(candidateKeys);
 
       for (WorkflowStateEntries.Correlated tuple : candidates) {
-        Map<String, String> covered = correlatedPool.projectTuple(tuple, requiredKeys);
-        Set<String> uncoveredKeys = new HashSet<>(requiredKeys);
-        uncoveredKeys.removeAll(covered.keySet());
-
-        List<List<WorkflowStateEntries.Pair>> uncoveredValueLists = new ArrayList<>();
+        List<List<WorkflowStateEntries.Pair>> perMapperPairs = new ArrayList<>();
         boolean skipTuple = false;
 
-        for (String uncoveredKey : uncoveredKeys) {
-          MappingType source = preparation.keyToMappingType().get(uncoveredKey);
-          Set<String> values =
-              resolveValuesByMappingType(uncoveredKey, source, localEntries, globalEntries);
+        for (DynamicMapperContext mapperContext : preparation.dynamicMappers()) {
+          List<WorkflowStateEntries.Pair> coveredPairs =
+              tuple.getValues().stream()
+                  .filter(pair -> mapperContext.sourceKeys().contains(pair.key()))
+                  .toList();
+          if (!coveredPairs.isEmpty()) {
+            perMapperPairs.add(coveredPairs);
+            continue;
+          }
 
-          if (values == null || values.isEmpty()) {
-            log.warn(
-                "[Chaining] Skipping correlated tuple of type '{}': uncovered key '{}' has no"
-                    + " values in the {} pool",
-                tuple.getType(),
-                uncoveredKey,
-                source);
+          List<WorkflowStateEntries.Pair> fallbackPairs =
+              resolveMapperPairs(mapperContext, localEntries, globalEntries);
+          if (fallbackPairs.isEmpty()) {
             skipTuple = true;
             break;
           }
-
-          uncoveredValueLists.add(
-              values.stream().map(v -> new WorkflowStateEntries.Pair(uncoveredKey, v)).toList());
+          perMapperPairs.add(fallbackPairs);
         }
 
         if (skipTuple) {
           continue;
         }
 
-        for (List<WorkflowStateEntries.Pair> delta :
-            localEntries.cartesianProduct(uncoveredValueLists)) {
-          Map<String, String> combo = new TreeMap<>(covered);
-          delta.forEach(pair -> combo.put(pair.key(), pair.value()));
-          tryAddBatch(
-              combo, preparation, localEntries, mappers, requiredKeys, pendingHashes, batches);
+        for (List<WorkflowStateEntries.Pair> comboPairs : localEntries.cartesianProduct(perMapperPairs)) {
+          Map<String, String> combo = toComboMap(comboPairs);
+          tryAddBatch(combo, preparation, localEntries, mappers, pendingHashes, batches);
         }
       }
     }
@@ -1144,12 +1144,35 @@ public class ConditionService {
     // Step 2: fallback cartesian (always runs; dedup skips duplicates from step 1)
     for (List<WorkflowStateEntries.Pair> comboPairs :
         localEntries.cartesianProduct(preparation.dynamicPairs())) {
-      Map<String, String> combo = new TreeMap<>();
-      comboPairs.forEach(pair -> combo.put(pair.key(), pair.value()));
-      tryAddBatch(combo, preparation, localEntries, mappers, requiredKeys, pendingHashes, batches);
+      Map<String, String> combo = toComboMap(comboPairs);
+      tryAddBatch(combo, preparation, localEntries, mappers, pendingHashes, batches);
     }
 
     return batches;
+  }
+
+  private Map<String, String> toComboMap(List<WorkflowStateEntries.Pair> pairs) {
+    Map<String, String> combo = new TreeMap<>();
+    pairs.forEach(pair -> combo.put(pair.key(), pair.value()));
+    return combo;
+  }
+
+  private List<WorkflowStateEntries.Pair> resolveMapperPairs(
+      DynamicMapperContext mapperContext,
+      WorkflowStateEntries localEntries,
+      WorkflowStateEntries globalEntries) {
+    List<WorkflowStateEntries.Pair> pairs = new ArrayList<>();
+    for (String sourceKey : mapperContext.sourceKeys()) {
+      Set<String> values =
+          resolveValuesByMappingType(
+              sourceKey, mapperContext.mappingType(), localEntries, globalEntries);
+      if (values == null || values.isEmpty()) {
+        continue;
+      }
+      pairs.addAll(
+          values.stream().map(value -> new WorkflowStateEntries.Pair(sourceKey, value)).toList());
+    }
+    return pairs;
   }
 
   /**
@@ -1179,13 +1202,8 @@ public class ConditionService {
       MapperInputPreparation preparation,
       WorkflowStateEntries localEntries,
       List<Condition> mappers,
-      Set<String> requiredKeys,
       Set<String> pendingHashes,
       List<ExecutionBatch> batches) {
-
-    if (!comboMap.keySet().containsAll(requiredKeys)) {
-      return;
-    }
 
     String hash = localEntries.hashCombo(comboMap);
     if (localEntries.getHashExecution().contains(hash) || pendingHashes.contains(hash)) {
@@ -1209,6 +1227,7 @@ public class ConditionService {
     Condition resolved = new Condition();
     resolved.setType(ConditionType.MAPPER);
     resolved.setKey(template.getKey());
+    resolved.setKeyTypes(template.getKeyTypes());
     resolved.setKeyType(template.getKeyType());
     resolved.setMappingType(template.getMappingType());
     resolved.setDescription(template.getDescription());
@@ -1216,14 +1235,66 @@ public class ConditionService {
     resolved.setWorkflowId(template.getWorkflowId());
     resolved.setCreationDate(Instant.now());
     resolved.setUpdateDate(Instant.now());
-    String key = resolveMapperKey(template);
+    String key = resolveMapperRuntimeKey(template, fullInput);
     resolved.setValue(key != null ? fullInput.get(key) : null);
     return resolved;
   }
 
-  /** Returns the workflow-state key used by a mapper. */
-  private String resolveMapperKey(Condition mapper) {
-    return mapper.getKeyType() != null ? mapper.getKeyType().name() : null;
+  private String resolveMapperRuntimeKey(Condition mapper, Map<String, String> fullInput) {
+    List<String> sourceKeys = resolveMapperSourceKeys(mapper);
+    for (String sourceKey : sourceKeys) {
+      if (fullInput.containsKey(sourceKey)) {
+        return sourceKey;
+      }
+    }
+    return sourceKeys.isEmpty() ? null : sourceKeys.getFirst();
+  }
+
+  private List<String> resolveMapperSourceKeys(Condition mapper) {
+    if (mapper.getKeyTypes() != null && !mapper.getKeyTypes().isEmpty()) {
+      return mapper.getKeyTypes().stream()
+          .filter(Objects::nonNull)
+          .map(PrimitiveType::name)
+          .distinct()
+          .toList();
+    }
+    if (mapper.getKeyType() != null) {
+      return List.of(mapper.getKeyType().name());
+    }
+    return List.of();
+  }
+
+  private List<PrimitiveType> resolveInputKeyTypes(ConditionCreateInput input) {
+    if (input.getKeyTypes() != null && !input.getKeyTypes().isEmpty()) {
+      return input.getKeyTypes().stream().filter(Objects::nonNull).distinct().toList();
+    }
+    if (input.getKeyType() != null) {
+      return List.of(input.getKeyType());
+    }
+    return null;
+  }
+
+  private PrimitiveType resolveFirstInputKeyType(ConditionCreateInput input) {
+    if (input.getKeyTypes() != null && !input.getKeyTypes().isEmpty()) {
+      return input.getKeyTypes().getFirst();
+    }
+    return input.getKeyType();
+  }
+
+  private List<String> resolveConditionKeyNames(Condition condition) {
+    if (condition.getKeyTypes() != null && !condition.getKeyTypes().isEmpty()) {
+      return condition.getKeyTypes().stream()
+          .filter(Objects::nonNull)
+          .map(PrimitiveType::name)
+          .toList();
+    }
+    if (condition.getKeyType() != null) {
+      return List.of(condition.getKeyType().name());
+    }
+    if (condition.getKey() != null) {
+      return List.of(condition.getKey());
+    }
+    return List.of();
   }
 
   /**
@@ -1237,15 +1308,18 @@ public class ConditionService {
 
   private record MapperInputPreparation(
       List<List<WorkflowStateEntries.Pair>> dynamicPairs,
-      Map<String, MappingType> keyToMappingType,
+      List<DynamicMapperContext> dynamicMappers,
       Map<String, String> staticValues,
       boolean hasMissingDynamicValues) {
 
     /** True when at least one dynamic mapper is LOCAL. */
     boolean hasAnyLocal() {
-      return keyToMappingType.containsValue(MappingType.LOCAL);
+      return dynamicMappers.stream().anyMatch(mapper -> mapper.mappingType() == MappingType.LOCAL);
     }
   }
+
+  private record DynamicMapperContext(
+      Condition mapper, List<String> sourceKeys, MappingType mappingType) {}
 
   private record WorkflowContext(
       WorkflowState localStateEntity,

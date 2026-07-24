@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -43,10 +44,16 @@ public class Condition implements Base {
   @Schema(description = "Condition key")
   private String key;
 
+  @org.hibernate.annotations.Type(JsonType.class)
+  @Column(name = "condition_key_types", columnDefinition = "jsonb")
+  @JsonProperty("condition_key_types")
+  @Schema(description = "Key types")
+  private List<PrimitiveType> keyTypes;
+
   @Column(name = "condition_key_type")
   @Enumerated(EnumType.STRING)
   @JsonProperty("condition_key_type")
-  @Schema(description = "Key type")
+  @Schema(description = "Legacy key type")
   private PrimitiveType keyType;
 
   @Column(name = "condition_type")

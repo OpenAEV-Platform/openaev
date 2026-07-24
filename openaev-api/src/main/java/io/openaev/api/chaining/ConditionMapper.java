@@ -6,6 +6,7 @@ import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.MappingType;
+import io.openaev.database.model.PrimitiveType;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -82,7 +83,13 @@ public class ConditionMapper {
     return ConditionOutput.builder()
         .id(c.getId())
         .key(c.getKey())
-        .keyType(c.getKeyType())
+        .keyTypes(c.getKeyTypes())
+        .keyType(
+            c.getKeyType() != null
+                ? c.getKeyType()
+                : (c.getKeyTypes() != null && !c.getKeyTypes().isEmpty()
+                    ? c.getKeyTypes().getFirst()
+                    : null))
         .type(c.getType() != null ? c.getType().name() : null)
         .value(c.getValue())
         .caseSensitive(c.isCaseSensitive())
@@ -116,12 +123,30 @@ public class ConditionMapper {
 
     return Condition.builder()
         .key(input.getKey())
-        .keyType(input.getKeyType())
+        .keyTypes(resolveKeyTypes(input))
+        .keyType(resolveFirstKeyType(input))
         .type(input.getType())
         .value(input.getValue())
         .caseSensitive(input.isCaseSensitive())
         .conditionParent(conditionParent)
         .mappingType(resolveMappingType(input))
         .build();
+  }
+
+  private static List<PrimitiveType> resolveKeyTypes(ConditionCreateInput input) {
+    if (input.getKeyTypes() != null && !input.getKeyTypes().isEmpty()) {
+      return input.getKeyTypes();
+    }
+    if (input.getKeyType() != null) {
+      return List.of(input.getKeyType());
+    }
+    return null;
+  }
+
+  private static PrimitiveType resolveFirstKeyType(ConditionCreateInput input) {
+    if (input.getKeyTypes() != null && !input.getKeyTypes().isEmpty()) {
+      return input.getKeyTypes().getFirst();
+    }
+    return input.getKeyType();
   }
 }

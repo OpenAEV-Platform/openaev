@@ -5,6 +5,7 @@ import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.MappingType;
 import io.openaev.database.model.PrimitiveType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import lombok.*;
 
 /** The DTO for creation of a condition to execute a step. */
@@ -28,8 +29,13 @@ public class ConditionCreateInput {
   @JsonProperty("condition_temporary_id_condition_parent")
   private String temporaryIdConditionParent;
 
-  /** Condition key Type: Path to the value in the output of the step from */
-  @Schema(description = "Path to the value in the output of the step from")
+  /** Condition key types: Paths to values in output of the step from. */
+  @Schema(description = "Paths to values in the output of the step from")
+  @JsonProperty("condition_key_types")
+  private List<PrimitiveType> keyTypes;
+
+  /** Legacy scalar condition key type. */
+  @Schema(description = "Legacy path to the value in the output of the step from")
   @JsonProperty("condition_key_type")
   private PrimitiveType keyType;
 

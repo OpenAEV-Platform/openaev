@@ -323,6 +323,7 @@ public class Mixins {
       value = {
         "condition_id",
         "condition_key",
+        "condition_key_types",
         "condition_key_type",
         "condition_type",
         "condition_mapping_type",
