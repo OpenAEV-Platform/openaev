@@ -467,7 +467,6 @@ export const buildClusteredAttackPathFlow = (
   // endpoints). Endpoints are SHARED across injectors — never repeated once per injector.
   const injectorsByEndpoint = new Map<string, string[]>();
   const reachedOrder: string[] = [];
-  const reachedCountByInjector = new Map<string, number>();
   for (const e of execEdges) {
     const src = e.edgeSourceId;
     const tgt = e.edgeTargetId;
@@ -477,7 +476,6 @@ export const buildClusteredAttackPathFlow = (
     const injs = injectorsByEndpoint.get(tgt) ?? [];
     if (!injs.includes(src)) {
       injs.push(src);
-      reachedCountByInjector.set(src, (reachedCountByInjector.get(src) ?? 0) + 1);
     }
     injectorsByEndpoint.set(tgt, injs);
     if (!reachedOrder.includes(tgt)) {
@@ -580,7 +578,6 @@ export const buildClusteredAttackPathFlow = (
   });
   injectors.forEach((inj) => {
     const injId = inj.id as string;
-    const reachedCount = reachedCountByInjector.get(injId) ?? 0;
     const injStatus = aggregateStatus(
       reachedOrder
         .filter(ep => (injectorsByEndpoint.get(ep) ?? []).includes(injId))
@@ -591,9 +588,11 @@ export const buildClusteredAttackPathFlow = (
       source: injId,
       target: clusterId,
       type: AP_FLOW_EDGE_TYPE,
+      // No count badge here: the reached-endpoint count is already shown on the endpoint-cluster hub, so
+      // repeating it on the injector edge is redundant. (A distinct-contract count would need the backend
+      // to expose per-injector contract info on the collapsed graph — not available client-side.)
       data: {
-        count: reachedCount,
-        label: `+${reachedCount}`,
+        count: 1,
         status: injStatus,
       },
     });

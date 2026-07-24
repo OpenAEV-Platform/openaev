@@ -244,8 +244,10 @@ describe('buildClusteredAttackPathFlow', () => {
     expect(byId['cl-ft-cve'].data.count).toBe(1);
     // no real endpoint nodes while collapsed
     expect(byId['ep1']).toBeUndefined();
-    // edges: injector -> shared hub (labelled with the injector's reached-endpoint count) -> findings
-    expect(edges.find(e => e.id === 'inj-cl-ep-all')?.data?.count).toBe(2);
+    // edges: injector -> shared hub carries no count badge (the reached-endpoint count is shown on the
+    // hub itself, so repeating it on the injector edge is redundant) -> findings
+    expect(edges.find(e => e.id === 'inj-cl-ep-all')?.data?.count).toBe(1);
+    expect(edges.find(e => e.id === 'inj-cl-ep-all')?.data?.label).toBeUndefined();
     expect(edges.filter(e => e.source === 'cl-ep-all')).toHaveLength(2);
     expect(edges[0].type).toBe(AP_FLOW_EDGE_TYPE);
   });

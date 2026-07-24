@@ -14,7 +14,7 @@ import { SIMULATION_BASE_URL } from '../../../../../constants/BaseUrls';
 import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 import attackPathStatusColor, { attackPathChokepointColor } from './attack-path-colors';
-import { AP_ALL_ENDPOINTS, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
 import AttackPathTableView, { type AttackPathEndpointRow } from './AttackPathTableView';
@@ -1394,6 +1394,17 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           }
         }
       }
+    } else if (selectedNodeId) {
+      // Clustered endpoint click: injectors converge on the shared hub, so walking the rendered edges up
+      // would light EVERY injector. Instead resolve the injectors that actually target this endpoint from
+      // the raw execution edges, and light them + the hub so the whole path to the endpoint is shown.
+      pathSet.add(selectedNodeId);
+      pathSet.add(AP_SHARED_EP_CLUSTER_ID);
+      for (const e of dto?.attackPathEdges ?? []) {
+        if (e.type === 'EDGE_EXECUTIONS' && e.edgeTargetId === selectedNodeId && e.edgeSourceId) {
+          pathSet.add(e.edgeSourceId);
+        }
+      }
     }
     const withSelection = {
       nodes: baseFlow.nodes.map(n => ({
@@ -1407,7 +1418,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       })),
     };
     return applyFindingFilter(withSelection.nodes, withSelection.edges, focus);
-  }, [baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, selectedInjectorId, focus]);
+  }, [baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, selectedInjectorId, focus, dto?.attackPathEdges]);
 
   // Additive kill-chain causal edges (issue 6647) for the AGGREGATED view, merged on top of the status
   // graph. Drawn only when a consumed key matches a produced finding (or a dependsOn resolves). In chain
@@ -1737,6 +1748,15 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       onCardClick(opt.card);
     }
   };
+
+  // The clustered builder always emits the endpoint-cluster hub, so `nodes` is never empty even with no
+  // real data; treat the graph as empty unless it has an actual injector/endpoint/finding to show (so the
+  // empty-state — including the "run in progress" message — appears instead of a lone "+0" hub).
+  const graphHasContent = nodes.some(n =>
+    n.type === AP_FLOW_NODE_TYPE.injector
+    || n.type === AP_FLOW_NODE_TYPE.asset
+    || n.type === AP_FLOW_NODE_TYPE.finding,
+  );
 
   // Scenario context has runs to pick from; when it has none yet, the empty-state offers to launch one.
   const scenarioHasNoSims = showPicker && simulations.length === 0;
@@ -2208,7 +2228,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                   {t('Failed to load the attack-path graph. Check the simulation or reload the page.')}
                 </Alert>
               )}
-              {!loading && !forbidden && !error && nodes.length === 0 && (
+              {!loading && !forbidden && !error && !graphHasContent && (
                 <Box sx={{
                   m: 'auto',
                   p: 4,
@@ -2240,7 +2260,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                   )}
                 </Box>
               )}
-              {!loading && !forbidden && !error && nodes.length > 0 && (
+              {!loading && !forbidden && !error && graphHasContent && (
                 <ReactFlowProvider>
                   <AttackPathFlow
                     nodes={nodes}
