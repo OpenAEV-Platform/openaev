@@ -368,9 +368,8 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
     <Paper
       variant="outlined"
       style={{
-        // Wider than the endpoint/finding master panel it replaces: this is the sole panel while open, so
-        // the terminal has room to read without wrapping every line.
-        width: 560,
+        // Fills the resizable drawer container (drag the handle to widen when traces overflow).
+        flex: 1,
         minWidth: 0,
         display: 'flex',
         flexDirection: 'column',

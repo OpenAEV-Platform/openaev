@@ -78,6 +78,10 @@ const COVERED_FINDING_TYPES = new Set(['share', 'credentials', 'username', 'admi
 // Finding categories fetched (with per-finding executionIds) to attribute findings to an injector.
 const INJECTOR_FINDING_CATEGORIES = ['credentials', 'users', 'cves', 'files'];
 
+// Drawer resize bounds (px).
+const PANEL_MIN_WIDTH = 320;
+const PANEL_MAX_WIDTH = 1000;
+
 // Backend prevention/detection status -> a human label (also used for accessibility, so status is
 // never conveyed by colour alone). GREEN = prevented, ORANGE = detected, RED = neither.
 const statusLabelKey = (status?: string): string => {
@@ -294,6 +298,38 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // quickly: only the latest request may write state.
   const graphSeq = useRef(0);
   const endpointSeq = useRef(0);
+
+  // Drawer width, drag-resizable (the graph is flex:1 and reflows as this changes). Dragging the handle
+  // on the drawer's left edge leftwards widens it — useful when execution traces overflow.
+  const [panelWidth, setPanelWidth] = useState(460);
+  const resizeRef = useRef<{
+    startX: number;
+    startW: number;
+  } | null>(null);
+  const onResizeMove = useCallback((e: MouseEvent) => {
+    if (!resizeRef.current) {
+      return;
+    }
+    const next = resizeRef.current.startW + (resizeRef.current.startX - e.clientX);
+    setPanelWidth(Math.max(PANEL_MIN_WIDTH, Math.min(PANEL_MAX_WIDTH, next)));
+  }, []);
+  const onResizeEnd = useCallback(() => {
+    resizeRef.current = null;
+    document.removeEventListener('mousemove', onResizeMove);
+    document.removeEventListener('mouseup', onResizeEnd);
+    document.body.style.userSelect = '';
+  }, [onResizeMove]);
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    resizeRef.current = {
+      startX: e.clientX,
+      startW: panelWidth,
+    };
+    document.addEventListener('mousemove', onResizeMove);
+    document.addEventListener('mouseup', onResizeEnd);
+    // Suppress text selection while dragging.
+    document.body.style.userSelect = 'none';
+  }, [panelWidth, onResizeMove, onResizeEnd]);
 
   // Always collapsed-first: the graph auto-loads on simulation change, clustered by injector.
   const load = useCallback(() => {
@@ -2279,107 +2315,141 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               )}
             </Paper>
 
-            {/* Master→detail in a single drawer: while an execution detail is open it REPLACES the
+            {/* Resizable drawer: a single panel shows at a time (mutually exclusive); the handle on its
+                left edge drags the width, and the graph (flex:1) reflows. */}
+            {(!!detailExecutionId || !!findingDetail || !!selectedNodeId || (!pathFinding && !!selectedInjectorId)) && (
+              <div style={{
+                position: 'relative',
+                display: 'flex',
+                flexShrink: 0,
+                width: panelWidth,
+                minWidth: PANEL_MIN_WIDTH,
+              }}
+              >
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label={t('Resize panel')}
+                  onMouseDown={onResizeStart}
+                  style={{
+                    flex: '0 0 auto',
+                    width: 6,
+                    cursor: 'col-resize',
+                    marginRight: theme.spacing(1),
+                    borderRadius: 3,
+                    background: theme.palette.divider,
+                  }}
+                />
+                <div style={{
+                  flex: 1,
+                  minWidth: 0,
+                  display: 'flex',
+                }}
+                >
+                  {/* Master→detail in a single drawer: while an execution detail is open it REPLACES the
                 endpoint/finding master panel (below), and its back arrow returns here. */}
-            {findingDetail && !detailExecutionId && (
-              <FindingDetailPanel
-                value={maskFindingValue(findingDetail.type, findingDetail.value)}
-                type={findingDetail.type}
-                endpointLabel={focusedEndpoint?.hostname || focusedEndpoint?.label || pathFinding?.endpointKey || t('Endpoint')}
-                endpointSub={[focusedEndpoint?.ip, focusedEndpoint?.platform].filter(Boolean).join(' · ')}
-                expectations={findingExpectations}
-                actions={producingActions}
-                activeRef={detailExecutionId}
-                onSelect={openExecutionDetail}
-                onClose={() => {
-                  // Clicking a finding in the clustered view also selects its endpoint (to load the
-                  // feed), so clear both here — otherwise closing the finding panel would just reveal
-                  // the endpoint panel and look like it never closed.
-                  setFindingDetail(null);
-                  setSelectedNodeId(null);
-                  setDetailExecutionId(null);
-                }}
-              />
-            )}
+                  {findingDetail && !detailExecutionId && (
+                    <FindingDetailPanel
+                      value={maskFindingValue(findingDetail.type, findingDetail.value)}
+                      type={findingDetail.type}
+                      endpointLabel={focusedEndpoint?.hostname || focusedEndpoint?.label || pathFinding?.endpointKey || t('Endpoint')}
+                      endpointSub={[focusedEndpoint?.ip, focusedEndpoint?.platform].filter(Boolean).join(' · ')}
+                      expectations={findingExpectations}
+                      actions={producingActions}
+                      activeRef={detailExecutionId}
+                      onSelect={openExecutionDetail}
+                      onClose={() => {
+                        // Clicking a finding in the clustered view also selects its endpoint (to load the
+                        // feed), so clear both here — otherwise closing the finding panel would just reveal
+                        // the endpoint panel and look like it never closed.
+                        setFindingDetail(null);
+                        setSelectedNodeId(null);
+                        setDetailExecutionId(null);
+                      }}
+                    />
+                  )}
 
-            {!findingDetail && selectedNodeId && !detailExecutionId && (
-              <EndpointDetailPanel
-                endpointLabel={selectedLabel || t('Endpoint')}
-                findingsLoading={endpointFindingsLoading}
-                findingGroups={endpointFindingGroups}
-                executions={executions}
-                execDisplayCap={EXEC_DISPLAY_CAP}
-                highlightedExecutionIds={highlightedExecutionIds}
-                registerRow={(id, el) => {
-                  if (el) {
-                    feedRowRefs.current.set(id, el);
-                  } else {
-                    feedRowRefs.current.delete(id);
-                  }
-                }}
-                onSelectExecution={openExecutionDetail}
-                execStatusLabel={status => t(statusLabelKey(status))}
-                onClose={() => {
-                  setSelectedNodeId(null);
-                  setDetailExecutionId(null);
-                }}
-              />
-            )}
+                  {!findingDetail && selectedNodeId && !detailExecutionId && (
+                    <EndpointDetailPanel
+                      endpointLabel={selectedLabel || t('Endpoint')}
+                      findingsLoading={endpointFindingsLoading}
+                      findingGroups={endpointFindingGroups}
+                      executions={executions}
+                      execDisplayCap={EXEC_DISPLAY_CAP}
+                      highlightedExecutionIds={highlightedExecutionIds}
+                      registerRow={(id, el) => {
+                        if (el) {
+                          feedRowRefs.current.set(id, el);
+                        } else {
+                          feedRowRefs.current.delete(id);
+                        }
+                      }}
+                      onSelectExecution={openExecutionDetail}
+                      execStatusLabel={status => t(statusLabelKey(status))}
+                      onClose={() => {
+                        setSelectedNodeId(null);
+                        setDetailExecutionId(null);
+                      }}
+                    />
+                  )}
 
-            {/* Injector master panel: the same component as the endpoint panel — its findings (attributed
+                  {/* Injector master panel: the same component as the endpoint panel — its findings (attributed
                 to this injector's executions) and its contracts/executions. One click opens their
                 Result / Execution details / Remediation detail (the global command it ran). */}
-            {!pathFinding && !findingDetail && !selectedNodeId && selectedInjectorId && !detailExecutionId && (
-              <EndpointDetailPanel
-                endpointLabel={injectorPanelLabel || t('Injector')}
-                findingsLoading={injectorFindingsLoading}
-                findingGroups={injectorFindingGroups}
-                executions={injectorExecutions}
-                execDisplayCap={EXEC_DISPLAY_CAP}
-                highlightedExecutionIds={highlightedExecutionIds}
-                registerRow={() => {}}
-                onSelectExecution={openExecutionDetail}
-                execStatusLabel={status => t(statusLabelKey(status))}
-                onClose={() => {
-                  setSelectedInjectorId(null);
-                  setInjectorExecutions([]);
-                  setInjectorFindingGroups([]);
-                  setDetailExecutionId(null);
-                }}
-              />
-            )}
+                  {!pathFinding && !findingDetail && !selectedNodeId && selectedInjectorId && !detailExecutionId && (
+                    <EndpointDetailPanel
+                      endpointLabel={injectorPanelLabel || t('Injector')}
+                      findingsLoading={injectorFindingsLoading}
+                      findingGroups={injectorFindingGroups}
+                      executions={injectorExecutions}
+                      execDisplayCap={EXEC_DISPLAY_CAP}
+                      highlightedExecutionIds={highlightedExecutionIds}
+                      registerRow={() => {}}
+                      onSelectExecution={openExecutionDetail}
+                      execStatusLabel={status => t(statusLabelKey(status))}
+                      onClose={() => {
+                        setSelectedInjectorId(null);
+                        setInjectorExecutions([]);
+                        setInjectorFindingGroups([]);
+                        setDetailExecutionId(null);
+                      }}
+                    />
+                  )}
 
-            {detailExecutionId && (
-              <ExecutionResultTerminalPanel
-                loading={detailLoading}
-                detail={detail}
-                endpointLabel={detail?.endpointKey ? endpointLabelByRef.get(detail.endpointKey) : undefined}
-                // Back returns to the master panel (endpoint/finding/injector) it was opened from; close
-                // dismisses the whole drawer.
-                onBack={() => setDetailExecutionId(null)}
-                onClose={() => {
-                  setDetailExecutionId(null);
-                  setSelectedNodeId(null);
-                  setSelectedInjectorId(null);
-                  setInjectorExecutions([]);
-                  setInjectorFindingGroups([]);
-                  setFindingDetail(null);
-                }}
-                onOpenInject={(detail as { injectId?: string } | null)?.injectId
-                  // The inject belongs to the run, not the scenario: a relative `../injects/…` would point
-                  // at the scenario in scenario context (which has no such inject → 404). Always target the
-                  // selected simulation. A payload-backed inject opens on its Overview; a network injector
-                  // (no payload) opens straight on its Execution details, where its traces live.
-                  ? () => {
-                      const d = detail as {
-                        injectId?: string;
-                        payloadId?: string;
-                      };
-                      const base = `${SIMULATION_BASE_URL}/${simulationId}/injects/${d.injectId}`;
-                      navigate(d.payloadId ? base : `${base}/execution_details`);
-                    }
-                  : undefined}
-              />
+                  {detailExecutionId && (
+                    <ExecutionResultTerminalPanel
+                      loading={detailLoading}
+                      detail={detail}
+                      endpointLabel={detail?.endpointKey ? endpointLabelByRef.get(detail.endpointKey) : undefined}
+                      // Back returns to the master panel (endpoint/finding/injector) it was opened from; close
+                      // dismisses the whole drawer.
+                      onBack={() => setDetailExecutionId(null)}
+                      onClose={() => {
+                        setDetailExecutionId(null);
+                        setSelectedNodeId(null);
+                        setSelectedInjectorId(null);
+                        setInjectorExecutions([]);
+                        setInjectorFindingGroups([]);
+                        setFindingDetail(null);
+                      }}
+                      onOpenInject={(detail as { injectId?: string } | null)?.injectId
+                      // The inject belongs to the run, not the scenario: a relative `../injects/…` would point
+                      // at the scenario in scenario context (which has no such inject → 404). Always target the
+                      // selected simulation. A payload-backed inject opens on its Overview; a network injector
+                      // (no payload) opens straight on its Execution details, where its traces live.
+                        ? () => {
+                            const d = detail as {
+                              injectId?: string;
+                              payloadId?: string;
+                            };
+                            const base = `${SIMULATION_BASE_URL}/${simulationId}/injects/${d.injectId}`;
+                            navigate(d.payloadId ? base : `${base}/execution_details`);
+                          }
+                        : undefined}
+                    />
+                  )}
+                </div>
+              </div>
             )}
           </>
         )}

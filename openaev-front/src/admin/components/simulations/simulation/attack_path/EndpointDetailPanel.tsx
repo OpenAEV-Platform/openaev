@@ -55,7 +55,7 @@ const EndpointDetailPanel = ({
     <Paper
       variant="outlined"
       style={{
-        width: 340,
+        flex: 1,
         minWidth: 0,
         overflow: 'auto',
         display: 'flex',
