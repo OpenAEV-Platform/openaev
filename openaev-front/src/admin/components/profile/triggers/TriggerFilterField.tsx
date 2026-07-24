@@ -20,6 +20,7 @@ interface Props {
  */
 const TECHNICAL_FILTER_KEYS = [
   'asset_id',
+  'assetGroups',
   'team_injects',
   'asset_group_injects',
   'finding_id',
