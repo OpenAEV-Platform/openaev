@@ -142,6 +142,8 @@ public class InjectStatusService {
         .filter(
             trace ->
                 trace.getAction() == ExecutionTraceAction.START
+                    // Agent-less START traces exist (global distribution trace): skip them
+                    && trace.getAgent() != null
                     && agentId.equals(trace.getAgent().getId()))
         .findFirst()
         .map(startTrace -> startTrace.getTime().plusMillis(durationInMilis))
@@ -176,7 +178,8 @@ public class InjectStatusService {
     // Injector callbacks (no agent) may scope a trace to one or more targets (assets / AI targets)
     // via execution_context_identifiers. When present the trace becomes target-scoped and surfaces
     // in the per-target execution view; when absent it stays global (agent-less, no identifiers).
-    List<String> contextIdentifiers = input.getContextIdentifiers();
+    // Agent callbacks are already scoped by their agent: identifiers are ignored for them.
+    List<String> contextIdentifiers = agent == null ? input.getContextIdentifiers() : null;
 
     ExecutionTrace base =
         new ExecutionTrace(

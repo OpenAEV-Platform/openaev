@@ -5,6 +5,7 @@ import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.Data;
 
@@ -38,6 +39,7 @@ public class InjectExecutionInput {
           "Ids of the targets (assets / AI targets) this trace relates to. When set on an "
               + "injector callback (no agent), the trace becomes target-scoped and shows up in the "
               + "per-target execution view instead of the global timeline.")
+  @Size(max = 1000, message = "execution_context_identifiers cannot exceed 1000 entries")
   @JsonProperty("execution_context_identifiers")
   private List<String> contextIdentifiers;
 }

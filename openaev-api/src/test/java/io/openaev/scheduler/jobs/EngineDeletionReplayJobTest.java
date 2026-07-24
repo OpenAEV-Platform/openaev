@@ -66,23 +66,28 @@ class EngineDeletionReplayJobTest {
   }
 
   @Test
-  @DisplayName("Given a failing batch, should replay remaining batches and keep the journal")
+  @DisplayName("Given a failing batch, should replay remaining batches and keep the failed ids")
   void given_failingBatch_should_replayRemainingBatchesAndSkipPrune() {
     List<String> ids =
         IntStream.range(0, EngineDeletionReplayJob.REPLAY_BATCH_SIZE + 10)
             .mapToObj(i -> "id-" + i)
             .toList();
     when(deletionJournal.findPendingIds()).thenReturn(ids);
+    List<String> failingBatch = ids.subList(0, EngineDeletionReplayJob.REPLAY_BATCH_SIZE);
+    List<String> succeedingBatch =
+        ids.subList(EngineDeletionReplayJob.REPLAY_BATCH_SIZE, ids.size());
     // First batch fails (e.g. transient engine rejection), second must still be attempted.
-    doThrow(new RuntimeException("engine down"))
-        .when(engineService)
-        .bulkDelete(ids.subList(0, EngineDeletionReplayJob.REPLAY_BATCH_SIZE));
+    doThrow(new RuntimeException("engine down")).when(engineService).bulkDelete(failingBatch);
 
     assertThatCode(() -> job.execute(null)).doesNotThrowAnyException();
 
-    // Both batches attempted; journal kept so the failed ids are retried on the next pass.
+    // Both batches attempted; the successful batch is pruned so a poison batch cannot starve
+    // pruning, the failed ids are kept for retry (up to the hard retention cap).
     verify(engineService, times(2)).bulkDelete(anyList());
+    verify(deletionJournal).pruneAged(succeedingBatch);
+    verify(deletionJournal, never()).pruneAged(failingBatch);
     verify(deletionJournal, never()).prune();
+    verify(deletionJournal).pruneStale();
   }
 
   @Test

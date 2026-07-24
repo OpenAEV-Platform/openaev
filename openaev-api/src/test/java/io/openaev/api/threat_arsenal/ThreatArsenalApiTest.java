@@ -36,6 +36,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
@@ -777,6 +778,12 @@ public class ThreatArsenalApiTest extends IntegrationTest {
           0,
           (int) JsonPath.read(facetResponse, "$.platforms.MacOS"),
           "No MacOS contract should match under the Windows filter");
+      // The matched contract has no payload: contracts without a payload are excluded from the
+      // status facet, so the statuses map is present but empty.
+      Map<String, Integer> statuses = JsonPath.read(facetResponse, "$.statuses");
+      assertTrue(
+          statuses.isEmpty(),
+          "Contracts without a payload should not contribute to status facet counts");
     }
 
     private String searchWith(SearchPaginationInput input) throws Exception {

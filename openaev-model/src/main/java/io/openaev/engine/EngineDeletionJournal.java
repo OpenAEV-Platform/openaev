@@ -50,6 +50,13 @@ public class EngineDeletionJournal {
    */
   public static final Duration RETENTION = Duration.ofMinutes(10);
 
+  /**
+   * Hard cap on journal residency: entries that keep failing to replay (poison ids the engine
+   * deterministically rejects) are dropped after this window so they cannot grow the journal and
+   * the replay workload without bound.
+   */
+  public static final Duration HARD_RETENTION = Duration.ofHours(1);
+
   private final JdbcTemplate jdbcTemplate;
 
   /** Records deleted entity ids; re-deleting the same id refreshes its journal date. */
@@ -87,6 +94,46 @@ public class EngineDeletionJournal {
             Timestamp.from(Instant.now().minus(RETENTION)));
     if (pruned > 0) {
       log.debug("Pruned {} replayed engine deletion(s) from the journal", pruned);
+    }
+  }
+
+  /**
+   * Prunes the given ids when older than the retention window. Called per successfully replayed
+   * batch so one persistently failing batch cannot starve the pruning of every other entry.
+   */
+  public void pruneAged(Collection<String> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return;
+    }
+    String placeholders = String.join(",", java.util.Collections.nCopies(ids.size(), "?"));
+    Object[] arguments = new Object[ids.size() + 1];
+    arguments[0] = Timestamp.from(Instant.now().minus(RETENTION));
+    int index = 1;
+    for (String id : ids) {
+      arguments[index++] = id;
+    }
+    int pruned =
+        jdbcTemplate.update(
+            "DELETE FROM engine_deletions WHERE deletion_date < ? AND deletion_id IN ("
+                + placeholders
+                + ")",
+            arguments);
+    if (pruned > 0) {
+      log.debug("Pruned {} replayed engine deletion(s) from the journal", pruned);
+    }
+  }
+
+  /** Drops entries older than the hard retention cap, even when their replays kept failing. */
+  public void pruneStale() {
+    int pruned =
+        jdbcTemplate.update(
+            "DELETE FROM engine_deletions WHERE deletion_date < ?",
+            Timestamp.from(Instant.now().minus(HARD_RETENTION)));
+    if (pruned > 0) {
+      log.warn(
+          "Dropped {} engine deletion journal entrie(s) past the hard retention cap despite"
+              + " failing replays",
+          pruned);
     }
   }
 }
