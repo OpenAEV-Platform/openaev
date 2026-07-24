@@ -7,7 +7,7 @@ import type { EventMeta } from './types';
 
 interface LogicTopBarProps {
   eventMetas: Record<string, EventMeta>;
-  onAddCompatibleAction: () => void;
+  onAddCompatibleAction: (field: string) => void;
   onAddComponent: () => void;
 }
 

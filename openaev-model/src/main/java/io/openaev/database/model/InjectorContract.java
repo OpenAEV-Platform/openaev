@@ -527,6 +527,20 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
         .toList();
   }
 
+  @JsonProperty("injector_contract_providing")
+  @Queryable(
+      filterable = true,
+      path = "payload.outputParsers.contractOutputElements.type",
+      refEnumClazz = ContractOutputType.class)
+  public List<ContractOutputType> getProviding() {
+    if (getPayload() == null) return List.of();
+    return getPayload().getOutputParsers().stream()
+        .flatMap(op -> op.getContractOutputElements().stream())
+        .map(ContractOutputElement::getType)
+        .distinct()
+        .toList();
+  }
+
   @JsonIgnore
   @Override
   public boolean isUserHasAccess(User user) {

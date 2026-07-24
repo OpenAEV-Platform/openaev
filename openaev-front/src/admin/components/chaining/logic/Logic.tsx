@@ -35,6 +35,8 @@ const Logic = ({ workflowId, context }: LogicProps) => {
     stepId: string;
     meta: ActionMeta;
   } | null>(null);
+  // Output type required by the "Add Compatible Action" banner (pre-filters the action list)
+  const [compatibleActionFilter, setCompatibleActionFilter] = useState<string | undefined>();
 
   // Event currently being edited
   const [editingEvent, setEditingEvent] = useState<{
@@ -79,11 +81,13 @@ const Logic = ({ workflowId, context }: LogicProps) => {
   }, []);
 
   const handleOpenDrawer = useCallback(() => {
+    setCompatibleActionFilter(undefined);
     setDrawerView('choose');
   }, []);
 
-  // Opens the action list directly
-  const handleOpenActionDrawer = useCallback(() => {
+  // Opens the action list directly, optionally pre-filtered by output type
+  const handleOpenActionDrawer = useCallback((field?: string) => {
+    setCompatibleActionFilter(field);
     setDrawerView('action');
   }, []);
 
@@ -160,6 +164,7 @@ const Logic = ({ workflowId, context }: LogicProps) => {
           onStepCreated={handleStepCreated}
           onEventCreated={handleEventCreated}
           eventCount={eventCount}
+          compatibleActionFilter={compatibleActionFilter}
         />
       </div>
     </OutputProvidersProvider>

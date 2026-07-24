@@ -101,7 +101,6 @@ public class ThreatArsenalService {
    */
   public List<PropertySchemaDTO> getSchemas(boolean filterableOnly, List<String> filterNames)
       throws ClassNotFoundException {
-    // Translate action_* filter names to injector_contract_* for matching
     List<String> translatedFilterNames =
         filterNames.stream().map(name -> ACTION_TO_ENTITY_FIELDS.getOrDefault(name, name)).toList();
 
