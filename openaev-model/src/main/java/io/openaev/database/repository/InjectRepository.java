@@ -391,16 +391,19 @@ public interface InjectRepository
               + "    FROM injects i "
               + "    JOIN injectors_contracts injcon ON injcon.injector_contract_id = i.inject_injector_contract "
               + "    WHERE i.inject_exercise = :exerciseId"
+              + "      AND i.tenant_id = :#{#tenantContext.currentTenant}"
               + "  ) sub), '{}') AS platforms, "
               + "  (SELECT count(*) FROM communications "
               + "    WHERE communication_inject IN ("
               + "      SELECT inject_id FROM injects WHERE inject_exercise = :exerciseId"
+              + "        AND tenant_id = :#{#tenantContext.currentTenant}"
               + "  )) AS communications_number, "
               + "  COALESCE((SELECT array_agg(DISTINCT apkcp.phase_id) "
               + "    FROM injects i "
               + "    JOIN injectors_contracts_attack_patterns icap ON icap.injector_contract_id = i.inject_injector_contract "
               + "    JOIN attack_patterns_kill_chain_phases apkcp ON apkcp.attack_pattern_id = icap.attack_pattern_id "
               + "    WHERE i.inject_exercise = :exerciseId"
+              + "      AND i.tenant_id = :#{#tenantContext.currentTenant}"
               + "  ), '{}') AS kill_chain_phase_ids",
       nativeQuery = true)
   RawExerciseInjectSummary findInjectSummaryByExerciseId(@Param("exerciseId") String exerciseId);
