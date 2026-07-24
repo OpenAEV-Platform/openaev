@@ -22,6 +22,7 @@ public class EngineListener {
       EngineListener.class.getName() + ".PENDING_DELETE_IDS";
 
   private final EngineService esService;
+  private final EngineDeletionJournal deletionJournal;
 
   @EventListener
   public void listenIndexEvent(IndexEvent event) {
@@ -30,6 +31,9 @@ public class EngineListener {
     }
 
     if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+      // Journal first: if the engine call fails (or an in-flight indexer batch resurrects the
+      // document right after it), the periodic replay converges the engine with PostgreSQL.
+      this.deletionJournal.record(List.of(event.getId()));
       this.esService.bulkDelete(List.of(event.getId()));
       return;
     }
@@ -78,6 +82,11 @@ public class EngineListener {
     if (pendingDeleteIds.isEmpty()) {
       return;
     }
+    // Journal first (own short auto-commit statements: the deleting transaction has already
+    // committed at this point), then flush to the engine. The journal is the durable record the
+    // replay job uses to re-delete documents resurrected by an in-flight indexer batch or lost to
+    // an engine outage.
+    this.deletionJournal.record(pendingDeleteIds);
     this.esService.bulkDelete(new ArrayList<>(pendingDeleteIds));
   }
 

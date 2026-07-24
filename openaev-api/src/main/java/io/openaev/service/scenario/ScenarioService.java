@@ -65,6 +65,7 @@ import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.settings.TenantSettingsService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TargetType;
@@ -155,6 +156,7 @@ public class ScenarioService {
   private final ScenarioMapper scenarioMapper;
   private final WorkflowService workflowService;
   private final WorkflowExportInitializer workflowExportInitializer;
+  private final BulkDeleteExecutor bulkDeleteExecutor;
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
@@ -514,10 +516,15 @@ public class ScenarioService {
    * (select-all with optional exclusions). Only scenarios the user is allowed to manage are
    * deleted.
    *
+   * <p>Deliberately NOT transactional as a whole: the scope is resolved in a short read
+   * transaction, then scenarios are deleted in small independent chunks (with deadlock retry). A
+   * single all-encompassing transaction used to hold row locks on {@code exercises} (dirtied by the
+   * {@code @PreRemove} scenario-reference nulling) for minutes, deadlocking against concurrent
+   * inject expectation updates and tripping Hikari's connection-leak detection.
+   *
    * @param input the bulk processing input (ids or search input, plus ids to ignore)
    * @return the list of deleted scenario ids
    */
-  @Transactional(rollbackFor = Exception.class)
   public List<String> bulkDeleteScenarios(@NotNull final ScenarioBulkProcessingInput input) {
     if ((CollectionUtils.isEmpty(input.getScenarioIdsToProcess())
             && input.getSearchPaginationInput() == null)
@@ -526,38 +533,49 @@ public class ScenarioService {
       throw new BadRequestException(
           "Either scenario_ids_to_process or search_pagination_input must be provided, and not both at the same time");
     }
-    Specification<Scenario> specification;
-    if (input.getSearchPaginationInput() != null) {
-      SearchPaginationInput searchPaginationInput = input.getSearchPaginationInput();
-      // Same specification chain as the list search: custom filters (recurrence) + filter group +
-      // text search, so the deletion scope matches exactly what the user sees in the list.
-      UnaryOperator<Specification<Scenario>> customSpecification =
-          handleCustomFilter(searchPaginationInput);
-      specification =
-          customSpecification.apply(
-              FilterUtilsJpa.<Scenario>computeFilterGroupJpa(searchPaginationInput.getFilterGroup())
-                  .and(computeSearchJpa(searchPaginationInput.getTextSearch())));
-    } else {
-      specification = SpecificationUtils.hasIdIn(input.getScenarioIdsToProcess());
-    }
-    if (!CollectionUtils.isEmpty(input.getScenarioIdsToIgnore())) {
-      List<String> idsToIgnore = input.getScenarioIdsToIgnore();
-      specification =
-          specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
-    }
-    // Restrict to scenarios the user is granted to plan on (no-op for admins and users with the
-    // delete capability)
     User currentUser = userService.currentUser();
-    specification =
-        specification.and(
-            SpecificationUtils.hasGrantAccess(
-                currentUser.getId(),
-                currentUser.isAdminOrBypass(),
-                currentUser.getCapabilities().contains(Capability.DELETE_ASSESSMENT),
-                Grant.GRANT_TYPE.PLANNER));
-    List<Scenario> scenariosToDelete = this.scenarioRepository.findAll(specification);
-    List<String> deletedIds = scenariosToDelete.stream().map(Scenario::getId).toList();
-    this.scenarioRepository.deleteAll(scenariosToDelete);
+    List<String> scenarioIdsToDelete =
+        bulkDeleteExecutor.resolveInTransaction(
+            () -> {
+              Specification<Scenario> specification;
+              if (input.getSearchPaginationInput() != null) {
+                SearchPaginationInput searchPaginationInput = input.getSearchPaginationInput();
+                // Same specification chain as the list search: custom filters (recurrence) +
+                // filter group + text search, so the deletion scope matches exactly what the user
+                // sees in the list.
+                UnaryOperator<Specification<Scenario>> customSpecification =
+                    handleCustomFilter(searchPaginationInput);
+                specification =
+                    customSpecification.apply(
+                        FilterUtilsJpa.<Scenario>computeFilterGroupJpa(
+                                searchPaginationInput.getFilterGroup())
+                            .and(computeSearchJpa(searchPaginationInput.getTextSearch())));
+              } else {
+                specification = SpecificationUtils.hasIdIn(input.getScenarioIdsToProcess());
+              }
+              if (!CollectionUtils.isEmpty(input.getScenarioIdsToIgnore())) {
+                List<String> idsToIgnore = input.getScenarioIdsToIgnore();
+                specification =
+                    specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+              }
+              // Restrict to scenarios the user is granted to plan on (no-op for admins and users
+              // with the delete capability)
+              specification =
+                  specification.and(
+                      SpecificationUtils.hasGrantAccess(
+                          currentUser.getId(),
+                          currentUser.isAdminOrBypass(),
+                          currentUser.getCapabilities().contains(Capability.DELETE_ASSESSMENT),
+                          Grant.GRANT_TYPE.PLANNER));
+              return this.scenarioRepository.findAll(specification).stream()
+                  .map(Scenario::getId)
+                  .toList();
+            });
+    List<String> deletedIds =
+        bulkDeleteExecutor.deleteInChunks(
+            "scenarios",
+            scenarioIdsToDelete,
+            chunk -> this.scenarioRepository.deleteAll(this.scenarioRepository.findAllById(chunk)));
     log.info("Bulk deleted {} scenarios by user {}", deletedIds.size(), currentUser.getId());
     return deletedIds;
   }

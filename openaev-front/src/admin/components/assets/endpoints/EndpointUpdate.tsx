@@ -57,24 +57,28 @@ const EndpointUpdate: FunctionComponent<Props> = ({
     );
   };
 
-  if (loading) {
-    return <Loader />;
-  }
   const category = (endpoint?.asset_category as AssetCategory) ?? 'HOST';
+  // The drawer shell renders immediately so the slide-in animation plays and the
+  // underlying screen never shows a full-page loader; the fetch only swaps the
+  // drawer body content.
   return (
     <Drawer
       open={open}
       handleClose={handleClose}
       title={t('Update an asset')}
     >
-      <AssetForm
-        category={category}
-        initialValues={endpoint as unknown as Partial<EndpointInput>}
-        editing
-        onSubmit={onSubmit}
-        agentless={agentless}
-        handleClose={handleClose}
-      />
+      {loading || !endpoint
+        ? <Loader variant="inElement" />
+        : (
+            <AssetForm
+              category={category}
+              initialValues={endpoint as unknown as Partial<EndpointInput>}
+              editing
+              onSubmit={onSubmit}
+              agentless={agentless}
+              handleClose={handleClose}
+            />
+          )}
     </Drawer>
   );
 };

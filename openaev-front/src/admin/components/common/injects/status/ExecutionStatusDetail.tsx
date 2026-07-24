@@ -46,7 +46,7 @@ const ExecutionStatusDetail = ({ injectId, target }: Props) => {
   }, [injectId, target?.id, target?.targetType]);
 
   if (loading) {
-    return <Loader />;
+    return <Loader variant="inElement" />;
   }
 
   if (traces && traces.length === 0) {

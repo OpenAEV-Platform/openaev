@@ -2,16 +2,26 @@ package io.openaev.service;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetType;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
+import io.openaev.database.specification.SpecificationUtils;
+import io.openaev.rest.asset.form.AssetBulkProcessingInput;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.utils.BulkDeleteExecutor;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -22,6 +32,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 @RequiredArgsConstructor
 @Service
@@ -31,6 +42,7 @@ public class AssetService {
 
   private final AssetRepository assetRepository;
   private final SecurityPlatformRepository securityPlatformRepository;
+  private final BulkDeleteExecutor bulkDeleteExecutor;
 
   public Asset asset(@NotBlank final String assetId) {
     return this.assetRepository
@@ -85,6 +97,77 @@ public class AssetService {
           "Security platforms must be deleted from their dedicated area");
     }
     this.assetRepository.delete(asset);
+  }
+
+  /**
+   * Bulk delete of assets, either from an explicit list of ids or from a search input (select-all
+   * with optional exclusions). Security platforms are always excluded from the deletion scope: they
+   * are managed from their dedicated area and never surface in the unified inventory.
+   *
+   * <p>Deliberately NOT transactional as a whole: the scope is resolved in a short read
+   * transaction, then assets are deleted in small independent chunks (with deadlock retry) so the
+   * request never holds row locks against concurrent agent check-ins for its whole duration.
+   *
+   * @param input the bulk processing input (ids or search input, plus ids to ignore)
+   * @return the ids of the deleted assets
+   */
+  public List<String> bulkDeleteAssets(@NotNull final AssetBulkProcessingInput input) {
+    if ((CollectionUtils.isEmpty(input.getAssetIdsToProcess())
+            && input.getSearchPaginationInput() == null)
+        || (!CollectionUtils.isEmpty(input.getAssetIdsToProcess())
+            && input.getSearchPaginationInput() != null)) {
+      throw new BadRequestException(
+          "Either asset_ids_to_process or search_pagination_input must be provided, and not both at the same time");
+    }
+    List<String> assetIdsToDelete =
+        bulkDeleteExecutor.resolveInTransaction(
+            () -> {
+              Specification<Asset> specification;
+              if (input.getSearchPaginationInput() != null) {
+                // Same specification chain as the inventory search (filter group + text search),
+                // so the deletion scope matches exactly what the user sees in the list.
+                specification =
+                    FilterUtilsJpa.<Asset>computeFilterGroupJpa(
+                            input.getSearchPaginationInput().getFilterGroup())
+                        .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
+              } else {
+                specification = SpecificationUtils.hasIdIn(input.getAssetIdsToProcess());
+              }
+              if (!CollectionUtils.isEmpty(input.getAssetIdsToIgnore())) {
+                List<String> idsToIgnore = input.getAssetIdsToIgnore();
+                specification =
+                    specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+              }
+              // Security platforms are managed from their dedicated area and never surface in the
+              // unified inventory: keep them out of the bulk scope even when their ids are
+              // explicitly provided.
+              specification =
+                  specification.and(
+                      (root, query, cb) ->
+                          cb.notEqual(root.get("type"), AssetType.Values.SECURITY_PLATFORM_TYPE));
+              // Project only the ids: bulk scopes can span very large inventories, so loading
+              // the full entities just to extract ids would create a needless memory spike and
+              // lengthen the scope-resolution transaction.
+              return resolveAssetIds(specification);
+            });
+    return bulkDeleteExecutor.deleteInChunks(
+        "assets",
+        assetIdsToDelete,
+        chunk -> this.assetRepository.deleteAll(this.assetRepository.findAllById(chunk)));
+  }
+
+  // Criteria query selecting only the id column, so scope resolution never materialises full
+  // Asset entities (goes through the Hibernate session, so the tenant filter still applies).
+  private List<String> resolveAssetIds(final Specification<Asset> specification) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    CriteriaQuery<String> query = cb.createQuery(String.class);
+    Root<Asset> root = query.from(Asset.class);
+    query.select(root.get("id"));
+    Predicate predicate = specification.toPredicate(root, query, cb);
+    if (predicate != null) {
+      query.where(predicate);
+    }
+    return entityManager.createQuery(query).getResultList();
   }
 
   public List<SecurityPlatform> securityPlatformsByIds(@NotNull final Set<String> ids) {

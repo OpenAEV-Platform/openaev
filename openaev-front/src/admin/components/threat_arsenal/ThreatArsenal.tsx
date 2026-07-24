@@ -326,28 +326,7 @@ const ThreatArsenal = () => {
   };
 
   const renderListView = () => {
-    if (loading) {
-      return (
-        <Box>
-          {Array.from({ length: 10 }).map((_, idx) => (
-            <Box
-              key={idx}
-              sx={{
-                height: 50,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.5,
-                borderBottom: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <Skeleton variant="circular" width={20} height={20} animation="wave" />
-              <Skeleton variant="text" width="50%" height={20} animation="wave" />
-            </Box>
-          ))}
-        </Box>
-      );
-    }
-    if (threatArsenalActions.length === 0) {
+    if (!loading && threatArsenalActions.length === 0) {
       return <ThreatArsenalEmptyState hasFilters={hasActiveFilters} onResetFilters={handleResetFilters} />;
     }
     return (
@@ -370,7 +349,46 @@ const ThreatArsenal = () => {
             )}
           />
         </ListItem>
-        {threatArsenalActions.map((action) => {
+        {/* Skeleton rows mirror the exact real row anatomy (checkbox column,
+            inject icon column, then the shared column widths) so the layout
+            does not shift when the data lands. */}
+        {loading && Array.from({ length: 10 }).map((_, idx) => (
+          <Box
+            key={idx}
+            sx={{
+              height: 50,
+              display: 'flex',
+              alignItems: 'center',
+              paddingLeft: 2,
+              paddingRight: 7,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <Box sx={{ minWidth: 38 }}>
+              <Skeleton variant="rounded" width={18} height={18} animation="wave" />
+            </Box>
+            <Box sx={{ minWidth: 40 }}>
+              <Skeleton variant="circular" width={26} height={26} animation="wave" />
+            </Box>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              flex: 1,
+            }}
+            >
+              {THREAT_ARSENAL_LIST_HEADERS.map(header => (
+                <Box
+                  key={header.field}
+                  style={THREAT_ARSENAL_LIST_INLINE_STYLES[header.field]}
+                  sx={{ paddingRight: '10px' }}
+                >
+                  <Skeleton variant="text" width="70%" height={20} animation="wave" />
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        ))}
+        {!loading && threatArsenalActions.map((action) => {
           const flags = computeRowFlags(action);
           return (
             <ThreatArsenalListRow

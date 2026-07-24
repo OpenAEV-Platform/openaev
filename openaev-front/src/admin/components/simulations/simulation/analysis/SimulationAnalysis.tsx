@@ -8,10 +8,12 @@ import {
   entitiesBySimulation, fetchCustomDashboardFromSimulation, seriesBySimulation, widgetToEntitiesBySimulation,
 } from '../../../../../actions/exercises/exercise-action';
 import type { ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
+import type { LoggedHelper } from '../../../../../actions/helper';
 import { useHelper } from '../../../../../store';
 import {
   type CustomDashboard,
   type Exercise, type Pagination,
+  type TenantSettingsOutput,
   type WidgetToEntitiesInput,
 } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -28,9 +30,13 @@ const SimulationAnalysis = () => {
   const ability = useContext(AbilityContext);
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
 
-  const exercise = useHelper((helper: ExercisesHelper) => {
-    return helper.getExercise(exerciseId);
-  });
+  const { exercise, tenantSettings }: {
+    exercise: Exercise;
+    tenantSettings: TenantSettingsOutput;
+  } = useHelper((helper: ExercisesHelper & LoggedHelper) => ({
+    exercise: helper.getExercise(exerciseId),
+    tenantSettings: helper.getTenantSettings(),
+  }));
 
   const exerciseRef = useRef(exercise);
   exerciseRef.current = exercise;
@@ -73,8 +79,15 @@ const SimulationAnalysis = () => {
     return params;
   }, [exerciseId, exercise?.exercise_scenario]);
 
+  // The Statistics tab always has a dashboard to show out of the box: the one
+  // attached to the simulation, or the tenant "Default simulation dashboard"
+  // from the settings (the backend applies the same fallback when resolving it).
+  const effectiveDashboardId = exercise?.exercise_custom_dashboard
+    || tenantSettings?.platform_simulation_dashboard
+    || undefined;
+
   const configuration = useMemo(() => ({
-    customDashboardId: exercise?.exercise_custom_dashboard,
+    customDashboardId: effectiveDashboardId,
     paramLocalStorageKey: 'custom-dashboard-simulation-' + exerciseId,
     paramsBuilder,
     parentContextId: exerciseId,
@@ -87,7 +100,7 @@ const SimulationAnalysis = () => {
     fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => widgetToEntitiesBySimulation(exerciseId, widgetId, input),
     fetchEntities: (widgetId: string, params: Record<string, string | undefined>, pagination?: Pagination) => entitiesBySimulation(exerciseId, widgetId, params, pagination),
     fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPathsBySimulation(exerciseId, widgetId, params),
-  }), [exercise?.exercise_custom_dashboard, exerciseId, paramsBuilder, ability, handleSelectNewDashboard]);
+  }), [effectiveDashboardId, exerciseId, paramsBuilder, ability, handleSelectNewDashboard]);
 
   return (
     <CustomDashboardWrapper

@@ -66,6 +66,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -591,7 +592,10 @@ public class ExerciseApi extends RestBehavior {
       tags = {"Simulations"})
   @LogExecutionTime
   @DeleteMapping({EXERCISE_URI, TENANT_EXERCISE_URI})
-  @Transactional(rollbackFor = Exception.class)
+  // SUPPORTS (not REQUIRED) on purpose: the service deletes in small independent transactions
+  // (chunked, with deadlock retry) - a request-wide transaction would defeat that and deadlock
+  // against concurrent inject expectation updates.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.SIMULATION)
   public List<String> bulkDeleteExercises(
       @RequestBody @Valid final ExerciseBulkProcessingInput input) {

@@ -23,6 +23,7 @@ import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionServi
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -93,6 +94,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private AttackPathExecutionIngestionService attackPathExecutionService;
+  @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -125,6 +127,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             injectExpectationRepository,
             articleRepository,
             exerciseRepository,
+            bulkDeleteExecutor,
             injectStatusRepository,
             pauseRepository,
             lessonsQuestionRepository,

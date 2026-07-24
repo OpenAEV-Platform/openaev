@@ -29,6 +29,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -114,7 +115,9 @@ public class AtomicTestingApi extends RestBehavior {
       tags = {"Atomic testings"})
   @LogExecutionTime
   @DeleteMapping()
-  @Transactional(rollbackFor = Exception.class)
+  // SUPPORTS (not REQUIRED): the service deletes in small independent chunk transactions with
+  // deadlock retry; a request-wide transaction would force everything back into one transaction.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ATOMIC_TESTING)
   public List<String> bulkDeleteAtomicTestings(
       @RequestBody @Valid final InjectBulkProcessingInput input) {

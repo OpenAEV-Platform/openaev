@@ -134,6 +134,11 @@ const Drawer: FunctionComponent<DrawerProps> = ({
       onClose={handleClose}
       PaperProps={PaperProps}
       ModalProps={{ disableEnforceFocus }}
+      // Many call sites mount the drawer lazily, already open ({condition && <Drawer open ...>}).
+      // MUI skips the enter transition on first render (appear is tied to an internal mounted
+      // ref), which made those drawers pop in without the slide effect. Forcing `appear`
+      // guarantees the design-system slide-from-right animation everywhere.
+      slotProps={{ transition: { appear: true } }}
     >
       <div className={variant === 'full' ? classes.headerFull : classes.header}>
         <Tooltip title={title}>

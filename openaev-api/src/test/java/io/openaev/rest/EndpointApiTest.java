@@ -1,5 +1,6 @@
 package io.openaev.rest;
 
+import static io.openaev.rest.asset.endpoint.EndpointApi.ASSET_URI;
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.AgentFixture.createAgent;
@@ -27,9 +28,11 @@ import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
+import io.openaev.rest.asset.form.AssetBulkProcessingInput;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.EndpointService;
@@ -38,6 +41,7 @@ import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
@@ -68,6 +72,7 @@ class EndpointApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TagRepository tagRepository;
   @Autowired private EndpointRepository endpointRepository;
+  @Autowired private SecurityPlatformRepository securityPlatformRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private ExerciseService exerciseService;
   @Autowired private ExecutorComposer executorComposer;
@@ -990,6 +995,145 @@ class EndpointApiTest extends IntegrationTest {
       Mockito.verify(injectStatusService, Mockito.never())
           .addJobRetrievalTraces(Mockito.any(AssetAgentJob.class));
       Mockito.verify(assetAgentJobRepository, Mockito.never()).deleteById(assetAgentJobId);
+    }
+  }
+
+  @Nested
+  @DisplayName("DELETE /api/assets - bulk delete")
+  class BulkDeleteAssets {
+
+    private Endpoint createPersistedEndpoint(String name, String hostname, String ip) {
+      return endpointComposer
+          .forEndpoint(
+              EndpointFixture.createEndpoint(
+                  name,
+                  Endpoint.PLATFORM_TYPE.Windows,
+                  Endpoint.PLATFORM_ARCH.x86_64,
+                  hostname,
+                  new String[] {ip}))
+          .persist()
+          .get();
+    }
+
+    @Test
+    @DisplayName("Given explicit asset ids, should delete only those assets")
+    @WithMockUser(isAdmin = true)
+    void given_explicitAssetIds_should_deleteOnlyThoseAssets() throws Exception {
+      // -- PREPARE --
+      Endpoint toDelete1 = createPersistedEndpoint("bulk-delete-1", "bulk-host-01", "10.1.0.1");
+      Endpoint toDelete2 = createPersistedEndpoint("bulk-delete-2", "bulk-host-02", "10.1.0.2");
+      Endpoint toKeep = createPersistedEndpoint("bulk-keep", "bulk-host-03", "10.1.0.3");
+
+      AssetBulkProcessingInput input = new AssetBulkProcessingInput();
+      input.setAssetIdsToProcess(List.of(toDelete1.getId(), toDelete2.getId()));
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  delete(ASSET_URI)
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ASSERT --
+      JSONArray deletedIds = new JSONArray(response);
+      assertEquals(2, deletedIds.length());
+      assertThat(endpointRepository.findById(toDelete1.getId())).isEmpty();
+      assertThat(endpointRepository.findById(toDelete2.getId())).isEmpty();
+      assertThat(endpointRepository.findById(toKeep.getId())).isPresent();
+    }
+
+    @Test
+    @DisplayName(
+        "Given a search input with ignored ids, should delete matching assets except the ignored ones")
+    @WithMockUser(isAdmin = true)
+    void given_searchInputWithIgnoredIds_should_deleteMatchingAssetsExceptIgnored()
+        throws Exception {
+      // -- PREPARE --
+      Endpoint toDelete = createPersistedEndpoint("bulkwipe-one", "bulk-host-04", "10.1.0.4");
+      Endpoint toIgnore = createPersistedEndpoint("bulkwipe-two", "bulk-host-05", "10.1.0.5");
+      Endpoint unrelated = createPersistedEndpoint("unrelated", "bulk-host-06", "10.1.0.6");
+
+      AssetBulkProcessingInput input = new AssetBulkProcessingInput();
+      input.setSearchPaginationInput(PaginationFixture.simpleTextSearch("bulkwipe"));
+      input.setAssetIdsToIgnore(List.of(toIgnore.getId()));
+
+      // -- EXECUTE --
+      mvc.perform(
+              delete(ASSET_URI)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ASSERT --
+      assertThat(endpointRepository.findById(toDelete.getId())).isEmpty();
+      assertThat(endpointRepository.findById(toIgnore.getId())).isPresent();
+      assertThat(endpointRepository.findById(unrelated.getId())).isPresent();
+    }
+
+    @Test
+    @DisplayName("Given both explicit ids and a search input, should return a bad request")
+    @WithMockUser(isAdmin = true)
+    void given_bothIdsAndSearchInput_should_returnBadRequest() throws Exception {
+      // -- PREPARE --
+      AssetBulkProcessingInput input = new AssetBulkProcessingInput();
+      input.setAssetIdsToProcess(List.of("some-id"));
+      input.setSearchPaginationInput(PaginationFixture.simpleTextSearch("some text"));
+
+      // -- EXECUTE & ASSERT --
+      mvc.perform(
+              delete(ASSET_URI)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    @DisplayName("Given a security platform id, should never delete it through the bulk endpoint")
+    @WithMockUser(isAdmin = true)
+    void given_securityPlatformId_should_neverDeleteIt() throws Exception {
+      // -- PREPARE --
+      SecurityPlatform securityPlatform =
+          securityPlatformRepository.save(SecurityPlatformFixture.createDefault("Bulk EDR", "EDR"));
+
+      AssetBulkProcessingInput input = new AssetBulkProcessingInput();
+      input.setAssetIdsToProcess(List.of(securityPlatform.getId()));
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  delete(ASSET_URI)
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ASSERT --
+      JSONArray deletedIds = new JSONArray(response);
+      assertEquals(0, deletedIds.length());
+      assertThat(securityPlatformRepository.findById(securityPlatform.getId())).isPresent();
     }
   }
 }

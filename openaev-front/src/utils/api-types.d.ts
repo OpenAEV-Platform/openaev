@@ -625,6 +625,12 @@ export interface AssetAgentJob {
   listened?: boolean;
 }
 
+export interface AssetBulkProcessingInput {
+  asset_ids_to_ignore?: string[];
+  asset_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
 export interface AssetGroup {
   asset_group_assets?: string[];
   /** @format date-time */
@@ -641,6 +647,12 @@ export interface AssetGroup {
   /** @format date-time */
   asset_group_updated_at: string;
   listened?: boolean;
+}
+
+export interface AssetGroupBulkProcessingInput {
+  asset_group_ids_to_ignore?: string[];
+  asset_group_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
 }
 
 export interface AssetGroupInput {
@@ -1367,6 +1379,21 @@ export interface BrokerConnectionInfo {
   use_ssl?: boolean;
   user?: string;
   vhost?: string;
+}
+
+export interface BulkOperation {
+  bulk_operation_action?: string;
+  bulk_operation_entity?: string;
+  /** @format date-time */
+  bulk_operation_finished_at?: string;
+  bulk_operation_id?: string;
+  /** @format int32 */
+  bulk_operation_processed?: number;
+  /** @format date-time */
+  bulk_operation_started_at?: string;
+  bulk_operation_status?: "RUNNING" | "COMPLETED" | "FAILED";
+  /** @format int32 */
+  bulk_operation_total?: number;
 }
 
 export interface CTIEvent {
@@ -6598,8 +6625,9 @@ export interface Organization {
 }
 
 export interface OrganizationBulkProcessingInput {
-  /** @minItems 1 */
-  organization_ids: string[];
+  organization_ids_to_ignore?: string[];
+  organization_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
 }
 
 export interface OrganizationCreateInput {

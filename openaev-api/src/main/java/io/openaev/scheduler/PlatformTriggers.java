@@ -1,5 +1,6 @@
 package io.openaev.scheduler;
 
+import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_REPLAY_TRIGGER;
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_TRIGGER;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_TRIGGER;
@@ -170,6 +171,20 @@ public class PlatformTriggers {
         .forJob(this.platformJobs.urlAccessTokenPurgeJobDetail())
         .withIdentity(URL_ACCESS_TOKEN_PURGE_TRIGGER)
         .withSchedule(cronSchedule("0 0 2 ? * SUN")) // Every Sunday at 2:00 AM
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
+  public Trigger engineDeletionReplayTrigger() {
+    // Replays journaled deletions against the search engine: must run frequently enough that a
+    // document resurrected by an in-flight indexer batch disappears quickly from dashboards.
+    SimpleScheduleBuilder every60Seconds =
+        simpleSchedule().withIntervalInSeconds(60).repeatForever();
+    return newTrigger()
+        .forJob(this.platformJobs.engineDeletionReplayJobDetail())
+        .withIdentity(ENGINE_DELETION_REPLAY_TRIGGER)
+        .withSchedule(every60Seconds.withMisfireHandlingInstructionNextWithRemainingCount())
         .build();
   }
 }

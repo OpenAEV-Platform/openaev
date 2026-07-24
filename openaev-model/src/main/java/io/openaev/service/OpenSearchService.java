@@ -402,7 +402,7 @@ public class OpenSearchService implements EngineService {
     try {
       SearchResponse<EsBase> response =
           openSearchClient.search(
-              b -> b.index(engineConfig.getIndexPrefix() + "*").size(ids.size()).query(query),
+              b -> b.index(engineConfig.getIndexPattern()).size(ids.size()).query(query),
               EsBase.class);
       List<Hit<EsBase>> hits = response.hits().hits();
       return hits.stream()
@@ -559,7 +559,7 @@ public class OpenSearchService implements EngineService {
           BoolQuery.of(b -> b.should(directId, dependenciesId).minimumShouldMatch("1")).toQuery();
       openSearchClient.deleteByQuery(
           new DeleteByQueryRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .query(query)
               .refresh(Refresh.True)
               .conflicts(Conflicts.Proceed)
@@ -571,7 +571,7 @@ public class OpenSearchService implements EngineService {
       // dataset (relaunching an atomic testing was observed blocking for over a minute).
       openSearchClient.updateByQuery(
           new UpdateByQueryRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .query(sideReferencesQuery(ids))
               .script(
                   Script.of(
@@ -626,7 +626,7 @@ public class OpenSearchService implements EngineService {
               .toQuery();
       openSearchClient.deleteByQuery(
           new DeleteByQueryRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .query(query)
               .refresh(Refresh.True)
               .conflicts(Conflicts.Proceed)
@@ -658,7 +658,7 @@ public class OpenSearchService implements EngineService {
         Query query = new BoolQuery.Builder().must(countQuery).build().toQuery();
         long allTimeCount =
             openSearchClient
-                .count(c -> c.index(engineConfig.getIndexPrefix() + "*").query(query))
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(query))
                 .count();
         return new EsCountInterval(allTimeCount, 0L, allTimeCount);
       } else {
@@ -676,8 +676,7 @@ public class OpenSearchService implements EngineService {
                 .toQuery();
         long currentIntervalCount =
             openSearchClient
-                .count(
-                    c -> c.index(engineConfig.getIndexPrefix() + "*").query(currentIntervalQuery))
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(currentIntervalQuery))
                 .count();
 
         // In our case, to avoid any gap, currentIntervalStart = previousIntervalEnd
@@ -694,8 +693,7 @@ public class OpenSearchService implements EngineService {
                 .toQuery();
         long previousIntervalCount =
             openSearchClient
-                .count(
-                    c -> c.index(engineConfig.getIndexPrefix() + "*").query(previousIntervalQuery))
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(previousIntervalQuery))
                 .count();
 
         return new EsCountInterval(
@@ -754,7 +752,7 @@ public class OpenSearchService implements EngineService {
 
       SearchRequest request =
           new SearchRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .size(0)
               .query(query)
               .aggregations(
@@ -858,10 +856,7 @@ public class OpenSearchService implements EngineService {
       String elasticField = toElasticField(field);
 
       SearchRequest.Builder searchBuilder =
-          new SearchRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
-              .size(0)
-              .query(query);
+          new SearchRequest.Builder().index(engineConfig.getIndexPattern()).size(0).query(query);
 
       // Avoid this exception
       // co.elastic.clients.elasticsearch._types.ElasticsearchException: [es/search] failed:
@@ -1022,7 +1017,7 @@ public class OpenSearchService implements EngineService {
       SearchResponse<Void> response =
           openSearchClient.search(
               b ->
-                  b.index(engineConfig.getIndexPrefix() + "*")
+                  b.index(engineConfig.getIndexPattern())
                       .size(0)
                       .query(query)
                       .aggregations(
@@ -1114,7 +1109,7 @@ public class OpenSearchService implements EngineService {
       SearchResponse<?> response =
           openSearchClient.search(
               b ->
-                  b.index(engineConfig.getIndexPrefix() + "*")
+                  b.index(engineConfig.getIndexPattern())
                       .size(runtime.getPagination().getSize())
                       .from(runtime.getPagination().getPage() * runtime.getPagination().getSize())
                       .query(finalQuery)
@@ -1185,7 +1180,7 @@ public class OpenSearchService implements EngineService {
       SearchResponse<EsSearch> response =
           openSearchClient.search(
               b ->
-                  b.index(engineConfig.getIndexPrefix() + "*")
+                  b.index(engineConfig.getIndexPattern())
                       .size(engineConfig.getSearchCap())
                       .query(query)
                       .sort(

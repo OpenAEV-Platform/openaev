@@ -1,6 +1,7 @@
 import { HelpOutlineOutlined } from '@mui/icons-material';
 import {
   Box,
+  Checkbox,
   List,
   ListItem,
   ListItemButton,
@@ -8,11 +9,11 @@ import {
   ListItemText,
   ToggleButtonGroup,
 } from '@mui/material';
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, useContext, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { searchAssets } from '../../../../actions/assets/endpoint-actions';
+import { bulkDeleteAssets, searchAssets } from '../../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../../actions/executors/executor-action';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ExportButton from '../../../../components/common/ExportButton';
@@ -34,10 +35,12 @@ import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
 import { type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { Can } from '../../../../utils/permissions/permissionsContext';
+import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
+import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
 import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/EndpointAgentsExecutorsFragment';
+import ToolBar from '../../common/ToolBar';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import AssetPopover from './AssetPopover';
@@ -111,6 +114,33 @@ const Endpoints = () => {
   const searchEndpointsToLoad = (input: SearchPaginationInput) => {
     setLoading(true);
     return searchAssets(input).finally(() => setLoading(false));
+  };
+
+  // Bulk selection
+  const ability = useContext(AbilityContext);
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS);
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    handleToggleSelectAll,
+    onToggleEntity,
+    numberOfSelectedElements,
+  } = useEntityToggle<EndpointOutput>('asset', endpoints, queryableHelpers.paginationHelpers.getTotalElements());
+
+  const bulkDelete = () => {
+    bulkDeleteAssets({
+      search_pagination_input: selectAll ? searchPaginationInput : undefined,
+      asset_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
+      asset_ids_to_ignore: Object.keys(deSelectedElements),
+    }).then((result) => {
+      const deletedIds: string[] = result.data ?? [];
+      const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
+      setEndpoints(endpoints.filter(e => !deletedIds.includes(e.asset_id)));
+      queryableHelpers.paginationHelpers.handleChangeTotalElements(newTotal);
+      handleClearSelectedElements();
+    });
   };
 
   // Headers
@@ -214,23 +244,57 @@ const Endpoints = () => {
       <List>
         <ListItem
           classes={{ root: classes.itemHead }}
-          style={{ paddingTop: 0 }}
-          secondaryAction={<>&nbsp;</>}
+          sx={numberOfSelectedElements > 0
+            ? {
+                // Massive-operations toolbar: symmetric vertical padding keeps the
+                // checkbox and actions vertically centered in the accent band.
+                backgroundColor: 'background.accent',
+                paddingBlock: 0.5,
+              }
+            : { paddingTop: 0 }}
+          {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
         >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponentV2
-                headers={headers}
-                inlineStylesHeaders={inlineStyles}
-                sortHelpers={queryableHelpers.sortHelpers}
+          {canManage && (
+            <ListItemIcon style={{ minWidth: 40 }}>
+              <Checkbox
+                edge="start"
+                checked={selectAll}
+                disableRipple
+                onChange={handleToggleSelectAll}
               />
-            )}
-          />
+            </ListItemIcon>
+          )}
+          {numberOfSelectedElements > 0 ? (
+            <ListItemText
+              primary={(
+                <ToolBar
+                  numberOfSelectedElements={numberOfSelectedElements}
+                  handleClearSelectedElements={handleClearSelectedElements}
+                  handleBulkDelete={bulkDelete}
+                  canManage={canManage}
+                  deleteConfirmationSingular={t('Do you want to delete this asset?')}
+                  deleteConfirmationPlural={t('Do you want to delete these {count} assets?', { count: String(numberOfSelectedElements) })}
+                />
+              )}
+            />
+          ) : (
+            <>
+              <ListItemIcon />
+              <ListItemText
+                primary={(
+                  <SortHeadersComponentV2
+                    headers={headers}
+                    inlineStylesHeaders={inlineStyles}
+                    sortHelpers={queryableHelpers.sortHelpers}
+                  />
+                )}
+              />
+            </>
+          )}
         </ListItem>
         {
           loading
-            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
+            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={canManage} />
             : endpoints.map((endpoint: EndpointOutput) => {
                 // Every asset type now has a generic detail page, and the popover renders on every
                 // row so the secondary-action column stays consistent and the columns stay aligned.
@@ -250,6 +314,21 @@ const Endpoints = () => {
                     disablePadding
                   >
                     <ListItemButton component={Link} to={`${ASSET_BASE_URL}/${endpoint.asset_id}`} classes={{ root: classes.item }}>
+                      {canManage && (
+                        <ListItemIcon
+                          style={{ minWidth: 40 }}
+                          onClick={event => onToggleEntity(endpoint, event)}
+                        >
+                          <Checkbox
+                            edge="start"
+                            checked={
+                              (selectAll && !(endpoint.asset_id in (deSelectedElements || {})))
+                              || endpoint.asset_id in (selectedElements || {})
+                            }
+                            disableRipple
+                          />
+                        </ListItemIcon>
+                      )}
                       <ListItemIcon>
                         <AssetCategoryIcon category={endpoint.asset_category} color="primary" />
                       </ListItemIcon>

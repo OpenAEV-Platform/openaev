@@ -1,6 +1,6 @@
 import { RadarOutlined } from '@mui/icons-material';
 import { IconButton, Tooltip } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../components/i18n';
 import useAuth from '../../../utils/hooks/useAuth';
@@ -37,7 +37,15 @@ const CtemCommandCenterButton = () => {
         href={xtmOneUrl}
         target="_blank"
         rel="noopener noreferrer"
-        sx={{ color: theme.palette.ai.main }}
+        sx={{
+          // Same 36px squared blue anatomy as the other top bar icon buttons:
+          // the AI purple stays reserved for the Ask Ariane label.
+          'width': 36,
+          'height': 36,
+          'borderRadius': 1,
+          'color': theme.palette.primary.main,
+          '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.15) },
+        }}
         aria-label={t('CTEM Command Center')}
       >
         <RadarOutlined fontSize="medium" />

@@ -6,9 +6,10 @@ import {
   postReferential,
   putReferential,
   simpleCall,
+  simpleDelCall,
   simplePostCall,
 } from '../../utils/Action';
-import { type AssetGroup, type AssetGroupInput, type SearchPaginationInput, type UpdateAssetsOnAssetGroupInput } from '../../utils/api-types';
+import { type AssetGroup, type AssetGroupBulkProcessingInput, type AssetGroupInput, type SearchPaginationInput, type UpdateAssetsOnAssetGroupInput } from '../../utils/api-types';
 import { arrayOfAssetGroups, assetGroup } from './assetgroup-schema';
 
 const ASSET_GROUP_URI = '/api/asset_groups';
@@ -36,6 +37,12 @@ export const updateAssetsOnAssetGroup = (
 export const deleteAssetGroup = (assetGroupId: AssetGroup['asset_group_id']) => (dispatch: Dispatch) => {
   const uri = `${ASSET_GROUP_URI}/${assetGroupId}`;
   return delReferential(uri, assetGroup.key, assetGroupId)(dispatch);
+};
+
+// Bulk delete of asset groups: explicit id list or search input (select-all with optional
+// exclusions).
+export const bulkDeleteAssetGroups = (input: AssetGroupBulkProcessingInput) => {
+  return simpleDelCall(ASSET_GROUP_URI, { data: input });
 };
 
 export const fetchAssetGroups = () => (dispatch: Dispatch) => {

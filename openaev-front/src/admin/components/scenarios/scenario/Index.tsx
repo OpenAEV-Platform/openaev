@@ -39,7 +39,7 @@ const Lessons = lazy(() => import('./lessons/ScenarioLessons'));
 const ScenarioFindings = lazy(() => import('./findings/ScenarioFindings'));
 const ScenarioScope = lazy(() => import('./scope/ScenarioScope'));
 const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
-const ScenarioDashboard = lazy(() => import('./analysis/ScenarioAnalysis'));
+const ScenarioStatistics = lazy(() => import('./analysis/ScenarioAnalysis'));
 const ScenarioAttackPath = lazy(() => import('./attack_path/ScenarioAttackPath'));
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -189,6 +189,12 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
                       label={t('Attack path')}
                     />
                   )}
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}/statistics`}
+                    value={`/admin/scenarios/${scenario.scenario_id}/statistics`}
+                    label={t('Statistics')}
+                  />
                 </Tabs>
               ) : (
                 <Tabs
@@ -239,6 +245,12 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
                       label={t('Attack path')}
                     />
                   )}
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}/statistics`}
+                    value={`/admin/scenarios/${scenario.scenario_id}/statistics`}
+                    label={t('Statistics')}
+                  />
                 </Tabs>
               )
             }
@@ -269,10 +281,12 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
               <Route path="lessons" element={errorWrapper(Lessons)()} />
               <Route path="findings" element={errorWrapper(ScenarioFindings)()} />
               {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(ScenarioAttackPath)()} />}
-              {/* Scenario-scoped custom dashboard, reached from the hero "Analyze" quick action. */}
-              <Route path="dashboard" element={errorWrapper(ScenarioDashboard)()} />
-              {/* Analysis is no longer a permanent tab; keep a redirect for old links. */}
-              <Route path="analysis" element={<Navigate to={`/admin/scenarios/${scenario.scenario_id}/dashboard`} replace />} />
+              {/* Scenario-scoped custom dashboard, surfaced as the Statistics tab. */}
+              <Route path="statistics" element={errorWrapper(ScenarioStatistics)()} />
+              {/* Statistics replaced the hero dashboard quick action and the old
+                  Analysis tab; keep redirects for old links. */}
+              <Route path="dashboard" element={<Navigate to={`/admin/scenarios/${scenario.scenario_id}/statistics`} replace />} />
+              <Route path="analysis" element={<Navigate to={`/admin/scenarios/${scenario.scenario_id}/statistics`} replace />} />
               <Route path="scope" element={errorWrapper(ScenarioScope)()} />
               <Route path="logic" element={errorWrapper(ScenarioLogic)()} />
               {/* Not found */}

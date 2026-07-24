@@ -64,7 +64,7 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
     );
   };
   if (!objective) {
-    return <Loader />;
+    return <Loader variant="inElement" />;
   }
   return (
     <div>
