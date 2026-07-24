@@ -453,9 +453,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
               },
               {
                 key: TERMINAL_TAB,
-                // A payload-backed inject shows a real per-target terminal; a network injector shows its
-                // execution traces instead, so the tab reads "Execution details" rather than "Terminal view".
-                label: detail.payloadId ? t('Terminal view') : t('Execution details'),
+                // The tab label follows its content: a seeded snapshot or a payload-backed inject shows a
+                // real terminal ("Terminal view"); a network injector shows its execution traces instead
+                // ("Execution details").
+                label: hasSnapshot || detail.payloadId ? t('Terminal view') : t('Execution details'),
               },
               {
                 key: REMEDIATION_TAB,
