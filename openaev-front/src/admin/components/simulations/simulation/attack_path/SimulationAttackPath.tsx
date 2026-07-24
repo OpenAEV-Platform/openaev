@@ -339,6 +339,37 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     load();
   }, [load]);
 
+  // Live refresh: an on-going run keeps discovering endpoints/findings, so poll the graph on an interval
+  // and update it in place. Deliberately silent — no spinner, no selection/drawer reset (unlike `load`),
+  // and it only swaps state when the payload actually changed, so an open drawer and the current pan/zoom
+  // survive a refresh and a stable graph never churns. A transient error is swallowed (keep last good
+  // graph); the seq guard drops ticks from a previous simulation. Stops on unmount / simulation switch.
+  useEffect(() => {
+    if (!simulationId) {
+      return undefined;
+    }
+    let cancelled = false;
+    const REFRESH_MS = 10000;
+    const timer = setInterval(() => {
+      fetchAttackPathGraph(simulationId, 'collapsed')
+        .then((r) => {
+          // `cancelled` (set on unmount / simulation switch) drops a response that resolves after this
+          // run is no longer current, so a stale simulation's data never lands.
+          if (cancelled) {
+            return;
+          }
+          setDto(prev => (JSON.stringify(prev) === JSON.stringify(r.data) ? prev : r.data));
+        })
+        .catch(() => {
+          // Keep the last good graph on a transient failure; the next tick retries.
+        });
+    }, REFRESH_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [simulationId]);
+
   // Causal overlay data source (issue 6647). The rendered graph is collapsed, which omits the
   // per-execution kill-chain fields, so we fetch the full graph once — only to derive the per-injector
   // meta — and gate it on the simulation's execution count (mirrors the backend collapse-threshold) so a
