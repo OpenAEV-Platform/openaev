@@ -3215,5 +3215,7 @@
   "Your overall evaluation about this question.": "この質問に対するあなたの総合評価",
   "Your threat arsenal is empty": "兵器庫は空です",
   "your trial license online": "オンライン試用ライセンス",
-  "YYYY": "年"
+  "YYYY": "年",
+  "Simulation running — waiting for the first inject executions…": "Simulation running — waiting for the first inject executions…",
+  "Resize panel": "Resize panel"
 }
