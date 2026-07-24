@@ -2214,8 +2214,16 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                 onOpenInject={(detail as { injectId?: string } | null)?.injectId
                   // The inject belongs to the run, not the scenario: a relative `../injects/…` would point
                   // at the scenario in scenario context (which has no such inject → 404). Always target the
-                  // selected simulation so both contexts resolve to the real inject.
-                  ? () => navigate(`${SIMULATION_BASE_URL}/${simulationId}/injects/${(detail as { injectId?: string }).injectId}`)
+                  // selected simulation. A payload-backed inject opens on its Overview; a network injector
+                  // (no payload) opens straight on its Execution details, where its traces live.
+                  ? () => {
+                      const d = detail as {
+                        injectId?: string;
+                        payloadId?: string;
+                      };
+                      const base = `${SIMULATION_BASE_URL}/${simulationId}/injects/${d.injectId}`;
+                      navigate(d.payloadId ? base : `${base}/execution_details`);
+                    }
                   : undefined}
               />
             )}
