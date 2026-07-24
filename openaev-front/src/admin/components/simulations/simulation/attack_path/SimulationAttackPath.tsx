@@ -301,7 +301,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
 
   // Drawer width, drag-resizable (the graph is flex:1 and reflows as this changes). Dragging the handle
   // on the drawer's left edge leftwards widens it — useful when execution traces overflow.
-  const [panelWidth, setPanelWidth] = useState(460);
+  const [panelWidth, setPanelWidth] = useState(560);
   const resizeRef = useRef<{
     startX: number;
     startW: number;
