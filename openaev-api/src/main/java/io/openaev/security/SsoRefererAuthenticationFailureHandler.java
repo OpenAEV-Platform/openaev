@@ -34,18 +34,16 @@ public class SsoRefererAuthenticationFailureHandler extends SimpleUrlAuthenticat
   public void onAuthenticationFailure(
       HttpServletRequest request, HttpServletResponse response, AuthenticationException exception)
       throws ServletException, IOException {
-    userEventService.createLoginFailedEvent(
-        request.getRequestURI(), exception.getClass().getSimpleName());
+    String provider = resolveOAuth2Provider(request);
+
+    userEventService.createLoginFailedEvent(provider, exception.getClass().getSimpleName());
 
     auditLogger.ifPresent(
         logger -> {
           logger.logAuthEvent(
               AuditEventScope.LOGIN,
               EventStatus.ERROR,
-              request
-                  .getRequestURI(), // TODO This represents a security issue bc we can have malicius
-              // log injection issues. Before log in, we should normalize and
-              // sanitize this data.
+              provider,
               exception.getClass().getSimpleName());
         });
 
@@ -65,5 +63,25 @@ public class SsoRefererAuthenticationFailureHandler extends SimpleUrlAuthenticat
 
   public void setRequestCache(RequestCache requestCache) {
     this.requestCache = requestCache;
+  }
+
+  /**
+   * Extracts the OAuth2 client registration ID from the request URI. Spring Security OAuth2 login
+   * callbacks follow the pattern {@code /login/oauth2/code/{registrationId}}, so the last path
+   * segment is the provider name. Falls back to {@code "sso"} if extraction fails.
+   */
+  private static String resolveOAuth2Provider(HttpServletRequest request) {
+    try {
+      String uri = request.getRequestURI();
+      if (uri != null) {
+        int lastSlash = uri.lastIndexOf('/');
+        if (lastSlash >= 0 && lastSlash < uri.length() - 1) {
+          return uri.substring(lastSlash + 1);
+        }
+      }
+    } catch (Exception ignored) {
+      // Fall through to default
+    }
+    return "sso";
   }
 }
