@@ -2,6 +2,7 @@ import { Chip } from '@mui/material';
 import { type CSSProperties, type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import colorStyles from '../../../../components/Color';
 import { useFormatter } from '../../../../components/i18n';
 import { type NotificationTriggerOutput } from '../../../../utils/api-types';
 import { eventTypeLabel, resourceTypeLabel } from './triggerUtils';
@@ -29,45 +30,18 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const inlineStyles: Record<string, CSSProperties> = {
-  blue: {
-    backgroundColor: 'rgba(92, 123, 245, 0.08)',
-    color: '#5c7bf5',
-  },
-  purple: {
-    backgroundColor: 'rgba(171, 71, 188, 0.08)',
-    color: '#ab47bc',
-  },
-  green: {
-    backgroundColor: 'rgba(76, 175, 80, 0.08)',
-    color: '#4caf50',
-  },
-  red: {
-    backgroundColor: 'rgba(244, 67, 54, 0.08)',
-    color: '#f44336',
-  },
-  orange: {
-    backgroundColor: 'rgba(255, 152, 0, 0.08)',
-    color: '#ff9800',
-  },
-  blueGrey: {
-    backgroundColor: 'rgba(96, 125, 139, 0.08)',
-    color: '#607d8b',
-  },
-};
-
 const eventTypeStyle = (eventType: string): CSSProperties => {
   switch (eventType) {
     case 'CREATE':
-      return inlineStyles.green;
+      return colorStyles.green;
     case 'UPDATE':
-      return inlineStyles.blue;
+      return colorStyles.blue;
     case 'DELETE':
-      return inlineStyles.red;
+      return colorStyles.red;
     case 'SCORE_DEGRADATION':
-      return inlineStyles.orange;
+      return colorStyles.orange;
     default:
-      return inlineStyles.blueGrey;
+      return colorStyles.grey;
   }
 };
 
@@ -80,7 +54,7 @@ export const TriggerTypeChip: FunctionComponent<{ type?: NotificationTriggerOutp
   return (
     <Chip
       classes={{ root: classes.chipInList }}
-      style={isDigest ? inlineStyles.purple : inlineStyles.blue}
+      style={isDigest ? colorStyles.lightPurple : colorStyles.blue}
       label={isDigest ? t('Digest') : t('Live')}
     />
   );
@@ -97,7 +71,7 @@ export const TriggerResourceChip: FunctionComponent<{ trigger: NotificationTrigg
   return (
     <Chip
       classes={{ root: classes.chipInList }}
-      style={inlineStyles.blueGrey}
+      style={colorStyles.grey}
       label={label}
     />
   );
@@ -112,7 +86,7 @@ export const TriggerEventChips: FunctionComponent<{ trigger: NotificationTrigger
     return (
       <Chip
         classes={{ root: classes.chipAuto }}
-        style={inlineStyles.purple}
+        style={colorStyles.lightPurple}
         label={t(trigger.notification_trigger_period?.toLowerCase() ?? '-')}
       />
     );

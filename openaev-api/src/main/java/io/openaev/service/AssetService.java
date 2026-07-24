@@ -195,9 +195,14 @@ public class AssetService {
         .toList();
   }
 
-  /** Resolve filter option labels for a set of asset ids, whatever the asset category. */
+  /**
+   * Resolve filter option labels for a set of asset ids, whatever the asset category. Security
+   * platforms are excluded, consistent with {@link #getOptionsByName(String, Pageable)}: they never
+   * surface in the unified inventory options.
+   */
   public List<FilterUtilsJpa.Option> getOptionsByIds(@NotNull final List<String> ids) {
     return fromIterable(this.assetRepository.findAllById(ids)).stream()
+        .filter(a -> !AssetType.Values.SECURITY_PLATFORM_TYPE.equals(a.getType()))
         .map(a -> new FilterUtilsJpa.Option(a.getId(), a.getName()))
         .toList();
   }

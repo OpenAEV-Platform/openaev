@@ -5,6 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { searchNotifiers } from '../../../../actions/notifications/notifier-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
+import colorStyles from '../../../../components/Color';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -39,33 +40,14 @@ const inlineStyles: Record<string, CSSProperties> = {
   notifier_built_in: { width: '15%' },
 };
 
-const chipColors: Record<string, CSSProperties> = {
-  blue: {
-    backgroundColor: 'rgba(92, 123, 245, 0.08)',
-    color: '#5c7bf5',
-  },
-  green: {
-    backgroundColor: 'rgba(76, 175, 80, 0.08)',
-    color: '#4caf50',
-  },
-  orange: {
-    backgroundColor: 'rgba(255, 152, 0, 0.08)',
-    color: '#ff9800',
-  },
-  blueGrey: {
-    backgroundColor: 'rgba(96, 125, 139, 0.08)',
-    color: '#607d8b',
-  },
-};
-
 const typeChipStyle = (type?: string): CSSProperties => {
   switch (type) {
     case 'EMAIL':
-      return chipColors.green;
+      return colorStyles.green;
     case 'WEBHOOK':
-      return chipColors.orange;
+      return colorStyles.orange;
     default:
-      return chipColors.blue;
+      return colorStyles.blue;
   }
 };
 
@@ -130,7 +112,7 @@ const Notifiers = () => {
         ? (
             <Chip
               classes={{ root: classes.chipInList }}
-              style={chipColors.blueGrey}
+              style={colorStyles.grey}
               label={t('Built-in')}
             />
           )
