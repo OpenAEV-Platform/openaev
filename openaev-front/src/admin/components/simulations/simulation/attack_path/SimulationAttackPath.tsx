@@ -2121,7 +2121,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               )}
             </Paper>
 
-            {findingDetail && (
+            {/* Master→detail in a single drawer: while an execution detail is open it REPLACES the
+                endpoint/finding master panel (below), and its back arrow returns here. */}
+            {findingDetail && !detailExecutionId && (
               <FindingDetailPanel
                 value={maskFindingValue(findingDetail.type, findingDetail.value)}
                 type={findingDetail.type}
@@ -2142,7 +2144,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               />
             )}
 
-            {!findingDetail && selectedNodeId && (
+            {!findingDetail && selectedNodeId && !detailExecutionId && (
               <EndpointDetailPanel
                 endpointLabel={selectedLabel || t('Endpoint')}
                 findingsLoading={endpointFindingsLoading}
@@ -2170,7 +2172,14 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               <ExecutionResultTerminalPanel
                 loading={detailLoading}
                 detail={detail}
-                onClose={() => setDetailExecutionId(null)}
+                // Back returns to the master panel (endpoint/finding) it was opened from; close dismisses
+                // the whole drawer.
+                onBack={() => setDetailExecutionId(null)}
+                onClose={() => {
+                  setDetailExecutionId(null);
+                  setSelectedNodeId(null);
+                  setFindingDetail(null);
+                }}
                 onOpenInject={(detail as { injectId?: string } | null)?.injectId
                   // The inject belongs to the run, not the scenario: a relative `../injects/…` would point
                   // at the scenario in scenario context (which has no such inject → 404). Always target the

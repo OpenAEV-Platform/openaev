@@ -1,4 +1,4 @@
-import { Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
+import { ArrowBack, Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
 import { Button, IconButton, Paper, Popover, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
@@ -23,6 +23,9 @@ interface Props {
   loading: boolean;
   detail: AttackPathExecutionDetailDTO | null;
   onClose: () => void;
+  // Return to the endpoint/finding panel this execution was opened from (master→detail navigation). When
+  // set, a back arrow replaces nothing and sits left of the title; `onClose` still fully closes the panel.
+  onBack?: () => void;
   // Open the originating inject (pending backend: needs the inject id on the execution detail).
   onOpenInject?: () => void;
 }
@@ -202,7 +205,7 @@ const LiveExecutionTerminal = ({ injectId, endpointName }: {
 // feed and the map (product mockup), not an overlay. Reuses the platform's shared `Terminal` renderer,
 // fed by the frozen snapshot's masked command and output. The Result tab shows the target and the
 // security platforms that prevented/detected the action (with their linked alerts on click).
-const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }: Props) => {
+const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpenInject }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const { currentTab, handleChangeTab } = useTabs(RESULT_TAB);
@@ -329,7 +332,9 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
     <Paper
       variant="outlined"
       style={{
-        width: 400,
+        // Wider than the endpoint/finding master panel it replaces: this is the sole panel while open, so
+        // the terminal has room to read without wrapping every line.
+        width: 560,
         minWidth: 0,
         display: 'flex',
         flexDirection: 'column',
@@ -340,11 +345,30 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onOpenInject }
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
+        gap: theme.spacing(1),
         padding: theme.spacing(2, 2.5, 1),
         flexShrink: 0,
       }}
       >
-        <div style={{ minWidth: 0 }}>
+        {/* Back to the endpoint/finding panel this execution was opened from. */}
+        {onBack && (
+          <IconButton
+            size="small"
+            aria-label={t('Back')}
+            onClick={onBack}
+            sx={{
+              flexShrink: 0,
+              mt: 0.25,
+            }}
+          >
+            <ArrowBack fontSize="small" />
+          </IconButton>
+        )}
+        <div style={{
+          minWidth: 0,
+          flex: 1,
+        }}
+        >
           <Typography variant="h6" noWrap>{detail?.payloadName || t('Execution')}</Typography>
           <Typography variant="caption" color="text.secondary">
             {[detail?.agentName, detail?.agentPrivilege].filter(Boolean).join(' · ')}
