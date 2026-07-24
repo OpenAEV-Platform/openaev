@@ -150,30 +150,32 @@ public class ScopeService {
   }
 
   /**
-   * Returns the raw IP/subnet strings from IP and IP_SUBNET allowlist rules that are not denied.
+   * Returns the raw IP, subnet, and domain strings from allowlist rules that are not denied.
    *
    * <p>Each returned value is suitable for use as a manual target (e.g. in the {@code targets}
    * field of an inject content with {@code target_selector = "manual"}). Subnets are returned in
-   * their CIDR notation as-is, since tools like nmap accept them directly.
+   * their CIDR notation as-is, since tools like nmap accept them directly. Domains (hostnames) from
+   * DOMAIN rules are included alongside IPs and subnets.
    *
    * <p>Denylist filtering: an individual IP is removed if it exactly matches a denied IP rule or
    * falls inside a denied IP_SUBNET rule. A subnet value is removed only on exact match against a
-   * denied IP_SUBNET rule (partial overlap is not computed).
+   * denied IP_SUBNET rule (partial overlap is not computed). A domain is removed only on exact
+   * case-insensitive match against a denied DOMAIN rule.
    */
-  public List<String> getValidIpsFromScope(String workflowId) {
+  public List<String> getValidManualTargetsFromScope(String workflowId) {
     List<WorkflowScopeRule> allRules = workflowScopeRuleRepository.findAllByWorkflowId(workflowId);
 
     PrimitiveValidationContext context =
         new PrimitiveValidationContext(
             Set.of(),
             Set.of(),
-            Set.of(),
+            collectRuleValues(allRules, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.DOMAIN),
             collectRuleValues(allRules, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.IP),
             collectRuleValues(
                 allRules, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.IP_SUBNET),
             Set.of(),
             Set.of(),
-            Set.of(),
+            collectRuleValues(allRules, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.DOMAIN),
             collectRuleValues(allRules, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.IP),
             collectRuleValues(
                 allRules, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.IP_SUBNET));
@@ -183,12 +185,18 @@ public class ScopeService {
         .filter(
             r ->
                 ScopeRuleValueType.IP.equals(r.getValueType())
-                    || ScopeRuleValueType.IP_SUBNET.equals(r.getValueType()))
+                    || ScopeRuleValueType.IP_SUBNET.equals(r.getValueType())
+                    || ScopeRuleValueType.DOMAIN.equals(r.getValueType()))
         .filter(
             r ->
-                ScopeRuleValueType.IP.equals(r.getValueType())
-                    ? PrimitiveValueValidator.isIpAllowedByScope(r.getRuleValue(), context)
-                    : PrimitiveValueValidator.isSubnetAllowedByScope(r.getRuleValue(), context))
+                switch (r.getValueType()) {
+                  case IP -> PrimitiveValueValidator.isIpAllowedByScope(r.getRuleValue(), context);
+                  case IP_SUBNET ->
+                      PrimitiveValueValidator.isSubnetAllowedByScope(r.getRuleValue(), context);
+                  case DOMAIN ->
+                      PrimitiveValueValidator.isDomainAllowedByScope(r.getRuleValue(), context);
+                  default -> false;
+                })
         .map(WorkflowScopeRule::getRuleValue)
         .toList();
   }

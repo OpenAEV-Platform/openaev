@@ -558,7 +558,7 @@ public class InjectExecutionStep implements ActionStep {
 
     String workflowId = workflowRun.getId();
     List<Asset> validAssets = scopeService.getValidAssets(workflowId);
-    List<String> validManualTargets = scopeService.getValidIpsFromScope(workflowId);
+    List<String> validManualTargets = scopeService.getValidManualTargetsFromScope(workflowId);
 
     if (validAssets.isEmpty() && validManualTargets.isEmpty()) {
       return batches;

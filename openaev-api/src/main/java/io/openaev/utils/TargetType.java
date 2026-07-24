@@ -34,4 +34,7 @@ public enum TargetType {
 
   /** Endpoint devices in the infrastructure. */
   ENDPOINTS,
+
+  /** A raw manual target (IP address, subnet, or hostname) set via inject content. */
+  MANUAL,
 }

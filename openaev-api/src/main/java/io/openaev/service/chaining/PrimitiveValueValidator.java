@@ -117,7 +117,7 @@ public final class PrimitiveValueValidator {
     return context.allowlistedSubnets().contains(subnet);
   }
 
-  private static boolean isDomainAllowedByScope(String domain, PrimitiveValidationContext context) {
+  static boolean isDomainAllowedByScope(String domain, PrimitiveValidationContext context) {
     String normalizedDomain = domain.toLowerCase(Locale.ROOT);
     if (context.denylistedDomains().contains(normalizedDomain)) {
       return false;

@@ -9887,7 +9887,8 @@ export interface TargetSimple {
     | "AI_TARGETS"
     | "PLAYERS"
     | "TEAMS"
-    | "ENDPOINTS";
+    | "ENDPOINTS"
+    | "MANUAL";
 }
 
 export interface Team {
