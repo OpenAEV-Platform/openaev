@@ -119,7 +119,7 @@ class AttackPathSecurityPlatformsIT extends IntegrationTest {
                     .sourceType(sp.getSecurityPlatformType().name())
                     .sourceName(sp.getName())
                     .date(Instant.parse("2026-06-18T08:00:00Z").toString())
-                    .score(base.getExpectedScore())
+                    .score(score)
                     .build())));
     return injectExpectationRepository.save(base);
   }
