@@ -567,6 +567,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 filterLocalStorageKey="ap-inject-findings"
                 searchDistinctFindings={input => searchDistinctFindingsForInjects(detail.injectId as string, input)}
                 contextId={detail.injectId}
+                // Compact in the narrow drawer: no search/filter/pagination top bar, and drop the
+                // asset-groups column (attack-path targets are direct assets, so it's always empty).
+                compact
+                hiddenFields={['finding_asset_groups']}
               />
             )}
 

@@ -21,6 +21,11 @@ interface Props {
   searchDistinctFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
   filterLocalStorageKey: string;
   contextId?: string;
+  // Column fields to hide (e.g. ['finding_asset_groups']) — defaults to showing all columns.
+  hiddenFields?: string[];
+  // Compact mode for embedding in a narrow container (e.g. the attack-path drawer): hides the
+  // search/filters/pagination top bar. Defaults to false so the full-page usage is unchanged.
+  compact?: boolean;
 }
 
 const inlineStyles: Record<string, CSSProperties> = ({
@@ -32,7 +37,7 @@ const inlineStyles: Record<string, CSSProperties> = ({
   finding_updated_at: { width: '14%' },
 });
 
-const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId }: Props) => {
+const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false }: Props) => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const [loading, setLoading] = useState<boolean>(true);
@@ -151,6 +156,8 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
     },
   ];
 
+  const visibleHeaders = headers.filter(h => !hiddenFields.includes(h.field));
+
   return (
     <>
       <PaginationComponentV2
@@ -161,6 +168,9 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         contextId={contextId}
+        searchEnable={!compact}
+        disableFilters={compact}
+        disablePagination={compact}
       />
       <List>
         <ListItem
@@ -173,7 +183,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
           <ListItemText
             primary={(
               <SortHeadersComponentV2
-                headers={headers}
+                headers={visibleHeaders}
                 inlineStylesHeaders={inlineStyles}
                 sortHelpers={queryableHelpers.sortHelpers}
               />
@@ -181,7 +191,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
           />
         </ListItem>
         {loading
-          ? <PaginatedListLoader Icon={Binoculars} headers={headers} headerStyles={inlineStyles} />
+          ? <PaginatedListLoader Icon={Binoculars} headers={visibleHeaders} headerStyles={inlineStyles} />
           : findings.map(finding => (
               <ListItem
                 key={finding.finding_id}
@@ -201,7 +211,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
                   <ListItemText
                     primary={(
                       <div style={bodyItemsStyles.bodyItems}>
-                        {headers.map(header => (
+                        {visibleHeaders.map(header => (
                           <div
                             key={header.field}
                             style={{
