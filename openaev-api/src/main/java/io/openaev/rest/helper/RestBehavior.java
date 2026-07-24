@@ -75,12 +75,19 @@ public class RestBehavior {
       HttpMessageNotReadableException ex) {
     String detail;
     if (ex.getCause() instanceof InvalidFormatException ife) {
-      String path =
-          ife.getPath().stream()
-              .map(
-                  ref ->
-                      ref.getFieldName() != null ? ref.getFieldName() : "[" + ref.getIndex() + "]")
-              .collect(Collectors.joining("."));
+      // Render array indices attached to their parent segment: filters[0].operator
+      StringBuilder pathBuilder = new StringBuilder();
+      for (var ref : ife.getPath()) {
+        if (ref.getFieldName() != null) {
+          if (!pathBuilder.isEmpty()) {
+            pathBuilder.append('.');
+          }
+          pathBuilder.append(ref.getFieldName());
+        } else {
+          pathBuilder.append('[').append(ref.getIndex()).append(']');
+        }
+      }
+      String path = pathBuilder.toString();
       detail =
           "Invalid value '%s' for field '%s'"
               .formatted(abbreviateRejectedValue(ife.getValue()), path);

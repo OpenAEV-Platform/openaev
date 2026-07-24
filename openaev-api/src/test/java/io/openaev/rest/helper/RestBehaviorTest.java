@@ -106,6 +106,29 @@ class RestBehaviorTest {
     }
 
     @Test
+    @DisplayName("array indices are attached to their parent segment in the field path")
+    void given_nestedArrayPath_should_renderIndexAttachedToParent() {
+      // GIVEN - an invalid enum nested inside a filter list: filters[0].operator
+      InvalidFormatException ife =
+          new InvalidFormatException(
+              (JsonParser) null, "Cannot deserialize", "WRONG_OP", FilterOperator.class);
+      ife.prependPath(new JsonMappingException.Reference(null, "operator"));
+      ife.prependPath(new JsonMappingException.Reference(null, 0));
+      ife.prependPath(new JsonMappingException.Reference(null, "filters"));
+      HttpMessageNotReadableException ex =
+          new HttpMessageNotReadableException("JSON parse error", ife, null);
+
+      // WHEN
+      ResponseEntity<ErrorMessage> response = new RestBehavior().handleHttpMessageNotReadable(ex);
+
+      // THEN
+      assertNotNull(response.getBody());
+      assertEquals(
+          "Invalid value 'WRONG_OP' for field 'filters[0].operator'",
+          response.getBody().getMessage());
+    }
+
+    @Test
     @DisplayName("oversized rejected value is truncated in the 400 message")
     void given_oversizedRejectedValue_should_truncateInMessage() {
       // GIVEN - a caller-supplied value far beyond the 100-char echo bound
