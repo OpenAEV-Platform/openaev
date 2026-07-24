@@ -8,6 +8,6 @@ package io.openaev.aop.audit_log;
 public enum AuditEventOrigin {
   /** HTTP request context available (controllers, filters). */
   REQUEST,
-  /** No HTTP context (scheduled jobs, message consumers, startup tasks). */
-  SYSTEM
+  /** Scheduled jobs, message consumers, startup tasks. */
+  SCHEDULED
 }
