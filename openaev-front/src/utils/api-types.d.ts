@@ -1739,6 +1739,7 @@ export interface CheckScenarioRulesOutput {
 }
 
 export interface Collector {
+  collector_author?: string;
   /** @format date-time */
   collector_created_at: string;
   collector_external?: boolean;
@@ -1760,6 +1761,7 @@ export interface Collector {
 }
 
 export interface CollectorCreateInput {
+  collector_author?: string;
   /** @minLength 1 */
   collector_id: string;
   /** @minLength 1 */
@@ -10469,6 +10471,13 @@ export interface ThreatArsenalBulkDeleteOutput {
   deleted_count?: number;
   /** Ids of the actions that were actually deleted */
   deleted_ids?: string[];
+}
+
+export interface ThreatArsenalFacetCountsOutput {
+  /** Number of contracts per platform under the current filters */
+  platforms?: Record<string, number>;
+  /** Number of contracts per payload status under the current filters */
+  statuses?: Record<string, number>;
 }
 
 export interface Token {

@@ -59,7 +59,7 @@ class ProductInventoryMetricCollectorTest {
   @Mock private ArticleRepository articleRepository;
   @Mock private CustomDashboardRepository customDashboardRepository;
   @Mock private ImportMapperRepository importMapperRepository;
-  @Mock private NotificationTriggerRepository NotificationTriggerRepository;
+  @Mock private NotificationTriggerRepository notificationTriggerRepository;
   @Mock private WorkflowRepository workflowRepository;
   @Mock private FindingRepository findingRepository;
   @Mock private VulnerabilityRepository vulnerabilityRepository;
@@ -88,7 +88,7 @@ class ProductInventoryMetricCollectorTest {
             articleRepository,
             customDashboardRepository,
             importMapperRepository,
-            NotificationTriggerRepository,
+            notificationTriggerRepository,
             workflowRepository,
             findingRepository,
             vulnerabilityRepository,

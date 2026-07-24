@@ -23,7 +23,7 @@ public class NotificationService {
   private final NotificationRepository notificationRepository;
   private final UserService userService;
 
-  @Transactional
+  @Transactional(readOnly = true)
   public Page<Notification> searchMyNotifications(
       @NotNull final SearchPaginationInput searchPaginationInput) {
     String userId = userService.currentUser().getId();

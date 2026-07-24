@@ -5,6 +5,7 @@ import io.openaev.engine.EsModel;
 import io.openaev.schema.PropertySchema;
 import io.openaev.schema.SchemaUtils;
 import java.lang.reflect.Field;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -35,9 +36,10 @@ public class CommonSearchService {
   /**
    * Cache for the denormalized {@code base_*_side} field names across all indexed models.
    * Instance-level (the service is a singleton bean) so tests with narrowed model sets stay
-   * isolated.
+   * isolated. Null until the first computation; an empty scan result is cached too, so models are
+   * never rescanned (benign race: concurrent first calls compute the same immutable snapshot).
    */
-  private final Set<String> sideFieldNamesCache = ConcurrentHashMap.newKeySet();
+  private volatile Set<String> sideFieldNamesCache;
 
   /**
    * Returns the consolidated indexing schema for all searchable entities.
@@ -80,8 +82,9 @@ public class CommonSearchService {
    * @return the sorted set of side field names (e.g. {@code base_tags_side})
    */
   public Set<String> getSideFieldNames() {
-    if (!sideFieldNamesCache.isEmpty()) {
-      return sideFieldNamesCache;
+    Set<String> cached = sideFieldNamesCache;
+    if (cached != null) {
+      return cached;
     }
     Set<String> names = new TreeSet<>();
     for (EsModel<?> model : searchEngine.getModels()) {
@@ -96,7 +99,8 @@ public class CommonSearchService {
         }
       }
     }
-    sideFieldNamesCache.addAll(names);
-    return sideFieldNamesCache;
+    Set<String> snapshot = Collections.unmodifiableSet(names);
+    sideFieldNamesCache = snapshot;
+    return snapshot;
   }
 }

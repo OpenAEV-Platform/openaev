@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { getUnreadNotificationsCount } from '../../../actions/notifications/notification-actions';
+import { type NotificationHelper } from '../../../actions/notifications/notification-helper';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 
@@ -19,8 +20,7 @@ const TopBarNotifications = ({ iconButtonSx }: Props) => {
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const notifications = useHelper((helper: any) => helper.getNotifications());
+  const notifications = useHelper((helper: NotificationHelper) => helper.getNotifications());
 
   useEffect(() => {
     getUnreadNotificationsCount().then((result: { data: number }) => setUnreadCount(result.data ?? 0));
