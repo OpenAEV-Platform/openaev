@@ -24,11 +24,12 @@ interface Props {
 }
 
 const inlineStyles: Record<string, CSSProperties> = ({
-  finding_type: { width: '15%' },
-  finding_value: { width: '31%' },
-  finding_assets: { width: '20%' },
-  finding_asset_groups: { width: '18%' },
-  finding_created_at: { width: '16%' },
+  finding_type: { width: '13%' },
+  finding_value: { width: '27%' },
+  finding_assets: { width: '17%' },
+  finding_asset_groups: { width: '15%' },
+  finding_created_at: { width: '14%' },
+  finding_updated_at: { width: '14%' },
 });
 
 const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId }: Props) => {
@@ -40,12 +41,15 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
   const availableFilterNames = [
     'finding_type',
     'finding_created_at',
+    'finding_updated_at',
     'finding_asset_groups',
     'finding_assets',
   ];
 
   const [findings, setFindings] = useState<AggregatedFindingOutput[]>([]);
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(filterLocalStorageKey, buildSearchPagination({ sorts: initSorting('finding_created_at', 'DESC') }));
+  // Default sort on last seen: the most recent activity is what tells whether a finding is still
+  // alive or has been solved.
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(filterLocalStorageKey, buildSearchPagination({ sorts: initSorting('finding_updated_at', 'DESC') }));
   const searchFindingsToload = (input: SearchPaginationInput) => {
     setLoading(true);
     return searchDistinctFindings(input).finally(() => {
@@ -115,6 +119,12 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
       label: 'First seen',
       isSortable: true,
       value: (finding: AggregatedFindingOutput) => <>{nsdt(finding.finding_created_at)}</>,
+    },
+    {
+      field: 'finding_updated_at',
+      label: 'Last seen',
+      isSortable: true,
+      value: (finding: AggregatedFindingOutput) => <>{nsdt(finding.finding_updated_at)}</>,
     },
   ];
 

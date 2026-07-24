@@ -37,16 +37,21 @@ public class AggregatedFindingOutput {
   @NotBlank
   private String value;
 
+  @Schema(description = "First time the finding was seen")
   @JsonProperty("finding_created_at")
   @NotNull
   private Instant creationDate;
 
-  @Schema(description = "Endpoint linked to finding")
+  @Schema(description = "Last time the finding was seen")
+  @JsonProperty("finding_updated_at")
+  private Instant updateDate;
+
+  @Schema(description = "Assets linked to the finding (any asset type, not only endpoints)")
   @JsonProperty("finding_assets")
   @NotNull
-  private Set<EndpointSimple> endpoints;
+  private Set<EndpointSimple> assets;
 
-  @Schema(description = "Asset groups linked to endpoints")
+  @Schema(description = "Asset groups linked to assets")
   @JsonProperty("finding_asset_groups")
   private Set<AssetGroupSimple> assetGroups;
 }

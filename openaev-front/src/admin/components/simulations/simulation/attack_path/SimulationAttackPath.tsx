@@ -1408,7 +1408,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     const base: FindingCard[] = [
       {
         key: 'endpoints',
-        label: t('Discovered Endpoints'),
+        label: t('Discovered assets'),
         icon: <DnsOutlined fontSize="small" />,
         count: effectiveCounters.endpoints,
       },
@@ -1578,7 +1578,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
 
   const searchGroupLabel = (kind: SearchOption['kind']): string => {
     if (kind === 'endpoint') {
-      return t('Endpoints');
+      return t('Assets');
     }
     if (kind === 'injector') {
       return t('Injectors');
@@ -1958,7 +1958,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                     pb: 0.5,
                   }}
                 >
-                  {t('Most exposed endpoints')}
+                  {t('Most exposed assets')}
                 </Typography>
                 {chokepoints.map((c, i) => (
                   <Box

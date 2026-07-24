@@ -18,7 +18,7 @@ const EndpointClusterNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) 
   const isOverflow = data.clusterKind === 'overflow';
   const expanded = data.expanded ?? false;
   const color = selected ? theme.palette.primary.main : attackPathStatusColor(theme, data.status);
-  let sub = t('Endpoints');
+  let sub = t('Assets');
   if (isOverflow) {
     sub = t('More');
   } else if (expanded) {

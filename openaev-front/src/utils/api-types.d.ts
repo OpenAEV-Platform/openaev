@@ -173,17 +173,25 @@ export interface AgentTarget {
 
 export interface AggregatedFindingOutput {
   /**
-   * Asset groups linked to endpoints
+   * Asset groups linked to assets
    * @uniqueItems true
    */
   finding_asset_groups?: AssetGroupSimple[];
   /**
-   * Endpoint linked to finding
+   * Assets linked to the finding (any asset type, not only endpoints)
    * @uniqueItems true
    */
   finding_assets: EndpointSimple[];
-  /** @format date-time */
+  /**
+   * First time the finding was seen
+   * @format date-time
+   */
   finding_created_at: string;
+  /**
+   * Last time the finding was seen
+   * @format date-time
+   */
+  finding_updated_at?: string;
   /**
    * Finding Id
    * @minLength 1
@@ -8683,17 +8691,25 @@ export interface RelatedEntityOutput {
 
 export interface RelatedFindingOutput {
   /**
-   * Asset groups linked to endpoints
+   * Asset groups linked to assets
    * @uniqueItems true
    */
   finding_asset_groups?: AssetGroupSimple[];
   /**
-   * Endpoint linked to finding
+   * Assets linked to the finding (any asset type, not only endpoints)
    * @uniqueItems true
    */
   finding_assets: EndpointSimple[];
-  /** @format date-time */
+  /**
+   * First time the finding was seen
+   * @format date-time
+   */
   finding_created_at: string;
+  /**
+   * Last time the finding was seen
+   * @format date-time
+   */
+  finding_updated_at?: string;
   /**
    * Finding Id
    * @minLength 1
