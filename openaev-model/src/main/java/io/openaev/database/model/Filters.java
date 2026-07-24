@@ -18,6 +18,15 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class Filters {
 
+  private static final int MAX_LOGGED_VALUE_LENGTH = 100;
+
+  // Bound the caller-supplied token echoed in fallback logs
+  private static String abbreviate(String value) {
+    return value.length() <= MAX_LOGGED_VALUE_LENGTH
+        ? value
+        : value.substring(0, MAX_LOGGED_VALUE_LENGTH) + "...";
+  }
+
   public enum FilterMode {
     and,
     or;
@@ -34,7 +43,7 @@ public class Filters {
       }
       // Tolerate vocabulary drift from external callers (e.g. older injector images), but leave a
       // trace: a silent coercion would make the drift undiagnosable again (#6927).
-      log.warn("Unknown FilterMode '{}', falling back to '{}'", value, and);
+      log.warn("Unknown FilterMode '{}', falling back to '{}'", abbreviate(value), and);
       return and;
     }
   }
@@ -65,7 +74,7 @@ public class Filters {
       }
       // Tolerate vocabulary drift from external callers (e.g. older injector images), but leave a
       // trace: a silent coercion would make the drift undiagnosable again (#6927).
-      log.warn("Unknown FilterOperator '{}', falling back to '{}'", value, eq);
+      log.warn("Unknown FilterOperator '{}', falling back to '{}'", abbreviate(value), eq);
       return eq;
     }
   }

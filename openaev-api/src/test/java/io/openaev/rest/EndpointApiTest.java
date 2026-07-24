@@ -556,6 +556,63 @@ class EndpointApiTest extends IntegrationTest {
           .andExpect(jsonPath("$.numberOfElements").value(1))
           .andExpect(jsonPath("$.content.[0].asset_id").value(windowEndpoint2.getId()));
     }
+
+    @Test
+    @DisplayName("Should return endpoints when filterGroup is omitted (regression #6927)")
+    void given_missingFilterGroup_should_returnEndpointsWithoutError() throws Exception {
+      // GIVEN - the body shape posted by injectors that omit filterGroup entirely,
+      // which used to 500 with an NPE in searchManagedEndpoints (#6927)
+      endpointRepository.save(EndpointFixture.createEndpoint());
+
+      // WHEN / THEN - falls back to an empty filter group and returns managed endpoints
+      mvc.perform(
+              post(ENDPOINT_URI + "/targets")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"page\": 0, \"size\": 20}")
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.content").isArray());
+    }
+
+    @Test
+    @DisplayName("Should tolerate uppercase filter enums from older injectors (regression #6927)")
+    void given_uppercaseFilterEnums_should_returnEndpointsWithoutError() throws Exception {
+      // GIVEN - an asset group targeted with the drifted vocabulary ("CONTAINS", "OR") that an
+      // older injector image may post, which used to fail with a bare 400 (#6927)
+      Endpoint endpoint = endpointRepository.save(EndpointFixture.createEndpoint());
+      AssetGroup assetGroup =
+          assetGroupRepository.save(createAssetGroupWithAssets("All windows", List.of(endpoint)));
+      String body =
+          """
+          {
+            "page": 0,
+            "size": 20,
+            "filterGroup": {
+              "mode": "OR",
+              "filters": [
+                {
+                  "id": "drifted-filter",
+                  "key": "assetGroups",
+                  "mode": "OR",
+                  "operator": "CONTAINS",
+                  "values": ["%s"]
+                }
+              ]
+            }
+          }
+          """
+              .formatted(assetGroup.getId());
+
+      // WHEN / THEN - deserializes case-insensitively and resolves the target
+      mvc.perform(
+              post(ENDPOINT_URI + "/targets")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.numberOfElements").value(1))
+          .andExpect(jsonPath("$.content.[0].asset_id").value(endpoint.getId()));
+    }
   }
 
   private Inject prepareOptionsEndpointTestData() {

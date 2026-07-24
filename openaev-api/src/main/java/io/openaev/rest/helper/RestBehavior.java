@@ -87,7 +87,7 @@ public class RestBehavior {
     } else {
       detail = "Malformed or unreadable request body";
     }
-    log.warn("HttpMessageNotReadableException: {}", detail);
+    log.warn("HttpMessageNotReadableException: {}", detail, ex);
     return new ResponseEntity<>(new ErrorMessage(detail), HttpStatus.BAD_REQUEST);
   }
 
