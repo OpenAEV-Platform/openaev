@@ -8,6 +8,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
+import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.StepRepository;
@@ -1822,6 +1823,178 @@ public class ConditionServiceTest {
         assertTrue(
             conditionUtils.isFilterConditionValid("any", leaf(ConditionType.DEPEND_ON, "some-id")));
       }
+    }
+  }
+
+  /* ============================================================
+   * isFilterTreeSatisfied — empty AND node defense
+   * ============================================================ */
+  @Nested
+  class FilterTreeEmptyAndNode {
+
+    @Test
+    void given_andNodeWithNoChildren_should_returnFalse() throws Exception {
+      // Arrange: AND node with empty children list
+      Condition andNode =
+          Condition.builder()
+              .type(ConditionType.AND)
+              .build(); // conditionChildren defaults to empty
+
+      // Access private method via reflection
+      java.lang.reflect.Method method =
+          ConditionService.class.getDeclaredMethod(
+              "isFilterTreeSatisfied", Condition.class, java.util.function.Supplier.class);
+      method.setAccessible(true);
+
+      java.util.function.Supplier<?> dummySupplier = () -> null;
+
+      // Act
+      boolean result = (boolean) method.invoke(conditionService, andNode, dummySupplier);
+
+      // Assert — an empty AND must NOT be satisfied (gate must stay closed)
+      assertFalse(result);
+    }
+
+    @Test
+    void given_andNodeWithNullChildren_should_returnFalse() throws Exception {
+      // Arrange: AND node with null children
+      Condition andNode = Condition.builder().type(ConditionType.AND).build();
+      andNode.setConditionChildren(null);
+
+      java.lang.reflect.Method method =
+          ConditionService.class.getDeclaredMethod(
+              "isFilterTreeSatisfied", Condition.class, java.util.function.Supplier.class);
+      method.setAccessible(true);
+
+      java.util.function.Supplier<?> dummySupplier = () -> null;
+
+      // Act
+      boolean result = (boolean) method.invoke(conditionService, andNode, dummySupplier);
+
+      // Assert
+      assertFalse(result);
+    }
+  }
+
+  /* ============================================================
+   * findEventsByWorkflowId — cold read with complete tree
+   * ============================================================ */
+  @Nested
+  class FindEventsByWorkflowId {
+
+    @Test
+    void given_deepEventTree_when_readByWorkflow_should_returnCompleteContent_withoutLazyInit() {
+      // GIVEN a workflow with a root AND "totoCond" -> child OR group -> leaf EQ "toto"
+      //       root.getConditionChildren() is left EMPTY to simulate the cold read
+      String workflowId = "wf-1";
+
+      Condition root = Condition.builder().type(ConditionType.AND).build();
+      root.setId("root-id");
+      root.setName("totoCond");
+      root.setWorkflowId(workflowId);
+      root.setConditionChildren(List.of()); // simulate uninitialized lazy collection
+
+      Condition childGroup =
+          Condition.builder().type(ConditionType.OR).conditionParent(root).build();
+      childGroup.setId("child-group-id");
+      childGroup.setWorkflowId(workflowId);
+      childGroup.setConditionChildren(List.of()); // not initialized
+
+      Condition leaf =
+          Condition.builder()
+              .type(ConditionType.EQ)
+              .key("text")
+              .value("toto")
+              .conditionParent(childGroup)
+              .build();
+      leaf.setId("leaf-id");
+      leaf.setWorkflowId(workflowId);
+
+      // Repository returns the FLAT list (root + descendants)
+      when(conditionRepository.findAllByWorkflowIdAndTypeNot(workflowId, ConditionType.MAPPER))
+          .thenReturn(List.of(root, childGroup, leaf));
+
+      // WHEN
+      List<EventOutput> events = conditionService.findEventsByWorkflowId(workflowId);
+
+      // THEN one event returned
+      assertEquals(1, events.size());
+      EventOutput event = events.get(0);
+      assertEquals("totoCond", event.getName());
+
+      // The event contains root + child group + leaf = 3 conditions
+      assertEquals(3, event.getConditions().size());
+
+      // The leaf value "toto" is present in the mapped output
+      assertTrue(
+          event.getConditions().stream().anyMatch(c -> "toto".equals(c.getValue())),
+          "Leaf condition with value 'toto' should be in the event output");
+    }
+
+    @Test
+    void given_twoIndependentEvents_when_readByWorkflow_should_notContaminateEachOther() {
+      // GIVEN two independent root events in the same workflow
+      String workflowId = "wf-2";
+
+      Condition rootA = Condition.builder().type(ConditionType.AND).build();
+      rootA.setId("root-a");
+      rootA.setName("EventA");
+      rootA.setWorkflowId(workflowId);
+      rootA.setConditionChildren(List.of());
+
+      Condition leafA =
+          Condition.builder()
+              .type(ConditionType.EQ)
+              .key("field_a")
+              .value("valueA")
+              .conditionParent(rootA)
+              .build();
+      leafA.setId("leaf-a");
+      leafA.setWorkflowId(workflowId);
+
+      Condition rootB = Condition.builder().type(ConditionType.OR).build();
+      rootB.setId("root-b");
+      rootB.setName("EventB");
+      rootB.setWorkflowId(workflowId);
+      rootB.setConditionChildren(List.of());
+
+      Condition leafB =
+          Condition.builder()
+              .type(ConditionType.EQ)
+              .key("field_b")
+              .value("valueB")
+              .conditionParent(rootB)
+              .build();
+      leafB.setId("leaf-b");
+      leafB.setWorkflowId(workflowId);
+
+      when(conditionRepository.findAllByWorkflowIdAndTypeNot(workflowId, ConditionType.MAPPER))
+          .thenReturn(List.of(rootA, leafA, rootB, leafB));
+
+      // WHEN
+      List<EventOutput> events = conditionService.findEventsByWorkflowId(workflowId);
+
+      // THEN two events returned
+      assertEquals(2, events.size());
+
+      EventOutput eventA =
+          events.stream().filter(e -> "EventA".equals(e.getName())).findFirst().orElseThrow();
+      EventOutput eventB =
+          events.stream().filter(e -> "EventB".equals(e.getName())).findFirst().orElseThrow();
+
+      // EventA has root + leafA = 2 conditions, NOT leafB
+      assertEquals(2, eventA.getConditions().size());
+      assertTrue(eventA.getConditions().stream().anyMatch(c -> "valueA".equals(c.getValue())));
+      assertFalse(
+          eventA.getConditions().stream().anyMatch(c -> "valueB".equals(c.getValue())),
+          "EventA must not contain EventB's leaf");
+
+      // EventB has root + leafB = 2 conditions, NOT leafA
+      assertEquals(2, eventB.getConditions().size());
+      assertTrue(eventB.getConditions().stream().anyMatch(c -> "valueB".equals(c.getValue())));
+      assertFalse(
+          eventB.getConditions().stream().anyMatch(c -> "valueA".equals(c.getValue())),
+          "EventB must not contain EventA's leaf");
     }
   }
 }
