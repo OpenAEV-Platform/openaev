@@ -185,11 +185,13 @@ const useSearchOptions = () => {
         if (contextId) {
           searchEndpointLinkedToFindingsAsOption(search, contextId).then((response) => {
             setOptions(response.data);
-          });
+          }).catch(() => setOptions([]));
         } else {
+          // On failure (e.g. 403 without ASSETS access) resolve to an empty list so the
+          // autocomplete never shows an endless "Loading...".
           searchAssetsAsOption(search).then((response) => {
             setOptions(response.data);
-          });
+          }).catch(() => setOptions([]));
         }
         break;
       case 'finding_teams':
