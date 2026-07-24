@@ -283,7 +283,7 @@ public class LogService {
       doc.setContextData(ctx);
 
       // For SYSTEM-origin: skip user metadata population (no servlet context)
-      if (event.getOrigin() == AuditEventOrigin.SYSTEM) {
+      if (event.getOrigin() == AuditEventOrigin.SCHEDULED) {
         doc.setUserId(null);
         doc.setUserMetadata(null);
       }

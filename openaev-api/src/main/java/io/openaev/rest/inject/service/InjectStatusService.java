@@ -473,7 +473,7 @@ public class InjectStatusService {
                         "Inject '%s' transitioned from %s to %s"
                             .formatted(inject.getTitle(), previousName, newName))
                     .contextData(buildTransitionContextData(inject, previousName, newName, agent))
-                    .origin(AuditEventOrigin.SYSTEM)
+                    .origin(AuditEventOrigin.SCHEDULED)
                     .build()));
   }
 
