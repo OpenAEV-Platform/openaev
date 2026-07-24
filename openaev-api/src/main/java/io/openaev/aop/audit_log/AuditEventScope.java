@@ -45,7 +45,7 @@ public enum AuditEventScope {
       case LOGIN -> LOGIN;
       case LOGOUT -> LOGOUT;
       case UNAUTHORIZED -> UNAUTHORIZED;
-      default -> UPDATE;
+      default -> throw new IllegalArgumentException("Unmapped Action: " + action);
     };
   }
 }
