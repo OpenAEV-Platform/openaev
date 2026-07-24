@@ -5,6 +5,7 @@ import { useTheme } from '@mui/material/styles';
 import DOMPurify from 'dompurify';
 import { useEffect, useRef, useState } from 'react';
 
+import { searchDistinctFindingsForInjects } from '../../../../../actions/findings/finding-actions';
 import { getInjectStatusWithGlobalExecutionTraces, searchTargets } from '../../../../../actions/injects/inject-action';
 import AttackPatternChip from '../../../../../components/AttackPatternChip';
 import Tabs from '../../../../../components/common/tabs/Tabs';
@@ -17,6 +18,7 @@ import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import expectationIconByType from '../../../common/ExpectationIconByType';
 import GlobalExecutionTraces from '../../../common/injects/status/traces/GlobalExecutionTraces';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
+import FindingList from '../../../findings/FindingList';
 import ImageWithFallback from './ImageWithFallback';
 
 interface Props {
@@ -35,6 +37,7 @@ interface Props {
 
 const RESULT_TAB = 'result';
 const TERMINAL_TAB = 'terminal';
+const FINDINGS_TAB = 'findings';
 const REMEDIATION_TAB = 'remediation';
 
 // Collector logo types for the illustrative prevented-by / detected-by chips below (the execution
@@ -489,6 +492,14 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 // ("Execution details").
                 label: hasSnapshot || detail.payloadId ? t('Terminal view') : t('Execution details'),
               },
+              // The inject's findings (same list as the inject detail's Findings tab), for both endpoint
+              // and injector executions — shown only once we have the inject id to scope the search.
+              ...(detail.injectId
+                ? [{
+                    key: FINDINGS_TAB,
+                    label: t('Findings'),
+                  }]
+                : []),
               {
                 key: REMEDIATION_TAB,
                 label: t('Remediation'),
@@ -550,6 +561,14 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 ? <LiveExecutionTerminal injectId={detail.injectId} endpointName={endpointLabel || detail.targetHostname || detail.endpointKey} />
                 : <InjectorExecutionTraces injectId={detail.injectId} />;
             })()}
+
+            {currentTab === FINDINGS_TAB && detail.injectId && (
+              <FindingList
+                filterLocalStorageKey="ap-inject-findings"
+                searchDistinctFindings={input => searchDistinctFindingsForInjects(detail.injectId as string, input)}
+                contextId={detail.injectId}
+              />
+            )}
 
             {currentTab === REMEDIATION_TAB && (
               <div style={{
