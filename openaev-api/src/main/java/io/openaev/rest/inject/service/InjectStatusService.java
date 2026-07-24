@@ -173,11 +173,16 @@ public class InjectStatusService {
     ExecutionTraceAction executionAction = convertExecutionAction(input.getAction());
     ExecutionTraceStatus traceStatus = ExecutionTraceStatus.fromName(input.getStatus());
 
+    // Injector callbacks (no agent) may scope a trace to one or more targets (assets / AI targets)
+    // via execution_context_identifiers. When present the trace becomes target-scoped and surfaces
+    // in the per-target execution view; when absent it stays global (agent-less, no identifiers).
+    List<String> contextIdentifiers = input.getContextIdentifiers();
+
     ExecutionTrace base =
         new ExecutionTrace(
             injectStatus,
             traceStatus,
-            null,
+            contextIdentifiers,
             input.getMessage(),
             executionAction,
             agent,

@@ -5082,6 +5082,10 @@ export interface InjectExecutionInput {
     | "data"
     | "complete";
   /**
+   * Ids of the targets (assets / AI targets) this trace relates to. When set on an injector callback (no agent), the trace becomes target-scoped and shows up in the per-target execution view instead of the global timeline.
+   */
+  execution_context_identifiers?: string[];
+  /**
    * Duration of the execution in miliseconds
    * @format int32
    */

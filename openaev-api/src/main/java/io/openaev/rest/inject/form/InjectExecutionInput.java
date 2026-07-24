@@ -5,6 +5,7 @@ import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 import lombok.Data;
 
 @Data
@@ -31,4 +32,12 @@ public class InjectExecutionInput {
 
   @JsonProperty("execution_action")
   private InjectExecutionAction action;
+
+  @Schema(
+      description =
+          "Ids of the targets (assets / AI targets) this trace relates to. When set on an "
+              + "injector callback (no agent), the trace becomes target-scoped and shows up in the "
+              + "per-target execution view instead of the global timeline.")
+  @JsonProperty("execution_context_identifiers")
+  private List<String> contextIdentifiers;
 }
