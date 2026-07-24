@@ -31,6 +31,7 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -90,13 +91,19 @@ public class InjectStatusService {
   @Transactional(rollbackFor = Exception.class)
   public Inject updateInjectStatus(String injectId, InjectUpdateStatusInput input) {
     Inject inject = injectRepository.findById(injectId).orElseThrow();
+    ExecutionStatus previousStatus = inject.getStatus().map(InjectStatus::getName).orElse(null);
     // build status
     InjectStatus injectStatus = new InjectStatus();
     injectStatus.setInject(inject);
-    injectStatus.setName(ExecutionStatus.fromName(input.getStatus()));
+    ExecutionStatus newStatus = ExecutionStatus.fromName(input.getStatus());
+    injectStatus.setName(newStatus);
     // Save status for inject
     inject.setStatus(injectStatus);
-    return injectRepository.save(inject);
+    Inject saved = injectRepository.save(inject);
+    if (previousStatus != newStatus) {
+      logInjectStatusTransition(inject, previousStatus, newStatus, null);
+    }
+    return saved;
   }
 
   public void addStartImplantExecutionTraceByInject(
@@ -304,6 +311,7 @@ public class InjectStatusService {
   }
 
   public InjectStatus fromExecution(Execution execution, InjectStatus injectStatus) {
+    ExecutionStatus previousStatus = injectStatus.getName();
     if (!execution.getTraces().isEmpty()) {
       List<ExecutionTrace> traces =
           execution.getTraces().stream().peek(t -> t.setInjectStatus(injectStatus)).toList();
@@ -311,6 +319,9 @@ public class InjectStatusService {
     }
     if (execution.isAsync() && ExecutionStatus.EXECUTING.equals(injectStatus.getName())) {
       injectStatus.setName(ExecutionStatus.PENDING);
+      // updateFinalInjectStatus already logs its own transition
+      logInjectStatusTransition(
+          injectStatus.getInject(), previousStatus, ExecutionStatus.PENDING, null);
     } else {
       updateFinalInjectStatus(injectStatus);
     }
@@ -337,6 +348,7 @@ public class InjectStatusService {
   public InjectStatus failInjectStatus(@NotNull String injectId, @Nullable String message) {
     Inject inject = this.injectRepository.findById(injectId).orElseThrow();
     InjectStatus injectStatus = getOrInitializeInjectStatus(inject);
+    ExecutionStatus previousStatus = injectStatus.getName();
     if (message != null) {
       injectStatus.addErrorTrace(message, ExecutionTraceAction.COMPLETE);
     }
@@ -347,6 +359,9 @@ public class InjectStatusService {
     // Stream the ERROR transition so the execution board moves the inject to "completed" live.
     inject.setStatus(saved);
     publishInjectStatusUpdate(inject);
+    if (previousStatus != ExecutionStatus.ERROR) {
+      logInjectStatusTransition(inject, previousStatus, ExecutionStatus.ERROR, null);
+    }
     return saved;
   }
 
@@ -355,6 +370,7 @@ public class InjectStatusService {
       @NotNull String injectId, @NotNull ExecutionStatus status) {
     Inject inject = this.injectRepository.findById(injectId).orElseThrow();
     InjectStatus injectStatus = getOrInitializeInjectStatus(inject);
+    ExecutionStatus previousStatus = injectStatus.getName();
     injectStatus.setName(status);
     injectStatus.setTrackingSentDate(Instant.now());
     injectStatus.setPayloadOutput(getPayloadOutput(inject));
@@ -363,6 +379,9 @@ public class InjectStatusService {
     // from "up next" to "in flight" without a page reload.
     inject.setStatus(saved);
     publishInjectStatusUpdate(inject);
+    if (previousStatus != status) {
+      logInjectStatusTransition(inject, previousStatus, status, null);
+    }
     return saved;
   }
 
@@ -450,16 +469,21 @@ public class InjectStatusService {
                         "Inject '%s' transitioned from %s to %s"
                             .formatted(inject.getTitle(), previousStatus.name(), newStatus.name()))
                     .contextData(
-                        Map.of(
-                            "inject_id", inject.getId(),
-                            "inject_name", inject.getTitle(),
-                            "previous_status", previousStatus.name(),
-                            "new_status", newStatus.name(),
-                            "executor_type",
-                                agent != null && agent.getExecutor() != null
-                                    ? agent.getExecutor().getType()
-                                    : "openaev"))
+                        buildTransitionContextData(inject, previousStatus, newStatus, agent))
                     .origin(AuditEventOrigin.SYSTEM)
                     .build()));
+  }
+
+  private Map<String, Object> buildTransitionContextData(
+      Inject inject, ExecutionStatus previousStatus, ExecutionStatus newStatus, Agent agent) {
+    Map<String, Object> ctx = new LinkedHashMap<>();
+    ctx.put("inject_id", inject.getId());
+    ctx.put("inject_name", inject.getTitle());
+    ctx.put("previous_status", previousStatus.name());
+    ctx.put("new_status", newStatus.name());
+    if (agent != null && agent.getExecutor() != null) {
+      ctx.put("executor_type", agent.getExecutor().getType());
+    }
+    return ctx;
   }
 }
