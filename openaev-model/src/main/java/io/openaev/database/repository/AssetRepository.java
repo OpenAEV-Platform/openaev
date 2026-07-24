@@ -48,12 +48,13 @@ public interface AssetRepository
    * Name-based option search over EVERY asset type except security platforms (endpoints - agent
    * based or agentless -, AI targets, cloud / web / network / generic assets). Findings can attach
    * to any asset, so filter options (e.g. notification trigger criteria) must propose the full
-   * inventory, not only endpoints. JPQL (not native) so the tenant filter still applies. The {@code
-   * name} parameter must be non-null (empty string matches everything): a null bind parameter
-   * inside {@code lower(concat(...))} is typed as bytea by PostgreSQL and fails.
+   * inventory, not only endpoints. The category is returned so pickers can group options by asset
+   * category. JPQL (not native) so the tenant filter still applies. The {@code name} parameter must
+   * be non-null (empty string matches everything): a null bind parameter inside {@code
+   * lower(concat(...))} is typed as bytea by PostgreSQL and fails.
    */
   @Query(
-      "SELECT a.id, a.name FROM Asset a "
+      "SELECT a.id, a.name, a.category FROM Asset a "
           + "WHERE a.type <> 'SecurityPlatform' "
           + "AND lower(a.name) LIKE lower(concat('%', :name, '%')) "
           // id tie-breaker: names are not unique, and a fixed page size over a

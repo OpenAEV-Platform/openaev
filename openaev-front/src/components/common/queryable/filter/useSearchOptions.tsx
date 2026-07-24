@@ -19,9 +19,10 @@ import { searchSimulationAsOptions } from '../../../../actions/simulations/simul
 import { searchTagAsOption } from '../../../../actions/tags/tag-action';
 import { searchTeamsAsOption } from '../../../../actions/teams/team-actions';
 import { searchPlayersAsOption } from '../../../../actions/users/User';
+import { humanizeEnum } from '../../../../admin/components/assets/asset-categories';
 import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../../../../admin/components/findings/ContractOutputElementType';
 import { scenarioCategories } from '../../../../admin/components/scenarios/constants';
-import { type InjectorContract } from '../../../../utils/api-types';
+import { type AssetOptionOutput, type InjectorContract } from '../../../../utils/api-types';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { useFormatter } from '../../../i18n';
 import { initSorting, type Page } from '../Page';
@@ -187,10 +188,19 @@ const useSearchOptions = () => {
             setOptions(response.data);
           }).catch(() => setOptions([]));
         } else {
+          // The inventory can hold thousands of assets: group the returned page by asset
+          // category (Host, Web application, AI target...) so the picker stays readable.
           // On failure (e.g. 403 without ASSETS access) resolve to an empty list so the
           // autocomplete never shows an endless "Loading...".
-          searchAssetsAsOption(search).then((response) => {
-            setOptions(response.data);
+          searchAssetsAsOption(search).then((response: AxiosResponse<AssetOptionOutput[]>) => {
+            const grouped: GroupOption[] = response.data
+              .map(option => ({
+                id: option.id ?? '',
+                label: option.label ?? '',
+                group: option.category ? t(humanizeEnum(option.category)) : t('Other'),
+              }))
+              .sort((a, b) => a.group.localeCompare(b.group) || a.label.localeCompare(b.label));
+            setOptions(grouped);
           }).catch(() => setOptions([]));
         }
         break;

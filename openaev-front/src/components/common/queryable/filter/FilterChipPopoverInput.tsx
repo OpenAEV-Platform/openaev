@@ -1,9 +1,10 @@
 import { Autocomplete, Checkbox, TextField } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
-import { type FunctionComponent, useContext, useEffect, useState } from 'react';
+import { type FunctionComponent, useCallback, useContext, useEffect, useState } from 'react';
 
 import { type Filter, type PropertySchemaDTO } from '../../../../utils/api-types';
 import { type GroupOption, type Option } from '../../../../utils/Option';
+import { debounce } from '../../../../utils/utils';
 import { useFormatter } from '../../../i18n';
 import { FilterContext } from './context';
 import { type FilterHelpers } from './FilterHelpers';
@@ -70,6 +71,12 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
     };
     searchOptions(searchOptionsConfig, search);
   };
+  // Dynamic options hit the backend: debounce keystrokes so large inventories
+  // (e.g. thousands of assets) trigger one search per pause, not one per character.
+  const debouncedSearchOptions = useCallback(
+    debounce((search?: string) => handleSearchOptions(search ?? ''), 300),
+    [filter.key, contextId],
+  );
   useEffect(() => {
     if (propertySchema.schema_property_values && propertySchema.schema_property_values?.length > 0) {
       setOptions(
@@ -115,7 +122,7 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
           return;
         }
         setInputValue(search);
-        handleSearchOptions(search);
+        debouncedSearchOptions(search);
       }}
       renderInput={paramsInput => (
         <TextField

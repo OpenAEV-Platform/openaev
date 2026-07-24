@@ -4,7 +4,9 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
+import io.openaev.api.asset.AssetOptionOutput;
 import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.AssetType;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.AssetRepository;
@@ -184,14 +186,20 @@ public class AssetService {
   /**
    * Name-based filter options over the full asset inventory (every category except security
    * platforms). Findings can attach to any asset - not only endpoints - so filter builders (e.g.
-   * notification trigger criteria on findings) must propose all of them.
+   * notification trigger criteria on findings) must propose all of them. Each option carries the
+   * asset category so pickers can group the inventory.
    */
-  public List<FilterUtilsJpa.Option> getOptionsByName(final String searchText, Pageable pageable) {
+  public List<AssetOptionOutput> getOptionsByName(final String searchText, Pageable pageable) {
     // The repository query requires a non-null term (null binds break PostgreSQL type inference);
     // an empty string matches every asset.
     String term = StringUtils.trimToEmpty(searchText);
     return this.assetRepository.findAllOptionsByName(term, pageable).stream()
-        .map(i -> new FilterUtilsJpa.Option((String) i[0], (String) i[1]))
+        .map(
+            i ->
+                new AssetOptionOutput(
+                    (String) i[0],
+                    (String) i[1],
+                    i[2] != null ? ((AssetCategory) i[2]).name() : null))
         .toList();
   }
 

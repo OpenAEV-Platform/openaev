@@ -41,7 +41,8 @@ public class AssetOptionsApi {
   /**
    * Filter options over the WHOLE asset inventory (every category except security platforms).
    * Findings can attach to any asset - agentless web applications included - so filter builders
-   * such as notification trigger criteria must propose every asset, not only endpoints.
+   * such as notification trigger criteria must propose every asset, not only endpoints. Options
+   * carry the asset category so pickers can group the inventory.
    */
   @LogExecutionTime
   @GetMapping({ASSET_URI + "/options", TENANT_ASSET_URI + "/options"})
@@ -51,7 +52,7 @@ public class AssetOptionsApi {
       description = "Name-based filter options over every asset category except security platforms")
   @Transactional(readOnly = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The matching options")})
-  public List<FilterUtilsJpa.Option> optionsByName(
+  public List<AssetOptionOutput> optionsByName(
       @RequestParam(required = false) final String searchText) {
     return assetService.getOptionsByName(searchText, PageRequest.of(0, 50));
   }

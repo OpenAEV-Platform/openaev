@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.EndpointRepository;
@@ -51,9 +52,11 @@ class AssetOptionsApiTest extends IntegrationTest {
   private void seedInventory() {
     Endpoint e1 = createEndpoint();
     e1.setName(NAME_PREFIX + "endpoint-1");
+    e1.setCategory(AssetCategory.HOST);
     endpoint1 = endpointRepository.save(e1);
     Endpoint e2 = createEndpoint();
     e2.setName(NAME_PREFIX + "endpoint-2");
+    e2.setCategory(AssetCategory.WEB_APPLICATION);
     endpoint2 = endpointRepository.save(e2);
     securityPlatform =
         securityPlatformRepository.save(
@@ -85,6 +88,9 @@ class AssetOptionsApiTest extends IntegrationTest {
       assertThat(ids)
           .containsExactlyInAnyOrder(endpoint1.getId(), endpoint2.getId())
           .doesNotContain(securityPlatform.getId());
+      // Options carry the asset category so pickers can group the inventory
+      List<String> categories = JsonPath.read(response, "$[*].category");
+      assertThat(categories).containsExactlyInAnyOrder("HOST", "WEB_APPLICATION");
     }
 
     @Test

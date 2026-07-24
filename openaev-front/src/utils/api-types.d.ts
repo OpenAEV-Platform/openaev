@@ -737,6 +737,15 @@ export interface AssetGroupTarget {
     | "SUCCESS";
 }
 
+export interface AssetOptionOutput {
+  /** Product-facing asset category, used to group options in pickers */
+  category?: string;
+  /** Asset id */
+  id?: string;
+  /** Asset name */
+  label?: string;
+}
+
 export interface AssetOutput {
   /** AI target provider (AI targets only) */
   ai_target_provider?:
