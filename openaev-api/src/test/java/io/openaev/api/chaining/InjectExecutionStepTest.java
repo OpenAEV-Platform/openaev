@@ -27,6 +27,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ConditionService;
+import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.fixtures.*;
@@ -49,6 +50,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @MockitoBean private ConditionService conditionService;
   @MockitoBean private ConditionUtils conditionUtils;
   @MockitoBean private io.openaev.executors.Executor executor;
+  @MockitoBean private ScopeService scopeService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
@@ -57,6 +59,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @Autowired private InjectTestHelper injectTestHelper;
   String injectInputJson;
   InjectorContract injectorContractSaved;
+  Asset savedAsset;
 
   @BeforeEach
   void beforeEach() throws Exception {
@@ -102,6 +105,12 @@ public class InjectExecutionStepTest extends IntegrationTest {
     doReturn(injectExecuted).when(injectService).findInjectOrNull(any());
     Asset asset = AssetFixture.createDefaultAsset("AssetTest");
     asset = injectTestHelper.forceSaveAsset(asset);
+    savedAsset = asset;
+
+    // Mock scope service: return the saved asset so that hasAssetTargets = true in run()
+    doReturn(List.of(savedAsset)).when(scopeService).getValidAssets(any());
+    doReturn(List.of()).when(scopeService).getValidAssetGroupsFromScope(any());
+    doReturn(List.of()).when(scopeService).getValidIpsFromScope(any());
 
     injectInputJson =
         """
