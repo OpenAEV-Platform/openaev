@@ -67,7 +67,6 @@ public class ConditionService {
             .description(input.getDescription())
             .type(rootInput.getType())
             .keyTypes(resolveInputKeyTypes(rootInput))
-            .keyType(resolveFirstInputKeyType(rootInput))
             .mappingType(resolveMappingType(rootInput))
             .build();
 
