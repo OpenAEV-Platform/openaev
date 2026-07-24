@@ -268,6 +268,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
   // Seeded runs carry a frozen command/output snapshot on the DTO; a real inject leaves them empty and
   // is rendered live from execution traces instead (see hasSnapshot below).
   const hasSnapshot = Boolean(detail?.command || detail?.terminalOutput);
+  // On the terminal tab a network injector shows its execution traces (a plain list that grows), unlike
+  // the snapshot/payload `Terminal` which is sized to fill and scrolls internally. The list needs the
+  // outer box to scroll, otherwise long traces are clipped.
+  const injectorTracesView = !hasSnapshot && !!detail?.injectId && !detail?.payloadId;
   const terminalLines: TerminalLine[] = [];
   if (detail?.command) {
     terminalLines.push({
@@ -475,9 +479,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
             style={{
               flex: 1,
               minHeight: 0,
-              // The Result tab owns its scroll; the Terminal tab is sized to fill this box and scrolls
-              // internally, so the outer box must not add a second scrollbar.
-              overflow: currentTab === TERMINAL_TAB ? 'hidden' : 'auto',
+              // The Result tab owns its scroll; the snapshot/payload Terminal scrolls internally so its
+              // outer box must not add a second scrollbar. The injector traces list, however, needs this
+              // box to scroll or long output is clipped.
+              overflow: currentTab === TERMINAL_TAB && !injectorTracesView ? 'hidden' : 'auto',
               paddingTop: theme.spacing(2),
             }}
           >

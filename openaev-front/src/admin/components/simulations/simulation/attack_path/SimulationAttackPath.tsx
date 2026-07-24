@@ -384,11 +384,12 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     };
   }, [simulationId]);
 
-  // Causal overlay data source (issue 6647). The rendered graph is collapsed, which omits the
-  // per-execution kill-chain fields, so we fetch the full graph once — only to derive the per-injector
-  // meta — and gate it on the simulation's execution count (mirrors the backend collapse-threshold) so a
-  // large run never pulls a full payload just for the overlay. When the size is unknown or above the
-  // ceiling, the overlay is simply absent (additive: the graph is unchanged).
+  // Causal overlay data source (issue 6647) + live refresh. The collapsed graph omits the per-execution
+  // kill-chain fields, so we fetch the full graph (to derive the per-injector meta AND to drive the
+  // causal-chain layout), gated on the execution count (mirrors the backend collapse-threshold) so a
+  // large run never pulls a full payload. Within the gate we also POLL it, so a running chained run
+  // (which renders from fullDto, not dto) live-updates like the collapsed graph does. The gate uses the
+  // initial summary-row count; a run that grows past the ceiling mid-view keeps its overlay until reselect.
   useEffect(() => {
     if (!simulationId) {
       setKillChainMeta(new Map());
@@ -396,34 +397,44 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       return undefined;
     }
     const row = simulations.find(s => s.simulationId === simulationId);
-    // No summary row (rows still loading, or a simulation with no attack-path data): no overlay, and
-    // clear any state carried over from a previously viewed simulation so it never leaks onto this one.
-    if (!row) {
-      setKillChainMeta(new Map());
-      setFullDto(null);
-      return undefined;
-    }
-    if ((row.executionCount ?? 0) > CAUSAL_META_MAX_EXECUTIONS) {
+    // No summary row yet, or above the ceiling: no overlay. Clear any state from a previous simulation.
+    if (!row || (row.executionCount ?? 0) > CAUSAL_META_MAX_EXECUTIONS) {
       setKillChainMeta(new Map());
       setFullDto(null);
       return undefined;
     }
     let cancelled = false;
-    fetchAttackPathGraph(simulationId, 'full')
-      .then((r) => {
-        if (!cancelled) {
-          setKillChainMeta(buildKillChainMeta(r.data));
+    let lastJson = '';
+    const REFRESH_MS = 10000;
+    const applyFull = () =>
+      fetchAttackPathGraph(simulationId, 'full')
+        .then((r) => {
+          if (cancelled) {
+            return;
+          }
+          // Skip the swap when nothing changed, so an open drawer / pan-zoom and a stable graph never
+          // churn (same discipline as the collapsed poll).
+          const json = JSON.stringify(r.data);
+          if (json === lastJson) {
+            return;
+          }
+          lastJson = json;
           setFullDto(r.data);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setKillChainMeta(new Map());
-          setFullDto(null);
-        }
-      });
+          setKillChainMeta(buildKillChainMeta(r.data));
+        })
+        .catch(() => {
+          // Initial fetch failed: show no overlay (never leak the previous simulation's). After a first
+          // success, keep the last good overlay on a transient failure; the next tick retries.
+          if (!cancelled && lastJson === '') {
+            setFullDto(null);
+            setKillChainMeta(new Map());
+          }
+        });
+    applyFull();
+    const timer = setInterval(applyFull, REFRESH_MS);
     return () => {
       cancelled = true;
+      clearInterval(timer);
     };
   }, [simulationId, simulations]);
 
