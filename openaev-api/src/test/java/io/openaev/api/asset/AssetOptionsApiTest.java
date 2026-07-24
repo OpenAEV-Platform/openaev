@@ -158,6 +158,43 @@ class AssetOptionsApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("A missing request body resolves to an empty list")
+    void given_noBody_should_returnEmptyList() throws Exception {
+      String response =
+          mvc.perform(
+                  post(ASSET_URI + "/options")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      List<String> ids = JsonPath.read(response, "$[*].id");
+      assertThat(ids).isEmpty();
+    }
+
+    @Test
+    @DisplayName("An empty id list resolves to an empty list")
+    void given_emptyIdList_should_returnEmptyList() throws Exception {
+      String response =
+          mvc.perform(
+                  post(ASSET_URI + "/options")
+                      .content(asJsonString(List.of()))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      List<String> ids = JsonPath.read(response, "$[*].id");
+      assertThat(ids).isEmpty();
+    }
+
+    @Test
     @DisplayName("Unknown ids resolve to an empty list")
     void given_unknownIds_should_returnEmptyList() throws Exception {
       String response =

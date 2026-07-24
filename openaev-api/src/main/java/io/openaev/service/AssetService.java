@@ -198,9 +198,13 @@ public class AssetService {
   /**
    * Resolve filter option labels for a set of asset ids, whatever the asset category. Security
    * platforms are excluded, consistent with {@link #getOptionsByName(String, Pageable)}: they never
-   * surface in the unified inventory options.
+   * surface in the unified inventory options. Null or empty input resolves to an empty list (the
+   * ids come straight from a request body that may be absent).
    */
-  public List<FilterUtilsJpa.Option> getOptionsByIds(@NotNull final List<String> ids) {
+  public List<FilterUtilsJpa.Option> getOptionsByIds(final List<String> ids) {
+    if (CollectionUtils.isEmpty(ids)) {
+      return List.of();
+    }
     // instanceof rather than the type discriminator string: the discriminator field is
     // read-only (insertable = false) and not hydrated on entities created in the current
     // persistence context, while the concrete class is always reliable.

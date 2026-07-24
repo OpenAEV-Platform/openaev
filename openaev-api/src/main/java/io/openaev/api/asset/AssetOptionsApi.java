@@ -65,7 +65,9 @@ public class AssetOptionsApi {
       description = "Resolve filter option labels for a set of asset ids")
   @Transactional(readOnly = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The resolved options")})
-  public List<FilterUtilsJpa.Option> optionsByIds(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsByIds(
+      @RequestBody(required = false) final List<String> ids) {
+    // A missing or empty body simply resolves to no options rather than a client error.
     return assetService.getOptionsByIds(ids);
   }
 }
