@@ -35,3 +35,5 @@ jobs:
         with:
           token: ${{ steps.generate-token.outputs.token }}
           pr-number: ${{ github.event.inputs.pr_number || '' }}
+          project-owner: "OpenAEV-Platform"
+          project-number: "2"
