@@ -1539,6 +1539,8 @@ export interface CatalogConnectorConfiguration {
 }
 
 export interface CatalogConnectorOutput {
+  /** Connector container version referenced in the catalog */
+  catalog_connector_container_version?: string;
   catalog_connector_description?: string;
   /** @minLength 1 */
   catalog_connector_id: string;

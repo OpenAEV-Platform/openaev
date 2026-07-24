@@ -448,6 +448,7 @@
   "Case-insensitive": "Senza distinzione tra maiuscole e minuscole",
   "Case-sensitive": "Con distinzione tra maiuscole e minuscole",
   "Catalog": "Catalogo",
+  "Catalog version": "Versione del catalogo",
   "Categories": "Categorie",
   "Categories and questions": "Categorie e domande",
   "Category": "Categoria",
@@ -2370,6 +2371,7 @@
   "Reset filters": "Reimposta filtri",
   "Reset to default values": "Ripristina i valori predefiniti",
   "Resilience": "Resilienza",
+  "Resize panel": "Resize panel",
   "Resolve": "Resolve",
   "Resolve IP from hostname": "Resolve IP from hostname",
   "Resource ID / ARN": "Resource ID / ARN",
@@ -2597,6 +2599,7 @@
   "Simulation rate limit": "Limite del tasso di simulazione",
   "Simulation results": "Risultati della simulazione",
   "Simulation results statistics": "Statistiche dei risultati della simulazione",
+  "Simulation running — waiting for the first inject executions…": "Simulation running — waiting for the first inject executions…",
   "Simulation time out": "Time out della simulazione",
   "simulation-plural": "simulazioni",
   "simulation-singular": "simulazione",
@@ -3092,6 +3095,7 @@
   "VERIFIED": "Verificato",
   "Verified and tested by OpenAEV": "Verificato e testato da OpenAEV",
   "Version": "Versione",
+  "Version referenced in the integration catalog. The running instance may use a different version if it was manually overridden.": "Versione indicata nel catalogo delle integrazioni. L'istanza in esecuzione può utilizzare una versione diversa se è stata sostituita manualmente.",
   "Very_high": "Very High",
   "View": "Vista",
   "view custom variables": "visualizza le variabili personalizzate",
@@ -3215,7 +3219,5 @@
   "Your overall evaluation about this question.": "La vostra valutazione complessiva su questa domanda.",
   "Your threat arsenal is empty": "Il tuo arsenale è vuoto",
   "your trial license online": "la vostra licenza di prova online",
-  "YYYY": "AAAA",
-  "Simulation running — waiting for the first inject executions…": "Simulation running — waiting for the first inject executions…",
-  "Resize panel": "Resize panel"
+  "YYYY": "AAAA"
 }

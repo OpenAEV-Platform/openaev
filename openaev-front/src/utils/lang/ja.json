@@ -448,6 +448,7 @@
   "Case-insensitive": "大文字小文字を区別しない",
   "Case-sensitive": "大文字小文字を区別する",
   "Catalog": "カタログ",
+  "Catalog version": "カタログバージョン",
   "Categories": "カテゴリ",
   "Categories and questions": "カテゴリーと質問",
   "Category": "カテゴリー",
@@ -2370,6 +2371,7 @@
   "Reset filters": "フィルターをリセット",
   "Reset to default values": "初期値に戻す",
   "Resilience": "レジリエンス",
+  "Resize panel": "Resize panel",
   "Resolve": "Resolve",
   "Resolve IP from hostname": "Resolve IP from hostname",
   "Resource ID / ARN": "Resource ID / ARN",
@@ -2597,6 +2599,7 @@
   "Simulation rate limit": "シミュレーション速度制限",
   "Simulation results": "シミュレーション結果",
   "Simulation results statistics": "シミュレーション結果統計",
+  "Simulation running — waiting for the first inject executions…": "Simulation running — waiting for the first inject executions…",
   "Simulation time out": "シミュレーションタイムアウト",
   "simulation-plural": "シミュレーション",
   "simulation-singular": "シミュレーション",
@@ -3092,6 +3095,7 @@
   "VERIFIED": "検証済み",
   "Verified and tested by OpenAEV": "OpenAEVで検証・テスト済み",
   "Version": "バージョン",
+  "Version referenced in the integration catalog. The running instance may use a different version if it was manually overridden.": "統合カタログで参照されているバージョンです。手動で上書きされた場合、実行中のインスタンスは異なるバージョンを使用している可能性があります。",
   "Very_high": "Very High",
   "View": "表示",
   "view custom variables": "カスタム変数を表示",
@@ -3215,7 +3219,5 @@
   "Your overall evaluation about this question.": "この質問に対するあなたの総合評価",
   "Your threat arsenal is empty": "兵器庫は空です",
   "your trial license online": "オンライン試用ライセンス",
-  "YYYY": "年",
-  "Simulation running — waiting for the first inject executions…": "Simulation running — waiting for the first inject executions…",
-  "Resize panel": "Resize panel"
+  "YYYY": "年"
 }

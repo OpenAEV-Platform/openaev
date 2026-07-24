@@ -448,6 +448,7 @@
   "Case-insensitive": "不区分大小写",
   "Case-sensitive": "区分大小写",
   "Catalog": "目录",
+  "Catalog version": "目录版本",
   "Categories": "类别",
   "Categories and questions": "分类和问题",
   "Category": "分类",
@@ -2370,6 +2371,7 @@
   "Reset filters": "重置筛选器",
   "Reset to default values": "恢复默认值",
   "Resilience": "韧性",
+  "Resize panel": "Resize panel",
   "Resolve": "Resolve",
   "Resolve IP from hostname": "Resolve IP from hostname",
   "Resource ID / ARN": "Resource ID / ARN",
@@ -2597,6 +2599,7 @@
   "Simulation rate limit": "模拟速率限制",
   "Simulation results": "模拟结果",
   "Simulation results statistics": "模拟结果统计",
+  "Simulation running — waiting for the first inject executions…": "Simulation running — waiting for the first inject executions…",
   "Simulation time out": "模拟超时",
   "simulation-plural": "模拟",
   "simulation-singular": "模拟",
@@ -3092,6 +3095,7 @@
   "VERIFIED": "已验证",
   "Verified and tested by OpenAEV": "由 OpenAEV 验证和测试",
   "Version": "版本",
+  "Version referenced in the integration catalog. The running instance may use a different version if it was manually overridden.": "集成目录中引用的版本。如果被手动覆盖，正在运行的实例可能使用不同的版本。",
   "Very_high": "Very High",
   "View": "视图",
   "view custom variables": "查看自定义变量",
@@ -3215,7 +3219,5 @@
   "Your overall evaluation about this question.": "您对此问题的总体评价。",
   "Your threat arsenal is empty": "您的武器库为空",
   "your trial license online": "在线试用许可证",
-  "YYYY": "YYYY",
-  "Simulation running — waiting for the first inject executions…": "Simulation running — waiting for the first inject executions…",
-  "Resize panel": "Resize panel"
+  "YYYY": "YYYY"
 }

@@ -1,5 +1,5 @@
-import { LibraryBooksOutlined, OpenInNewOutlined, VerifiedOutlined } from '@mui/icons-material';
-import { Box, Paper, Typography } from '@mui/material';
+import { InfoOutlined, LibraryBooksOutlined, OpenInNewOutlined, VerifiedOutlined } from '@mui/icons-material';
+import { Box, Paper, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ComponentType, type ReactNode } from 'react';
 
@@ -19,11 +19,12 @@ const SECTION_LABEL_SX = {
 };
 
 // A resource row: framed icon + title + caption, optionally acting as a link.
-const ResourceRow = ({ icon: Icon, title, caption, href }: {
+const ResourceRow = ({ icon: Icon, title, caption, href, endAdornment }: {
   icon: ComponentType<{ sx?: object }>;
   title: ReactNode;
   caption?: ReactNode;
   href?: string;
+  endAdornment?: ReactNode;
 }) => {
   const theme = useTheme();
   const content = (
@@ -50,22 +51,31 @@ const ResourceRow = ({ icon: Icon, title, caption, href }: {
         minWidth: 0,
         display: 'flex',
         flexDirection: 'column',
+        flex: 1,
       }}
       >
-        <Typography sx={{
-          fontSize: 13,
-          fontWeight: 600,
-          lineHeight: 1.4,
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
         }}
         >
-          {title}
-        </Typography>
+          <Typography sx={{
+            fontSize: theme.typography.h3.fontSize,
+            fontWeight: 600,
+            lineHeight: 1.4,
+          }}
+          >
+            {title}
+          </Typography>
+          {endAdornment}
+        </Box>
         {caption && (
           <Typography
             variant="body2"
             sx={{
               color: 'text.secondary',
-              fontSize: 12,
+              fontSize: theme.typography.h4.fontSize,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
             }}
@@ -167,6 +177,26 @@ const ConnectorCatalogInfo = ({ catalogConnector }: Props) => {
             gap: 2.5,
           }}
         >
+          {catalogConnector.catalog_connector_container_version && (
+            <ResourceRow
+              icon={VerifiedOutlined}
+              title={t('Catalog version')}
+              caption={catalogConnector.catalog_connector_container_version}
+              endAdornment={(
+                <Tooltip title={t('Version referenced in the integration catalog. The running instance may use a different version if it was manually overridden.')}>
+                  {/* tabIndex makes the icon keyboard-focusable; the Tooltip
+                      title doubles as its accessible name (MUI default). */}
+                  <InfoOutlined
+                    tabIndex={0}
+                    sx={{
+                      fontSize: theme.typography.h6.fontSize,
+                      color: 'text.secondary',
+                    }}
+                  />
+                </Tooltip>
+              )}
+            />
+          )}
           {catalogConnector.catalog_connector_source_code && (
             <ResourceRow
               icon={LibraryBooksOutlined}

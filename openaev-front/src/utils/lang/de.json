@@ -448,6 +448,7 @@
   "Case-insensitive": "Groß-/Kleinschreibung wird nicht berücksichtigt",
   "Case-sensitive": "Groß-/Kleinschreibung wird berücksichtigt",
   "Catalog": "Katalog",
+  "Catalog version": "Katalogversion",
   "Categories": "Kategorien",
   "Categories and questions": "Kategorien und Fragen",
   "Category": "Kategorie",
@@ -2370,6 +2371,7 @@
   "Reset filters": "Filter zurücksetzen",
   "Reset to default values": "Auf Standardwerte zurücksetzen",
   "Resilience": "Resilienz",
+  "Resize panel": "Resize panel",
   "Resolve": "Resolve",
   "Resolve IP from hostname": "Resolve IP from hostname",
   "Resource ID / ARN": "Resource ID / ARN",
@@ -2597,6 +2599,7 @@
   "Simulation rate limit": "Grenze der Simulationsrate",
   "Simulation results": "Ergebnisse der Simulation",
   "Simulation results statistics": "Statistik der Simulationsergebnisse",
+  "Simulation running — waiting for the first inject executions…": "Simulation running — waiting for the first inject executions…",
   "Simulation time out": "Zeitüberschreitung der Simulation",
   "simulation-plural": "simulationen",
   "simulation-singular": "simulation",
@@ -3092,6 +3095,7 @@
   "VERIFIED": "Geprüft",
   "Verified and tested by OpenAEV": "Verifiziert und getestet von OpenAEV",
   "Version": "Version",
+  "Version referenced in the integration catalog. The running instance may use a different version if it was manually overridden.": "Im Integrationskatalog referenzierte Version. Die laufende Instanz kann eine andere Version verwenden, wenn sie manuell überschrieben wurde.",
   "Very_high": "Very High",
   "View": "Ansicht",
   "view custom variables": "benutzerdefinierte Variablen anzeigen",
@@ -3215,7 +3219,5 @@
   "Your overall evaluation about this question.": "Ihre Gesamteinschätzung zu dieser Frage.",
   "Your threat arsenal is empty": "Dein Threat Arsenal ist leer",
   "your trial license online": "ihre Testlizenz online",
-  "YYYY": "JJJJ",
-  "Simulation running — waiting for the first inject executions…": "Simulation running — waiting for the first inject executions…",
-  "Resize panel": "Resize panel"
+  "YYYY": "JJJJ"
 }

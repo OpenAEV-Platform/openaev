@@ -448,6 +448,7 @@
   "Case-insensitive": "Case-insensitive",
   "Case-sensitive": "Case-sensitive",
   "Catalog": "Catalog",
+  "Catalog version": "Catalog version",
   "Categories": "Categories",
   "Categories and questions": "Categories and questions",
   "Category": "Category",
@@ -2370,6 +2371,7 @@
   "Reset filters": "Reset filters",
   "Reset to default values": "Reset to default values",
   "Resilience": "Resilience",
+  "Resize panel": "Resize panel",
   "Resolve": "Resolve",
   "Resolve IP from hostname": "Resolve IP from hostname",
   "Resource ID / ARN": "Resource ID / ARN",
@@ -2597,6 +2599,7 @@
   "Simulation rate limit": "Simulation rate limit",
   "Simulation results": "Simulation results",
   "Simulation results statistics": "Simulation results statistics",
+  "Simulation running — waiting for the first inject executions…": "Simulation running — waiting for the first inject executions…",
   "Simulation time out": "Simulation time out",
   "simulation-plural": "simulations",
   "simulation-singular": "simulation",
@@ -3092,6 +3095,7 @@
   "VERIFIED": "Verified",
   "Verified and tested by OpenAEV": "Verified and tested by OpenAEV",
   "Version": "Version",
+  "Version referenced in the integration catalog. The running instance may use a different version if it was manually overridden.": "Version referenced in the integration catalog. The running instance may use a different version if it was manually overridden.",
   "Very_high": "Very High",
   "View": "View",
   "view custom variables": "view custom variables",
@@ -3215,7 +3219,5 @@
   "Your overall evaluation about this question.": "Your overall evaluation about this question.",
   "Your threat arsenal is empty": "Your threat arsenal is empty",
   "your trial license online": "your trial license online",
-  "YYYY": "YYYY",
-  "Simulation running — waiting for the first inject executions…": "Simulation running — waiting for the first inject executions…",
-  "Resize panel": "Resize panel"
+  "YYYY": "YYYY"
 }
