@@ -2,7 +2,9 @@ import { Button, Chip, TablePagination, ToggleButtonGroup } from '@mui/material'
 import { type ChangeEvent, cloneElement, type MouseEvent as ReactMouseEvent, type ReactElement, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import KillChainSelect from '../../../admin/components/common/filters/KillChainSelect';
 import MitreFilter, { MITRE_FILTER_KEY } from '../../../admin/components/common/filters/MitreFilter';
+import useKillChains from '../../../admin/components/common/filters/useKillChains';
 import mitreAttack from '../../../static/images/misc/attack.png';
 import { type AttackPattern, type Filter, type SearchPaginationInput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
@@ -112,6 +114,9 @@ const PaginationComponent = <T extends object>({
 
   // Filters
   const [openMitreFilter, setOpenMitreFilter] = useState(false);
+  // Kill chain switcher lives in the attack matrix drawer header, so the matrix
+  // body stays free of chrome.
+  const { killChains, activeKillChain, selectKillChain } = useKillChains();
 
   useEffect(() => {
     const finalSearchPaginationInput = {
@@ -179,8 +184,19 @@ const PaginationComponent = <T extends object>({
                 handleClose={() => setOpenMitreFilter(false)}
                 title={t('Attack matrix')}
                 variant="full"
+                headerActions={(
+                  <KillChainSelect
+                    killChains={killChains}
+                    value={activeKillChain}
+                    onChange={selectKillChain}
+                  />
+                )}
               >
-                <MitreFilter helpers={helpers} onClick={() => setOpenMitreFilter(false)} />
+                <MitreFilter
+                  helpers={helpers}
+                  killChain={activeKillChain}
+                  onClick={() => setOpenMitreFilter(false)}
+                />
               </Drawer>
             </>
           )}

@@ -3,7 +3,9 @@ import { Box, Button, Chip } from '@mui/material';
 import { cloneElement, type ReactElement, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import KillChainSelect from '../../../../admin/components/common/filters/KillChainSelect';
 import MitreFilter, { MITRE_FILTER_KEY } from '../../../../admin/components/common/filters/MitreFilter';
+import useKillChains from '../../../../admin/components/common/filters/useKillChains';
 import { type AttackPattern, type Filter, type PropertySchemaDTO, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useFormatter } from '../../../i18n';
 import ClickableModeChip from '../../chips/ClickableModeChip';
@@ -130,6 +132,9 @@ const PaginationComponentV2 = <T extends object>({
   // Filters
   const [pristine, setPristine] = useState(true);
   const [openMitreFilter, setOpenMitreFilter] = useState(false);
+  // Kill chain switcher lives in the attack matrix drawer header, so the matrix
+  // body stays free of chrome.
+  const { killChains, activeKillChain, selectKillChain } = useKillChains();
 
   // A matrix click filters by a top-level technique AND its sub-techniques (so the
   // result matches the technique's count). Collapse those external ids back to the
@@ -219,10 +224,18 @@ const PaginationComponentV2 = <T extends object>({
                   padding: 0,
                   maxHeight: '100%',
                 }}
+                headerActions={(
+                  <KillChainSelect
+                    killChains={killChains}
+                    value={activeKillChain}
+                    onChange={selectKillChain}
+                  />
+                )}
               >
                 <MitreFilter
                   className={classes.TTPMitreContainer}
                   helpers={queryableHelpers.filterHelpers}
+                  killChain={activeKillChain}
                   onClick={() => setOpenMitreFilter(false)}
                 />
               </Drawer>
