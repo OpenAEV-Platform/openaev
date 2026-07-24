@@ -98,6 +98,7 @@ public class AttackPathGraphService {
   private final PayloadRepository payloadRepository;
   private final StepRepository stepRepository;
   private final PayloadMapper payloadMapper;
+  private final AttackPathSecurityPlatformResolver securityPlatformResolver;
   private final AttackPathKillChainResolver killChainResolver;
   private final ConditionRepository conditionRepository;
   private final AssetRepository assetRepository;
@@ -268,6 +269,7 @@ public class AttackPathGraphService {
         e.getDetectionStatus(),
         e.getExecutedAt() == null ? null : e.getExecutedAt().toString(),
         findings,
+        securityPlatformResolver.resolve(injectId, e.getAgentId(), e.getTargetAssetId()),
         maskSecrets(e.getCommand(), secrets),
         maskSecrets(e.getTerminalOutput(), secrets));
   }
