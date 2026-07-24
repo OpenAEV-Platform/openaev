@@ -13,7 +13,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class Filters {
 
   public enum FilterMode {
@@ -30,6 +32,9 @@ public class Filters {
           return mode;
         }
       }
+      // Tolerate vocabulary drift from external callers (e.g. older injector images), but leave a
+      // trace: a silent coercion would make the drift undiagnosable again (#6927).
+      log.warn("Unknown FilterMode '{}', falling back to '{}'", value, and);
       return and;
     }
   }
@@ -58,6 +63,9 @@ public class Filters {
           return operator;
         }
       }
+      // Tolerate vocabulary drift from external callers (e.g. older injector images), but leave a
+      // trace: a silent coercion would make the drift undiagnosable again (#6927).
+      log.warn("Unknown FilterOperator '{}', falling back to '{}'", value, eq);
       return eq;
     }
   }

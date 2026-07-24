@@ -59,6 +59,16 @@ public class RestBehavior {
 
   // -- 400 BAD_REQUEST --
 
+  private static final int MAX_REJECTED_VALUE_LENGTH = 100;
+
+  // Bound the caller-supplied rejected value echoed back in the 400 body / logs
+  private static String abbreviateRejectedValue(Object value) {
+    String rendered = String.valueOf(value);
+    return rendered.length() <= MAX_REJECTED_VALUE_LENGTH
+        ? rendered
+        : rendered.substring(0, MAX_REJECTED_VALUE_LENGTH) + "...";
+  }
+
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   @ExceptionHandler(HttpMessageNotReadableException.class)
   public ResponseEntity<ErrorMessage> handleHttpMessageNotReadable(
@@ -71,7 +81,9 @@ public class RestBehavior {
                   ref ->
                       ref.getFieldName() != null ? ref.getFieldName() : "[" + ref.getIndex() + "]")
               .collect(Collectors.joining("."));
-      detail = "Invalid value '%s' for field '%s'".formatted(ife.getValue(), path);
+      detail =
+          "Invalid value '%s' for field '%s'"
+              .formatted(abbreviateRejectedValue(ife.getValue()), path);
     } else {
       detail = "Malformed or unreadable request body";
     }

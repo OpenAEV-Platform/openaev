@@ -4,7 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import io.openaev.config.TenantFilteringException;
+import io.openaev.database.model.Filters.FilterOperator;
 import java.lang.reflect.Method;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -78,6 +82,49 @@ class RestBehaviorTest {
       // THEN
       assertNotNull(resolved);
       assertEquals("handleHttpMessageNotReadable", resolved.getName());
+    }
+
+    @Test
+    @DisplayName("InvalidFormatException cause yields a 400 naming the offending field and value")
+    void given_invalidFormatCause_should_nameFieldAndValue() {
+      // GIVEN - the failure shape produced when an enum value cannot be deserialized (#6927)
+      InvalidFormatException ife =
+          new InvalidFormatException(
+              (JsonParser) null, "Cannot deserialize", "WRONG_OP", FilterOperator.class);
+      ife.prependPath(new JsonMappingException.Reference(null, "operator"));
+      HttpMessageNotReadableException ex =
+          new HttpMessageNotReadableException("JSON parse error", ife, null);
+
+      // WHEN
+      ResponseEntity<ErrorMessage> response = new RestBehavior().handleHttpMessageNotReadable(ex);
+
+      // THEN
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+      assertNotNull(response.getBody());
+      assertEquals(
+          "Invalid value 'WRONG_OP' for field 'operator'", response.getBody().getMessage());
+    }
+
+    @Test
+    @DisplayName("oversized rejected value is truncated in the 400 message")
+    void given_oversizedRejectedValue_should_truncateInMessage() {
+      // GIVEN - a caller-supplied value far beyond the 100-char echo bound
+      String hugeValue = "X".repeat(500);
+      InvalidFormatException ife =
+          new InvalidFormatException(
+              (JsonParser) null, "Cannot deserialize", hugeValue, FilterOperator.class);
+      ife.prependPath(new JsonMappingException.Reference(null, "operator"));
+      HttpMessageNotReadableException ex =
+          new HttpMessageNotReadableException("JSON parse error", ife, null);
+
+      // WHEN
+      ResponseEntity<ErrorMessage> response = new RestBehavior().handleHttpMessageNotReadable(ex);
+
+      // THEN
+      assertNotNull(response.getBody());
+      String message = response.getBody().getMessage();
+      assertTrue(message.contains("X".repeat(100) + "..."));
+      assertTrue(message.length() < 200);
     }
 
     @Test
