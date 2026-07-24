@@ -1,7 +1,7 @@
 package io.openaev.rest.kill_chain_phase;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.database.specification.KillChainPhaseSpecification.byName;
+import static io.openaev.database.specification.KillChainPhaseSpecification.byNameOrKillChainName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
@@ -158,9 +158,10 @@ public class KillChainPhaseApi extends RestBehavior {
       @RequestParam(required = false) final String searchText) {
     return fromIterable(
             this.killChainPhaseRepository.findAll(
-                byName(searchText), Sort.by(Sort.Direction.ASC, "order")))
+                byNameOrKillChainName(searchText),
+                Sort.by(Sort.Order.asc("killChainName"), Sort.Order.asc("order"))))
         .stream()
-        .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
+        .map(KillChainPhaseApi::toOption)
         .toList();
   }
 
@@ -169,7 +170,16 @@ public class KillChainPhaseApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.killChainPhaseRepository.findAllById(ids)).stream()
-        .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
+        .map(KillChainPhaseApi::toOption)
         .toList();
+  }
+
+  /**
+   * The platform is multi kill chain: phase names are only unique within their kill chain, so
+   * options are always labelled "[kill chain] phase" to disambiguate.
+   */
+  private static FilterUtilsJpa.Option toOption(KillChainPhase phase) {
+    return new FilterUtilsJpa.Option(
+        phase.getId(), "[" + phase.getKillChainName() + "] " + phase.getName());
   }
 }

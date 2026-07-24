@@ -186,7 +186,7 @@ public class Asset implements TenantBase {
    * the user id with a database FK (ON DELETE SET NULL); the link surfaces the physical person
    * behind an identity asset.
    */
-  @Queryable(filterable = true)
+  @Queryable(filterable = true, dynamicValues = true)
   @Column(name = "asset_linked_person")
   @JsonProperty("asset_linked_person")
   private String linkedPerson;

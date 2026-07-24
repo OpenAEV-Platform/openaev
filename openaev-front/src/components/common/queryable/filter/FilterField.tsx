@@ -11,6 +11,8 @@ import useFilterableProperties from './useFilterableProperties';
 interface Props {
   entityPrefix: string;
   availableFilterNames?: string[];
+  /** Technical filter keys to hide from the "Add filter" picker (e.g. programmatic relation filters). */
+  excludedFilterNames?: string[];
   filterGroup: FilterGroup;
   helpers: FilterHelpers;
   style: CSSProperties;
@@ -20,6 +22,7 @@ interface Props {
 const FilterField: FunctionComponent<Props> = ({
   entityPrefix,
   availableFilterNames = [],
+  excludedFilterNames = [],
   filterGroup,
   helpers,
   style,
@@ -34,7 +37,8 @@ const FilterField: FunctionComponent<Props> = ({
 
   useEffect(() => {
     useFilterableProperties(entityPrefix, availableFilterNames).then((propertySchemas: PropertySchemaDTO[]) => {
-      const newOptions = propertySchemas.map(property => (
+      const retainedProperties = propertySchemas.filter(property => !excludedFilterNames.includes(property.schema_property_name));
+      const newOptions = retainedProperties.map(property => (
         {
           id: property.schema_property_name,
           label: t(property.schema_property_name),
@@ -42,7 +46,7 @@ const FilterField: FunctionComponent<Props> = ({
         } as OptionPropertySchema
       ));
       setOptions(newOptions);
-      setProperties(propertySchemas);
+      setProperties(retainedProperties);
     });
   }, []);
 

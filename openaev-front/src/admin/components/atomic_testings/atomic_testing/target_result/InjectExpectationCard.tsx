@@ -240,14 +240,28 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
         )}
 
       {
-        // If endpoint with agents, show the injects expectations aggregated for each agent of the endpoint
-        // Else show the injects expectations for the selected target (agents, endpoints agentless,...)
+        // If endpoint with agents, show the aggregated security-platform results of the endpoint
+        // (union of the agents' results, answered results preferred) followed by the per-agent
+        // breakdown. Else show the injects expectations for the selected target (agents,
+        // endpoints agentless,...)
         (isAssets(target) && !isAgentless) ? (
-          <InjectExpectationAggregatedAgentsView
-            inject={inject}
-            expectationType={injectExpectation.inject_expectation_type}
-            target={target}
-          />
+          <>
+            {['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type)
+              && (injectExpectation.inject_expectation_results?.length ?? 0) > 0 && (
+              <InjectExpectationResultList
+                injectExpectation={injectExpectation}
+                injectExpectationResults={injectExpectation.inject_expectation_results ?? []}
+                injectExpectationAgent={undefined}
+                injectorContractPayload={inject.inject_injector_contract?.injector_contract_payload}
+                injectType={inject.inject_type}
+              />
+            )}
+            <InjectExpectationAggregatedAgentsView
+              inject={inject}
+              expectationType={injectExpectation.inject_expectation_type}
+              target={target}
+            />
+          </>
         ) : (
           (!isAssetGroupExpectation(injectExpectation) && ['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type) && (injectExpectation.inject_expectation_results?.length ?? 0) > 0)
           && (

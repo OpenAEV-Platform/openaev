@@ -45,7 +45,7 @@ public class Document implements TenantBase {
 
   @Column(name = "document_name")
   @JsonProperty("document_name")
-  @Queryable(searchable = true, sortable = true)
+  @Queryable(filterable = true, searchable = true, sortable = true)
   @NotBlank
   private String name;
 
@@ -60,7 +60,7 @@ public class Document implements TenantBase {
 
   @Column(name = "document_type")
   @JsonProperty("document_type")
-  @Queryable(searchable = true, sortable = true)
+  @Queryable(filterable = true, searchable = true, sortable = true)
   @NotBlank
   private String type;
 
@@ -72,7 +72,7 @@ public class Document implements TenantBase {
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
   @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("document_tags")
-  @Queryable(sortable = true)
+  @Queryable(filterable = true, sortable = true, dynamicValues = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
 
   @Schema(implementation = String[].class)

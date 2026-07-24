@@ -15,6 +15,16 @@ interface Props {
 }
 
 /**
+ * Programmatic relation filters (used by contextual searches) that make no
+ * sense as user-facing trigger criteria: no human picks raw entity ids.
+ */
+const TECHNICAL_FILTER_KEYS = [
+  'asset_id',
+  'team_injects',
+  'asset_group_injects',
+];
+
+/**
  * Filter group editor bound to the watched resource type of a live trigger.
  * Remount it (with a key) whenever the resource type changes so the available
  * filterable properties are re-resolved.
@@ -47,6 +57,7 @@ const TriggerFilterField: FunctionComponent<Props> = ({
       <FilterField
         entityPrefix={entityPrefix}
         availableFilterNames={[]}
+        excludedFilterNames={TECHNICAL_FILTER_KEYS}
         filterGroup={filterGroup}
         helpers={helpers}
         style={{ marginTop: 20 }}

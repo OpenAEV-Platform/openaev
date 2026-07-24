@@ -5104,6 +5104,7 @@ export interface InjectExpectationAgentOutput {
   inject_expectation_group?: boolean;
   /** @minLength 1 */
   inject_expectation_id: string;
+  inject_expectation_inject?: string;
   inject_expectation_name?: string;
   inject_expectation_results?: InjectExpectationResult[];
   /** @format double */

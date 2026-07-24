@@ -1165,6 +1165,7 @@ public class InjectExpectationService {
                     .agentId(ie.getAgent().getId())
                     .agentName(ie.getAgent().getExecutedByUser())
                     .assetId(assetId)
+                    .injectId(ie.getInject().getId())
                     .build())
         .collect(Collectors.toList());
   }

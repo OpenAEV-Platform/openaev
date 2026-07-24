@@ -212,9 +212,15 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   private User user;
 
   // CascadeType.ALL is required here because inject status are embedded
+  // Filter/sort on the execution status name (not the relation id), with the
+  // enum values exposed to the UI so the filter is a picker instead of free text
   @OneToOne(mappedBy = "inject", cascade = CascadeType.ALL, orphanRemoval = true)
   @JsonProperty("inject_status")
-  @Queryable(filterable = true, sortable = true)
+  @Queryable(
+      filterable = true,
+      sortable = true,
+      path = "status.name",
+      refEnumClazz = ExecutionStatus.class)
   private InjectStatus status;
 
   @Column(name = "inject_collect_status", nullable = false)
