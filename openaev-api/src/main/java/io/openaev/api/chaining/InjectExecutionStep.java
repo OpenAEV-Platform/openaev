@@ -1069,7 +1069,8 @@ public class InjectExecutionStep implements ActionStep {
             ? mapping.getKeyTypes().stream().map(Enum::name).toList()
             : mapping.getKeyType() != null ? List.of(mapping.getKeyType().name()) : List.of();
     if (keyTypes.isEmpty()) {
-      log.warn("[Chaining] Skipping mapper condition {} because keyTypes are empty", mapping.getId());
+      log.warn(
+          "[Chaining] Skipping mapper condition {} because keyTypes are empty", mapping.getId());
       return;
     }
     String targetJsonKey = mapping.getKey();

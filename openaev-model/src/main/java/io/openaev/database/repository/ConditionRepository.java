@@ -100,5 +100,6 @@ public interface ConditionRepository extends JpaRepository<Condition, String> {
             )
           """)
   List<Condition> findFilterConditionsByWorkflowId(
-      @Param("workflowId") String workflowId, @Param("excludedTypes") Set<ConditionType> excludedTypes);
+      @Param("workflowId") String workflowId,
+      @Param("excludedTypes") Set<ConditionType> excludedTypes);
 }

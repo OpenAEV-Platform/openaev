@@ -360,7 +360,8 @@ public class ConditionServiceTest {
       when(workflowRun.getId()).thenReturn("wf-multi-key-types");
 
       List<Condition> mappers =
-          List.of(mapper(MappingType.GLOBAL, List.of(PrimitiveType.IPv4, PrimitiveType.Service), null));
+          List.of(
+              mapper(MappingType.GLOBAL, List.of(PrimitiveType.IPv4, PrimitiveType.Service), null));
 
       WorkflowStateEntries globalEntries =
           entries(List.of(input("IPv4", "10.0.0.1"), input("Service", "ssh")), List.of());

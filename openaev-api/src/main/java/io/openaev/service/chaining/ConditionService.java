@@ -956,7 +956,8 @@ public class ConditionService {
     // Hashes are not committed here. The caller commits only hashes of batches
     // that actually proceed (i.e. are not rate-limited) via commitHashes().
     List<ExecutionBatch> batches =
-        buildExecutionBatches(mappers, context.localEntries(), context.globalEntries(), preparation);
+        buildExecutionBatches(
+            mappers, context.localEntries(), context.globalEntries(), preparation);
 
     return batches;
   }
@@ -1050,9 +1051,7 @@ public class ConditionService {
     for (Condition mapper : mappers) {
       List<String> sourceKeys = resolveMapperSourceKeys(mapper);
       if (sourceKeys.isEmpty()) {
-        log.warn(
-            "[Chaining] Skipping mapper {} because keyTypes are missing",
-            mapper.getId());
+        log.warn("[Chaining] Skipping mapper {} because keyTypes are missing", mapper.getId());
         return new MapperInputPreparation(List.of(), List.of(), Map.of(), true);
       }
 
@@ -1134,7 +1133,8 @@ public class ConditionService {
           continue;
         }
 
-        for (List<WorkflowStateEntries.Pair> comboPairs : localEntries.cartesianProduct(perMapperPairs)) {
+        for (List<WorkflowStateEntries.Pair> comboPairs :
+            localEntries.cartesianProduct(perMapperPairs)) {
           Map<String, String> combo = toComboMap(comboPairs);
           tryAddBatch(combo, preparation, localEntries, mappers, pendingHashes, batches);
         }

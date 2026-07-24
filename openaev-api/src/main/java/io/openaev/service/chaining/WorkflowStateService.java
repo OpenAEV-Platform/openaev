@@ -236,9 +236,7 @@ public class WorkflowStateService {
                     (root.getConditionChildren() != null
                             ? root.getConditionChildren().stream()
                             : java.util.stream.Stream.<Condition>empty())
-                        .flatMap(
-                            child ->
-                                getConditionKeyTypeNames(child).stream()))
+                        .flatMap(child -> getConditionKeyTypeNames(child).stream()))
             .collect(Collectors.toSet());
 
     // Filter output values: keep only those matching interested key types and relevant to the event
