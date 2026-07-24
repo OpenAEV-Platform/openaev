@@ -14,6 +14,8 @@ interface Props {
   onSubmit: (input: NotificationTriggerInput) => void;
   editing?: boolean;
   initialValues?: NotificationTriggerOutput;
+  /** When provided, renders a Delete button next to the submit button (used by the entity bell edit drawer). */
+  onDelete?: () => void;
 }
 
 /** Creation / edition form for live and digest notification triggers. */
@@ -22,6 +24,7 @@ const TriggerForm: FunctionComponent<Props> = ({
   onSubmit,
   editing,
   initialValues,
+  onDelete,
 }) => {
   const { t } = useFormatter();
 
@@ -277,8 +280,19 @@ const TriggerForm: FunctionComponent<Props> = ({
       <div style={{
         float: 'right',
         marginTop: 20,
+        display: 'flex',
+        gap: 10,
       }}
       >
+        {onDelete && (
+          <Button
+            variant="contained"
+            color="error"
+            onClick={onDelete}
+          >
+            {t('Delete')}
+          </Button>
+        )}
         <Button
           variant="contained"
           color="primary"

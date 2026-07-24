@@ -22,6 +22,7 @@ const TECHNICAL_FILTER_KEYS = [
   'asset_id',
   'team_injects',
   'asset_group_injects',
+  'finding_id',
 ];
 
 /**
