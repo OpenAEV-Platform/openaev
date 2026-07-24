@@ -2172,7 +2172,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                 detail={detail}
                 onClose={() => setDetailExecutionId(null)}
                 onOpenInject={(detail as { injectId?: string } | null)?.injectId
-                  ? () => navigate(`../injects/${(detail as { injectId?: string }).injectId}`)
+                  // The inject belongs to the run, not the scenario: a relative `../injects/…` would point
+                  // at the scenario in scenario context (which has no such inject → 404). Always target the
+                  // selected simulation so both contexts resolve to the real inject.
+                  ? () => navigate(`${SIMULATION_BASE_URL}/${simulationId}/injects/${(detail as { injectId?: string }).injectId}`)
                   : undefined}
               />
             )}

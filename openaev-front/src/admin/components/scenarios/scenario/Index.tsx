@@ -48,7 +48,11 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
   const { t } = useFormatter();
   const location = useLocation();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
+  // Attack path only exists for chained scenarios (workflow-backed), never for time-based ones — mirror
+  // the simulation gating so the tab and route are hidden unless the scenario has a workflow.
+  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH')
+    && isChainingFeatureEnabled
+    && !!scenario.scenario_workflow_id;
   const permissions = useScenarioPermissions(scenario.scenario_id);
   // The Tests tab only exists for email/SMS injects that have actually been
   // tested; hide it entirely otherwise.
