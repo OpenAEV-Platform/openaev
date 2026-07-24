@@ -146,6 +146,7 @@ class InjectServiceTest {
     mapper = new ObjectMapper().findAndRegisterModules();
     ReflectionTestUtils.setField(injectService, "mapper", mapper);
     ReflectionTestUtils.setField(injectStatusService, "mapper", mapper);
+    ReflectionTestUtils.setField(injectStatusService, "auditLogger", Optional.empty());
     ReflectionTestUtils.setField(
         injectService,
         "healthCheckUtils",
