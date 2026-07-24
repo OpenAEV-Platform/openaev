@@ -1,9 +1,7 @@
 package io.openaev.utils.log;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.openaev.database.model.Action;
 import io.openaev.database.model.AdministrationResourceType;
-import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.log.form.LogDetailsInput;
 import io.openaev.utils.object.ObjectRedactionUtils;
@@ -156,31 +154,6 @@ public class LogUtils {
     return String.format(
         "Session expired: active for %ds, then expired due to %s",
         sessionDurationSeconds, expiryReason.replace("_", " "));
-  }
-
-  public static String getEventScope(Action action) {
-    return switch (action) {
-      case CREATE -> "create";
-      case WRITE -> "update";
-      case DELETE -> "delete";
-      case LAUNCH -> "status_change";
-      case DUPLICATE -> "duplicate";
-      case READ, SEARCH -> "read";
-      case LOGIN -> "login";
-      case LOGOUT -> "logout";
-      case UNAUTHORIZED -> "unauthorized";
-      default -> "unknown";
-    };
-  }
-
-  public static String getEventType(EventType type) {
-    return switch (type) {
-      case MUTATION -> "mutation";
-      case AUTHENTICATION -> "authentication";
-      case EXECUTION -> "execution";
-      case SYSTEM -> "system";
-      default -> "unknown";
-    };
   }
 
   public static String getEventAccess(ResourceType resourceType) {

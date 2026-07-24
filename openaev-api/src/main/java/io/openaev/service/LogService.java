@@ -102,7 +102,7 @@ public class LogService {
     try {
       // Build human-readable message
       String message = LogUtils.buildAuthLogMessage(eventScope, eventStatus, provider);
-      String eventType = LogUtils.getEventType(EventType.AUTHENTICATION);
+      String eventType = EventType.AUTHENTICATION.name().toLowerCase();
       String eventAccess = LogUtils.getAuthEventAccess();
       LogEvent doc = buildBaseAuditLog(eventType, eventStatus, eventAccess, eventScope, logUUID);
 
@@ -152,7 +152,7 @@ public class LogService {
         message = LogUtils.buildRequestLogMessage(eventScope, entityTypeName, displayName);
       }
 
-      String eventType = LogUtils.getEventType(EventType.MUTATION);
+      String eventType = EventType.MUTATION.name().toLowerCase();
       String eventAccess = LogUtils.getEventAccess(resourceType);
       LogEvent doc = buildBaseAuditLog(eventType, eventStatus, eventAccess, eventScope, logUUID);
       Map<String, Object> ctx = new LinkedHashMap<>();
@@ -212,7 +212,7 @@ public class LogService {
     }
 
     try {
-      String eventType = resolveEventType(event.getEventType());
+      String eventType = event.getEventType().name().toLowerCase();
       String eventStatus = event.getEventStatus().name().toLowerCase();
       String eventScope = event.getEventScope().name().toLowerCase();
 
@@ -315,16 +315,6 @@ public class LogService {
       JsonNode redactedSignature = ObjectRedactionUtils.redact(signatureNode, resourceType);
       doc.getRequestMetadata().setSignature(redactedSignature);
     }
-  }
-
-  /** Maps {@link EventType} to the string representation used in {@link LogEvent}. */
-  private String resolveEventType(EventType type) {
-    return switch (type) {
-      case MUTATION -> "mutation";
-      case AUTHENTICATION -> "authentication";
-      case EXECUTION -> "execution";
-      case SYSTEM -> "system";
-    };
   }
 
   /** Resolves the event access level based on the event type. */
