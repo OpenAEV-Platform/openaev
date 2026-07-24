@@ -664,7 +664,8 @@ public class V1_DataImporter implements Importer {
       Scenario savedScenario,
       Map<String, Base> baseIds) {
     String contentType = new MimetypesFileTypeMap().getContentType(entry.getEntry().getName());
-    Optional<Document> targetDocument = this.documentRepository.findByTarget(target);
+    Optional<Document> targetDocument =
+        this.documentRepository.findFirstByTargetOrderByIdAsc(target);
 
     if (targetDocument.isPresent()) {
       updateExistingDocument(nodeDoc, targetDocument.get(), savedExercise, savedScenario, baseIds);

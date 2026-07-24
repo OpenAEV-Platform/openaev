@@ -95,6 +95,17 @@ export const searchEndpointLinkedToFindingsAsOption = (searchText: string = '', 
   return simpleCall(`${ENDPOINT_URI}/findings/options`, { params });
 };
 
+// Filter options over the WHOLE asset inventory (endpoints, AI targets, cloud / web / network /
+// generic assets). Findings can attach to any asset - agentless web applications included - so
+// filter builders such as notification trigger criteria must propose every asset.
+export const searchAssetsAsOption = (searchText: string = '') => {
+  return simpleCall('/api/assets/options', { params: { searchText } });
+};
+
+export const searchAssetsByIdAsOption = (ids: string[]) => {
+  return simplePostCall('/api/assets/options', ids);
+};
+
 export const importEndpoints = (file: FormData, csvType: string) => {
   return simplePostCall(`/api/mappers/import/csv?csvType=` + csvType, file);
 };

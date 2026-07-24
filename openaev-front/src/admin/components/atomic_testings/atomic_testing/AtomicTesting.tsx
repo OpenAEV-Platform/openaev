@@ -106,7 +106,7 @@ const AtomicTesting = () => {
     if (hasEndpoints) {
       tabs.push({
         key: index++,
-        label: t('Endpoints'),
+        label: t('Assets'),
         type: 'ASSETS',
         entityPrefix: 'endpoint_target',
       });

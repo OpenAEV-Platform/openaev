@@ -189,6 +189,21 @@ public class NotifierApiTest extends IntegrationTest {
 
   @Test
   @WithMockUser(isAdmin = true)
+  @DisplayName("A UI notifier cannot be created: the user interface notifier is built-in only")
+  void uiNotifierCannotBeCreated() throws Exception {
+    NotifierInput input = NotifierInput.builder().name("Custom UI").type(NotifierType.UI).build();
+
+    mvc.perform(
+            post(NOTIFIER_URI)
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is4xxClientError());
+  }
+
+  @Test
+  @WithMockUser(isAdmin = true)
   @DisplayName("Built-in notifiers cannot be modified or deleted")
   void builtInNotifiersAreReadOnly() throws Exception {
     // Seed built-ins through the list endpoint

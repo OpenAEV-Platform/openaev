@@ -173,16 +173,19 @@ export interface AgentTarget {
 
 export interface AggregatedFindingOutput {
   /**
-   * Asset groups linked to endpoints
+   * Asset groups linked to assets
    * @uniqueItems true
    */
   finding_asset_groups?: AssetGroupSimple[];
   /**
-   * Endpoint linked to finding
+   * Assets linked to the finding (any asset type, not only endpoints)
    * @uniqueItems true
    */
   finding_assets: EndpointSimple[];
-  /** @format date-time */
+  /**
+   * First time the finding was seen
+   * @format date-time
+   */
   finding_created_at: string;
   /**
    * Finding Id
@@ -215,6 +218,11 @@ export interface AggregatedFindingOutput {
     | "asreproastable_account"
     | "kerberoastable_account"
     | "expectation_signature";
+  /**
+   * Last time the finding was seen
+   * @format date-time
+   */
+  finding_updated_at: string;
   /**
    * Finding Value
    * @minLength 1
@@ -727,6 +735,15 @@ export interface AssetGroupTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+}
+
+export interface AssetOptionOutput {
+  /** Product-facing asset category, used to group options in pickers */
+  category?: string;
+  /** Asset id */
+  id?: string;
+  /** Asset name */
+  label?: string;
 }
 
 export interface AssetOutput {
@@ -1489,6 +1506,8 @@ export interface CatalogConnector {
   catalog_connector_max_confidence_level?: number;
   /** Connector playbook supported */
   catalog_connector_playbook_supported?: boolean;
+  /** Whether the legacy properties configuration has already been migrated */
+  catalog_connector_properties_migrated?: boolean;
   /** Connector description */
   catalog_connector_short_description?: string;
   /** Connector slug */
@@ -8700,16 +8719,19 @@ export interface RelatedEntityOutput {
 
 export interface RelatedFindingOutput {
   /**
-   * Asset groups linked to endpoints
+   * Asset groups linked to assets
    * @uniqueItems true
    */
   finding_asset_groups?: AssetGroupSimple[];
   /**
-   * Endpoint linked to finding
+   * Assets linked to the finding (any asset type, not only endpoints)
    * @uniqueItems true
    */
   finding_assets: EndpointSimple[];
-  /** @format date-time */
+  /**
+   * First time the finding was seen
+   * @format date-time
+   */
   finding_created_at: string;
   /**
    * Finding Id
@@ -8748,6 +8770,11 @@ export interface RelatedFindingOutput {
     | "asreproastable_account"
     | "kerberoastable_account"
     | "expectation_signature";
+  /**
+   * Last time the finding was seen
+   * @format date-time
+   */
+  finding_updated_at: string;
   /**
    * Finding Value
    * @minLength 1

@@ -42,6 +42,15 @@ const ItemSecurityPlatformType: FunctionComponent<Props> = ({ type, size = 'smal
         'color': accent,
         'borderColor': alpha(accent, 0.4),
         'backgroundColor': alpha(accent, 0.08),
+        // Design-system exception: platform types are acronyms (EDR, SIEM...)
+        // and must keep their true case - opt out of the global MuiChip
+        // lowercase + first-letter-uppercase override.
+        'textTransform': 'none',
+        '&::first-letter': { textTransform: 'none' },
+        '& .MuiChip-label': {
+          'textTransform': 'none',
+          '&::first-letter': { textTransform: 'none' },
+        },
         '& .MuiChip-icon': { marginLeft: 0.5 },
       }}
     />

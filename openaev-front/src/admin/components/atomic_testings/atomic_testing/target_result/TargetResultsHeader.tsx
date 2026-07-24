@@ -23,7 +23,7 @@ interface Props {
 
 const TYPE_LABELS: Record<string, string> = {
   ASSETS_GROUPS: 'Asset group',
-  ASSETS: 'Endpoint',
+  ASSETS: 'Asset',
   TEAMS: 'Team',
   PLAYERS: 'Player',
   AGENT: 'Agent',

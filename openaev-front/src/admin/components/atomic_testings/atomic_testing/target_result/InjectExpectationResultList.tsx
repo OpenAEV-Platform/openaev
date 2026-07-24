@@ -100,7 +100,7 @@ const InjectExpectationResultList = ({
             flexShrink: 0,
           }}
           >
-            <StatusPill label={t(entry.result)} status={entry.result} />
+            <StatusPill label={entry.result ? t(entry.result) : '-'} status={entry.result} />
             <Typography sx={{
               fontSize: 11,
               color: 'text.secondary',

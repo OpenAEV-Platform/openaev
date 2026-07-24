@@ -10,6 +10,8 @@ const BUILTIN_CONNECTOR_DESCRIPTIONS: Record<string, string> = {
   openaev_channel: 'Publish media pressure articles on channels to simulate information operations.',
   openaev_challenge: 'Deliver challenges to players to test their detection and response reflexes.',
   openaev_implant: 'Execute payloads on endpoints through the built-in OpenAEV agent.',
+  // Executors
+  openaev_agent: 'Run injects directly on your endpoints through the native OpenAEV agent, without any third-party tool.',
   // Collectors
   openaev_fake_detector: 'Automatically expire inject expectations left unfilled past their time window.',
   openaev_expectations_vulnerability_manager: 'Score vulnerability expectations against detected findings to track exposure.',

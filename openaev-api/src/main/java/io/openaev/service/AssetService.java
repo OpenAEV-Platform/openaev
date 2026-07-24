@@ -4,7 +4,9 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
+import io.openaev.api.asset.AssetOptionOutput;
 import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.AssetType;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.AssetRepository;
@@ -27,6 +29,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -176,6 +179,47 @@ public class AssetService {
 
   public Iterable<Asset> assetFromIds(@NotNull final List<String> assetIds) {
     return this.assetRepository.findAllById(assetIds);
+  }
+
+  // -- OPTIONS --
+
+  /**
+   * Name-based filter options over the full asset inventory (every category except security
+   * platforms). Findings can attach to any asset - not only endpoints - so filter builders (e.g.
+   * notification trigger criteria on findings) must propose all of them. Each option carries the
+   * asset category so pickers can group the inventory.
+   */
+  public List<AssetOptionOutput> getOptionsByName(final String searchText, Pageable pageable) {
+    // The repository query requires a non-null term (null binds break PostgreSQL type inference);
+    // an empty string matches every asset.
+    String term = StringUtils.trimToEmpty(searchText);
+    return this.assetRepository.findAllOptionsByName(term, pageable).stream()
+        .map(
+            i ->
+                new AssetOptionOutput(
+                    (String) i[0],
+                    (String) i[1],
+                    i[2] != null ? ((AssetCategory) i[2]).name() : null))
+        .toList();
+  }
+
+  /**
+   * Resolve filter option labels for a set of asset ids, whatever the asset category. Security
+   * platforms are excluded, consistent with {@link #getOptionsByName(String, Pageable)}: they never
+   * surface in the unified inventory options. Null or empty input resolves to an empty list (the
+   * ids come straight from a request body that may be absent).
+   */
+  public List<FilterUtilsJpa.Option> getOptionsByIds(final List<String> ids) {
+    if (CollectionUtils.isEmpty(ids)) {
+      return List.of();
+    }
+    // instanceof rather than the type discriminator string: the discriminator field is
+    // read-only (insertable = false) and not hydrated on entities created in the current
+    // persistence context, while the concrete class is always reliable.
+    return fromIterable(this.assetRepository.findAllById(ids)).stream()
+        .filter(a -> !(a instanceof SecurityPlatform))
+        .map(a -> new FilterUtilsJpa.Option(a.getId(), a.getName()))
+        .toList();
   }
 
   @Transactional

@@ -1,6 +1,6 @@
-import { ButtonBase, MenuItem, Select, Typography } from '@mui/material';
+import { ButtonBase, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, useEffect, useMemo } from 'react';
 
 import { type AttackPatternHelper } from '../../../../actions/attack_patterns/attackpattern-helper';
 import { type InjectorContractHelper } from '../../../../actions/injector_contracts/injector-contract-helper';
@@ -13,6 +13,8 @@ import { useHelper } from '../../../../store';
 import { type AttackPattern, type KillChainPhase } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import KillChainSelect from './KillChainSelect';
+import useKillChains from './useKillChains';
 
 interface InjectorContractLight {
   injector_contract_id: string;
@@ -20,14 +22,6 @@ interface InjectorContractLight {
 }
 
 export const MITRE_FILTER_KEY = 'injector_contract_attack_patterns';
-
-// Well-known kill chains get their official product name; custom ones fall back
-// to their raw name (matches the home dashboard matrix + contract picker sidebar).
-const KILL_CHAIN_LABELS: Record<string, string> = {
-  'mitre-attack': 'MITRE ATT&CK',
-  'mitre-atlas': 'MITRE ATLAS',
-};
-const killChainLabel = (name: string) => KILL_CHAIN_LABELS[name.toLowerCase()] ?? name;
 
 // External ids belonging to a top-level technique: the technique itself plus its
 // sub-techniques (T1595 -> [T1595, T1595.001, ...]). Both the count and the
@@ -165,15 +159,20 @@ interface MitreFilterProps {
   onClick: (attackPatternId: string) => void;
   defaultSelectedAttackPatternIds?: string[];
   className?: string;
+  /**
+   * Externally controlled kill chain (e.g. selector rendered in the drawer header via
+   * KillChainSelect). When provided, the matrix body renders columns only - no selector chrome.
+   */
+  killChain?: string;
 }
 
 const MitreFilter: FunctionComponent<MitreFilterProps> = ({
   helpers,
   onClick,
   className = '',
+  killChain,
 }) => {
   const theme = useTheme();
-  const { t } = useFormatter();
   const dispatch = useAppDispatch();
 
   const { attackPatterns, killChainPhases, injectorsContracts } = useHelper(
@@ -191,22 +190,8 @@ const MitreFilter: FunctionComponent<MitreFilterProps> = ({
     helpers.handleAddFilterWithEmptyValue(buildEmptyFilter(MITRE_FILTER_KEY, 'contains'));
   }, []);
 
-  // Distinct kill chains (MITRE ATT&CK, MITRE ATLAS, ...). The matrix shows ONE
-  // at a time; a switcher flips between them when several exist.
-  const killChains = useMemo<string[]>(
-    () => [...new Set(killChainPhases.map((p: KillChainPhase) => p.phase_kill_chain_name))]
-      .filter((name): name is string => !!name)
-      .sort((a, b) => a.localeCompare(b)),
-    [killChainPhases],
-  );
-  const defaultKillChain = useMemo(
-    () => killChains.find(chain => chain.toLowerCase().includes('attack')) ?? killChains[0],
-    [killChains],
-  );
-  const [selectedKillChain, setSelectedKillChain] = useState<string | null>(null);
-  const activeKillChain = selectedKillChain != null && killChains.includes(selectedKillChain)
-    ? selectedKillChain
-    : defaultKillChain;
+  const { killChains, activeKillChain: internalKillChain, selectKillChain } = useKillChains();
+  const activeKillChain = killChain ?? internalKillChain;
 
   const phasesOfActiveKillChain = useMemo(
     () => killChainPhases
@@ -251,43 +236,14 @@ const MitreFilter: FunctionComponent<MitreFilterProps> = ({
         gap: theme.spacing(2),
       }}
     >
-      {killChains.length > 1 && (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: theme.spacing(0.5),
-        }}
-        >
-          <Typography sx={{
-            fontFamily: '"Geologica", sans-serif',
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: 'text.secondary',
-          }}
-          >
-            {t('Kill chain')}
-          </Typography>
-          <Select
-            size="small"
-            variant="standard"
-            disableUnderline
-            value={activeKillChain ?? ''}
-            onChange={e => setSelectedKillChain(e.target.value as string)}
-            sx={{
-              'minWidth': 200,
-              'fontFamily': '"Geologica", sans-serif',
-              'fontWeight': 600,
-              'fontSize': 15,
-              '& .MuiSelect-select': { paddingBottom: 0 },
-            }}
-          >
-            {killChains.map(chain => (
-              <MenuItem key={chain} value={chain}>{killChainLabel(chain)}</MenuItem>
-            ))}
-          </Select>
-        </div>
+      {/* Fallback selector for call sites that don't host it in the drawer header.
+          Externally controlled matrices keep the body free of chrome. */}
+      {killChain == null && (
+        <KillChainSelect
+          killChains={killChains}
+          value={activeKillChain}
+          onChange={selectKillChain}
+        />
       )}
       <div style={{
         display: 'flex',

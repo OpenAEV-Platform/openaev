@@ -74,7 +74,8 @@ public class DocumentService {
     byte[] content = fileIS.readAllBytes();
     String extension = FilenameUtils.getExtension(fileName);
     String fileTarget = DigestUtils.md5Hex(new ByteArrayInputStream(content)) + "." + extension;
-    Optional<Document> targetDocument = documentRepository.findByTarget(fileTarget);
+    Optional<Document> targetDocument =
+        documentRepository.findFirstByTargetOrderByIdAsc(fileTarget);
     // Document already exists by hash
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
@@ -101,7 +102,8 @@ public class DocumentService {
       document.setTags(tags);
       return save(document);
     } else {
-      Optional<Document> existingDocument = documentRepository.findByName(fileName);
+      Optional<Document> existingDocument =
+          documentRepository.findFirstByNameOrderByIdAsc(fileName);
       if (existingDocument.isPresent()) {
         Document document = existingDocument.get();
         // Update doc

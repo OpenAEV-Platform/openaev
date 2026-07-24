@@ -61,6 +61,7 @@ public class NotifierService {
 
   @Transactional
   public Notifier create(@NotNull final Notifier notifier) {
+    requireCustomizableType(notifier.getType());
     validateConfiguration(notifier.getType(), notifier.getConfiguration());
     notifier.setBuiltIn(false);
     return notifierRepository.save(notifier);
@@ -73,6 +74,7 @@ public class NotifierService {
     if (notifier.isBuiltIn()) {
       throw new IllegalArgumentException("Built-in notifiers cannot be modified");
     }
+    requireCustomizableType(input.getType());
     validateConfiguration(input.getType(), input.getConfiguration());
     notifier.setName(input.getName());
     notifier.setDescription(input.getDescription());
@@ -162,6 +164,15 @@ public class NotifierService {
       email.setBuiltIn(true);
       email.setTenant(new Tenant(tenantId));
       notifierRepository.save(email);
+    }
+  }
+
+  // The UI notifier is built-in only (aligned with OpenCTI): custom notifiers are restricted to
+  // email and webhook types.
+  private void requireCustomizableType(NotifierType type) {
+    if (type == NotifierType.UI) {
+      throw new IllegalArgumentException(
+          "The user interface notifier is built-in: custom notifiers must use the email or webhook type");
     }
   }
 
