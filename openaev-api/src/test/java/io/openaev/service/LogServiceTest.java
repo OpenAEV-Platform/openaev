@@ -703,7 +703,7 @@ class LogServiceTest {
                       "inject_id", "inject-1",
                       "previous_status", "PENDING",
                       "new_status", "EXECUTED"))
-              .origin(AuditEventOrigin.SYSTEM)
+              .origin(AuditEventOrigin.SCHEDULED)
               .build();
 
       // Act
@@ -740,7 +740,7 @@ class LogServiceTest {
               .eventScope(AuditEventScope.JOB_EXECUTION)
               .eventStatus(EventStatus.ERROR)
               .message("Job failed")
-              .origin(AuditEventOrigin.SYSTEM)
+              .origin(AuditEventOrigin.SCHEDULED)
               .build();
 
       // Act
@@ -763,7 +763,7 @@ class LogServiceTest {
               .eventScope(AuditEventScope.SCHEDULED_LAUNCH)
               .eventStatus(EventStatus.SUCCESS)
               .message("Simulation started")
-              .origin(AuditEventOrigin.SYSTEM)
+              .origin(AuditEventOrigin.SCHEDULED)
               .build();
 
       // Act
@@ -786,7 +786,7 @@ class LogServiceTest {
               .eventScope(AuditEventScope.RETENTION_PURGE)
               .eventStatus(EventStatus.SUCCESS)
               .message("Purged 1000 records")
-              .origin(AuditEventOrigin.SYSTEM)
+              .origin(AuditEventOrigin.SCHEDULED)
               .build();
 
       // Act
