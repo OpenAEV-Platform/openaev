@@ -1095,10 +1095,11 @@ class StepServiceTest {
               .key("test_key")
               .keyType(PrimitiveType.AssetGroupId)
               .value("test_value")
-              .caseSensitive(false) // non-default (default is true)
-              .mappingType(MappingType.GLOBAL)
-              .name("root-event-name")
-              .build();
+.caseSensitive(false) // non-default (default is true)
+.mappingType(MappingType.GLOBAL)
+.name("root-event-name")
+.description("root-event-description")
+.build();
       rootCondition.setId("root-id");
 
       // Build a child EQ leaf condition
