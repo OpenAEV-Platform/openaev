@@ -13,18 +13,23 @@ import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.user.form.player.PlayerBulkProcessingInput;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.rest.user.form.player.PlayerOutput;
 import io.openaev.service.UserService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -101,6 +106,22 @@ public class PlayerApi extends RestBehavior {
       resourceType = ResourceType.PLAYER)
   public void deletePlayer(@PathVariable String userId) {
     userService.delete(userId);
+  }
+
+  @ApiResponses(
+      value = {@ApiResponse(responseCode = "200", description = "The ids of the deleted players")})
+  @Operation(
+      summary = "Bulk delete players",
+      description =
+          "Deletes players either from an explicit id list (user_ids_to_process) or from a select-all search scope (search_pagination_input) - the two are mutually exclusive. user_ids_to_ignore removes ids from a select-all scope. The current user, admin users and reserved service accounts are always excluded server-side.")
+  @LogExecutionTime
+  @DeleteMapping({PLAYER_URI, TENANT_PLAYER_URI})
+  // SUPPORTS (not REQUIRED): the service deletes in small independent chunk transactions with
+  // deadlock retry; a request-wide transaction would force everything back into one transaction.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLAYER)
+  public List<String> bulkDeletePlayers(@RequestBody @Valid final PlayerBulkProcessingInput input) {
+    return playerService.bulkDeletePlayers(input);
   }
 
   // -- OPTIONS (for the shared filter autocomplete: id + display name) --

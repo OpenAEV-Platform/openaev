@@ -116,8 +116,8 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
     defaultValues: { message: '' },
   });
 
-  const isTrialLicense = eeSettings?.license_type === LICENSE_OPTION_TRIAL;
-  if (!isTrialLicense) return null;
+  const isEE = eeSettings?.license_is_enterprise;
+  if (!isEE) return null;
 
   const bannerInfo = computeBannerInfo(t, eeSettings, () => {
     setShowFormDialog(true);

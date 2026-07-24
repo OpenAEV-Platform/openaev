@@ -10,6 +10,7 @@ import SnapshotRemediationProvider from '../../threat_arsenal/utils/SnapshotReme
 interface Props { injectResultOverview: InjectResultOverviewOutput }
 
 const AtomicTesting = lazy(() => import('./AtomicTesting'));
+const AtomicTestingExecutionDetails = lazy(() => import('./AtomicTestingExecutionDetails'));
 const AtomicTestingFindings = lazy(() => import('./AtomicTestingFindings'));
 const AtomicTestingPayloadInfo = lazy(() => import('./payload_info/AtomicTestingPayloadInfo'));
 const AtomicTestingRemediations = lazy(() => import('./AtomicTestingRemediations'));
@@ -19,6 +20,7 @@ const AtomicTestingRoutes = ({ injectResultOverview }: Props) => {
     <SnapshotRemediationProvider>
       <Routes>
         <Route path="" element={errorWrapper(AtomicTesting)()} />
+        <Route path="execution_details" element={errorWrapper(AtomicTestingExecutionDetails)()} />
         {(injectResultOverview.inject_injector_contract?.injector_contract_payload
           || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
           <Route path="findings" element={errorWrapper(AtomicTestingFindings)()} />

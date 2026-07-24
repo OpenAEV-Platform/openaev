@@ -21,7 +21,15 @@ interface Props {
  * "fab" pills and inline titles.
  */
 const ConfigurationSection: FunctionComponent<Props> = ({ title, count, action, children }) => (
-  <div>
+  // Flex column + full height so a `flex: 1` Paper child stretches to the grid
+  // row height when the section is used as a side-by-side column (lessons
+  // learned objectives / crisis intensity).
+  <div style={{
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+  }}
+  >
     <Box
       sx={{
         display: 'flex',

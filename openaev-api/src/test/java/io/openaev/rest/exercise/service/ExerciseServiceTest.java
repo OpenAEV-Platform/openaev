@@ -15,9 +15,11 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.*;
 import io.openaev.service.FileService;
 import io.openaev.service.LessonsService;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.fixtures.*;
@@ -91,7 +93,8 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private ApplicationEventPublisher eventPublisher;
 
   @Mock private InjectExpectationMapper injectExpectationMapper;
-
+  @Mock private AttackPathExecutionIngestionService attackPathExecutionService;
+  @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
   @InjectMocks private ExerciseService mockedExerciseService;
   @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private StepService stepService;
@@ -120,6 +123,7 @@ class ExerciseServiceTest extends IntegrationTest {
             injectExpectationRepository,
             articleRepository,
             exerciseRepository,
+            bulkDeleteExecutor,
             injectStatusRepository,
             pauseRepository,
             lessonsQuestionRepository,
@@ -139,7 +143,8 @@ class ExerciseServiceTest extends IntegrationTest {
             fileService,
             stepService,
             healthCheckUtils,
-            eventPublisher);
+            eventPublisher,
+            attackPathExecutionService);
 
     scenarioComposer.reset();
     exerciseComposer.reset();

@@ -66,14 +66,17 @@ public final class ReservedKeyValidator {
     }
   }
 
+  /** Returns true if the email matches a reserved service-account email pattern. */
+  public static boolean isReservedUserEmail(String email) {
+    if (email == null) {
+      return false;
+    }
+    return RESERVED_EMAIL_PATTERNS.stream().anyMatch(p -> p.matcher(email).matches());
+  }
+
   /** Throws BadRequestException if the email matches a reserved service-account email pattern. */
   public static void validateUserEmailPattern(String email) {
-    if (email == null) {
-      return;
-    }
-    boolean matchesReserved =
-        RESERVED_EMAIL_PATTERNS.stream().anyMatch(p -> p.matcher(email).matches());
-    if (matchesReserved) {
+    if (isReservedUserEmail(email)) {
       throw new BadRequestException("The user is reserved for system use and cannot be used.");
     }
   }

@@ -15,6 +15,7 @@ import io.openaev.injector_contract.Contractor;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector.form.InjectorOutput;
 import io.openaev.rest.injector.response.InjectorRegistration;
@@ -65,6 +66,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   private final EntityManager entityManager;
 
+  private final InjectIndexCleanupService injectIndexCleanupService;
+
   @Autowired
   public InjectorService(
       InjectorRepository injectorRepository,
@@ -80,7 +83,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       InjectorMapper injectorMapper,
       CatalogConnectorMapper catalogConnectorMapper,
       RabbitmqService rabbitmqService,
-      EntityManager entityManager) {
+      EntityManager entityManager,
+      InjectIndexCleanupService injectIndexCleanupService) {
     super(
         ConnectorType.INJECTOR,
         connectorInstanceConfigurationRepository,
@@ -97,6 +101,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     this.injectorMapper = injectorMapper;
     this.rabbitmqService = rabbitmqService;
     this.entityManager = entityManager;
+    this.injectIndexCleanupService = injectIndexCleanupService;
   }
 
   @Override
@@ -306,8 +311,13 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             .map(in -> injectorContractService.convertInjectorFromInput(in, injector))
             .peek(contract -> applyContractAuthor(contract, authorOrganization))
             .toList();
+    // Contract deletion cascades to injects at the DB level (ON DELETE CASCADE): de-index the
+    // doomed injects explicitly, no JPA lifecycle event fires for them.
+    List<String> cascadeDeletedInjectIds =
+        injectIndexCleanupService.injectIdsByContractIds(toDeletes, injector.getTenantId());
     injectorContractRepository.deleteAllByIdAndTenantId(
         toDeletes.toArray(new String[0]), injector.getTenantId());
+    injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
     // Unlink deleted contracts via the join entity
     injector.getContracts().stream()
         .filter(c -> toDeletes.contains(c.getId()))
@@ -502,9 +512,13 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     // gap is healed on the next startup registration.
     toUpdate.forEach(contract -> applyContractAuthor(contract, builtinAuthor));
 
-    // Persist changes
+    // Persist changes. Contract deletion cascades to injects at the DB level (ON DELETE
+    // CASCADE): de-index the doomed injects explicitly, no JPA lifecycle event fires for them.
+    List<String> cascadeDeletedInjectIds =
+        injectIndexCleanupService.injectIdsByContractIds(toDelete, injector.getTenantId());
     injectorContractRepository.deleteAllByIdAndTenantId(
         toDelete.toArray(new String[0]), injector.getTenantId());
+    injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
     toCreate = fromIterable(injectorContractRepository.saveAll(toCreate));
 
     // Link new contracts to the injector via idempotent native INSERT (ON CONFLICT DO NOTHING).

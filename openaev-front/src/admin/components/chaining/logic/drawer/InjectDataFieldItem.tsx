@@ -2,9 +2,12 @@ import { KeyboardArrowDown, LinkOff, LinkOutlined } from '@mui/icons-material';
 import {
   Box,
   Button,
+  FormControl,
   IconButton,
+  InputLabel,
   Menu,
   MenuItem,
+  Select,
   Switch,
   TextField,
   Tooltip,
@@ -27,6 +30,9 @@ interface Props {
   value: string;
   defaultValue?: string;
   link: FieldLink | null;
+  readOnly?: boolean;
+  noLink?: boolean;
+  choices?: Record<string, string>;
   onValueChange: (fieldKey: string, value: string) => void;
   onLink: (fieldKey: string, link: FieldLink) => void;
   onUnlink: (fieldKey: string) => void;
@@ -39,6 +45,9 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
   value,
   defaultValue,
   link,
+  readOnly = false,
+  noLink = false,
+  choices,
   onValueChange,
   onLink,
   onUnlink,
@@ -111,23 +120,27 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
             gap: 1,
           }}
           >
-            <Switch
-              size="small"
-              checked={link.localScope}
-              onChange={(_, checked) => onToggleLocalScope(fieldKey, checked)}
-              color="primary"
-            />
-            <Typography variant="caption" color="text.secondary">
-              {t('Limit to Local Scope')}
-            </Typography>
-            <Tooltip title={t('Unlink')}>
-              <IconButton
-                size="small"
-                onClick={() => onUnlink(fieldKey)}
-              >
-                <LinkOff fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            {!readOnly && (
+              <>
+                <Switch
+                  size="small"
+                  checked={link.localScope}
+                  onChange={(_, checked) => onToggleLocalScope(fieldKey, checked)}
+                  color="primary"
+                />
+                <Typography variant="caption" color="text.secondary">
+                  {t('Limit to Local Scope')}
+                </Typography>
+                <Tooltip title={t('Unlink')}>
+                  <IconButton
+                    size="small"
+                    onClick={() => onUnlink(fieldKey)}
+                  >
+                    <LinkOff fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </>
+            )}
           </Box>
         </Box>
       )}
@@ -140,29 +153,53 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
           marginBottom: 1,
         }}
         >
-          <TextField
-            fullWidth
-            size="small"
-            variant="standard"
-            label={fieldLabel}
-            placeholder={fieldLabel}
-            value={value}
-            onChange={e => onValueChange(fieldKey, e.target.value)}
-          />
-          <Button
-            size="small"
-            variant="text"
-            color="primary"
-            endIcon={<KeyboardArrowDown />}
-            onClick={event => setMenuAnchor(event.currentTarget)}
-            sx={{
-              whiteSpace: 'nowrap',
-              textTransform: 'none',
-              paddingInline: 2,
-            }}
-          >
-            {t('Link an Output')}
-          </Button>
+          {choices
+            ? (
+                <FormControl fullWidth size="small">
+                  <InputLabel id={`select-label-${fieldKey}`}>{fieldLabel}</InputLabel>
+                  <Select
+                    labelId={`select-label-${fieldKey}`}
+                    label={fieldLabel}
+                    value={value || ''}
+                    onChange={e => onValueChange(fieldKey, e.target.value as string)}
+                    renderValue={selected =>
+                      selected ? (choices[selected as string] ?? selected) : ''}
+                  >
+                    {Object.entries(choices).map(([k, label]) => (
+                      <MenuItem key={k} value={k} dense>
+                        {label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )
+            : (
+                <TextField
+                  fullWidth
+                  size="small"
+                  variant="standard"
+                  label={fieldLabel}
+                  placeholder={fieldLabel}
+                  value={value}
+                  onChange={e => onValueChange(fieldKey, e.target.value)}
+                />
+              )}
+          {!noLink && (
+            <Button
+              size="small"
+              variant="text"
+              color="primary"
+              endIcon={<KeyboardArrowDown />}
+              onClick={event => setMenuAnchor(event.currentTarget)}
+              sx={{
+                whiteSpace: 'nowrap',
+                textTransform: 'none',
+                paddingInline: 2,
+              }}
+            >
+              {t('Link an Output')}
+            </Button>
+          )}
         </Box>
       )}
 

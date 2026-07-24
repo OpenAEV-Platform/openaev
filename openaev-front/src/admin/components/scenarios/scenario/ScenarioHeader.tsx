@@ -1,8 +1,11 @@
 import {
   AutoAwesomeOutlined,
+  ComputerOutlined,
+  EmojiEventsOutlined,
   GroupsOutlined,
   HubOutlined,
-  InsertChartOutlined,
+  LanOutlined,
+  NewspaperOutlined,
   NotificationsOutlined,
   PersonOutlined,
   PlayArrowOutlined,
@@ -15,16 +18,18 @@ import {
 import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type SetStateAction, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 
-import { createCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
+import { fetchScenarioChallenges } from '../../../../actions/challenge-action';
+import { type ChallengeHelper } from '../../../../actions/helper';
+import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import {
   createRunningExerciseFromScenario,
   searchScenarioHealthcheks,
-  updateScenario,
   updateScenarioRecurrence,
 } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
+import { fetchScenarioInjectsSimple } from '../../../../actions/scenarios/scenario-inject-actions';
 import { DetailHero, HeroStat } from '../../../../components/common/detail/EntityDetailCommon';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
@@ -34,13 +39,15 @@ import ItemSeverity from '../../../../components/ItemSeverity';
 import { SIMULATION_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import {
-  type CustomDashboard,
+  type Challenge,
   type Exercise,
   type HealthCheck,
+  type Inject,
   type Scenario,
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
+import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Cron } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
 import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExpressionHandler';
@@ -48,8 +55,7 @@ import useScenarioPermissions from '../../../../utils/permissions/useScenarioPer
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
-import { type CustomDashboardFormType } from '../../workspaces/custom_dashboards/CustomDashboardForm';
-import DashboardCreationDrawer from '../../workspaces/custom_dashboards/DashboardCreationDrawer';
+import { countDistinctInjectTargets } from '../../common/injects/utils';
 import ScenarioConfiguration from './ScenarioConfiguration';
 import ScenarioPopover from './ScenarioPopover';
 import ScenarioRecurringFormDialog from './ScenarioRecurringFormDialog';
@@ -90,7 +96,6 @@ const ScenarioHeader = ({
   const [openScenarioAssistantQueryParam] = useQueryParameter(['openScenarioAssistant']);
   const { canLaunch, canManage } = useScenarioPermissions(scenarioId);
 
-  const [openCreateDashboard, setOpenCreateDashboard] = useState(false);
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
 
@@ -102,7 +107,25 @@ const ScenarioHeader = ({
     }
   }, [openScenarioAssistantQueryParam, scenarioId]);
   // Fetching data
-  const { scenario }: { scenario: Scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
+  const { scenario, challenges, injects }: {
+    scenario: Scenario;
+    challenges: Challenge[];
+    injects: Inject[];
+  } = useHelper((helper: ScenariosHelper & ChallengeHelper & InjectHelper) => ({
+    scenario: helper.getScenario(scenarioId),
+    challenges: helper.getScenarioChallenges(scenarioId),
+    injects: helper.getScenarioInjects(scenarioId),
+  }));
+
+  // Challenges are authored inside injects (no configuration tab): as soon as
+  // at least one inject uses a challenge, expose the player-facing preview
+  // right in the hero. Injects (lightweight view) feed the usage-aware hero
+  // stats: which assets and asset groups the scenario actually targets.
+  useDataLoader(() => {
+    dispatch(fetchScenarioChallenges(scenarioId));
+    dispatch(fetchScenarioInjectsSimple(scenarioId));
+  });
+  const hasChallenges = challenges.length > 0;
 
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
@@ -114,11 +137,19 @@ const ScenarioHeader = ({
   const ended = scenario.scenario_recurrence_end && new Date(scenario.scenario_recurrence_end).getTime() < new Date().getTime();
   const isScheduled = !!scenario.scenario_recurrence;
 
-  // Headline stats surfaced right in the hero so they are visible on every tab.
+  // Headline stats surfaced right in the hero so they are visible on every
+  // tab. The hero adapts to how the scenario is actually built: injects and
+  // simulations are always shown, while the people dimension (teams,
+  // players), the technical dimension (targeted assets, asset groups) and the
+  // content dimension (media pressure, challenges) only appear when actually
+  // used - a tabletop reads people-first, a technical scenario reads
+  // assets-first, and a mixed one shows both.
   const injectsCount = scenario.scenario_injects?.length ?? 0;
   const simulationsCount = scenario.scenario_exercises?.length ?? 0;
   const teamsCount = scenario.scenario_teams?.length ?? 0;
   const playersCount = scenario.scenario_all_users_number ?? scenario.scenario_users_number ?? 0;
+  const articlesCount = scenario.scenario_articles?.length ?? 0;
+  const { assets: assetsCount, assetGroups: assetGroupsCount } = countDistinctInjectTargets(injects);
 
   useEffect(() => {
     searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
@@ -172,38 +203,6 @@ const ScenarioHeader = ({
       sentence += ` ${t('recurrence_starting_from')} ${fld(scenario.scenario_recurrence_start)}`;
     }
     return sentence;
-  };
-
-  const hasDashboard = !!scenario.scenario_custom_dashboard;
-
-  // "Analyze" quick action: an already-attached dashboard opens straight away;
-  // otherwise we create a fresh one (pre-scoped to this scenario), attach it and
-  // jump to the scenario-scoped dashboard view.
-  const onDashboardAction = () => {
-    if (hasDashboard) {
-      navigate(`/admin/scenarios/${scenarioId}/dashboard`);
-    } else {
-      setOpenCreateDashboard(true);
-    }
-  };
-
-  const attachDashboard = async (dashboardId: string) => {
-    setOpenCreateDashboard(false);
-    await dispatch(updateScenario(scenario.scenario_id, {
-      ...scenario,
-      scenario_custom_dashboard: dashboardId,
-    }));
-    navigate(`/admin/scenarios/${scenarioId}/dashboard`);
-  };
-
-  const onCreateDashboard = async (data: CustomDashboardFormType) => {
-    const response = await createCustomDashboard(data);
-    const newDashboardId = (response.data as CustomDashboard | undefined)?.custom_dashboard_id;
-    if (!newDashboardId) {
-      setOpenCreateDashboard(false);
-      return;
-    }
-    await attachDashboard(newDashboardId);
   };
 
   const scheduleLabel = cronObject?.isValid() ? humanReadableScheduling() : t('Not scheduled');
@@ -278,16 +277,24 @@ const ScenarioHeader = ({
                 </Tooltip>
               )}
               {/* Secondary actions surfaced as compact icon buttons (with explicit
-                  tooltips) instead of being buried in the overflow menu. The
-                  dashboard tooltip reflects whether a dashboard is already
-                  attached (open) or still needs to be created. */}
+                  tooltips) instead of being buried in the overflow menu. */}
+              {/* Visible as soon as one inject uses a challenge - opens the
+                  player-facing challenges page in a new tab. */}
+              {hasChallenges && (
+                <Tooltip title={t('Preview challenges page')}>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    component={Link}
+                    to={`/admin/scenarios/${scenarioId}/challenges`}
+                    target="_blank"
+                  >
+                    <EmojiEventsOutlined fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
               {canManage && (
                 <>
-                  <Tooltip title={hasDashboard ? t('Open dashboard') : t('Create dashboard')}>
-                    <IconButton size="small" color="primary" onClick={onDashboardAction}>
-                      <InsertChartOutlined fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
                   <Tooltip title={t('Notification rules')}>
                     <IconButton size="small" color="primary" onClick={() => setOpenScenarioNotificationRuleDrawer(true)}>
                       <NotificationsOutlined fontSize="small" color={editNotification ? 'success' : undefined} />
@@ -339,6 +346,7 @@ const ScenarioHeader = ({
           )}
           stats={(
             <>
+              {/* Always-on core stats. */}
               <HeroStat
                 icon={TrackChangesOutlined}
                 label={t('Injects')}
@@ -352,18 +360,55 @@ const ScenarioHeader = ({
                 value={simulationsCount}
                 color={theme.palette.primary.main}
               />
-              <HeroStat
-                icon={GroupsOutlined}
-                label={t('Teams')}
-                value={teamsCount}
-                color={theme.palette.secondary.main}
-              />
-              <HeroStat
-                icon={PersonOutlined}
-                label={t('Players')}
-                value={playersCount}
-                color={theme.palette.success.main}
-              />
+              {/* People dimension - tabletop / crisis scenarios. */}
+              {teamsCount > 0 && (
+                <HeroStat
+                  icon={GroupsOutlined}
+                  label={t('Teams')}
+                  value={teamsCount}
+                  color={theme.palette.secondary.main}
+                />
+              )}
+              {playersCount > 0 && (
+                <HeroStat
+                  icon={PersonOutlined}
+                  label={t('Players')}
+                  value={playersCount}
+                  color={theme.palette.success.main}
+                />
+              )}
+              {/* Technical dimension - endpoint-targeting scenarios. */}
+              {assetsCount > 0 && (
+                <HeroStat
+                  icon={ComputerOutlined}
+                  label={t('Assets')}
+                  value={assetsCount}
+                  color={theme.palette.info.main}
+                />
+              )}
+              {assetGroupsCount > 0 && (
+                <HeroStat
+                  icon={LanOutlined}
+                  label={t('Asset groups')}
+                  value={assetGroupsCount}
+                  color={theme.palette.info.main}
+                />
+              )}
+              {/* Content dimension - media pressure and gamification. */}
+              {articlesCount > 0 && (
+                <HeroStat
+                  icon={NewspaperOutlined}
+                  label={t('Media pressure')}
+                  value={articlesCount}
+                />
+              )}
+              {hasChallenges && (
+                <HeroStat
+                  icon={EmojiEventsOutlined}
+                  label={t('Challenges')}
+                  value={challenges.length}
+                />
+              )}
             </>
           )}
         />
@@ -415,15 +460,6 @@ const ScenarioHeader = ({
       >
         <ScenarioConfiguration />
       </Drawer>
-      <DashboardCreationDrawer
-        open={openCreateDashboard}
-        onClose={() => setOpenCreateDashboard(false)}
-        defaultName={scenario.scenario_name}
-        parameterType="scenario"
-        resourceId={scenarioId}
-        onSelectExisting={attachDashboard}
-        onCreateNew={onCreateDashboard}
-      />
     </>
   );
 };

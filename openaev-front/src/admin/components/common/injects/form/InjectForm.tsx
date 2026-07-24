@@ -470,7 +470,7 @@ const InjectForm = ({
   }, [injectorContractContent, isCreation]);
 
   if (Object.keys(defaultValues).length === 0) {
-    return <Loader />;
+    return <Loader variant="inElement" />;
   }
 
   return (

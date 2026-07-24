@@ -6,6 +6,7 @@ import co.elastic.clients.elasticsearch._types.aggregations.DateHistogramAggrega
 import co.elastic.clients.elasticsearch._types.aggregations.ExtendedBounds;
 import co.elastic.clients.elasticsearch._types.aggregations.FieldDateMath;
 import co.elastic.clients.elasticsearch._types.query_dsl.*;
+import io.openaev.database.model.Filters;
 import io.openaev.engine.api.HistogramInterval;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -42,6 +43,35 @@ public class ElasticUtils {
   public static Query buildDateRangeQuery(
       @NotBlank final String field, @NotNull final Instant start, @NotNull final Instant end) {
     return DateRangeQuery.of(d -> d.field(field).gt(String.valueOf(start)).lt(String.valueOf(end)))
+        ._toRangeQuery()
+        ._toQuery();
+  }
+
+  /**
+   * Build a single-bound comparison query (gt / gte / lt / lte) on a date field, as produced by the
+   * filter UI for "instant" properties (e.g. a "created at &gt;= X" filter chip).
+   *
+   * @param field the date field name (must not be blank)
+   * @param operator the comparison operator (must be gt, gte, lt or lte)
+   * @param value the ISO-8601 date value (must not be blank)
+   */
+  public static Query buildDateCompareQuery(
+      @NotBlank final String field,
+      @NotNull final Filters.FilterOperator operator,
+      @NotBlank final String value) {
+    return DateRangeQuery.of(
+            d -> {
+              d.field(field);
+              return switch (operator) {
+                case gt -> d.gt(value);
+                case gte -> d.gte(value);
+                case lt -> d.lt(value);
+                case lte -> d.lte(value);
+                default ->
+                    throw new UnsupportedOperationException(
+                        "Not a comparison operator: " + operator);
+              };
+            })
         ._toRangeQuery()
         ._toQuery();
   }

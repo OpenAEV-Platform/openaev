@@ -909,12 +909,27 @@ public class WorkflowService {
    */
   @Transactional(rollbackFor = Exception.class)
   public Workflow evaluateWorkflowProgress(Workflow workflowRun) throws ChainingException {
+    // Reload within the current transaction: the caller may pass a detached entity (e.g. from a
+    // queue job whose transaction has already committed). Re-fetching attaches it to the current
+    // session so that lazy proxies (workflowTemplate, step collections) are accessible without
+    // LazyInitializationException.
+    final String workflowRunId = workflowRun.getId();
+    workflowRun =
+        workflowRepository
+            .findById(workflowRunId)
+            .orElseThrow(
+                () -> new ElementNotFoundException("Workflow run not found: " + workflowRunId));
+
+    if (workflowRun.getWorkflowTemplate() == null) {
+      log.warn("Workflow run {} has no template, cannot evaluate progress.", workflowRun.getId());
+      return workflowRun;
+    }
     String workflowTemplateId = workflowRun.getWorkflowTemplate().getId();
 
     // Guard: ignore if workflow run has already ended (e.g. timeout).
     if (this.isWorkflowEnded(workflowRun.getId())) {
-      log.info("Ignoring evalution because workflow run {} has ended.", workflowRun.getId());
-      return workflowRun;
+      log.info(
+          "[Chaining] Ignoring evaluation because workflow run {} has ended.", workflowRun.getId());
     }
 
     // Get all step template
@@ -922,7 +937,7 @@ public class WorkflowService {
 
     if (stepsTemplate.isEmpty()) {
       log.info(
-          "No step template for workflow template {}. End running {}",
+          "[Chaining] No step template for workflow template {}. End running {}",
           workflowTemplateId,
           workflowRun.getId());
       workflowRun.setStatus(WorkflowStatus.END);

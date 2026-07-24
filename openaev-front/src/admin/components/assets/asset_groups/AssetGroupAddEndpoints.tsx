@@ -48,7 +48,7 @@ const AssetGroupAddEndpoints: FunctionComponent<Props> = ({
 
   return (
     <>
-      <ButtonCreate onClick={() => setOpen(true)} />
+      <ButtonCreate label={t('Add')} onClick={() => setOpen(true)} />
       <EndpointsDialogAdding
         initialState={assetGroupEndpointIds}
         open={open}

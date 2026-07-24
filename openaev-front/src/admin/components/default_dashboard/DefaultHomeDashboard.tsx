@@ -1,7 +1,7 @@
 import { RefreshOutlined } from '@mui/icons-material';
 import { Box, IconButton, MenuItem, Select, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 
@@ -9,6 +9,7 @@ import { fetchSecurityPlatforms } from '../../../actions/assets/securityPlatform
 import { adHocAverage, adHocCount, adHocEntities, adHocEntitiesRuntime, adHocSeries } from '../../../actions/dashboards/dashboard-action';
 import { useFormatter } from '../../../components/i18n';
 import { type CustomDashboard, type Widget, type WidgetToEntitiesInput } from '../../../utils/api-types';
+import { useBulkOperationsFinishedCount } from '../../../utils/bulkOperations';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import limitConcurrency from '../../../utils/limitConcurrency';
@@ -50,6 +51,18 @@ const DefaultHomeDashboard = () => {
 
   const [timeRange, setTimeRange] = useLocalStorage<DefaultTimeRange>('default-home-dashboard-time-range', 'LAST_QUARTER');
   const [refreshCount, setRefreshCount] = useState(0);
+
+  // Massive operations no longer stream one event per deleted entity (which used to force a
+  // widget refresh per delete): refresh the engine-backed widgets once per finished operation,
+  // after a short delay so the search engine has flushed the deletions.
+  const finishedBulkOperations = useBulkOperationsFinishedCount();
+  useEffect(() => {
+    if (finishedBulkOperations === 0) {
+      return undefined;
+    }
+    const timeout = setTimeout(() => setRefreshCount(count => count + 1), 2500);
+    return () => clearTimeout(timeout);
+  }, [finishedBulkOperations]);
 
   // Titles are localized at build time so the grid headers and the results page agree.
   // `t` from useFormatter() is a NEW function on every render, so it must NOT be a

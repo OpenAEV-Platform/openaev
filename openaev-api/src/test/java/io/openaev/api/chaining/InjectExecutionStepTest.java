@@ -27,6 +27,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ConditionService;
+import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.fixtures.*;
@@ -49,6 +50,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @MockitoBean private ConditionService conditionService;
   @MockitoBean private ConditionUtils conditionUtils;
   @MockitoBean private io.openaev.executors.Executor executor;
+  @MockitoBean private ScopeService scopeService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
@@ -57,6 +59,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @Autowired private InjectTestHelper injectTestHelper;
   String injectInputJson;
   InjectorContract injectorContractSaved;
+  Asset savedAsset;
 
   @BeforeEach
   void beforeEach() throws Exception {
@@ -102,6 +105,12 @@ public class InjectExecutionStepTest extends IntegrationTest {
     doReturn(injectExecuted).when(injectService).findInjectOrNull(any());
     Asset asset = AssetFixture.createDefaultAsset("AssetTest");
     asset = injectTestHelper.forceSaveAsset(asset);
+    savedAsset = asset;
+
+    // Mock scope service: return the saved asset so that hasAssetTargets = true in run()
+    doReturn(List.of(savedAsset)).when(scopeService).getValidAssets(any());
+    doReturn(List.of()).when(scopeService).getValidAssetGroupsFromScope(any());
+    doReturn(List.of()).when(scopeService).getValidIpsFromScope(any());
 
     injectInputJson =
         """
@@ -852,5 +861,176 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertEquals(
         PrimitiveType.IPv4.name(), StepService.getField(stepTemplate.getInput(), "input.keyType"));
     assertNull(StepService.getField(stepTemplate.getInput(), "input.keySubtype"));
+  }
+
+  @Test
+  void given_injectWithoutStatus_whenGetCommand_thenReturnEmptyString() {
+    // Arrange
+    Inject inject = new Inject();
+
+    // Act
+    String command = ReflectionTestUtils.invokeMethod(injectExecutionStep, "getCommand", inject);
+
+    // Assert
+    assertEquals("", command);
+  }
+
+  @Test
+  void given_injectWithPayloadCommands_whenGetCommand_thenConcatenateCommandContents() {
+    // Arrange
+    Inject inject = new Inject();
+    InjectStatus status = new InjectStatus();
+    StatusPayload payload = new StatusPayload();
+    payload.setPayloadCommandBlocks(
+        List.of(
+            new PayloadCommandBlock("bash", "whoami", List.of()),
+            new PayloadCommandBlock("cmd", "hostname", List.of())));
+    status.setPayloadOutput(payload);
+    inject.setStatus(status);
+
+    // Act
+    String command = ReflectionTestUtils.invokeMethod(injectExecutionStep, "getCommand", inject);
+
+    // Assert
+    assertEquals("whoami\nhostname\n", command);
+  }
+
+  @Test
+  void given_injectWithoutStatus_whenGetExecutionTracesByEndpointIndex_thenReturnEmptyMap() {
+    // Arrange
+    Inject inject = new Inject();
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertTrue(tracesByEndpointSource.isEmpty());
+  }
+
+  @Test
+  void given_injectWithInjector_whenGetExecutionTracesByEndpointIndex_thenGroupByInjectorId() {
+    // Arrange
+    Inject inject = new Inject();
+    Injector injector = new Injector();
+    injector.setId("injector-1");
+    inject.setInjector(injector);
+
+    ExecutionTrace firstTrace = new ExecutionTrace();
+    firstTrace.setStatus(ExecutionTraceStatus.EXECUTED);
+    firstTrace.setMessage("first");
+
+    ExecutionTrace secondTrace = new ExecutionTrace();
+    secondTrace.setStatus(ExecutionTraceStatus.ERROR);
+    secondTrace.setMessage("second");
+
+    InjectStatus status = new InjectStatus();
+    status.addTrace(firstTrace);
+    status.addTrace(secondTrace);
+    inject.setStatus(status);
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertEquals(1, tracesByEndpointSource.size());
+    assertTrue(tracesByEndpointSource.containsKey("injector-1"));
+    assertEquals(
+        "EXECUTED first\nERROR second\n", tracesByEndpointSource.get("injector-1").toString());
+  }
+
+  @Test
+  void
+      given_injectWithoutInjector_whenGetExecutionTracesByEndpointIndex_thenGroupByAgentAndAsset() {
+    // Arrange
+    Inject inject = new Inject();
+
+    Asset assetOne = new Asset();
+    assetOne.setId("asset-1");
+    Agent agentOne = new Agent();
+    agentOne.setId("agent-1");
+    agentOne.setAsset(assetOne);
+
+    Asset assetTwo = new Asset();
+    assetTwo.setId("asset-2");
+    Agent agentTwo = new Agent();
+    agentTwo.setId("agent-2");
+    agentTwo.setAsset(assetTwo);
+
+    ExecutionTrace firstTrace = new ExecutionTrace();
+    firstTrace.setAgent(agentOne);
+    firstTrace.setStatus(ExecutionTraceStatus.EXECUTED);
+    firstTrace.setMessage("first");
+
+    ExecutionTrace secondTrace = new ExecutionTrace();
+    secondTrace.setAgent(agentOne);
+    secondTrace.setStatus(ExecutionTraceStatus.ERROR);
+    secondTrace.setMessage("second");
+
+    ExecutionTrace thirdTrace = new ExecutionTrace();
+    thirdTrace.setAgent(agentTwo);
+    thirdTrace.setStatus(ExecutionTraceStatus.INFO);
+    thirdTrace.setMessage("third");
+
+    InjectStatus status = new InjectStatus();
+    status.addTrace(firstTrace);
+    status.addTrace(secondTrace);
+    status.addTrace(thirdTrace);
+    inject.setStatus(status);
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertEquals(2, tracesByEndpointSource.size());
+    assertEquals(
+        "EXECUTED first\nERROR second\n", tracesByEndpointSource.get("agent-1asset-1").toString());
+    assertEquals("INFO third\n", tracesByEndpointSource.get("agent-2asset-2").toString());
+  }
+
+  @Test
+  void given_injectWithoutInjector_whenTraceHasNoAgent_thenSkipAgentlessTrace() {
+    // Arrange
+    Inject inject = new Inject();
+
+    Asset asset = new Asset();
+    asset.setId("asset-1");
+    Agent agent = new Agent();
+    agent.setId("agent-1");
+    agent.setAsset(asset);
+
+    ExecutionTrace globalTrace = new ExecutionTrace();
+    globalTrace.setAgent(null);
+    globalTrace.setStatus(ExecutionTraceStatus.WARNING);
+    globalTrace.setMessage("global warning");
+
+    ExecutionTrace endpointTrace = new ExecutionTrace();
+    endpointTrace.setAgent(agent);
+    endpointTrace.setStatus(ExecutionTraceStatus.EXECUTED);
+    endpointTrace.setMessage("endpoint ok");
+
+    InjectStatus status = new InjectStatus();
+    status.addTrace(globalTrace);
+    status.addTrace(endpointTrace);
+    inject.setStatus(status);
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertEquals(1, tracesByEndpointSource.size());
+    assertTrue(tracesByEndpointSource.containsKey("agent-1asset-1"));
+    assertEquals("EXECUTED endpoint ok\n", tracesByEndpointSource.get("agent-1asset-1").toString());
   }
 }

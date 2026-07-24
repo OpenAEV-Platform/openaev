@@ -193,6 +193,28 @@ public class ElasticService implements EngineService {
                 .toList();
         boolQuery.mustNot(notContainsQueries);
         break;
+      case gt:
+      case gte:
+      case lt:
+      case lte:
+        // Single-bound date comparisons: the filter UI only offers these operators
+        // for "instant" properties (e.g. the drill-down "created at" chip). Values
+        // are ISO dates, so toVal() is bypassed on purpose - it has no Instant case.
+        if (hasFilteringValues) {
+          List<Query> compareQueries =
+              filter.getValues().stream()
+                  .map(
+                      v ->
+                          buildDateCompareQuery(
+                              elasticField, operator, parameters.getOrDefault(v, v)))
+                  .toList();
+          if (filterMode == Filters.FilterMode.and) {
+            boolQuery.must(compareQueries);
+          } else {
+            boolQuery.should(compareQueries).minimumShouldMatch("1");
+          }
+        }
+        break;
       case empty:
         boolQuery
             .should(List.of(notExistsQuery(elasticField), emptyFieldQuery(elasticField)))
@@ -314,7 +336,7 @@ public class ElasticService implements EngineService {
     try {
       SearchResponse<EsBase> response =
           elasticClient.search(
-              b -> b.index(engineConfig.getIndexPrefix() + "*").size(ids.size()).query(query),
+              b -> b.index(engineConfig.getIndexPattern()).size(ids.size()).query(query),
               EsBase.class);
       List<Hit<EsBase>> hits = response.hits().hits();
       return hits.stream()
@@ -475,31 +497,24 @@ public class ElasticService implements EngineService {
           BoolQuery.of(b -> b.should(directId, dependenciesId).minimumShouldMatch("1"))._toQuery();
       elasticClient.deleteByQuery(
           new DeleteByQueryRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .query(query)
               .refresh(true)
+              .conflicts(Conflicts.Proceed)
               .build());
-      // Delete the id in the attributes of the documents including the id
+      // Remove the deleted ids from the denormalized "base_XXX_side" attributes of the documents
+      // that reference them. The update-by-query MUST be scoped to those documents only: this
+      // runs synchronously after every entity delete (the HTTP response waits for it), and an
+      // unscoped request rewrites every document of every index - minutes on a production
+      // dataset (relaunching an atomic testing was observed blocking for over a minute).
       elasticClient.updateByQuery(
           new UpdateByQueryRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
+              .query(sideReferencesQuery(ids))
               .script(
                   Script.of(
                       s ->
-                          s.source(
-                                  """
-                                          // For each EsBase attribute of each document
-                                          for (String key : ctx._source.keySet().toArray()) {
-                                            // If it's a "base_XXX_side" (means String id or List of ids), remove all deleted ids from this field.
-                                            if(key.startsWith("base_") && key.endsWith("_side") && ctx._source[key] != null) {
-                                                if (ctx._source[key] instanceof List) {
-                                                    ctx._source[key].removeIf(item -> params.valuesToRemove.contains(item));
-                                                } else if (ctx._source[key] instanceof String && params.valuesToRemove.contains(ctx._source[key])) {
-                                                    ctx._source.remove(key);
-                                                }
-                                            }
-                                          }
-                                        """)
+                          s.source(SIDE_CLEANUP_SCRIPT)
                               .params("valuesToRemove", JsonData.of(ids))
                               .lang("painless")))
               .refresh(true)
@@ -508,6 +523,49 @@ public class ElasticService implements EngineService {
     } catch (IOException e) {
       log.error(String.format("bulkDelete exception: %s", e.getMessage()), e);
     }
+  }
+
+  /**
+   * Painless script removing the deleted ids from every denormalized {@code base_XXX_side}
+   * attribute. Documents left unchanged are marked {@code noop} so the engine does not re-index
+   * them.
+   */
+  static final String SIDE_CLEANUP_SCRIPT =
+      """
+      boolean changed = false;
+      // For each EsBase attribute of each document
+      for (String key : ctx._source.keySet().toArray()) {
+        // If it's a "base_XXX_side" (means String id or List of ids), remove all deleted ids from this field.
+        if(key.startsWith("base_") && key.endsWith("_side") && ctx._source[key] != null) {
+            if (ctx._source[key] instanceof List) {
+                if (ctx._source[key].removeIf(item -> params.valuesToRemove.contains(item))) {
+                    changed = true;
+                }
+            } else if (ctx._source[key] instanceof String && params.valuesToRemove.contains(ctx._source[key])) {
+                ctx._source.remove(key);
+                changed = true;
+            }
+        }
+      }
+      if (!changed) {
+        ctx.op = 'noop';
+      }
+      """;
+
+  /**
+   * Matches only the documents that reference one of the deleted ids in a denormalized {@code
+   * base_XXX_side} field (exact match on the dynamic keyword sub-fields, expanded by the engine
+   * through the field wildcard).
+   */
+  private static Query sideReferencesQuery(List<String> ids) {
+    // Escape backslashes and quotes so an unexpected character in an id cannot break out of the
+    // quoted phrase and change the query_string semantics.
+    String quotedIds =
+        ids.stream()
+            .map(id -> "\"" + id.replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
+            .collect(Collectors.joining(" OR "));
+    return QueryStringQuery.of(q -> q.fields("base_*_side.keyword").query(quotedIds).lenient(true))
+        ._toQuery();
   }
 
   @Override
@@ -531,7 +589,7 @@ public class ElasticService implements EngineService {
               ._toQuery();
       elasticClient.deleteByQuery(
           new DeleteByQueryRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .query(query)
               .refresh(true)
               .conflicts(Conflicts.Proceed)
@@ -563,9 +621,7 @@ public class ElasticService implements EngineService {
         BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
         Query query = queryBuilder.must(countQuery).build()._toQuery();
         long allTimeCount =
-            elasticClient
-                .count(c -> c.index(engineConfig.getIndexPrefix() + "*").query(query))
-                .count();
+            elasticClient.count(c -> c.index(engineConfig.getIndexPattern()).query(query)).count();
         return new EsCountInterval(allTimeCount, 0L, allTimeCount);
       } else {
         // Compute the current interval count
@@ -581,8 +637,7 @@ public class ElasticService implements EngineService {
             currentBuilder.must(currentIntervalDateRangeQuery, countQuery).build()._toQuery();
         long currentIntervalCount =
             elasticClient
-                .count(
-                    c -> c.index(engineConfig.getIndexPrefix() + "*").query(currentIntervalQuery))
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(currentIntervalQuery))
                 .count();
 
         // Compute the previous interval
@@ -598,8 +653,7 @@ public class ElasticService implements EngineService {
             previousBuilder.must(previousIntervalDateRangeQuery, countQuery).build()._toQuery();
         long previousIntervalCount =
             elasticClient
-                .count(
-                    c -> c.index(engineConfig.getIndexPrefix() + "*").query(previousIntervalQuery))
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(previousIntervalQuery))
                 .count();
 
         return new EsCountInterval(
@@ -660,7 +714,7 @@ public class ElasticService implements EngineService {
 
       SearchRequest request =
           new SearchRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .size(0)
               .query(query)
               .aggregations(
@@ -765,10 +819,7 @@ public class ElasticService implements EngineService {
       String elasticField = toElasticField(field);
 
       SearchRequest.Builder searchBuilder =
-          new SearchRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
-              .size(0)
-              .query(query);
+          new SearchRequest.Builder().index(engineConfig.getIndexPattern()).size(0).query(query);
 
       // Avoid this exception
       // co.elastic.clients.elasticsearch._types.ElasticsearchException: [es/search] failed:
@@ -907,7 +958,7 @@ public class ElasticService implements EngineService {
       SearchResponse<Void> response =
           elasticClient.search(
               b ->
-                  b.index(engineConfig.getIndexPrefix() + "*")
+                  b.index(engineConfig.getIndexPattern())
                       .size(0)
                       .query(query)
                       .aggregations(
@@ -1001,7 +1052,7 @@ public class ElasticService implements EngineService {
       SearchResponse<?> response =
           elasticClient.search(
               b ->
-                  b.index(engineConfig.getIndexPrefix() + "*")
+                  b.index(engineConfig.getIndexPattern())
                       .size(runtime.getPagination().getSize())
                       .from(runtime.getPagination().getPage() * runtime.getPagination().getSize())
                       .query(finalQuery)
@@ -1073,7 +1124,7 @@ public class ElasticService implements EngineService {
       SearchResponse<EsSearch> response =
           elasticClient.search(
               b ->
-                  b.index(engineConfig.getIndexPrefix() + "*")
+                  b.index(engineConfig.getIndexPattern())
                       .size(engineConfig.getSearchCap())
                       .query(query)
                       .sort(

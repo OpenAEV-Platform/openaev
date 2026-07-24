@@ -40,6 +40,7 @@ const CustomDashboardComponent = ({ noDashboardSlot, readOnly = true }: Props) =
     <div style={{
       display: 'grid',
       gridTemplateColumns: '1fr auto',
+      alignItems: 'center',
       gap: theme.spacing(2),
     }}
     >

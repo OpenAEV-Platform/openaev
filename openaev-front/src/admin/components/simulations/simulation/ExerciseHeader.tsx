@@ -1,7 +1,10 @@
 import {
   CancelOutlined,
+  ComputerOutlined,
+  EmojiEventsOutlined,
   GroupsOutlined,
-  InsertChartOutlined,
+  LanOutlined,
+  NewspaperOutlined,
   PauseOutlined,
   PersonOutlined,
   PlayArrowOutlined,
@@ -14,12 +17,15 @@ import {
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 
 import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
-import { createCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
-import { searchExerciseHealthchecks, updateExercise, updateExerciseStatus } from '../../../../actions/Exercise';
+import { fetchExerciseChallenges } from '../../../../actions/challenge-action';
+import { searchExerciseHealthchecks, updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
+import { type ChallengeHelper } from '../../../../actions/helper';
+import { fetchExerciseInjectsSimple } from '../../../../actions/Inject';
+import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import { DetailHero, HeroStat } from '../../../../components/common/detail/EntityDetailCommon';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
@@ -27,14 +33,14 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemCategory from '../../../../components/ItemCategory';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import { useHelper } from '../../../../store';
-import { type CustomDashboard, type Exercise, type Exercise as ExerciseType, type HealthCheck, type SimulationDetails } from '../../../../utils/api-types';
+import { type Challenge, type Exercise, type Exercise as ExerciseType, type HealthCheck, type Inject, type SimulationDetails } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
+import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
-import { type CustomDashboardFormType } from '../../workspaces/custom_dashboards/CustomDashboardForm';
-import DashboardCreationDrawer from '../../workspaces/custom_dashboards/DashboardCreationDrawer';
+import { countDistinctInjectTargets } from '../../common/injects/utils';
 import ExerciseDatePopover from './ExerciseDatePopover';
 import ExercisePopover, { type ExerciseActionPopover } from './ExercisePopover';
 import ExerciseStatus from './ExerciseStatus';
@@ -227,10 +233,24 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   const dispatch = useAppDispatch();
 
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
-  const { exercise } = useHelper((helper: ExercisesHelper) => {
-    return { exercise: helper.getExercise(exerciseId) as SimulationDetails };
+  const { exercise, challenges, injects } = useHelper((helper: ExercisesHelper & ChallengeHelper & InjectHelper) => {
+    return {
+      exercise: helper.getExercise(exerciseId) as SimulationDetails,
+      challenges: helper.getExerciseChallenges(exerciseId) as Challenge[],
+      injects: helper.getExerciseInjects(exerciseId) as Inject[],
+    };
   });
   const permissions = useSimulationPermissions(exerciseId, exercise);
+
+  // Challenges are authored inside injects (no configuration tab): as soon as
+  // at least one inject uses a challenge, expose the player-facing preview
+  // right in the hero. Injects (lightweight view) feed the usage-aware hero
+  // stats: which assets and asset groups the simulation actually targets.
+  useDataLoader(() => {
+    dispatch(fetchExerciseChallenges(exerciseId));
+    dispatch(fetchExerciseInjectsSimple(exerciseId));
+  });
+  const hasChallenges = challenges.length > 0;
 
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const exerciseWorkflowId = exercise.exercise_workflow_id as string | undefined;
@@ -245,7 +265,6 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   );
 
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
-  const [openCreateDashboard, setOpenCreateDashboard] = useState(false);
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [openDateDialog, setOpenDateDialog] = useState(false);
 
@@ -260,41 +279,18 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
     ? ['Update', 'Export', 'Delete']
     : ['Update', 'Duplicate', 'Export', 'Delete', 'Access reports'];
 
-  // Headline stats surfaced right in the hero so they are visible on every tab.
+  // Headline stats surfaced right in the hero so they are visible on every
+  // tab. The hero adapts to how the simulation is actually built: injects are
+  // always shown, while the people dimension (teams, players), the technical
+  // dimension (targeted assets, asset groups) and the content dimension
+  // (media pressure, challenges) only appear when actually used - a tabletop
+  // reads people-first, a technical simulation reads assets-first, and a
+  // mixed one shows both.
   const injectsCount = exercise.exercise_injects?.length ?? 0;
   const teamsCount = exercise.exercise_teams?.length ?? 0;
   const playersCount = exercise.exercise_all_users_number ?? exercise.exercise_users_number ?? 0;
-  const hasDashboard = !!exercise.exercise_custom_dashboard;
-
-  // "Analyze" quick action: an already-attached dashboard opens straight away;
-  // otherwise create a fresh one (pre-scoped to this simulation), attach it and
-  // jump to the simulation-scoped dashboard view.
-  const onDashboardAction = () => {
-    if (hasDashboard) {
-      navigate(`/admin/simulations/${exerciseId}/dashboard`);
-    } else {
-      setOpenCreateDashboard(true);
-    }
-  };
-
-  const attachDashboard = async (dashboardId: string) => {
-    setOpenCreateDashboard(false);
-    await dispatch(updateExercise(exercise.exercise_id, {
-      ...exercise,
-      exercise_custom_dashboard: dashboardId,
-    }));
-    navigate(`/admin/simulations/${exerciseId}/dashboard`);
-  };
-
-  const onCreateDashboard = async (data: CustomDashboardFormType) => {
-    const response = await createCustomDashboard(data);
-    const newDashboardId = (response.data as CustomDashboard | undefined)?.custom_dashboard_id;
-    if (!newDashboardId) {
-      setOpenCreateDashboard(false);
-      return;
-    }
-    await attachDashboard(newDashboardId);
-  };
+  const articlesCount = exercise.exercise_articles?.length ?? 0;
+  const { assets: assetsCount, assetGroups: assetGroupsCount } = countDistinctInjectTargets(injects);
 
   return (
     <>
@@ -346,17 +342,26 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                 </Tooltip>
               )}
               {/* Secondary actions surfaced as compact icon buttons (with explicit
-                  tooltips) instead of being buried in the overflow menu. The
-                  dashboard tooltip reflects whether a dashboard is already
-                  attached (open) or still needs to be created. Scheduling can
-                  only be modified while the simulation is still SCHEDULED. */}
+                  tooltips) instead of being buried in the overflow menu.
+                  Scheduling can only be modified while the simulation is still
+                  SCHEDULED. */}
+              {/* Visible as soon as one inject uses a challenge - opens the
+                  player-facing challenges page in a new tab. */}
+              {hasChallenges && (
+                <Tooltip title={t('Preview challenges page')}>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    component={Link}
+                    to={`/admin/simulations/${exerciseId}/challenges`}
+                    target="_blank"
+                  >
+                    <EmojiEventsOutlined fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
               {permissions.canManage && (
                 <>
-                  <Tooltip title={hasDashboard ? t('Open dashboard') : t('Create dashboard')}>
-                    <IconButton size="small" color="primary" onClick={onDashboardAction}>
-                      <InsertChartOutlined fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
                   <Tooltip title={t('Modify the scheduling')}>
                     <span style={{ display: 'inline-flex' }}>
                       <IconButton
@@ -390,6 +395,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
           )}
           stats={(
             <>
+              {/* Always-on core stat. */}
               <HeroStat
                 icon={TrackChangesOutlined}
                 label={t('Injects')}
@@ -397,18 +403,55 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                 color={theme.palette.warning.main}
                 to={`/admin/simulations/${exerciseId}/injects`}
               />
-              <HeroStat
-                icon={GroupsOutlined}
-                label={t('Teams')}
-                value={teamsCount}
-                color={theme.palette.secondary.main}
-              />
-              <HeroStat
-                icon={PersonOutlined}
-                label={t('Players')}
-                value={playersCount}
-                color={theme.palette.success.main}
-              />
+              {/* People dimension - tabletop / crisis simulations. */}
+              {teamsCount > 0 && (
+                <HeroStat
+                  icon={GroupsOutlined}
+                  label={t('Teams')}
+                  value={teamsCount}
+                  color={theme.palette.secondary.main}
+                />
+              )}
+              {playersCount > 0 && (
+                <HeroStat
+                  icon={PersonOutlined}
+                  label={t('Players')}
+                  value={playersCount}
+                  color={theme.palette.success.main}
+                />
+              )}
+              {/* Technical dimension - endpoint-targeting simulations. */}
+              {assetsCount > 0 && (
+                <HeroStat
+                  icon={ComputerOutlined}
+                  label={t('Assets')}
+                  value={assetsCount}
+                  color={theme.palette.info.main}
+                />
+              )}
+              {assetGroupsCount > 0 && (
+                <HeroStat
+                  icon={LanOutlined}
+                  label={t('Asset groups')}
+                  value={assetGroupsCount}
+                  color={theme.palette.info.main}
+                />
+              )}
+              {/* Content dimension - media pressure and gamification. */}
+              {articlesCount > 0 && (
+                <HeroStat
+                  icon={NewspaperOutlined}
+                  label={t('Media pressure')}
+                  value={articlesCount}
+                />
+              )}
+              {hasChallenges && (
+                <HeroStat
+                  icon={EmojiEventsOutlined}
+                  label={t('Challenges')}
+                  value={challenges.length}
+                />
+              )}
             </>
           )}
         />
@@ -426,15 +469,6 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
         open={openDateDialog}
         onOpenChange={setOpenDateDialog}
         showTrigger={false}
-      />
-      <DashboardCreationDrawer
-        open={openCreateDashboard}
-        onClose={() => setOpenCreateDashboard(false)}
-        defaultName={exercise.exercise_name}
-        parameterType="simulation"
-        resourceId={exerciseId}
-        onSelectExisting={attachDashboard}
-        onCreateNew={onCreateDashboard}
       />
     </>
   );

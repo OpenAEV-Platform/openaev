@@ -1,75 +1,111 @@
-import { List, ListItem, Typography } from '@mui/material';
+import { MapOutlined, RocketLaunchOutlined, VideoLibraryOutlined, WidgetsOutlined } from '@mui/icons-material';
+import { Button, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
-import GradientButton from '../../../common/GradientButton';
+import { XTM_HUB_DEFAULT_URL } from '../../../../../utils/Environment';
+import useAuth from '../../../../../utils/hooks/useAuth';
+import XtmHubFeatureCard from './XtmHubFeatureCard';
+import { getXtmHubLogo } from './XtmHubUtils';
 
-const XtmHubUnregisteredSection: React.FC = () => {
+interface XtmHubUnregisteredSectionProps { onConnect?: () => void }
+
+const XtmHubUnregisteredSection: React.FC<XtmHubUnregisteredSectionProps> = ({ onConnect }) => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const { settings } = useAuth();
+  const xtmHubLogo = getXtmHubLogo(theme);
+  const hubUrl = settings?.xtm_hub_url ?? XTM_HUB_DEFAULT_URL;
+
+  const featureIconSx = {
+    fontSize: 20,
+    color: theme.palette.text.primary,
+  };
 
   return (
-    <>
-      <Typography>{t('By registering this platform into the hub, it will allow you to:')}</Typography>
-      <List
-        style={{
-          listStyleType: 'disc',
-          marginLeft: theme.spacing(2),
-        }}
-        dense
-      >
-        <ListItem style={{
-          display: 'list-item',
-          paddingLeft: 0,
-          marginLeft: theme.spacing(2),
-        }}
-        >
-          {t('Deploy in one-click threat management resources such as scenarios')}
-        </ListItem>
-        <ListItem style={{
-          display: 'list-item',
-          paddingLeft: 0,
-          marginLeft: theme.spacing(2),
-        }}
-        >
-          <span>
-            {t('Stay informed of new resources and key threat events with an exclusive news feed')}
-            <i>
-              {t(' (coming soon)')}
-            </i>
-          </span>
-        </ListItem>
-        <ListItem style={{
-          display: 'list-item',
-          paddingLeft: 0,
-          marginLeft: theme.spacing(2),
-        }}
-        >
-          <span>
-            {t('Monitor key metrics of the platform and health status')}
-            <i>
-              {t(' (coming soon)')}
-            </i>
-          </span>
-        </ListItem>
-      </List>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: theme.spacing(2),
+    }}
+    >
+      <img src={xtmHubLogo} alt="XTM Hub" style={{ height: 35 }} />
 
-      <GradientButton
-        variant="outlined"
-        component="a"
-        href="https://filigran.io/platforms/xtm-hub/"
-        target="_blank"
-        rel="noreferrer"
-        aria-label={t('Discover the Hub (external link)')}
-        style={{
-          marginTop: theme.spacing(1),
-          marginBottom: theme.spacing(1),
-        }}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: theme.spacing(4),
+        width: '100%',
+      }}
       >
-        {t('Discover the Hub')}
-      </GradientButton>
-    </>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: theme.spacing(2),
+        }}
+        >
+          <Typography sx={{
+            fontFamily: theme.typography.h1.fontFamily,
+            fontWeight: theme.typography.fontWeightBold,
+            fontSize: theme.typography.h2.fontSize,
+          }}
+          >
+            {t('Extend and scale your OpenAEV experience')}
+          </Typography>
+          <Typography variant="body1">
+            {t('Connect OpenAEV to XTMHub to deploy pre-configured actions and scenarios in one click, start free trials, and get more out of your XTM platform.')}
+          </Typography>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: theme.spacing(2),
+          }}
+          >
+            <XtmHubFeatureCard icon={<RocketLaunchOutlined sx={featureIconSx} />} label={t('XTM Platform free trial')} />
+            <XtmHubFeatureCard icon={<WidgetsOutlined sx={featureIconSx} />} label={t('Pre-built content')} />
+            <XtmHubFeatureCard icon={<MapOutlined sx={featureIconSx} />} label={t('XTM Platform Roadmap')} />
+            <XtmHubFeatureCard icon={<VideoLibraryOutlined sx={featureIconSx} />} label={t('Academy')} />
+          </div>
+        </div>
+
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: theme.spacing(2),
+        }}
+        >
+          <Button
+            variant="outlined"
+            component="a"
+            href={hubUrl}
+            target="_blank"
+            rel="noreferrer"
+            sx={{
+              'textTransform': 'none',
+              'fontWeight': theme.button.sizes.default.fontWeight,
+              'borderColor': theme.palette.border.primary,
+              '&:hover': { borderColor: theme.palette.border.primary },
+            }}
+          >
+            {t('Explore XTM Hub')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={onConnect}
+            disabled={!onConnect}
+            sx={{
+              textTransform: 'none',
+              fontWeight: theme.button.sizes.default.fontWeight,
+            }}
+          >
+            {t('Connect to XTM Hub')}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 };
 

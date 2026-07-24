@@ -32,4 +32,13 @@ public interface AssetRepository
   List<Object[]> assetsByInjectIds(Set<String> injectIds);
 
   List<Asset> findByTenantId(String tenantId);
+
+  /**
+   * Business criticality and display name for a set of asset ids, as {@code [assetId,
+   * AssetCriticality, name]} rows. Used by the attack-path chokepoint score (findings weighted by
+   * criticality) and to label an endpoint node with its asset name. JPQL (not native) so the tenant
+   * filter still applies.
+   */
+  @Query("SELECT a.id, a.criticality, a.name FROM Asset a WHERE a.id IN :ids")
+  List<Object[]> findCriticalityByIds(Set<String> ids);
 }

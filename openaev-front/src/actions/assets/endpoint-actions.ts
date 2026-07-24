@@ -1,7 +1,7 @@
 import { type Dispatch } from 'redux';
 
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall } from '../../utils/Action';
-import { type Endpoint, type EndpointInput, type EndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
+import { type AssetBulkProcessingInput, type Endpoint, type EndpointInput, type EndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
 import { arrayOfEndpoints, endpoint } from './asset-schema';
 
 const ENDPOINT_URI = '/api/endpoints';
@@ -45,6 +45,12 @@ export const searchAssets = (searchPaginationInput: SearchPaginationInput) => {
 // other category) by id. Security platforms are rejected server-side (managed in their own area).
 export const deleteAsset = (assetId: string) => {
   return simpleDelCall(`/api/assets/${assetId}`);
+};
+
+// Bulk delete for the unified inventory: explicit id list or search input (select-all with
+// optional exclusions). Security platforms are always excluded server-side.
+export const bulkDeleteAssets = (input: AssetBulkProcessingInput) => {
+  return simpleDelCall('/api/assets', { data: input });
 };
 
 // Generic asset overview for the unified detail page: returns any asset type with its

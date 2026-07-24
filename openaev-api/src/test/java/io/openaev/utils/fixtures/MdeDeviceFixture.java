@@ -1,7 +1,6 @@
 package io.openaev.utils.fixtures;
 
 import io.openaev.executors.mde.model.MdeDevice;
-import io.openaev.executors.mde.model.MdeDeviceGroup;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -40,13 +39,5 @@ public class MdeDeviceFixture {
     device.setHealthStatus(healthStatus);
     device.setLastSeen(formatLastSeen(lastSeen));
     return device;
-  }
-
-  public static MdeDeviceGroup createDefaultMdeDeviceGroup() {
-    MdeDeviceGroup group = new MdeDeviceGroup();
-    group.setId(42);
-    group.setName("Test Device Group");
-    group.setDescription("Test device group for OpenAEV");
-    return group;
   }
 }

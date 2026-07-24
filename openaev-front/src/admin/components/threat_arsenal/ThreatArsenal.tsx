@@ -33,7 +33,7 @@ import ExportButton from '../../../components/common/ExportButton';
 import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
-import useBodyItemsStyles from '../../../components/common/queryable/style/style';
+import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
@@ -56,6 +56,7 @@ import { THREAT_ARSENAL_LIST_HEADERS, THREAT_ARSENAL_LIST_INLINE_STYLES } from '
 import ThreatArsenalListRow from './ThreatArsenalListRow';
 import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
 import ThreatArsenalSidebar from './ThreatArsenalSidebar';
+import ThreatArsenalSortSelect from './ThreatArsenalSortSelect';
 import useThreatArsenalAuthorFacet from './useThreatArsenalAuthorFacet';
 
 type ViewMode = 'grid' | 'list';
@@ -71,7 +72,6 @@ const readViewMode = (): ViewMode => {
 const ThreatArsenal = () => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const bodyItemsStyles = useBodyItemsStyles();
   const ability = useContext(AbilityContext);
   const canDeleteThreatArsenal = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS);
 
@@ -91,7 +91,12 @@ const ThreatArsenal = () => {
 
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
     'threat-arsenal',
-    buildSearchPagination({}),
+    buildSearchPagination({
+      sorts: [{
+        property: 'action_updated_at',
+        direction: 'DESC',
+      }],
+    }),
   );
 
   const [loading, setLoading] = useState<boolean>(false);
@@ -321,28 +326,7 @@ const ThreatArsenal = () => {
   };
 
   const renderListView = () => {
-    if (loading) {
-      return (
-        <Box>
-          {Array.from({ length: 10 }).map((_, idx) => (
-            <Box
-              key={idx}
-              sx={{
-                height: 50,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.5,
-                borderBottom: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <Skeleton variant="circular" width={20} height={20} animation="wave" />
-              <Skeleton variant="text" width="50%" height={20} animation="wave" />
-            </Box>
-          ))}
-        </Box>
-      );
-    }
-    if (threatArsenalActions.length === 0) {
+    if (!loading && threatArsenalActions.length === 0) {
       return <ThreatArsenalEmptyState hasFilters={hasActiveFilters} onResetFilters={handleResetFilters} />;
     }
     return (
@@ -357,25 +341,54 @@ const ThreatArsenal = () => {
           <ListItemIcon style={{ minWidth: 40 }} />
           <ListItemText
             primary={(
-              <div style={bodyItemsStyles.bodyItems}>
-                {THREAT_ARSENAL_LIST_HEADERS.map(header => (
-                  <Typography
-                    key={header.field}
-                    variant="h4"
-                    sx={{
-                      ...bodyItemsStyles.bodyItem,
-                      ...THREAT_ARSENAL_LIST_INLINE_STYLES[header.field],
-                      margin: 0,
-                    }}
-                  >
-                    {t(header.label)}
-                  </Typography>
-                ))}
-              </div>
+              <SortHeadersComponentV2
+                headers={THREAT_ARSENAL_LIST_HEADERS}
+                inlineStylesHeaders={THREAT_ARSENAL_LIST_INLINE_STYLES}
+                sortHelpers={queryableHelpers.sortHelpers}
+              />
             )}
           />
         </ListItem>
-        {threatArsenalActions.map((action) => {
+        {/* Skeleton rows mirror the exact real row anatomy (checkbox column,
+            inject icon column, then the shared column widths) so the layout
+            does not shift when the data lands. */}
+        {loading && Array.from({ length: 10 }).map((_, idx) => (
+          <Box
+            key={idx}
+            sx={{
+              height: 50,
+              display: 'flex',
+              alignItems: 'center',
+              paddingLeft: 2,
+              paddingRight: 7,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <Box sx={{ minWidth: 38 }}>
+              <Skeleton variant="rounded" width={18} height={18} animation="wave" />
+            </Box>
+            <Box sx={{ minWidth: 40 }}>
+              <Skeleton variant="circular" width={26} height={26} animation="wave" />
+            </Box>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              flex: 1,
+            }}
+            >
+              {THREAT_ARSENAL_LIST_HEADERS.map(header => (
+                <Box
+                  key={header.field}
+                  style={THREAT_ARSENAL_LIST_INLINE_STYLES[header.field]}
+                  sx={{ paddingRight: '10px' }}
+                >
+                  <Skeleton variant="text" width="70%" height={20} animation="wave" />
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        ))}
+        {!loading && threatArsenalActions.map((action) => {
           const flags = computeRowFlags(action);
           return (
             <ThreatArsenalListRow
@@ -401,6 +414,10 @@ const ThreatArsenal = () => {
 
   const headerRightSlot = (
     <>
+      {/* List view sorts via its column headers; the select is grid-only. */}
+      {viewMode === 'grid' && (
+        <ThreatArsenalSortSelect sortHelpers={queryableHelpers.sortHelpers} />
+      )}
       <ToggleButtonGroup
         value={viewMode}
         exclusive

@@ -23,6 +23,7 @@ const SimulationShell: FunctionComponent<{
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
   const base = `/admin/simulations/${exercise.exercise_id}`;
   // The Tests tab only exists for email/SMS injects that have actually been
   // tested; hide it entirely otherwise.
@@ -43,8 +44,12 @@ const SimulationShell: FunctionComponent<{
         ['/scope', t('Scope')],
         ['/logic', t('Logic')],
         ['/execution', t('Execution')],
+        ...(isAttackPathEnabled ? [['/attack-path', t('Attack path')] as [string, string]] : []),
+        ['/statistics', t('Statistics')],
       ]
     : [
+        // Attack path is a chained-simulation concept (workflow executions):
+        // time-based simulations never get the tab.
         ['', t('Overview')],
         ['/injects', t('Injects')],
         ...(hasInjectTests ? [['/tests', t('Tests')] as [string, string]] : []),
@@ -52,6 +57,7 @@ const SimulationShell: FunctionComponent<{
         // The lessons learned module is opt-in (simulation configuration).
         ...(exercise.exercise_lessons_enabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
         ['/findings', t('Findings')],
+        ['/statistics', t('Statistics')],
       ];
 
   // MUI Tabs requires the value to match one of the rendered tabs; screens

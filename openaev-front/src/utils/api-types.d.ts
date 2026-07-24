@@ -625,6 +625,12 @@ export interface AssetAgentJob {
   listened?: boolean;
 }
 
+export interface AssetBulkProcessingInput {
+  asset_ids_to_ignore?: string[];
+  asset_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
 export interface AssetGroup {
   asset_group_assets?: string[];
   /** @format date-time */
@@ -641,6 +647,12 @@ export interface AssetGroup {
   /** @format date-time */
   asset_group_updated_at: string;
   listened?: boolean;
+}
+
+export interface AssetGroupBulkProcessingInput {
+  asset_group_ids_to_ignore?: string[];
+  asset_group_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
 }
 
 export interface AssetGroupInput {
@@ -902,6 +914,153 @@ export interface AtomicTestingInput {
 
 export interface AtomicTestingUpdateTagsInput {
   atomic_tags?: string[];
+}
+
+export interface AttackPathAttackPatternDTO {
+  externalId?: string;
+  name?: string;
+}
+
+export interface AttackPathCounters {
+  /** @format int64 */
+  credentials?: number;
+  /** @format int64 */
+  cves?: number;
+  /** @format int64 */
+  endpoints?: number;
+  /** @format int64 */
+  ports?: number;
+  /** @format int64 */
+  users?: number;
+}
+
+export interface AttackPathDTO {
+  attackPathEdges?: AttackPathEdges[];
+  attackPathExecutions?: AttackPathNodeDTO[];
+  attackPathNodes?: AttackPathNodeDTO[];
+  counters?: AttackPathCounters;
+  mode?: string;
+  staticAttackPathFindings?: AttackPathNodeDTO[];
+}
+
+export interface AttackPathEdges {
+  /** @format int32 */
+  count?: number;
+  edgeId?: string;
+  edgeSourceId?: string;
+  edgeTargetId?: string;
+  executionIds?: string[];
+  label?: string;
+  type?: string;
+}
+
+export interface AttackPathEndpointRelationsDTO {
+  edges?: AttackPathEdges[];
+  executions?: AttackPathNodeDTO[];
+}
+
+export interface AttackPathExecutionDetailDTO {
+  agentName?: string;
+  agentPrivilege?: string;
+  attackPatterns?: AttackPathAttackPatternDTO[];
+  command?: string;
+  detectionRemediations?: DetectionRemediationOutput[];
+  detectionStatus?: string;
+  endpointKey?: string;
+  executedAt?: string;
+  findings?: AttackPathExecutionFindingItemDTO[];
+  injectId?: string;
+  payloadId?: string;
+  payloadName?: string;
+  preventionStatus?: string;
+  stepId?: string;
+  targetHostname?: string;
+  targetIp?: string;
+  targetPlatform?: string;
+  terminalOutput?: string;
+}
+
+export interface AttackPathExecutionFindingItemDTO {
+  type?: string;
+  value?: string;
+}
+
+export interface AttackPathExpandDTO {
+  findingTypes?: AttackPathNodeDTO[];
+  findings?: AttackPathNodeDTO[];
+}
+
+export interface AttackPathFindingItemDTO {
+  endpointKey?: string;
+  endpointNodeId?: string;
+  executionIds?: string[];
+  type?: string;
+  value?: string;
+}
+
+export interface AttackPathFindingPageDTO {
+  items?: AttackPathFindingItemDTO[];
+  /** @format int64 */
+  total?: number;
+}
+
+export interface AttackPathNodeDTO {
+  agentName?: string;
+  agents?: string[];
+  arguments?: any[];
+  assetNodeId?: string;
+  attackPatterns?: AttackPathAttackPatternDTO[];
+  command?: string;
+  consumedFindingKeys?: ConsumedFindingKeyDTO[];
+  contractName?: string;
+  criticality?: string;
+  dependsOn?: string[];
+  executedAt?: string;
+  executionsTraces?: any[];
+  expectations?: any[];
+  findingCounts?: Record<string, number>;
+  findingsNodeIds?: string[];
+  findingsTypeNodeId?: string;
+  hostname?: string;
+  id?: string;
+  injectorType?: string;
+  ip?: string;
+  label?: string;
+  payloadName?: string;
+  platform?: string;
+  privilege?: string;
+  ref?: string;
+  status?: string;
+  stepTemplateId?: string;
+  type?: string;
+  typeFindings?: string;
+  value?: string;
+}
+
+export interface AttackPathSeedInput {
+  preset?: string;
+  /** @format int64 */
+  seed?: number;
+  tenantId?: string;
+}
+
+export interface AttackPathSeedResultDTO {
+  /** @format int64 */
+  elapsedMs?: number;
+  /** @format int64 */
+  executions?: number;
+  /** @format int64 */
+  findings?: number;
+  /** @format int64 */
+  simulations?: number;
+}
+
+export interface AttackPathSimSummaryRow {
+  /** @format int64 */
+  endpointCount?: number;
+  /** @format int64 */
+  executionCount?: number;
+  simulationId?: string;
 }
 
 export interface AttackPattern {
@@ -1220,6 +1379,21 @@ export interface BrokerConnectionInfo {
   use_ssl?: boolean;
   user?: string;
   vhost?: string;
+}
+
+export interface BulkOperation {
+  bulk_operation_action?: string;
+  bulk_operation_entity?: string;
+  /** @format date-time */
+  bulk_operation_finished_at?: string;
+  bulk_operation_id?: string;
+  /** @format int32 */
+  bulk_operation_processed?: number;
+  /** @format date-time */
+  bulk_operation_started_at?: string;
+  bulk_operation_status?: "RUNNING" | "COMPLETED" | "FAILED";
+  /** @format int32 */
+  bulk_operation_total?: number;
 }
 
 export interface CTIEvent {
@@ -1780,17 +1954,24 @@ export interface ConditionCreateInput {
   condition_key?: string;
   /** Path to the value in the output of the step from */
   condition_key_type?:
+    | "account_with_password_not_required"
+    | "admin_username"
+    | "asreproastable_account"
     | "asset_group_id"
     | "asset_id"
+    | "computer_name"
     | "cve"
+    | "delegation_account"
     | "document"
     | "domain"
+    | "group_name"
     | "hash"
     | "host"
-    | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
     | "number"
     | "password"
     | "permissions"
@@ -1798,9 +1979,13 @@ export interface ConditionCreateInput {
     | "service"
     | "severity"
     | "share_name"
+    | "sid"
     | "targeted-asset"
     | "text"
-    | "username";
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status";
   /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   /** ID of the step linked to the key */
@@ -1834,17 +2019,24 @@ export interface ConditionOutput {
   condition_id?: string;
   condition_key?: string;
   condition_key_type?:
+    | "account_with_password_not_required"
+    | "admin_username"
+    | "asreproastable_account"
     | "asset_group_id"
     | "asset_id"
+    | "computer_name"
     | "cve"
+    | "delegation_account"
     | "document"
     | "domain"
+    | "group_name"
     | "hash"
     | "host"
-    | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
     | "number"
     | "password"
     | "permissions"
@@ -1852,9 +2044,13 @@ export interface ConditionOutput {
     | "service"
     | "severity"
     | "share_name"
+    | "sid"
     | "targeted-asset"
     | "text"
-    | "username";
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_parent_id?: string;
   condition_type?: string;
@@ -1966,6 +2162,13 @@ export interface ConnectorInstancePersisted {
   connector_instance_started_at?: string;
   hashIdentity?: string;
   listened?: boolean;
+}
+
+export interface ConsumedFindingKeyDTO {
+  eventName?: string;
+  keyType?: string;
+  operator?: string;
+  value?: string;
 }
 
 export interface ContractOutputElement {
@@ -4250,6 +4453,12 @@ export interface Exercise {
   listened?: boolean;
 }
 
+export interface ExerciseBulkProcessingInput {
+  exercise_ids_to_ignore?: string[];
+  exercise_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
 export interface ExerciseSimple {
   /** Exercise Category */
   exercise_category?: string;
@@ -6183,17 +6392,24 @@ export interface LoginUserInput {
 export interface MapperConditionOutput {
   condition_key?: string;
   condition_key_type?:
+    | "account_with_password_not_required"
+    | "admin_username"
+    | "asreproastable_account"
     | "asset_group_id"
     | "asset_id"
+    | "computer_name"
     | "cve"
+    | "delegation_account"
     | "document"
     | "domain"
+    | "group_name"
     | "hash"
     | "host"
-    | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
     | "number"
     | "password"
     | "permissions"
@@ -6201,9 +6417,13 @@ export interface MapperConditionOutput {
     | "service"
     | "severity"
     | "share_name"
+    | "sid"
     | "targeted-asset"
     | "text"
-    | "username";
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_value?: string;
 }
@@ -6402,6 +6622,12 @@ export interface Organization {
   organization_tags?: string[];
   /** @format date-time */
   organization_updated_at: string;
+}
+
+export interface OrganizationBulkProcessingInput {
+  organization_ids_to_ignore?: string[];
+  organization_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
 }
 
 export interface OrganizationCreateInput {
@@ -7224,17 +7450,24 @@ export interface PayloadArgument {
   key: string;
   separator?: string | null;
   type:
+    | "account_with_password_not_required"
+    | "admin_username"
+    | "asreproastable_account"
     | "asset_group_id"
     | "asset_id"
+    | "computer_name"
     | "cve"
+    | "delegation_account"
     | "document"
     | "domain"
+    | "group_name"
     | "hash"
     | "host"
-    | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
     | "number"
     | "password"
     | "permissions"
@@ -7242,9 +7475,13 @@ export interface PayloadArgument {
     | "service"
     | "severity"
     | "share_name"
+    | "sid"
     | "targeted-asset"
     | "text"
-    | "username";
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status";
 }
 
 export interface PayloadCommandBlock {
@@ -7698,9 +7935,11 @@ export interface PlatformSettings {
     | "_RESERVED"
     | "FEATURE_FLAG_ALL"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
+    | "TENANT_FIELDS_FOR_SECURITY_COVERAGE"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
+    | "ATTACK_PATH"
     | "AUDIT_LOG"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
@@ -7829,6 +8068,12 @@ export interface PlatformSettings {
   xtm_hub_should_send_connectivity_email?: string;
   /** Url of XTM Hub */
   xtm_hub_url?: string;
+}
+
+export interface PlayerBulkProcessingInput {
+  search_pagination_input?: SearchPaginationInput;
+  user_ids_to_ignore?: string[];
+  user_ids_to_process?: string[];
 }
 
 export interface PlayerInput {
@@ -7984,9 +8229,11 @@ export interface PublicPlatformSettings {
     | "_RESERVED"
     | "FEATURE_FLAG_ALL"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
+    | "TENANT_FIELDS_FOR_SECURITY_COVERAGE"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
+    | "ATTACK_PATH"
     | "AUDIT_LOG"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
@@ -8483,6 +8730,12 @@ export interface ScenarioAndInjectorContractsInputs {
   scenario_input: ScenarioInput;
 }
 
+export interface ScenarioBulkProcessingInput {
+  scenario_ids_to_ignore?: string[];
+  scenario_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
 export interface ScenarioChallengesReader {
   scenario_challenges?: ChallengeInformation[];
   scenario_id?: string;
@@ -8683,17 +8936,24 @@ export interface ScopeVariableInput {
   scope_variable_key: string;
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type:
+    | "account_with_password_not_required"
+    | "admin_username"
+    | "asreproastable_account"
     | "asset_group_id"
     | "asset_id"
+    | "computer_name"
     | "cve"
+    | "delegation_account"
     | "document"
     | "domain"
+    | "group_name"
     | "hash"
     | "host"
-    | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
     | "number"
     | "password"
     | "permissions"
@@ -8701,9 +8961,13 @@ export interface ScopeVariableInput {
     | "service"
     | "severity"
     | "share_name"
+    | "sid"
     | "targeted-asset"
     | "text"
-    | "username";
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status";
   /**
    * Value of the variable.
    * @minLength 1
@@ -8721,17 +8985,24 @@ export interface ScopeVariableOutput {
   scope_variable_key?: string;
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type?:
+    | "account_with_password_not_required"
+    | "admin_username"
+    | "asreproastable_account"
     | "asset_group_id"
     | "asset_id"
+    | "computer_name"
     | "cve"
+    | "delegation_account"
     | "document"
     | "domain"
+    | "group_name"
     | "hash"
     | "host"
-    | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
     | "number"
     | "password"
     | "permissions"
@@ -8739,9 +9010,13 @@ export interface ScopeVariableOutput {
     | "service"
     | "severity"
     | "share_name"
+    | "sid"
     | "targeted-asset"
     | "text"
-    | "username";
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status";
   /** Value of the variable. */
   scope_variable_value?: string;
 }
@@ -9183,17 +9458,24 @@ export interface StepInput {
 export interface StepOutput {
   step_condition_ids?: string[];
   step_condition_key_types?: (
+    | "account_with_password_not_required"
+    | "admin_username"
+    | "asreproastable_account"
     | "asset_group_id"
     | "asset_id"
+    | "computer_name"
     | "cve"
+    | "delegation_account"
     | "document"
     | "domain"
+    | "group_name"
     | "hash"
     | "host"
-    | "hostname"
     | "ipv4"
     | "ipv6"
     | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
     | "number"
     | "password"
     | "permissions"
@@ -9201,9 +9483,13 @@ export interface StepOutput {
     | "service"
     | "severity"
     | "share_name"
+    | "sid"
     | "targeted-asset"
     | "text"
     | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status"
   )[];
   /** @format date-time */
   step_created_at?: string;
@@ -9395,6 +9681,12 @@ export interface Team {
    * @format int64
    */
   team_users_number?: number;
+}
+
+export interface TeamBulkProcessingInput {
+  search_pagination_input?: SearchPaginationInput;
+  team_ids_to_ignore?: string[];
+  team_ids_to_process?: string[];
 }
 
 export interface TeamCreateInput {

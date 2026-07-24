@@ -502,6 +502,7 @@ class WorkflowServiceTest {
       when(workflowScopeRuleRepository.findAllByWorkflowId("template"))
           .thenReturn(Collections.emptyList());
       when(workflowRepository.save(any(Workflow.class))).thenReturn(run);
+      when(workflowRepository.findById(any(String.class))).thenReturn(Optional.ofNullable(run));
 
       workflowService.startWorkflowBySimulationId(simulationId);
 
@@ -539,6 +540,7 @@ class WorkflowServiceTest {
       when(workflowRepository.save(any(Workflow.class)))
           .thenReturn(simulationTemplate)
           .thenReturn(run);
+      when(workflowRepository.findById(any(String.class))).thenReturn(Optional.ofNullable(run));
 
       workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
 
@@ -589,6 +591,7 @@ class WorkflowServiceTest {
 
       when(stepService.findAllStepTemplateByWorkflow("template"))
           .thenReturn(Collections.emptyList());
+      when(workflowRepository.findById(any(String.class))).thenReturn(Optional.ofNullable(run));
 
       workflowService.startWorkflow(run);
 
@@ -1346,6 +1349,48 @@ class WorkflowServiceTest {
   @DisplayName("evaluateWorkflowProgress")
   class EvaluateWorkflowProgressTests {
 
+    /**
+     * Helper: arrange the mandatory DB reload stub (introduced to handle detached entities from
+     * queue jobs). Every test that reaches normal evaluation logic must stub this.
+     */
+    private void stubReload(String workflowRunId, Workflow workflowRun) {
+      when(workflowRepository.findById(workflowRunId)).thenReturn(Optional.of(workflowRun));
+    }
+
+    @Test
+    @DisplayName("given workflow run not found in DB should throw ElementNotFoundException")
+    void given_workflowRunNotFound_should_throwElementNotFoundException() {
+      // Arrange
+      String workflowRunId = UUID.randomUUID().toString();
+      Workflow detachedRun =
+          Workflow.builder().id(workflowRunId).status(WorkflowStatus.RUN).build();
+      when(workflowRepository.findById(workflowRunId)).thenReturn(Optional.empty());
+
+      // Act & Assert
+      assertThrows(
+          ElementNotFoundException.class,
+          () -> workflowService.evaluateWorkflowProgress(detachedRun));
+      verify(workflowRepository).findById(workflowRunId);
+    }
+
+    @Test
+    @DisplayName("given workflow run has no template should return early without evaluating steps")
+    void given_nullWorkflowTemplate_should_returnEarlyWithoutEvaluatingSteps() throws Exception {
+      // Arrange — run with no template (e.g. corrupted state)
+      String workflowRunId = UUID.randomUUID().toString();
+      Workflow workflowRun =
+          Workflow.builder().id(workflowRunId).status(WorkflowStatus.RUN).build();
+      // workflowTemplate is null by default in the builder
+      stubReload(workflowRunId, workflowRun);
+
+      // Act
+      Workflow result = workflowService.evaluateWorkflowProgress(workflowRun);
+
+      // Assert — returned as-is, step service never called
+      assertSame(workflowRun, result);
+      verify(stepService, never()).findAllStepTemplateByWorkflow(any());
+    }
+
     @Test
     @DisplayName("given active steps exist should not set workflow to END")
     void given_activeStepsExist_should_notEndWorkflow() throws Exception {
@@ -1360,6 +1405,7 @@ class WorkflowServiceTest {
               .status(WorkflowStatus.RUN)
               .workflowTemplate(workflowTemplate)
               .build();
+      stubReload(workflowRunId, workflowRun);
 
       Step stepTemplate = mock(Step.class);
 
@@ -1395,6 +1441,7 @@ class WorkflowServiceTest {
               .status(WorkflowStatus.RUN)
               .workflowTemplate(workflowTemplate)
               .build();
+      stubReload(workflowRunId, workflowRun);
 
       Step stepTemplate = mock(Step.class);
 
@@ -1433,6 +1480,7 @@ class WorkflowServiceTest {
               .status(WorkflowStatus.RUN)
               .workflowTemplate(workflowTemplate)
               .build();
+      stubReload(workflowRunId, workflowRun);
 
       Step stepTemplate = mock(Step.class);
       Step stepReady = mock(Step.class);
@@ -1471,6 +1519,7 @@ class WorkflowServiceTest {
               .status(WorkflowStatus.RUN)
               .workflowTemplate(workflowTemplate)
               .build();
+      stubReload(workflowRunId, workflowRun);
 
       Step stepTemplate = mock(Step.class);
 

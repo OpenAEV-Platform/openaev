@@ -8,6 +8,8 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.openaev.aop.AccessControl;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.context.TenantContext;
@@ -22,6 +24,7 @@ import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
+import io.openaev.service.utils.BulkOperationMonitor;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -31,6 +34,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -51,6 +55,7 @@ public class StreamApi extends RestBehavior {
 
   public static final String EVENT_TYPE_MESSAGE = "message";
   public static final String EVENT_TYPE_PING = "ping";
+  public static final String EVENT_TYPE_BULK_OPERATION = "bulk-operation";
   public static final String X_ACCEL_BUFFERING = "X-Accel-Buffering";
 
   // Mutated from several threads: SSE connect (request thread), disconnect (reactor
@@ -65,6 +70,18 @@ public class StreamApi extends RestBehavior {
   private final Map<String, CachedUser> userCache = new ConcurrentHashMap<>();
   private static final Duration USER_CACHE_TTL = Duration.ofSeconds(60);
 
+  // Short-lived per-(principal, resource) permission decisions for the broadcast path.
+  // hasPermission is @Transactional and, for inject events (the most frequent mutation while a
+  // simulation is running), resolves the parent permission by loading the FULL Inject entity
+  // graph plus a grant query — per event, per consumer. Under a running simulation this produced
+  // hundreds of queries per second, saturated Postgres and exhausted the Hikari pool, freezing
+  // the whole platform (#6868). Repeated mutations of the same resource are the norm (every
+  // trace/status/expectation update re-touches the same inject), so a 30s TTL absorbs almost all
+  // of it; permission changes propagate to the stream within 30s, consistent with the 60s user
+  // cache above. Bounded so mass disconnects / huge simulations cannot grow it unboundedly.
+  private final Cache<PermissionCacheKey, Boolean> permissionDecisionCache =
+      Caffeine.newBuilder().expireAfterWrite(Duration.ofSeconds(30)).maximumSize(100_000).build();
+
   private final PermissionService permissionService;
   private final UserService userService;
 
@@ -74,6 +91,37 @@ public class StreamApi extends RestBehavior {
       OpenAEVPrincipal principal, String tenantId, FluxSink<Object> fluxSink) {}
 
   private record CachedUser(User user, Instant fetchedAt) {}
+
+  private record PermissionCacheKey(
+      String principalId, String resourceId, ResourceType resourceType, String tenantId) {}
+
+  /**
+   * Resolves the per-event READ permission through the short-lived decision cache. Must be called
+   * with the consumer's tenant context already set (the underlying check is tenant-aware). Cache
+   * misses of the same key may race and both hit the database: bounded and far cheaper than one
+   * resolution per event per consumer.
+   */
+  private boolean hasReadPermission(StreamConsumer consumer, User user, BaseEvent event) {
+    PermissionCacheKey key =
+        new PermissionCacheKey(
+            consumer.principal().getId(),
+            event.getInstance().getId(),
+            event.getInstance().getResourceType(),
+            consumer.tenantId());
+    Boolean cached = permissionDecisionCache.getIfPresent(key);
+    if (cached != null) {
+      return cached;
+    }
+    boolean allowed =
+        permissionService.hasPermission(
+            user,
+            Optional.empty(),
+            event.getInstance().getId(),
+            event.getInstance().getResourceType(),
+            Action.READ);
+    permissionDecisionCache.put(key, allowed);
+    return allowed;
+  }
 
   /**
    * Resolves a consumer's user for the per-event permission check without hitting the database on
@@ -150,19 +198,19 @@ public class StreamApi extends RestBehavior {
           // Set the tenant context for permission checks on the async thread.
           // Without this, TenantContext defaults to DEFAULT_TENANT_UUID, causing
           // tenant-scoped capabilities to be invisible and incorrect DELETE events
-          // to be sent for entities on non-default tenants.
+          // to be sent for entities on non-default tenants. Legacy consumers
+          // (blank tenant) are explicitly cleared so a reused @Async pool thread
+          // can never evaluate (and cache) their decisions under a tenant leaked
+          // by a previous task.
           if (consumer.tenantId() != null && !consumer.tenantId().isBlank()) {
             TenantContext.setCurrentTenant(consumer.tenantId());
+          } else {
+            TenantContext.clearCurrentTenant();
           }
 
           try {
             FluxSink<Object> fluxSink = consumer.fluxSink();
-            if (!permissionService.hasPermission(
-                user,
-                Optional.empty(),
-                event.getInstance().getId(),
-                event.getInstance().getResourceType(),
-                Action.READ)) {
+            if (!hasReadPermission(consumer, user, event)) {
               try {
                 String propertyId =
                     event
@@ -186,11 +234,46 @@ public class StreamApi extends RestBehavior {
               sendStreamEvent(fluxSink, event);
             }
           } finally {
-            // Reset tenant context to avoid leaking into other consumers in the loop
-            if (consumer.tenantId() != null && !consumer.tenantId().isBlank()) {
-              TenantContext.clearCurrentTenant();
-            }
+            // Reset tenant context unconditionally to avoid leaking into other
+            // consumers in the loop or into later tasks on this pooled thread
+            TenantContext.clearCurrentTenant();
           }
+        });
+  }
+
+  /**
+   * Delivers massive-operation progress snapshots to the stream consumers of the user who launched
+   * the operation (massive operations are per user, never shared). These aggregated events replace
+   * the per-entity events suppressed during bulk operations (see {@link
+   * io.openaev.context.BulkOperationContext}): the frontend renders a progress indicator from them
+   * and refreshes its data once, on the terminal event. The payload carries only counts and an
+   * entity label, so no per-resource permission check is needed.
+   */
+  @Async("streamExecutor")
+  @EventListener
+  public void listenBulkOperation(BulkOperationMonitor.BulkOperationEvent event) {
+    BulkOperationMonitor.BulkOperation operation = event.operation();
+    if (operation.userId() == null) {
+      // System operations (no launching user) belong to no one's history or stream.
+      return;
+    }
+    ServerSentEvent<BulkOperationMonitor.BulkOperation> message =
+        ServerSentEvent.builder(operation).event(EVENT_TYPE_BULK_OPERATION).build();
+    consumers.forEach(
+        (key, consumer) -> {
+          if (!operation.userId().equals(consumer.principal().getId())) {
+            return;
+          }
+          // Defensive tenant check on top of the user scoping, mirroring isVisibleForTenant:
+          // tenant-scoped consumers only see operations carrying exactly their tenant id (an
+          // operation without a tenant id stays off tenant streams, so no cross-tenant
+          // operational metadata can leak).
+          if (consumer.tenantId() != null
+              && !consumer.tenantId().isBlank()
+              && !consumer.tenantId().equals(operation.tenantId())) {
+            return;
+          }
+          consumer.fluxSink().next(message);
         });
   }
 
