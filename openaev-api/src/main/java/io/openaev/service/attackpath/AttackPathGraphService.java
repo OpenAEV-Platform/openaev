@@ -136,10 +136,14 @@ public class AttackPathGraphService {
 
   /**
    * Summaries of the simulations that have attack-path data in the caller's tenant, for the picker.
+   * When {@code scenarioId} is given (scenario context, #6647 B0), the list is restricted to that
+   * scenario's simulations; otherwise every simulation with attack-path data in the tenant.
    */
   @Transactional(readOnly = true)
-  public List<AttackPathSimSummaryRow> listSimulations() {
-    return executionRepository.findSimulationSummaries();
+  public List<AttackPathSimSummaryRow> listSimulations(String scenarioId) {
+    return (scenarioId == null || scenarioId.isBlank())
+        ? executionRepository.findSimulationSummaries()
+        : executionRepository.findSimulationSummariesByScenario(scenarioId);
   }
 
   /**
