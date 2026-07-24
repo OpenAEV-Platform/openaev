@@ -31,6 +31,7 @@ import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.utils.mockConfig.executors.WithMockCrowdstrikeConfig;
 import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
@@ -49,6 +50,17 @@ import org.springframework.transaction.annotation.Transactional;
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+// The legacy properties migration only seeds an instance when the legacy config is enabled;
+// these tests exercise the factory around that migrated instance.
+@WithMockCrowdstrikeConfig(
+    enable = true,
+    apiUrl = "cs_api",
+    clientId = "cs_client_id",
+    clientSecret = "cs_client_secret",
+    hostGroup = "cs_host_group",
+    apiRegisterInterval = 1234,
+    unixScriptName = "cs_unix_script_name",
+    windowsScriptName = "cs_windows_script_name")
 public class CrowdStrikeExecutorIntegrationTest {
   @Autowired private CrowdStrikeExecutorClient client;
   @Autowired private EndpointService endpointService;

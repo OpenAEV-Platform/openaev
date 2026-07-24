@@ -27,6 +27,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -188,7 +189,7 @@ public class AssetService {
   public List<FilterUtilsJpa.Option> getOptionsByName(final String searchText, Pageable pageable) {
     // The repository query requires a non-null term (null binds break PostgreSQL type inference);
     // an empty string matches every asset.
-    String term = org.apache.commons.lang3.StringUtils.trimToEmpty(searchText);
+    String term = StringUtils.trimToEmpty(searchText);
     return this.assetRepository.findAllOptionsByName(term, pageable).stream()
         .map(i -> new FilterUtilsJpa.Option((String) i[0], (String) i[1]))
         .toList();

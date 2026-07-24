@@ -33,7 +33,10 @@ public abstract class ConfigurationMigration {
     this.encryptionFactory = encryptionFactory;
   }
 
-  @Transactional
+  // rollbackFor: migrate() throws checked exceptions (e.g. encryption failures); a partial
+  // commit (instance saved without the migrated marker) would re-arm the migration and
+  // reintroduce restart-time re-seeding.
+  @Transactional(rollbackFor = Exception.class)
   public void migrate() throws Exception {
     Optional<CatalogConnector> connectorOptional =
         catalogConnectorService.findByFactoryClassName(factoryClassName);

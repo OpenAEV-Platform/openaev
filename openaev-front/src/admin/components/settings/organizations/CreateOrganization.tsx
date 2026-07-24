@@ -9,9 +9,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import { type Option } from '../../../../utils/Option';
 import OrganizationForm, { type OrganizationInputForm } from './OrganizationForm';
 
-interface Props {
-  onCreate?: (organization: Organization) => void;
-}
+interface Props { onCreate?: (organization: Organization) => void }
 
 // Settings > Security > Organizations creation. Separated from the
 // business-side CreateOrganization (teams/organizations) on purpose.

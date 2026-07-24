@@ -28,6 +28,7 @@ import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.utils.mockConfig.executors.WithMockCalderaConfig;
 import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
@@ -46,6 +47,13 @@ import org.springframework.transaction.annotation.Transactional;
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+// The legacy properties migration only seeds an instance when the legacy config is enabled;
+// these tests exercise the factory around that migrated instance.
+@WithMockCalderaConfig(
+    enable = true,
+    url = "caldera_url",
+    publicUrl = "caldera_public_url",
+    apiKey = "caldera_api_key")
 public class CalderaExecutorIntegrationTest {
   @Autowired private CalderaExecutorClient client;
   @Autowired private EndpointService endpointService;

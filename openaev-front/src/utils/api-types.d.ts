@@ -1480,6 +1480,8 @@ export interface CatalogConnector {
   catalog_connector_max_confidence_level?: number;
   /** Connector playbook supported */
   catalog_connector_playbook_supported?: boolean;
+  /** Whether the legacy properties configuration has already been migrated */
+  catalog_connector_properties_migrated?: boolean;
   /** Connector description */
   catalog_connector_short_description?: string;
   /** Connector slug */

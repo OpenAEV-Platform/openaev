@@ -116,7 +116,7 @@ const Organizations = () => {
           topBarButtons={(
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
               <CreateOrganization
-                onCreate={(result: Organization) => setOrganizations([result, ...organizations])}
+                onCreate={(result: Organization) => setOrganizations(prev => [result, ...prev])}
               />
             </Can>
           )}
@@ -148,8 +148,8 @@ const Organizations = () => {
                     <OrganizationPopover
                       organization={organization}
                       tagsMap={tagsMap}
-                      onUpdate={(result: Organization) => setOrganizations(organizations.map(o => (o.organization_id !== result.organization_id ? o : result)))}
-                      onDelete={(result: string) => setOrganizations(organizations.filter(o => (o.organization_id !== result)))}
+                      onUpdate={(result: Organization) => setOrganizations(prev => prev.map(o => (o.organization_id !== result.organization_id ? o : result)))}
+                      onDelete={(result: string) => setOrganizations(prev => prev.filter(o => (o.organization_id !== result)))}
                       openEditOnInit={organization.organization_id === searchId}
                     />
                   )}
