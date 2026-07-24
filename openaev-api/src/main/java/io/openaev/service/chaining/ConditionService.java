@@ -111,10 +111,12 @@ public class ConditionService {
     }
     List<ConditionCreateInput> rootInputs = findRootConditionInputs(conditionInputs);
 
-    // Multiple roots are only allowed when all roots are MAPPER conditions
+    // Allow one event/filter root plus any number of mapper roots.
+    // In chaining, mapper conditions are independent root mappings.
     if (rootInputs.size() > 1) {
-      boolean allMapper = rootInputs.stream().allMatch(r -> r.getType() == ConditionType.MAPPER);
-      if (!allMapper) {
+      long nonMapperRootCount =
+          rootInputs.stream().filter(r -> r.getType() != ConditionType.MAPPER).count();
+      if (nonMapperRootCount > 1) {
         throw new IllegalArgumentException(
             "New step (TEMPLATE): Only 1 condition can be first parent");
       }

@@ -1501,5 +1501,74 @@ class StepServiceTest {
       assertEquals(1, copiedGroup.getConditionChildren().size());
       assertSame(copiedLeaf, copiedGroup.getConditionChildren().get(0));
     }
+
+    @Test
+    void given_mixedEventAndMapperRoots_should_allowSingleNonMapperRoot() {
+      Workflow sourceWorkflow = new Workflow();
+      sourceWorkflow.setId("src-wf");
+
+      Step sourceStep = new Step();
+      sourceStep.setId("src-step");
+      sourceStep.setWorkflow(sourceWorkflow);
+
+      Workflow targetWorkflow = new Workflow();
+      targetWorkflow.setId("tgt-wf");
+
+      Step targetStep = new Step();
+      targetStep.setId("tgt-step");
+      targetStep.setWorkflow(targetWorkflow);
+
+      Condition eventRoot =
+          Condition.builder()
+              .type(ConditionType.AND)
+              .name("event-root")
+              .workflowId("src-wf")
+              .build();
+      eventRoot.setId("event-root-id");
+
+      Condition eventLeaf =
+          Condition.builder()
+              .type(ConditionType.EQ)
+              .key("text")
+              .value("leaf")
+              .workflowId("src-wf")
+              .conditionParent(eventRoot)
+              .build();
+      eventLeaf.setId("event-leaf-id");
+
+      Condition mapperRoot =
+          Condition.builder()
+              .type(ConditionType.MAPPER)
+              .mappingType(MappingType.LOCAL)
+              .workflowId("src-wf")
+              .build();
+      mapperRoot.setId("mapper-root-id");
+
+      // Step has one event root and one mapper root linked.
+      when(conditionService.findAllConditionsByStepId("src-step"))
+          .thenReturn(List.of(eventRoot, mapperRoot));
+
+      // Workflow non-mapper query must still provide the full event subtree.
+      when(conditionService.findAllNonMapperConditionsByWorkflowId("src-wf"))
+          .thenReturn(List.of(eventRoot, eventLeaf));
+
+      List<Condition> savedConditions = new ArrayList<>();
+      when(conditionService.saveCondition(any(Condition.class)))
+          .thenAnswer(
+              invocation -> {
+                Condition c = invocation.getArgument(0);
+                c.setId(UUID.randomUUID().toString());
+                savedConditions.add(c);
+                return c;
+              });
+
+      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+
+      // event root + mapper root + event leaf
+      assertEquals(3, savedConditions.size());
+      assertEquals(ConditionType.AND, savedConditions.get(0).getType());
+      assertEquals(ConditionType.MAPPER, savedConditions.get(1).getType());
+      assertEquals("leaf", savedConditions.get(2).getValue());
+    }
   }
 }

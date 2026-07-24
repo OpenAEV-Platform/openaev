@@ -389,11 +389,12 @@ public class StepService {
           "New step (TEMPLATE): At least 1 condition must be a root (no parent)");
     }
 
-    // Multiple roots are only allowed when all roots are MAPPER conditions
+    // Allow one event/filter root plus any number of mapper roots.
+    // This happens when a step has one linked event root and one or more action mappings.
     if (rootConditions.size() > 1) {
-      boolean allMapper =
-          rootConditions.stream().allMatch(c -> c.getType() == ConditionType.MAPPER);
-      if (!allMapper) {
+      long nonMapperRootCount =
+          rootConditions.stream().filter(c -> c.getType() != ConditionType.MAPPER).count();
+      if (nonMapperRootCount > 1) {
         throw new IllegalArgumentException(
             "New step (TEMPLATE): Only 1 condition can be first parent");
       }
