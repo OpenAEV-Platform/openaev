@@ -451,8 +451,12 @@ public class InjectStatusService {
 
   // -- AUDIT HELPERS --
 
+  private static final String NO_STATUS = "NONE";
+
   private void logInjectStatusTransition(
       Inject inject, ExecutionStatus previousStatus, ExecutionStatus newStatus, Agent agent) {
+    String previousName = previousStatus != null ? previousStatus.name() : NO_STATUS;
+    String newName = newStatus != null ? newStatus.name() : NO_STATUS;
     auditLogger.ifPresent(
         logger ->
             logger.logEvent(
@@ -464,20 +468,19 @@ public class InjectStatusService {
                     .resourceId(inject.getId())
                     .message(
                         "Inject '%s' transitioned from %s to %s"
-                            .formatted(inject.getTitle(), previousStatus.name(), newStatus.name()))
-                    .contextData(
-                        buildTransitionContextData(inject, previousStatus, newStatus, agent))
+                            .formatted(inject.getTitle(), previousName, newName))
+                    .contextData(buildTransitionContextData(inject, previousName, newName, agent))
                     .origin(AuditEventOrigin.SYSTEM)
                     .build()));
   }
 
   private Map<String, Object> buildTransitionContextData(
-      Inject inject, ExecutionStatus previousStatus, ExecutionStatus newStatus, Agent agent) {
+      Inject inject, String previousStatus, String newStatus, Agent agent) {
     Map<String, Object> ctx = new LinkedHashMap<>();
     ctx.put("inject_id", inject.getId());
     ctx.put("inject_name", inject.getTitle());
-    ctx.put("previous_status", previousStatus.name());
-    ctx.put("new_status", newStatus.name());
+    ctx.put("previous_status", previousStatus);
+    ctx.put("new_status", newStatus);
     if (agent != null && agent.getExecutor() != null) {
       ctx.put("executor_type", agent.getExecutor().getType());
     }
