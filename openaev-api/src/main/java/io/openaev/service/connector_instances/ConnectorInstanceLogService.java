@@ -5,6 +5,7 @@ import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityNotFoundException;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -53,12 +54,12 @@ public class ConnectorInstanceLogService {
    *
    * @param connectorInstance the connector instance to log for
    * @param rawLogs the log content to store
-   * @throws IllegalArgumentException if rawLog is empty
+   * @throws EntityNotFoundException if the connector instance is not found
    */
   @Transactional
   public void pushLogByConnectorInstance(
       ConnectorInstancePersisted connectorInstance, Set<String> rawLogs)
-      throws IllegalArgumentException {
+      throws EntityNotFoundException {
     if (rawLogs.isEmpty()) {
       return;
     }
@@ -69,8 +70,8 @@ public class ConnectorInstanceLogService {
         .findByIdForUpdate(connectorInstance.getId())
         .orElseThrow(
             () ->
-                new IllegalArgumentException(
-                    "ConnectorInstance not found: " + connectorInstance.getId()));
+                new EntityNotFoundException(
+                    "ConnectorInstance with id " + connectorInstance.getId() + " not found"));
     for (String log : rawLogs) {
       ConnectorInstanceLog logEntry = new ConnectorInstanceLog();
       logEntry.setConnectorInstance(connectorInstance);

@@ -41,9 +41,8 @@ public interface ConnectorInstanceRepository
    * serialize concurrent log operations and prevent deadlocks with ON DELETE CASCADE.
    */
   @Lock(LockModeType.PESSIMISTIC_WRITE)
-  @Query("SELECT ci FROM ConnectorInstancePersisted ci WHERE ci.id = :id")
-  Optional<ConnectorInstancePersisted> findByIdForUpdate(
-      @org.springframework.data.repository.query.Param("id") String id);
+  @Query("SELECT ci FROM ConnectorInstancePersisted ci WHERE ci.id = ?1")
+  Optional<ConnectorInstancePersisted> findByIdForUpdate(String id);
 
   @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
   List<ConnectorInstancePersisted> findAllByCatalogConnectorContainerType(
