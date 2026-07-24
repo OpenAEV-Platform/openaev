@@ -168,7 +168,7 @@ const FindingOverview = () => {
         stats={(
           <>
             <HeroStat icon={FormatListNumberedOutlined} label={t('Occurrences')} value={occurrences ?? '-'} />
-            <HeroStat icon={DevicesOutlined} label={t('Impacted endpoints')} value={endpointCount ?? '-'} color={theme.palette.primary.main} />
+            <HeroStat icon={DevicesOutlined} label={t('Impacted assets')} value={endpointCount ?? '-'} color={theme.palette.primary.main} />
             {isCVE && (
               <HeroStat icon={ShieldOutlined} label={t('CVSS score')} value={cvssScore != null ? cvssScore.toFixed(1) : '-'} color={theme.palette.warning.main} />
             )}

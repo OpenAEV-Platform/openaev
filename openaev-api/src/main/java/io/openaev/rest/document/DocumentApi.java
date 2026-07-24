@@ -93,7 +93,8 @@ public class DocumentApi extends RestBehavior {
       throws Exception {
     String extension = FilenameUtils.getExtension(file.getOriginalFilename());
     String fileTarget = DigestUtils.md5Hex(file.getInputStream()) + "." + extension;
-    Optional<Document> targetDocument = documentRepository.findByTarget(fileTarget);
+    Optional<Document> targetDocument =
+        documentRepository.findFirstByTargetOrderByIdAsc(fileTarget);
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
       // Compute exercises

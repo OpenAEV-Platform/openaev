@@ -129,11 +129,12 @@ const InjectContractSidebar = ({ domainElements, searchPaginationInput, filterHe
     }));
 
     // One titled section per kill chain ("MITRE ATT&CK" phases, then
-    // "MITRE ATLAS" phases, ...). With a single kill chain, keep the generic
-    // "Kill chain phase" label.
+    // "MITRE ATLAS" phases, ...). The section is always titled with the kill
+    // chain name (like the rest of the app) so the user knows which kill
+    // chain the phases belong to, even when only one exists.
     const killChainSections: FacetSection[] = killChains.map(chain => ({
       id: `kill-chain-${chain}`,
-      label: killChains.length > 1 ? killChainLabel(chain) : t('Kill chain phase'),
+      label: killChainLabel(chain),
       rows: sortedPhases
         .filter(phase => phase.phase_kill_chain_name === chain)
         .map(phase => ({

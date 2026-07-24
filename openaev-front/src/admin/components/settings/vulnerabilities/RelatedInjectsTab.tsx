@@ -72,7 +72,7 @@ const RelatedInjectsTab = ({ searchFindings, finding, contextId, additionalHeade
   const headers = [
     {
       field: 'finding_assets',
-      label: 'Endpoints',
+      label: 'Assets',
       isSortable: false,
       value: (finding: RelatedFindingOutput) => (
         <ItemTargets

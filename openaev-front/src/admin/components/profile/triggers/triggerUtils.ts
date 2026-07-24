@@ -29,7 +29,7 @@ export const TRIGGER_RESOURCE_TYPES: TriggerResourceTypeOption[] = [
   {
     value: 'ASSET',
     entityPrefix: 'endpoint',
-    label: 'Endpoint',
+    label: 'Asset',
   },
   {
     value: 'ASSET_GROUP',

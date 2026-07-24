@@ -2,7 +2,7 @@ import { type AxiosResponse } from 'axios';
 import { useState } from 'react';
 
 import { searchAssetGroupAsOption, searchAssetGroupLinkedToFindingsAsOption } from '../../../../actions/asset_groups/assetgroup-action';
-import { searchEndpointAsOption, searchEndpointLinkedToFindingsAsOption } from '../../../../actions/assets/endpoint-actions';
+import { searchAssetsAsOption, searchEndpointAsOption, searchEndpointLinkedToFindingsAsOption } from '../../../../actions/assets/endpoint-actions';
 import { searchSecurityPlatformAsOption } from '../../../../actions/assets/securityPlatform-actions';
 import { searchAttackPatternsByNameAsOption } from '../../../../actions/AttackPattern';
 import { searchCustomDashboardAsOptions } from '../../../../actions/custom_dashboards/customdashboard-action';
@@ -177,9 +177,20 @@ const useSearchOptions = () => {
         });
         break;
       case 'finding_assets':
-        searchEndpointLinkedToFindingsAsOption(search, contextId).then((response) => {
-          setOptions(response.data);
-        });
+        // Contextual findings tabs (inject / simulation / scenario / asset) narrow the options to
+        // assets already linked to findings in that context. Without a context (global findings
+        // page, notification trigger criteria) the whole asset inventory must be proposed:
+        // findings can attach to any asset - including ones with no finding yet when the filter
+        // targets future events (triggers).
+        if (contextId) {
+          searchEndpointLinkedToFindingsAsOption(search, contextId).then((response) => {
+            setOptions(response.data);
+          });
+        } else {
+          searchAssetsAsOption(search).then((response) => {
+            setOptions(response.data);
+          });
+        }
         break;
       case 'finding_teams':
       case 'user_teams':

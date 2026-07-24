@@ -16,7 +16,9 @@ interface Props {
   initialValues?: NotifierOutput;
 }
 
-const NOTIFIER_TYPES = ['UI', 'EMAIL', 'WEBHOOK'] as const;
+// The UI notifier is built-in only (aligned with OpenCTI): users can only
+// create email and webhook notifiers.
+const NOTIFIER_TYPES = ['EMAIL', 'WEBHOOK'] as const;
 
 /** Creation / edition form for notifiers, with type-specific configuration fields. */
 const NotifierForm: FunctionComponent<Props> = ({
@@ -35,7 +37,9 @@ const NotifierForm: FunctionComponent<Props> = ({
 
   const [name, setName] = useState(initialValues?.notifier_name ?? '');
   const [description, setDescription] = useState(initialValues?.notifier_description ?? '');
-  const [type, setType] = useState<'UI' | 'EMAIL' | 'WEBHOOK'>(initialValues?.notifier_type ?? 'EMAIL');
+  const [type, setType] = useState<'EMAIL' | 'WEBHOOK'>(
+    initialValues?.notifier_type === 'WEBHOOK' ? 'WEBHOOK' : 'EMAIL',
+  );
   const [subject, setSubject] = useState(String(configuration.subject ?? ''));
   const [template, setTemplate] = useState(String(configuration.template ?? ''));
   const [url, setUrl] = useState(String(configuration.url ?? ''));
@@ -108,7 +112,6 @@ const NotifierForm: FunctionComponent<Props> = ({
       >
         {NOTIFIER_TYPES.map((option) => {
           const labels: Record<string, string> = {
-            UI: 'User interface',
             EMAIL: 'Email',
             WEBHOOK: 'Webhook',
           };

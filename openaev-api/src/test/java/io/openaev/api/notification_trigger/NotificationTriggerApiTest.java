@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,12 +14,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.NotificationTrigger;
 import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerPeriod;
 import io.openaev.database.model.NotificationTriggerType;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.User;
 import io.openaev.database.repository.NotificationTriggerRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.service.notification.NotifierService;
+import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
@@ -44,6 +50,7 @@ public class NotificationTriggerApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private NotificationTriggerRepository notificationTriggerRepository;
   @Autowired private NotifierService notifierService;
+  @Autowired private UserRepository userRepository;
 
   @AfterEach
   void afterEach() {
@@ -223,6 +230,42 @@ public class NotificationTriggerApiTest extends IntegrationTest {
             .getContentAsString();
     assertEquals("DIGEST", JsonPath.read(digestResponse, "$.notification_trigger_type"));
     assertEquals(List.of(liveId), JsonPath.read(digestResponse, "$.notification_trigger_children"));
+  }
+
+  @Test
+  @WithMockUser(isAdmin = true)
+  @DisplayName(
+      "Triggers are strictly per-user: another user's trigger is invisible, even to admins")
+  void triggersAreScopedToTheirOwner() throws Exception {
+    // A trigger owned by another user of the same tenant
+    User otherUser = userRepository.save(UserFixture.getUserWithDefaultEmail());
+    NotificationTrigger otherTrigger = new NotificationTrigger();
+    otherTrigger.setName("Other user's watcher");
+    otherTrigger.setType(NotificationTriggerType.LIVE);
+    otherTrigger.setWatchedResourceType(ResourceType.SCENARIO);
+    otherTrigger.setEventTypes(List.of(NotificationTriggerEventType.CREATE));
+    otherTrigger.setOwner(otherUser);
+    String otherTriggerId = notificationTriggerRepository.save(otherTrigger).getId();
+
+    // Search: the admin's self-service view never lists it
+    String searchResponse =
+        mvc.perform(
+                post(NOTIFICATION_TRIGGER_URI + "/search")
+                    .content(asJsonString(PaginationFixture.getDefault().build()))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertEquals(0, (int) JsonPath.read(searchResponse, "$.totalElements"));
+
+    // Direct access and management are refused without disclosing existence
+    mvc.perform(get(NOTIFICATION_TRIGGER_URI + "/" + otherTriggerId).with(csrf()))
+        .andExpect(status().isNotFound());
+    mvc.perform(delete(NOTIFICATION_TRIGGER_URI + "/" + otherTriggerId).with(csrf()))
+        .andExpect(status().isNotFound());
   }
 
   @Test

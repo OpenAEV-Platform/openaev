@@ -213,7 +213,7 @@ const PaginationComponentV2 = <T extends object>({
               <Drawer
                 open={openMitreFilter}
                 handleClose={() => setOpenMitreFilter(false)}
-                title={t('ATT&CK Matrix')}
+                title={t('Attack matrix')}
                 variant="full"
                 containerStyle={{
                   padding: 0,

@@ -18,7 +18,9 @@ export const isNone = (date: Parameters<IntlShape['formatDate']>[0]) => {
 const inject18n = <P extends object>(WrappedComponent: ComponentType<P>) => {
   const InjectIntl = (props: P & { children?: ReactNode }) => {
     const intl = useIntl();
-    const translate = (message: string, values?: Record<string, string>) => intl.formatMessage({ id: message }, values);
+    // formatjs throws an invariant error when the id is missing, which crashes the
+    // whole render tree: degrade gracefully instead when a dynamic key is absent.
+    const translate = (message: string, values?: Record<string, string>) => (message ? intl.formatMessage({ id: message }, values) : '');
     const formatNumber = (number: number | '') => {
       if (number === null || number === '') {
         return '-';
@@ -171,7 +173,9 @@ export type Translate = {
 
 export const useFormatter = () => {
   const intl = useIntl();
-  const translate: Translate = ((message, values) => intl.formatMessage({ id: message }, values)) as Translate;
+  // formatjs throws an invariant error when the id is missing, which crashes the
+  // whole render tree: degrade gracefully instead when a dynamic key is absent.
+  const translate: Translate = ((message, values) => (message ? intl.formatMessage({ id: message }, values) : '')) as Translate;
   const formatNumber = (number: number | '') => {
     if (number === null || number === '') {
       return '-';

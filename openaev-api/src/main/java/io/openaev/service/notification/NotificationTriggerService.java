@@ -50,12 +50,9 @@ public class NotificationTriggerService {
   @Transactional
   public Page<NotificationTrigger> search(
       @NotNull final SearchPaginationInput searchPaginationInput) {
+    // Self-service view: every user (including admins) only sees their own triggers,
+    // aligned with the OpenCTI profile triggers page
     User currentUser = userService.currentUser();
-    if (currentUser.isAdmin()) {
-      return buildPaginationJPA(
-          notificationTriggerRepository::findAll, searchPaginationInput, NotificationTrigger.class);
-    }
-    // Non-admin users only see their own triggers
     Specification<NotificationTrigger> ownerSpec =
         (root, query, cb) -> cb.equal(root.get("owner").get("id"), currentUser.getId());
     return buildPaginationJPA(
@@ -121,9 +118,11 @@ public class NotificationTriggerService {
     return trigger;
   }
 
+  // Strictly per-user: triggers are self-service resources, only their owner can read or
+  // manage them (no admin bypass, aligned with the OpenCTI profile triggers behavior)
   private boolean canAccess(NotificationTrigger trigger) {
     User currentUser = userService.currentUser();
-    return currentUser.isAdmin() || trigger.getOwner().getId().equals(currentUser.getId());
+    return trigger.getOwner().getId().equals(currentUser.getId());
   }
 
   /** Only administrators can target other users or groups as recipients. */

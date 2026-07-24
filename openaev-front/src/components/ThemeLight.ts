@@ -641,6 +641,8 @@ const ThemeLight = (
     MuiChip: {
       styleOverrides: {
         root: {
+          // Design system: chips are square-ish (4px), never pill-shaped
+          'borderRadius': 4,
           'color': text_color,
           'textTransform': 'lowercase',
           '&::first-letter': { textTransform: 'uppercase' },

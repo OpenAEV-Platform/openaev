@@ -2,7 +2,7 @@ import type { AxiosResponse } from 'axios';
 import { useContext, useState } from 'react';
 
 import { searchAssetGroupByIdAsOption } from '../../../../actions/asset_groups/assetgroup-action';
-import { searchEndpointByIdAsOption } from '../../../../actions/assets/endpoint-actions';
+import { searchAssetsByIdAsOption, searchEndpointByIdAsOption } from '../../../../actions/assets/endpoint-actions';
 import { searchSecurityPlatformByIdAsOption } from '../../../../actions/assets/securityPlatform-actions';
 import { searchAttackPatternsByIdAsOption } from '../../../../actions/AttackPattern';
 import { searchCustomDashboardByIdAsOptions } from '../../../../actions/custom_dashboards/customdashboard-action';
@@ -143,6 +143,16 @@ const useRetrieveOptions = () => {
         }
         break;
       case 'finding_assets':
+        // Findings can attach to any asset category (agentless web applications included), so
+        // labels must resolve through the whole asset inventory, not the endpoint-only options.
+        if (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
+          searchAssetsByIdAsOption(ids).then((response) => {
+            setOptions(response.data);
+          });
+        } else {
+          setOptions([]);
+        }
+        break;
       case 'inject_assets':
       case 'base_assets_side':
         if (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {

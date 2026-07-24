@@ -361,4 +361,25 @@ public class EndpointApi extends RestBehavior {
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
   }
+
+  /**
+   * Filter options over the WHOLE asset inventory (every category except security platforms).
+   * Findings can attach to any asset - agentless web applications included - so filter builders
+   * such as notification trigger criteria must propose every asset, not only endpoints.
+   */
+  @GetMapping({ASSET_URI + "/options", TENANT_ASSET_URI + "/options"})
+  @Transactional
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  public List<FilterUtilsJpa.Option> assetOptionsByName(
+      @RequestParam(required = false) final String searchText) {
+    return assetService.getOptionsByName(searchText, PageRequest.of(0, 50));
+  }
+
+  /** Resolve option labels for a set of asset ids, whatever the asset category. */
+  @PostMapping({ASSET_URI + "/options", TENANT_ASSET_URI + "/options"})
+  @Transactional
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  public List<FilterUtilsJpa.Option> assetOptionsById(@RequestBody final List<String> ids) {
+    return assetService.getOptionsByIds(ids);
+  }
 }

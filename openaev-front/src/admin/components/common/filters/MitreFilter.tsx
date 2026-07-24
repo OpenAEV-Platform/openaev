@@ -192,11 +192,18 @@ const MitreFilter: FunctionComponent<MitreFilterProps> = ({
   }, []);
 
   // Distinct kill chains (MITRE ATT&CK, MITRE ATLAS, ...). The matrix shows ONE
-  // at a time; a switcher flips between them when several exist.
+  // at a time; the switcher flips between them. ATT&CK first (the most common),
+  // then the other kill chains alphabetically (same order as the contract
+  // picker sidebar and the security coverage widget).
   const killChains = useMemo<string[]>(
     () => [...new Set(killChainPhases.map((p: KillChainPhase) => p.phase_kill_chain_name))]
       .filter((name): name is string => !!name)
-      .sort((a, b) => a.localeCompare(b)),
+      .sort((a, b) => {
+        const aAttack = a.toLowerCase().includes('attack');
+        const bAttack = b.toLowerCase().includes('attack');
+        if (aAttack !== bAttack) return aAttack ? -1 : 1;
+        return a.localeCompare(b);
+      }),
     [killChainPhases],
   );
   const defaultKillChain = useMemo(
@@ -251,7 +258,9 @@ const MitreFilter: FunctionComponent<MitreFilterProps> = ({
         gap: theme.spacing(2),
       }}
     >
-      {killChains.length > 1 && (
+      {/* Always visible (like the security coverage widget) so the user knows
+          which kill chain matrix is displayed, even when only one exists. */}
+      {killChains.length > 0 && (
         <div style={{
           display: 'flex',
           flexDirection: 'column',

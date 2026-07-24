@@ -3,9 +3,11 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Asset;
 import java.util.List;
 import java.util.Set;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -41,4 +43,19 @@ public interface AssetRepository
    */
   @Query("SELECT a.id, a.criticality, a.name FROM Asset a WHERE a.id IN :ids")
   List<Object[]> findCriticalityByIds(Set<String> ids);
+
+  /**
+   * Name-based option search over EVERY asset type except security platforms (endpoints - agent
+   * based or agentless -, AI targets, cloud / web / network / generic assets). Findings can attach
+   * to any asset, so filter options (e.g. notification trigger criteria) must propose the full
+   * inventory, not only endpoints. JPQL (not native) so the tenant filter still applies. The {@code
+   * name} parameter must be non-null (empty string matches everything): a null bind parameter
+   * inside {@code lower(concat(...))} is typed as bytea by PostgreSQL and fails.
+   */
+  @Query(
+      "SELECT a.id, a.name FROM Asset a "
+          + "WHERE a.type <> 'SecurityPlatform' "
+          + "AND lower(a.name) LIKE lower(concat('%', :name, '%')) "
+          + "ORDER BY a.name")
+  List<Object[]> findAllOptionsByName(@Param("name") String name, Pageable pageable);
 }

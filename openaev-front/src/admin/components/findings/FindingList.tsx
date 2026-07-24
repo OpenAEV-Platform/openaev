@@ -82,7 +82,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
     },
     {
       field: 'finding_assets',
-      label: 'Endpoints',
+      label: 'Assets',
       isSortable: false,
       value: (finding: AggregatedFindingOutput) => (
         <ItemTargets

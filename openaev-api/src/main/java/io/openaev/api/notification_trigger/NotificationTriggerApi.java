@@ -44,7 +44,7 @@ public class NotificationTriggerApi {
     NOTIFICATION_TRIGGER_URI + "/{triggerId}",
     TENANT_NOTIFICATION_TRIGGER_URI + "/{triggerId}"
   })
-  // Self-service resource: ownership is enforced in the service (owner or admin only)
+  // Self-service resource: ownership is enforced in the service (owner only)
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get notification trigger", description = "Get a notification trigger by id")
   @Transactional
@@ -98,7 +98,7 @@ public class NotificationTriggerApi {
     NOTIFICATION_TRIGGER_URI + "/{triggerId}",
     TENANT_NOTIFICATION_TRIGGER_URI + "/{triggerId}"
   })
-  // Self-service resource: ownership is enforced in the service (owner or admin only)
+  // Self-service resource: ownership is enforced in the service (owner only)
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Update notification trigger", description = "Update a notification trigger")
   @Transactional(rollbackFor = Exception.class)
@@ -120,7 +120,7 @@ public class NotificationTriggerApi {
     NOTIFICATION_TRIGGER_URI + "/{triggerId}",
     TENANT_NOTIFICATION_TRIGGER_URI + "/{triggerId}"
   })
-  // Self-service resource: ownership is enforced in the service (owner or admin only)
+  // Self-service resource: ownership is enforced in the service (owner only)
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Delete notification trigger", description = "Delete a notification trigger")
   @Transactional(rollbackFor = Exception.class)

@@ -178,6 +178,29 @@ public class AssetService {
     return this.assetRepository.findAllById(assetIds);
   }
 
+  // -- OPTIONS --
+
+  /**
+   * Name-based filter options over the full asset inventory (every category except security
+   * platforms). Findings can attach to any asset - not only endpoints - so filter builders (e.g.
+   * notification trigger criteria on findings) must propose all of them.
+   */
+  public List<FilterUtilsJpa.Option> getOptionsByName(final String searchText, Pageable pageable) {
+    // The repository query requires a non-null term (null binds break PostgreSQL type inference);
+    // an empty string matches every asset.
+    String term = org.apache.commons.lang3.StringUtils.trimToEmpty(searchText);
+    return this.assetRepository.findAllOptionsByName(term, pageable).stream()
+        .map(i -> new FilterUtilsJpa.Option((String) i[0], (String) i[1]))
+        .toList();
+  }
+
+  /** Resolve filter option labels for a set of asset ids, whatever the asset category. */
+  public List<FilterUtilsJpa.Option> getOptionsByIds(@NotNull final List<String> ids) {
+    return fromIterable(this.assetRepository.findAllById(ids)).stream()
+        .map(a -> new FilterUtilsJpa.Option(a.getId(), a.getName()))
+        .toList();
+  }
+
   @Transactional
   public void saveAllAssets(List<Asset> assets) {
     // Improve perfs for save all

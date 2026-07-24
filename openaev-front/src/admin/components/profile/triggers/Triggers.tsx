@@ -1,5 +1,5 @@
 import { CampaignOutlined, InboxOutlined } from '@mui/icons-material';
-import { Chip, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -14,9 +14,9 @@ import { type Header } from '../../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../../components/i18n';
 import ItemBoolean from '../../../../components/ItemBoolean';
 import { type NotificationTriggerOutput } from '../../../../utils/api-types';
+import { TriggerEventChips, TriggerResourceChip, TriggerTypeChip } from './TriggerChips';
 import TriggerCreate from './TriggerCreate';
 import TriggerPopover from './TriggerPopover';
-import { resourceTypeLabel } from './triggerUtils';
 
 const useStyles = makeStyles()(() => ({ itemHead: { textTransform: 'uppercase' } }));
 
@@ -54,12 +54,7 @@ const Triggers = () => {
       label: 'Type',
       isSortable: true,
       value: (trigger: NotificationTriggerOutput) => (
-        <Chip
-          label={trigger.notification_trigger_type === 'DIGEST' ? t('Digest') : t('Live')}
-          size="small"
-          variant="outlined"
-          color={trigger.notification_trigger_type === 'DIGEST' ? 'secondary' : 'primary'}
-        />
+        <TriggerTypeChip type={trigger.notification_trigger_type} />
       ),
     },
     {
@@ -67,9 +62,7 @@ const Triggers = () => {
       label: 'Resource type',
       isSortable: true,
       value: (trigger: NotificationTriggerOutput) => (
-        trigger.notification_trigger_type === 'DIGEST'
-          ? `${trigger.notification_trigger_children?.length ?? 0} ${t('trigger(s)')}`
-          : t(resourceTypeLabel(trigger.notification_trigger_resource_type))
+        <TriggerResourceChip trigger={trigger} />
       ),
     },
     {
@@ -77,9 +70,7 @@ const Triggers = () => {
       label: 'Events',
       isSortable: false,
       value: (trigger: NotificationTriggerOutput) => (
-        trigger.notification_trigger_type === 'DIGEST'
-          ? (trigger.notification_trigger_period?.toLowerCase() ?? '-')
-          : (trigger.notification_trigger_event_types ?? []).map(eventType => eventType.toLowerCase()).join(', ')
+        <TriggerEventChips trigger={trigger} />
       ),
     },
     {

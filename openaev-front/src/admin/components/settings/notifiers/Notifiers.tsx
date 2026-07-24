@@ -20,13 +20,53 @@ import CustomizationMenu from '../CustomizationMenu';
 import NotifierCreate from './NotifierCreate';
 import NotifierPopover from './NotifierPopover';
 
-const useStyles = makeStyles()(() => ({ itemHead: { textTransform: 'uppercase' } }));
+const useStyles = makeStyles()(() => ({
+  itemHead: { textTransform: 'uppercase' },
+  // Design system list chip (same pattern as ItemSeverity / the triggers list)
+  chipInList: {
+    fontSize: 12,
+    height: 20,
+    borderRadius: 4,
+    textTransform: 'uppercase',
+    width: 120,
+  },
+}));
 
 const inlineStyles: Record<string, CSSProperties> = {
   notifier_name: { width: '30%' },
   notifier_type: { width: '15%' },
   notifier_description: { width: '40%' },
   notifier_built_in: { width: '15%' },
+};
+
+const chipColors: Record<string, CSSProperties> = {
+  blue: {
+    backgroundColor: 'rgba(92, 123, 245, 0.08)',
+    color: '#5c7bf5',
+  },
+  green: {
+    backgroundColor: 'rgba(76, 175, 80, 0.08)',
+    color: '#4caf50',
+  },
+  orange: {
+    backgroundColor: 'rgba(255, 152, 0, 0.08)',
+    color: '#ff9800',
+  },
+  blueGrey: {
+    backgroundColor: 'rgba(96, 125, 139, 0.08)',
+    color: '#607d8b',
+  },
+};
+
+const typeChipStyle = (type?: string): CSSProperties => {
+  switch (type) {
+    case 'EMAIL':
+      return chipColors.green;
+    case 'WEBHOOK':
+      return chipColors.orange;
+    default:
+      return chipColors.blue;
+  }
 };
 
 const typeIcon = (type?: string) => {
@@ -69,10 +109,9 @@ const Notifiers = () => {
         };
         return (
           <Chip
+            classes={{ root: classes.chipInList }}
+            style={typeChipStyle(notifier.notifier_type)}
             label={t(labels[notifier.notifier_type ?? 'UI'])}
-            size="small"
-            variant="outlined"
-            color="primary"
           />
         );
       },
@@ -90,10 +129,9 @@ const Notifiers = () => {
       value: (notifier: NotifierOutput) => (notifier.notifier_built_in
         ? (
             <Chip
+              classes={{ root: classes.chipInList }}
+              style={chipColors.blueGrey}
               label={t('Built-in')}
-              size="small"
-              variant="outlined"
-              color="secondary"
             />
           )
         : undefined),
