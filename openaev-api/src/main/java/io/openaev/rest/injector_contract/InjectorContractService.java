@@ -75,6 +75,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 /**
  * Service for managing injector contracts.
@@ -246,7 +247,13 @@ public class InjectorContractService implements DependenciesManager {
     // during registration (InjectorService.registerBuiltinInjector).
     injectorContract.addInjector(injector);
 
-    applyCustomContractAuthor(injectorContract, injector);
+    // Authorship is a function of the creation's provenance (machine sync vs interactive),
+    // never of which credentials happened to authenticate the HTTP call.
+    if (isMachineProvenance(injectorContract, injector)) {
+      attributeToPublisher(injectorContract, injector);
+    } else {
+      attributeToCreatingUser(injectorContract);
+    }
 
     injectorContract.setDomains(
         injector != null && !injector.isPayloads()
@@ -354,54 +361,84 @@ public class InjectorContractService implements DependenciesManager {
     injectorContract.setDomains(
         this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant()));
 
-    healExternalInjectorAuthor(injectorContract);
+    reconcileExternalInjectorAuthorship(injectorContract);
 
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
   }
 
+  // -- CONTRACT AUTHORSHIP --
+  //
+  // Authorship is derived from the provenance of the data, never from the HTTP session:
+  //
+  //   machine provenance  -> the injector's publisher organization (e.g. "Nuclei")
+  //   interactive         -> the human creating the contract through the UI / ad-hoc API
+  //
+  // The session user MUST NOT be used as the discriminator: external injector sync loops
+  // (Nuclei per-CVE contracts, nmap...) authenticate their background API calls with the
+  // registering user's token, so a real session user is present during machine syncs. The
+  // reliable provenance marker is the external contract id: sync loops always send
+  // `external_contract_id`, interactive creations never do.
+
   /**
-   * Attributes a freshly created custom contract to its author.
-   *
-   * <p>Interactive creations (a real session user) are authored by that user. System-driven
-   * creations by an external injector — e.g. the Nuclei per-CVE contract scheduler hitting {@code
-   * POST /injector_contracts} with the injector's token, where there is no session user — are
-   * attributed to the injector's publisher organization (its name, e.g. "Nuclei") so the Threat
-   * Arsenal shows the source instead of "No author". Payload-based contracts resolve their author
-   * from the payload and are left untouched.
+   * A creation has machine provenance when it targets an external injector with a payload-less
+   * contract and either carries an injector-generated external id (all sync loops send one) or
+   * arrives anonymously (fallback for machine callers that predate external ids).
    */
-  private void applyCustomContractAuthor(InjectorContract contract, Injector injector) {
+  private boolean isMachineProvenance(InjectorContract contract, Injector injector) {
+    boolean externalPayloadless =
+        injector != null && injector.isExternal() && contract.getPayload() == null;
+    return externalPayloadless
+        && (StringUtils.hasText(contract.getExternalId())
+            || SessionHelper.currentUser() instanceof OpenAEVAnonymous);
+  }
+
+  /**
+   * Attributes a machine-synced contract to its publisher organization. Deliberately never reads
+   * the session: whichever token authenticated the background call is irrelevant to authorship.
+   */
+  private void attributeToPublisher(InjectorContract contract, Injector injector) {
+    contract.setAuthorUser(null);
+    contract.setAuthorOrganization(organizationService.findOrCreateByName(injector.getName()));
+  }
+
+  /** Attributes an interactively created contract to the authenticated human creating it. */
+  private void attributeToCreatingUser(InjectorContract contract) {
     if (!(SessionHelper.currentUser() instanceof OpenAEVAnonymous)) {
       contract.setAuthorUser(userService.currentUser());
-      return;
-    }
-    if (injector != null && injector.isExternal() && contract.getPayload() == null) {
-      contract.setAuthorOrganization(organizationService.findOrCreateByName(injector.getName()));
     }
   }
 
   /**
-   * Heals authorless external-injector contracts on update. The Nuclei/nmap maintenance loops call
-   * {@code updateInjectorContract} on every existing contract each sync cycle, so legacy per-CVE
-   * contracts created before authorship (all author FKs null) get attributed to their injector's
-   * publisher organization here. Only payload-less contracts already carrying no author are
-   * touched, so user-authored and payload-based contracts are never overwritten.
+   * Reconciles authorship of external-injector contracts on update. The Nuclei/nmap maintenance
+   * loops call {@code updateInjectorContract} on every existing contract each sync cycle, so two
+   * legacy cases self-repair to the publisher organization without any migration:
+   *
+   * <ul>
+   *   <li>contracts created before authorship existed (all author FKs null);
+   *   <li>machine-synced contracts wrongly stamped with a human author-user by the old
+   *       session-based logic (recognizable by their injector-generated external id —
+   *       interactively created contracts never carry one).
+   * </ul>
+   *
+   * <p>Payload-based contracts and contracts with a deliberate team/organization author are never
+   * touched.
    */
-  private void healExternalInjectorAuthor(InjectorContract contract) {
+  private void reconcileExternalInjectorAuthorship(InjectorContract contract) {
+    if (contract.getPayload() != null || contract.getAuthorTeam() != null) {
+      return;
+    }
     boolean authorless =
-        contract.getAuthorUser() == null
-            && contract.getAuthorTeam() == null
-            && contract.getAuthorOrganization() == null;
-    if (!authorless || contract.getPayload() != null) {
+        contract.getAuthorUser() == null && contract.getAuthorOrganization() == null;
+    boolean misattributedSync =
+        contract.getAuthorUser() != null && StringUtils.hasText(contract.getExternalId());
+    if (!authorless && !misattributedSync) {
       return;
     }
     contract.getInjectors().stream()
         .filter(Injector::isExternal)
         .findFirst()
-        .ifPresent(
-            injector ->
-                contract.setAuthorOrganization(
-                    organizationService.findOrCreateByName(injector.getName())));
+        .ifPresent(injector -> attributeToPublisher(contract, injector));
   }
 
   private void setVulnerabilitiesFromExternalOrInternalIds(
@@ -746,6 +783,27 @@ public class InjectorContractService implements DependenciesManager {
         ctx.injectorJoin().get("id"));
   }
 
+  /**
+   * Display label for a user author, mirroring {@link User#getNameOrEmail()}: "Firstname Lastname"
+   * when both are set and non-blank, the email otherwise. Evaluates to NULL when the (left-joined)
+   * user is absent, so outer coalesces fall through to the next author kind.
+   */
+  private Expression<String> userAuthorDisplayName(
+      @NotNull final CriteriaBuilder cb, @NotNull final Join<?, User> userJoin) {
+    Expression<String> firstname = userJoin.get("firstname");
+    Expression<String> lastname = userJoin.get("lastname");
+    Predicate hasFullName =
+        cb.and(
+            cb.isNotNull(firstname),
+            cb.notEqual(cb.trim(firstname), ""),
+            cb.isNotNull(lastname),
+            cb.notEqual(cb.trim(lastname), ""));
+    Expression<String> fullName = cb.concat(cb.concat(firstname, " "), lastname);
+    return cb.<String>selectCase()
+        .when(hasFullName, fullName)
+        .otherwise(userJoin.<String>get("email"));
+  }
+
   private void selectForInjectorContractThreatArsenal(
       @NotNull final CriteriaBuilder cb,
       @NotNull final CriteriaQuery<Tuple> cq,
@@ -778,10 +836,10 @@ public class InjectorContractService implements DependenciesManager {
             .value(authorOrgJoin.get("id"));
     Expression<String> authorName =
         cb.<String>coalesce()
-            .value(cAuthorUserJoin.get("email"))
+            .value(userAuthorDisplayName(cb, cAuthorUserJoin))
             .value(cAuthorTeamJoin.get("name"))
             .value(cAuthorOrgJoin.get("name"))
-            .value(authorUserJoin.get("email"))
+            .value(userAuthorDisplayName(cb, authorUserJoin))
             .value(authorTeamJoin.get("name"))
             .value(authorOrgJoin.get("name"));
     Expression<String> authorType =
@@ -815,12 +873,16 @@ public class InjectorContractService implements DependenciesManager {
     List<Expression<?>> groupBy = new ArrayList<>(getCommonGroupBy(injectorContractRoot, ctx));
     groupBy.add(cAuthorUserJoin.get("id"));
     groupBy.add(cAuthorUserJoin.get("email"));
+    groupBy.add(cAuthorUserJoin.get("firstname"));
+    groupBy.add(cAuthorUserJoin.get("lastname"));
     groupBy.add(cAuthorTeamJoin.get("id"));
     groupBy.add(cAuthorTeamJoin.get("name"));
     groupBy.add(cAuthorOrgJoin.get("id"));
     groupBy.add(cAuthorOrgJoin.get("name"));
     groupBy.add(authorUserJoin.get("id"));
     groupBy.add(authorUserJoin.get("email"));
+    groupBy.add(authorUserJoin.get("firstname"));
+    groupBy.add(authorUserJoin.get("lastname"));
     groupBy.add(authorTeamJoin.get("id"));
     groupBy.add(authorTeamJoin.get("name"));
     groupBy.add(authorOrgJoin.get("id"));
@@ -1019,10 +1081,10 @@ public class InjectorContractService implements DependenciesManager {
             .value(pAuthorOrgJoin.get("id"));
     Expression<String> authorName =
         cb.<String>coalesce()
-            .value(cAuthorUserJoin.get("email"))
+            .value(userAuthorDisplayName(cb, cAuthorUserJoin))
             .value(cAuthorTeamJoin.get("name"))
             .value(cAuthorOrgJoin.get("name"))
-            .value(pAuthorUserJoin.get("email"))
+            .value(userAuthorDisplayName(cb, pAuthorUserJoin))
             .value(pAuthorTeamJoin.get("name"))
             .value(pAuthorOrgJoin.get("name"));
     Expression<String> authorType =

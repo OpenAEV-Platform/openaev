@@ -156,6 +156,18 @@ export const searchScenarioHealthcheks = (scenarioId: Scenario['scenario_id']) =
   return simpleCall(uri);
 };
 
+// -- EXPECTATIONS DRIFT --
+
+export const fetchScenarioExpectationsDrift = (scenarioId: Scenario['scenario_id']) => {
+  const uri = `${SCENARIO_URI}/${scenarioId}/expectations-drift`;
+  return simpleCall(uri);
+};
+
+export const realignScenarioExpectations = (scenarioId: Scenario['scenario_id']) => {
+  const uri = `${SCENARIO_URI}/${scenarioId}/expectations-drift/realign`;
+  return simplePostCall(uri);
+};
+
 // -- RECURRENCE --
 
 export const updateScenarioRecurrence = (

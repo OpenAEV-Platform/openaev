@@ -38,6 +38,7 @@ const BulkOperationsIndicator: FunctionComponent = () => {
       update: 'Updating',
       test: 'Testing',
       create: 'Creating',
+      realign: 'Realigning',
     };
     const action = actionVerbs[operation.bulk_operation_action] ?? 'Processing';
     return t(`${action} ${operation.bulk_operation_entity}`);

@@ -14,6 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Going through this bean (a Spring proxy) also fires {@code HibernateFilterTransactionAspect},
  * which enables the Hibernate tenant filter on the chunk's session - a plain {@code
  * TransactionTemplate} would silently skip tenant scoping.
+ *
+ * <p>Other chunked massive operations (e.g. {@link
+ * io.openaev.rest.inject.service.ExpectationsDriftService} realignment) reuse this trampoline for
+ * the same reasons.
  */
 @Component
 public class BulkDeleteChunkRunner {

@@ -26,7 +26,9 @@ import { type ChallengeHelper } from '../../../../actions/helper';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import {
   createRunningExerciseFromScenario,
+  fetchScenarioExpectationsDrift,
   fetchScenarioTeams,
+  realignScenarioExpectations,
   searchScenarioHealthcheks,
   updateScenarioRecurrence,
 } from '../../../../actions/scenarios/scenario-actions';
@@ -50,6 +52,7 @@ import {
   type Scenario,
   type Team,
 } from '../../../../utils/api-types';
+import { type ExpectationsDriftOutput } from '../../../../utils/api-types-custom';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -60,6 +63,7 @@ import useScenarioPermissions from '../../../../utils/permissions/useScenarioPer
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
+import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
 import ScenarioConfiguration from './ScenarioConfiguration';
@@ -100,6 +104,7 @@ const ScenarioHeader = ({
 
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+  const [expectationsDrift, setExpectationsDrift] = useState<ExpectationsDriftOutput | null>(null);
 
   // Preserve the deep link that used to open the assistant drawer: it now
   // routes to the dedicated full-page assistant.
@@ -164,6 +169,19 @@ const ScenarioHeader = ({
   useEffect(() => {
     searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
   }, [scenarioId, scenario]);
+
+  // Expectation drift between the injector contract templates and the inject
+  // content - recomputed when the scenario or its inject set changes.
+  useEffect(() => {
+    fetchScenarioExpectationsDrift(scenarioId).then((result: { data: ExpectationsDriftOutput }) => setExpectationsDrift(result.data));
+  }, [scenarioId, scenario, injectsCount]);
+
+  const onRealignExpectations = async () => {
+    await realignScenarioExpectations(scenarioId);
+    const result = await fetchScenarioExpectationsDrift(scenarioId);
+    setExpectationsDrift(result.data);
+    dispatch(fetchScenarioInjectsSimple(scenarioId));
+  };
 
   const onSubmit = (cron: Cron, start: string, end?: string) => {
     dispatch(updateScenarioRecurrence(scenarioId, {
@@ -248,6 +266,14 @@ const ScenarioHeader = ({
               {/* Contextual configuration alert - self-hides when healthy. */}
               {canManage && (
                 <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />
+              )}
+              {/* Expectation drift warning - self-hides when aligned. */}
+              {canManage && (
+                <ExpectationsDriftIndicator
+                  drift={expectationsDrift}
+                  variant="scenario"
+                  onRealign={onRealignExpectations}
+                />
               )}
               {/* One AI action, kept visible for discoverability. */}
               {canManage && !isScenarioChaining && (

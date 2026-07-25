@@ -1,5 +1,5 @@
 import { ArrowBackOutlined, GridViewOutlined, ReorderOutlined } from '@mui/icons-material';
-import { Box, IconButton, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { Box, IconButton, Skeleton, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useMemo, useState } from 'react';
 
 import { type AttackPatternHelper } from '../../../../../actions/attack_patterns/attackpattern-helper';
@@ -21,6 +21,7 @@ import {
   type Domain,
   type FilterGroup,
   type InjectorContractFullOutput,
+  type InjectorContractSearchPaginationInput,
   type KillChainPhase,
 } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -108,8 +109,15 @@ const InjectContractPicker: FunctionComponent<Props> = ({
     }
   };
 
-  // Contracts search (atomic creation only surfaces atomic-capable contracts)
+  // Contracts search (atomic creation only surfaces atomic-capable contracts).
+  // `loading` starts true so the first paint shows skeletons instead of a
+  // "No data to display" flash while the initial search is in flight.
   const [contracts, setContracts] = useState<InjectorContractFullOutput[]>([]);
+  const [loading, setLoading] = useState(true);
+  const fetchContracts = (input: InjectorContractSearchPaginationInput) => {
+    setLoading(true);
+    return searchInjectorContracts(input).finally(() => setLoading(false));
+  };
   const initSearchPaginationInput = () => {
     const filterGroup: FilterGroup = {
       mode: 'and',
@@ -225,7 +233,7 @@ const InjectContractPicker: FunctionComponent<Props> = ({
         }}
         >
           <PaginationComponentV2
-            fetch={searchInjectorContracts}
+            fetch={fetchContracts}
             searchPaginationInput={searchPaginationInput}
             setContent={setContracts}
             entityPrefix="injector_contract"
@@ -254,9 +262,49 @@ const InjectContractPicker: FunctionComponent<Props> = ({
             )}
           />
 
-          {contracts.length === 0 && <Empty message={t('No data to display')} />}
+          {!loading && contracts.length === 0 && <Empty message={t('No data to display')} />}
 
-          {viewMode === 'grid' && contracts.length > 0 && (
+          {/* Skeletons mirror the Threat Arsenal library loading state so the
+              picker never flashes an empty state while the search is in flight. */}
+          {viewMode === 'grid' && loading && (
+            <Box sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: 2,
+            }}
+            >
+              {Array.from({ length: 12 }).map((_, idx) => (
+                <Box
+                  key={idx}
+                  sx={{
+                    height: 200,
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Skeleton variant="rectangular" height={64} animation="wave" />
+                  <Box sx={{ padding: 2 }}>
+                    <Skeleton variant="text" width="80%" height={28} animation="wave" />
+                    <Skeleton variant="text" width="60%" height={20} animation="wave" />
+                    <Box sx={{
+                      display: 'flex',
+                      gap: 1,
+                      marginTop: 2,
+                    }}
+                    >
+                      <Skeleton variant="circular" width={20} height={20} animation="wave" />
+                      <Skeleton variant="circular" width={20} height={20} animation="wave" />
+                      <Skeleton variant="rectangular" width={60} height={20} animation="wave" sx={{ borderRadius: 1 }} />
+                    </Box>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          )}
+
+          {viewMode === 'grid' && !loading && contracts.length > 0 && (
             <Box sx={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
@@ -279,7 +327,7 @@ const InjectContractPicker: FunctionComponent<Props> = ({
             </Box>
           )}
 
-          {viewMode === 'list' && contracts.length > 0 && (
+          {viewMode === 'list' && (loading || contracts.length > 0) && (
             <Box sx={{
               display: 'flex',
               flexDirection: 'column',
@@ -303,7 +351,39 @@ const InjectContractPicker: FunctionComponent<Props> = ({
                 <Typography variant="h4" sx={{ margin: 0 }}>{t('Kill chain phase')}</Typography>
                 <span aria-hidden />
               </Box>
-              {contractMeta.map(({ contract, contractAttackPatterns, killChainPhaseName }) => (
+              {/* Skeleton rows share the exact grid template of the real rows
+                  so the layout does not shift when the data lands. */}
+              {loading && Array.from({ length: 10 }).map((_, idx) => (
+                <Box
+                  key={idx}
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: LIST_GRID_COLUMNS(!isAtomic),
+                    alignItems: 'center',
+                    gap: 1.5,
+                    paddingBlock: 0.75,
+                    paddingInline: 1.5,
+                    borderLeft: '3px solid transparent',
+                  }}
+                >
+                  {!isAtomic && <Skeleton variant="rounded" width={18} height={18} animation="wave" />}
+                  <Skeleton variant="rounded" width={36} height={36} animation="wave" />
+                  <Skeleton variant="text" width="70%" height={20} animation="wave" />
+                  <Skeleton variant="text" width="60%" height={20} animation="wave" />
+                  <Box sx={{
+                    display: 'flex',
+                    gap: 0.75,
+                  }}
+                  >
+                    <Skeleton variant="circular" width={18} height={18} animation="wave" />
+                    <Skeleton variant="circular" width={18} height={18} animation="wave" />
+                  </Box>
+                  <Skeleton variant="rounded" width={60} height={20} animation="wave" />
+                  <Skeleton variant="text" width="60%" height={20} animation="wave" />
+                  <span aria-hidden />
+                </Box>
+              ))}
+              {!loading && contractMeta.map(({ contract, contractAttackPatterns, killChainPhaseName }) => (
                 <InjectContractListRow
                   key={contract.injector_contract_id}
                   contract={contract}

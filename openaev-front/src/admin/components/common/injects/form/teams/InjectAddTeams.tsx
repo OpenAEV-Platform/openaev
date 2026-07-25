@@ -28,6 +28,7 @@ import CreateTeam from '../../../../components/teams/CreateTeam';
 import { TeamContext } from '../../../Context';
 
 const useStyles = makeStyles()(theme => ({
+  icon: { minWidth: 30 },
   text: {
     fontSize: 15,
     color: theme.palette.primary.main,
@@ -121,8 +122,8 @@ const InjectAddTeams: FunctionComponent<Props> = ({
         color="primary"
         disabled={disabled}
       >
-        <ListItemIcon>
-          <ControlPointOutlined color={error ? 'error' : 'primary'} />
+        <ListItemIcon classes={{ root: classes.icon }}>
+          <ControlPointOutlined color={error ? 'error' : 'primary'} fontSize="small" />
         </ListItemIcon>
         <ListItemText
           primary={t('Modify target teams')}

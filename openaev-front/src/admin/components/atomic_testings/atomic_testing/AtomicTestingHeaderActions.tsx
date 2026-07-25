@@ -1,17 +1,25 @@
 import { PlayArrowOutlined, SettingsOutlined } from '@mui/icons-material';
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useContext, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { fetchMe } from '../../../../actions/Application';
-import { launchAtomicTesting, relaunchAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
+import {
+  fetchAtomicTestingExpectationsDrift,
+  fetchInjectResultOverviewOutput,
+  launchAtomicTesting,
+  realignAtomicTestingExpectations,
+  relaunchAtomicTesting,
+} from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { useFormatter } from '../../../../components/i18n';
 import type { InjectResultOverviewOutput } from '../../../../utils/api-types';
+import { type ExpectationsDriftOutput } from '../../../../utils/api-types-custom';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import AtomicTestingPopover from './AtomicTestingPopover';
 import AtomicTestingUpdate from './AtomicTestingUpdate';
 
@@ -28,10 +36,27 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
   const { setEEFeatureDetectedInfo } = useEnterpriseEdition();
   const dispatch = useAppDispatch();
   const hasAbility = ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT) || ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, injectResultOverview.inject_id);
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT) || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectResultOverview.inject_id);
 
   const [edition, setEdition] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [canLaunch, setCanLaunch] = useState(true);
+  const [expectationsDrift, setExpectationsDrift] = useState<ExpectationsDriftOutput | null>(null);
+
+  // Expectation drift between the injector contract template and the inject
+  // content - recomputed when the atomic testing is updated.
+  useEffect(() => {
+    fetchAtomicTestingExpectationsDrift(injectResultOverview.inject_id).then((result: { data: ExpectationsDriftOutput }) => setExpectationsDrift(result.data));
+  }, [injectResultOverview.inject_id, injectResultOverview.inject_updated_at]);
+
+  const onRealignExpectations = async () => {
+    await realignAtomicTestingExpectations(injectResultOverview.inject_id);
+    const result = await fetchAtomicTestingExpectationsDrift(injectResultOverview.inject_id);
+    setExpectationsDrift(result.data);
+    await fetchInjectResultOverviewOutput(injectResultOverview.inject_id).then((overview: { data: InjectResultOverviewOutput }) => {
+      setInjectResultOverview(overview.data);
+    });
+  };
 
   // Handlers
   const handleCloseDialog = () => setOpenDialog(false);
@@ -159,6 +184,14 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
     <>
       {/* Rendered inside the DetailHero action cluster, which provides the
           flex layout, the gap and the 32px control normalization. */}
+      {/* Expectation drift warning - self-hides when aligned. */}
+      {canManage && (
+        <ExpectationsDriftIndicator
+          drift={expectationsDrift}
+          variant="atomic"
+          onRealign={onRealignExpectations}
+        />
+      )}
       {hasAbility && getActionButton(injectResultOverview)}
       <AtomicTestingPopover
         atomic={injectResultOverview}

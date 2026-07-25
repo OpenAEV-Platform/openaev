@@ -39,6 +39,7 @@ const useStyles = makeStyles()(theme => ({
     border: `1px dashed ${theme.palette.divider}`,
   },
   chip: { margin: '0 10px 10px 0' },
+  icon: { minWidth: 30 },
   text: {
     fontSize: 15,
     color: theme.palette.primary.main,
@@ -158,8 +159,8 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
         color="primary"
         disabled={disabled}
       >
-        <ListItemIcon>
-          <ControlPointOutlined color={error ? 'error' : 'primary'} />
+        <ListItemIcon classes={{ root: classes.icon }}>
+          <ControlPointOutlined color={error ? 'error' : 'primary'} fontSize="small" />
         </ListItemIcon>
         <ListItemText
           primary={t('Add challenges')}

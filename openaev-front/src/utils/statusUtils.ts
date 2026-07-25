@@ -136,6 +136,7 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
     // Not counted statuses
     'asset_agentless': theme.palette.grey['500'],
     'agent_inactive': theme.palette.grey['500'],
+    'info': colorStyles.blue.color,
 
     // -- ExecutionStatus --
     'partial': colorStyles.orange.color,

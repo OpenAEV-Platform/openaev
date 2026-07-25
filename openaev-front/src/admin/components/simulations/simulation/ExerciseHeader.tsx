@@ -23,7 +23,7 @@ import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/w
 import { fetchExerciseChallenges } from '../../../../actions/challenge-action';
 import { fetchExerciseArticles } from '../../../../actions/channels/article-action';
 import { type ArticlesHelper } from '../../../../actions/channels/article-helper';
-import { fetchExerciseTeams, searchExerciseHealthchecks, updateExerciseStatus } from '../../../../actions/Exercise';
+import { fetchExerciseExpectationsDrift, fetchExerciseTeams, realignExerciseExpectations, searchExerciseHealthchecks, updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import { type ChallengeHelper } from '../../../../actions/helper';
 import { fetchExerciseInjectsSimple } from '../../../../actions/Inject';
@@ -37,12 +37,14 @@ import ItemCategory from '../../../../components/ItemCategory';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import { useHelper } from '../../../../store';
 import { type Article, type Challenge, type Exercise, type Exercise as ExerciseType, type HealthCheck, type Inject, type SimulationDetails, type Team } from '../../../../utils/api-types';
+import { type ExpectationsDriftOutput } from '../../../../utils/api-types-custom';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
+import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import ExerciseDatePopover from './ExerciseDatePopover';
 import ExercisePopover, { type ExerciseActionPopover } from './ExercisePopover';
@@ -272,6 +274,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   );
 
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+  const [expectationsDrift, setExpectationsDrift] = useState<ExpectationsDriftOutput | null>(null);
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [openDateDialog, setOpenDateDialog] = useState(false);
 
@@ -281,6 +284,19 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   useEffect(() => {
     searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
   }, [exerciseId, exercise, workflowConfiguration]);
+
+  // Expectation drift between the injector contract templates and the inject
+  // content - recomputed when the simulation or its inject set changes.
+  useEffect(() => {
+    fetchExerciseExpectationsDrift(exerciseId).then((result: { data: ExpectationsDriftOutput }) => setExpectationsDrift(result.data));
+  }, [exerciseId, exercise, injects?.length]);
+
+  const onRealignExpectations = async () => {
+    await realignExerciseExpectations(exerciseId);
+    const result = await fetchExerciseExpectationsDrift(exerciseId);
+    setExpectationsDrift(result.data);
+    dispatch(fetchExerciseInjectsSimple(exerciseId));
+  };
 
   const actions: ExerciseActionPopover[] = isSimulationChaining
     ? ['Update', 'Export', 'Delete']
@@ -340,6 +356,14 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
               {/* Contextual configuration alert - self-hides when healthy. */}
               {permissions.canManage && (
                 <HealthcheckIndicator healthchecks={healthchecks} exerciseId={exerciseId} />
+              )}
+              {/* Expectation drift warning - self-hides when aligned. */}
+              {permissions.canManage && (
+                <ExpectationsDriftIndicator
+                  drift={expectationsDrift}
+                  variant="simulation"
+                  onRealign={onRealignExpectations}
+                />
               )}
               {/* Configuration promoted to a first-class button (not buried in the
                   overflow) so teams/players setup is discoverable, with an
