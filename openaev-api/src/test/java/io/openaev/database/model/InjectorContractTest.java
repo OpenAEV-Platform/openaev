@@ -276,5 +276,41 @@ class InjectorContractTest {
 
       assertThat(contract.getTags()).isSameAs(stored);
     }
+
+    private static AttackPattern attackPatternWithId(String id) {
+      AttackPattern attackPattern = new AttackPattern();
+      attackPattern.setId(id);
+      return attackPattern;
+    }
+
+    private static Vulnerability vulnerabilityWithId(String id) {
+      Vulnerability vulnerability = new Vulnerability();
+      vulnerability.setId(id);
+      return vulnerability;
+    }
+
+    @Test
+    @DisplayName("setAttackPatterns with the same ids keeps the stored collection")
+    void setAttackPatterns_same_ids_keeps_stored_collection() {
+      InjectorContract contract = new InjectorContract();
+      List<AttackPattern> stored = new ArrayList<>(List.of(attackPatternWithId("a1")));
+      contract.setAttackPatterns(stored);
+
+      contract.setAttackPatterns(new ArrayList<>(List.of(attackPatternWithId("a1"))));
+
+      assertThat(contract.getAttackPatterns()).isSameAs(stored);
+    }
+
+    @Test
+    @DisplayName("setVulnerabilities with the same ids keeps the stored collection")
+    void setVulnerabilities_same_ids_keeps_stored_collection() {
+      InjectorContract contract = new InjectorContract();
+      Set<Vulnerability> stored = new HashSet<>(Set.of(vulnerabilityWithId("v1")));
+      contract.setVulnerabilities(stored);
+
+      contract.setVulnerabilities(new HashSet<>(Set.of(vulnerabilityWithId("v1"))));
+
+      assertThat(contract.getVulnerabilities()).isSameAs(stored);
+    }
   }
 }

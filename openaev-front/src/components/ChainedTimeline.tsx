@@ -656,7 +656,7 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
                   background: theme.palette.background.paper,
                   border: `1px solid ${theme.palette.divider}`,
                 }}
-                maskColor={`${theme.palette.background.default}80`}
+                maskColor={alpha(theme.palette.background.default, 0.5)}
                 nodeColor={theme.palette.primary.main}
               />
             </div>

@@ -88,9 +88,19 @@ const useExpectationPosture = (
       time_range: 'ALL_TIME',
       date_attribute: 'base_created_at',
     } as unknown as Widget['widget_config'];
+    // Cancellation guard: if the scoped entity changes while the query is in
+    // flight, the stale response must not overwrite the newer one.
+    let cancelled = false;
     adHocSeries(config)
-      .then((result: { data: EsSeries[] }) => setSeries(result.data))
-      .catch(() => setSeries([]));
+      .then((result: { data: EsSeries[] }) => {
+        if (!cancelled) setSeries(result.data);
+      })
+      .catch(() => {
+        if (!cancelled) setSeries([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [scopeField, entityId, scopeOperator]);
 
   const breakdown = EXPECTATION_TYPES

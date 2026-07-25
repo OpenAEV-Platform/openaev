@@ -31,7 +31,6 @@ import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.criteria.Join;
-import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -437,26 +436,31 @@ public class ThreatArsenalService {
     if (idsToProcess != null && !idsToProcess.isEmpty()) {
       return idsToProcess.stream().filter(this::isEligibleForDeletion).toList();
     }
-    // Select-all mode: page through every action matching the current filters
-    // (minus the explicitly de-selected ids, already honored by getSinglePage).
-    List<String> eligibleIds = new ArrayList<>();
-    int page = 0;
-    Page<? extends InjectorContractBaseOutput> resultPage;
-    do {
-      InjectorContractSearchPaginationInput pageInput = new InjectorContractSearchPaginationInput();
-      BeanUtils.copyProperties(input, pageInput);
-      pageInput.setPage(page);
-      pageInput.setSize(MAX_PAGE_SIZE);
+    // Select-all mode: resolve the whole scope with a single statement rather than offset pages.
+    // The caller's sort is typically updated_at, which concurrent edits and collector upserts keep
+    // moving: a row shifting across an already-consumed offset boundary between two page queries
+    // is silently skipped (it then survives the delete), and a row shifting the other way is
+    // enumerated twice. One statement is one snapshot - nothing can move while it runs. The
+    // outputs are flat search projections, so even a whole-arsenal scope stays cheap to hold.
+    InjectorContractSearchPaginationInput pageInput = new InjectorContractSearchPaginationInput();
+    BeanUtils.copyProperties(input, pageInput);
+    pageInput.setPage(0);
+    pageInput.setSize(MAX_PAGE_SIZE);
+    Page<? extends InjectorContractBaseOutput> resultPage =
+        searchInjectorContracts(InjectorContractService.OutputMode.THREAT_ARSENAL, pageInput);
+    if (resultPage.hasNext()) {
+      // More rows than one page: re-run once, sized to the full count. Rows appearing after this
+      // query belong to the next operation, not to this snapshot.
+      pageInput.setSize(Math.toIntExact(resultPage.getTotalElements()));
       resultPage =
           searchInjectorContracts(InjectorContractService.OutputMode.THREAT_ARSENAL, pageInput);
-      resultPage.getContent().stream()
-          .filter(ThreatArsenalAction.class::isInstance)
-          .map(ThreatArsenalAction.class::cast)
-          .filter(ThreatArsenalService::isEligibleForDeletion)
-          .forEach(action -> eligibleIds.add(action.getId()));
-      page++;
-    } while (resultPage.hasNext());
-    return eligibleIds;
+    }
+    return resultPage.getContent().stream()
+        .filter(ThreatArsenalAction.class::isInstance)
+        .map(ThreatArsenalAction.class::cast)
+        .filter(ThreatArsenalService::isEligibleForDeletion)
+        .map(ThreatArsenalAction::getId)
+        .toList();
   }
 
   private boolean isEligibleForDeletion(String actionId) {
