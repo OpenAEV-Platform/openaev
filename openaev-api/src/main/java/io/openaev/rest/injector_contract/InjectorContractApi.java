@@ -105,8 +105,7 @@ public class InjectorContractApi extends RestBehavior {
    * the live count badges of the inject-contract picker sidebar (the domain and author facets have
    * their own endpoints).
    */
-  @Operation(
-      summary = "Platform, kill chain phase and status facet counts for the contract picker")
+  @Operation(summary = "Platform, kill chain phase and status facet counts for the contract picker")
   @PostMapping({
     INJECTOR_CONTRACT_URL + "/facet-counts",
     TENANT_INJECTOR_CONTRACT_URL + "/facet-counts"

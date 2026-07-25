@@ -197,8 +197,8 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
    * Deletes the connector instance that owns this connector, when the connector was deployed
    * through the Integration Manager.
    *
-   * <p>The instance list is the desired state the XTM Composer polls, and the composer only tears
-   * a deployment down when its id disappears from that list. Deleting the connector entity alone
+   * <p>The instance list is the desired state the XTM Composer polls, and the composer only tears a
+   * deployment down when its id disappears from that list. Deleting the connector entity alone
    * therefore leaves the container running against a connector that no longer exists - and the
    * container recreates the entity on its next registration heartbeat, so the deletion looks like
    * it silently failed. The instance delete removes the connector entity too, hence the return

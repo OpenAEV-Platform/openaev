@@ -14,7 +14,6 @@ import io.openaev.database.model.Injector;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.*;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
-import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.service.InjectStatusService;
