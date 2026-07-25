@@ -285,7 +285,11 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @JsonProperty("injector_contract_payload")
   private Payload payload;
 
-  @Column(name = "injector_contract_created_at")
+  // Never updatable: a source-driven upsert that goes through a merge (registration rebuilds the
+  // contract from the declaration, so the incoming instance carries a fresh createdAt) would
+  // otherwise overwrite the stored creation date, dirty the row, bump @UpdateTimestamp and
+  // restream the contract to every connected browser.
+  @Column(name = "injector_contract_created_at", updatable = false)
   @JsonProperty("injector_contract_created_at")
   @NotNull
   @CreationTimestamp
