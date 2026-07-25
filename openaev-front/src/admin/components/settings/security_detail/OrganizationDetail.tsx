@@ -32,12 +32,13 @@ import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import OrganizationPopover from '../organizations/OrganizationPopover';
 import SecurityMenu from '../SecurityMenu';
 
-// Scoped `contains` filter for the members search.
-const contains = (key: string, values: string[]): Filter => ({
+// Exact-match filter for the members search: user_organization holds a single
+// organization id, so equality is the correct scoping operator.
+const equals = (key: string, values: string[]): Filter => ({
   id: generateFilterId(),
   key,
   mode: 'or',
-  operator: 'contains',
+  operator: 'eq',
   values,
 });
 
@@ -80,7 +81,7 @@ const OrganizationDetailContent = () => {
         ...input,
         filterGroup: {
           mode: input.filterGroup?.mode ?? 'and',
-          filters: [...(input.filterGroup?.filters ?? []), contains('user_organization', [organizationId])],
+          filters: [...(input.filterGroup?.filters ?? []), equals('user_organization', [organizationId])],
         },
       }) as Promise<{ data: Page<UserOutput> }>,
     [organizationId],

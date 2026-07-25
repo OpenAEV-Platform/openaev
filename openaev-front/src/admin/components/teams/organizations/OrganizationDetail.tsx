@@ -38,12 +38,23 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import OrganizationPopover from './OrganizationPopover';
 
-// Scoped `contains` filter for the hero count probes.
+// Scoped `contains` filter for the hero count probes (array-valued keys such
+// as inject_teams / finding_teams / finding_users).
 const contains = (key: string, values: string[]): Filter => ({
   id: generateFilterId(),
   key,
   mode: 'or',
   operator: 'contains',
+  values,
+});
+
+// Exact-match filter for scalar keys (e.g. user_organization holds a single
+// organization id, so equality is the correct scoping operator).
+const equals = (key: string, values: string[]): Filter => ({
+  id: generateFilterId(),
+  key,
+  mode: 'or',
+  operator: 'eq',
   values,
 });
 
@@ -97,7 +108,7 @@ const OrganizationDetailContent = () => {
         ...input,
         filterGroup: {
           mode: input.filterGroup?.mode ?? 'and',
-          filters: [...(input.filterGroup?.filters ?? []), contains('user_organization', [organizationId])],
+          filters: [...(input.filterGroup?.filters ?? []), equals('user_organization', [organizationId])],
         },
       }) as Promise<{ data: Page<PlayerOutput> }>,
     [organizationId],
