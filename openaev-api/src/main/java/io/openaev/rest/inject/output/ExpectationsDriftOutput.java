@@ -4,8 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * Alignment report between the predefined expectations currently exposed by injector contracts
- * (the security posture templates) and the expectations actually stored inside the injects of a
+ * Alignment report between the predefined expectations currently exposed by injector contracts (the
+ * security posture templates) and the expectations actually stored inside the injects of a
  * scenario, a simulation or an atomic testing.
  *
  * <p>A drifted inject is not an error: users may have customized its expectations on purpose. The

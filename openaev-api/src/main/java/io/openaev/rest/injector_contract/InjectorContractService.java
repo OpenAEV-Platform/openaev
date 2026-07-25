@@ -417,8 +417,8 @@ public class InjectorContractService implements DependenciesManager {
    * <ul>
    *   <li>contracts created before authorship existed (all author FKs null);
    *   <li>machine-synced contracts wrongly stamped with a human author-user by the old
-   *       session-based logic (recognizable by their injector-generated external id —
-   *       interactively created contracts never carry one).
+   *       session-based logic (recognizable by their injector-generated external id - interactively
+   *       created contracts never carry one).
    * </ul>
    *
    * <p>Payload-based contracts and contracts with a deliberate team/organization author are never

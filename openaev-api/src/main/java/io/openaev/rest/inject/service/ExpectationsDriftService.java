@@ -132,8 +132,8 @@ public class ExpectationsDriftService {
   }
 
   /**
-   * Canonical signatures of the expectations stored in the inject content, or {@code null} when
-   * the content carries no expectations (the inject then follows the contract dynamically).
+   * Canonical signatures of the expectations stored in the inject content, or {@code null} when the
+   * content carries no expectations (the inject then follows the contract dynamically).
    */
   private List<String> injectExpectationSignatures(Inject inject) {
     ObjectNode content = inject.getContent();
@@ -151,9 +151,9 @@ public class ExpectationsDriftService {
   }
 
   /**
-   * Canonical, order-insensitive signature of the validation-defining attributes of an
-   * expectation: type, group semantics and expected security platform types. Tuning attributes
-   * (score, name, description, expiration time) are excluded on purpose.
+   * Canonical, order-insensitive signature of the validation-defining attributes of an expectation:
+   * type, group semantics and expected security platform types. Tuning attributes (score, name,
+   * description, expiration time) are excluded on purpose.
    */
   private String signature(JsonNode expectation) {
     String type = expectation.path(NODE_EXPECTATION_TYPE).asText("");
