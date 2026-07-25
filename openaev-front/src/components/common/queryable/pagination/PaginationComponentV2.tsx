@@ -116,17 +116,19 @@ const PaginationComponentV2 = <T extends object>({
       queryableHelpers.uriHelpers.updateUri();
     }
 
-    // Fetch datas
+    // Fetch datas. Loading is cleared in finally so a rejected search (network
+    // or API error) never leaves callers stuck in a perpetual loading state.
     setLoading?.(true);
-    fetch(searchPaginationInput).then((result: { data: Page<T> }) => {
-      const { data } = result;
-      setContent(data.content);
-      queryableHelpers.paginationHelpers.handleChangeTotalElements(data.totalElements);
-      if (data.totalPages <= data.pageable.pageNumber) {
-        queryableHelpers.paginationHelpers.handleChangePage(0);
-      }
-      setLoading?.(false);
-    });
+    fetch(searchPaginationInput)
+      .then((result: { data: Page<T> }) => {
+        const { data } = result;
+        setContent(data.content);
+        queryableHelpers.paginationHelpers.handleChangeTotalElements(data.totalElements);
+        if (data.totalPages <= data.pageable.pageNumber) {
+          queryableHelpers.paginationHelpers.handleChangePage(0);
+        }
+      })
+      .finally(() => setLoading?.(false));
   }, [searchPaginationInput, reloadContentCount]);
 
   // Filters

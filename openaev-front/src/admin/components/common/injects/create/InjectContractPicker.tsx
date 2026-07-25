@@ -1,6 +1,6 @@
 import { ArrowBackOutlined, GridViewOutlined, ReorderOutlined } from '@mui/icons-material';
 import { Box, IconButton, Skeleton, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { type FunctionComponent, type SyntheticEvent, useMemo, useState } from 'react';
+import { type FunctionComponent, type SyntheticEvent, useMemo, useRef, useState } from 'react';
 
 import { type AttackPatternHelper } from '../../../../../actions/attack_patterns/attackpattern-helper';
 import { fetchAttackPatterns } from '../../../../../actions/AttackPattern';
@@ -111,12 +111,21 @@ const InjectContractPicker: FunctionComponent<Props> = ({
 
   // Contracts search (atomic creation only surfaces atomic-capable contracts).
   // `loading` starts true so the first paint shows skeletons instead of a
-  // "No data to display" flash while the initial search is in flight.
+  // "No data to display" flash while the initial search is in flight. Searches
+  // can overlap (fast typing, filter changes): the sequence guard ensures only
+  // the latest request clears the loading state, so a slow stale response
+  // never hides the skeletons while a newer search is still in flight.
   const [contracts, setContracts] = useState<InjectorContractFullOutput[]>([]);
   const [loading, setLoading] = useState(true);
+  const fetchSeqRef = useRef(0);
   const fetchContracts = (input: InjectorContractSearchPaginationInput) => {
+    const seq = ++fetchSeqRef.current;
     setLoading(true);
-    return searchInjectorContracts(input).finally(() => setLoading(false));
+    return searchInjectorContracts(input).finally(() => {
+      if (seq === fetchSeqRef.current) {
+        setLoading(false);
+      }
+    });
   };
   const initSearchPaginationInput = () => {
     const filterGroup: FilterGroup = {
