@@ -132,6 +132,7 @@ export interface AgentOutput {
 }
 
 export interface AgentTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -375,6 +376,7 @@ export interface AiTargetInput {
 }
 
 export interface AiTargetTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -698,6 +700,7 @@ export interface AssetGroupSimple {
 }
 
 export interface AssetGroupTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -1193,6 +1196,7 @@ type BaseEsBaseBaseEntityMapping<Key, Type> = {
 } & Type;
 
 interface BaseInjectTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -1219,7 +1223,6 @@ interface BaseInjectTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
-  target_category?: string;
   target_subtype?: string;
   /** @uniqueItems true */
   target_tags?: string[];
@@ -3648,6 +3651,7 @@ export interface EndpointSimple {
 }
 
 export interface EndpointTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -5815,6 +5819,15 @@ export interface InjectorContractDomainDTO {
   domain_id: string;
   /** @minLength 1 */
   domain_name: string;
+}
+
+export interface InjectorContractFacetCountsOutput {
+  /** Number of contracts per kill chain phase id under the current filters, through the attack pattern relation */
+  kill_chain_phases?: Record<string, number>;
+  /** Number of contracts per platform under the current filters */
+  platforms?: Record<string, number>;
+  /** Number of contracts per payload status under the current filters */
+  statuses?: Record<string, number>;
 }
 
 export interface InjectorContractFullOutput {
@@ -8437,6 +8450,7 @@ export interface PlayerOutput {
 }
 
 export interface PlayerTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -10093,6 +10107,7 @@ export interface TeamOutput {
 }
 
 export interface TeamTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
