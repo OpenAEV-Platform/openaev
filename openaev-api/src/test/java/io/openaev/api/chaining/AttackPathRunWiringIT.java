@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +38,7 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.UserService;
 import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
+import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepEvent;
 import io.openaev.service.chaining.StepEventService;
@@ -103,6 +105,10 @@ class AttackPathRunWiringIT extends IntegrationTest {
   // (attackPathIngestion) must run; only createInject / the throw-for-W3 are stubbed.
   @MockitoSpyBean private InjectService injectService;
   @MockitoSpyBean private AttackPathExecutionIngestionService attackPathIngestion;
+
+  // Mocked: this test only checks that update() drives the copy, gated by the flag; the copy itself
+  // is covered by AttackPathFindingIngestionServiceIT.
+  @MockitoBean private AttackPathFindingIngestionService attackPathFindingIngestion;
 
   @Autowired private InjectExecutionStep injectExecutionStep;
   @Autowired private StepEventService stepEventService;
@@ -327,6 +333,38 @@ class AttackPathRunWiringIT extends IntegrationTest {
     assertThat(workflowRepository.findTenantIdByWorkflowId(persistedWorkflowId))
         .as("workflow -> simulation -> tenant projection")
         .contains(tenant.getId());
+  }
+
+  @Test
+  @DisplayName("W7 — update() drives the findings copy when the flag is on, and not when off")
+  void updateDrivesTheFindingsCopyGatedByTheFlag() {
+    // update() resolves the inject from the step's inject_id; hand it the fixture, and give the
+    // step
+    // just the inject_id its data needs. update() does more than drive the copy (status/output
+    // formatting), so a downstream throw on the bare fixture is swallowed: only the copy wiring is
+    // under test here, and it runs right after the inject is resolved.
+    doReturn(fixtureInject).when(injectService).inject(any());
+    TenantContext.setCurrentTenant(tenant.getId());
+    Step stepRun = new Step();
+    stepRun.setId("step-update-wiring");
+    stepRun.setData("{\"inject_id\":\"" + fixtureInject.getId() + "\"}");
+
+    setAttackPathFeature(true);
+    try {
+      injectExecutionStep.update(stepRun);
+    } catch (Exception ignored) {
+      // downstream of the copy call; irrelevant here
+    }
+    verify(attackPathFindingIngestion).copyFindings(any(), any());
+
+    setAttackPathFeature(false);
+    try {
+      injectExecutionStep.update(stepRun);
+    } catch (Exception ignored) {
+      // downstream of the copy call; irrelevant here
+    }
+    // no further call: the flag-off run is gated out (only the flag-on run copied)
+    verify(attackPathFindingIngestion, times(1)).copyFindings(any(), any());
   }
 
   // Handed to run() in memory (via the createInject stub) with contract + exercise attached. The

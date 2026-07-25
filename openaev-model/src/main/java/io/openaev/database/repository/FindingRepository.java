@@ -26,6 +26,15 @@ public interface FindingRepository
   // For testing purposes only
   List<Finding> findAllByInjectId(@NotNull final String injectId);
 
+  /**
+   * An inject's findings, scoped explicitly to a tenant. Used off the request thread (the
+   * attack-path findings copy), where the ambient {@code @Filter tenantFilter} is not enabled, so
+   * the scope must be a query predicate rather than the incidental uniqueness of the inject id.
+   */
+  @Query("SELECT f FROM Finding f WHERE f.inject.id = :injectId AND f.tenant.id = :tenantId")
+  List<Finding> findAllByInjectIdAndTenantId(
+      @NotBlank @Param("injectId") String injectId, @NotBlank @Param("tenantId") String tenantId);
+
   // For testing purposes only
   @Query(
       value =
