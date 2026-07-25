@@ -473,7 +473,21 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   public void deleteInjectorContract(InjectorContract injectorContract) {
+    // Same compensation as deleteInjectorContractById: the injects FK on injectors_contracts is ON
+    // DELETE CASCADE, so the injects (and, one hop further, their expectations and findings) vanish
+    // at the database level without a single JPA lifecycle event. The engine cascade is single-hop:
+    // the contract delete event alone would never reach the expectation and finding documents,
+    // which reference the INJECT id in their dependencies - they would keep feeding every
+    // engine-backed statistic (dashboards, KPIs) after the contract is gone.
+    String tenantId =
+        injectorContract.getTenant() != null
+            ? injectorContract.getTenant().getId()
+            : TenantContext.getCurrentTenant();
+    List<String> cascadeDeletedInjectIds =
+        injectIndexCleanupService.injectIdsByContractIds(
+            List.of(injectorContract.getId()), tenantId);
     this.injectorContractRepository.delete(injectorContract);
+    injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
   }
 
   /**
@@ -1077,6 +1091,36 @@ public class InjectorContractService implements DependenciesManager {
     q.where(predicate != null ? cb.and(predicate, hasStatus) : hasStatus);
     q.multiselect(status, cb.countDistinct(root));
     q.groupBy(status);
+
+    Map<String, Long> counts = new LinkedHashMap<>();
+    for (Tuple tuple : entityManager.createQuery(q).getResultList()) {
+      counts.put(String.valueOf(tuple.get(0)), (Long) tuple.get(1));
+    }
+    return counts;
+  }
+
+  /**
+   * Number of contracts per kill chain phase under the given filters (through the attack pattern
+   * relation), so the inject-contract picker sidebar can display live counts on its kill chain
+   * facets like the domain and platform ones.
+   */
+  public Map<String, Long> getKillChainPhaseCounts(SearchPaginationInput input) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+
+    CriteriaQuery<Tuple> q = cb.createTupleQuery();
+    Root<InjectorContract> root = q.from(InjectorContract.class);
+    Join<InjectorContract, AttackPattern> attackPatternJoin =
+        root.join("attackPatterns", JoinType.INNER);
+    Join<AttackPattern, KillChainPhase> phaseJoin =
+        attackPatternJoin.join("killChainPhases", JoinType.INNER);
+
+    Predicate predicate = baseSpec.toPredicate(root, q, cb);
+    if (predicate != null) {
+      q.where(predicate);
+    }
+    q.multiselect(phaseJoin.get("id"), cb.countDistinct(root));
+    q.groupBy(phaseJoin.get("id"));
 
     Map<String, Long> counts = new LinkedHashMap<>();
     for (Tuple tuple : entityManager.createQuery(q).getResultList()) {

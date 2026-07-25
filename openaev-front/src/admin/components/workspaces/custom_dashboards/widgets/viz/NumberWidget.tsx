@@ -57,7 +57,7 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, data }
         icon: <BoltOutlined />,
         color: theme.palette.warning.main,
       },
-      'endpoint': {
+      'asset': {
         icon: <DnsOutlined />,
         color: theme.palette.primary.main,
       },

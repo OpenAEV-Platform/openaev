@@ -250,6 +250,12 @@ const Players = () => {
                 secondaryAction={(
                   <PlayerPopover
                     user={player}
+                    onUpdate={result => setPlayers(players.map(p => (p.user_id === result.user_id
+                      ? {
+                          ...p,
+                          ...result,
+                        }
+                      : p)))}
                     onDelete={result => setPlayers(players.filter(p => (p.user_id !== result)))}
                   />
                 )}

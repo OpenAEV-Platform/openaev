@@ -9,6 +9,9 @@ import type {
   ConnectorInstanceConfiguration,
 } from '../../../../utils/api-types';
 
+// The connector "display name" lives in a type-specific configuration key.
+export const CONNECTOR_NAME_KEYS = ['COLLECTOR_NAME', 'INJECTOR_NAME', 'EXECUTOR_NAME'];
+
 const useConnectorInstanceForm = (
   isEditing: boolean,
   catalogConnectorId: string,

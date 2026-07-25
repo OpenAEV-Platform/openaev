@@ -57,7 +57,7 @@ const InjectExpectationResultList = ({
   const renderBreakdownTooltip = (entries: AgentResultBreakdownEntry[]) => (
     <Box sx={{
       paddingBlock: 0.5,
-      minWidth: 220,
+      minWidth: 300,
     }}
     >
       <Typography sx={{
@@ -258,7 +258,11 @@ const InjectExpectationResultList = ({
                     {sourceName}
                   </Typography>
                   {agentBreakdown && agentBreakdown.length > 0 && (
-                    <Tooltip title={renderBreakdownTooltip(agentBreakdown)} arrow>
+                    <Tooltip
+                      title={renderBreakdownTooltip(agentBreakdown)}
+                      arrow
+                      slotProps={{ tooltip: { sx: { maxWidth: 480 } } }}
+                    >
                       <InfoOutlined
                         sx={{
                           'fontSize': 15,

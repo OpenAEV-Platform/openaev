@@ -159,7 +159,7 @@ const TargetResultsHeader: FunctionComponent<Props> = ({ target, position, total
         {overviewUrl && (
           <Button
             variant="outlined"
-            color="secondary"
+            color="primary"
             size="small"
             startIcon={<OpenInNewOutlined />}
             onClick={() => navigate(overviewUrl)}

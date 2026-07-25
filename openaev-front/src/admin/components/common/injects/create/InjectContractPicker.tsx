@@ -1,6 +1,5 @@
-import { GridViewOutlined, ReorderOutlined } from '@mui/icons-material';
-import { Box, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { ArrowBackOutlined, GridViewOutlined, ReorderOutlined } from '@mui/icons-material';
+import { Box, IconButton, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useMemo, useState } from 'react';
 
 import { type AttackPatternHelper } from '../../../../../actions/attack_patterns/attackpattern-helper';
@@ -45,6 +44,8 @@ const availableFilterNames = [
   'injector_contract_players',
   'injector_contract_arch',
   'injector_contract_domains',
+  'injector_contract_payload_status',
+  'injector_contract_payload_author',
 ];
 
 interface Props {
@@ -54,18 +55,21 @@ interface Props {
   onSelectContract: (contract: InjectorContractFullOutput) => void;
   /** Basket bulk-add (absent in atomic mode). */
   onQuickAdd?: (contracts: InjectorContractFullOutput[]) => void;
+  /** Navigates back to the caller's list (injects tab, atomic testings...). */
+  onBack?: () => void;
 }
 
 // The inject-contract picker: a full page mirroring the Threat Arsenal library
-// layout - hero band, sticky facet sidebar (domains / platforms / kill chain),
-// searchable card grid or list, and a floating selection basket for bulk add.
+// layout - compact back+title header, sticky facet sidebar (domains / platforms
+// / kill chain), searchable card grid or list, and a floating selection basket
+// for bulk add.
 const InjectContractPicker: FunctionComponent<Props> = ({
   title,
   isAtomic = false,
   onSelectContract,
   onQuickAdd,
+  onBack,
 }) => {
-  const theme = useTheme();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
 
@@ -180,98 +184,23 @@ const InjectContractPicker: FunctionComponent<Props> = ({
       paddingBottom: numberOfSelectedElements > 0 ? 12 : 4,
     }}
     >
-      {/* Hero band (same surface as the Threat Arsenal / integrations heroes) */}
-      <Box
-        component="section"
-        aria-label={title}
-        sx={{
-          position: 'relative',
-          borderRadius: 1,
-          padding: 2,
-          overflow: 'hidden',
-          border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-          backgroundColor: theme.palette.background.paper,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1.5,
-          flexWrap: 'wrap',
-        }}
+      {/* Compact header: back to the caller's list + page title (no hero band) */}
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+      }}
       >
-        <Box
-          aria-hidden
-          sx={{
-            position: 'absolute',
-            top: -100,
-            right: -60,
-            width: 260,
-            height: 260,
-            borderRadius: '50%',
-            background: alpha(theme.palette.primary.main, 0.08),
-            filter: 'blur(60px)',
-            pointerEvents: 'none',
-          }}
-        />
-        <Box sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.25,
-          flexWrap: 'wrap',
-          minWidth: 0,
-        }}
-        >
-          <Typography
-            variant="h1"
-            sx={{
-              fontWeight: 700,
-              margin: 0,
-              fontSize: 22,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {title}
-          </Typography>
-          <Box
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 0.75,
-              paddingBlock: 0.5,
-              paddingInline: 1.25,
-              borderRadius: 1,
-              border: `1px solid ${alpha(theme.palette.text.primary, 0.1)}`,
-              backgroundColor: alpha(theme.palette.text.primary, 0.04),
-            }}
-          >
-            <Typography sx={{
-              fontWeight: 600,
-              fontSize: 13,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-            >
-              {totalElements}
-            </Typography>
-            <Typography sx={{
-              color: 'text.secondary',
-              fontSize: 13,
-            }}
-            >
-              {t('total actions')}
-            </Typography>
-          </Box>
-        </Box>
-        <ToggleButtonGroup size="small" exclusive value={viewMode} onChange={handleViewMode}>
-          <Tooltip title={t('Grid view')}>
-            <ToggleButton value="grid" aria-label={t('Grid view')}>
-              <GridViewOutlined fontSize="small" />
-            </ToggleButton>
+        {onBack && (
+          <Tooltip title={t('Back')}>
+            <IconButton onClick={onBack} aria-label={t('Back')} size="small">
+              <ArrowBackOutlined fontSize="small" />
+            </IconButton>
           </Tooltip>
-          <Tooltip title={t('List view')}>
-            <ToggleButton value="list" aria-label={t('List view')}>
-              <ReorderOutlined fontSize="small" />
-            </ToggleButton>
-          </Tooltip>
-        </ToggleButtonGroup>
+        )}
+        <Typography variant="h1" sx={{ margin: 0 }}>
+          {title}
+        </Typography>
       </Box>
 
       {/* Two-column body: sticky facet sidebar + main content */}
@@ -303,6 +232,26 @@ const InjectContractPicker: FunctionComponent<Props> = ({
             availableFilterNames={availableFilterNames}
             queryableHelpers={queryableHelpers}
             attackPatterns={attackPatterns}
+            topBarButtons={(
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                value={viewMode}
+                onChange={handleViewMode}
+                sx={{ marginLeft: 1.5 }}
+              >
+                <Tooltip title={t('Grid view')}>
+                  <ToggleButton value="grid" aria-label={t('Grid view')}>
+                    <GridViewOutlined fontSize="small" />
+                  </ToggleButton>
+                </Tooltip>
+                <Tooltip title={t('List view')}>
+                  <ToggleButton value="list" aria-label={t('List view')}>
+                    <ReorderOutlined fontSize="small" />
+                  </ToggleButton>
+                </Tooltip>
+              </ToggleButtonGroup>
+            )}
           />
 
           {contracts.length === 0 && <Empty message={t('No data to display')} />}

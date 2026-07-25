@@ -26,9 +26,9 @@ import {
   type ListConfiguration, type Pagination,
 } from '../../../../../../../utils/api-types';
 import { expectationTypeIcon } from '../../../../../common/ExpectationIconByType';
+import AssetElementStyles from './elements/AssetElementStyles';
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
-import EndpointElementStyles from './elements/EndpointElementStyles';
 import listConfigRenderer, { defaultRenderer } from './elements/ListColumnConfig';
 import navigationHandlers from './elements/ListNavigationHandler';
 
@@ -182,8 +182,8 @@ const ListWidget = ({
     }
     const entityType = elements[0].base_entity;
     switch (entityType) {
-      case 'endpoint':
-        return buildStyles(columns, EndpointElementStyles);
+      case 'asset':
+        return buildStyles(columns, AssetElementStyles);
       default:
         return defaultStyles;
     }

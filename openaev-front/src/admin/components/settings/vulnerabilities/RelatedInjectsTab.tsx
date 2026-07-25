@@ -22,7 +22,12 @@ import ContractOutputElementType from '../../findings/ContractOutputElementType'
 
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
-  item: { height: 50 },
+  item: {
+    'height': 50,
+    // Slightly larger pivot chips (asset / inject / simulation / scenario) than the ultra-dense
+    // 20px table default, so they read as tappable buttons without breaking the row rhythm.
+    '& .MuiChip-root': { height: 24 },
+  },
 }));
 
 interface Props {
@@ -85,7 +90,6 @@ const RelatedInjectsTab = ({ searchFindings, finding, contextId, additionalHeade
             target_name: asset.asset_name,
             target_type: 'ASSETS',
           })) as TargetSimple[]}
-          variant="reduced-view"
           getTargetLink={target => `${ASSET_BASE_URL}/${target.target_id}`}
         />
       ),
@@ -117,7 +121,9 @@ const RelatedInjectsTab = ({ searchFindings, finding, contextId, additionalHeade
   });
 
   return (
-    <div style={{ padding: theme.spacing(2, 1, 0, 0) }}>
+    // No top padding: the gap under the tab bar (when shown) is owned by FindingDetail, so the
+    // search input sits directly under the section label when the lone tab is hidden.
+    <div style={{ padding: theme.spacing(0, 1, 0, 0) }}>
       <PaginationComponentV2
         fetch={searchFindingsToLoad}
         searchPaginationInput={searchPaginationInput}

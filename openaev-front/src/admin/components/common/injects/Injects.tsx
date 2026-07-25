@@ -54,7 +54,6 @@ const useStyles = makeStyles()(theme => ({
   },
   duration: {
     fontSize: 12,
-    lineHeight: '12px',
     height: theme.spacing(2.5),
     float: 'left',
     marginRight: theme.spacing(1),
@@ -532,25 +531,22 @@ const Injects: FunctionComponent<Props> = ({
         contextId={contextId}
       />
       {viewModeContext === 'chain' && (
-        <div style={{ marginBottom: 10 }}>
-          <Suspense fallback={<Loader />}>
-            <ChainedTimeline
-              injects={injects}
-              onUpdateInject={massUpdateInject}
-              onTimelineClick={openCreateInjectPage}
-              onSelectedInject={(inject) => {
-                const injectContract = inject?.inject_injector_contract.convertedContent;
-                if (injectContract) {
-                  setSelectedInjectId(inject?.inject_id);
-                }
-              }}
-              onCreate={onCreate}
-              onUpdate={onUpdate}
-              onDelete={onDelete}
-            />
-          </Suspense>
-          <div className="clearfix" />
-        </div>
+        <Suspense fallback={<Loader />}>
+          <ChainedTimeline
+            injects={injects}
+            onUpdateInject={massUpdateInject}
+            onTimelineClick={openCreateInjectPage}
+            onSelectedInject={(inject) => {
+              const injectContract = inject?.inject_injector_contract.convertedContent;
+              if (injectContract) {
+                setSelectedInjectId(inject?.inject_id);
+              }
+            }}
+            onCreate={onCreate}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+          />
+        </Suspense>
       )}
       {viewModeContext === 'list' && (
         <List data-testid="injects-list-section" sx={{ paddingTop: 0 }}>

@@ -5,18 +5,19 @@ import { type FunctionComponent } from 'react';
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
 import { type TeamsHelper } from '../../../../../actions/teams/team-helper';
 import Chart from '../../../../../components/Chart';
-import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type Exercise, type InjectExpectationOutput } from '../../../../../utils/api-types';
 import { lineChartOptions } from '../../../../../utils/Charts';
+import { sampleScoreOverTimeSeries } from '../../../../../utils/SampleCharts';
+import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { computeTeamsColors } from './DistributionUtils';
 
 interface Props { exerciseId: Exercise['exercise_id'] }
 
 const ExerciseDistributionScoreOverTimeByTeamInPercentage: FunctionComponent<Props> = ({ exerciseId }) => {
   // Standard hooks
-  const { t, nsdt } = useFormatter();
+  const { nsdt } = useFormatter();
   const theme = useTheme();
 
   // Fetching data
@@ -75,30 +76,27 @@ const ExerciseDistributionScoreOverTimeByTeamInPercentage: FunctionComponent<Pro
     })),
   )(injectExpectations);
 
+  // Dashboard convention: charts without real data render a greyed-out sample
+  // (with a "Sample" chip) instead of a bare empty message.
+  const isSample = teamsTotalScores.length === 0;
+
   return (
-    <>
-      {teamsTotalScores.length > 0 ? (
-        <Chart
-          id="exercise_distribution_score_over_time"
-          options={lineChartOptions({
-            theme,
-            isTimeSeries: true,
-            xFormatter: nsdt,
-          })}
-          series={teamsPercentScoresData}
-          type="line"
-          width="100%"
-          height={350}
-        />
-      ) : (
-        <Empty
-          id="exercise_distribution_score_over_time"
-          message={t(
-            'No data to display or the simulation has not started yet',
-          )}
-        />
-      )}
-    </>
+    <SamplePreview active={isSample}>
+      <Chart
+        id="exercise_distribution_score_over_time"
+        options={lineChartOptions({
+          theme,
+          isTimeSeries: true,
+          xFormatter: nsdt,
+        })}
+        series={isSample
+          ? sampleScoreOverTimeSeries(['Blue team', 'SOC'], theme)
+          : teamsPercentScoresData}
+        type="line"
+        width="100%"
+        height={350}
+      />
+    </SamplePreview>
   );
 };
 

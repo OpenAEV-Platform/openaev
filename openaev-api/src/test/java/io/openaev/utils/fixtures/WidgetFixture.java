@@ -218,7 +218,7 @@ public class WidgetFixture {
     filterGroup.setMode(Filters.FilterMode.and);
     List<Filters.Filter> filters = new ArrayList<>();
     Filters.Filter filter = new Filters.Filter();
-    filter.setValues(List.of("endpoint"));
+    filter.setValues(List.of("asset"));
     filter.setOperator(Filters.FilterOperator.eq);
     filter.setMode(Filters.FilterMode.or);
     filter.setKey("base_entity");

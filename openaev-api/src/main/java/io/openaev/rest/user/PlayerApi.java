@@ -12,6 +12,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.user.form.player.PlayerBulkProcessingInput;
 import io.openaev.rest.user.form.player.PlayerInput;
@@ -91,6 +92,11 @@ public class PlayerApi extends RestBehavior {
   public User updatePlayer(@PathVariable String userId, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+    // A platform administrator account can only be modified by another administrator:
+    // otherwise anyone with the players capability could rewrite an admin's email.
+    if (user.isAdmin() && !userService.currentUser().isAdmin()) {
+      throw new ForbiddenException("Only an administrator can update a platform administrator");
+    }
     user.setUpdateAttributes(input);
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     user.setOrganization(
@@ -105,6 +111,16 @@ public class PlayerApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PLAYER)
   public void deletePlayer(@PathVariable String userId) {
+    User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+    // Mirror the bulk deletion guards: platform administrator accounts and the
+    // current user can never be removed through the players API.
+    if (user.isAdmin()) {
+      throw new ForbiddenException(
+          "Platform administrator accounts cannot be deleted through the players API");
+    }
+    if (user.getId().equals(userService.currentUser().getId())) {
+      throw new ForbiddenException("You cannot delete your own account");
+    }
     userService.delete(userId);
   }
 

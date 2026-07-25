@@ -1219,6 +1219,7 @@ interface BaseInjectTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  target_category?: string;
   target_subtype?: string;
   /** @uniqueItems true */
   target_tags?: string[];
@@ -3720,6 +3721,40 @@ export interface EntitiesPaginationInput {
   parameters?: Record<string, string>;
 }
 
+export interface EsAsset {
+  asset_category?: string;
+  asset_description?: string;
+  asset_external_reference?: string;
+  asset_hostname?: string;
+  /** @uniqueItems true */
+  asset_ips?: string[];
+  /** @uniqueItems true */
+  asset_mac_addresses?: string[];
+  asset_name?: string;
+  asset_seen_ip?: string;
+  /** @format date-time */
+  base_created_at?: string;
+  base_dependencies?: string[];
+  base_entity?: string;
+  /** @uniqueItems true */
+  base_findings_side?: string[];
+  base_id?: string;
+  base_representative?: string;
+  base_restrictions?: string[];
+  /** @uniqueItems true */
+  base_scenario_side?: string[];
+  /** @uniqueItems true */
+  base_simulation_side?: string[];
+  /** @uniqueItems true */
+  base_tags_side?: string[];
+  base_tenant_side?: string;
+  /** @format date-time */
+  base_updated_at?: string;
+  endpoint_arch?: string;
+  endpoint_is_eol?: boolean;
+  endpoint_platform?: string;
+}
+
 export interface EsAssetGroup {
   /** @format date-time */
   base_created_at?: string;
@@ -3778,7 +3813,7 @@ export interface EsAvgs {
 export type EsBase = BaseEsBase &
   (
     | BaseEsBaseBaseEntityMapping<"attack-pattern", EsAttackPattern>
-    | BaseEsBaseBaseEntityMapping<"endpoint", EsEndpoint>
+    | BaseEsBaseBaseEntityMapping<"asset", EsAsset>
     | BaseEsBaseBaseEntityMapping<"finding", EsFinding>
     | BaseEsBaseBaseEntityMapping<"inject", EsInject>
     | BaseEsBaseBaseEntityMapping<"expectation-inject", EsInjectExpectation>
@@ -3805,40 +3840,6 @@ export interface EsDomainsAvgData {
   data: EsSeries[];
   /** @minLength 1 */
   label: string;
-}
-
-export interface EsEndpoint {
-  /** @format date-time */
-  base_created_at?: string;
-  base_dependencies?: string[];
-  base_entity?: string;
-  /** @uniqueItems true */
-  base_findings_side?: string[];
-  base_id?: string;
-  base_representative?: string;
-  base_restrictions?: string[];
-  /** @uniqueItems true */
-  base_scenario_side?: string[];
-  /** @uniqueItems true */
-  base_simulation_side?: string[];
-  /** @uniqueItems true */
-  base_tags_side?: string[];
-  base_tenant_side?: string;
-  /** @format date-time */
-  base_updated_at?: string;
-  endpoint_arch?: string;
-  endpoint_category?: string;
-  endpoint_description?: string;
-  endpoint_external_reference?: string;
-  endpoint_hostname?: string;
-  /** @uniqueItems true */
-  endpoint_ips?: string[];
-  endpoint_is_eol?: boolean;
-  /** @uniqueItems true */
-  endpoint_mac_addresses?: string[];
-  endpoint_name?: string;
-  endpoint_platform?: string;
-  endpoint_seen_ip?: string;
 }
 
 export interface EsEntities {
@@ -8420,6 +8421,7 @@ export interface PlayerInput {
 
 export interface PlayerOutput {
   user_phone2?: string;
+  user_admin?: boolean;
   user_country?: string;
   /** @minLength 1 */
   user_email: string;

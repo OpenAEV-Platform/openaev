@@ -27,6 +27,7 @@ import ConnectorLogs from './ConnectorLogs';
 import ConnectorPopover from './ConnectorPopover';
 import ConnectorStatus from './ConnectorStatus';
 import MigrateButton from './MigrateButton';
+import isPlatformConnector from './platform-connectors';
 
 /** Deployed connector detail page (collectors / executors / injectors). */
 const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode }) => {
@@ -112,9 +113,11 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   // deployed through the Integration Manager) has no instance popover, so it
   // could never be removed. Offer a direct delete of the connector entity - the
   // heartbeat is what keeps it alive, so a stopped connector that no longer
-  // pings can now be cleaned up. Built-in connectors run inside the platform and
-  // must not be deletable.
-  const canDeleteConnector = canManage && !instance && !!connector?.id && !liveliness?.builtIn;
+  // pings can now be cleaned up. Only the two connectors the platform runs on
+  // are protected: gating on "runs in-process" instead used to strand legacy
+  // rows whose implementation was dropped from the code (Caldera), leaving them
+  // undeletable forever.
+  const canDeleteConnector = canManage && !instance && !!connector?.id && !isPlatformConnector(connector?.type);
 
   const handleDeleteConnector = () => {
     if (!connector?.id) return;
@@ -243,6 +246,7 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         open={createInstanceDrawer.open}
         catalogConnectorId={catalogConnector ? catalogConnector.catalog_connector_id : ''}
         catalogConnectorSlug={catalogConnector ? catalogConnector.catalog_connector_slug : ''}
+        connectorTitle={catalogConnector?.catalog_connector_title}
         onClose={onCloseCreateInstanceDrawer}
         connectorType={catalogConnector?.catalog_connector_type}
         disabled={!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported}

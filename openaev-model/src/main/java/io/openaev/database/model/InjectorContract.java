@@ -270,9 +270,12 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   // row. Only bump when contents actually change: an unconditional bump forces an UPDATE (and an
   // SSE restream) on every no-op collector/injector upsert (#6778).
   public void setTags(Set<Tag> tags) {
-    if (!Base.haveSameIds(this.tags, tags)) {
-      this.updatedAt = now();
+    if (Base.haveSameIds(this.tags, tags)) {
+      // Keep the stored collection: swapping in an equal one dereferences the persistent
+      // collection and makes Hibernate rewrite every join row for nothing.
+      return;
     }
+    this.updatedAt = now();
     this.tags = tags;
   }
 
@@ -394,9 +397,10 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
 
   // UpdatedAt synced with linked objects; only bump on real changes (see setTags)
   public void setAttackPatterns(List<AttackPattern> attackPatterns) {
-    if (!Base.haveSameIds(this.attackPatterns, attackPatterns)) {
-      this.updatedAt = now();
+    if (Base.haveSameIds(this.attackPatterns, attackPatterns)) {
+      return;
     }
+    this.updatedAt = now();
     this.attackPatterns = attackPatterns;
   }
 
@@ -415,6 +419,17 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   private Set<Domain> domains = new HashSet<>();
 
+  // Source-driven upserts re-apply the SAME domains on every cycle (an injector re-registers every
+  // ~40s, a collector re-upserts its payloads on every run). Handing Hibernate a new Set instance
+  // dereferences the persistent collection, so it rewrites every join row even when the contents
+  // are identical - pure churn on injectors_contracts_domains. Keep the stored collection when the
+  // ids match (see setTags).
+  public void setDomains(Set<Domain> domains) {
+    if (!Base.haveSameIds(this.domains, domains)) {
+      this.domains = domains;
+    }
+  }
+
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
@@ -432,9 +447,10 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
 
   // UpdatedAt synced with linked objects; only bump on real changes (see setTags)
   public void setVulnerabilities(Set<Vulnerability> vulnerabilities) {
-    if (!Base.haveSameIds(this.vulnerabilities, vulnerabilities)) {
-      this.updatedAt = now();
+    if (Base.haveSameIds(this.vulnerabilities, vulnerabilities)) {
+      return;
     }
+    this.updatedAt = now();
     this.vulnerabilities = vulnerabilities;
   }
 

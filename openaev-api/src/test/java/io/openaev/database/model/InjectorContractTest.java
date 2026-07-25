@@ -187,4 +187,64 @@ class InjectorContractTest {
       assertThat(contract.getUpdatedAt()).isAfter(SENTINEL);
     }
   }
+
+  @Nested
+  @DisplayName(
+      "an unchanged association keeps the STORED collection instance, so a no-op upsert never"
+          + " dereferences the persistent collection and never rewrites its join rows")
+  class AssociationInstanceIsPreservedWhenUnchanged {
+
+    private static Domain domain(String id) {
+      Domain domain = new Domain();
+      domain.setId(id);
+      domain.setName(id);
+      return domain;
+    }
+
+    private static Tag tagWithId(String id) {
+      Tag tag = new Tag();
+      tag.setId(id);
+      tag.setName(id);
+      return tag;
+    }
+
+    @Test
+    @DisplayName("setDomains with the same domain ids keeps the stored collection")
+    void setDomains_same_ids_keeps_stored_collection() {
+      // An injector re-registering every ~40s hands over a freshly built Set holding the very same
+      // domains. Assigning it would dereference the persistent collection, and Hibernate deletes
+      // then re-inserts every join row of a dereferenced collection - on every single cycle.
+      InjectorContract contract = new InjectorContract();
+      Set<Domain> stored = new HashSet<>(Set.of(domain("d1"), domain("d2")));
+      contract.setDomains(stored);
+
+      contract.setDomains(new HashSet<>(Set.of(domain("d2"), domain("d1"))));
+
+      assertThat(contract.getDomains()).isSameAs(stored);
+    }
+
+    @Test
+    @DisplayName("setDomains with different domain ids stores the incoming collection")
+    void setDomains_different_ids_stores_incoming() {
+      InjectorContract contract = new InjectorContract();
+      contract.setDomains(new HashSet<>(Set.of(domain("d1"))));
+      Set<Domain> incoming = new HashSet<>(Set.of(domain("d1"), domain("d2")));
+
+      contract.setDomains(incoming);
+
+      assertThat(contract.getDomains()).isSameAs(incoming);
+    }
+
+    @Test
+    @DisplayName("setTags with the same tag ids keeps the stored collection")
+    void setTags_same_ids_keeps_stored_collection() {
+      InjectorContract contract = new InjectorContract();
+      Set<Tag> stored = new HashSet<>(Set.of(tagWithId("t1")));
+      contract.setTags(stored);
+
+      contract.setTags(new HashSet<>(Set.of(tagWithId("t1"))));
+
+      assertThat(contract.getTags()).isSameAs(stored);
+    }
+  }
 }

@@ -20,15 +20,19 @@ import { type Dispatch, type SetStateAction, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { fetchScenarioChallenges } from '../../../../actions/challenge-action';
+import { fetchScenarioArticles } from '../../../../actions/channels/article-action';
+import { type ArticlesHelper } from '../../../../actions/channels/article-helper';
 import { type ChallengeHelper } from '../../../../actions/helper';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import {
   createRunningExerciseFromScenario,
+  fetchScenarioTeams,
   searchScenarioHealthcheks,
   updateScenarioRecurrence,
 } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { fetchScenarioInjectsSimple } from '../../../../actions/scenarios/scenario-inject-actions';
+import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import { DetailHero, HeroStat } from '../../../../components/common/detail/EntityDetailCommon';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
@@ -38,11 +42,13 @@ import ItemSeverity from '../../../../components/ItemSeverity';
 import { SIMULATION_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import {
+  type Article,
   type Challenge,
   type Exercise,
   type HealthCheck,
   type Inject,
   type Scenario,
+  type Team,
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -103,23 +109,31 @@ const ScenarioHeader = ({
     }
   }, [openScenarioAssistantQueryParam, scenarioId]);
   // Fetching data
-  const { scenario, challenges, injects }: {
+  const { scenario, challenges, injects, teams, articles }: {
     scenario: Scenario;
     challenges: Challenge[];
     injects: Inject[];
-  } = useHelper((helper: ScenariosHelper & ChallengeHelper & InjectHelper) => ({
+    teams: Team[];
+    articles: Article[];
+  } = useHelper((helper: ScenariosHelper & ChallengeHelper & InjectHelper & TeamsHelper & ArticlesHelper) => ({
     scenario: helper.getScenario(scenarioId),
     challenges: helper.getScenarioChallenges(scenarioId),
     injects: helper.getScenarioInjects(scenarioId),
+    teams: helper.getScenarioTeams(scenarioId),
+    articles: helper.getScenarioArticles(scenarioId),
   }));
 
   // Challenges are authored inside injects (no configuration tab): as soon as
   // at least one inject uses a challenge, expose the player-facing preview
-  // right in the hero. Injects (lightweight view) feed the usage-aware hero
-  // stats: which assets and asset groups the scenario actually targets.
+  // right in the hero. Injects (lightweight view), teams and articles feed the
+  // usage-aware hero stats: the GET /scenarios/{id} ScenarioOutput DTO carries
+  // no scenario_injects / scenario_teams / scenario_articles relations, so
+  // counting those entity fields would always render 0 after a reload.
   useDataLoader(() => {
     dispatch(fetchScenarioChallenges(scenarioId));
     dispatch(fetchScenarioInjectsSimple(scenarioId));
+    dispatch(fetchScenarioTeams(scenarioId));
+    dispatch(fetchScenarioArticles(scenarioId));
   });
   const hasChallenges = challenges.length > 0;
 
@@ -140,11 +154,11 @@ const ScenarioHeader = ({
   // content dimension (media pressure, challenges) only appear when actually
   // used - a tabletop reads people-first, a technical scenario reads
   // assets-first, and a mixed one shows both.
-  const injectsCount = scenario.scenario_injects?.length ?? 0;
+  const injectsCount = injects?.length ?? 0;
   const simulationsCount = scenario.scenario_exercises?.length ?? 0;
-  const teamsCount = scenario.scenario_teams?.length ?? 0;
+  const teamsCount = teams?.length ?? 0;
   const playersCount = scenario.scenario_all_users_number ?? scenario.scenario_users_number ?? 0;
-  const articlesCount = scenario.scenario_articles?.length ?? 0;
+  const articlesCount = articles?.length ?? 0;
   const { assets: assetsCount, assetGroups: assetGroupsCount } = countDistinctInjectTargets(injects);
 
   useEffect(() => {
@@ -212,7 +226,7 @@ const ScenarioHeader = ({
           chips={(
             <>
               <ItemSeverity severity={scenario.scenario_severity} label={t(scenario.scenario_severity ?? 'Unknown')} />
-              <ItemCategory category={scenario.scenario_category ?? 'Unknown'} label={t(scenario.scenario_category ?? 'Unknown')} />
+              <ItemCategory category={scenario.scenario_category ?? 'Unknown'} label={t(scenario.scenario_category ?? 'Unknown')} size="small" />
               <Tooltip title={scheduleLabel ?? ''}>
                 <Chip
                   size="small"

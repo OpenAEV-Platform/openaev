@@ -130,7 +130,10 @@ const AtomicTesting = () => {
     if (hasAiTargets) {
       tabs.push({
         key: index++,
-        label: t('AI targets'),
+        // AI targets are assets too, so the tab carries the same label as the
+        // endpoint-backed one; keep the specific label only in the (theoretical)
+        // case where both tabs coexist, to avoid two tabs named "Assets".
+        label: hasEndpoints ? t('AI targets') : t('Assets'),
         type: 'AI_TARGETS',
         entityPrefix: 'ai_target_target',
       });

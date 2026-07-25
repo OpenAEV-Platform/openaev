@@ -1,6 +1,6 @@
 import { type CSSProperties } from 'react';
 
-const EndpointElementStyles: Record<string, CSSProperties> = {
+const AssetElementStyles: Record<string, CSSProperties> = {
   endpoint_platform: {
     display: 'flex',
     alignItems: 'center',
@@ -11,4 +11,4 @@ const EndpointElementStyles: Record<string, CSSProperties> = {
   },
 };
 
-export default EndpointElementStyles;
+export default AssetElementStyles;

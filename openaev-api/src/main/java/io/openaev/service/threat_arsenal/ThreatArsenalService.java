@@ -20,6 +20,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
+import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpdateService;
@@ -414,22 +415,31 @@ public class ThreatArsenalService {
    */
   public List<String> bulkDelete(InjectorContractSearchPaginationInput input) {
     List<String> eligibleIds =
-        bulkDeleteExecutor.resolveInTransaction(
-            () -> resolveCandidateIds(input).stream().filter(this::isEligibleForDeletion).toList());
+        bulkDeleteExecutor.resolveInTransaction(() -> resolveEligibleIds(input));
     return bulkDeleteExecutor.deleteInChunks(
         "threat arsenal items",
         eligibleIds,
         chunk -> chunk.forEach(injectorContractService::deleteInjectorContractById));
   }
 
-  private List<String> resolveCandidateIds(InjectorContractSearchPaginationInput input) {
+  /**
+   * Resolves the ids that will actually be deleted.
+   *
+   * <p>In select-all mode the eligibility is read from the paginated search output rather than by
+   * loading every candidate: that scope can cover the whole arsenal (thousands of actions), and one
+   * entity load per candidate - each pulling its eager collections - kept this resolution, and
+   * therefore the start of the tracked massive operation, running for minutes before the first row
+   * was deleted. The explicit-selection path stays entity-based: it is bounded by what the user
+   * ticked on screen.
+   */
+  private List<String> resolveEligibleIds(InjectorContractSearchPaginationInput input) {
     List<String> idsToProcess = input.getInjectorContractIdsToProcess();
     if (idsToProcess != null && !idsToProcess.isEmpty()) {
-      return idsToProcess;
+      return idsToProcess.stream().filter(this::isEligibleForDeletion).toList();
     }
     // Select-all mode: page through every action matching the current filters
     // (minus the explicitly de-selected ids, already honored by getSinglePage).
-    List<String> allIds = new ArrayList<>();
+    List<String> eligibleIds = new ArrayList<>();
     int page = 0;
     Page<? extends InjectorContractBaseOutput> resultPage;
     do {
@@ -439,10 +449,14 @@ public class ThreatArsenalService {
       pageInput.setSize(MAX_PAGE_SIZE);
       resultPage =
           searchInjectorContracts(InjectorContractService.OutputMode.THREAT_ARSENAL, pageInput);
-      resultPage.getContent().forEach(output -> allIds.add(output.getId()));
+      resultPage.getContent().stream()
+          .filter(ThreatArsenalAction.class::isInstance)
+          .map(ThreatArsenalAction.class::cast)
+          .filter(ThreatArsenalService::isEligibleForDeletion)
+          .forEach(action -> eligibleIds.add(action.getId()));
       page++;
     } while (resultPage.hasNext());
-    return allIds;
+    return eligibleIds;
   }
 
   private boolean isEligibleForDeletion(String actionId) {
@@ -468,5 +482,18 @@ public class ThreatArsenalService {
     // Collector-sourced payloads can only be deleted once deprecated.
     boolean fromCollector = payload.getCollectorType() != null;
     return !fromCollector || payload.getStatus() == Payload.PAYLOAD_STATUS.DEPRECATED;
+  }
+
+  /** Same eligibility rule as above, decided from a search output instead of the entity. */
+  private static boolean isEligibleForDeletion(ThreatArsenalAction action) {
+    if (action.getInjectorType() == null) {
+      return true;
+    }
+    PayloadSimple payload = action.getPayload();
+    if (payload == null) {
+      return false;
+    }
+    return payload.getCollectorType() == null
+        || payload.getStatus() == Payload.PAYLOAD_STATUS.DEPRECATED;
   }
 }
