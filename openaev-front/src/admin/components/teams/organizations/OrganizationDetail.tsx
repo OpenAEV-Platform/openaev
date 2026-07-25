@@ -13,7 +13,7 @@ import { searchPlayers } from '../../../../actions/players/player-actions';
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { fetchTeams } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
-import { fetchUsers } from '../../../../actions/users/User';
+import { fetchPlayers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { DetailHero, Field, HeroStat, InformationGrid, SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
@@ -69,8 +69,12 @@ const OrganizationDetail = () => {
     tagsMap: helper.getTagsMap(),
     teamsMap: helper.getTeamsMap(),
   }));
+  // Players (not admin users): the same player-level API as the paginated
+  // members list below, so the hero count and the findings scope can never
+  // diverge from what the list shows (and no Users-management permission is
+  // needed on this business-side page).
   useDataLoader(() => {
-    dispatch(fetchUsers());
+    dispatch(fetchPlayers());
     dispatch(fetchTeams());
   });
 
