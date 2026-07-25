@@ -12,6 +12,7 @@ import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.utils.ConditionKeyTypesUtils;
 import io.openaev.utils.ConditionUtils;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
@@ -1259,10 +1260,7 @@ public class ConditionService {
   }
 
   private List<PrimitiveType> resolveInputKeyTypes(ConditionCreateInput input) {
-    if (input.getKeyTypes() != null && !input.getKeyTypes().isEmpty()) {
-      return input.getKeyTypes().stream().filter(Objects::nonNull).distinct().toList();
-    }
-    return null;
+    return ConditionKeyTypesUtils.normalizeForConditionType(input.getKeyTypes(), input.getType());
   }
 
   private List<String> resolveConditionKeyNames(Condition condition) {

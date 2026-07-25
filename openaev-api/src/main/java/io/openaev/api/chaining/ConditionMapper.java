@@ -7,6 +7,7 @@ import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.MappingType;
 import io.openaev.database.model.PrimitiveType;
+import io.openaev.utils.ConditionKeyTypesUtils;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -127,9 +128,6 @@ public class ConditionMapper {
   }
 
   private static List<PrimitiveType> resolveKeyTypes(ConditionCreateInput input) {
-    if (input.getKeyTypes() != null && !input.getKeyTypes().isEmpty()) {
-      return input.getKeyTypes();
-    }
-    return null;
+    return ConditionKeyTypesUtils.normalizeForConditionType(input.getKeyTypes(), input.getType());
   }
 }

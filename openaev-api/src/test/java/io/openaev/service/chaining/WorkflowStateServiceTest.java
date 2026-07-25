@@ -543,7 +543,7 @@ class WorkflowStateServiceTest {
       // Event condition on Host key type: matches "10.0.0.1"
       Condition leafCondition =
           Condition.builder()
-              .keyType(PrimitiveType.Host)
+              .keyTypes(List.of(PrimitiveType.Host))
               .value("10.0.0.1")
               .type(ConditionType.EQ)
               .build();
@@ -626,7 +626,7 @@ class WorkflowStateServiceTest {
       // Event condition on Host: expects "192.168.1.1" — no field in the tuple matches
       Condition leafCondition =
           Condition.builder()
-              .keyType(PrimitiveType.Host)
+              .keyTypes(List.of(PrimitiveType.Host))
               .value("192.168.1.1")
               .type(ConditionType.EQ)
               .build();
@@ -716,7 +716,7 @@ class WorkflowStateServiceTest {
 
       Condition leafCondition =
           Condition.builder()
-              .keyType(PrimitiveType.Host)
+              .keyTypes(List.of(PrimitiveType.Host))
               .value("10.0.0.1")
               .type(ConditionType.EQ)
               .build();

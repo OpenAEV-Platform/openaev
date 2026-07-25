@@ -23,6 +23,7 @@ import {
   conditionGroupsToApi,
   type EventFormData,
 } from '../events/event-types';
+import { resolveConditionKeyTypes } from '../logic-flow-helpers';
 import type { ActionDetailData, ActionMeta, EventMeta } from '../types';
 
 export type DrawerView = 'closed' | 'choose' | 'action' | 'actionDetail' | 'event';
@@ -109,9 +110,7 @@ const ChainingFlowConfiguration = ({
       }> = {};
       for (const cond of meta.step_conditions) {
         if (cond.condition_key) {
-          const outputTypes = cond.condition_key_types && cond.condition_key_types.length > 0
-            ? cond.condition_key_types
-            : ['text'];
+          const outputTypes = resolveConditionKeyTypes(cond as unknown as Record<string, unknown>);
           links[cond.condition_key] = {
             outputTypes,
             localScope: cond.condition_mapping_type === 'LOCAL',
