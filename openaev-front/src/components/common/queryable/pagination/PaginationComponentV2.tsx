@@ -116,7 +116,7 @@ const PaginationComponentV2 = <T extends object>({
       queryableHelpers.uriHelpers.updateUri();
     }
 
-    // Fetch datas. Loading is cleared in finally so a rejected search (network
+    // Fetch data. Loading is cleared in finally so a rejected search (network
     // or API error) never leaves callers stuck in a perpetual loading state.
     setLoading?.(true);
     fetch(searchPaginationInput)
