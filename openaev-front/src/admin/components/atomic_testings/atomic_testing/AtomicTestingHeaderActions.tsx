@@ -13,8 +13,7 @@ import {
   relaunchAtomicTesting,
 } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { useFormatter } from '../../../../components/i18n';
-import type { InjectResultOverviewOutput } from '../../../../utils/api-types';
-import { type ExpectationsDriftOutput } from '../../../../utils/api-types-custom';
+import type { ExpectationsDriftOutput, InjectResultOverviewOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';

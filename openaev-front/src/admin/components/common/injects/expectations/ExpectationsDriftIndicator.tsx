@@ -4,7 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
-import { type ExpectationsDriftOutput } from '../../../../../utils/api-types-custom';
+import { type ExpectationsDriftOutput } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 
 interface Props {
@@ -32,8 +32,8 @@ const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, 
   }
 
   const accent = theme.palette.warning.main;
-  const count = drift.drifted_inject_count;
-  const total = drift.total_inject_count;
+  const count = drift.drifted_inject_count ?? 0;
+  const total = drift.total_inject_count ?? 0;
 
   const detail = variant === 'atomic'
     ? t('The expectations of this atomic testing no longer match the validation requirements defined by its injector contract.')

@@ -50,16 +50,6 @@ export type ThreatArsenalActionCreateCustomInput = Omit<ApiTypes.ThreatArsenalAc
     }
     );
 
-// Expectation drift between injector contract templates and inject content
-// (GET/POST .../expectations-drift endpoints - not yet in the generated api-types).
-export interface ExpectationsDriftOutput {
-  drift_detected: boolean;
-  drifted_inject_count: number;
-  total_inject_count: number;
-}
-
-export interface ExpectationsRealignOutput { realigned_inject_count: number }
-
 export type ContractType
   = 'text'
     | 'number'

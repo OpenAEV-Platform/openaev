@@ -47,12 +47,12 @@ import {
   type Article,
   type Challenge,
   type Exercise,
+  type ExpectationsDriftOutput,
   type HealthCheck,
   type Inject,
   type Scenario,
   type Team,
 } from '../../../../utils/api-types';
-import { type ExpectationsDriftOutput } from '../../../../utils/api-types-custom';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
