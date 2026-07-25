@@ -33,7 +33,12 @@ public class AttackPathFindingWriter {
 
   private final JdbcTemplate jdbcTemplate;
 
-  /** One snapshot finding row to copy; {@code field} and {@code endpointId} may be null. */
+  /**
+   * One snapshot finding row to copy. {@code field} must be non-null: the partial unique index that
+   * makes the copy idempotent only covers rows that have one, so a null field would escape the
+   * dedup and could duplicate. A copied finding always carries one ({@code Finding.field} is
+   * {@code @NotBlank}). {@code endpointId} may be null (a discovered target has no asset id).
+   */
   public record FindingRow(
       String id,
       String tenantId,
