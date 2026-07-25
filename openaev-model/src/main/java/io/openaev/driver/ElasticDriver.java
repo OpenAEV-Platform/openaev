@@ -173,6 +173,10 @@ public class ElasticDriver {
     mapping.name(indexName);
     mapping.meta("version", JsonData.of(version));
     mapping.indexPatterns(indexName + "*");
+    // Overlapping templates must not share a priority: "asset" is a name prefix of "asset-group",
+    // so their patterns overlap and the engine refuses the second template at equal priority. The
+    // name length makes the more specific template win, whatever the model registration order.
+    mapping.priority((long) indexName.length());
     mapping.composedOf(coreSettings);
     TypeMapping indexMapping =
         new TypeMapping.Builder()

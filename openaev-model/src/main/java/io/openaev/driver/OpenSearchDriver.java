@@ -272,6 +272,10 @@ public class OpenSearchDriver {
     template.name(indexName);
     template.meta("version", JsonData.of(version));
     template.indexPatterns(indexName + "*");
+    // Overlapping templates must not share a priority: "asset" is a name prefix of "asset-group",
+    // so their patterns overlap and the engine refuses the second template at equal priority. The
+    // name length makes the more specific template win, whatever the model registration order.
+    template.priority(indexName.length());
     template.composedOf(coreSettings);
     TypeMapping indexMapping =
         new TypeMapping.Builder()
