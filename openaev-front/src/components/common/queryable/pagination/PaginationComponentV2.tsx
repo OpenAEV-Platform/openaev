@@ -143,6 +143,12 @@ const PaginationComponentV2 = <T extends object>({
     return () => {
       stale = true;
     };
+    // `fetch` is intentionally not a dependency: many callers pass inline
+    // closures (new identity on every render), so depending on it would
+    // refetch in a loop. When the effect runs it always uses the latest
+    // render's `fetch`. Callers whose fetch scope comes from a route param
+    // must remount on param change (e.g. `key={paramId}` on the page) so a
+    // scope switch that leaves the search input untouched still refetches.
   }, [searchPaginationInput, reloadContentCount]);
 
   // Filters

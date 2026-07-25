@@ -51,7 +51,7 @@ const contains = (key: string, values: string[]): Filter => ({
 // separated from the admin Settings > Security > Organizations detail: no
 // security right menu, business breadcrumbs, and members link to the Persons
 // page instead of the admin user administration.
-const OrganizationDetail = () => {
+const OrganizationDetailContent = () => {
   const { t, fldt } = useFormatter();
   const theme = useTheme();
   const dispatch = useAppDispatch();
@@ -312,6 +312,16 @@ const OrganizationDetail = () => {
       </Box>
     </>
   );
+};
+
+// Remount the whole page when the route param changes (e.g. browser
+// back/forward between two organizations): every piece of state - the
+// organization itself, the hero counts and the paginated members list (whose
+// fetch scope is captured by organizationId) - resets and refetches for the
+// new scope instead of showing stale data from the previous organization.
+const OrganizationDetail = () => {
+  const { organizationId } = useParams() as { organizationId: string };
+  return <OrganizationDetailContent key={organizationId} />;
 };
 
 export default OrganizationDetail;

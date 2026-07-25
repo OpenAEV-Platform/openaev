@@ -41,7 +41,7 @@ const contains = (key: string, values: string[]): Filter => ({
   values,
 });
 
-const OrganizationDetail = () => {
+const OrganizationDetailContent = () => {
   const { t, fldt } = useFormatter();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -254,6 +254,15 @@ const OrganizationDetail = () => {
       <SecurityMenu />
     </div>
   );
+};
+
+// Remount the whole page when the route param changes (e.g. browser
+// back/forward between two organizations) so the organization, the members
+// count and the paginated members list (whose fetch scope is captured by
+// organizationId) all reset and refetch for the new scope.
+const OrganizationDetail = () => {
+  const { organizationId } = useParams() as { organizationId: string };
+  return <OrganizationDetailContent key={organizationId} />;
 };
 
 export default OrganizationDetail;
