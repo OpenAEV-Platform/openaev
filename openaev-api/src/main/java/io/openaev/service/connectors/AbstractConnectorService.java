@@ -5,6 +5,7 @@ import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -190,5 +191,31 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
 
     // If nothing match this collector is manually deployed
     return catalogConnectorMapper.toConnectorIds(null, null, true);
+  }
+
+  /**
+   * Deletes the connector instance that owns this connector, when the connector was deployed
+   * through the Integration Manager.
+   *
+   * <p>The instance list is the desired state the XTM Composer polls, and the composer only tears
+   * a deployment down when its id disappears from that list. Deleting the connector entity alone
+   * therefore leaves the container running against a connector that no longer exists - and the
+   * container recreates the entity on its next registration heartbeat, so the deletion looks like
+   * it silently failed. The instance delete removes the connector entity too, hence the return
+   * value: callers must not delete the row again.
+   *
+   * @param connectorId the collector / injector / executor id being deleted
+   * @return true when an instance was found and deleted, so the connector row is already gone
+   */
+  protected boolean deleteOwningConnectorInstance(String connectorId)
+      throws ConnectorStatusException {
+    ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
+        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
+            this.connectorType.getIdKeyName(), connectorId);
+    if (relatedIds == null || relatedIds.getConnectorInstanceId() == null) {
+      return false;
+    }
+    connectorInstanceService.deleteById(relatedIds.getConnectorInstanceId());
+    return true;
   }
 }

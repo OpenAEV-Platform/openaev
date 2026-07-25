@@ -26,6 +26,7 @@ import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.service.connectors.PlatformConnectors;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.service.exception.InjectorRegistrationException;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
@@ -144,7 +145,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    * doomed injects are collected first and de-indexed explicitly afterwards.
    */
   @Transactional(rollbackFor = Exception.class)
-  public void deleteInjector(@NotBlank final String injectorId) {
+  public void deleteInjector(@NotBlank final String injectorId) throws ConnectorStatusException {
     String tenantId = TenantContext.getCurrentTenant();
     Injector injector =
         injectorRepository
@@ -166,7 +167,11 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         injectIndexCleanupService.injectIdsByContractIds(orphanedContractIds, tenantId);
     injectorContractRepository.deleteAllByIdAndTenantId(
         orphanedContractIds.toArray(new String[0]), tenantId);
-    injectorRepository.deleteByIdAndTenantId(injectorId, tenantId);
+    // Tear the deployment down with the injector, and only delete the row ourselves when the
+    // injector was not deployed through the Integration Manager.
+    if (!deleteOwningConnectorInstance(injectorId)) {
+      injectorRepository.deleteByIdAndTenantId(injectorId, tenantId);
+    }
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
   }
 

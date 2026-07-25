@@ -1,0 +1,20 @@
+fix(connectors): tear the deployment down when a connector is deleted (#6943)
+
+Deleting a collector, injector or executor removed only the connector row. The
+connector instance stayed, and the instance list is exactly the desired state the
+XTM Composer polls: its reconcile loop garbage-collects a container only once the
+id disappears from that list, so the deployment kept running - and recreated the
+connector entity on its next registration heartbeat, making the deletion look
+like it had silently failed.
+
+Route the three delete paths through a shared
+AbstractConnectorService.deleteOwningConnectorInstance, which resolves the owning
+instance from its <TYPE>_ID configuration and delegates to
+ConnectorInstanceService.deleteById (that already stops any in-process
+integration, cleans executor source tags and removes the connector entity). When
+the connector was not deployed through the Integration Manager there is no
+instance and the row is deleted as before.
+
+Verified against the composer source: src/orchestrator/composer.rs runs the same
+level-triggered loop for both platforms and removes containers whose id is absent
+from the desired state, so no composer change is needed.

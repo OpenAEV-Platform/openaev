@@ -24,7 +24,7 @@ import io.openaev.rest.injector.form.InjectorUpdateInput;
 import io.openaev.rest.injector.response.InjectorRegistration;
 import io.openaev.service.FileService;
 import io.openaev.service.InjectorService;
-import io.openaev.service.connectors.PlatformConnectors;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.swagger.v3.oas.annotations.Operation;
@@ -214,7 +214,7 @@ public class InjectorApi extends RestBehavior {
               + " an active injector re-registers on its next heartbeat. The implant injector is"
               + " the platform's own execution path and cannot be removed.")
   @Transactional(rollbackFor = Exception.class)
-  public void deleteInjector(@PathVariable String injectorId) {
+  public void deleteInjector(@PathVariable String injectorId) throws ConnectorStatusException {
     injectorService.deleteInjector(injectorId);
   }
 
