@@ -1,5 +1,6 @@
 package io.openaev.service.connectors;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
@@ -204,14 +205,24 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
    * it silently failed. The instance delete removes the connector entity too, hence the return
    * value: callers must not delete the row again.
    *
+   * <p>Tenant safety: the owning instance is resolved with an explicit tenant predicate (native
+   * queries bypass the Hibernate tenant filter) and only when the connector itself is visible in
+   * the current tenant, so a foreign or crafted connector id can never tear down another tenant's
+   * deployment.
+   *
    * @param connectorId the collector / injector / executor id being deleted
    * @return true when an instance was found and deleted, so the connector row is already gone
    */
   protected boolean deleteOwningConnectorInstance(String connectorId)
       throws ConnectorStatusException {
+    if (getConnectorById(connectorId) == null) {
+      // Not a connector of the current tenant (or not registered): nothing to tear down here,
+      // the caller's tenant-scoped row delete decides what happens.
+      return false;
+    }
     ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
-        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
-            this.connectorType.getIdKeyName(), connectorId);
+        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+            this.connectorType.getIdKeyName(), connectorId, TenantContext.getCurrentTenant());
     if (relatedIds == null || relatedIds.getConnectorInstanceId() == null) {
       return false;
     }
