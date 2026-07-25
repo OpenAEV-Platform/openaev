@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  * no field, unconstrained. Additive and idempotent.
  */
 @Component
-public class V6_20260725120000000__Add_attackpath_finding_field extends BaseJavaMigration {
+public class V6_20260725222137000__Add_attackpath_finding_field extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
