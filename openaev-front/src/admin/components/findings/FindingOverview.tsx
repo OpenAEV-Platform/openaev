@@ -208,8 +208,10 @@ const FindingOverview = () => {
       </InformationGrid>
 
       {/* Flat list (no surrounding Paper): the section label sits directly above
-          the related-reports list, matching OpenCTI's plain list sections. */}
-      <div>
+          the related-reports list, matching OpenCTI's plain list sections. The
+          extra top margin gives this section a clear break from the Information
+          card above (the shared page gap alone reads as too tight here). */}
+      <div style={{ marginTop: theme.spacing(1) }}>
         <SectionLabel>{t('Affected assets & context')}</SectionLabel>
         <FindingDetail
           searchFindings={searchFindings}

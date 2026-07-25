@@ -1,4 +1,4 @@
-package io.openaev.engine.model.endpoint;
+package io.openaev.engine.model.asset;
 
 import io.openaev.annotation.EsQueryable;
 import io.openaev.annotation.Indexable;
@@ -11,43 +11,56 @@ import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * Indexed document of the unified asset inventory: every asset the inventory lists (endpoints, AI
+ * targets, cloud / web / network / generic assets), matching {@code POST /api/assets/search}.
+ * Security platforms are excluded - they are a distinct concept with their own index.
+ */
 @Getter
 @Setter
-@Indexable(index = "endpoint", label = "Endpoint")
-public class EsEndpoint extends EsTenantBase {
+@Indexable(index = "asset", label = "Asset")
+public class EsAsset extends EsTenantBase {
   /* Every attribute must be uniq, so prefixed with the entity type! */
   /* Except relationships, they should have same name on every model! */
 
-  // -- ASSET GENERIC
-  @Queryable(label = "endpoint name", filterable = true)
-  @EsQueryable(keyword = true)
-  private String endpoint_name;
+  // -- ASSET GENERIC --
 
-  @Queryable(label = "endpoint description", filterable = true)
+  @Queryable(label = "asset name", filterable = true)
   @EsQueryable(keyword = true)
-  private String endpoint_description;
+  private String asset_name;
 
-  @Queryable(label = "endpoint external reference")
+  @Queryable(label = "asset description", filterable = true)
   @EsQueryable(keyword = true)
-  private String endpoint_external_reference;
+  private String asset_description;
 
-  @Queryable(label = "endpoint category", filterable = true, refEnumClazz = AssetCategory.class)
+  @Queryable(label = "asset external reference")
   @EsQueryable(keyword = true)
-  private String endpoint_category;
+  private String asset_external_reference;
+
+  @Queryable(label = "asset category", filterable = true, refEnumClazz = AssetCategory.class)
+  @EsQueryable(keyword = true)
+  private String asset_category;
+
+  @Queryable(label = "asset ips", filterable = true)
+  @EsQueryable(keyword = true)
+  private Set<String> asset_ips;
+
+  @Queryable(label = "asset hostname", filterable = true)
+  @EsQueryable(keyword = true)
+  private String asset_hostname;
+
+  @Queryable(label = "asset mac addresses", filterable = true)
+  @EsQueryable(keyword = true)
+  private Set<String> asset_mac_addresses;
+
+  @Queryable(label = "asset seen ip", filterable = true)
+  @EsQueryable(keyword = true)
+  private String asset_seen_ip;
 
   // -- ENDPOINT SPECIFIC --
-  // NOTE: the SQL columns were renamed endpoint_* -> asset_* (asset taxonomy remodel), but the ES
-  // field names deliberately keep the endpoint_ prefix: the physical indexes have a strict mapping
-  // that is only rebuilt on index creation, and saved widgets / filters reference these names. The
-  // findForIndexing projection aliases the renamed columns back to endpoint_*.
-
-  @Queryable(label = "endpoint ips", filterable = true)
-  @EsQueryable(keyword = true)
-  private Set<String> endpoint_ips;
-
-  @Queryable(label = "endpoint hostname", filterable = true)
-  @EsQueryable(keyword = true)
-  private String endpoint_hostname;
+  // Host attributes, so they keep the endpoint_ prefix of their SQL columns (they live on the
+  // Endpoint subclass): null on every asset that is not a host, which is exactly how they read in
+  // a filter. Filtering hosts only is expressed with asset_category.
 
   @Queryable(
       label = "endpoint platform",
@@ -64,14 +77,6 @@ public class EsEndpoint extends EsTenantBase {
       refEnumClazz = Endpoint.PLATFORM_ARCH.class)
   @EsQueryable(keyword = true)
   private String endpoint_arch;
-
-  @Queryable(label = "endpoint mac addresses", filterable = true)
-  @EsQueryable(keyword = true)
-  private Set<String> endpoint_mac_addresses;
-
-  @Queryable(label = "endpoint seen ip", filterable = true)
-  @EsQueryable(keyword = true)
-  private String endpoint_seen_ip;
 
   @Queryable(label = "endpoint is end of life", filterable = true)
   @EsQueryable(keyword = true)

@@ -3,9 +3,9 @@ package io.openaev.engine.model;
 import io.openaev.annotation.EsQueryable;
 import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
+import io.openaev.engine.model.asset.EsAsset;
 import io.openaev.engine.model.assetgroup.EsAssetGroup;
 import io.openaev.engine.model.attackpattern.EsAttackPattern;
-import io.openaev.engine.model.endpoint.EsEndpoint;
 import io.openaev.engine.model.finding.EsFinding;
 import io.openaev.engine.model.inject.EsInject;
 import io.openaev.engine.model.injectexpectation.EsInjectExpectation;
@@ -30,7 +30,7 @@ import lombok.Setter;
     discriminatorProperty = "base_entity",
     oneOf = {
       EsAttackPattern.class,
-      EsEndpoint.class,
+      EsAsset.class,
       EsFinding.class,
       EsInject.class,
       EsInjectExpectation.class,
@@ -45,7 +45,7 @@ import lombok.Setter;
     },
     discriminatorMapping = {
       @DiscriminatorMapping(value = "attack-pattern", schema = EsAttackPattern.class),
-      @DiscriminatorMapping(value = "endpoint", schema = EsEndpoint.class),
+      @DiscriminatorMapping(value = "asset", schema = EsAsset.class),
       @DiscriminatorMapping(value = "finding", schema = EsFinding.class),
       @DiscriminatorMapping(value = "inject", schema = EsInject.class),
       @DiscriminatorMapping(value = "expectation-inject", schema = EsInjectExpectation.class),

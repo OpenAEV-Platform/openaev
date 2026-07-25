@@ -37,9 +37,9 @@ import {
 import { capitalize } from '../../../utils/String';
 import { MITRE_FILTER_KEY } from '../common/filters/MitreFilter';
 import getAuthorizedPerspectives from '../workspaces/custom_dashboards/widgets/configuration/AuthorizedPerspectives';
+import AssetElementStyles from '../workspaces/custom_dashboards/widgets/viz/list/elements/AssetElementStyles';
 import buildStyles from '../workspaces/custom_dashboards/widgets/viz/list/elements/ColumnStyles';
 import DefaultElementStyles from '../workspaces/custom_dashboards/widgets/viz/list/elements/DefaultElementStyles';
-import EndpointElementStyles from '../workspaces/custom_dashboards/widgets/viz/list/elements/EndpointElementStyles';
 import listConfigRenderer, { defaultRenderer } from '../workspaces/custom_dashboards/widgets/viz/list/elements/ListColumnConfig';
 import navigationHandlers from '../workspaces/custom_dashboards/widgets/viz/list/elements/ListNavigationHandler';
 import { BASE_ENTITY_FILTER_KEY, excludeBaseEntities, getBaseEntities } from '../workspaces/custom_dashboards/widgets/WidgetUtils';
@@ -49,7 +49,7 @@ const RESERVED_PARAMS = ['widget_id', 'series_index'];
 
 // Same row icon as the entity's own list page, so the drill-down feels native.
 const ENTITY_ICONS: Record<string, ComponentType<SvgIconProps>> = {
-  'endpoint': DevicesOtherOutlined,
+  'asset': DevicesOtherOutlined,
   'vulnerable-endpoint': DevicesOtherOutlined,
   'scenario': MovieFilterOutlined,
   'simulation': HubOutlined,
@@ -104,7 +104,7 @@ const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initial
   const baseEntity = getBaseEntities(listConfig.perspective?.filter)?.[0] ?? '';
   const columns = useMemo(() => listConfig.columns ?? [], [listConfig]);
   const columnStyles = useMemo(
-    () => buildStyles(columns, baseEntity === 'endpoint' ? EndpointElementStyles : DefaultElementStyles),
+    () => buildStyles(columns, baseEntity === 'asset' ? AssetElementStyles : DefaultElementStyles),
     [columns, baseEntity],
   );
 

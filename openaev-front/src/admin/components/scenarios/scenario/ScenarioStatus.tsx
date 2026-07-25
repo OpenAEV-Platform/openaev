@@ -17,7 +17,6 @@ const useStyles = makeStyles()(() => ({
   },
   chipInList: {
     fontSize: 12,
-    lineHeight: '12px',
     height: 20,
     float: 'left',
     textTransform: 'uppercase',

@@ -132,6 +132,7 @@ export interface AgentOutput {
 }
 
 export interface AgentTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -375,6 +376,7 @@ export interface AiTargetInput {
 }
 
 export interface AiTargetTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -698,6 +700,7 @@ export interface AssetGroupSimple {
 }
 
 export interface AssetGroupTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -1193,6 +1196,7 @@ type BaseEsBaseBaseEntityMapping<Key, Type> = {
 } & Type;
 
 interface BaseInjectTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -3647,6 +3651,7 @@ export interface EndpointSimple {
 }
 
 export interface EndpointTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -3720,6 +3725,40 @@ export interface EntitiesPaginationInput {
   parameters?: Record<string, string>;
 }
 
+export interface EsAsset {
+  asset_category?: string;
+  asset_description?: string;
+  asset_external_reference?: string;
+  asset_hostname?: string;
+  /** @uniqueItems true */
+  asset_ips?: string[];
+  /** @uniqueItems true */
+  asset_mac_addresses?: string[];
+  asset_name?: string;
+  asset_seen_ip?: string;
+  /** @format date-time */
+  base_created_at?: string;
+  base_dependencies?: string[];
+  base_entity?: string;
+  /** @uniqueItems true */
+  base_findings_side?: string[];
+  base_id?: string;
+  base_representative?: string;
+  base_restrictions?: string[];
+  /** @uniqueItems true */
+  base_scenario_side?: string[];
+  /** @uniqueItems true */
+  base_simulation_side?: string[];
+  /** @uniqueItems true */
+  base_tags_side?: string[];
+  base_tenant_side?: string;
+  /** @format date-time */
+  base_updated_at?: string;
+  endpoint_arch?: string;
+  endpoint_is_eol?: boolean;
+  endpoint_platform?: string;
+}
+
 export interface EsAssetGroup {
   /** @format date-time */
   base_created_at?: string;
@@ -3778,7 +3817,7 @@ export interface EsAvgs {
 export type EsBase = BaseEsBase &
   (
     | BaseEsBaseBaseEntityMapping<"attack-pattern", EsAttackPattern>
-    | BaseEsBaseBaseEntityMapping<"endpoint", EsEndpoint>
+    | BaseEsBaseBaseEntityMapping<"asset", EsAsset>
     | BaseEsBaseBaseEntityMapping<"finding", EsFinding>
     | BaseEsBaseBaseEntityMapping<"inject", EsInject>
     | BaseEsBaseBaseEntityMapping<"expectation-inject", EsInjectExpectation>
@@ -3805,40 +3844,6 @@ export interface EsDomainsAvgData {
   data: EsSeries[];
   /** @minLength 1 */
   label: string;
-}
-
-export interface EsEndpoint {
-  /** @format date-time */
-  base_created_at?: string;
-  base_dependencies?: string[];
-  base_entity?: string;
-  /** @uniqueItems true */
-  base_findings_side?: string[];
-  base_id?: string;
-  base_representative?: string;
-  base_restrictions?: string[];
-  /** @uniqueItems true */
-  base_scenario_side?: string[];
-  /** @uniqueItems true */
-  base_simulation_side?: string[];
-  /** @uniqueItems true */
-  base_tags_side?: string[];
-  base_tenant_side?: string;
-  /** @format date-time */
-  base_updated_at?: string;
-  endpoint_arch?: string;
-  endpoint_category?: string;
-  endpoint_description?: string;
-  endpoint_external_reference?: string;
-  endpoint_hostname?: string;
-  /** @uniqueItems true */
-  endpoint_ips?: string[];
-  endpoint_is_eol?: boolean;
-  /** @uniqueItems true */
-  endpoint_mac_addresses?: string[];
-  endpoint_name?: string;
-  endpoint_platform?: string;
-  endpoint_seen_ip?: string;
 }
 
 export interface EsEntities {
@@ -5814,6 +5819,15 @@ export interface InjectorContractDomainDTO {
   domain_id: string;
   /** @minLength 1 */
   domain_name: string;
+}
+
+export interface InjectorContractFacetCountsOutput {
+  /** Number of contracts per kill chain phase id under the current filters, through the attack pattern relation */
+  kill_chain_phases?: Record<string, number>;
+  /** Number of contracts per platform under the current filters */
+  platforms?: Record<string, number>;
+  /** Number of contracts per payload status under the current filters */
+  statuses?: Record<string, number>;
 }
 
 export interface InjectorContractFullOutput {
@@ -8420,6 +8434,7 @@ export interface PlayerInput {
 
 export interface PlayerOutput {
   user_phone2?: string;
+  user_admin?: boolean;
   user_country?: string;
   /** @minLength 1 */
   user_email: string;
@@ -8435,6 +8450,7 @@ export interface PlayerOutput {
 }
 
 export interface PlayerTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -10091,6 +10107,7 @@ export interface TeamOutput {
 }
 
 export interface TeamTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"

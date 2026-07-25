@@ -14,6 +14,7 @@ import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.Contractor;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.injector.form.InjectorCreateInput;
@@ -24,6 +25,8 @@ import io.openaev.rest.injector_contract.form.InjectorContractInput;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.AbstractConnectorService;
+import io.openaev.service.connectors.PlatformConnectors;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.service.exception.InjectorRegistrationException;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
@@ -128,6 +131,48 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   @Override
   protected Injector createNewConnector() {
     return new Injector();
+  }
+
+  /**
+   * Deletes an injector together with the contracts it would leave behind.
+   *
+   * <p>The join rows cascade with the injector at database level, so deleting the row alone strands
+   * its contracts with no injector at all: no type in the arsenal, nothing able to run them, and
+   * invisible to the maintenance loop of the injector that owned them. Contracts still linked to
+   * another injector are kept - built-in contracts are shared across injectors of the same type.
+   *
+   * <p>Contract deletion cascades to injects at database level with no JPA lifecycle event, so the
+   * doomed injects are collected first and de-indexed explicitly afterwards.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteInjector(@NotBlank final String injectorId) throws ConnectorStatusException {
+    String tenantId = TenantContext.getCurrentTenant();
+    Injector injector =
+        injectorRepository
+            .findByIdAndTenantId(injectorId, tenantId)
+            .orElseThrow(ElementNotFoundException::new);
+    if (PlatformConnectors.isPlatformInjector(injector.getType())) {
+      throw new BadRequestException(
+          "The implant injector is required by the platform and cannot be deleted");
+    }
+    List<String> orphanedContractIds =
+        injectorContractRepository.findByInjectorsContaining(injector).stream()
+            .filter(
+                contract ->
+                    contract.getInjectors().stream()
+                        .allMatch(linked -> injectorId.equals(linked.getId())))
+            .map(InjectorContract::getId)
+            .toList();
+    List<String> cascadeDeletedInjectIds =
+        injectIndexCleanupService.injectIdsByContractIds(orphanedContractIds, tenantId);
+    injectorContractRepository.deleteAllByIdAndTenantId(
+        orphanedContractIds.toArray(new String[0]), tenantId);
+    // Tear the deployment down with the injector, and only delete the row ourselves when the
+    // injector was not deployed through the Integration Manager.
+    if (!deleteOwningConnectorInstance(injectorId)) {
+      injectorRepository.deleteByIdAndTenantId(injectorId, tenantId);
+    }
+    injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
   }
 
   public Injector injector(String id) {

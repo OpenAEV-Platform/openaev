@@ -5,17 +5,18 @@ import { type FunctionComponent } from 'react';
 import { type InjectStore } from '../../../../../actions/injects/Inject';
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
 import Chart from '../../../../../components/Chart';
-import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type Exercise, type InjectExpectationOutput } from '../../../../../utils/api-types';
 import { lineChartOptions } from '../../../../../utils/Charts';
+import { sampleScoreOverTimeSeries } from '../../../../../utils/SampleCharts';
+import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 
 interface Props { exerciseId: Exercise['exercise_id'] }
 
 const ExerciseDistributionScoreOverTimeByInjectorContract: FunctionComponent<Props> = ({ exerciseId }) => {
   // Standard hooks
-  const { t, nsdt, tPick } = useFormatter();
+  const { nsdt, tPick } = useFormatter();
   const theme = useTheme();
 
   // Fetching data
@@ -63,30 +64,27 @@ const ExerciseDistributionScoreOverTimeByInjectorContract: FunctionComponent<Pro
     })),
   )(injectExpectations);
 
+  // Dashboard convention: charts without real data render a greyed-out sample
+  // (with a "Sample" chip) instead of a bare empty message.
+  const isSample = injectsTypesScores.length === 0;
+
   return (
-    <>
-      {injectsTypesScores.length > 0 ? (
-        <Chart
-          id="exercise_distribution_score_over_time_by_inject"
-          options={lineChartOptions({
-            theme,
-            isTimeSeries: true,
-            xFormatter: nsdt,
-          })}
-          series={injectsTypesScores}
-          type="line"
-          width="100%"
-          height={350}
-        />
-      ) : (
-        <Empty
-          id="exercise_distribution_score_over_time_by_inject"
-          message={t(
-            'No data to display or the simulation has not started yet',
-          )}
-        />
-      )}
-    </>
+    <SamplePreview active={isSample}>
+      <Chart
+        id="exercise_distribution_score_over_time_by_inject"
+        options={lineChartOptions({
+          theme,
+          isTimeSeries: true,
+          xFormatter: nsdt,
+        })}
+        series={isSample
+          ? sampleScoreOverTimeSeries(['Email', 'Command execution'], theme)
+          : injectsTypesScores}
+        type="line"
+        width="100%"
+        height={350}
+      />
+    </SamplePreview>
   );
 };
 

@@ -1,5 +1,7 @@
-import { GroupsOutlined, PersonOutlined } from '@mui/icons-material';
+import { GroupsOutlined, PersonOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { Binoculars } from 'mdi-material-ui';
 import { useCallback, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
@@ -12,7 +14,7 @@ import { fetchTeams } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import { fetchPlayers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { DetailHero, DetailSections, Field, InformationGrid, Section, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, Section, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -31,6 +33,7 @@ import {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import { emptyFilled } from '../../../../utils/String';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import FindingList from '../../findings/FindingList';
@@ -59,6 +62,7 @@ const withFilter = (input: SearchPaginationInput, key: string, values: string[])
 // linked to them. Compact and grid-based, mirroring the asset overview.
 const PersonDetail = () => {
   const { t } = useFormatter();
+  const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { userId } = useParams() as { userId: string };
@@ -77,9 +81,15 @@ const PersonDetail = () => {
 
   const user = usersMap[userId];
 
+  // Derive team membership from the teams list (team_users) rather than
+  // user.user_teams: this page loads the person from GET /api/players, whose
+  // RawPlayer projection does not carry user_teams, so that field is undefined
+  // after a reload and every team-based stat would collapse to 0.
   const teams = useMemo(
-    () => (user?.user_teams ?? []).map((id: string) => teamsMap[id]).filter(Boolean) as Team[],
-    [user, teamsMap],
+    () => (Object.values(teamsMap) as Team[])
+      .filter((team: Team) => (team.team_users ?? []).includes(userId))
+      .sort((a: Team, b: Team) => (a.team_name ?? '').localeCompare(b.team_name ?? '')),
+    [teamsMap, userId],
   );
   const teamIds = useMemo(() => teams.map((team: Team) => team.team_id), [teams]);
 
@@ -92,6 +102,20 @@ const PersonDetail = () => {
       searchAtomicTestings(withFilter(input, 'inject_teams', teamIds)) as Promise<{ data: Page<InjectResultOutput> }>,
     [teamIds],
   );
+
+  // Headline hero counts: size-1 probes of the same searches feeding the lists
+  // below. A person with no team cannot have played injects (an empty
+  // inject_teams filter would match everything, so short-circuit to 0).
+  const injectsTotal = useSearchTotal(useCallback(
+    (input: SearchPaginationInput) => (teamIds.length === 0
+      ? Promise.resolve({ data: { totalElements: 0 } })
+      : searchAtomicTestings(withFilter(input, 'inject_teams', teamIds))),
+    [teamIds],
+  ));
+  const findingsTotal = useSearchTotal(useCallback(
+    (input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_users', [userId])),
+    [userId],
+  ));
 
   if (!user) {
     return <Loader />;
@@ -128,7 +152,6 @@ const PersonDetail = () => {
         chips={(
           <>
             {organizationName && <Chip size="small" variant="outlined" label={organizationName} sx={{ borderRadius: 1 }} />}
-            <Chip size="small" variant="outlined" label={t('{count} teams', { count: teams.length })} sx={{ borderRadius: 1 }} />
             {user.user_admin && <Chip size="small" color="primary" variant="outlined" label={t('Administrator')} sx={{ borderRadius: 1 }} />}
           </>
         )}
@@ -137,6 +160,13 @@ const PersonDetail = () => {
             user={user}
             onDelete={() => navigate(PERSON_BASE_URL)}
           />
+        )}
+        stats={(
+          <>
+            <HeroStat icon={GroupsOutlined} label={t('Teams')} value={teams.length} color={theme.palette.success.main} />
+            <HeroStat icon={Binoculars} label={t('Findings')} value={findingsTotal ?? '-'} color={theme.palette.primary.main} />
+            <HeroStat icon={TrackChangesOutlined} label={t('Injects played')} value={injectsTotal ?? '-'} color={theme.palette.warning.main} />
+          </>
         )}
       />
 

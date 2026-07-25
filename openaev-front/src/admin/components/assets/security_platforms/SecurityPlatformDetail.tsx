@@ -10,7 +10,7 @@ import { adHocEntities, adHocSeries } from '../../../../actions/dashboards/dashb
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import Chart from '../../../../components/Chart';
 import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, SectionBlock, SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
-import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
+import { buildFilter, generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -40,11 +40,15 @@ import {
   type SortField,
   type Widget,
 } from '../../../../utils/api-types';
+import { sampleSuccessRateSeries } from '../../../../utils/SampleCharts';
 import { computeInjectExpectationLabel } from '../../../../utils/statusUtils';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import expectationIconByType, { expectationTypeIcon } from '../../common/ExpectationIconByType';
 import ExpectationTypeChip from '../../workspaces/custom_dashboards/widgets/viz/list/elements/ExpectationTypeChip';
 import navigationHandlers from '../../workspaces/custom_dashboards/widgets/viz/list/elements/ListNavigationHandler';
+import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
+import PostureScore from '../PostureScore';
+import useExpectationPosture from '../useExpectationPosture';
 import SecurityPlatformPopover from './SecurityPlatformPopover';
 
 const PLATFORM_FILTER_KEY = 'base_security_platforms_side';
@@ -61,14 +65,6 @@ const group = (...filters: Filter[]): FilterGroup => ({
   mode: 'and',
   filters,
 });
-
-// Sum every bucket of a returned series into a single total.
-const seriesTotal = (serie?: EsSeries) => (serie?.data ?? []).reduce((acc, bucket) => acc + (bucket.value ?? 0), 0);
-
-// Total of a named series (matched on the label the backend echoes back), summed
-// across all buckets so the result never depends on the breakdown key format.
-const namedTotal = (series: EsSeries[] | null, name: string) =>
-  seriesTotal((series ?? []).find(s => s.label === name));
 
 const rate = (success: number, failed: number) => {
   const total = success + failed;
@@ -98,59 +94,15 @@ const SecurityPlatformDetail: FunctionComponent = () => {
 
   const platformFilter = useMemo(() => filter(PLATFORM_FILTER_KEY, [securityPlatformId], 'contains'), [securityPlatformId]);
 
-  // -- KPIs: structural breakdown by expectation type (SUCCESS vs FAILED)
-  const [byType, setByType] = useState<EsSeries[] | null>(null);
+  // -- KPIs + posture: per-pillar SUCCESS vs FAILED, shared with the asset hero
+  const posture = useExpectationPosture(PLATFORM_FILTER_KEY, securityPlatformId, 'contains');
   // -- Trend: temporal SUCCESS vs FAILED
   const [trend, setTrend] = useState<EsSeries[] | null>(null);
-  // -- Latest missed expectations (standard paginated list, dashboard look & feel)
+  // -- Latest expectations (standard paginated list, dashboard look & feel)
   const [missed, setMissed] = useState<EsBase[]>([]);
 
   useEffect(() => {
     const expectation = (extra: Filter[]) => group(filter('base_entity', ['expectation-inject']), platformFilter, ...extra);
-
-    const typeStatus = (type: string, status: string) => expectation([
-      filter('inject_expectation_type', [type]),
-      filter('inject_expectation_status', [status]),
-    ]);
-
-    // Explicit per-type/per-status series so KPI totals never depend on how the
-    // engine keys a structural breakdown.
-    const byTypeConfig = {
-      title: '',
-      field: 'inject_expectation_type',
-      series: [
-        {
-          name: 'DETECTION_SUCCESS',
-          filter: typeStatus('DETECTION', 'SUCCESS'),
-        },
-        {
-          name: 'DETECTION_FAILED',
-          filter: typeStatus('DETECTION', 'FAILED'),
-        },
-        {
-          name: 'PREVENTION_SUCCESS',
-          filter: typeStatus('PREVENTION', 'SUCCESS'),
-        },
-        {
-          name: 'PREVENTION_FAILED',
-          filter: typeStatus('PREVENTION', 'FAILED'),
-        },
-        {
-          name: 'ALL_SUCCESS',
-          filter: expectation([filter('inject_expectation_status', ['SUCCESS'])]),
-        },
-        {
-          name: 'ALL_FAILED',
-          filter: expectation([filter('inject_expectation_status', ['FAILED'])]),
-        },
-      ],
-      mode: 'structural',
-      stacked: false,
-      limit: 100,
-      widget_configuration_type: 'structural-histogram',
-      time_range: 'ALL_TIME',
-      date_attribute: 'base_created_at',
-    } as unknown as Widget['widget_config'];
 
     const trendConfig = {
       title: '',
@@ -172,21 +124,28 @@ const SecurityPlatformDetail: FunctionComponent = () => {
       date_attribute: 'base_created_at',
     } as unknown as Widget['widget_config'];
 
-    adHocSeries(byTypeConfig).then((r: { data: EsSeries[] }) => setByType(r.data)).catch(() => setByType([]));
     adHocSeries(trendConfig).then((r: { data: EsSeries[] }) => setTrend(r.data)).catch(() => setTrend([]));
   }, [securityPlatformId, platformFilter]);
 
-  // Latest missed expectations: standard app list (sort headers + plain line
-  // items) driven by the standard search / filters / pagination toolbar. The
-  // runtime search, filters, sort and page are translated into the ad-hoc list
-  // query scoped to this platform's FAILED expectations.
+  // Latest expectations: standard app list (sort headers + plain line items)
+  // driven by the standard search / filters / pagination toolbar. The runtime
+  // search, filters, sort and page are translated into the ad-hoc list query
+  // scoped to this platform's expectations. The list opens pre-filtered on
+  // FAILED (the missed ones), but the filter is a regular removable chip so
+  // the user can widen the view to every expectation.
   const MISSED_COLUMNS = ['inject_title', 'inject_expectation_type', 'inject_expectation_status', 'inject_expectation_score', 'base_created_at'];
   const [missedLoading, setMissedLoading] = useState(true);
   // Static key (like 'asset-injects' & co): one shared entry instead of an
   // unbounded localStorage entry per platform ever visited.
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
-    'security-platform-missed',
-    buildSearchPagination({ sorts: initSorting('base_created_at', 'DESC') }),
+    'security-platform-expectations',
+    buildSearchPagination({
+      sorts: initSorting('base_created_at', 'DESC'),
+      filterGroup: {
+        mode: 'and',
+        filters: [buildFilter('inject_expectation_status', ['FAILED'], 'eq')],
+      },
+    }),
   );
 
   const missedInlineStyles: Record<string, CSSProperties> = {
@@ -278,10 +237,11 @@ const SecurityPlatformDetail: FunctionComponent = () => {
       series: [],
       perspective: {
         name: '',
+        // No hard-coded status here: the FAILED scope is a regular runtime
+        // filter (seeded as a default chip) that the user can remove.
         filter: group(
           filter('base_entity', ['expectation-inject']),
           platformFilter,
-          filter('inject_expectation_status', ['FAILED']),
           ...runtimeFilters,
           ...searchFilters,
         ),
@@ -309,17 +269,16 @@ const SecurityPlatformDetail: FunctionComponent = () => {
   };
 
   const kpis = useMemo(() => {
-    const detectionRate = rate(namedTotal(byType, 'DETECTION_SUCCESS'), namedTotal(byType, 'DETECTION_FAILED'));
-    const preventionRate = rate(namedTotal(byType, 'PREVENTION_SUCCESS'), namedTotal(byType, 'PREVENTION_FAILED'));
-    const tested = namedTotal(byType, 'ALL_SUCCESS') + namedTotal(byType, 'ALL_FAILED');
-    const missedCount = namedTotal(byType, 'ALL_FAILED');
+    const pillar = (key: string) => posture.breakdown.find(entry => entry.key === key);
+    const detection = pillar('DETECTION');
+    const prevention = pillar('PREVENTION');
     return {
-      detectionRate,
-      preventionRate,
-      tested,
-      missedCount,
+      detectionRate: rate(detection?.success ?? 0, detection?.failed ?? 0),
+      preventionRate: rate(prevention?.success ?? 0, prevention?.failed ?? 0),
+      tested: posture.tested,
+      missedCount: posture.failed,
     };
-  }, [byType]);
+  }, [posture]);
 
   const trendSeries = useMemo(() => {
     if (!trend) return [];
@@ -472,17 +431,20 @@ const SecurityPlatformDetail: FunctionComponent = () => {
         )}
         stats={(
           <>
+            {/* Rates and counters stay neutral (primary/secondary): a green 0%
+                or an orange counter would carry a false verdict - the verdict
+                lives in the posture score, whose color follows the number. */}
             <HeroStat
               icon={ShieldOutlined}
               label={t('Prevention rate')}
               value={kpis.preventionRate === null ? '-' : `${kpis.preventionRate}%`}
-              color={theme.palette.success.main}
+              color={theme.palette.primary.main}
             />
             <HeroStat
               icon={GppMaybeOutlined}
               label={t('Detection rate')}
               value={kpis.detectionRate === null ? '-' : `${kpis.detectionRate}%`}
-              color={theme.palette.primary.main}
+              color={theme.palette.secondary.main}
             />
             <HeroStat
               icon={TrackChangesOutlined}
@@ -493,7 +455,13 @@ const SecurityPlatformDetail: FunctionComponent = () => {
               icon={BlockOutlined}
               label={t('Missed expectations')}
               value={kpis.missedCount}
-              color={theme.palette.warning.main}
+            />
+            <PostureScore
+              scope="security-platform"
+              success={posture.success}
+              failed={posture.failed}
+              breakdown={posture.breakdown}
+              loading={posture.loading}
             />
           </>
         )}
@@ -521,30 +489,31 @@ const SecurityPlatformDetail: FunctionComponent = () => {
         <SectionBlock title={t('Performance over time')}>
           {(() => {
             if (trend === null) return <Loader variant="inElement" />;
-            if (!hasTrend) return <Empty message={t('No results yet for this security platform.')} />;
+            // No results yet: preview the chart with greyed-out sample data
+            // (platform-wide convention) instead of a bare empty message.
             return (
-              <Chart
-                options={chartOptions}
-                series={trendSeries}
-                type="area"
-                width="100%"
-                height={280}
-              />
+              <SamplePreview active={!hasTrend}>
+                <Chart
+                  options={chartOptions}
+                  series={hasTrend ? trendSeries : sampleSuccessRateSeries(t('Success rate'), theme)}
+                  type="area"
+                  width="100%"
+                  height={280}
+                />
+              </SamplePreview>
             );
           })()}
         </SectionBlock>
       </DetailSections>
 
       <div>
-        <SectionLabel>{t('Latest missed expectations')}</SectionLabel>
-        {/* No status filter offered: the list is missed (FAILED) expectations
-            by definition, and fetchMissed hard-codes that status. */}
+        <SectionLabel>{t('Latest expectations')}</SectionLabel>
         <PaginationComponentV2
           fetch={fetchMissed}
           searchPaginationInput={searchPaginationInput}
           setContent={setMissed}
           entityPrefix="inject_expectation"
-          availableFilterNames={['inject_expectation_type']}
+          availableFilterNames={['inject_expectation_type', 'inject_expectation_status']}
           queryableHelpers={queryableHelpers}
         />
         <List>

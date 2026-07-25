@@ -40,7 +40,7 @@ const getInjectDetailUrl = (injectElement: EsInject): string => {
 };
 
 const navigationHandlers: Record<string, NavigationHandler> = {
-  'endpoint': (element, navigate) => {
+  'asset': (element, navigate) => {
     navigate(`${ASSET_BASE_URL}/${element.base_id}`);
   },
 

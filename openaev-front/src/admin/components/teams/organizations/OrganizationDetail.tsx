@@ -1,14 +1,21 @@
-import { DomainOutlined, PermIdentityOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { DomainOutlined, GroupsOutlined, PermIdentityOutlined, PersonOutlined, TrackChangesOutlined } from '@mui/icons-material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { Binoculars } from 'mdi-material-ui';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
+import { searchAtomicTestings } from '../../../../actions/atomic_testings/atomic-testing-actions';
+import { searchDistinctFindings } from '../../../../actions/findings/finding-actions';
 import type { UserHelper } from '../../../../actions/helper';
 import { fetchOrganization } from '../../../../actions/organizations/organization-actions';
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
+import { fetchTeams } from '../../../../actions/teams/team-actions';
+import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import { fetchUsers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { DetailHero, DetailSections, Field, InformationGrid, Section } from '../../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, Section } from '../../../../components/common/detail/EntityDetailCommon';
+import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import Empty from '../../../../components/Empty';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
@@ -16,10 +23,20 @@ import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import { ORGANIZATION_BASE_URL, PERSON_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
-import { type Organization, type User } from '../../../../utils/api-types';
+import { type Filter, type Organization, type SearchPaginationInput, type Team, type User } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import OrganizationPopover from './OrganizationPopover';
+
+// Scoped `contains` filter for the hero count probes.
+const contains = (key: string, values: string[]): Filter => ({
+  id: generateFilterId(),
+  key,
+  mode: 'or',
+  operator: 'contains',
+  values,
+});
 
 // Business-side organization detail (left menu > Organizations). Deliberately
 // separated from the admin Settings > Security > Organizations detail: no
@@ -27,6 +44,7 @@ import OrganizationPopover from './OrganizationPopover';
 // page instead of the admin user administration.
 const OrganizationDetail = () => {
   const { t, fldt } = useFormatter();
+  const theme = useTheme();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { organizationId } = useParams() as { organizationId: string };
@@ -36,18 +54,61 @@ const OrganizationDetail = () => {
     fetchOrganization(organizationId).then(response => setOrganization(response.data as Organization));
   }, [organizationId]);
 
-  const { usersMap, tagsMap } = useHelper((helper: UserHelper & TagHelper) => ({
+  const { usersMap, tagsMap, teamsMap } = useHelper((helper: UserHelper & TagHelper & TeamsHelper) => ({
     usersMap: helper.getUsersMap(),
     tagsMap: helper.getTagsMap(),
+    teamsMap: helper.getTeamsMap(),
   }));
   useDataLoader(() => {
     dispatch(fetchUsers());
+    dispatch(fetchTeams());
   });
 
   const members = useMemo(
     () => (Object.values(usersMap) as User[]).filter(user => user.user_organization === organizationId),
     [usersMap, organizationId],
   );
+  const teams = useMemo(
+    () => (Object.values(teamsMap) as Team[]).filter(team => team.team_organization === organizationId),
+    [teamsMap, organizationId],
+  );
+  const teamIds = useMemo(() => teams.map(team => team.team_id), [teams]);
+  const memberIds = useMemo(() => members.map(member => member.user_id), [members]);
+
+  // Headline hero counts, scoped through the organization's people: injects
+  // played by its teams, findings linked to its teams or members. Empty
+  // `contains` filters would match everything, so empty scopes short-circuit to 0.
+  const injectsTotal = useSearchTotal(useCallback(
+    (input: SearchPaginationInput) => (teamIds.length === 0
+      ? Promise.resolve({ data: { totalElements: 0 } })
+      : searchAtomicTestings({
+          ...input,
+          filterGroup: {
+            mode: 'and',
+            filters: [contains('inject_teams', teamIds)],
+          },
+        })),
+    [teamIds],
+  ));
+  const findingsTotal = useSearchTotal(useCallback(
+    (input: SearchPaginationInput) => {
+      const scopes: Filter[] = [
+        ...(teamIds.length > 0 ? [contains('finding_teams', teamIds)] : []),
+        ...(memberIds.length > 0 ? [contains('finding_users', memberIds)] : []),
+      ];
+      if (scopes.length === 0) {
+        return Promise.resolve({ data: { totalElements: 0 } });
+      }
+      return searchDistinctFindings({
+        ...input,
+        filterGroup: {
+          mode: 'or',
+          filters: scopes,
+        },
+      });
+    },
+    [teamIds, memberIds],
+  ));
 
   if (!organization) {
     return <Loader />;
@@ -77,9 +138,6 @@ const OrganizationDetail = () => {
         <DetailHero
           icon={DomainOutlined}
           title={organization.organization_name}
-          chips={(
-            <Chip size="small" variant="outlined" label={t('{count} members', { count: members.length })} sx={{ borderRadius: 1 }} />
-          )}
           action={(
             <OrganizationPopover
               organization={organization}
@@ -87,6 +145,14 @@ const OrganizationDetail = () => {
               onUpdate={(updated: Organization) => setOrganization(updated)}
               onDelete={() => navigate(ORGANIZATION_BASE_URL)}
             />
+          )}
+          stats={(
+            <>
+              <HeroStat icon={PersonOutlined} label={t('Members')} value={members.length} color={theme.palette.success.main} />
+              <HeroStat icon={GroupsOutlined} label={t('Teams')} value={teams.length} color={theme.palette.secondary.main} />
+              <HeroStat icon={Binoculars} label={t('Findings')} value={findingsTotal ?? '-'} color={theme.palette.primary.main} />
+              <HeroStat icon={TrackChangesOutlined} label={t('Injects played')} value={injectsTotal ?? '-'} color={theme.palette.warning.main} />
+            </>
           )}
         />
 

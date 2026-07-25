@@ -6,6 +6,7 @@ import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
+import io.openaev.engine.RetiredIndexes;
 import io.openaev.engine.model.EsBase;
 import io.openaev.exception.AnalyticsEngineException;
 import io.openaev.exception.StartupException;
@@ -271,6 +272,10 @@ public class OpenSearchDriver {
     template.name(indexName);
     template.meta("version", JsonData.of(version));
     template.indexPatterns(indexName + "*");
+    // Overlapping templates must not share a priority: "asset" is a name prefix of "asset-group",
+    // so their patterns overlap and the engine refuses the second template at equal priority. The
+    // name length makes the more specific template win, whatever the model registration order.
+    template.priority(indexName.length());
     template.composedOf(coreSettings);
     TypeMapping indexMapping =
         new TypeMapping.Builder()
@@ -421,6 +426,16 @@ public class OpenSearchDriver {
     // same lock and deadlock — none can proceed and the application never finishes booting.
     // Iterating sequentially eliminates the contention entirely at a negligible cost: the number
     // of ES models is small and the bottleneck is network I/O, not CPU parallelism.
+    // Drop the indexes of retired models first: searches run against the index pattern, so a
+    // leftover index would still be matched (see RetiredIndexes).
+    for (String retiredIndex : RetiredIndexes.NAMES) {
+      try {
+        cleanUpIndex(retiredIndex, openClient);
+      } catch (IOException e) {
+        throw new AnalyticsEngineException(
+            "Error while cleaning up retired index " + retiredIndex + " with Opensearch", e);
+      }
+    }
     List<EsModel<T>> models = this.searchEngine.getModels();
     for (EsModel<T> esModel : models) {
       Map<String, Property> mappings = mappingGeneratorForClass(esModel);
@@ -433,7 +448,8 @@ public class OpenSearchDriver {
         log.info("Creating Index {}", esModel.getName());
         setupIndex(openClient, esModel.getName(), ES_MODEL_VERSION, mappings);
       } catch (IOException e) {
-        throw new AnalyticsEngineException("Error while cleanup of indexes with Opensearch - " + e);
+        throw new AnalyticsEngineException(
+            "Error while setting up index " + esModel.getName() + " with Opensearch", e);
       }
     }
     return openClient;

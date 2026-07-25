@@ -21,11 +21,14 @@ import { Link, useNavigate, useParams } from 'react-router';
 
 import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
 import { fetchExerciseChallenges } from '../../../../actions/challenge-action';
-import { searchExerciseHealthchecks, updateExerciseStatus } from '../../../../actions/Exercise';
+import { fetchExerciseArticles } from '../../../../actions/channels/article-action';
+import { type ArticlesHelper } from '../../../../actions/channels/article-helper';
+import { fetchExerciseTeams, searchExerciseHealthchecks, updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import { type ChallengeHelper } from '../../../../actions/helper';
 import { fetchExerciseInjectsSimple } from '../../../../actions/Inject';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
+import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import { DetailHero, HeroStat } from '../../../../components/common/detail/EntityDetailCommon';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
@@ -33,7 +36,7 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemCategory from '../../../../components/ItemCategory';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import { useHelper } from '../../../../store';
-import { type Challenge, type Exercise, type Exercise as ExerciseType, type HealthCheck, type Inject, type SimulationDetails } from '../../../../utils/api-types';
+import { type Article, type Challenge, type Exercise, type Exercise as ExerciseType, type HealthCheck, type Inject, type SimulationDetails, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
@@ -233,11 +236,13 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   const dispatch = useAppDispatch();
 
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
-  const { exercise, challenges, injects } = useHelper((helper: ExercisesHelper & ChallengeHelper & InjectHelper) => {
+  const { exercise, challenges, injects, teams, articles } = useHelper((helper: ExercisesHelper & ChallengeHelper & InjectHelper & TeamsHelper & ArticlesHelper) => {
     return {
       exercise: helper.getExercise(exerciseId) as SimulationDetails,
       challenges: helper.getExerciseChallenges(exerciseId) as Challenge[],
       injects: helper.getExerciseInjects(exerciseId) as Inject[],
+      teams: helper.getExerciseTeams(exerciseId) as Team[],
+      articles: helper.getExerciseArticles(exerciseId) as Article[],
     };
   });
   const permissions = useSimulationPermissions(exerciseId, exercise);
@@ -249,6 +254,8 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   useDataLoader(() => {
     dispatch(fetchExerciseChallenges(exerciseId));
     dispatch(fetchExerciseInjectsSimple(exerciseId));
+    dispatch(fetchExerciseTeams(exerciseId));
+    dispatch(fetchExerciseArticles(exerciseId));
   });
   const hasChallenges = challenges.length > 0;
 
@@ -286,10 +293,19 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   // (media pressure, challenges) only appear when actually used - a tabletop
   // reads people-first, a technical simulation reads assets-first, and a
   // mixed one shows both.
-  const injectsCount = exercise.exercise_injects?.length ?? 0;
-  const teamsCount = exercise.exercise_teams?.length ?? 0;
+  // Count the loaded injects list (fetchExerciseInjectsSimple), not
+  // `exercise.exercise_injects`: the GET /exercises/{id} SimulationDetails DTO
+  // does not carry an injects field, so that path always resolved to 0 after a
+  // reload (it only appeared to work right after a create when the redux entity
+  // was transiently patched). The injects list is what already feeds the asset
+  // counters below, so this keeps every hero counter on the same source.
+  const injectsCount = injects?.length ?? 0;
+  // Teams and articles are counted from their dedicated list fetches for the
+  // same reason as injects: the SimulationDetails DTO carries no
+  // exercise_teams / exercise_articles relations.
+  const teamsCount = teams?.length ?? 0;
   const playersCount = exercise.exercise_all_users_number ?? exercise.exercise_users_number ?? 0;
-  const articlesCount = exercise.exercise_articles?.length ?? 0;
+  const articlesCount = articles?.length ?? 0;
   const { assets: assetsCount, assetGroups: assetGroupsCount } = countDistinctInjectTargets(injects);
 
   return (
@@ -303,7 +319,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
               <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
               <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
               {exercise.exercise_category && (
-                <ItemCategory category={exercise.exercise_category} label={t(exercise.exercise_category)} />
+                <ItemCategory category={exercise.exercise_category} label={t(exercise.exercise_category)} size="small" />
               )}
               <Chip
                 size="small"

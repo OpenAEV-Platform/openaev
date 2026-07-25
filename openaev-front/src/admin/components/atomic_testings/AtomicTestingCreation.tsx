@@ -75,6 +75,7 @@ const AtomicTestingCreation = () => {
           title={t('Create a new atomic test')}
           isAtomic
           onSelectContract={contract => setSelectedContractId(contract.injector_contract_id)}
+          onBack={() => navigate(listUrl)}
         />
         <Drawer
           open={!!selectedContractId}

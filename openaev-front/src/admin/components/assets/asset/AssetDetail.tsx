@@ -1,5 +1,7 @@
-import { Alert, AlertTitle, Box, Chip, Typography } from '@mui/material';
+import { DevicesOtherOutlined, TrackChangesOutlined } from '@mui/icons-material';
+import { Alert, AlertTitle, Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { Binoculars } from 'mdi-material-ui';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
@@ -9,7 +11,7 @@ import { searchDistinctFindingsOnEndpoint } from '../../../../actions/findings/f
 import { type UserHelper } from '../../../../actions/helper';
 import { fetchPlayers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { DetailHero, DetailSections, Field, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import EndpointArchFragment from '../../../../components/common/list/fragments/EndpointArchFragment';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { type Page } from '../../../../components/common/queryable/Page';
@@ -31,6 +33,7 @@ import {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import { emptyFilled, formatIp, formatMacAddress } from '../../../../utils/String';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import FindingList from '../../findings/FindingList';
@@ -38,6 +41,8 @@ import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import AssetPopover, { type AssetPopoverProps } from '../endpoints/AssetPopover';
 import AgentList from '../endpoints/endpoint/AgentList';
+import PostureScore from '../PostureScore';
+import useExpectationPosture from '../useExpectationPosture';
 
 // The backend's EndpointOverviewOutput now also carries the AI target connection metadata; until
 // the API types are regenerated (needs a backend restart) they are declared here so the page can
@@ -113,6 +118,15 @@ const AssetDetail = () => {
     return searchAtomicTestings(scopedInput) as Promise<{ data: Page<InjectResultOutput> }>;
   }, [id]);
 
+  // Headline hero counts: size-1 probes of the same searches feeding the lists
+  // below, plus the expectation posture aggregated by the dashboard engine.
+  const findingsTotal = useSearchTotal(useCallback(
+    (input: SearchPaginationInput) => searchDistinctFindingsOnEndpoint(id, input),
+    [id],
+  ));
+  const injectsTotal = useSearchTotal(fetchInjectsPlayed);
+  const posture = useExpectationPosture('base_asset_side', id);
+
   if (loading && !asset) {
     return <Loader />;
   }
@@ -137,6 +151,15 @@ const AssetDetail = () => {
     || asset.endpoint_arch || (asset.asset_ips && asset.asset_ips.length) || (asset.asset_mac_addresses && asset.asset_mac_addresses.length));
   const hasCloud = !!asset.asset_cloud_provider;
   const hasAgents = !!(asset.asset_agents && asset.asset_agents.length > 0);
+  // Only host-like categories can carry an OpenAEV agent (same taxonomy split
+  // as TargetIcon's OS_PLATFORM_CATEGORIES). Agentless kinds (AI target, web
+  // application, cloud resource, identity, ...) hide the Agents hero stat
+  // entirely - a permanent 0 there is just noise. No category means legacy
+  // endpoint data, which is host-like; and if agents somehow exist, show them.
+  const supportsAgents = !asset.asset_category
+    || asset.asset_category === 'HOST'
+    || asset.asset_category === 'MOBILE_DEVICE'
+    || hasAgents;
 
   return (
     <Box sx={{
@@ -163,9 +186,6 @@ const AssetDetail = () => {
       <DetailHero
         iconNode={<AssetCategoryIcon category={asset.asset_category} color="primary" />}
         title={asset.asset_name}
-        chips={hasAgents
-          ? <Chip size="small" variant="outlined" label={`${asset.asset_agents.length} ${t('agent(s)')}`} sx={{ borderRadius: 1 }} />
-          : undefined}
         action={(
           <AssetPopover
             endpoint={asset as AssetPopoverProps['endpoint']}
@@ -173,6 +193,23 @@ const AssetDetail = () => {
             onUpdate={() => loadAsset()}
             onDelete={() => navigate('/admin/assets/inventory')}
           />
+        )}
+        stats={(
+          <>
+            {supportsAgents && (
+              <HeroStat icon={DevicesOtherOutlined} label={t('Agents')} value={asset.asset_agents?.length ?? 0} color={theme.palette.success.main} />
+            )}
+            <HeroStat icon={Binoculars} label={t('Findings')} value={findingsTotal ?? '-'} color={theme.palette.primary.main} />
+            <HeroStat icon={TrackChangesOutlined} label={t('Injects played')} value={injectsTotal ?? '-'} color={theme.palette.warning.main} />
+            <HeroStat icon={TrackChangesOutlined} label={t('Expectations tested')} value={posture.loading ? '-' : posture.tested} />
+            <PostureScore
+              scope="asset"
+              success={posture.success}
+              failed={posture.failed}
+              breakdown={posture.breakdown}
+              loading={posture.loading}
+            />
+          </>
         )}
       />
 

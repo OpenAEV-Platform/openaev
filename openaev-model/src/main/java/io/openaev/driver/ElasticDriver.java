@@ -20,6 +20,7 @@ import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
+import io.openaev.engine.RetiredIndexes;
 import io.openaev.engine.model.EsBase;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -172,6 +173,10 @@ public class ElasticDriver {
     mapping.name(indexName);
     mapping.meta("version", JsonData.of(version));
     mapping.indexPatterns(indexName + "*");
+    // Overlapping templates must not share a priority: "asset" is a name prefix of "asset-group",
+    // so their patterns overlap and the engine refuses the second template at equal priority. The
+    // name length makes the more specific template win, whatever the model registration order.
+    mapping.priority((long) indexName.length());
     mapping.composedOf(coreSettings);
     TypeMapping indexMapping =
         new TypeMapping.Builder()
@@ -311,6 +316,16 @@ public class ElasticDriver {
     // same lock and deadlock — none can proceed and the application never finishes booting.
     // Iterating sequentially eliminates the contention entirely at a negligible cost: the number
     // of ES models is small and the bottleneck is network I/O, not CPU parallelism.
+    // Drop the indexes of retired models first: searches run against the index pattern, so a
+    // leftover index would still be matched (see RetiredIndexes).
+    for (String retiredIndex : RetiredIndexes.NAMES) {
+      try {
+        cleanUpIndex(retiredIndex, elasticClient);
+      } catch (IOException e) {
+        throw new RuntimeException(
+            "Error while cleaning up retired index " + retiredIndex + " with Elastic", e);
+      }
+    }
     List<EsModel<T>> models = this.searchEngine.getModels();
     for (EsModel<T> esModel : models) {
       Map<String, Property> mappings = mappingGeneratorForClass(esModel);

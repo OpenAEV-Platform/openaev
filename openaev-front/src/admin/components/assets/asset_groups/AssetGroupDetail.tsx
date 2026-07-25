@@ -1,14 +1,19 @@
+import { DevicesOtherOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { SelectGroup } from 'mdi-material-ui';
-import { type CSSProperties, useState } from 'react';
+import { useTheme } from '@mui/material/styles';
+import { Binoculars, SelectGroup } from 'mdi-material-ui';
+import { type CSSProperties, useCallback, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { fetchAssetGroup, searchEndpointsFromAssetGroup } from '../../../../actions/asset_groups/assetgroup-action';
 import { type AssetGroupsHelper } from '../../../../actions/asset_groups/assetgroup-helper';
+import { searchAtomicTestings } from '../../../../actions/atomic_testings/atomic-testing-actions';
+import { searchDistinctFindings } from '../../../../actions/findings/finding-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { DetailHero, DetailSections, Field, InformationGrid, SectionBlock, SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, SectionBlock, SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
 import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
 import AssetTypeFragment from '../../../../components/common/list/fragments/AssetTypeFragment';
+import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -24,9 +29,12 @@ import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import { ASSET_BASE_URL, ASSET_GROUP_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
-import { type AssetOutput, type SearchPaginationInput } from '../../../../utils/api-types';
+import { type AssetOutput, type Filter, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
+import PostureScore from '../PostureScore';
+import useExpectationPosture from '../useExpectationPosture';
 import AssetGroupPopover from './AssetGroupPopover';
 import computeRuleValues from './assetGroupRules';
 
@@ -37,12 +45,43 @@ const inlineStyles: Record<string, CSSProperties> = {
   asset_tags: { width: '20%' },
 };
 
+// Adds a scoped filter to a search input without mutating the caller's group.
+const withFilter = (input: SearchPaginationInput, key: string, values: string[]): SearchPaginationInput => {
+  const filter: Filter = {
+    id: generateFilterId(),
+    key,
+    mode: 'or',
+    operator: 'contains',
+    values,
+  };
+  return {
+    ...input,
+    filterGroup: {
+      mode: input.filterGroup?.mode ?? 'and',
+      filters: [...(input.filterGroup?.filters ?? []), filter],
+    },
+  };
+};
+
 const AssetGroupDetail = () => {
   const { t } = useFormatter();
+  const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const bodyItemsStyles = useBodyItemsStyles();
   const { assetGroupId } = useParams() as { assetGroupId: string };
+
+  // Headline hero counts: size-1 probes of the platform-wide searches scoped to
+  // this asset group, plus the expectation posture from the dashboard engine.
+  const injectsTotal = useSearchTotal(useCallback(
+    (input: SearchPaginationInput) => searchAtomicTestings(withFilter(input, 'inject_asset_groups', [assetGroupId])),
+    [assetGroupId],
+  ));
+  const findingsTotal = useSearchTotal(useCallback(
+    (input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_asset_groups', [assetGroupId])),
+    [assetGroupId],
+  ));
+  const posture = useExpectationPosture('base_asset_group_side', assetGroupId);
 
   // Fetching data
   const { assetGroup } = useHelper((helper: AssetGroupsHelper) => ({ assetGroup: helper.getAssetGroup(assetGroupId) }));
@@ -94,7 +133,13 @@ const AssetGroupDetail = () => {
     return <Loader />;
   }
 
-  const memberCount = assetGroup.asset_group_assets?.length ?? 0;
+  // Static members plus dynamic-rule matches, deduplicated: a group defined
+  // only by dynamic rules would otherwise show 0 assets in the hero while the
+  // member list below (which resolves dynamic members) shows rows.
+  const memberCount = new Set([
+    ...(assetGroup.asset_group_assets ?? []),
+    ...(assetGroup.asset_group_dynamic_assets ?? []),
+  ]).size;
 
   return (
     <Box sx={{
@@ -120,17 +165,6 @@ const AssetGroupDetail = () => {
       <DetailHero
         icon={SelectGroup}
         title={assetGroup.asset_group_name}
-        chips={(
-          <Box
-            component="span"
-            sx={{
-              fontSize: 13,
-              color: 'text.secondary',
-            }}
-          >
-            {t('{count} managed assets', { count: memberCount })}
-          </Box>
-        )}
         action={(
           <AssetGroupPopover
             assetGroup={assetGroup}
@@ -140,6 +174,21 @@ const AssetGroupDetail = () => {
             }}
             onDelete={() => navigate(ASSET_GROUP_BASE_URL)}
           />
+        )}
+        stats={(
+          <>
+            <HeroStat icon={DevicesOtherOutlined} label={t('Assets')} value={memberCount} color={theme.palette.success.main} />
+            <HeroStat icon={Binoculars} label={t('Findings')} value={findingsTotal ?? '-'} color={theme.palette.primary.main} />
+            <HeroStat icon={TrackChangesOutlined} label={t('Injects played')} value={injectsTotal ?? '-'} color={theme.palette.warning.main} />
+            <HeroStat icon={TrackChangesOutlined} label={t('Expectations tested')} value={posture.loading ? '-' : posture.tested} />
+            <PostureScore
+              scope="asset-group"
+              success={posture.success}
+              failed={posture.failed}
+              breakdown={posture.breakdown}
+              loading={posture.loading}
+            />
+          </>
         )}
       />
 

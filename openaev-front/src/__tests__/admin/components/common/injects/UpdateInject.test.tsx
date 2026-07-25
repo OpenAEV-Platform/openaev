@@ -56,7 +56,7 @@ vi.mock('../../../../../components/common/Drawer', () => ({
 
 vi.mock('../../../../../admin/components/common/injects/form/InjectForm', () => ({ default: ({ disabled }: { disabled?: boolean }) => <div data-testid="inject-form" data-disabled={String(disabled ?? false)} /> }));
 
-vi.mock('../../../../../admin/components/payloads/PayloadComponent', () => ({ default: () => <div data-testid="payload-component" /> }));
+vi.mock('../../../../../admin/components/common/injects/InjectContractOverview', () => ({ default: () => <div data-testid="inject-contract-overview" /> }));
 
 vi.mock('../../../../../admin/components/common/injects/UpdateInjectLogicalChains', () => ({ default: () => <div data-testid="logical-chains" /> }));
 
@@ -127,7 +127,7 @@ describe('UpdateInject', () => {
     await waitFor(() => expect(mockDispatch).toHaveBeenCalled());
     expect(screen.getByTestId('drawer')).toBeDefined();
     expect(screen.queryByTestId('inject-form')).toBeNull();
-    expect(screen.queryByTestId('payload-component')).toBeNull();
+    expect(screen.queryByTestId('inject-contract-overview')).toBeNull();
     expect(screen.queryByTestId('logical-chains')).toBeNull();
   });
 

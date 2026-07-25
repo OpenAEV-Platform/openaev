@@ -17,6 +17,7 @@ import {
 } from '../../../../utils/api-types';
 import { type ContractType, type EnhancedContractElement } from '../../../../utils/api-types-custom';
 import InjectContentFieldComponent from '../../common/injects/form/InjectContentFieldComponent';
+import { CONNECTOR_NAME_KEYS } from './useConnectorInstance';
 
 interface Props {
   catalogConnectorSlug: string;
@@ -219,7 +220,7 @@ const ConnectorInstanceForm = ({
     }> = [];
 
     configurationFields.forEach((field, index) => {
-      if (['COLLECTOR_NAME', 'INJECTOR_NAME', 'EXECUTOR_NAME'].includes(field.configuration_key)) {
+      if (CONNECTOR_NAME_KEYS.includes(field.configuration_key)) {
         nameFieldIndex = index;
         return;
       }

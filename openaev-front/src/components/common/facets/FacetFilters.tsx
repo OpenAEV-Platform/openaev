@@ -135,8 +135,9 @@ interface FacetSidebarProps {
 }
 
 // The sticky faceted sidebar shell (mirrors the integrations marketplace
-// CatalogSidebar): a fixed-width sticky <aside> with a "Filters" header, a
-// "Clear all" action and one titled section of FacetRowItems per facet.
+// CatalogSidebar): a fixed-width sticky <aside> with a "Clear all" action
+// (shown only when filters are active) and one titled section of
+// FacetRowItems per facet.
 export const FacetSidebar = ({ sections, anyActive, onClearAll }: FacetSidebarProps) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -162,27 +163,18 @@ export const FacetSidebar = ({ sections, anyActive, onClearAll }: FacetSidebarPr
         backgroundColor: theme.palette.background.paper,
       }}
       >
-        <header style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-        >
-          <Typography
-            sx={{
-              fontFamily: theme.typography.h1.fontFamily,
-              fontWeight: 600,
-              fontSize: 15,
-            }}
+        {anyActive && (
+          <header style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+          }}
           >
-            {t('Filters')}
-          </Typography>
-          {anyActive && (
             <Button size="small" onClick={onClearAll}>
               {t('Clear all')}
             </Button>
-          )}
-        </header>
+          </header>
+        )}
         {sections.map((section, sectionIndex) => (
           <section
             key={section.id}

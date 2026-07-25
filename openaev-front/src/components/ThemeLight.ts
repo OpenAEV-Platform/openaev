@@ -650,6 +650,10 @@ const ThemeLight = (
         label: {
           'textTransform': 'lowercase',
           '&::first-letter': { textTransform: 'uppercase' },
+          // The label has overflow hidden: a line-height smaller than the font's
+          // ascent + descent clips glyphs at the bottom ("g", "p", ...). Chips
+          // vertically center their label, so 'normal' is always safe here.
+          'lineHeight': 'normal',
         },
       },
     },

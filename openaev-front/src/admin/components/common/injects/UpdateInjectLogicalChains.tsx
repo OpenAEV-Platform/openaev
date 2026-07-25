@@ -116,17 +116,13 @@ const UpdateInjectLogicalChains: FunctionComponent<Props> = ({ inject, handleClo
               injects={injects}
               isDisabled={isDisabled}
             />
+            {/* Plain footer matching the "Inject details" tab (no sticky bar / background band) */}
             <div style={{
-              position: 'sticky',
-              bottom: 0,
-              zIndex: 2,
               display: 'flex',
               justifyContent: 'flex-end',
               gap: theme.spacing(1),
-              padding: theme.spacing(1.5, 0),
               marginTop: theme.spacing(2),
-              backgroundColor: theme.palette.background.paper,
-              borderTop: `1px solid ${theme.palette.divider}`,
+              marginBottom: theme.spacing(2),
             }}
             >
               <Button
