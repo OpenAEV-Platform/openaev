@@ -116,11 +116,18 @@ const PaginationComponentV2 = <T extends object>({
       queryableHelpers.uriHelpers.updateUri();
     }
 
-    // Fetch data. Loading is cleared in finally so a rejected search (network
-    // or API error) never leaves callers stuck in a perpetual loading state.
+    // Fetch data. The stale flag (set by the effect cleanup when the search
+    // input changes or the component unmounts) ensures a superseded request
+    // can no longer overwrite the newer results or reset the page from old
+    // totals. Loading is cleared in finally so a rejected search (network or
+    // API error) never leaves callers stuck in a perpetual loading state.
+    let stale = false;
     setLoading?.(true);
     fetch(searchPaginationInput)
       .then((result: { data: Page<T> }) => {
+        if (stale) {
+          return;
+        }
         const { data } = result;
         setContent(data.content);
         queryableHelpers.paginationHelpers.handleChangeTotalElements(data.totalElements);
@@ -128,7 +135,14 @@ const PaginationComponentV2 = <T extends object>({
           queryableHelpers.paginationHelpers.handleChangePage(0);
         }
       })
-      .finally(() => setLoading?.(false));
+      .finally(() => {
+        if (!stale) {
+          setLoading?.(false);
+        }
+      });
+    return () => {
+      stale = true;
+    };
   }, [searchPaginationInput, reloadContentCount]);
 
   // Filters
