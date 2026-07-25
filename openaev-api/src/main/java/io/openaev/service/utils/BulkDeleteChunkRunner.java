@@ -16,8 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
  * TransactionTemplate} would silently skip tenant scoping.
  *
  * <p>Other chunked massive operations (e.g. {@link
- * io.openaev.rest.inject.service.ExpectationsDriftService} realignment) reuse this trampoline for
- * the same reasons.
+ * io.openaev.api.expectations.ExpectationsDriftService} realignment) reuse this trampoline for the
+ * same reasons.
  */
 @Component
 public class BulkDeleteChunkRunner {

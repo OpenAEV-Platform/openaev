@@ -1,4 +1,4 @@
-package io.openaev.rest.inject.service;
+package io.openaev.api.expectations;
 
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS;
 import static io.openaev.utils.mapper.InjectExpectationMapper.NODE_EXPECTATION_TYPE;
@@ -7,13 +7,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
+import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.context.BulkOperationContext;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.inject.output.ExpectationsDriftOutput;
-import io.openaev.rest.inject.output.ExpectationsRealignOutput;
 import io.openaev.service.utils.BulkDeleteChunkRunner;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
