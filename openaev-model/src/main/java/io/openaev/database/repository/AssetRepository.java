@@ -101,7 +101,14 @@ public interface AssetRepository
               + ") "
               + "SELECT a.asset_id, a.asset_type, a.asset_category, a.asset_name, a.asset_external_reference, "
               + "a.asset_ips, a.asset_hostname, a.endpoint_platform, a.endpoint_arch, "
-              + "a.asset_mac_addresses, a.asset_seen_ip, a.asset_created_at, a.asset_updated_at, a.endpoint_is_eol, a.asset_description, a.tenant_id, "
+              + "a.asset_mac_addresses, a.asset_seen_ip, a.asset_created_at, a.asset_updated_at, "
+              // Host-only flag: the column has DEFAULT FALSE, so non-host rows carry false in SQL
+              // even though the attribute is meaningless for them. Project NULL instead, like the
+              // other host-only fields, so an is_eol filter never matches a web app or AI target.
+              + "CASE WHEN a.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' THEN a.endpoint_is_eol END AS endpoint_is_eol, "
+              + "a.asset_description, a.tenant_id, "
               + "ra.asset_sort as asset_indexed_at, "
               + "fa.asset_findings, ta.asset_tags, xa.asset_exercises, xa.asset_scenarios "
               + "FROM assets a "

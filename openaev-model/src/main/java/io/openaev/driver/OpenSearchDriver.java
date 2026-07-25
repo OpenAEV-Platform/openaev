@@ -432,7 +432,8 @@ public class OpenSearchDriver {
       try {
         cleanUpIndex(retiredIndex, openClient);
       } catch (IOException e) {
-        throw new AnalyticsEngineException("Error while cleanup of indexes with Opensearch - " + e);
+        throw new AnalyticsEngineException(
+            "Error while cleaning up retired index " + retiredIndex + " with Opensearch", e);
       }
     }
     List<EsModel<T>> models = this.searchEngine.getModels();
@@ -447,7 +448,8 @@ public class OpenSearchDriver {
         log.info("Creating Index {}", esModel.getName());
         setupIndex(openClient, esModel.getName(), ES_MODEL_VERSION, mappings);
       } catch (IOException e) {
-        throw new AnalyticsEngineException("Error while cleanup of indexes with Opensearch - " + e);
+        throw new AnalyticsEngineException(
+            "Error while setting up index " + esModel.getName() + " with Opensearch", e);
       }
     }
     return openClient;

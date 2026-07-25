@@ -80,12 +80,20 @@ class InjectorContractTest {
       return vulnerability;
     }
 
+    private static Domain domainWithId(String id) {
+      Domain domain = new Domain();
+      domain.setId(id);
+      domain.setName(id);
+      return domain;
+    }
+
     private static InjectorContract contractAtSentinel() {
       InjectorContract contract = new InjectorContract();
       contract.setTags(new HashSet<>(Set.of(tag("t1"), tag("t2"))));
       contract.setAttackPatterns(
           new ArrayList<>(List.of(attackPattern("a1"), attackPattern("a2"))));
       contract.setVulnerabilities(new HashSet<>(Set.of(vulnerability("v1"))));
+      contract.setDomains(new HashSet<>(Set.of(domainWithId("d1"))));
       contract.setUpdatedAt(SENTINEL);
       return contract;
     }
@@ -158,6 +166,28 @@ class InjectorContractTest {
       InjectorContract contract = contractAtSentinel();
 
       contract.setVulnerabilities(new HashSet<>(Set.of(vulnerability("v2"))));
+
+      assertThat(contract.getUpdatedAt()).isAfter(SENTINEL);
+    }
+
+    @Test
+    @DisplayName("setDomains with the same ids does not bump updatedAt")
+    void setDomains_same_ids_does_not_bump() {
+      InjectorContract contract = contractAtSentinel();
+
+      contract.setDomains(new HashSet<>(Set.of(domainWithId("d1"))));
+
+      assertThat(contract.getUpdatedAt()).isEqualTo(SENTINEL);
+    }
+
+    @Test
+    @DisplayName("setDomains with different ids bumps updatedAt")
+    void setDomains_different_ids_bumps() {
+      // A real domain change must be visible to updatedAt-driven logic (SSE restream, engine
+      // indexing cursor), exactly like the other association setters.
+      InjectorContract contract = contractAtSentinel();
+
+      contract.setDomains(new HashSet<>(Set.of(domainWithId("d2"))));
 
       assertThat(contract.getUpdatedAt()).isAfter(SENTINEL);
     }

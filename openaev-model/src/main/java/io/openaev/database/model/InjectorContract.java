@@ -429,9 +429,11 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   // are identical - pure churn on injectors_contracts_domains. Keep the stored collection when the
   // ids match (see setTags).
   public void setDomains(Set<Domain> domains) {
-    if (!Base.haveSameIds(this.domains, domains)) {
-      this.domains = domains;
+    if (Base.haveSameIds(this.domains, domains)) {
+      return;
     }
+    this.updatedAt = now();
+    this.domains = domains;
   }
 
   @Schema(implementation = String[].class)

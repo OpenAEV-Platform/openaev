@@ -52,9 +52,11 @@ public interface RawIndexedAsset extends RawAssetIndexing {
   /**
    * Returns whether the operating system has reached end-of-life, for host assets only.
    *
-   * @return {@code true} if the OS is end-of-life, {@code false} otherwise
+   * @return {@code true} if the OS is end-of-life, {@code false} otherwise, {@code null} for
+   *     non-host assets (the query projects NULL outside hosts so the DEFAULT FALSE of the SQL
+   *     column never leaks into the index)
    */
-  boolean getEndpoint_is_eol();
+  Boolean getEndpoint_is_eol();
 
   /**
    * Returns the set of exercise IDs this asset participates in.

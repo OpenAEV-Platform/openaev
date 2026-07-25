@@ -322,7 +322,8 @@ public class ElasticDriver {
       try {
         cleanUpIndex(retiredIndex, elasticClient);
       } catch (IOException e) {
-        throw new RuntimeException(e);
+        throw new RuntimeException(
+            "Error while cleaning up retired index " + retiredIndex + " with Elastic", e);
       }
     }
     List<EsModel<T>> models = this.searchEngine.getModels();
