@@ -448,6 +448,78 @@ class ExpectationApiTest extends IntegrationTest {
     }
 
     /**
+     * Regression test: signatures live in a dedicated table behind a LAZY collection since #5151.
+     * The collector polling endpoint must serialize them as a real array, not null, otherwise
+     * collectors (Defender, Sentinel, Tanium...) can never match any expectation.
+     */
+    @Test
+    @DisplayName("Serialize signatures for collector polling endpoint")
+    void getInjectExpectationsForSourceReturnsSignatures() throws Exception {
+      // -- PREPARE --
+      ExecutableInject executableInject = newExecutableInjectWithTargets(false);
+      List<Expectation> detectionExpectations =
+          createDetectionExpectations(
+              List.of(savedAgent1),
+              savedEndpoint,
+              savedAssetGroup,
+              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.buildAndSaveInjectExpectations(
+          executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
+
+      // Attach a signature to the agent expectation, as SignatureOutputProcessor does after the
+      // implant reports its execution traces.
+      BaseInjectExpectation agentExpectation =
+          injectExpectationRepository
+              .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
+              .getFirst();
+      agentExpectation
+          .getSignatures()
+          .add(
+              new InjectExpectationSignature(
+                  agentExpectation, "process_name", "obfuscated.exe", java.time.Instant.now()));
+      injectExpectationRepository.save(agentExpectation);
+      // Detach everything so the endpoint reloads entities with an UNINITIALIZED lazy signatures
+      // collection, exactly like a real collector poll on a fresh session.
+      em.flush();
+      em.clear();
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  get(INJECTS_EXPECTATIONS_URI + "/assets/" + savedCollector.getId())
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT: the agent expectation carries its signatures, and no expectation in the
+      // payload has null signatures or null results --
+      List<Map<String, Object>> expectations = JsonPath.read(response, "$");
+      assertTrue(expectations.size() >= 1);
+      for (Map<String, Object> expectation : expectations) {
+        Assertions.assertNotNull(
+            expectation.get("inject_expectation_signatures"),
+            "inject_expectation_signatures must never be serialized as null");
+        Assertions.assertNotNull(
+            expectation.get("inject_expectation_results"),
+            "inject_expectation_results must never be serialized as null");
+      }
+      List<Map<String, String>> signatures =
+          JsonPath.read(
+              response,
+              "$.[?(@.inject_expectation_agent == '"
+                  + savedAgent1.getId()
+                  + "')].inject_expectation_signatures[*]");
+      assertEquals(1, signatures.size());
+      assertEquals("process_name", signatures.getFirst().get("type"));
+      assertEquals("obfuscated.exe", signatures.getFirst().get("value"));
+    }
+
+    /**
      * Lists PREVENTION expectations for a source, then fills one expectation (agent2) so that the
      * second query returns only remaining unfilled (agent1).
      */

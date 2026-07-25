@@ -21,9 +21,8 @@ import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Fetch;
-import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
@@ -142,7 +141,11 @@ public class BaseInjectExpectation implements Base, Cloneable {
       cascade = CascadeType.ALL,
       orphanRemoval = true,
       fetch = FetchType.LAZY)
-  @Fetch(FetchMode.SUBSELECT)
+  // Batch fetching instead of @Fetch(SUBSELECT): the collector polling endpoints load up to 10k
+  // expectations with a NATIVE query (subselect fetching does not apply to those owners) and then
+  // initialize this collection for serialization. Batching keeps that to one IN-clause query per
+  // 1000 expectations instead of one query per expectation.
+  @BatchSize(size = 1000)
   @JsonProperty("inject_expectation_signatures")
   private List<InjectExpectationSignature> signatures = new ArrayList<>();
 
