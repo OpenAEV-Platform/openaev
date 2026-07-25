@@ -32,8 +32,8 @@ const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, 
   }
 
   const accent = theme.palette.warning.main;
-  const count = drift.drifted_inject_count ?? 0;
-  const total = drift.total_inject_count ?? 0;
+  const count = drift.drifted_inject_count;
+  const total = drift.total_inject_count;
 
   const detail = variant === 'atomic'
     ? t('The expectations of this atomic testing no longer match the validation requirements defined by its injector contract.')

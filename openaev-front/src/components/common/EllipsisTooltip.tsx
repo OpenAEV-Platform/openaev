@@ -1,5 +1,5 @@
 import { Tooltip } from '@mui/material';
-import { type CSSProperties, type FunctionComponent, type MouseEvent, useCallback, useState } from 'react';
+import { type CSSProperties, type FunctionComponent, type SyntheticEvent, useCallback, useState } from 'react';
 
 interface Props {
   children: string;
@@ -8,25 +8,30 @@ interface Props {
 
 /**
  * Single-line text that ellipses instead of wrapping, with a tooltip carrying
- * the full text - shown only when the text is actually truncated. The inner
- * span uses the `width: 0 / min-width: 100%` containment trick so the label
- * never widens intrinsically-sized containers (e.g. ATT&CK matrix columns):
- * it always ellipses to whatever width the rest of the content dictates.
+ * the full text - shown only when the text is actually truncated. Opens on
+ * hover and on keyboard focus (the span is focusable) so the full text stays
+ * reachable without a pointer. The inner span uses the `width: 0 / min-width:
+ * 100%` containment trick so the label never widens intrinsically-sized
+ * containers (e.g. ATT&CK matrix columns): it always ellipses to whatever
+ * width the rest of the content dictates.
  */
 const EllipsisTooltip: FunctionComponent<Props> = ({ children, style }) => {
   const [open, setOpen] = useState(false);
-  const onMouseEnter = useCallback((event: MouseEvent<HTMLElement>) => {
+  const openIfTruncated = useCallback((event: SyntheticEvent<HTMLElement>) => {
     const element = event.currentTarget;
     if (element.scrollWidth > element.clientWidth) {
       setOpen(true);
     }
   }, []);
-  const onMouseLeave = useCallback(() => setOpen(false), []);
+  const close = useCallback(() => setOpen(false), []);
   return (
     <Tooltip title={children} open={open} disableInteractive>
       <span
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
+        tabIndex={0}
+        onMouseEnter={openIfTruncated}
+        onMouseLeave={close}
+        onFocus={openIfTruncated}
+        onBlur={close}
         style={{
           display: 'block',
           width: 0,

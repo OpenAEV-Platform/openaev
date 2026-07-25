@@ -13,12 +13,18 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * the inject inherited them, so the user can decide whether to realign.
  */
 public record ExpectationsDriftOutput(
-    @Schema(description = "True when at least one inject drifted from its contract expectations")
+    @Schema(
+            description = "True when at least one inject drifted from its contract expectations",
+            requiredMode = Schema.RequiredMode.REQUIRED)
         @JsonProperty("drift_detected")
         boolean driftDetected,
-    @Schema(description = "Number of injects whose expectations drifted from their contract")
+    @Schema(
+            description = "Number of injects whose expectations drifted from their contract",
+            requiredMode = Schema.RequiredMode.REQUIRED)
         @JsonProperty("drifted_inject_count")
         int driftedInjectCount,
-    @Schema(description = "Number of injects whose injector contract exposes expectations")
+    @Schema(
+            description = "Number of injects whose injector contract exposes expectations",
+            requiredMode = Schema.RequiredMode.REQUIRED)
         @JsonProperty("total_inject_count")
         int totalInjectCount) {}
