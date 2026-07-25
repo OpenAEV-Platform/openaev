@@ -4600,6 +4600,29 @@ export interface ExpectationUpdateInput {
   source_type: string;
 }
 
+export interface ExpectationsDriftOutput {
+  /** True when at least one inject drifted from its contract expectations */
+  drift_detected: boolean;
+  /**
+   * Number of injects whose expectations drifted from their contract
+   * @format int32
+   */
+  drifted_inject_count: number;
+  /**
+   * Number of injects whose injector contract exposes expectations
+   * @format int32
+   */
+  total_inject_count: number;
+}
+
+export interface ExpectationsRealignOutput {
+  /**
+   * Number of injects whose expectations were realigned onto their contract
+   * @format int32
+   */
+  realigned_inject_count: number;
+}
+
 export interface ExportMapperInput {
   export_mapper_name?: string;
   ids_to_export: string[];

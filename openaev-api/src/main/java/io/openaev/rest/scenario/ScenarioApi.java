@@ -11,6 +11,9 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.expectations.ExpectationsDriftService;
+import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
+import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.context.BulkOperationContext;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -84,6 +87,7 @@ public class ScenarioApi extends RestBehavior {
   private final WorkflowService workflowService;
   private final StepService stepService;
   private final PreviewFeatureService previewFeatureService;
+  private final ExpectationsDriftService expectationsDriftService;
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @Transactional
@@ -219,6 +223,47 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public List<HealthCheck> streamHealthChecks(@PathVariable @NotBlank final String scenarioId) {
     return scenarioService.runChecks(scenarioId);
+  }
+
+  @Operation(
+      summary = "Get the expectation drift report of a scenario",
+      description =
+          "Compares the predefined expectations of the injector contracts with the expectations"
+              + " stored inside the scenario injects")
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/expectations-drift",
+    TENANT_SCENARIO_URI + "/{scenarioId}/expectations-drift"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SCENARIO)
+  public ExpectationsDriftOutput scenarioExpectationsDrift(
+      @PathVariable @NotBlank final String scenarioId) {
+    return expectationsDriftService.scenarioDrift(scenarioId);
+  }
+
+  @Operation(
+      summary = "Realign the expectations of the scenario injects onto their contracts",
+      description =
+          "Overwrites the expectations of every drifted inject with the predefined expectations"
+              + " currently exposed by its injector contract, as a tracked massive operation")
+  // SUPPORTS (not REQUIRED) on purpose: the realignment runs chunk by chunk in the service's own
+  // short transactions, wrapped in a massive-operation scope (header progress indicator +
+  // per-entity stream event suppression) that must cover each commit-time flush.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/expectations-drift/realign",
+    TENANT_SCENARIO_URI + "/{scenarioId}/expectations-drift/realign"
+  })
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SCENARIO)
+  public ExpectationsRealignOutput realignScenarioExpectations(
+      @PathVariable @NotBlank final String scenarioId) {
+    return expectationsDriftService.realignScenario(scenarioId);
   }
 
   @PutMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})

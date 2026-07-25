@@ -5,6 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import type { AttackPatternHelper } from '../../../../../../actions/attack_patterns/attackpattern-helper';
 import type { KillChainPhaseHelper } from '../../../../../../actions/kill_chain_phases/killchainphase-helper';
+import EllipsisTooltip from '../../../../../../components/common/EllipsisTooltip';
 import { useHelper } from '../../../../../../store';
 import type { AttackPattern, KillChainPhase, StructuralHistogramWidget } from '../../../../../../utils/api-types';
 import { sortAttackPattern } from '../../../../../../utils/attack_patterns/attack_patterns';
@@ -147,7 +148,7 @@ const KillChainPhaseColumn: FunctionComponent<{
   return (
     <div>
       <Typography variant="h5" sx={titleStyle}>
-        {killChainPhase.phase_name}
+        <EllipsisTooltip>{killChainPhase.phase_name}</EllipsisTooltip>
       </Typography>
       <div className={classes.column}>
         {filteredStats.map(stat => (

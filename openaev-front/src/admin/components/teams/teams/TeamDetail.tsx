@@ -14,7 +14,7 @@ import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { fetchTeam, fetchTeamPlayers, searchTeams, updateTeamPlayers } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { DetailHero, Field, HeroStat, InformationGrid, SectionBlock, SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -255,8 +255,7 @@ const TeamDetail = () => {
           <Field label={t('Update date')}>{fldt(team.team_updated_at)}</Field>
         </InformationGrid>
 
-        <div>
-          <SectionLabel>{t('Persons')}</SectionLabel>
+        <SectionBlock title={t('Persons')}>
           <PaginationComponentV2
             fetch={fetchTeamPersons}
             searchPaginationInput={personsInput}
@@ -326,7 +325,7 @@ const TeamDetail = () => {
                 ))}
             {!personsLoading && persons.length === 0 && <Empty message={t('No player in this team.')} />}
           </List>
-        </div>
+        </SectionBlock>
 
         <SectionBlock title={t('Injects played')}>
           <InjectResultList

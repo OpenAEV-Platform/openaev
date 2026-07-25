@@ -7,15 +7,16 @@ import { useFormatter } from '../../../../../../components/i18n';
 import AssetGroupDialogAdding from '../../../../assets/asset_groups/AssetGroupDialogAdding';
 
 const useStyles = makeStyles()(theme => ({
+  icon: { minWidth: 30 },
   text: {
-    fontSize: theme.typography.h2.fontSize,
+    fontSize: 15,
     color: theme.palette.primary.main,
-    fontWeight: theme.typography.h2.fontWeight,
+    fontWeight: 500,
   },
   textError: {
-    fontSize: theme.typography.h2.fontSize,
+    fontSize: 15,
     color: theme.palette.error.main,
-    fontWeight: theme.typography.h2.fontWeight,
+    fontWeight: 500,
   },
 }));
 
@@ -50,8 +51,8 @@ const InjectAddAssetGroups: FunctionComponent<Props> = ({
         onClick={handleOpen}
         disabled={disabled}
       >
-        <ListItemIcon>
-          <ControlPointOutlined color={errorLabel ? 'error' : 'primary'} />
+        <ListItemIcon classes={{ root: classes.icon }}>
+          <ControlPointOutlined color={errorLabel ? 'error' : 'primary'} fontSize="small" />
         </ListItemIcon>
         <ListItemText
           primary={t('Modify asset groups')}

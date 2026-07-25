@@ -6,6 +6,7 @@ import { type FunctionComponent, useMemo } from 'react';
 import { type AttackPatternHelper } from '../../../../../actions/attack_patterns/attackpattern-helper';
 import { type InjectorContractHelper } from '../../../../../actions/injector_contracts/injector-contract-helper';
 import { type KillChainPhaseHelper } from '../../../../../actions/kill_chain_phases/killchainphase-helper';
+import EllipsisTooltip from '../../../../../components/common/EllipsisTooltip';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type AttackPattern, type KillChainPhase } from '../../../../../utils/api-types';
@@ -149,7 +150,7 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
                 lineHeight: 1.3,
               }}
               >
-                {phase.phase_name}
+                <EllipsisTooltip>{phase.phase_name}</EllipsisTooltip>
               </Typography>
               <Typography sx={{
                 fontSize: 10.5,

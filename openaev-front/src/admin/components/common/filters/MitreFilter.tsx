@@ -6,6 +6,7 @@ import { type AttackPatternHelper } from '../../../../actions/attack_patterns/at
 import { type InjectorContractHelper } from '../../../../actions/injector_contracts/injector-contract-helper';
 import { fetchInjectorsContracts } from '../../../../actions/InjectorContracts';
 import { type KillChainPhaseHelper } from '../../../../actions/kill_chain_phases/killchainphase-helper';
+import EllipsisTooltip from '../../../../components/common/EllipsisTooltip';
 import { type FilterHelpers } from '../../../../components/common/queryable/filter/FilterHelpers';
 import { buildEmptyFilter } from '../../../../components/common/queryable/filter/FilterUtils';
 import { useFormatter } from '../../../../components/i18n';
@@ -70,7 +71,7 @@ const PhaseColumn: FunctionComponent<PhaseColumnProps> = ({
           lineHeight: 1.3,
         }}
         >
-          {killChainPhase.phase_name}
+          <EllipsisTooltip>{killChainPhase.phase_name}</EllipsisTooltip>
         </Typography>
         <Typography sx={{
           fontSize: 10.5,

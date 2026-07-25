@@ -130,3 +130,15 @@ export const searchExerciseHealthchecks = (exerciseId: Exercise['exercise_id']) 
   const uri = `/api/exercises/${exerciseId}/healthchecks`;
   return simpleCall(uri);
 };
+
+// -- EXPECTATIONS DRIFT --
+
+export const fetchExerciseExpectationsDrift = (exerciseId: Exercise['exercise_id']) => {
+  const uri = `/api/exercises/${exerciseId}/expectations-drift`;
+  return simpleCall(uri);
+};
+
+export const realignExerciseExpectations = (exerciseId: Exercise['exercise_id']) => {
+  const uri = `/api/exercises/${exerciseId}/expectations-drift/realign`;
+  return simplePostCall(uri);
+};

@@ -24,6 +24,7 @@ const useStyles = makeStyles()(theme => ({
     overflow: 'hidden',
     fontSize: theme.typography.h3.fontSize,
   },
+  icon: { minWidth: 30 },
   text: {
     fontSize: 15,
     color: theme.palette.primary.main,
@@ -135,8 +136,8 @@ const InjectArticlesList = ({ allArticles = [], readOnly = false }: Props) => {
           color="primary"
           disabled={readOnly}
         >
-          <ListItemIcon color="primary">
-            <ControlPointOutlined color="primary" />
+          <ListItemIcon color="primary" classes={{ root: classes.icon }}>
+            <ControlPointOutlined color="primary" fontSize="small" />
           </ListItemIcon>
           <ListItemText
             primary={t('Add media pressure')}

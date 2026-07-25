@@ -5,6 +5,9 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.expectations.ExpectationsDriftService;
+import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
+import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.api.expectations.dto.InjectExpectationOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
@@ -46,6 +49,7 @@ public class AtomicTestingApi extends RestBehavior {
   private final InjectExpectationService injectExpectationService;
   private final CollectorService collectorsService;
   private final InjectImportService injectImportService;
+  private final ExpectationsDriftService expectationsDriftService;
 
   @LogExecutionTime
   @PostMapping("/search")
@@ -133,6 +137,40 @@ public class AtomicTestingApi extends RestBehavior {
   public InjectResultOverviewOutput duplicateAtomicTesting(
       @PathVariable @NotBlank final String atomicTestingId) {
     return atomicTestingService.duplicate(atomicTestingId);
+  }
+
+  @Operation(
+      summary = "Get the expectation drift report of an atomic testing",
+      description =
+          "Compares the predefined expectations of the injector contract with the expectations"
+              + " stored inside the atomic testing")
+  @GetMapping("/{injectId}/expectations-drift")
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
+  public ExpectationsDriftOutput atomicTestingExpectationsDrift(
+      @PathVariable @NotBlank final String injectId) {
+    return expectationsDriftService.injectDrift(injectId);
+  }
+
+  @Operation(
+      summary = "Realign the expectations of an atomic testing onto its contract",
+      description =
+          "Overwrites the expectations of the atomic testing with the predefined expectations"
+              + " currently exposed by its injector contract")
+  // SUPPORTS (not REQUIRED) on purpose: the realignment runs in the service's own short
+  // transactions, wrapped in a massive-operation scope that must cover the commit-time flush.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @PostMapping("/{injectId}/expectations-drift/realign")
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.INJECT)
+  public ExpectationsRealignOutput realignAtomicTestingExpectations(
+      @PathVariable @NotBlank final String injectId) {
+    return expectationsDriftService.realignInject(injectId);
   }
 
   @PostMapping("/{atomicTestingId}/launch")
