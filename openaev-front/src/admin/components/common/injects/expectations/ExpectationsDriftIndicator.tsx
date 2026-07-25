@@ -48,6 +48,9 @@ const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, 
       await onRealign();
       MESSAGING$.notifySuccess(t('Expectations successfully realigned'));
       setAnchorEl(null);
+    } catch {
+      // The API layer already notified the user (simplePostCall rethrows after
+      // notifying); swallow the rejection and keep the popover open for retry.
     } finally {
       setRealigning(false);
     }

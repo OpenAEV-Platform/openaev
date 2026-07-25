@@ -135,6 +135,11 @@ const PaginationComponentV2 = <T extends object>({
           queryableHelpers.paginationHelpers.handleChangePage(0);
         }
       })
+      .catch(() => {
+        // The API layer (simpleCall/simplePostCall) already notified the user
+        // and rethrows; swallow the rejection so it does not surface as an
+        // unhandled promise rejection.
+      })
       .finally(() => {
         if (!stale) {
           setLoading?.(false);
