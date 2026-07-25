@@ -287,7 +287,18 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   // Expectation drift between the injector contract templates and the inject
   // content - recomputed when the simulation or its inject set changes.
   useEffect(() => {
-    fetchExerciseExpectationsDrift(exerciseId).then((result: { data: ExpectationsDriftOutput }) => setExpectationsDrift(result.data));
+    // The header survives simulation switches (no remount): a stale response from
+    // the previous simulation must not overwrite the current one. simpleCall has
+    // already notified the user on failure, hence the deliberately empty catch.
+    let stale = false;
+    fetchExerciseExpectationsDrift(exerciseId)
+      .then((result: { data: ExpectationsDriftOutput }) => {
+        if (!stale) setExpectationsDrift(result.data);
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
   }, [exerciseId, exercise, injects?.length]);
 
   const onRealignExpectations = async () => {

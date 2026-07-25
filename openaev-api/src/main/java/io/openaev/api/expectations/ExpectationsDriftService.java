@@ -21,7 +21,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -80,6 +82,7 @@ public class ExpectationsDriftService {
   }
 
   private ExpectationsDriftOutput computeDrift(Collection<Inject> injects) {
+    Map<String, List<String>> contractSignatureCache = new HashMap<>();
     int total = 0;
     int drifted = 0;
     for (Inject inject : injects) {
@@ -87,7 +90,7 @@ public class ExpectationsDriftService {
         continue;
       }
       total++;
-      if (hasDrift(inject)) {
+      if (hasDrift(inject, contractSignatureCache)) {
         drifted++;
       }
     }
@@ -99,6 +102,16 @@ public class ExpectationsDriftService {
    * currently exposed by its injector contract.
    */
   public boolean hasDrift(Inject inject) {
+    return hasDrift(inject, new HashMap<>());
+  }
+
+  /**
+   * Cached variant for whole-scope walks: injects of a scenario or simulation massively share
+   * contracts, and the contract-side signatures only depend on the contract, so re-parsing the
+   * contract content per inject would be pure redundant work. The cache is scoped to one request:
+   * contract content cannot change mid-walk.
+   */
+  private boolean hasDrift(Inject inject, Map<String, List<String>> contractSignatureCache) {
     InjectorContract contract = inject.getInjectorContract().orElse(null);
     if (contract == null
         || !injectorContractContentUtils.hasField(
@@ -111,7 +124,10 @@ public class ExpectationsDriftService {
       // dynamically at execution time, so it always follows the current template.
       return false;
     }
-    return !contractExpectationSignatures(contract).equals(injectSignatures);
+    List<String> contractSignatures =
+        contractSignatureCache.computeIfAbsent(
+            contract.getId(), id -> contractExpectationSignatures(contract));
+    return !contractSignatures.equals(injectSignatures);
   }
 
   private boolean hasExpectationsContract(Inject inject) {
@@ -193,7 +209,9 @@ public class ExpectationsDriftService {
    * while the whole operation is tracked as a massive operation with aggregated progress events.
    */
   private ExpectationsRealignOutput realign(List<Inject> injects) {
-    List<Inject> drifted = injects.stream().filter(this::hasDrift).toList();
+    Map<String, List<String>> contractSignatureCache = new HashMap<>();
+    List<Inject> drifted =
+        injects.stream().filter(inject -> hasDrift(inject, contractSignatureCache)).toList();
     if (drifted.isEmpty()) {
       return new ExpectationsRealignOutput(0);
     }

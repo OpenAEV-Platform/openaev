@@ -72,7 +72,10 @@ const OrganizationDetailContent = () => {
 
   const [organization, setOrganization] = useState<Organization | null>(null);
   useEffect(() => {
-    fetchOrganization(organizationId).then(response => setOrganization(response.data as Organization));
+    // simpleCall has already notified the user on failure, hence the empty catch.
+    fetchOrganization(organizationId)
+      .then(response => setOrganization(response.data as Organization))
+      .catch(() => {});
   }, [organizationId]);
 
   const { usersMap, tagsMap, teamsMap } = useHelper((helper: UserHelper & TagHelper & TeamsHelper) => ({

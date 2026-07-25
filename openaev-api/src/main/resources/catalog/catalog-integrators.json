@@ -1859,7 +1859,7 @@
                         "writeOnly": true
                     },
                     "SPLUNKES_ALERTS_INDEX": {
-                        "default": "main",
+                        "default": "_notable",
                         "description": "Index to search for alerts (default: _notable).",
                         "type": "string"
                     },
@@ -2692,7 +2692,7 @@
                         "type": "string"
                     },
                     "INJECTOR_LOG_LEVEL": {
-                        "default": "info",
+                        "default": "error",
                         "description": "Determines the verbosity of the logs.",
                         "enum": [
                             "debug",

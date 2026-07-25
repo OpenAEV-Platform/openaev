@@ -173,7 +173,18 @@ const ScenarioHeader = ({
   // Expectation drift between the injector contract templates and the inject
   // content - recomputed when the scenario or its inject set changes.
   useEffect(() => {
-    fetchScenarioExpectationsDrift(scenarioId).then((result: { data: ExpectationsDriftOutput }) => setExpectationsDrift(result.data));
+    // The header survives scenario switches (no remount): a stale response from
+    // the previous scenario must not overwrite the current one. simpleCall has
+    // already notified the user on failure, hence the deliberately empty catch.
+    let stale = false;
+    fetchScenarioExpectationsDrift(scenarioId)
+      .then((result: { data: ExpectationsDriftOutput }) => {
+        if (!stale) setExpectationsDrift(result.data);
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
   }, [scenarioId, scenario, injectsCount]);
 
   const onRealignExpectations = async () => {

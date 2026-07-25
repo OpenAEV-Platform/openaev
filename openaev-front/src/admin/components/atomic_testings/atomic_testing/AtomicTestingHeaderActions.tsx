@@ -45,7 +45,18 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
   // Expectation drift between the injector contract template and the inject
   // content - recomputed when the atomic testing is updated.
   useEffect(() => {
-    fetchAtomicTestingExpectationsDrift(injectResultOverview.inject_id).then((result: { data: ExpectationsDriftOutput }) => setExpectationsDrift(result.data));
+    // A stale response from a previous atomic testing must not overwrite the
+    // current one. simpleCall has already notified the user on failure, hence
+    // the deliberately empty catch.
+    let stale = false;
+    fetchAtomicTestingExpectationsDrift(injectResultOverview.inject_id)
+      .then((result: { data: ExpectationsDriftOutput }) => {
+        if (!stale) setExpectationsDrift(result.data);
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
   }, [injectResultOverview.inject_id, injectResultOverview.inject_updated_at]);
 
   const onRealignExpectations = async () => {
