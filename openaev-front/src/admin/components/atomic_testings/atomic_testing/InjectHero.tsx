@@ -71,11 +71,13 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
       return null;
     }
     let sentence = cronObject.toTranslatableStringArray(locale).map(element => t(element)).join(' ');
+    // Open-ended schedules are legal (null start fires immediately, null end never expires):
+    // omit the fragment instead of rendering "from None" via fld(undefined).
+    if (injectResultOverview.inject_recurrence_start) {
+      sentence += ` ${t(injectResultOverview.inject_recurrence_end ? 'recurrence_from' : 'recurrence_starting_from')} ${fld(injectResultOverview.inject_recurrence_start)}`;
+    }
     if (injectResultOverview.inject_recurrence_end) {
-      sentence += ` ${t('recurrence_from')} ${fld(injectResultOverview.inject_recurrence_start)}`;
       sentence += ` ${t('recurrence_to')} ${fld(injectResultOverview.inject_recurrence_end)}`;
-    } else {
-      sentence += ` ${t('recurrence_starting_from')} ${fld(injectResultOverview.inject_recurrence_start)}`;
     }
     return sentence;
   }, [injectResultOverview.inject_recurrence, injectResultOverview.inject_recurrence_start, injectResultOverview.inject_recurrence_end, locale]);
