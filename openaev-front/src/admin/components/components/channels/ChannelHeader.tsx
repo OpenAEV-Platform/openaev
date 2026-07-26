@@ -5,18 +5,12 @@ import { useParams } from 'react-router';
 import { type ChannelsHelper } from '../../../../actions/channels/channel-helper';
 import { DetailHero } from '../../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../../components/i18n';
+import ChannelColor from '../../../../public/components/channels/ChannelColor';
 import { useHelper } from '../../../../store';
 import { type Channel } from '../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ChannelIcon from './ChannelIcon';
 import ChannelPopover from './ChannelPopover';
-
-// Brand accents per channel type, aligned with ChannelIcon's palette.
-const TYPE_COLORS: Record<string, string> = {
-  newspaper: '#3f51b5',
-  microblogging: '#00bcd4',
-  tv: '#ff9800',
-};
 
 // Channel detail header, aligned on the shared DetailHero used by every other
 // entity detail page (same icon box, title style and kebab sizing).
@@ -28,7 +22,10 @@ const ChannelHeader = () => {
 
   const mode = theme.palette.mode;
   const hasLogo = mode === 'dark' ? channel.channel_logo_dark : channel.channel_logo_light;
-  const typeColor = TYPE_COLORS[channel.channel_type ?? ''] ?? theme.palette.primary.main;
+  // Brand accent per channel type, from the shared ChannelColor palette (single
+  // source of truth also backing the public channel pages); a channel without a
+  // type falls back to the theme accent.
+  const typeColor = channel.channel_type ? ChannelColor(channel.channel_type) : theme.palette.primary.main;
 
   return (
     <DetailHero

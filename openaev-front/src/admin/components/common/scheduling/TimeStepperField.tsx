@@ -2,16 +2,18 @@ import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { IconButton, InputBase, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
-// A single numeric column (hours, minutes or interval) with up/down steppers
-// and a directly editable value. Values wrap around on stepping.
-const StepperColumn = ({ value, onChange, max, min = 0, step = 1, ariaLabel }: {
+interface StepperColumnProps {
   value: number;
   onChange: (value: number) => void;
   max: number;
   min?: number;
   step?: number;
   ariaLabel: string;
-}) => {
+}
+
+// A single numeric column (hours, minutes or interval) with up/down steppers
+// and a directly editable value. Values wrap around on stepping.
+const StepperColumn = ({ value, onChange, max, min = 0, step = 1, ariaLabel }: StepperColumnProps) => {
   const range = max - min + 1;
   const stepBy = (delta: number) => onChange(((value - min + delta * step) % range + range) % range + min);
   const pad = (n: number) => String(n).padStart(2, '0');
