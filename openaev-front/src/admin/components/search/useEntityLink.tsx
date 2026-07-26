@@ -11,8 +11,9 @@ import {
 
 // Maps a search result class to its canonical overview page: every searchable
 // entity now has a dedicated overview, so results must never land on a list
-// page with an edit drawer.
-const useEntityLink = (entity: string, id: string) => {
+// page with an edit drawer. Returns null for unsupported classes so callers
+// can render a non-navigable row instead of a dead link.
+const useEntityLink = (entity: string, id: string): string | null => {
   switch (entity) {
     case 'Asset':
       return `${ASSET_BASE_URL}/${id}`;
@@ -31,7 +32,7 @@ const useEntityLink = (entity: string, id: string) => {
     case 'Exercise':
       return `${SIMULATION_BASE_URL}/${id}`;
     default:
-      return ('');
+      return null;
   }
 };
 

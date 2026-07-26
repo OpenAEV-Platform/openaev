@@ -13,6 +13,7 @@ import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -73,9 +74,11 @@ public class NotificationService {
    */
   @Transactional
   public List<String> bulkDelete(@NotNull final NotificationBulkProcessingInput input) {
-    List<Notification> scope = resolveBulkScope(input);
-    notificationRepository.deleteAll(scope);
-    return scope.stream().map(Notification::getId).toList();
+    List<String> ids = resolveBulkScope(input).stream().map(Notification::getId).toList();
+    // Single bulk DELETE statements (chunked to keep the IN clause bounded)
+    // instead of one DELETE per entity.
+    chunked(ids).forEach(notificationRepository::deleteAllByIdIn);
+    return ids;
   }
 
   /**
@@ -87,11 +90,22 @@ public class NotificationService {
   @Transactional
   public List<String> bulkMarkRead(
       @NotNull final NotificationBulkProcessingInput input, final boolean read) {
-    List<Notification> scope = resolveBulkScope(input);
-    // Entities are managed within this transaction: dirty checking flushes the
-    // read flag on commit, no explicit saveAll needed.
-    scope.forEach(notification -> notification.setRead(read));
-    return scope.stream().map(Notification::getId).toList();
+    List<String> ids = resolveBulkScope(input).stream().map(Notification::getId).toList();
+    // Single bulk UPDATE statements (chunked to keep the IN clause bounded)
+    // instead of one UPDATE per entity.
+    chunked(ids).forEach(chunk -> notificationRepository.setReadByIdIn(chunk, read));
+    return ids;
+  }
+
+  private static final int BULK_CHUNK_SIZE = 1000;
+
+  /** Splits an id list into bounded chunks for IN-clause based bulk statements. */
+  private static List<List<String>> chunked(final List<String> ids) {
+    List<List<String>> chunks = new ArrayList<>();
+    for (int i = 0; i < ids.size(); i += BULK_CHUNK_SIZE) {
+      chunks.add(ids.subList(i, Math.min(i + BULK_CHUNK_SIZE, ids.size())));
+    }
+    return chunks;
   }
 
   /**

@@ -98,6 +98,10 @@ const PaginationComponentV2 = <T extends object>({
   const [properties, setProperties] = useState<PropertySchemaDTO[]>([]);
   const [options, setOptions] = useState<OptionPropertySchema[]>([]);
 
+  // Stable key for the names array (callers pass literals, so identity changes
+  // every render): refetch the schemas when the actual content changes.
+  const availableFilterNamesKey = availableFilterNames.join(',');
+
   useEffect(() => {
     // ES-backed lists resolve their filterable properties from the engine
     // schema (the JPA schema may not expose ES-only computed fields such as
@@ -125,7 +129,7 @@ const PaginationComponentV2 = <T extends object>({
       setOptions(newOptions);
       setProperties(propertySchemas);
     });
-  }, [entityPrefix, engineEntityName]);
+  }, [entityPrefix, engineEntityName, availableFilterNamesKey]);
 
   useEffect(() => {
     // Modify URI

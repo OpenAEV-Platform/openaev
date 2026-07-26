@@ -34,8 +34,7 @@ import useBodyItemsStyles from '../../../../components/common/queryable/style/st
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../components/i18n';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import { type NotificationOutput, type SearchPaginationInput } from '../../../../utils/api-types';
-import { type NotificationBulkProcessingInput } from '../../../../utils/api-types-custom';
+import { type NotificationBulkProcessingInput, type NotificationOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import ToolBar from '../../common/ToolBar';
 import DigestNotificationDialog from './DigestNotificationDialog';

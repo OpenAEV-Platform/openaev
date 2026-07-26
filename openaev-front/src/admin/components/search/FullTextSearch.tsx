@@ -336,12 +336,17 @@ const FullTextSearch = () => {
                         key={element.id}
                         divider
                         disablePadding
-                        secondaryAction={<KeyboardArrowRight color="action" />}
+                        secondaryAction={to ? <KeyboardArrowRight color="action" /> : <>&nbsp;</>}
                       >
                         <ListItemButton
-                          component={Link}
-                          to={to}
                           style={{ height: 50 }}
+                          {...(to
+                            ? {
+                                component: Link,
+                                to,
+                              }
+                            : {})}
+                          sx={to ? undefined : { cursor: 'default' }}
                         >
                           <ListItemIcon>
                             {useEntityIcon(element.clazz)}

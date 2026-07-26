@@ -1,6 +1,5 @@
 import { simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import type { SearchPaginationInput } from '../../utils/api-types';
-import type { NotificationBulkProcessingInput } from '../../utils/api-types-custom';
+import type { NotificationBulkProcessingInput, SearchPaginationInput } from '../../utils/api-types';
 
 const NOTIFICATION_URI = '/api/notifications';
 
