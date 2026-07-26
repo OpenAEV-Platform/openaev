@@ -203,4 +203,9 @@ public class InjectSpecification {
   public static Specification<Inject> recurrenceStopDateBefore(@NotNull final Instant stopDate) {
     return (root, query, cb) -> cb.lessThanOrEqualTo(root.get("recurrenceEnd"), stopDate);
   }
+
+  /** Matches recurrences bounded by an end date (only those can ever become outdated). */
+  public static Specification<Inject> hasRecurrenceEnd() {
+    return (root, query, cb) -> cb.isNotNull(root.get("recurrenceEnd"));
+  }
 }

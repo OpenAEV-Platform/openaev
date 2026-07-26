@@ -277,11 +277,17 @@ public class AtomicTestingService {
             .and(InjectSpecification.recurrenceStopDateAfter(instant)));
   }
 
-  /** Atomic testing is recurring AND start date is before now OR stop date is before now. */
+  /**
+   * Atomic testing is recurring, bounded by an end date, AND started or already ended. Only
+   * end-bounded recurrences can ever become outdated (the job's outdated check returns false for a
+   * null end date), so unbounded ones are filtered out in SQL instead of being scanned every
+   * minute.
+   */
   public List<Inject> potentialOutdatedRecurringAtomicTestings(@NotNull final Instant instant) {
     return injectRepository.findAll(
         InjectSpecification.isAtomicTesting()
             .and(InjectSpecification.isRecurring())
+            .and(InjectSpecification.hasRecurrenceEnd())
             .and(
                 InjectSpecification.recurrenceStartDateBefore(instant)
                     .or(InjectSpecification.recurrenceStopDateBefore(instant))));
