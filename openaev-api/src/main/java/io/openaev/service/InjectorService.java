@@ -474,7 +474,36 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
           staticContracts);
     }
 
+    // A payload injector (e.g. the OpenAEV implant) has no static contracts to merge by id: its
+    // contracts are payload-driven and created on the fly. Starter-pack imports on a fresh platform
+    // run before this injector exists, so their payload contracts are persisted with a payload but
+    // no injector link. Adopt those orphans here so they stop showing a question mark / "no payload
+    // attached" and become executable.
+    if (Boolean.TRUE.equals(isPayloads)) {
+      adoptOrphanPayloadContracts(id, tenantId);
+    }
+
     log.info("Successfully registered injector '{}' (type: {})", name, contractor.getType());
+  }
+
+  /**
+   * Links payload-bearing contracts that are not attached to any injector to this payload injector.
+   * Idempotent: contracts already linked to an injector are skipped by the query, and the link
+   * insert is {@code ON CONFLICT DO NOTHING}.
+   */
+  private void adoptOrphanPayloadContracts(String injectorId, String tenantId) {
+    List<String> orphanContractIds =
+        injectorContractRepository.findContractIdsWithPayloadAndNoInjector(tenantId);
+    if (orphanContractIds.isEmpty()) {
+      return;
+    }
+    for (String contractId : orphanContractIds) {
+      injectorRepository.linkContract(injectorId, contractId, tenantId);
+    }
+    log.info(
+        "Adopted {} orphan payload contract(s) into injector '{}'",
+        orphanContractIds.size(),
+        injectorId);
   }
 
   private void uploadInjectorIcon(Contractor contractor) {

@@ -162,6 +162,34 @@ public interface InjectorContractRepository
           + "FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.payload IS NOT NULL")
   boolean existsByIdAndPayloadIsNotNull(@Param("id") String id);
 
+  /**
+   * Returns the ids of payload-bearing contracts that are not linked to any injector, scoped to a
+   * tenant. Starter-pack imports create such orphan contracts before any payload-supporting
+   * injector is registered (fresh platform); the payload injector adopts them on registration.
+   */
+  @Query(
+      "SELECT ic.compositeId.id FROM InjectorContract ic "
+          + "WHERE ic.compositeId.tenantId = :tenantId "
+          + "AND ic.payload IS NOT NULL "
+          + "AND ic.injectorLinks IS EMPTY")
+  List<String> findContractIdsWithPayloadAndNoInjector(@Param("tenantId") String tenantId);
+
+  /**
+   * Returns the non-custom contracts that have neither a payload nor any injector link, scoped to a
+   * tenant. A (now fixed) regression in the starter-pack import persisted payload contracts without
+   * their payload reference on fresh platforms; those broken contracts are repaired by the {@code
+   * V20260725_Fix_starter_pack_payload_contracts} runtime migration. Static injector contracts
+   * imported before their injector registers (e.g. nmap/nuclei) also match this query; the
+   * migration leaves them untouched because no orphan payload exists for them.
+   */
+  @Query(
+      "SELECT ic FROM InjectorContract ic "
+          + "WHERE ic.compositeId.tenantId = :tenantId "
+          + "AND ic.payload IS NULL "
+          + "AND (ic.custom IS NULL OR ic.custom = false) "
+          + "AND ic.injectorLinks IS EMPTY")
+  List<InjectorContract> findContractsWithoutPayloadAndInjector(@Param("tenantId") String tenantId);
+
   @Modifying
   @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id IN :ids")
   void deleteAllById(@Param("ids") @NotNull List<String> ids);

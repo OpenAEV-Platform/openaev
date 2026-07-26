@@ -17,6 +17,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.rest.atomic_testing.form.InjectRecurrenceInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -24,6 +25,7 @@ import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import net.javacrumbs.jsonunit.core.Option;
@@ -288,6 +290,73 @@ public class AtomicTestingApiTest extends IntegrationTest {
         .andExpect(status().is4xxClientError());
     mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + relaunchedInjectId).with(csrf()))
         .andExpect(status().is2xxSuccessful());
+  }
+
+  @Test
+  @DisplayName("Set, carry over on relaunch, then clear the recurrence of an Atomic Testing")
+  @WithMockUser(isAdmin = true)
+  void updateAtomicTestingRecurrence() throws Exception {
+    Inject atomicTesting =
+        getAtomicTestingWrapper(InjectStatusFixture.createQueuingInjectStatus(), null)
+            .persist()
+            .get();
+
+    // -- SET --
+    InjectRecurrenceInput input = new InjectRecurrenceInput();
+    input.setRecurrence("0 30 9 * * *");
+    input.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+    input.setRecurrenceEnd(Instant.parse("2030-02-01T00:00:00Z"));
+    mvc.perform(
+            put(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/recurrence")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.inject_recurrence").value("0 30 9 * * *"))
+        .andExpect(jsonPath("$.inject_recurrence_start").value("2030-01-01T00:00:00Z"))
+        .andExpect(jsonPath("$.inject_recurrence_end").value("2030-02-01T00:00:00Z"));
+
+    // -- RELAUNCH: the schedule follows the duplicated inject --
+    String relaunchedInject =
+        mvc.perform(
+                post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$.inject_recurrence").value("0 30 9 * * *"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String relaunchedInjectId = JsonPath.read(relaunchedInject, "$.inject_id");
+
+    // -- CLEAR --
+    mvc.perform(
+            put(ATOMIC_TESTINGS_URI + "/" + relaunchedInjectId + "/recurrence")
+                .content(asJsonString(new InjectRecurrenceInput()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.inject_recurrence").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("Scheduling is not Enterprise-gated even with an EE-only executor")
+  @WithMockUser(isAdmin = true)
+  void updateAtomicTestingRecurrenceWithEEExecutor() throws Exception {
+    Inject atomicTesting =
+        getAtomicTestingWrapper(
+                InjectStatusFixture.createQueuingInjectStatus(),
+                executorFixture.getCrowdstrikeExecutor())
+            .persist()
+            .get();
+
+    InjectRecurrenceInput input = new InjectRecurrenceInput();
+    input.setRecurrence("0 30 9 * * *");
+    mvc.perform(
+            put(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/recurrence")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.inject_recurrence").value("0 30 9 * * *"));
   }
 
   @Nested

@@ -1,17 +1,23 @@
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, Link, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Fragment, useContext } from 'react';
+import { Link as RouterLink } from 'react-router';
 
+import { type CollectorHelper } from '../../../../../actions/collectors/collector-helper';
 import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemSecurityPlatformType from '../../../../../components/ItemSecurityPlatformType';
+import { SECURITY_PLATFORM_BASE_URL } from '../../../../../constants/BaseUrls';
+import { useHelper } from '../../../../../store';
 import {
   type Inject,
   type InjectExpectationOutput,
   type InjectExpectationResult,
   type PayloadSimple,
 } from '../../../../../utils/api-types';
+import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
@@ -118,6 +124,26 @@ const InjectExpectationResultList = ({
 
   const { onOpenDeleteInjectExpectationResult, onOpenEditInjectExpectationResultResult, onOpenSecurityPlatform } = useContext(InjectExpectationContext);
 
+  const ability = useContext(AbilityContext);
+  const canPivotToSecurityPlatform = ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
+  const collectorsMap = useHelper((helper: CollectorHelper) => helper.getCollectorsMap());
+
+  // Resolves the security platform behind a result line so the platform name can
+  // pivot to its overview page: security-platform sources carry the platform id
+  // directly, collector sources go through the collector's associated platform.
+  const resolveSecurityPlatformId = (expectationResult: InjectExpectationResult): string | undefined => {
+    if (!expectationResult.sourceId) {
+      return undefined;
+    }
+    if (expectationResult.sourceType === 'security-platform') {
+      return expectationResult.sourceId;
+    }
+    if (expectationResult.sourceType === 'collector') {
+      return collectorsMap[expectationResult.sourceId]?.collector_security_platform?.asset_id;
+    }
+    return undefined;
+  };
+
   const getAvatar = (expectationResult: InjectExpectationResult) => {
     if (expectationResult.sourceType === 'collector' || expectationResult.sourceType === 'security-platform') {
       return (
@@ -211,6 +237,7 @@ const InjectExpectationResultList = ({
           const breakdownKey = expectationResult.sourceId ?? expectationResult.sourceName ?? '';
           const agentBreakdown = breakdownKey ? agentBreakdownBySource?.[breakdownKey] : undefined;
           const platformType = expectationResult.sourcePlatform?.trim();
+          const securityPlatformId = canPivotToSecurityPlatform ? resolveSecurityPlatformId(expectationResult) : undefined;
 
           return (
             <Fragment key={`${expectationResult.sourceName}-${index}`}>
@@ -246,17 +273,39 @@ const InjectExpectationResultList = ({
                   >
                     {getAvatar(expectationResult)}
                   </Box>
-                  <Typography
-                    sx={{
-                      fontSize: 13,
-                      minWidth: 0,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {sourceName}
-                  </Typography>
+                  {securityPlatformId
+                    ? (
+                        <Link
+                          component={RouterLink}
+                          to={`${SECURITY_PLATFORM_BASE_URL}/${securityPlatformId}`}
+                          underline="hover"
+                          onClick={e => e.stopPropagation()}
+                          sx={{
+                            'fontSize': 13,
+                            'minWidth': 0,
+                            'whiteSpace': 'nowrap',
+                            'overflow': 'hidden',
+                            'textOverflow': 'ellipsis',
+                            'color': 'text.primary',
+                            '&:hover': { color: 'primary.main' },
+                          }}
+                        >
+                          {sourceName}
+                        </Link>
+                      )
+                    : (
+                        <Typography
+                          sx={{
+                            fontSize: 13,
+                            minWidth: 0,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {sourceName}
+                        </Typography>
+                      )}
                   {agentBreakdown && agentBreakdown.length > 0 && (
                     <Tooltip
                       title={renderBreakdownTooltip(agentBreakdown)}

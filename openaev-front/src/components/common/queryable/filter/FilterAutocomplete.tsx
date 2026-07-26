@@ -25,6 +25,9 @@ interface Props {
   setPristine: (pristine: boolean) => void;
   style?: CSSProperties;
   domains?: boolean;
+  // Called on top of handleClearAllFilters when the clear button is pressed,
+  // so callers with an associated text search input can reset it too.
+  onClear?: () => void;
 }
 
 const FilterAutocomplete: FunctionComponent<Props> = ({
@@ -33,6 +36,7 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
   setPristine,
   style,
   domains,
+  onClear,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -47,6 +51,7 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
   const handleClearFilters = () => {
     setPristine(true);
     helpers.handleClearAllFilters();
+    onClear?.();
   };
 
   return (

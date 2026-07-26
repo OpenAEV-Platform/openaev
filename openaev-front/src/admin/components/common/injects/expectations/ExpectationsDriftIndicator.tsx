@@ -36,8 +36,8 @@ const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, 
   const total = drift.total_inject_count;
 
   const detail = variant === 'atomic'
-    ? t('The expectations of this atomic testing no longer match the validation requirements defined by its injector contract.')
-    : t('{count} of {total} injects use expectations that no longer match the validation requirements defined by their injector contracts.', {
+    ? t('The expectations of this atomic testing no longer match the validation requirements defined by its threat arsenal item.')
+    : t('{count} of {total} injects use expectations that no longer match the validation requirements defined by their threat arsenal items.', {
         count,
         total,
       });
@@ -75,7 +75,7 @@ const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, 
           },
         }}
       >
-        {t('Expectations drift')}
+        {t('Review expectations')}
       </Button>
       <Popover
         open={!!anchorEl}
@@ -157,7 +157,7 @@ const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, 
                 marginTop: 0.5,
               }}
             >
-              {t('If these expectations were not customized on purpose, realign them to apply the current contract templates.')}
+              {t('If these expectations were not customized on purpose, realign them to apply the current threat arsenal templates.')}
             </Typography>
           </Box>
         </Box>

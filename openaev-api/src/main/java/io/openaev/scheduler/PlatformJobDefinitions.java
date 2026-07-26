@@ -46,6 +46,14 @@ public class PlatformJobDefinitions {
   }
 
   @Bean
+  public JobDetail getAtomicTestingExecution() {
+    return JobBuilder.newJob(AtomicTestingExecutionJob.class)
+        .storeDurably()
+        .withIdentity(jobKey("AtomicTestingExecutionJob"))
+        .build();
+  }
+
+  @Bean
   public JobDetail managerIntegrationsSync() {
     return JobBuilder.newJob(ManagerIntegrationsSyncJob.class)
         .storeDurably()

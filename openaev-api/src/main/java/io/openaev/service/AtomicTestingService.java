@@ -26,6 +26,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Join;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -235,14 +236,59 @@ public class AtomicTestingService {
 
   @Transactional
   public InjectResultOverviewOutput relaunch(String id) {
+    return relaunch(id, true);
+  }
+
+  /**
+   * Relaunch an atomic testing (duplicate + queue new + delete old) and migrate its grants to the
+   * new inject. Scheduled relaunches pass {@code checkLaunchable = false} to skip the Enterprise
+   * executor gate.
+   */
+  @Transactional
+  public InjectResultOverviewOutput relaunch(String id, boolean checkLaunchable) {
     findInject(id);
     // Relaunching an atomic testing is considered as creating a new one.
     // Therefore, any grants created on the current atomic testing will have to be updated with the
     // new ID
-    InjectResultOverviewOutput relaunched = injectService.relaunch(id);
+    InjectResultOverviewOutput relaunched = injectService.relaunch(id, checkLaunchable);
     grantService.updateGrantsForNewResource(
         id, relaunched.getId(), Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING);
     return relaunched;
+  }
+
+  /** Bulk update used by the recurring atomic testing job to self-clear outdated recurrences. */
+  @Transactional
+  public List<Inject> updateInjects(@NotNull final List<Inject> injects) {
+    return fromIterable(this.injectRepository.saveAll(injects));
+  }
+
+  /** Atomic testing is recurring AND end date is after now (or has no end date). */
+  public List<Inject> recurringAtomicTestings(@NotNull final Instant instant) {
+    return injectRepository.findAll(
+        InjectSpecification.isAtomicTesting()
+            .and(InjectSpecification.isRecurring())
+            .and(InjectSpecification.recurrenceStopDateAfter(instant)));
+  }
+
+  /** Atomic testing is recurring AND start date is before now OR stop date is before now. */
+  public List<Inject> potentialOutdatedRecurringAtomicTestings(@NotNull final Instant instant) {
+    return injectRepository.findAll(
+        InjectSpecification.isAtomicTesting()
+            .and(InjectSpecification.isRecurring())
+            .and(
+                InjectSpecification.recurrenceStartDateBefore(instant)
+                    .or(InjectSpecification.recurrenceStopDateBefore(instant))));
+  }
+
+  @Transactional
+  public InjectResultOverviewOutput updateRecurrence(String injectId, InjectRecurrenceInput input) {
+    Inject inject = findInject(injectId);
+    // Scheduling is a Community Edition feature: no Enterprise licence gate here.
+    inject.setRecurrence(input.getRecurrence());
+    inject.setRecurrenceStart(input.getRecurrenceStart());
+    inject.setRecurrenceEnd(input.getRecurrenceEnd());
+    Inject saved = injectRepository.save(inject);
+    return injectMapper.toInjectResultOverviewOutput(saved);
   }
 
   // -- PAGINATION --

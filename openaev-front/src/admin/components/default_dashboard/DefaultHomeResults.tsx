@@ -14,7 +14,7 @@ import FilterAutocomplete, { type OptionPropertySchema } from '../../../componen
 import FilterChips from '../../../components/common/queryable/filter/FilterChips';
 import { availableOperators, buildFilter } from '../../../components/common/queryable/filter/FilterUtils';
 import TablePaginationComponentV2 from '../../../components/common/queryable/pagination/TablePaginationComponentV2';
-import { ROWS_PER_PAGE_OPTIONS } from '../../../components/common/queryable/pagination/usePaginationState';
+import { DEFAULT_ROWS_PER_PAGE } from '../../../components/common/queryable/pagination/usePaginationState';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
 import useBodyItemsStyles from '../../../components/common/queryable/style/style';
@@ -391,7 +391,7 @@ const DefaultHomeResults = () => {
       parameters: {},
       pagination: {
         page: 0,
-        size: ROWS_PER_PAGE_OPTIONS[0],
+        size: DEFAULT_ROWS_PER_PAGE,
       },
     }).then(({ data }) => {
       if (cancelled) return;

@@ -234,6 +234,10 @@ public final class FilterUtilsJpa {
       @NotNull final PropertySchema propertySchema) {
 
     FilterMode mode = Optional.ofNullable(filter.getMode()).orElse(FilterMode.or);
+    // Negative operators default to AND across values: "!= A or != B" is a tautology,
+    // the intent behind a multi-value negative filter is always "none of these"
+    // (NOT IN) — matching the ES engine's mustNot semantics.
+    FilterMode negativeMode = Optional.ofNullable(filter.getMode()).orElse(FilterMode.and);
     String joinRelation =
         propertySchema.getJoinTable() != null ? propertySchema.getJoinTable().getJoinOn() : null;
 
@@ -249,7 +253,8 @@ public final class FilterUtilsJpa {
                   ? containsTexts((Expression<String>) paths, cb, texts, type, mode)
                   : containsTextsOnJoinRelation(root, query, cb, joinRelation, "id", texts, mode);
       case not_starts_with ->
-          (paths, texts) -> notStartWithTexts((Expression<String>) paths, cb, texts, type);
+          (paths, texts) ->
+              notStartWithTexts((Expression<String>) paths, cb, texts, type, negativeMode);
       case starts_with ->
           (paths, texts) -> startWithTexts((Expression<String>) paths, cb, texts, type);
       case empty -> (paths, texts) -> empty((Expression<String>) paths, cb, type);
@@ -261,8 +266,9 @@ public final class FilterUtilsJpa {
       case not_eq ->
           (paths, texts) ->
               joinRelation == null
-                  ? notEqualsTexts((Expression<String>) paths, cb, texts, type)
-                  : notEqualsTextsOnJoinRelation(root, query, cb, joinRelation, "id", texts, mode);
+                  ? notEqualsTexts((Expression<String>) paths, cb, texts, type, negativeMode)
+                  : notEqualsTextsOnJoinRelation(
+                      root, query, cb, joinRelation, "id", texts, negativeMode);
       default ->
           (paths, texts) ->
               joinRelation == null

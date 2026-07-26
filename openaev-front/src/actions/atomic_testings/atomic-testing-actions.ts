@@ -1,7 +1,7 @@
 import { type Dispatch } from 'redux';
 
 import { getReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import { type AtomicTestingInput, type InjectBulkProcessingInput, type SearchPaginationInput } from '../../utils/api-types';
+import { type AtomicTestingInput, type InjectBulkProcessingInput, type InjectRecurrenceInput, type SearchPaginationInput } from '../../utils/api-types';
 import { MESSAGING$ } from '../../utils/Environment';
 import * as schema from '../Schema';
 
@@ -51,6 +51,11 @@ export const launchAtomicTesting = (injectId: string) => {
 export const relaunchAtomicTesting = (injectId: string) => {
   const uri = `${ATOMIC_TESTING_URI}/${injectId}/relaunch`;
   return simplePostCall(uri);
+};
+
+export const updateAtomicTestingRecurrence = (injectId: string, data: InjectRecurrenceInput) => {
+  const uri = `${ATOMIC_TESTING_URI}/${injectId}/recurrence`;
+  return simplePutCall(uri, data);
 };
 
 // -- EXPECTATIONS DRIFT --

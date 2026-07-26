@@ -1,15 +1,22 @@
 import { EventAvailableOutlined, LabelOutlined, RouteOutlined, ScheduleOutlined, TimerOutlined } from '@mui/icons-material';
-import { Box, Tooltip, Typography } from '@mui/material';
-import { type FunctionComponent, type ReactNode } from 'react';
+import { alpha, Box, Chip, Tooltip, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
+import { getInjectStatusWithGlobalExecutionTraces } from '../../../../actions/injects/inject-action';
 import { DetailHero } from '../../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../../components/i18n';
 import PlatformIcon from '../../../../components/PlatformIcon';
-import type { InjectResultOverviewOutput, InjectStatus as InjectStatusType } from '../../../../utils/api-types';
+import type { InjectResultOverviewOutput, InjectStatus as InjectStatusType, InjectStatusOutput } from '../../../../utils/api-types';
+import handle from '../../../../utils/period/Period';
 import { truncate } from '../../../../utils/String';
 import InjectIcon from '../../common/injects/InjectIcon';
 import InjectStatus from '../../common/injects/status/InjectStatus';
 import InjectScoreTiles from './InjectScoreTiles';
+
+// Inject-level statuses whose concrete failure reason is worth surfacing on the
+// status chip tooltip (fetched from the global execution traces).
+const INJECT_ERROR_STATUSES = ['ERROR', 'PARTIAL'];
 
 interface Props {
   injectResultOverview: InjectResultOverviewOutput;
@@ -49,7 +56,46 @@ const MetaItem = ({ icon, children }: {
  * render in the hero footer.
  */
 const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions }) => {
-  const { t, tPick, nsdt, du } = useFormatter();
+  const { t, tPick, nsdt, du, locale, fld } = useFormatter();
+  const theme = useTheme();
+
+  const statusName = injectResultOverview.inject_status?.status_name;
+  const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
+
+  // Recurring scheduling chip (atomic testings only): mirrors the scenario
+  // hero Scheduled chip with the human-readable schedule as tooltip.
+  const isScheduled = !!injectResultOverview.inject_recurrence;
+  const scheduleLabel = useMemo(() => {
+    const cronObject = handle(injectResultOverview.inject_recurrence);
+    if (!cronObject?.isValid()) {
+      return null;
+    }
+    let sentence = cronObject.toTranslatableStringArray(locale).map(element => t(element)).join(' ');
+    if (injectResultOverview.inject_recurrence_end) {
+      sentence += ` ${t('recurrence_from')} ${fld(injectResultOverview.inject_recurrence_start)}`;
+      sentence += ` ${t('recurrence_to')} ${fld(injectResultOverview.inject_recurrence_end)}`;
+    } else {
+      sentence += ` ${t('recurrence_starting_from')} ${fld(injectResultOverview.inject_recurrence_start)}`;
+    }
+    return sentence;
+  }, [injectResultOverview.inject_recurrence, injectResultOverview.inject_recurrence_start, injectResultOverview.inject_recurrence_end, locale]);
+
+  // Surface the concrete failure reason on the status chip: the global execution
+  // traces hold the real error (e.g. unmet dependencies), while the chip would
+  // otherwise only show a generic "could not be completed" tooltip.
+  useEffect(() => {
+    setErrorMessage(undefined);
+    if (!statusName || !INJECT_ERROR_STATUSES.includes(statusName)) {
+      return;
+    }
+    getInjectStatusWithGlobalExecutionTraces(injectResultOverview.inject_id)
+      .then((response: { data: InjectStatusOutput }) => {
+        const firstError = (response.data?.status_main_traces ?? [])
+          .find(trace => trace.execution_message?.trim());
+        setErrorMessage(firstError?.execution_message);
+      })
+      .catch(() => setErrorMessage(undefined));
+  }, [injectResultOverview.inject_id, statusName]);
 
   const payload = injectResultOverview.inject_injector_contract?.injector_contract_payload;
   const iconType = payload
@@ -91,7 +137,27 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
       )}
       overline={contractLabel || undefined}
       title={truncate(injectResultOverview.inject_title, 80) ?? ''}
-      chips={<InjectStatus status={injectResultOverview.inject_status?.status_name as InjectStatusType['status_name']} />}
+      chips={(
+        <>
+          <InjectStatus status={statusName as InjectStatusType['status_name']} errorMessage={errorMessage} />
+          {isScheduled && (
+            <Tooltip title={scheduleLabel ?? ''}>
+              <Chip
+                size="small"
+                variant="outlined"
+                label={t('Scheduled')}
+                sx={{
+                  borderRadius: 1,
+                  height: 22,
+                  fontSize: 11,
+                  color: theme.palette.success.main,
+                  borderColor: alpha(theme.palette.success.main, 0.4),
+                }}
+              />
+            </Tooltip>
+          )}
+        </>
+      )}
       action={actions}
       footer={(
         <>

@@ -76,8 +76,8 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
       </div>
       <div style={{
         display: 'flex',
-        float: 'right',
-        margin: theme.spacing(2),
+        justifyContent: 'flex-end',
+        marginTop: theme.spacing(2.5),
         gap: theme.spacing(1),
       }}
       >

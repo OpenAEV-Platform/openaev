@@ -12,10 +12,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
+import io.openaev.database.model.Collector;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.rest.asset.security_platforms.form.SecurityPlatformInput;
+import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
+import io.openaev.utils.fixtures.composers.CollectorComposer;
 import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
@@ -43,12 +48,15 @@ class SecurityPlatformApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
+  @Autowired private CollectorComposer collectorComposer;
   @Autowired private SecurityPlatformRepository securityPlatformRepository;
+  @Autowired private CollectorRepository collectorRepository;
   @Autowired private EntityManager entityManager;
 
   @BeforeEach
   public void beforeEach() {
     securityPlatformComposer.reset();
+    collectorComposer.reset();
   }
 
   @DisplayName("Test create SecurityPlatform")
@@ -169,6 +177,50 @@ class SecurityPlatformApiTest extends IntegrationTest {
                 .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.asset_name").value("PlatformE-Updated"));
+  }
+
+  @DisplayName("security_platform_collectors reflects the live collector link, not the stale ref")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void securityPlatformCollectorsShouldReflectLiveCollectorLink() throws Exception {
+    // A collector-created platform: external reference set at creation and a collector
+    // actively declaring the platform as its own.
+    SecurityPlatform platform =
+        SecurityPlatformFixture.createDefault(
+            "PlatformManaged", SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM.name());
+    platform.setExternalReference("legacy-collector-ref");
+    SecurityPlatformComposer.Composer platformWrapper =
+        securityPlatformComposer.forSecurityPlatform(platform);
+    Collector collector = CollectorFixture.createDefaultCollector("collector_managing_platform");
+    collectorComposer.forCollector(collector).withSecurityPlatform(platformWrapper).persist();
+    entityManager.flush();
+    entityManager.clear();
+
+    String platformId = platformWrapper.get().getId();
+
+    // While the collector exists, the platform reports it and stays UI read-only.
+    mvc.perform(
+            get(SECURITY_PLATFORM_URI + "/" + platformId)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.security_platform_collectors[0]").value(collector.getId()));
+
+    // Purging the collector must release the platform even though the (never cleared)
+    // asset_external_reference is still set: the list comes back empty, so the UI
+    // re-enables update / delete. Same delete path as CollectorService#deleteCollector
+    // (entity-based delete() is a silent no-op on the detached composite-id entity).
+    collectorRepository.deleteByIdAndTenantId(collector.getId(), TenantContext.getCurrentTenant());
+    entityManager.flush();
+    entityManager.clear();
+
+    mvc.perform(
+            get(SECURITY_PLATFORM_URI + "/" + platformId)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.asset_external_reference").value("legacy-collector-ref"))
+        .andExpect(jsonPath("$.security_platform_collectors").isEmpty());
   }
 
   // Options tests

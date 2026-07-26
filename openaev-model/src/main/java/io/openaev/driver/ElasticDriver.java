@@ -214,6 +214,7 @@ public class ElasticDriver {
       client.indices().get(new GetIndexRequest.Builder().index(indexName).build());
     } catch (ElasticsearchException e) {
       try {
+        log.info("Creating index {}", indexName);
         client
             .indices()
             .create(
@@ -221,12 +222,35 @@ public class ElasticDriver {
                     .index(indexName + config.getIndexSuffix())
                     .aliases(indexName, new Alias.Builder().build())
                     .build());
-        Optional<IndexingStatus> status = indexingStatusRepository.findByType(name);
-        status.ifPresent(indexingStatusRepository::delete);
+        // A brand-new index must be reindexed from scratch: reset the cursor to null instead of
+        // deleting the row. The row's presence is what tells the next startup that the index is
+        // already initialized (a missing row means wipe & recreate at boot). Deleting the row
+        // here kept models with no data yet in a wipe/recreate loop at every single boot,
+        // because the indexing job only persists the row once a first document is indexed.
+        resetIndexingCursor(name);
       } catch (ElasticsearchException e2) {
         log.error("cannot create index", e2);
       }
     }
+  }
+
+  /**
+   * Upserts the {@link IndexingStatus} row for a model with an epoch cursor (full reindex). Epoch
+   * is used instead of null because the column is NOT NULL, and every handler treats a null cursor
+   * as epoch anyway ({@code from != null ? from : Instant.ofEpochMilli(0)}).
+   */
+  private void resetIndexingCursor(String modelName) {
+    IndexingStatus status =
+        indexingStatusRepository
+            .findByType(modelName)
+            .orElseGet(
+                () -> {
+                  IndexingStatus newStatus = new IndexingStatus();
+                  newStatus.setType(modelName);
+                  return newStatus;
+                });
+    status.setLastIndexing(Instant.EPOCH);
+    indexingStatusRepository.save(status);
   }
 
   private Map<String, Property> mappingGeneratorForClass(EsModel<?> esModel) {
@@ -331,11 +355,13 @@ public class ElasticDriver {
       Map<String, Property> mappings = mappingGeneratorForClass(esModel);
       try {
         // Initialize indexes sequentially to avoid startup lock contention in repository metrics.
+        // A missing IndexingStatus row means the index was never initialized (or a reindex was
+        // explicitly requested by deleting the row): wipe any leftover and start from scratch.
         if (indexingStatusRepository.findByType(esModel.getName()).isEmpty()) {
-          log.info("Cleanup old Index {}", esModel.getName());
+          log.info("No indexing status for {}: resetting index", esModel.getName());
           cleanUpIndex(esModel.getName(), elasticClient);
         }
-        log.info("Creating Index {}", esModel.getName());
+        log.debug("Ensuring index {}", esModel.getName());
         setupIndex(elasticClient, esModel.getName(), ES_MODEL_VERSION, mappings);
       } catch (IOException e) {
         throw new RuntimeException(e);
@@ -349,22 +375,26 @@ public class ElasticDriver {
       String fullIndexName = config.getIndexPrefix() + "_" + indexName;
       String fullIndexWithSuffix = fullIndexName + config.getIndexSuffix();
 
-      // 1. Delete index and alias if they exist
-      for (String name : List.of(fullIndexName, fullIndexWithSuffix)) {
+      // 1. Delete index and alias if they exist. Probe existence first (this runs at every
+      // startup for retired models) so a healthy platform boots without deletion warnings, and
+      // delete the concrete index before the alias name: removing the index also removes its
+      // alias, so the alias-name delete (which would fail with "matches an alias") is skipped.
+      for (String name : List.of(fullIndexWithSuffix, fullIndexName)) {
+        if (!client.indices().exists(b -> b.index(name)).value()) {
+          continue;
+        }
         try {
           client.indices().delete(d -> d.index(name));
           log.info("Deleted index: {}", name);
         } catch (ElasticsearchException e) {
-          log.warn("Index " + name + " does not exist or already deleted");
+          log.warn("Index {} could not be deleted: {}", name, e.getMessage());
         }
       }
 
       // 2. Delete index template
-      try {
+      if (client.indices().existsIndexTemplate(b -> b.name(fullIndexName)).value()) {
         client.indices().deleteIndexTemplate(d -> d.name(fullIndexName));
-        log.info("Deleted index template: " + fullIndexName);
-      } catch (ElasticsearchException e) {
-        log.warn("Index template {} does not exist or already deleted", fullIndexName);
+        log.info("Deleted index template: {}", fullIndexName);
       }
     } catch (IOException e) {
       throw new RuntimeException("Failed to delete index " + indexName, e);

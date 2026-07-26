@@ -506,9 +506,8 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioRecurrenceInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    if (input.getRecurrenceStart() != null) {
-      this.scenarioService.throwIfScenarioNotLaunchable(scenario);
-    }
+    // Scheduling is a Community Edition feature: no Enterprise licence gate here.
+    // The executor-licensing check stays on the manual launch / relaunch paths only.
     scenario.setUpdateAttributes(input);
     return this.scenarioService.updateScenario(scenario);
   }

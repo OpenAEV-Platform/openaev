@@ -1,6 +1,6 @@
 import { Search } from '@mui/icons-material';
 import { InputAdornment, TextField } from '@mui/material';
-import { type ChangeEvent, type FunctionComponent, useCallback } from 'react';
+import { type ChangeEvent, type FunctionComponent, useCallback, useEffect, useRef, useState } from 'react';
 
 import { debounce } from '../utils/utils';
 import { useFormatter } from './i18n';
@@ -31,12 +31,28 @@ const SearchInput: FunctionComponent<Props> = ({
   // element, driving the variant-specific selectors in the sx below.
   const variantClass = variant ?? '';
 
+  // Controlled value so external keyword changes (e.g. "Clear filters"
+  // resetting the text search) are reflected in the input.
+  const [value, setValue] = useState(keyword ?? '');
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
+  // Sync from the outside without fighting in-flight typing: the debounced
+  // onChange echoes the (trimmed) typed value back through `keyword`, so only
+  // reset when the external keyword genuinely diverges from what is typed.
+  useEffect(() => {
+    if ((keyword ?? '') !== valueRef.current.trim()) {
+      setValue(keyword ?? '');
+    }
+  }, [keyword]);
+
   const debouncedChangeHandler = useCallback(
     debounce((value?: string) => onChange?.(value), debounceMs),
     [onChange, debounceMs],
   );
 
   const handleChange = ({ target }: ChangeEvent<HTMLInputElement>) => {
+    setValue(target.value);
     if (typeof onChange === 'function') {
       debouncedChangeHandler(target.value);
     }
@@ -53,7 +69,7 @@ const SearchInput: FunctionComponent<Props> = ({
     <TextField
       fullWidth={fullWidth}
       name="keyword"
-      defaultValue={keyword}
+      value={value}
       variant="outlined"
       size="small"
       placeholder={placeholder ?? `${t('Search these results')}...`}

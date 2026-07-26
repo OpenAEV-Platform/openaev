@@ -131,7 +131,11 @@ const PaginationComponentV2 = <T extends object>({
         const { data } = result;
         setContent(data.content);
         queryableHelpers.paginationHelpers.handleChangeTotalElements(data.totalElements);
-        if (data.totalPages <= data.pageable.pageNumber) {
+        // The current page fell past the end (dataset shrank, narrower filter,
+        // state restored from another screen): restart from the first page.
+        // Guarded on pageNumber > 0 so an empty dataset (totalPages = 0,
+        // page 0) does not trigger an endless reset/refetch loop.
+        if (data.pageable.pageNumber > 0 && data.totalPages <= data.pageable.pageNumber) {
           queryableHelpers.paginationHelpers.handleChangePage(0);
         }
       })
@@ -151,10 +155,11 @@ const PaginationComponentV2 = <T extends object>({
     // `fetch` is intentionally not a dependency: many callers pass inline
     // closures (new identity on every render), so depending on it would
     // refetch in a loop. When the effect runs it always uses the latest
-    // render's `fetch`. Callers whose fetch scope comes from a route param
-    // must remount on param change (e.g. `key={paramId}` on the page) so a
-    // scope switch that leaves the search input untouched still refetches.
-  }, [searchPaginationInput, reloadContentCount]);
+    // render's `fetch`. `contextId` IS a dependency so a scope switch that
+    // leaves the search input untouched (e.g. navigating from one simulation
+    // to another with a shared storage key) still refetches with the latest
+    // closure instead of keeping the previous scope's rows.
+  }, [searchPaginationInput, reloadContentCount, contextId]);
 
   // Filters
   const [pristine, setPristine] = useState(true);
@@ -222,6 +227,8 @@ const PaginationComponentV2 = <T extends object>({
               options={options}
               setPristine={setPristine}
               style={{ marginLeft: (searchEnable || leftSlot) ? 10 : 0 }}
+              // "Clear filters" also resets the associated text search input.
+              onClear={() => queryableHelpers.textSearchHelpers.handleTextSearch('')}
             />
           ) }
 

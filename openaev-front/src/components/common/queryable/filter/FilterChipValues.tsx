@@ -121,7 +121,7 @@ const FilterChipValues: FunctionComponent<Props> = ({
     let str = '';
     options.forEach((o, idx) => {
       if (idx > 0) {
-        str = `${str} ${t('or')}`;
+        str = `${str} ${t(filter.mode === 'and' ? 'and' : 'or')}`;
       }
       if (propertySchema?.schema_property_type.includes('instant')) {
         str = `${str} ${o.label ? fldt(o.label) : o.label}`;

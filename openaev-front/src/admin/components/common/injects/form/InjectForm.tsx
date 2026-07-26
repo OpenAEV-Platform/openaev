@@ -37,7 +37,6 @@ const useStyles = makeStyles()(theme => ({
     gap: theme.spacing(1),
     marginTop: theme.spacing(1),
     marginBottom: theme.spacing(2),
-    marginRight: theme.spacing(2),
   },
   durationGrid: {
     display: 'grid',

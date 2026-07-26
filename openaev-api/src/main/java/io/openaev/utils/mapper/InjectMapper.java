@@ -85,6 +85,9 @@ public class InjectMapper {
                 InjectExpectationResultUtils::getScores))
         .isReady(healthCheckUtils.runContentChecks(inject).isEmpty())
         .updatedAt(inject.getUpdatedAt())
+        .recurrence(inject.getRecurrence())
+        .recurrenceStart(inject.getRecurrenceStart())
+        .recurrenceEnd(inject.getRecurrenceEnd())
         .build();
   }
 

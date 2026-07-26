@@ -195,6 +195,21 @@ public class AtomicTestingApi extends RestBehavior {
     return atomicTestingService.relaunch(atomicTestingId);
   }
 
+  // -- RECURRENCE --
+
+  @PutMapping("/{injectId}/recurrence")
+  @Transactional
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.LAUNCH,
+      resourceType = ResourceType.INJECT)
+  public InjectResultOverviewOutput updateAtomicTestingRecurrence(
+      @PathVariable @NotBlank final String injectId,
+      @Valid @RequestBody final InjectRecurrenceInput input) {
+    // Scheduling is a Community Edition feature: no Enterprise licence gate here.
+    return atomicTestingService.updateRecurrence(injectId, input);
+  }
+
   @GetMapping("/{injectId}/target_results/{targetId}/types/{targetType}")
   @Transactional
   @AccessControl(

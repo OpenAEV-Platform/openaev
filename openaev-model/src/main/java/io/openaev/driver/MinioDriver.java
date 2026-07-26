@@ -8,6 +8,7 @@ import io.openaev.config.S3Config;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.minio.CopySource;
+import io.openaev.service.MinioService;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -95,6 +96,14 @@ public class MinioDriver {
 
       // Skip files already under a tenant path
       if (tenants.stream().anyMatch(objectName::startsWith)) {
+        continue;
+      }
+
+      // Skip platform-scoped shared assets: they intentionally live under the root-level
+      // "platform/" prefix (no tenant) and are re-uploaded there by the integration factories
+      // at startup. Moving them under the default tenant made every boot re-migrate the same
+      // connector logos forever (migrate -> re-upload -> migrate again on next boot).
+      if (objectName.startsWith(MinioService.PLATFORM_PATH_PREFIX)) {
         continue;
       }
 

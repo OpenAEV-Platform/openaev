@@ -248,20 +248,7 @@ const InjectContractSidebar = ({ domainElements, searchPaginationInput, filterHe
     authorValues, sortedPhases, killChains, facetCounts, toggleValue, toggleAuthorValue, toggleNoAuthor, t,
   ]);
 
-  const anyActive = platformValues.length > 0
-    || killChainValues.length > 0
-    || statusValues.length > 0
-    || authorValues.length > 0
-    || noAuthorActive
-    || domainElements.some(e => e.color === 'success');
-
-  return (
-    <FacetSidebar
-      sections={sections}
-      anyActive={anyActive}
-      onClearAll={() => filterHelpers.handleClearAllFilters()}
-    />
-  );
+  return <FacetSidebar sections={sections} />;
 };
 
 export default InjectContractSidebar;

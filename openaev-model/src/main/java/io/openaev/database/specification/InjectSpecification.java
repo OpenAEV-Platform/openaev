@@ -13,6 +13,7 @@ import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
@@ -176,5 +177,32 @@ public class InjectSpecification {
   public static Specification<Inject> isAtomicTesting() {
     return (root, query, cb) ->
         cb.and(cb.isNull(root.get("scenario")), cb.isNull(root.get("exercise")));
+  }
+
+  // -- RECURRENCE (atomic testing scheduling) --
+
+  public static Specification<Inject> isRecurring() {
+    return (root, query, cb) -> cb.isNotNull(root.get("recurrence"));
+  }
+
+  public static Specification<Inject> recurrenceStartDateBefore(@NotNull final Instant startDate) {
+    return (root, query, cb) ->
+        cb.or(
+            cb.isNull(root.get("recurrenceStart")),
+            cb.lessThanOrEqualTo(root.get("recurrenceStart"), startDate));
+  }
+
+  public static Specification<Inject> recurrenceStopDateAfter(@NotNull final Instant stopDate) {
+    return (root, query, cb) ->
+        cb.or(
+            cb.isNull(root.get("recurrenceEnd")),
+            cb.greaterThanOrEqualTo(root.get("recurrenceEnd"), stopDate));
+  }
+
+  public static Specification<Inject> recurrenceStopDateBefore(@NotNull final Instant stopDate) {
+    return (root, query, cb) ->
+        cb.or(
+            cb.isNull(root.get("recurrenceEnd")),
+            cb.lessThanOrEqualTo(root.get("recurrenceEnd"), stopDate));
   }
 }

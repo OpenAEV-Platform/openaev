@@ -155,19 +155,7 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
     ].filter(section => section.rows.length > 0);
   }, [domainElements, authorOptions, facetCounts, platformValues, statusValues, authorValues, noAuthorActive, toggleValue, toggleAuthorValue, toggleNoAuthor, t]);
 
-  const anyActive = platformValues.length > 0
-    || statusValues.length > 0
-    || authorValues.length > 0
-    || noAuthorActive
-    || domainElements.some(e => e.color === 'success');
-
-  return (
-    <FacetSidebar
-      sections={sections}
-      anyActive={anyActive}
-      onClearAll={() => filterHelpers.handleClearAllFilters()}
-    />
-  );
+  return <FacetSidebar sections={sections} />;
 };
 
 export default ThreatArsenalSidebar;

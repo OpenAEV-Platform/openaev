@@ -48,12 +48,13 @@ const ReportComment: FunctionComponent<Props> = ({ initialComment, saveComment, 
             gridColumn: 'span 2',
             marginTop: '20px',
             display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 8,
           }}
           >
             <Button
               variant="outlined"
               color="primary"
-              style={{ marginLeft: 'auto' }}
               onClick={() => setOpenEdit(false)}
             >
               {t('Cancel')}

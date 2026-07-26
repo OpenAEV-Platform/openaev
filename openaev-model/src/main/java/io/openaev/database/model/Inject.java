@@ -100,6 +100,23 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonProperty("inject_trigger_now_date")
   private Instant triggerNowDate;
 
+  // Recurrence scheduling for atomic testings (mirrors Scenario recurrence). When set, a minutely
+  // job relaunches the atomic testing on each occurrence between start and end.
+  @Getter
+  @Column(name = "inject_recurrence")
+  @JsonProperty("inject_recurrence")
+  private String recurrence; // cron expression
+
+  @Getter
+  @Column(name = "inject_recurrence_start")
+  @JsonProperty("inject_recurrence_start")
+  private Instant recurrenceStart;
+
+  @Getter
+  @Column(name = "inject_recurrence_end")
+  @JsonProperty("inject_recurrence_end")
+  private Instant recurrenceEnd;
+
   @Getter
   @Column(name = "inject_content")
   @Convert(converter = ContentConverter.class)

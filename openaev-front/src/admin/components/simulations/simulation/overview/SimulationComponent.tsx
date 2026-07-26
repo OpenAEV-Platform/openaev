@@ -158,12 +158,20 @@ const SimulationComponent = () => {
         ? (
             <div id="injects-results">
               <SectionBlock title={t('Injects results')}>
+                {/* Keyed on the exercise id: the fetch closure captures exerciseId and
+                    the pagination effect only re-runs on search input changes, so a
+                    param-to-param navigation must remount the list to refetch. */}
                 <InjectResultList
+                  key={exerciseId}
                   fetchInjects={input => searchExerciseInjects(exerciseId, input)}
                   goTo={injectId => `/admin/simulations/${exerciseId}/injects/${injectId}`}
                   queryableHelpers={queryableHelpers}
                   searchPaginationInput={searchPaginationInput}
                   contextId={exercise.exercise_id}
+                  // The simulation has been launched (this branch excludes SCHEDULED):
+                  // injects without a status are waiting for dispatch, not drafts.
+                  // On a canceled simulation they will never run, so keep DRAFT there.
+                  displayDraftAsPending={exercise.exercise_status !== 'CANCELED'}
                 />
               </SectionBlock>
             </div>

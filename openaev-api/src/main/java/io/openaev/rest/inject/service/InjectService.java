@@ -513,8 +513,20 @@ public class InjectService {
 
   @Transactional
   public InjectResultOverviewOutput relaunch(String id) {
+    return relaunch(id, true);
+  }
+
+  /**
+   * Relaunch an inject (duplicate + queue new + delete old). Scheduled relaunches pass {@code
+   * checkLaunchable = false} to skip the Enterprise executor gate, matching scenario scheduled
+   * execution which never re-gates at run time.
+   */
+  @Transactional
+  public InjectResultOverviewOutput relaunch(String id, boolean checkLaunchable) {
     Inject duplicatedInject = findAndDuplicateInject(id);
-    this.throwIfInjectNotLaunchable(duplicatedInject);
+    if (checkLaunchable) {
+      this.throwIfInjectNotLaunchable(duplicatedInject);
+    }
     Inject savedInject = saveInjectAndStatusAsQueuing(duplicatedInject);
     deleteForRelaunch(id, savedInject.getId());
     return injectMapper.toInjectResultOverviewOutput(savedInject);

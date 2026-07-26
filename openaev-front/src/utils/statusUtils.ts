@@ -86,6 +86,8 @@ export const computeStatusStyle = (status: string | undefined | null) => {
     'PENDING': colorStyles.blue,
     'QUEUING': colorStyles.yellow,
     'DRAFT': colorStyles.blueGrey,
+    // Display-only status for disabled injects (never executed, no status row)
+    'DISABLED': colorStyles.blueGrey,
 
     // Expectation display labels
     'FAILED': colorStyles.red,
