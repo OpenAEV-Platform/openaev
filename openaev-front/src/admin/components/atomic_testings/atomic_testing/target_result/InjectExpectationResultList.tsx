@@ -1,15 +1,13 @@
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Link, Tooltip, Typography } from '@mui/material';
+import { Box, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { Fragment, useContext } from 'react';
-import { Link as RouterLink } from 'react-router';
+import { useContext } from 'react';
+import { useNavigate } from 'react-router';
 
-import { type CollectorHelper } from '../../../../../actions/collectors/collector-helper';
 import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemSecurityPlatformType from '../../../../../components/ItemSecurityPlatformType';
 import { SECURITY_PLATFORM_BASE_URL } from '../../../../../constants/BaseUrls';
-import { useHelper } from '../../../../../store';
 import {
   type Inject,
   type InjectExpectationOutput,
@@ -18,13 +16,13 @@ import {
 } from '../../../../../utils/api-types';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
-import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import InjectIcon from '../../../common/injects/InjectIcon';
 import InjectExpectationContext from '../context/InjectExpectationContext';
 import StatusPill from './StatusPill';
 import TargetResultAlertNumber from './TargetResultAlertNumber';
+import useExpectationSourceLogo from './useExpectationSourceLogo';
 
 // One agent's contribution to an aggregated (endpoint-level) security-platform
 // result. Surfaced in the per-line "i" tooltip so the endpoint view keeps the
@@ -48,6 +46,10 @@ interface Props {
 }
 
 const GRID_TEMPLATE_COLUMNS = 'minmax(180px, 2fr) 150px 140px 160px 80px 40px';
+// Sum of the column minimums (750px) + 5 column gaps (8px each) + right
+// padding: anything smaller lets the grid tracks overflow the row box on small
+// screens, so the hover background would stop before the actions column.
+const ROW_MIN_WIDTH = 800;
 
 const InjectExpectationResultList = ({
   injectExpectation,
@@ -59,6 +61,7 @@ const InjectExpectationResultList = ({
 }: Props) => {
   const { nsdt, t } = useFormatter();
   const theme = useTheme();
+  const navigate = useNavigate();
 
   const renderBreakdownTooltip = (entries: AgentResultBreakdownEntry[]) => (
     <Box sx={{
@@ -122,36 +125,22 @@ const InjectExpectationResultList = ({
     </Box>
   );
 
-  const { onOpenDeleteInjectExpectationResult, onOpenEditInjectExpectationResultResult, onOpenSecurityPlatform } = useContext(InjectExpectationContext);
+  const { onOpenDeleteInjectExpectationResult, onOpenEditInjectExpectationResultResult, onOpenAlertsDialog } = useContext(InjectExpectationContext);
 
   const ability = useContext(AbilityContext);
   const canPivotToSecurityPlatform = ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
-  const collectorsMap = useHelper((helper: CollectorHelper) => helper.getCollectorsMap());
-
-  // Resolves the security platform behind a result line so the platform name can
-  // pivot to its overview page: security-platform sources carry the platform id
-  // directly, collector sources go through the collector's associated platform.
-  const resolveSecurityPlatformId = (expectationResult: InjectExpectationResult): string | undefined => {
-    if (!expectationResult.sourceId) {
-      return undefined;
-    }
-    if (expectationResult.sourceType === 'security-platform') {
-      return expectationResult.sourceId;
-    }
-    if (expectationResult.sourceType === 'collector') {
-      return collectorsMap[expectationResult.sourceId]?.collector_security_platform?.asset_id;
-    }
-    return undefined;
-  };
+  // Platform-first icon and pivot resolution: results written by a since-deleted
+  // collector still resolve to their (surviving) security platform.
+  const { resolveSecurityPlatformId, resolveLogoSrc, onLogoError } = useExpectationSourceLogo();
 
   const getAvatar = (expectationResult: InjectExpectationResult) => {
-    if (expectationResult.sourceType === 'collector' || expectationResult.sourceType === 'security-platform') {
+    const logoSrc = resolveLogoSrc(expectationResult);
+    if (logoSrc) {
       return (
         <img
-          src={expectationResult.sourceType === 'collector'
-            ? buildTenantApiPath(`/api/collectors/id/${expectationResult.sourceId}/image`)
-            : buildTenantApiPath(`/api/images/security_platforms/id/${expectationResult.sourceId}/${theme.palette.mode}`)}
-          alt={expectationResult.sourceId}
+          src={logoSrc}
+          alt={expectationResult.sourceName ?? expectationResult.sourceId}
+          onError={onLogoError}
           style={{
             width: 18,
             height: 18,
@@ -187,28 +176,25 @@ const InjectExpectationResultList = ({
       marginTop: theme.spacing(2),
     }}
     >
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: GRID_TEMPLATE_COLUMNS,
-          alignItems: 'center',
-          columnGap: 1,
-          minWidth: 720,
-        }}
-      >
-        <Typography sx={headerSx}>{t('Security platforms')}</Typography>
-        <Typography sx={headerSx}>{t('Type')}</Typography>
-        <Typography sx={headerSx}>{t('Status')}</Typography>
-        <Typography sx={headerSx}>{t('Detection time')}</Typography>
-        <Typography sx={headerSx}>{t('Alerts')}</Typography>
-        <span aria-hidden />
+      <Box sx={{ minWidth: ROW_MIN_WIDTH }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: GRID_TEMPLATE_COLUMNS,
+            alignItems: 'center',
+            columnGap: 1,
+            paddingRight: 1,
+          }}
+        >
+          <Typography sx={headerSx}>{t('Security platforms')}</Typography>
+          <Typography sx={headerSx}>{t('Type')}</Typography>
+          <Typography sx={headerSx}>{t('Status')}</Typography>
+          <Typography sx={headerSx}>{t('Detection time')}</Typography>
+          <Typography sx={headerSx}>{t('Alerts')}</Typography>
+          <span aria-hidden />
+        </Box>
 
         {injectExpectationResults.map((expectationResult, index) => {
-          const isResultSecurityPlatform: boolean = !!(
-            injectExpectationAgent
-            && (expectationResult.result === 'Prevented' || expectationResult.result === 'Detected')
-            && expectationResult.sourceType === 'collector'
-          );
           const showDetectionTime = expectationResult.result === 'Prevented' || expectationResult.result === 'Detected' || expectationResult.result === 'SUCCESS';
           const showAlerts = !!(expectationResult.sourceId
             && injectExpectationAgent
@@ -219,38 +205,47 @@ const InjectExpectationResultList = ({
             || (injectExpectationAgent && expectationResult.sourceType !== 'collector' && (expectationResult.result === 'Prevented' || expectationResult.result === 'Detected'))
           );
 
-          const cellSx = {
-            display: 'flex',
-            alignItems: 'center',
-            minHeight: 44,
-            cursor: isResultSecurityPlatform ? 'pointer' : 'default',
-            ...(isResultSecurityPlatform && { '&:hover': { backgroundColor: alpha(theme.palette.text.primary, 0.04) } }),
-          } as const;
-
-          const handleRowClick = () => {
-            if (isResultSecurityPlatform) {
-              onOpenSecurityPlatform(expectationResult, injectExpectation);
-            }
-          };
-
           const sourceName = expectationResult.sourceName?.trim() || '-';
           const breakdownKey = expectationResult.sourceId ?? expectationResult.sourceName ?? '';
           const agentBreakdown = breakdownKey ? agentBreakdownBySource?.[breakdownKey] : undefined;
           const platformType = expectationResult.sourcePlatform?.trim();
           const securityPlatformId = canPivotToSecurityPlatform ? resolveSecurityPlatformId(expectationResult) : undefined;
 
+          const cellSx = {
+            display: 'flex',
+            alignItems: 'center',
+            minWidth: 0,
+          } as const;
+
+          // Whole line pivots to the security platform overview (no per-title
+          // hyperlink); the alerts count keeps its own click target.
+          const handleRowClick = () => {
+            if (securityPlatformId) {
+              navigate(`${SECURITY_PLATFORM_BASE_URL}/${securityPlatformId}`);
+            }
+          };
+
           return (
-            <Fragment key={`${expectationResult.sourceName}-${index}`}>
-              {/* Full-width separator so the row divider is continuous across all
-                  columns (a per-cell border breaks at each column gap). */}
-              <Box
-                aria-hidden
-                sx={{
-                  gridColumn: '1 / -1',
-                  borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-                }}
-              />
-              <Box sx={cellSx} onClick={handleRowClick}>
+            // Each row is its own grid container (same column template as the
+            // header) so hover and click cover the full line, like any list item.
+            <Box
+              key={`${expectationResult.sourceName}-${index}`}
+              onClick={handleRowClick}
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: GRID_TEMPLATE_COLUMNS,
+                alignItems: 'center',
+                columnGap: 1,
+                // Breathing room so the actions popover (and its hover circle)
+                // never sits flush against the right edge of the hovered line.
+                paddingRight: 1,
+                minHeight: 44,
+                borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+                cursor: securityPlatformId ? 'pointer' : 'default',
+                ...(securityPlatformId && { '&:hover': { backgroundColor: alpha(theme.palette.text.primary, 0.04) } }),
+              }}
+            >
+              <Box sx={cellSx}>
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -273,39 +268,17 @@ const InjectExpectationResultList = ({
                   >
                     {getAvatar(expectationResult)}
                   </Box>
-                  {securityPlatformId
-                    ? (
-                        <Link
-                          component={RouterLink}
-                          to={`${SECURITY_PLATFORM_BASE_URL}/${securityPlatformId}`}
-                          underline="hover"
-                          onClick={e => e.stopPropagation()}
-                          sx={{
-                            'fontSize': 13,
-                            'minWidth': 0,
-                            'whiteSpace': 'nowrap',
-                            'overflow': 'hidden',
-                            'textOverflow': 'ellipsis',
-                            'color': 'text.primary',
-                            '&:hover': { color: 'primary.main' },
-                          }}
-                        >
-                          {sourceName}
-                        </Link>
-                      )
-                    : (
-                        <Typography
-                          sx={{
-                            fontSize: 13,
-                            minWidth: 0,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {sourceName}
-                        </Typography>
-                      )}
+                  <Typography
+                    sx={{
+                      fontSize: 13,
+                      minWidth: 0,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {sourceName}
+                  </Typography>
                   {agentBreakdown && agentBreakdown.length > 0 && (
                     <Tooltip
                       title={renderBreakdownTooltip(agentBreakdown)}
@@ -326,7 +299,7 @@ const InjectExpectationResultList = ({
                   )}
                 </div>
               </Box>
-              <Box sx={cellSx} onClick={handleRowClick}>
+              <Box sx={cellSx}>
                 {platformType
                   ? <ItemSecurityPlatformType type={platformType} />
                   : (
@@ -339,7 +312,7 @@ const InjectExpectationResultList = ({
                       </Typography>
                     )}
               </Box>
-              <Box sx={cellSx} onClick={handleRowClick}>
+              <Box sx={cellSx}>
                 {expectationResult.result && (
                   <StatusPill
                     label={t(expectationResult.result)}
@@ -347,7 +320,7 @@ const InjectExpectationResultList = ({
                   />
                 )}
               </Box>
-              <Box sx={cellSx} onClick={handleRowClick}>
+              <Box sx={cellSx}>
                 <Typography sx={{
                   fontSize: 13,
                   fontVariantNumeric: 'tabular-nums',
@@ -356,17 +329,22 @@ const InjectExpectationResultList = ({
                   {showDetectionTime ? nsdt(expectationResult.date) : '-'}
                 </Typography>
               </Box>
-              <Box sx={cellSx} onClick={handleRowClick}>
+              <Box sx={cellSx}>
                 {showAlerts && (
-                  <TargetResultAlertNumber expectationResult={expectationResult} injectExpectationId={injectExpectation.inject_expectation_id} />
+                  <TargetResultAlertNumber
+                    expectationResult={expectationResult}
+                    injectExpectationId={injectExpectation.inject_expectation_id}
+                    onShowAlerts={() => onOpenAlertsDialog(expectationResult, injectExpectation)}
+                  />
                 )}
                 {showAlertsDash && '-'}
               </Box>
-              <Box sx={{
-                ...cellSx,
-                cursor: 'default',
-                justifyContent: 'flex-end',
-              }}
+              <Box
+                onClick={e => e.stopPropagation()}
+                sx={{
+                  ...cellSx,
+                  justifyContent: 'flex-end',
+                }}
               >
                 <ButtonPopover
                   disabled={['collector', 'media-pressure', 'challenge'].includes(expectationResult.sourceType ?? 'unknown')}
@@ -385,7 +363,7 @@ const InjectExpectationResultList = ({
                   variant="icon"
                 />
               </Box>
-            </Fragment>
+            </Box>
           );
         })}
       </Box>

@@ -268,25 +268,24 @@ public class InjectExpectationService {
   /**
    * Deletes a specific result from an inject expectation.
    *
+   * <p>For a detection/prevention expectation at asset level whose asset has agents, the rows
+   * displayed in the UI are the aggregation of the agents' security platform results: the deletion
+   * cascades to every agent expectation of the asset (removing that source's result on each), then
+   * the asset and asset group scores are recomputed from the remaining agent results.
+   *
    * @param expectationId the ID of the expectation
    * @param sourceId the ID of the source result to delete
    * @return the updated inject expectation
-   * @throws IllegalArgumentException if trying to delete from an Asset Group or Asset with Agent
+   * @throws IllegalArgumentException if trying to delete from an Asset Group
    */
   public BaseInjectExpectation deleteInjectExpectationResult(
       @NotBlank final String expectationId, @NotBlank final String sourceId) {
     BaseInjectExpectation baseInjectExpectation =
         this.injectExpectationRepository.findById(expectationId).orElseThrow();
-    deleteResult(baseInjectExpectation, sourceId);
-    BaseInjectExpectation updated = this.injectExpectationRepository.save(baseInjectExpectation);
 
-    if (updated instanceof TableTopInjectExpectation tableTopInjectExpectation) {
-      propagateHumanResponseExpectation(tableTopInjectExpectation, null);
-
-    } else if (updated instanceof TechnicalInjectExpectation technicalInjectExpectation
+    if (baseInjectExpectation instanceof TechnicalInjectExpectation technicalInjectExpectation
         && List.of(DETECTION, PREVENTION).contains(baseInjectExpectation.getType())) {
-      // Block down computation
-      // Not asset group
+      // Block down computation on asset group
       if (isAssetGroupExpectation(technicalInjectExpectation)) {
         throw new IllegalArgumentException("Not possible to update Asset Group directly");
       }
@@ -295,13 +294,29 @@ public class InjectExpectationService {
       List<Agent> agents =
           (unproxied instanceof Endpoint endpoint) ? getPrimaryAgents(endpoint) : List.of();
       boolean isAgentless = agents.isEmpty();
+
+      deleteResult(technicalInjectExpectation, sourceId);
+      BaseInjectExpectation updated =
+          this.injectExpectationRepository.save(technicalInjectExpectation);
+
       if (isAssetExpectation(technicalInjectExpectation) && !isAgentless) {
-        throw new IllegalArgumentException(
-            "Not possible to update Asset directly on Asset with Agent");
+        // Asset-level delete on an asset with agents: remove the source's result from every
+        // agent expectation of the asset (same down computation as updateInjectExpectation),
+        // the propagation below then recomputes the asset score from its agents.
+        List<TechnicalInjectExpectation> expectationsForAgents =
+            getAgentsExpectationsForAsset(technicalInjectExpectation);
+        expectationsForAgents.forEach(e -> deleteResult(e, sourceId));
+        this.injectExpectationRepository.saveAll(expectationsForAgents);
       }
       propagateTechnicalExpectation(technicalInjectExpectation, isAgentless, null);
+      return updated;
     }
 
+    deleteResult(baseInjectExpectation, sourceId);
+    BaseInjectExpectation updated = this.injectExpectationRepository.save(baseInjectExpectation);
+    if (updated instanceof TableTopInjectExpectation tableTopInjectExpectation) {
+      propagateHumanResponseExpectation(tableTopInjectExpectation, null);
+    }
     return updated;
   }
 

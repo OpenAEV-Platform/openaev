@@ -15,11 +15,11 @@ import { fetchTeams } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import { fetchPlayers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { DetailHero, Field, HeroStat, InformationGrid, SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
-import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
+import { buildEmptyPage, buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
@@ -32,10 +32,12 @@ import Loader from '../../../../components/Loader';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ORGANIZATION_BASE_URL, PERSON_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
-import { type Filter, type Organization, type PlayerOutput, type SearchPaginationInput, type Team, type User } from '../../../../utils/api-types';
+import { type AggregatedFindingOutput, type Filter, type InjectResultOutput, type Organization, type PlayerOutput, type SearchPaginationInput, type Team, type User } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
+import InjectResultList from '../../atomic_testings/InjectResultList';
+import FindingList from '../../findings/FindingList';
 import OrganizationPopover from './OrganizationPopover';
 
 // Scoped `contains` filter for the hero count probes (array-valued keys such
@@ -155,42 +157,58 @@ const OrganizationDetailContent = () => {
     [teamsMap, organizationId],
   );
   const teamIds = useMemo(() => teams.map(team => team.team_id), [teams]);
-  const memberIds = useMemo(() => members.map(member => member.user_id), [members]);
 
-  // Headline hero counts, scoped through the organization's people: injects
-  // played by its teams, findings linked to its teams or members. Empty
-  // `contains` filters would match everything, so empty scopes short-circuit to 0.
+  // Appends the organization scope to a search input without discarding the
+  // user's own list filters (filter groups are flat, so the scope must be a
+  // single ANDable filter - hence teams-only, consistent with the team page).
+  const withTeamsScope = useCallback(
+    (input: SearchPaginationInput, key: string): SearchPaginationInput => ({
+      ...input,
+      filterGroup: {
+        mode: input.filterGroup?.mode ?? 'and',
+        filters: [...(input.filterGroup?.filters ?? []), contains(key, teamIds)],
+      },
+    }),
+    [teamIds],
+  );
+
+  // Headline hero counts, scoped through the organization's teams - the exact
+  // same scope as the findings and injects lists below, so counts and lists
+  // can never diverge. Empty `contains` filters would match everything, so an
+  // empty team scope short-circuits to 0.
   const injectsTotal = useSearchTotal(useCallback(
     (input: SearchPaginationInput) => (teamIds.length === 0
       ? Promise.resolve({ data: { totalElements: 0 } })
-      : searchAtomicTestings({
-          ...input,
-          filterGroup: {
-            mode: 'and',
-            filters: [contains('inject_teams', teamIds)],
-          },
-        })),
-    [teamIds],
+      : searchAtomicTestings(withTeamsScope(input, 'inject_teams'))),
+    [teamIds, withTeamsScope],
   ));
   const findingsTotal = useSearchTotal(useCallback(
-    (input: SearchPaginationInput) => {
-      const scopes: Filter[] = [
-        ...(teamIds.length > 0 ? [contains('finding_teams', teamIds)] : []),
-        ...(memberIds.length > 0 ? [contains('finding_users', memberIds)] : []),
-      ];
-      if (scopes.length === 0) {
-        return Promise.resolve({ data: { totalElements: 0 } });
-      }
-      return searchDistinctFindings({
-        ...input,
-        filterGroup: {
-          mode: 'or',
-          filters: scopes,
-        },
-      });
-    },
-    [teamIds, memberIds],
+    (input: SearchPaginationInput) => (teamIds.length === 0
+      ? Promise.resolve({ data: { totalElements: 0 } })
+      : searchDistinctFindings(withTeamsScope(input, 'finding_teams'))),
+    [teamIds, withTeamsScope],
   ));
+
+  // Injects played: server-paginated search scoped to the organization's teams.
+  const { queryableHelpers: injectsHelpers, searchPaginationInput: injectsInput } = useQueryableWithLocalStorage(
+    'organization-injects',
+    buildSearchPagination({ sorts: initSorting('inject_updated_at', 'DESC') }),
+  );
+  // An organization with no team cannot have injects or findings, and an empty
+  // `contains` scope would match everything - so short-circuit to an empty page
+  // while keeping the lists (search, filters, pagination) rendered.
+  const fetchInjectsPlayed = useCallback(
+    (input: SearchPaginationInput): Promise<{ data: Page<InjectResultOutput> }> => (teamIds.length === 0
+      ? Promise.resolve(buildEmptyPage<InjectResultOutput>(input))
+      : searchAtomicTestings(withTeamsScope(input, 'inject_teams')) as Promise<{ data: Page<InjectResultOutput> }>),
+    [teamIds, withTeamsScope],
+  );
+  const fetchOrganizationFindings = useCallback(
+    (input: SearchPaginationInput): Promise<{ data: Page<AggregatedFindingOutput> }> => (teamIds.length === 0
+      ? Promise.resolve(buildEmptyPage<AggregatedFindingOutput>(input))
+      : searchDistinctFindings(withTeamsScope(input, 'finding_teams'))),
+    [teamIds, withTeamsScope],
+  );
 
   if (!organization) {
     return <Loader />;
@@ -249,11 +267,7 @@ const OrganizationDetailContent = () => {
           <Field label={t('Update date')}>{fldt(organization.organization_updated_at)}</Field>
         </InformationGrid>
 
-        {/* Flat list (no surrounding Paper): metadata above, a single
-            full-width, server-paginated and searchable members list below -
-            the standard single-list layout on detail pages. */}
-        <div>
-          <SectionLabel>{t('Members')}</SectionLabel>
+        <SectionBlock title={t('Members')}>
           <PaginationComponentV2
             fetch={fetchOrganizationMembers}
             searchPaginationInput={membersInput}
@@ -322,7 +336,25 @@ const OrganizationDetailContent = () => {
                 ))}
             {!membersLoading && memberRows.length === 0 && <Empty message={t('No member in this organization.')} />}
           </List>
-        </div>
+        </SectionBlock>
+
+        <SectionBlock title={t('Findings')}>
+          <FindingList
+            filterLocalStorageKey="organization-findings"
+            searchDistinctFindings={fetchOrganizationFindings}
+            contextId={organizationId}
+          />
+        </SectionBlock>
+
+        <SectionBlock title={t('Injects played')}>
+          <InjectResultList
+            fetchInjects={fetchInjectsPlayed}
+            goTo={injectId => `/admin/atomic_testings/${injectId}`}
+            queryableHelpers={injectsHelpers}
+            searchPaginationInput={injectsInput}
+            contextId={organizationId}
+          />
+        </SectionBlock>
       </Box>
     </>
   );

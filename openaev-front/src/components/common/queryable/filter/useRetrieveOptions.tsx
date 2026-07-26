@@ -224,6 +224,19 @@ const useRetrieveOptions = () => {
           label: scenarioCategories.has(id) ? t(scenarioCategories.get(id) as string) : id,
         })));
         break;
+      // Hero-stat drill-downs scope entities without ES side fields (teams,
+      // asset groups) by their explicit ids: resolve the labels across both
+      // types and merge (each id only matches its own type).
+      case 'base_id':
+        Promise.all([
+          searchTeamByIdAsOption(ids),
+          ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)
+            ? searchAssetGroupByIdAsOption(ids)
+            : Promise.resolve({ data: [] as Option[] }),
+        ]).then(([teams, assetGroups]) => {
+          setOptions([...teams.data, ...assetGroups.data]);
+        });
+        break;
       // Author filter: an id may belong to a person, a team or an organization -
       // resolve across all three and merge (each id only matches its own type).
       case 'action_author':

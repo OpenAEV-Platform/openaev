@@ -1,7 +1,7 @@
 import { DomainOutlined, HelpOutlineOutlined } from '@mui/icons-material';
 import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useContext, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { bulkDeleteOrganizations } from '../../../actions/Organization';
@@ -51,7 +51,6 @@ const OrganizationsList = () => {
   // Standard hooks
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
 
@@ -241,7 +240,7 @@ const OrganizationsList = () => {
                   />
                 )}
               >
-                <ListItemButton classes={{ root: classes.item }} onClick={() => navigate(`${ORGANIZATION_BASE_URL}/${organization.organization_id}`)}>
+                <ListItemButton classes={{ root: classes.item }} component={Link} to={`${ORGANIZATION_BASE_URL}/${organization.organization_id}`}>
                   {canManage && (
                     <ListItemIcon
                       style={{ minWidth: 40 }}

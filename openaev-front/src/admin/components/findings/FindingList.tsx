@@ -1,7 +1,7 @@
 import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
 import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link } from 'react-router';
 
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -33,7 +33,6 @@ const inlineStyles: Record<string, CSSProperties> = ({
 });
 
 const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId }: Props) => {
-  const navigate = useNavigate();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const [loading, setLoading] = useState<boolean>(true);
@@ -170,7 +169,8 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
               >
                 <ListItemButton
                   sx={{ height: 50 }}
-                  onClick={() => navigate(`/admin/findings/${finding.finding_id}`)}
+                  component={Link}
+                  to={`/admin/findings/${finding.finding_id}`}
                 >
                   <ListItemIcon>
                     <FindingIcon findingType={finding.finding_type} />

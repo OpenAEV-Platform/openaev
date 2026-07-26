@@ -34,7 +34,7 @@ const TopBarNotifications = ({ iconButtonSx }: Props) => {
         to="/admin/profile/notifications"
         sx={iconButtonSx(location.pathname.startsWith('/admin/profile/notifications'))}
       >
-        <Badge badgeContent={unreadCount} color="error" max={99}>
+        <Badge color="secondary" variant="dot" invisible={unreadCount === 0}>
           <NotificationsOutlined fontSize="medium" />
         </Badge>
       </IconButton>

@@ -66,6 +66,7 @@ const DocumentPopover = (props) => {
   const [relations, setRelations] = useState(null);
   const [loadingRelations, setLoadingRelations] = useState(false);
   const [isUsedInPayloads, setIsUsedInPayloads] = useState(false);
+  const [isUsedAsPlatformLogo, setIsUsedAsPlatformLogo] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openRemove, setOpenRemove] = useState(false);
 
@@ -121,6 +122,9 @@ const DocumentPopover = (props) => {
   useEffect(() => {
     if (relations) {
       setIsUsedInPayloads(!!relations.payloads?.length);
+      // Security platform logos are uploaded by collectors and referenced by the
+      // platform: deleting them would break the platform icon everywhere.
+      setIsUsedAsPlatformLogo(!!relations.securityPlatforms?.length);
     }
   }, [relations]);
 
@@ -183,7 +187,15 @@ const DocumentPopover = (props) => {
         )}
 
         <Typography sx={{ paddingTop: theme.spacing(2) }}>
-          {isUsedInPayloads ? t('A document used in a payload can\'t be deleted.') : t('Do you want to delete this document?')}
+          {(() => {
+            if (isUsedInPayloads) {
+              return t('A document used in a payload can\'t be deleted.');
+            }
+            if (isUsedAsPlatformLogo) {
+              return t('A document used as a security platform logo can\'t be deleted.');
+            }
+            return t('Do you want to delete this document?');
+          })()}
         </Typography>
       </>
     );
@@ -240,7 +252,7 @@ const DocumentPopover = (props) => {
       <DialogDelete
         open={openDelete}
         handleClose={handleCloseDelete}
-        handleSubmit={!isUsedInPayloads ? submitDelete : null}
+        handleSubmit={!isUsedInPayloads && !isUsedAsPlatformLogo ? submitDelete : null}
         richContent={renderDialogText()}
       />
 

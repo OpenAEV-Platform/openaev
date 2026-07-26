@@ -6667,6 +6667,15 @@ export interface NetworkTraffic {
     | "AI_ATTACK";
 }
 
+export interface NotificationBulkProcessingInput {
+  /** Ids excluded from the select-all scope */
+  notification_ids_to_ignore?: string[];
+  /** Explicit ids of the notifications to process */
+  notification_ids_to_process?: string[];
+  /** Search input selecting the notifications to process (select all) */
+  search_pagination_input?: SearchPaginationInput;
+}
+
 export interface NotificationOutput {
   /** Content groups: [{title, events: [{operation, message, ...}]}] */
   notification_content?: Record<string, any>[];

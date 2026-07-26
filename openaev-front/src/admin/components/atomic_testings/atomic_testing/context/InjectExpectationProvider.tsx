@@ -1,3 +1,4 @@
+import { Alert, DialogContentText } from '@mui/material';
 import { type ReactNode, useContext, useMemo, useState } from 'react';
 
 import { fetchInjectResultOverviewOutput } from '../../../../../actions/atomic_testings/atomic-testing-actions';
@@ -12,7 +13,7 @@ import {
   type InjectResultOverviewOutputContextType,
 } from '../../InjectResultOverviewOutputContext';
 import EditInjectExpectationResultDialog from '../target_result/EditInjectExpectationResultDialog';
-import TargetResultsSecurityPlatform from '../TargetResultsSecurityPlatform';
+import TargetResultAlertsDialog from '../target_result/TargetResultAlertsDialog';
 import InjectExpectationContext from './InjectExpectationContext';
 
 const InjectExpectationProvider = ({ children, inject }: {
@@ -26,7 +27,7 @@ const InjectExpectationProvider = ({ children, inject }: {
   const [selectedResult, setSelectedResult] = useState<InjectExpectationResult | null>(null);
   const [selectedInjectExpectation, setSelectedInjectExpectation] = useState<InjectExpectationsStore | null>(null);
   const [openDeleteResult, setOpenDeleteResult] = useState<boolean>(false);
-  const [openSecurityPlatform, setOpenSecurityPlatform] = useState<boolean>(false);
+  const [openAlertsDialog, setOpenAlertsDialog] = useState<boolean>(false);
 
   const { updateInjectResultOverviewOutput } = useContext<InjectResultOverviewOutputContextType>(InjectResultOverviewOutputContext);
 
@@ -68,17 +69,22 @@ const InjectExpectationProvider = ({ children, inject }: {
     });
   };
 
-  const onOpenSecurityPlatform = (result: InjectExpectationResult | null = null, injectExpectationStore: InjectExpectationsStore | null = null) => {
+  const onOpenAlertsDialog = (result: InjectExpectationResult | null = null, injectExpectationStore: InjectExpectationsStore | null = null) => {
     setSelectedResult(result);
     setSelectedInjectExpectation(injectExpectationStore);
-    setOpenSecurityPlatform(true);
+    setOpenAlertsDialog(true);
   };
 
-  const onCloseSecurityPlatformResult = () => {
+  const onCloseAlertsDialog = () => {
     setSelectedResult(null);
     setSelectedInjectExpectation(null);
-    setOpenSecurityPlatform(false);
+    setOpenAlertsDialog(false);
   };
+
+  // Asset-level expectation (no agent): its result rows are the aggregation of the
+  // agents' security platform results, so deleting one cascades to all agents.
+  const isAssetLevelResultDeletion = !!selectedInjectExpectation?.inject_expectation_asset
+    && !selectedInjectExpectation?.inject_expectation_agent;
 
   const computeExistingSourceIds = (results: InjectExpectationResult[]) => {
     const sourceIds: string[] = [];
@@ -93,11 +99,11 @@ const InjectExpectationProvider = ({ children, inject }: {
   const contextValue = useMemo(() => ({
     onOpenDeleteInjectExpectationResult,
     onOpenEditInjectExpectationResultResult,
-    onOpenSecurityPlatform,
+    onOpenAlertsDialog,
   }),
   [onOpenDeleteInjectExpectationResult,
     onOpenEditInjectExpectationResultResult,
-    onOpenSecurityPlatform]);
+    onOpenAlertsDialog]);
 
   return (
     <InjectExpectationContext.Provider value={contextValue}>
@@ -117,16 +123,28 @@ const InjectExpectationProvider = ({ children, inject }: {
           open={openDeleteResult}
           handleClose={onCloseDeleteInjectExpectationResult}
           text={t('Do you want to delete this expectation result?')}
+          // Asset-level rows aggregate the agents' security platform results: deleting one
+          // cascades to every agent of the asset, so warn explicitly before submitting.
+          richContent={isAssetLevelResultDeletion ? (
+            <>
+              <DialogContentText>
+                {t('Do you want to delete this expectation result?')}
+              </DialogContentText>
+              <Alert severity="warning" style={{ marginTop: 16 }}>
+                {t('This result is an aggregation: deleting it will also delete the results of this security platform for all agents of this asset.')}
+              </Alert>
+            </>
+          ) : undefined}
           handleSubmit={onDelete}
         />
       ) }
       {selectedInjectExpectation && (
-        <TargetResultsSecurityPlatform
+        <TargetResultAlertsDialog
           injectExpectation={selectedInjectExpectation}
           sourceId={selectedResult?.sourceId ?? ''}
           expectationResult={selectedResult}
-          open={openSecurityPlatform}
-          handleClose={onCloseSecurityPlatformResult}
+          open={openAlertsDialog}
+          handleClose={onCloseAlertsDialog}
         />
       )}
     </InjectExpectationContext.Provider>

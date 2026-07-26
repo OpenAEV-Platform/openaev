@@ -3,7 +3,7 @@ import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolti
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ApexOptions } from 'apexcharts';
 import { type CSSProperties, type FunctionComponent, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 
 import { fetchSecurityPlatform } from '../../../../actions/assets/securityPlatform-actions';
 import { adHocEntities, adHocSeries } from '../../../../actions/dashboards/dashboard-action';
@@ -41,11 +41,11 @@ import {
   type Widget,
 } from '../../../../utils/api-types';
 import { sampleSuccessRateSeries } from '../../../../utils/SampleCharts';
-import { computeInjectExpectationLabel } from '../../../../utils/statusUtils';
+import { computeInjectExpectationLabel, computeStatusStyle } from '../../../../utils/statusUtils';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import expectationIconByType, { expectationTypeIcon } from '../../common/ExpectationIconByType';
 import ExpectationTypeChip from '../../workspaces/custom_dashboards/widgets/viz/list/elements/ExpectationTypeChip';
-import navigationHandlers from '../../workspaces/custom_dashboards/widgets/viz/list/elements/ListNavigationHandler';
+import { getNavigationUrl } from '../../workspaces/custom_dashboards/widgets/viz/list/elements/ListNavigationHandler';
 import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import PostureScore from '../PostureScore';
 import useExpectationPosture from '../useExpectationPosture';
@@ -210,12 +210,42 @@ const SecurityPlatformDetail: FunctionComponent = () => {
         if (score == null && expected == null) {
           return <>-</>;
         }
+        // Same score pill as the exposure validation cards: status-colored
+        // tint with the obtained score prominent and the expected score dimmed.
         // A null side means "not scored" - show a dash rather than a fake 0.
+        const statusColor = computeStatusStyle(expectation.inject_expectation_status).color;
         return (
-          <span>
+          <Box
+            component="span"
+            sx={{
+              minWidth: 34,
+              height: 22,
+              borderRadius: 1,
+              paddingInline: 0.75,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 0.5,
+              backgroundColor: alpha(statusColor, 0.12),
+              color: statusColor,
+              fontSize: 12,
+              fontWeight: 700,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
             {score != null ? Math.round(score) : '-'}
-            {expected != null ? ` / ${Math.round(expected)}` : ''}
-          </span>
+            {expected != null && (
+              <Box
+                component="span"
+                sx={{
+                  opacity: 0.6,
+                  fontWeight: 600,
+                }}
+              >
+                {`/ ${Math.round(expected)}`}
+              </Box>
+            )}
+          </Box>
         );
       },
     },
@@ -514,8 +544,10 @@ const SecurityPlatformDetail: FunctionComponent = () => {
           fetch={fetchMissed}
           searchPaginationInput={searchPaginationInput}
           setContent={setMissed}
-          entityPrefix="inject_expectation"
-          availableFilterNames={['inject_expectation_type', 'inject_expectation_status']}
+          // ES-backed list: filter properties come from the engine schema (the
+          // JPA InjectExpectation schema does not expose the computed status).
+          engineEntityName="expectation-inject"
+          availableFilterNames={['inject_expectation_type', 'inject_expectation_status', 'inject_expectation_score']}
           queryableHelpers={queryableHelpers}
         />
         <List>
@@ -543,16 +575,30 @@ const SecurityPlatformDetail: FunctionComponent = () => {
             : missed.map((element) => {
                 const expectation = element as EsInjectExpectation;
                 const LeadingIcon = expectationTypeIcon(expectation.inject_expectation_type);
+                // Real router link (not a JS navigate) so ctrl/cmd+click opens a new
+                // tab; rows without a resolvable target stay non-navigable.
+                const url = getNavigationUrl(element);
                 return (
                   <ListItem
                     key={expectation.base_id}
                     divider
                     disablePadding
-                    secondaryAction={<KeyboardArrowRight color="action" />}
+                    secondaryAction={url ? <KeyboardArrowRight color="action" /> : <>&nbsp;</>}
                   >
                     <ListItemButton
                       style={{ height: 50 }}
-                      onClick={() => navigationHandlers['expectation-inject']?.(element, navigate)}
+                      {...(url
+                        ? {
+                            component: Link,
+                            to: url,
+                          }
+                        : { disabled: true })}
+                      sx={url
+                        ? undefined
+                        : {
+                            '&.Mui-disabled': { opacity: 1 },
+                            'cursor': 'default',
+                          }}
                     >
                       <ListItemIcon>
                         <LeadingIcon color="primary" />

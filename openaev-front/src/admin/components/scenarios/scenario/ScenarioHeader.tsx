@@ -1,6 +1,6 @@
 import {
-  AutoAwesomeOutlined,
   ComputerOutlined,
+  DashboardCustomizeOutlined,
   EmojiEventsOutlined,
   GroupsOutlined,
   HubOutlined,
@@ -17,7 +17,7 @@ import {
 import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { fetchScenarioChallenges } from '../../../../actions/challenge-action';
 import { fetchScenarioArticles } from '../../../../actions/channels/article-action';
@@ -66,6 +66,7 @@ import ExpectationsDriftIndicator from '../../common/injects/expectations/Expect
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
 import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
+import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
 import ScenarioConfiguration from './ScenarioConfiguration';
 import ScenarioPopover from './ScenarioPopover';
 
@@ -82,6 +83,7 @@ const ScenarioHeader = ({
   const { t, locale, fld } = useFormatter();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
   const [openScenarioAssistantQueryParam] = useQueryParameter(['openScenarioAssistant']);
@@ -150,7 +152,19 @@ const ScenarioHeader = ({
   const teamsCount = teams?.length ?? 0;
   const playersCount = scenario.scenario_all_users_number ?? scenario.scenario_users_number ?? 0;
   const articlesCount = articles?.length ?? 0;
-  const { assets: assetsCount, assetGroups: assetGroupsCount } = countDistinctInjectTargets(injects);
+  const { assets: assetsCount, assetGroups: assetGroupsCount, assetGroupIds } = countDistinctInjectTargets(injects);
+
+  // Countable stats drill down to the full-page results explorer (the same
+  // one the dashboards use), scoped to this scenario. Players, media pressure
+  // and challenges are not indexed in the engine, so they stay static.
+  const statResultsUrl = (entity: string, filterValuesMap?: Record<string, string[] | undefined>) =>
+    contextualResultsUrl(
+      CONTEXTUAL_ENTITY_WIDGET_IDS[entity],
+      'scenario',
+      scenarioId,
+      location.pathname + location.search,
+      filterValuesMap,
+    );
 
   useEffect(() => {
     searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
@@ -257,26 +271,6 @@ const ScenarioHeader = ({
                   onRealign={onRealignExpectations}
                 />
               )}
-              {/* One AI action, kept visible for discoverability. */}
-              {canManage && !isScenarioChaining && (
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<AutoAwesomeOutlined />}
-                  sx={{
-                    'color': theme.palette.ai.main,
-                    'borderColor': alpha(theme.palette.ai.main, 0.5),
-                    'backgroundColor': alpha(theme.palette.ai.main, 0.06),
-                    '&:hover': {
-                      borderColor: theme.palette.ai.main,
-                      backgroundColor: alpha(theme.palette.ai.main, 0.12),
-                    },
-                  }}
-                  onClick={() => navigate(`/admin/scenarios/${scenarioId}/assistant`)}
-                >
-                  {t('Scenario assistant')}
-                </Button>
-              )}
               {/* Configuration promoted to a first-class button (not buried in the
                   overflow) so teams/players setup is discoverable, with an
                   explicit tooltip describing what it configures. */}
@@ -323,23 +317,54 @@ const ScenarioHeader = ({
                       <UpdateOutlined fontSize="small" />
                     </IconButton>
                   </Tooltip>
+                  {/* Guided scenario building (matrix coverage + inject generation),
+                      not an AI-only feature - hence primary color, no sparkles. */}
+                  {!isScenarioChaining && (
+                    <Tooltip title={t('Scenario assistant')}>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => navigate(`/admin/scenarios/${scenarioId}/assistant`)}
+                        data-testid="scenario-assistant-button"
+                      >
+                        <DashboardCustomizeOutlined fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                 </>
               )}
               {/* The single prominent CTA. */}
               {canLaunch && isScheduled && !ended
                 ? (
-                    <Button
-                      startIcon={<Stop />}
-                      variant="outlined"
-                      color="inherit"
-                      size="small"
-                      onClick={stop}
-                    >
-                      {t('Stop')}
-                    </Button>
+                    <>
+                      <Button
+                        startIcon={<Stop />}
+                        variant="outlined"
+                        color="inherit"
+                        size="small"
+                        onClick={stop}
+                      >
+                        {t('Stop')}
+                      </Button>
+                      {/* Even while scheduled, allow a one-off manual run outside
+                          the recurrence - compact icon so it stays secondary to Stop. */}
+                      <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch now')}>
+                        <span style={{ display: 'inline-flex' }}>
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => setOpenInstantiateSimulationAndStart(true)}
+                            disabled={isScopeMissing}
+                            data-testid="scenario-launch-now-button"
+                          >
+                            <PlayArrowOutlined fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </>
                   )
                 : canLaunch && (
-                  <Tooltip title={isScopeMissing ? t('A Chaining Scenario requires a defined scope.') : ''}>
+                  <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : ''}>
                     <span style={{ display: 'inline-flex' }}>
                       <Button
                         startIcon={<PlayArrowOutlined />}
@@ -377,6 +402,7 @@ const ScenarioHeader = ({
                 label={t('Simulations')}
                 value={simulationsCount}
                 color={theme.palette.primary.main}
+                to={simulationsCount > 0 ? statResultsUrl('simulation') : undefined}
               />
               {/* People dimension - tabletop / crisis scenarios. */}
               {teamsCount > 0 && (
@@ -385,6 +411,7 @@ const ScenarioHeader = ({
                   label={t('Teams')}
                   value={teamsCount}
                   color={theme.palette.secondary.main}
+                  to={statResultsUrl('team', { base_id: teams.map(team => team.team_id) })}
                 />
               )}
               {playersCount > 0 && (
@@ -402,6 +429,7 @@ const ScenarioHeader = ({
                   label={t('Assets')}
                   value={assetsCount}
                   color={theme.palette.info.main}
+                  to={statResultsUrl('asset')}
                 />
               )}
               {assetGroupsCount > 0 && (
@@ -410,6 +438,7 @@ const ScenarioHeader = ({
                   label={t('Asset groups')}
                   value={assetGroupsCount}
                   color={theme.palette.info.main}
+                  to={statResultsUrl('asset-group', { base_id: assetGroupIds })}
                 />
               )}
               {/* Content dimension - media pressure and gamification. */}

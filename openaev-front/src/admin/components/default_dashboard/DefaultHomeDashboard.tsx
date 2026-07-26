@@ -13,9 +13,8 @@ import { useBulkOperationsFinishedCount } from '../../../utils/bulkOperations';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import limitConcurrency from '../../../utils/limitConcurrency';
-import { CustomDashboardContext, type CustomDashboardContextType } from '../workspaces/custom_dashboards/CustomDashboardContext';
+import { CustomDashboardContext, type CustomDashboardContextType, type WidgetResultsConf } from '../workspaces/custom_dashboards/CustomDashboardContext';
 import CustomDashboardReactLayout from '../workspaces/custom_dashboards/CustomDashboardReactLayout';
-import { type WidgetDataDrawerConf } from '../workspaces/custom_dashboards/widgetDataDrawer/WidgetDataDrawer';
 import { getTimeRangeItems } from '../workspaces/custom_dashboards/widgets/configuration/common/TimeRangeUtils';
 import {
   buildDefaultHomeWidgets,
@@ -104,7 +103,7 @@ const DefaultHomeDashboard = () => {
 
   // Every widget click lands on the full-page results explorer: no drawer,
   // no dashboard re-render, a real navigable page with the scoped entities.
-  const openWidgetDataDrawer = useCallback((conf: WidgetDataDrawerConf) => {
+  const openWidgetResults = useCallback((conf: WidgetResultsConf) => {
     const params = new URLSearchParams();
     params.set('widget_id', conf.widgetId);
     params.set('series_index', (conf.series_index ?? '').toString());
@@ -115,11 +114,8 @@ const DefaultHomeDashboard = () => {
         (values ?? []).forEach(value => params.append(key, value));
       });
     }
+    params.set('back', '/admin');
     navigate(`/admin/results?${params.toString()}`);
-  }, [navigate]);
-
-  const closeWidgetDataDrawer = useCallback(() => {
-    navigate('/admin');
   }, [navigate]);
 
   const contextValue: CustomDashboardContextType = useMemo(() => ({
@@ -145,10 +141,9 @@ const DefaultHomeDashboard = () => {
       const widget = widgetOf(widgetId);
       return limitWidgetQueries(() => adHocEntitiesRuntime(widget.widget_type, widget.widget_config, input));
     },
-    openWidgetDataDrawer,
-    closeWidgetDataDrawer,
+    openWidgetResults,
     setGridReady: () => {},
-  }), [customDashboard, widgetOf, refreshCount, openWidgetDataDrawer, closeWidgetDataDrawer]);
+  }), [customDashboard, widgetOf, refreshCount, openWidgetResults]);
 
   return (
     <CustomDashboardContext.Provider value={contextValue}>

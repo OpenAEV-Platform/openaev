@@ -89,6 +89,10 @@ const SimulationAnalysis = () => {
   const configuration = useMemo(() => ({
     customDashboardId: effectiveDashboardId,
     paramLocalStorageKey: 'custom-dashboard-simulation-' + exerciseId,
+    resultsSource: {
+      source: 'simulation' as const,
+      contextId: exerciseId,
+    },
     paramsBuilder,
     parentContextId: exerciseId,
     canChooseDashboard: ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, exerciseId),

@@ -5,7 +5,7 @@ import { Field } from 'react-final-form';
 const renderAutocomplete = ({
   label,
   placeholder,
-  input: { onChange, ...inputProps },
+  input: { onChange, value, ...inputProps },
   meta: { touched, invalid, error },
   fullWidth,
   style,
@@ -13,6 +13,16 @@ const renderAutocomplete = ({
   InputLabelProps,
   ...others
 }) => {
+  // react-final-form represents an empty field as '' while MUI expects null
+  // (single) or an array (multiple). Passing '' through used to be compensated
+  // by an isOptionEqualToValue that returned true for empty values, which made
+  // MUI mark EVERY option as selected when the field had no value.
+  let normalizedValue = value;
+  if (others.multiple) {
+    normalizedValue = Array.isArray(value) ? value : [];
+  } else if (value === '' || value === undefined) {
+    normalizedValue = null;
+  }
   return (
     <div style={{ position: 'relative' }}>
       <MuiAutocomplete
@@ -23,17 +33,18 @@ const renderAutocomplete = ({
         clearOnEscape={false}
         disableClearable
         slotProps={{ paper: { elevation: 2 } }}
-        onInputChange={(_event, value) => {
+        onInputChange={(_event, inputValue) => {
           if (others.freeSolo) {
-            onChange(value);
+            onChange(inputValue);
           }
         }}
-        onChange={(_event, value) => {
-          onChange(value);
+        onChange={(_event, newValue) => {
+          onChange(newValue);
         }}
         {...inputProps}
+        value={normalizedValue}
         {...others}
-        isOptionEqualToValue={(option, value) => value === undefined || value === '' || option?.id === value?.id}
+        isOptionEqualToValue={(option, val) => option?.id === val?.id}
         renderInput={params => (
           <TextField
             {...params}
@@ -54,7 +65,9 @@ const renderAutocomplete = ({
                       <IconButton
                         style={{
                           position: 'absolute',
-                          right: '35px',
+                          // Clearable fields render the MUI clear icon just left of the
+                          // popup indicator, so the create button moves one slot further.
+                          right: others.disableClearable === false ? '65px' : '35px',
                         }}
                         onClick={() => openCreate()}
                       >

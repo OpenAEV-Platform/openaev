@@ -9,6 +9,7 @@ import { useFormatter } from '../../../i18n';
 import { FilterContext } from './context';
 import { type FilterHelpers } from './FilterHelpers';
 import { getSelectedOptions } from './FilterUtils';
+import useRetrieveOptions from './useRetrieveOptions';
 import useSearchOptions, { type SearchOptionsConfig } from './useSearchOptions';
 import wordsToExcludeFromTranslation from './WordsToExcludeFromTranslation';
 
@@ -80,8 +81,19 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
   const { t } = useFormatter();
   const [inputValue, setInputValue] = useState('');
   const { options, setOptions, searchOptions, loading } = useSearchOptions();
+  // Resolve the already-selected values (ids) to their labels the same way the
+  // filter chip does: a text search may not return an entity that is already
+  // selected (e.g. an author outside the first page), which would otherwise
+  // render as a raw id in the "Selected" group.
+  const { options: resolvedSelectedOptions, searchOptions: retrieveSelectedOptions } = useRetrieveOptions();
   const { defaultValues } = useContext(FilterContext);
-  const selectedOptions = getSelectedOptions(options, filter.values ?? [], t);
+  // The selected values resolve against both the live search results and the
+  // by-id resolution, so a selected entity always shows its human-readable label.
+  const optionPool = [
+    ...options,
+    ...resolvedSelectedOptions.filter(resolved => !options.some(option => option.id === resolved.id)),
+  ];
+  const selectedOptions = getSelectedOptions(optionPool, filter.values ?? [], t);
   const mergedOptions = [
     ...selectedOptions,
     ...options.filter(option => !selectedOptions.some(selectedOption => selectedOption.id === option.id)),
@@ -100,6 +112,17 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
     debounce((search?: string) => handleSearchOptions(search ?? ''), 300),
     [filter.key, contextId],
   );
+  useEffect(() => {
+    // Resolve the labels of the values selected before the popover opened; new
+    // selections come from the search results and already carry their label.
+    if (filter.values && filter.values.length > 0) {
+      retrieveSelectedOptions(filter.values, {
+        filterKey: filter.key,
+        contextId,
+        defaultValues: defaultValues?.get(filter.key),
+      });
+    }
+  }, []);
   useEffect(() => {
     if (propertySchema.schema_property_values && propertySchema.schema_property_values?.length > 0) {
       setOptions(
