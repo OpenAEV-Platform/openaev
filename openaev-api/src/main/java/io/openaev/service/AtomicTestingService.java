@@ -283,15 +283,22 @@ public class AtomicTestingService {
   @Transactional
   public InjectResultOverviewOutput updateRecurrence(String injectId, InjectRecurrenceInput input) {
     Inject inject = findInject(injectId);
+    // Normalize a blank expression to null so a cleared schedule can never be persisted as an
+    // unparseable empty cron that the minutely job would keep selecting (isRecurring checks
+    // isNotNull only).
+    String recurrence =
+        (input.getRecurrence() == null || input.getRecurrence().isBlank())
+            ? null
+            : input.getRecurrence().trim();
     // Scheduling itself is a Community Edition feature, but the Enterprise executor gate still
     // applies: without it, scheduling would bypass the licence check enforced on manual launches
     // (scheduled executions deliberately skip the gate at run time). A recurrence with a null
     // start date still fires (null start counts as already started), so the gate keys on the
-    // recurrence expression; clearing the schedule stays allowed.
-    if (input.getRecurrence() != null) {
+    // normalized recurrence expression; clearing the schedule stays allowed.
+    if (recurrence != null) {
       injectService.throwIfInjectNotLaunchable(inject);
     }
-    inject.setRecurrence(input.getRecurrence());
+    inject.setRecurrence(recurrence);
     inject.setRecurrenceStart(input.getRecurrenceStart());
     inject.setRecurrenceEnd(input.getRecurrenceEnd());
     Inject saved = injectRepository.save(inject);

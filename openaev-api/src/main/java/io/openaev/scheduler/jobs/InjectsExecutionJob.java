@@ -483,10 +483,16 @@ public class InjectsExecutionJob implements Job {
       boolean collectDone =
           inject.getExpectations().stream()
               .allMatch(
-                  expectation ->
-                      expectation.getResults().isEmpty()
-                          || hasValidResults(expectation.getResults())
-                          || expectation.isExpired());
+                  expectation -> {
+                    // Legacy expectation rows can carry a SQL NULL results column (see
+                    // InjectExpectationMapper): treat it as "nothing to collect" instead of
+                    // NPE-ing the job and blocking simulation auto-close.
+                    List<InjectExpectationResult> results = expectation.getResults();
+                    return results == null
+                        || results.isEmpty()
+                        || hasValidResults(results)
+                        || expectation.isExpired();
+                  });
       if (collectDone) {
         inject.setCollectExecutionStatus(COMPLETED);
         fulfilled.add(inject);

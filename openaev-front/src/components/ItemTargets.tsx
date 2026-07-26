@@ -110,7 +110,7 @@ const ItemTargets: FunctionComponent<Props> = ({
     return '-';
   }
 
-  const getIcon = (type: string) => {
+  const getIcon = (type: string | undefined) => {
     if (type === 'ASSETS') {
       return <DevicesOtherOutlined style={{ fontSize: '1rem' }} />;
     }
@@ -137,7 +137,7 @@ const ItemTargets: FunctionComponent<Props> = ({
                 variant="outlined"
                 key={target.target_id}
                 classes={{ root: link ? cx(classes.target, classes.clickable) : classes.target }}
-                icon={getIcon(target.target_type!)}
+                icon={getIcon(target.target_type)}
                 label={truncate(target.target_name!, truncateLimit)}
                 {...(link
                   ? {
@@ -168,7 +168,7 @@ const ItemTargets: FunctionComponent<Props> = ({
                     <tr key={target.target_id}>
                       <td>
                         <span className={classes.tooltipName}>
-                          {getIcon(target.target_type!)}
+                          {getIcon(target.target_type)}
                           {truncate(target.target_name ?? '-', 40)}
                         </span>
                       </td>
