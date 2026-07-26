@@ -18,6 +18,9 @@ export const buildSearchPagination = (searchPaginationInput: Partial<SearchPagin
 // component (search, filters, pagination) rendered with a zero-result state.
 export const buildEmptyPage = <T>(input: SearchPaginationInput): { data: Page<T> } => {
   const size = input.size ?? DEFAULT_ROWS_PER_PAGE;
+  // Echo the requested page (like the backend would) so the pagination state
+  // stays consistent when a caller short-circuits from a non-zero page.
+  const page = input.page ?? 0;
   const sort = {
     empty: true,
     sorted: false,
@@ -27,13 +30,13 @@ export const buildEmptyPage = <T>(input: SearchPaginationInput): { data: Page<T>
     data: {
       content: [],
       empty: true,
-      first: true,
+      first: page === 0,
       last: true,
-      number: 0,
+      number: page,
       numberOfElements: 0,
       pageable: {
-        offset: 0,
-        pageNumber: 0,
+        offset: page * size,
+        pageNumber: page,
         pageSize: size,
         paged: true,
         sort,

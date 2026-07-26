@@ -575,17 +575,25 @@ const SecurityPlatformDetail: FunctionComponent = () => {
             : missed.map((element) => {
                 const expectation = element as EsInjectExpectation;
                 const LeadingIcon = expectationTypeIcon(expectation.inject_expectation_type);
+                // Real router link (not a JS navigate) so ctrl/cmd+click opens a new
+                // tab; rows without a resolvable target stay non-navigable.
+                const url = getNavigationUrl(element);
                 return (
                   <ListItem
                     key={expectation.base_id}
                     divider
                     disablePadding
-                    secondaryAction={<KeyboardArrowRight color="action" />}
+                    secondaryAction={url ? <KeyboardArrowRight color="action" /> : <>&nbsp;</>}
                   >
                     <ListItemButton
                       style={{ height: 50 }}
-                      component={Link}
-                      to={getNavigationUrl(element) ?? ''}
+                      {...(url
+                        ? {
+                            component: Link,
+                            to: url,
+                          }
+                        : {})}
+                      sx={url ? undefined : { cursor: 'default' }}
                     >
                       <ListItemIcon>
                         <LeadingIcon color="primary" />
