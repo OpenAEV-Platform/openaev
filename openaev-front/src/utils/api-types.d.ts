@@ -9653,6 +9653,29 @@ export interface SecurityPlatformInput {
     | "AI_GATEWAY";
 }
 
+export interface SecurityPlatformSimpleOutput {
+  /**
+   * Security platform id
+   * @minLength 1
+   */
+  asset_id: string;
+  /**
+   * Security platform name
+   * @minLength 1
+   */
+  asset_name: string;
+  /** Security platform type */
+  security_platform_type:
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
+}
+
 export interface SecurityPlatformUpsertInput {
   asset_description?: string;
   asset_external_reference?: string;

@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
+import io.openaev.rest.asset.security_platforms.form.SecurityPlatformSimpleOutput;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.payload.form.*;
@@ -12,6 +13,7 @@ import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.payload.service.*;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
 import io.openaev.utils.mapper.PayloadMapper;
+import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -163,7 +165,9 @@ public class PayloadApi extends RestBehavior {
             responseCode = "200",
             description = "The list of Security platforms used in a payload remediation")
       })
-  public List<SecurityPlatform> securityPlatformsFromPayload(@PathVariable String payloadId) {
-    return detectionRemediationService.securityPlatformsForPayload(payloadId);
+  public List<SecurityPlatformSimpleOutput> securityPlatformsFromPayload(
+      @PathVariable String payloadId) {
+    return SecurityPlatformMapper.toSimpleOutputs(
+        detectionRemediationService.securityPlatformsForPayload(payloadId));
   }
 }

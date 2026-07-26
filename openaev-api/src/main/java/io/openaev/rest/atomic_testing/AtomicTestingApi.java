@@ -12,7 +12,7 @@ import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.api.expectations.dto.InjectExpectationOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.database.model.SecurityPlatform;
+import io.openaev.rest.asset.security_platforms.form.SecurityPlatformSimpleOutput;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.exception.UnprocessableContentException;
 import io.openaev.rest.helper.RestBehavior;
@@ -21,6 +21,7 @@ import io.openaev.service.AtomicTestingService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectImportService;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
+import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -329,8 +330,10 @@ public class AtomicTestingApi extends RestBehavior {
             responseCode = "200",
             description = "The list of Security platforms used in an atomic testing remediation")
       })
-  public List<SecurityPlatform> securityPlatformsFromAtomicTesting(@PathVariable String injectId) {
-    return detectionRemediationService.securityPlatformsForInject(injectId);
+  public List<SecurityPlatformSimpleOutput> securityPlatformsFromAtomicTesting(
+      @PathVariable String injectId) {
+    return SecurityPlatformMapper.toSimpleOutputs(
+        detectionRemediationService.securityPlatformsForInject(injectId));
   }
 
   @PostMapping(

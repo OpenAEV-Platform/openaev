@@ -9,7 +9,7 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.ChainingTypeRegistry;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.ResourceType;
-import io.openaev.database.model.SecurityPlatform;
+import io.openaev.rest.asset.security_platforms.form.SecurityPlatformSimpleOutput;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractAuthorCountOutput;
@@ -18,6 +18,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutpu
 import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
+import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -164,8 +165,10 @@ public class ThreatArsenalApi {
             responseCode = "200",
             description = "The list of Security platforms used in a action remediation")
       })
-  public List<SecurityPlatform> securityPlatformsFromAction(@PathVariable String actionId) {
-    return threatArsenalService.getSecurityPlatformsForActionRemediation(actionId);
+  public List<SecurityPlatformSimpleOutput> securityPlatformsFromAction(
+      @PathVariable String actionId) {
+    return SecurityPlatformMapper.toSimpleOutputs(
+        threatArsenalService.getSecurityPlatformsForActionRemediation(actionId));
   }
 
   private List<PrimitiveType> resolveAvailableTypes() {
