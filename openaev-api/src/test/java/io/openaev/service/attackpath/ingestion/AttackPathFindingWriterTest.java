@@ -33,7 +33,7 @@ import org.springframework.test.context.TestPropertySource;
     })
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path: the batched snapshot inserts are idempotent")
-class AttackPathFindingWriterIT extends IntegrationTest {
+class AttackPathFindingWriterTest extends IntegrationTest {
 
   private static final String SIM = "SIM-WRITER-IDEMPOTENT";
 

@@ -50,7 +50,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * Real stack (MockMvc + real PG + real grants), no mocked RBAC.
  */
 @DisplayName("attack path: read endpoints enforce SIMULATION READ (seed-tolerant)")
-class AttackPathApiRbacIT extends IntegrationTest {
+class AttackPathApiRbacTest extends IntegrationTest {
 
   private static final String BASE = "/api/attack-path/simulations/";
 

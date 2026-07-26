@@ -183,7 +183,7 @@ class TenantActiveTableAccessArchTest {
               AttackPathExecutionIngestionService.class,
               // Scoped reader: reads the step's execution rows inside its own executeNew (the
               // inject's tenant) with an explicit tenantId predicate, to attribute copied findings.
-              // Pinned by AttackPathFindingIngestionServiceIT:
+              // Pinned by AttackPathFindingIngestionServiceTest:
               AttackPathFindingIngestionService.class)
           .should()
           .dependOnClassesThat()

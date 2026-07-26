@@ -52,7 +52,7 @@ import org.springframework.transaction.support.TransactionTemplate;
     })
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path: copyFindings copies findings onto the snapshot per endpoint")
-class AttackPathFindingIngestionServiceIT extends IntegrationTest {
+class AttackPathFindingIngestionServiceTest extends IntegrationTest {
 
   private static final String STEP_ID = "step-phaseb";
 
