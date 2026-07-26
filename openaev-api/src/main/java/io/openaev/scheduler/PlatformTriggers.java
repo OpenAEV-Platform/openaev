@@ -62,6 +62,7 @@ public class PlatformTriggers {
   }
 
   @Bean
+  @Profile("!test")
   public Trigger atomicTestingExecutionTrigger() {
     return newTrigger()
         .forJob(this.platformJobs.getAtomicTestingExecution())
