@@ -1,5 +1,5 @@
 import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
-import { Box, IconButton, InputBase, Typography } from '@mui/material';
+import { IconButton, InputBase, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 // A single numeric column (hours, minutes or interval) with up/down steppers
@@ -16,7 +16,7 @@ const StepperColumn = ({ value, onChange, max, min = 0, step = 1, ariaLabel }: {
   const stepBy = (delta: number) => onChange(((value - min + delta * step) % range + range) % range + min);
   const pad = (n: number) => String(n).padStart(2, '0');
   return (
-    <Box sx={{
+    <div style={{
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
@@ -52,7 +52,7 @@ const StepperColumn = ({ value, onChange, max, min = 0, step = 1, ariaLabel }: {
       <IconButton size="small" aria-label={`${ariaLabel} -`} onClick={() => stepBy(-1)}>
         <KeyboardArrowDown fontSize="small" />
       </IconButton>
-    </Box>
+    </div>
   );
 };
 
@@ -75,19 +75,19 @@ interface TimeStepperFieldProps {
 const TimeStepperField = ({ label, hour, minute, onChangeHour, onChangeMinute, error, hourLabel, minuteLabel }: TimeStepperFieldProps) => {
   const theme = useTheme();
   return (
-    <Box>
+    <div>
       <Typography variant="caption" component="div" sx={{ color: error ? 'error.main' : 'text.secondary' }}>
         {label}
       </Typography>
-      <Box sx={{
+      <div style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 0.5,
+        gap: theme.spacing(0.5),
         border: `1px solid ${error ? theme.palette.error.main : theme.palette.divider}`,
-        borderRadius: 1,
-        paddingInline: 1.5,
-        paddingBlock: 0.25,
-        marginTop: 0.5,
+        borderRadius: theme.shape.borderRadius,
+        paddingInline: theme.spacing(1.5),
+        paddingBlock: theme.spacing(0.25),
+        marginTop: theme.spacing(0.5),
       }}
       >
         <StepperColumn value={hour} onChange={onChangeHour} max={23} ariaLabel={hourLabel} />
@@ -101,7 +101,7 @@ const TimeStepperField = ({ label, hour, minute, onChangeHour, onChangeMinute, e
           :
         </Typography>
         <StepperColumn value={minute} onChange={onChangeMinute} max={59} step={5} ariaLabel={minuteLabel} />
-      </Box>
+      </div>
       {error && (
         <Typography
           variant="caption"
@@ -113,7 +113,7 @@ const TimeStepperField = ({ label, hour, minute, onChangeHour, onChangeMinute, e
           {error}
         </Typography>
       )}
-    </Box>
+    </div>
   );
 };
 

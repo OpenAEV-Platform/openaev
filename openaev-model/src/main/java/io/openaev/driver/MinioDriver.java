@@ -93,9 +93,12 @@ public class MinioDriver {
     for (Result<Item> result : objects) {
       Item item = result.get();
       String objectName = item.objectName();
+      // Object names can carry a leading '/': normalize once so the tenant and platform prefix
+      // checks below see the same shape the new object name is built from.
+      String normalizedName = objectName.startsWith("/") ? objectName.substring(1) : objectName;
 
       // Skip files already under a tenant path
-      if (tenants.stream().anyMatch(objectName::startsWith)) {
+      if (tenants.stream().anyMatch(normalizedName::startsWith)) {
         continue;
       }
 
@@ -103,14 +106,11 @@ public class MinioDriver {
       // "platform/" prefix (no tenant) and are re-uploaded there by the integration factories
       // at startup. Moving them under the default tenant made every boot re-migrate the same
       // connector logos forever (migrate -> re-upload -> migrate again on next boot).
-      if (objectName.startsWith(MinioService.PLATFORM_PATH_PREFIX)) {
+      if (normalizedName.startsWith(MinioService.PLATFORM_PATH_PREFIX)) {
         continue;
       }
 
-      String newObjectName =
-          objectName.startsWith("/")
-              ? Tenant.DEFAULT_TENANT_UUID + objectName
-              : Tenant.DEFAULT_TENANT_UUID + "/" + objectName;
+      String newObjectName = Tenant.DEFAULT_TENANT_UUID + "/" + normalizedName;
 
       log.info("Migrating file '{}' to '{}'", objectName, newObjectName);
 
