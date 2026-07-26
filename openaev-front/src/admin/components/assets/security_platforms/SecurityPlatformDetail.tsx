@@ -592,8 +592,13 @@ const SecurityPlatformDetail: FunctionComponent = () => {
                             component: Link,
                             to: url,
                           }
-                        : {})}
-                      sx={url ? undefined : { cursor: 'default' }}
+                        : { disabled: true })}
+                      sx={url
+                        ? undefined
+                        : {
+                            '&.Mui-disabled': { opacity: 1 },
+                            'cursor': 'default',
+                          }}
                     >
                       <ListItemIcon>
                         <LeadingIcon color="primary" />

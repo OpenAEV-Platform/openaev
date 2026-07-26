@@ -287,8 +287,13 @@ const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initial
                       component: Link,
                       to: url,
                     }
-                  : {})}
-                sx={clickable ? undefined : { cursor: 'default' }}
+                  : { disabled: true })}
+                sx={clickable
+                  ? undefined
+                  : {
+                      '&.Mui-disabled': { opacity: 1 },
+                      'cursor': 'default',
+                    }}
               >
                 <ListItemIcon>
                   {entityConfig ? entityConfig.rowIcon(element) : <HelpOutlineOutlined color="primary" />}

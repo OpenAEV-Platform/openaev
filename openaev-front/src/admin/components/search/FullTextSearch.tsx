@@ -345,8 +345,13 @@ const FullTextSearch = () => {
                                 component: Link,
                                 to,
                               }
-                            : {})}
-                          sx={to ? undefined : { cursor: 'default' }}
+                            : { disabled: true })}
+                          sx={to
+                            ? undefined
+                            : {
+                                '&.Mui-disabled': { opacity: 1 },
+                                'cursor': 'default',
+                              }}
                         >
                           <ListItemIcon>
                             {useEntityIcon(element.clazz)}

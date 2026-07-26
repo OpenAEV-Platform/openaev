@@ -123,9 +123,16 @@ const ListWidgetItem = memo<{
           {rowContent}
         </ListItemButton>
       ) : (
+        // Non-navigable row: disabled so it is neither focusable nor announced
+        // as actionable; opacity restored so the content stays readable.
         <ListItemButton
           classes={{ root: itemClass }}
           className="noDrag"
+          disabled
+          sx={{
+            '&.Mui-disabled': { opacity: 1 },
+            'cursor': 'default',
+          }}
         >
           {rowContent}
         </ListItemButton>
