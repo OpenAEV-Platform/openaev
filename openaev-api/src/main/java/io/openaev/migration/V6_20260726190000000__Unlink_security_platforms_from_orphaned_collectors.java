@@ -21,9 +21,14 @@ import org.springframework.stereotype.Component;
  * referenced by payloads / contracts, and admins can delete it explicitly). The unlink is
  * self-healing: if such a collector ever re-registers, {@code CollectorService#register} restores
  * the link from the registration payload.
+ *
+ * <p>Idempotent: the UPDATE only touches rows whose link is still set, so a re-run (including on
+ * databases that already applied this migration under its original version {@code
+ * 20260726120000000}, re-versioned here because {@code 20260726174243000} landed on main first and
+ * out-of-order execution is disabled) matches nothing and is a no-op.
  */
 @Component
-public class V6_20260726120000000__Unlink_security_platforms_from_orphaned_collectors
+public class V6_20260726190000000__Unlink_security_platforms_from_orphaned_collectors
     extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
