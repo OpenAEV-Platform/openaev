@@ -480,7 +480,8 @@ public interface InjectRepository
           "SELECT i.inject_exercise, i.inject_content FROM injects i "
               + "WHERE i.inject_exercise IN :exerciseIds "
               + "AND (i.inject_content LIKE '%\"ai_target\"%' "
-              + "OR i.inject_content LIKE '%\"target_selector\"%')",
+              + "OR i.inject_content LIKE '%\"target_selector\"%') "
+              + "AND i.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
   List<Object[]> findContentTargetContentsByExerciseIds(Set<String> exerciseIds);
 
