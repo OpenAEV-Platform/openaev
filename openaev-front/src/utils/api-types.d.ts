@@ -2368,7 +2368,6 @@ export interface CreateConnectorInstanceInput {
 export interface CreateExerciseInput {
   exercise_category?: string;
   exercise_custom_dashboard?: string;
-  /** Kill chain name shown first in the overview's kill chain results (null = automatic). */
   exercise_default_kill_chain?: string;
   exercise_description?: string;
   exercise_is_chaining?: boolean;
@@ -2615,12 +2614,12 @@ export type DateHistogramWidget = UtilRequiredKeys<
 
 export interface DetectionRemediation {
   author_rule: "HUMAN" | "AI" | "AI_OUTDATED";
-  detection_remediation_security_platform: string;
   /** @format date-time */
   detection_remediation_created_at?: string;
   /** @minLength 1 */
   detection_remediation_id: string;
   detection_remediation_payload_id: string;
+  detection_remediation_security_platform: string;
   /** @format date-time */
   detection_remediation_updated_at?: string;
   detection_remediation_values: string;
@@ -2662,9 +2661,12 @@ export interface DetectionRemediationHealthResponse {
 
 export interface DetectionRemediationInput {
   author_rule: "HUMAN" | "AI" | "AI_OUTDATED";
-  /** Security platform id */
-  detection_remediation_security_platform: string;
   detection_remediation_id?: string;
+  /**
+   * Security platform id
+   * @minLength 1
+   */
+  detection_remediation_security_platform: string;
   /** Value of detection remediation, for exemple: query for sentinel */
   detection_remediation_values: string;
 }
@@ -2672,13 +2674,13 @@ export interface DetectionRemediationInput {
 export interface DetectionRemediationOutput {
   /** Author of rules: Human, AI or AI out of date (for rules generated before payload updated) */
   detection_remediation_author_rule: "HUMAN" | "AI" | "AI_OUTDATED";
+  detection_remediation_id?: string;
+  /** Payload id */
+  detection_remediation_payload: string;
   /** Security platform id */
   detection_remediation_security_platform: string;
   /** Security platform name */
   detection_remediation_security_platform_name?: string;
-  detection_remediation_id?: string;
-  /** Payload id */
-  detection_remediation_payload: string;
   /** Value of detection remediation, for exemple: query for sentinel */
   detection_remediation_values: string;
 }
@@ -4416,12 +4418,12 @@ export interface Exercise {
   /** @format date-time */
   exercise_created_at: string;
   exercise_custom_dashboard?: string;
-  /** Kill chain name shown first in the overview's kill chain results (null = automatic). */
   exercise_default_kill_chain?: string;
   exercise_description?: string;
   exercise_documents?: string[];
   /** @format date-time */
   exercise_end_date?: string;
+  exercise_expectations_drift_dismissed?: boolean;
   /** @minLength 1 */
   exercise_id: string;
   exercise_injects?: string[];
@@ -5052,6 +5054,7 @@ export interface Inject {
   inject_enabled?: boolean;
   inject_exercise?: string;
   inject_expectations?: string[];
+  inject_expectations_drift_dismissed?: boolean;
   /** @minLength 1 */
   inject_id: string;
   inject_injector?: string;
@@ -9080,12 +9083,12 @@ export interface Scenario {
   /** @format date-time */
   scenario_created_at: string;
   scenario_custom_dashboard?: string;
-  /** Kill chain name shown first in the overview's kill chain results (null = automatic). */
   scenario_default_kill_chain?: string;
   scenario_dependencies?: "STARTERPACK"[];
   scenario_description?: string;
   scenario_documents?: string[];
   scenario_exercises?: string[];
+  scenario_expectations_drift_dismissed?: boolean;
   scenario_external_reference?: string;
   scenario_external_url?: string;
   /** @minLength 1 */
@@ -9175,7 +9178,6 @@ export interface ScenarioIdsAndInjectorContractsInputs {
 export interface ScenarioInput {
   scenario_category?: string;
   scenario_custom_dashboard?: string;
-  /** Kill chain name shown first in the overview's kill chain results (null = automatic). */
   scenario_default_kill_chain?: string;
   scenario_description?: string;
   scenario_external_reference?: string;
@@ -9743,7 +9745,6 @@ export interface SimulationDetails {
   /** @format date-time */
   exercise_created_at?: string;
   exercise_custom_dashboard?: string;
-  /** Kill chain name shown first in the overview's kill chain results (null = automatic). */
   exercise_default_kill_chain?: string;
   exercise_description?: string;
   /** @format date-time */
@@ -10020,12 +10021,10 @@ export interface TagUpdateInput {
 }
 
 export interface TargetSimple {
-  /** Product-facing asset category (level-1 taxonomy) used to pick the correct icon; null for non-asset targets */
   target_category?: string;
   /** @minLength 1 */
   target_id: string;
   target_name?: string;
-  /** OS platform for host-like assets (Windows / Linux / MacOS / ...) */
   target_subtype?: string;
   target_type?:
     | "AGENT"
@@ -10670,7 +10669,6 @@ export interface UpdateExerciseInput {
   apply_tag_rule?: boolean;
   exercise_category?: string;
   exercise_custom_dashboard?: string;
-  /** Kill chain name shown first in the overview's kill chain results (null = automatic). */
   exercise_default_kill_chain?: string;
   exercise_description?: string;
   exercise_is_chaining?: boolean;
@@ -10724,7 +10722,6 @@ export interface UpdateScenarioInput {
   apply_tag_rule?: boolean;
   scenario_category?: string;
   scenario_custom_dashboard?: string;
-  /** Kill chain name shown first in the overview's kill chain results (null = automatic). */
   scenario_default_kill_chain?: string;
   scenario_description?: string;
   scenario_external_reference?: string;
