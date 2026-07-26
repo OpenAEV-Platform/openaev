@@ -43,6 +43,10 @@ public final class CollectorTypeHumanizer {
    */
   public static HumanizedPlatform humanize(String collectorTypeName) {
     String normalized = collectorTypeName == null ? "" : collectorTypeName.trim();
+    if (normalized.isEmpty()) {
+      // asset_name is NOT BLANK: never derive an empty platform name from a missing type.
+      return new HumanizedPlatform("Unknown", SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM);
+    }
     HumanizedPlatform known = KNOWN_COLLECTOR_TYPES.get(normalized.toLowerCase(Locale.ROOT));
     if (known != null) {
       return known;
