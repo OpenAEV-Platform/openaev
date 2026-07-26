@@ -236,7 +236,7 @@ public class AtomicTestingService {
 
   @Transactional
   public InjectResultOverviewOutput relaunch(String id) {
-    return relaunch(id, true);
+    return doRelaunch(id, true);
   }
 
   /**
@@ -246,6 +246,13 @@ public class AtomicTestingService {
    */
   @Transactional
   public InjectResultOverviewOutput relaunch(String id, boolean checkLaunchable) {
+    return doRelaunch(id, checkLaunchable);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points: an intra-class call to a
+  // @Transactional method bypasses the Spring proxy (self-invocation), so the overloads never call
+  // each other directly.
+  private InjectResultOverviewOutput doRelaunch(String id, boolean checkLaunchable) {
     findInject(id);
     // Relaunching an atomic testing is considered as creating a new one.
     // Therefore, any grants created on the current atomic testing will have to be updated with the

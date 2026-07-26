@@ -4,9 +4,13 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Agent;
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
+import io.openaev.database.repository.AgentRepository;
+import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.utils.fixtures.AgentFixture;
@@ -19,27 +23,31 @@ import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectStatusComposer;
 import jakarta.annotation.Nullable;
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Tests for the recurring atomic testing job, closely modeled on {@link ScenarioExecutionJobTest}:
  * a due occurrence relaunches the atomic testing (duplicate + queue new + delete old, recurrence
  * carried over), an in-progress run dedups, and outdated recurrences self-clear.
+ *
+ * <p>Deliberately NOT {@code @Transactional}: the job opens its own transactions through {@code
+ * TenantScopedTransaction}, whose {@code execute} refuses to run inside an active one. Everything
+ * is committed, so each test sweeps its own rows in {@link #cleanup()} (relaunch duplicates are new
+ * rows the composers never saw, hence the unique title prefix).
  */
 @SpringBootTest
-@Transactional
 @TestInstance(PER_CLASS)
 class AtomicTestingExecutionJobTest extends IntegrationTest {
 
@@ -50,7 +58,31 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
   @Autowired private AgentComposer agentComposer;
   @Autowired private ExecutorFixture executorFixture;
   @Autowired private InjectRepository injectRepository;
-  @Autowired private EntityManager entityManager;
+  @Autowired private AgentRepository agentRepository;
+  @Autowired private EndpointRepository endpointRepository;
+
+  private final String titlePrefix = "AtomicTestingExecutionJobTest-" + UUID.randomUUID();
+
+  @AfterEach
+  void cleanup() {
+    // Relaunch duplicates are new committed rows the composers never saw: sweep by title prefix.
+    List<Inject> leftovers =
+        injectRepository.findAll(InjectSpecification.isAtomicTesting()).stream()
+            .filter(
+                inject -> inject.getTitle() != null && inject.getTitle().startsWith(titlePrefix))
+            .toList();
+    injectRepository.deleteAll(leftovers);
+    agentRepository.deleteAll(
+        agentRepository.findAllById(
+            agentComposer.generatedItems.stream().map(Agent::getId).toList()));
+    endpointRepository.deleteAll(
+        endpointRepository.findAllById(
+            endpointComposer.generatedItems.stream().map(Asset::getId).toList()));
+    injectComposer.reset();
+    injectStatusComposer.reset();
+    agentComposer.reset();
+    endpointComposer.reset();
+  }
 
   private Inject persistAtomicTesting(
       String recurrence,
@@ -58,6 +90,7 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
       @Nullable Instant recurrenceEnd,
       @Nullable InjectStatus injectStatus) {
     Inject inject = InjectFixture.getDefaultInject();
+    inject.setTitle(titlePrefix + " " + UUID.randomUUID());
     inject.setRecurrence(recurrence);
     inject.setRecurrenceStart(recurrenceStart);
     inject.setRecurrenceEnd(recurrenceEnd);
@@ -118,11 +151,6 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
 
     // -- EXECUTE --
     job.execute(null);
-
-    // The relaunch deletes the old inject natively (deleteByIdNative), which bypasses the
-    // first-level cache of this transactional test: clear it so findById hits the database.
-    entityManager.flush();
-    entityManager.clear();
 
     // -- ASSERT: old inject replaced by a queued duplicate with the schedule carried over --
     assertThat(injectRepository.findById(originalId)).isEmpty();
