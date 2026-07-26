@@ -26,6 +26,7 @@ public record AttackPathExecutionRow(
     Instant executedAt,
     String preventionStatus,
     String detectionStatus,
+    String vulnerabilityStatus,
     String stepTemplateId,
     // Injector node enrichment: the frozen contract external id resolves the ATT&CK techniques, and
     // the injector type labels the node with what actually ran.
