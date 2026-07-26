@@ -1559,7 +1559,8 @@ export interface CatalogConnectorConfiguration {
     | "DURATION"
     | "EMAIL"
     | "PASSWORD"
-    | "URI";
+    | "URI"
+    | "UUID";
   /** Connector ID */
   connector_configuration_id?: string;
   /** Connector configuration key */
@@ -5043,6 +5044,11 @@ export interface Inject {
   inject_injector?: string;
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
+  inject_recurrence?: string;
+  /** @format date-time */
+  inject_recurrence_end?: string;
+  /** @format date-time */
+  inject_recurrence_start?: string;
   inject_scenario?: string;
   /** @format date-time */
   inject_sent_at?: string;
@@ -5531,9 +5537,19 @@ export interface InjectReceptionInput {
   tracking_total_count?: number;
 }
 
+export interface InjectRecurrenceInput {
+  inject_recurrence?: string;
+  /** @format date-time */
+  inject_recurrence_end?: string;
+  /** @format date-time */
+  inject_recurrence_start?: string;
+}
+
 export interface InjectResultOutput {
   /** Domain of the inject */
   inject_contract_domains?: string[];
+  /** Whether the inject is enabled (disabled injects are never executed) */
+  inject_enabled?: boolean;
   /** Result of expectations */
   inject_expectation_results: ExpectationResultsByType[];
   /**
@@ -5580,6 +5596,18 @@ export interface InjectResultOverviewOutput {
   inject_kill_chain_phases?: KillChainPhaseSimple[];
   /** Indicates whether the inject is ready for use */
   inject_ready?: boolean;
+  /** Recurrence cron expression for scheduled relaunch */
+  inject_recurrence?: string;
+  /**
+   * End date of the recurrence scheduling
+   * @format date-time
+   */
+  inject_recurrence_end?: string;
+  /**
+   * Start date of the recurrence scheduling
+   * @format date-time
+   */
+  inject_recurrence_start?: string;
   /** status */
   inject_status?: InjectStatusSimple;
   /**
@@ -9561,6 +9589,7 @@ export interface SecurityPlatform {
   asset_updated_at: string;
   asset_url?: string;
   listened?: boolean;
+  security_platform_collectors?: string[];
   security_platform_logo_dark?: string;
   security_platform_logo_light?: string;
   security_platform_traces?: InjectExpectationTrace[];

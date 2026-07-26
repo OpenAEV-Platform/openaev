@@ -14,6 +14,7 @@ import ExportButton, { type ExportProps } from '../ExportButton';
 import { type FilterHelpers } from '../queryable/filter/FilterHelpers';
 import { isEmptyFilter } from '../queryable/filter/FilterUtils';
 import { type Page } from '../queryable/Page';
+import { DEFAULT_ROWS_PER_PAGE, ROWS_PER_PAGE_OPTIONS } from '../queryable/pagination/usePaginationState';
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -38,8 +39,6 @@ const useStyles = makeStyles()(() => ({
     alignItems: 'center',
   },
 }));
-
-const ROWS_PER_PAGE_OPTIONS = [20, 50, 100];
 
 interface Props<T> {
   fetch: (input: SearchPaginationInput) => Promise<{ data: Page<T> }>;
@@ -88,7 +87,7 @@ const PaginationComponent = <T extends object>({
 
   // Pagination
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(searchPaginationInput.size ?? ROWS_PER_PAGE_OPTIONS[0]);
+  const [rowsPerPage, setRowsPerPage] = useState(searchPaginationInput.size ?? DEFAULT_ROWS_PER_PAGE);
   const [totalElements, setTotalElements] = useState(0);
 
   const handleChangePage = (
@@ -131,6 +130,13 @@ const PaginationComponent = <T extends object>({
       setContent(data.content);
       setTotalElements(data.totalElements);
       onTotalElementsChange?.(data.totalElements);
+      // The current page fell past the end (dataset shrank or a parent filter
+      // narrowed the results): restart from the first page instead of showing
+      // a stuck empty page. Guarded on page > 0 so an empty dataset does not
+      // loop.
+      if (page > 0 && data.totalPages <= page) {
+        setPage(0);
+      }
     });
   }, [searchPaginationInput, page, rowsPerPage, textSearch]);
 

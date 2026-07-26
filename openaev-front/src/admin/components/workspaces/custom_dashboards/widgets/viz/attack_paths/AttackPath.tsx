@@ -14,6 +14,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { buildFilter } from '../../../../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../../../../../components/common/queryable/Page';
+import { DEFAULT_ROWS_PER_PAGE } from '../../../../../../../components/common/queryable/pagination/usePaginationState';
 import { useFormatter } from '../../../../../../../components/i18n';
 import {
   type EsAttackPath,
@@ -263,7 +264,7 @@ const AttackPath = ({ data, widgetId, simulationId, simulationStartDate = null, 
     if (node.type == 'attackPattern') {
       const initSearchPaginationInput: SearchPaginationInput = {
         page: 0,
-        size: 20,
+        size: DEFAULT_ROWS_PER_PAGE,
         sorts: initSorting('inject_updated_at', 'DESC'),
         filterGroup: {
           mode: 'or',

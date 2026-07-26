@@ -237,10 +237,7 @@ const Injects: FunctionComponent<Props> = ({
   const {
     queryableHelpers,
     searchPaginationInput,
-  } = useQueryableWithLocalStorage(`${contextId}-injects`, buildSearchPagination({
-    sorts: initSorting('inject_depends_duration', 'ASC'),
-    size: 20,
-  }));
+  } = useQueryableWithLocalStorage(`${contextId}-injects`, buildSearchPagination({ sorts: initSorting('inject_depends_duration', 'ASC') }));
 
   const [loading, setLoading] = useState<boolean>(true);
   const searchInjectsToLoad = (input: SearchPaginationInput) => {

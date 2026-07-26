@@ -1,5 +1,5 @@
-import { PlayArrowOutlined, SettingsOutlined } from '@mui/icons-material';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { PlayArrowOutlined, SettingsOutlined, Stop, TrackChangesOutlined, UpdateOutlined } from '@mui/icons-material';
+import { Alert, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogContentText, FormControlLabel, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -11,14 +11,17 @@ import {
   launchAtomicTesting,
   realignAtomicTestingExpectations,
   relaunchAtomicTesting,
+  updateAtomicTestingRecurrence,
 } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { useFormatter } from '../../../../components/i18n';
 import type { ExpectationsDriftOutput, InjectResultOverviewOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
+import { type Cron } from '../../../../utils/period/Cron';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
+import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
 import AtomicTestingPopover from './AtomicTestingPopover';
 import AtomicTestingUpdate from './AtomicTestingUpdate';
 
@@ -39,8 +42,12 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
 
   const [edition, setEdition] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
+  const [openScheduling, setOpenScheduling] = useState(false);
   const [canLaunch, setCanLaunch] = useState(true);
   const [expectationsDrift, setExpectationsDrift] = useState<ExpectationsDriftOutput | null>(null);
+  // Relaunching a drifted atomic testing without realigning replays the outdated
+  // expectations forever - hence realign is opt-out (checked by default).
+  const [realignOnRelaunch, setRealignOnRelaunch] = useState(true);
 
   // Expectation drift between the injector contract template and the inject
   // content - recomputed when the atomic testing is updated.
@@ -68,11 +75,37 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
     });
   };
 
+  // Recurring scheduling (mirrors scenario scheduling): the backend relaunches
+  // the atomic testing on each occurrence via the minutely job.
+  const isScheduled = !!injectResultOverview.inject_recurrence;
+  const scheduleEnded = !!injectResultOverview.inject_recurrence_end
+    && new Date(injectResultOverview.inject_recurrence_end).getTime() < Date.now();
+
+  const onSubmitScheduling = (cron: Cron, start: string, end?: string) => {
+    updateAtomicTestingRecurrence(injectResultOverview.inject_id, {
+      inject_recurrence: cron.toCronExpression(),
+      inject_recurrence_start: start,
+      inject_recurrence_end: end,
+    }).then((result: { data: InjectResultOverviewOutput }) => {
+      setInjectResultOverview(result.data);
+    });
+    setOpenScheduling(false);
+  };
+
+  const stopScheduling = () => {
+    updateAtomicTestingRecurrence(injectResultOverview.inject_id, {}).then((result: { data: InjectResultOverviewOutput }) => {
+      setInjectResultOverview(result.data);
+    });
+  };
+
   // Handlers
   const handleCloseDialog = () => setOpenDialog(false);
   const handleCanLaunch = () => setCanLaunch(true);
   const handleCannotLaunch = () => setCanLaunch(false);
-  const handleOpenDialog = () => setOpenDialog(true);
+  const handleOpenDialog = () => {
+    setRealignOnRelaunch(true);
+    setOpenDialog(true);
+  };
   const handleOpenEdit = () => setEdition(true);
   const handleCloseEdit = () => setEdition(false);
 
@@ -107,14 +140,26 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
   const submitRelaunch = async () => {
     handleCloseDialog();
     handleCannotLaunch();
-    if (injectResultOverview?.inject_id) {
-      await relaunchAtomicTesting(injectResultOverview.inject_id).then((result) => {
-        dispatch(fetchMe()).then(() => {
-          navigate(`/admin/atomic_testings/${result.data.inject_id}`);
+    try {
+      if (injectResultOverview?.inject_id) {
+        // Relaunch duplicates the inject content before deleting the old one:
+        // realigning first makes the new atomic testing inherit the current
+        // threat arsenal expectations instead of carrying the drifted ones over.
+        if (canManage && expectationsDrift?.drift_detected && realignOnRelaunch) {
+          await realignAtomicTestingExpectations(injectResultOverview.inject_id);
+        }
+        await relaunchAtomicTesting(injectResultOverview.inject_id).then((result) => {
+          dispatch(fetchMe()).then(() => {
+            navigate(`/admin/atomic_testings/${result.data.inject_id}`);
+          });
         });
-      });
+      }
+    } catch {
+      // The API layer already notified the user (simplePostCall rethrows after
+      // notifying); abort the relaunch and let them retry.
+    } finally {
+      handleCanLaunch();
     }
-    handleCanLaunch();
   };
 
   function getActionButton(injectResultOverviewOutput: InjectResultOverviewOutput) {
@@ -171,6 +216,31 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
               {t('This atomic testing and its previous results will be deleted')}
             </Alert>
           )}
+          {injectResultOverviewOutput.inject_ready && injectResultOverviewOutput.inject_status?.status_id
+            && canManage && expectationsDrift?.drift_detected && (
+            <Alert
+              severity="warning"
+              icon={<TrackChangesOutlined fontSize="inherit" />}
+              style={{ marginTop: theme.spacing(1) }}
+            >
+              {t('The expectations of this atomic testing no longer match the validation requirements defined by its threat arsenal item.')}
+              <FormControlLabel
+                sx={{
+                  display: 'flex',
+                  marginTop: 0.5,
+                }}
+                control={(
+                  <Checkbox
+                    size="small"
+                    checked={realignOnRelaunch}
+                    onChange={event => setRealignOnRelaunch(event.target.checked)}
+                  />
+                )}
+                label={t('Realign expectations to the current threat arsenal item before relaunching')}
+                slotProps={{ typography: { variant: 'body2' } }}
+              />
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions>
           <Button variant="outlined" color="primary" onClick={handleCloseDialog}>{t('Cancel')}</Button>
@@ -202,6 +272,24 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
           onRealign={onRealignExpectations}
         />
       )}
+      {canManage && (
+        <Tooltip title={t('Scheduling')}>
+          <IconButton size="small" color="primary" onClick={() => setOpenScheduling(true)}>
+            <UpdateOutlined fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
+      {canManage && isScheduled && !scheduleEnded && (
+        <Button
+          startIcon={<Stop />}
+          variant="outlined"
+          color="inherit"
+          size="small"
+          onClick={stopScheduling}
+        >
+          {t('Stop')}
+        </Button>
+      )}
       {hasAbility && getActionButton(injectResultOverview)}
       <AtomicTestingPopover
         atomic={injectResultOverview}
@@ -209,6 +297,16 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
         onDelete={() => navigate('/admin/atomic_testings')}
       />
       {getDialog(injectResultOverview)}
+      <SchedulingDialog
+        open={openScheduling}
+        onClose={() => setOpenScheduling(false)}
+        initialValues={{
+          recurrence: injectResultOverview.inject_recurrence,
+          recurrenceStart: injectResultOverview.inject_recurrence_start,
+          recurrenceEnd: injectResultOverview.inject_recurrence_end,
+        }}
+        onSubmit={onSubmitScheduling}
+      />
     </>
   );
 };

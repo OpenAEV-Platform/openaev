@@ -4,7 +4,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { searchConnectorInstanceLogs } from '../../../../actions/connector_instances/connector-instance-actions';
 import { type Page } from '../../../../components/common/queryable/Page';
-import { ROWS_PER_PAGE_OPTIONS } from '../../../../components/common/queryable/pagination/usePaginationState';
+import { DEFAULT_ROWS_PER_PAGE, ROWS_PER_PAGE_OPTIONS } from '../../../../components/common/queryable/pagination/usePaginationState';
 import Terminal from '../../../../components/common/terminal/Terminal';
 import { useFormatter } from '../../../../components/i18n';
 import { type ConnectorInstanceLog } from '../../../../utils/api-types';
@@ -19,7 +19,7 @@ const ConnectorLogs = ({ connectorInstanceId }: ConnectorLogsProps) => {
 
   const [logs, setLogs] = useState<ConnectorInstanceLog[]>([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(ROWS_PER_PAGE_OPTIONS[0]);
+  const [size, setSize] = useState(DEFAULT_ROWS_PER_PAGE);
   const [totalElements, setTotalElements] = useState(0);
 
   // Restart from the first page when switching to another connector instance.
@@ -36,6 +36,11 @@ const ConnectorLogs = ({ connectorInstanceId }: ConnectorLogsProps) => {
         .then((result: { data: Page<ConnectorInstanceLog> }) => {
           setLogs(result.data.content);
           setTotalElements(result.data.totalElements);
+          // The current page fell past the end (logs rotated/shrank): restart
+          // from the first page instead of showing a stuck empty page.
+          if (page > 0 && result.data.totalPages <= page) {
+            setPage(0);
+          }
         });
     }
   }, [connectorInstanceId, page, size]);

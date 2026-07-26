@@ -913,6 +913,38 @@ class FindingApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Multi-value not_eq filter excludes every listed value (NOT IN semantics)")
+    void given_multiValueNotEqFilter_should_excludeAllListedValues() throws Exception {
+      // Three findings with distinct values; the filter must keep only the one whose
+      // value matches none of the excluded values. With the historical OR combination
+      // ("!= 443 OR != 80"), all three findings would match.
+      for (String value : List.of("443", "80", "8080")) {
+        Finding finding = FindingFixture.createDefaultTextFinding();
+        finding.setValue(value);
+        findingComposer
+            .forFinding(finding)
+            .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+            .withInject(injectWrapper)
+            .persist();
+      }
+
+      SearchPaginationInput input = new SearchPaginationInput();
+      Filters.FilterGroup group = new Filters.FilterGroup();
+      group.setMode(Filters.FilterMode.and);
+      group.setFilters(
+          List.of(
+              buildFilter("finding_value", Filters.FilterOperator.not_eq, List.of("443", "80"))));
+      input.setFilterGroup(group);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      performCallbackRequest(FINDING_URI + "/search", input)
+          .andExpect(jsonPath("$.totalElements").value(1))
+          .andExpect(jsonPath("$.content.[0].finding_value").value("8080"));
+    }
+
+    @Test
     @DisplayName("Search findings by simulation")
     void should_return_findings_by_simulation() throws Exception {
       Finding savedFinding =

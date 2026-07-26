@@ -302,18 +302,10 @@ const ThreatArsenalActionForm = ({
           <div style={{
             marginTop: 'auto',
             display: 'flex',
-            flexDirection: 'row-reverse',
+            justifyContent: 'flex-end',
             gap: theme.spacing(1),
           }}
           >
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={isSubmitting || !isDirty}
-            >
-              {editing ? t('Update') : t('Create')}
-            </Button>
             <Button
               variant="outlined"
               color="primary"
@@ -321,6 +313,14 @@ const ThreatArsenalActionForm = ({
               disabled={isSubmitting}
             >
               {t('Cancel')}
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              type="submit"
+              disabled={isSubmitting || !isDirty}
+            >
+              {editing ? t('Update') : t('Create')}
             </Button>
           </div>
         </form>

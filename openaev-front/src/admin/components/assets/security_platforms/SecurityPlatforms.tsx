@@ -21,10 +21,10 @@ import { type SearchPaginationInput, type SecurityPlatform } from '../../../../u
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
-import { isNotEmptyField } from '../../../../utils/utils';
 import SecurityPlatformCard from './SecurityPlatformCard';
 import SecurityPlatformCreation from './SecurityPlatformCreation';
 import SecurityPlatformPopover from './SecurityPlatformPopover';
+import isCollectorManaged from './securityPlatformUtils';
 
 type ViewMode = 'cards' | 'list';
 const VIEW_MODE_STORAGE_KEY = 'security-platforms:view-mode';
@@ -249,7 +249,7 @@ const SecurityPlatforms = () => {
                         onUpdate={result => setSecurityPlatforms(securityPlatforms.map(e => (e.asset_id !== result.asset_id ? e : result)))}
                         onDelete={result => setSecurityPlatforms(securityPlatforms.filter(e => (e.asset_id !== result)))}
                         openEditOnInit={securityPlatform.asset_id === searchId}
-                        disabled={isNotEmptyField(securityPlatform.asset_external_reference)}
+                        disabled={isCollectorManaged(securityPlatform)}
                       />
                     )}
                   >

@@ -464,7 +464,8 @@ public class InjectsExecutionJob implements Job {
     }
   }
 
-  private void handleInjectExpectationCollectStatus() {
+  @VisibleForTesting
+  void handleInjectExpectationCollectStatus() {
     // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
     entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     List<Inject> injects = injectService.getExecutedAndNotFinished();
@@ -473,16 +474,28 @@ public class InjectsExecutionJob implements Job {
     }
     List<Inject> fulfilled = new ArrayList<>();
     for (Inject inject : injects) {
-      if (inject.getExpectations().isEmpty()) {
+      // An expectation is done collecting when it has nothing to collect (no result
+      // placeholders), when every result has been filled, or when its collection window has
+      // expired. The expiration escape is critical: partially filled expectations (one collector
+      // reported, another never did) keep empty placeholder rows forever and are not picked up by
+      // the expiration manager (their score is already set). Without it, a single silent
+      // collector leaves the inject COLLECTING and the simulation RUNNING indefinitely.
+      boolean collectDone =
+          inject.getExpectations().stream()
+              .allMatch(
+                  expectation -> {
+                    // Legacy expectation rows can carry a SQL NULL results column (see
+                    // InjectExpectationMapper): treat it as "nothing to collect" instead of
+                    // NPE-ing the job and blocking simulation auto-close.
+                    List<InjectExpectationResult> results = expectation.getResults();
+                    return results == null
+                        || results.isEmpty()
+                        || hasValidResults(results)
+                        || expectation.isExpired();
+                  });
+      if (collectDone) {
         inject.setCollectExecutionStatus(COMPLETED);
         fulfilled.add(inject);
-      } else {
-        List<InjectExpectationResult> results =
-            inject.getExpectations().stream().flatMap(ie -> ie.getResults().stream()).toList();
-        if (results.isEmpty() || hasValidResults(results)) {
-          inject.setCollectExecutionStatus(COMPLETED);
-          fulfilled.add(inject);
-        }
       }
     }
     injectService.saveAll(fulfilled);

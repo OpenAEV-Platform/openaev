@@ -1,12 +1,12 @@
 import { z } from 'zod';
 
 import { type SearchPaginationInput } from '../../../utils/api-types';
-import { ROWS_PER_PAGE_OPTIONS } from './pagination/usePaginationState';
+import { DEFAULT_ROWS_PER_PAGE } from './pagination/usePaginationState';
 
 export const buildSearchPagination = (searchPaginationInput: Partial<SearchPaginationInput>) => {
   return ({
     page: 0,
-    size: ROWS_PER_PAGE_OPTIONS[0],
+    size: DEFAULT_ROWS_PER_PAGE,
     ...searchPaginationInput,
   });
 };

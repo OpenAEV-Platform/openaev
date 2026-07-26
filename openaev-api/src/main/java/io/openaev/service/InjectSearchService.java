@@ -587,6 +587,7 @@ public class InjectSearchService {
     cq.multiselect(
         injectRoot.get("id").alias("inject_id"),
         injectRoot.get("title").alias("inject_title"),
+        injectRoot.get("enabled").alias("inject_enabled"),
         injectRoot.get("updatedAt").alias("inject_updated_at"),
         injectRoot.get("content").alias("inject_content"),
         injectorJoin.get("type").alias("inject_type"),
@@ -666,6 +667,7 @@ public class InjectSearchService {
               InjectResultOutput injectResultOutput = new InjectResultOutput();
               injectResultOutput.setId(tuple.get("inject_id", String.class));
               injectResultOutput.setTitle(tuple.get("inject_title", String.class));
+              injectResultOutput.setEnabled(tuple.get("inject_enabled", Boolean.class));
               injectResultOutput.setContent(tuple.get("inject_content", ObjectNode.class));
               injectResultOutput.setUpdatedAt(tuple.get("inject_updated_at", Instant.class));
               injectResultOutput.setInjectType(tuple.get("inject_type", String.class));

@@ -164,12 +164,13 @@ const ExerciseReportForm: FunctionComponent<Props> = ({
         gridColumn: 'span 2',
         marginTop: '20px',
         display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 8,
       }}
       >
         <Button
           variant="outlined"
           color="primary"
-          style={{ marginLeft: 'auto' }}
           onClick={handleCancel}
           disabled={isSubmitting}
         >

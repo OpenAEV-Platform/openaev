@@ -31,6 +31,13 @@ import org.springframework.stereotype.Service;
 @Service
 public class MinioService implements DependenciesManager {
 
+  /**
+   * Reserved root-level prefix for platform-scoped assets shared across all tenants (catalog
+   * connector logos, ...). Objects under this prefix are intentionally NOT tenant-prefixed and must
+   * never be moved into a tenant path.
+   */
+  public static final String PLATFORM_PATH_PREFIX = "platform/";
+
   private static final int BATCH_DELETE_SIZE = 1000;
 
   private final MinioConfig minioConfig;
@@ -321,13 +328,13 @@ public class MinioService implements DependenciesManager {
   }
 
   /**
-   * Returns the platform-level path, prefixed with "platform/" to avoid collisions with
-   * tenant-scoped paths (which use a UUID prefix).
+   * Returns the platform-level path, prefixed with {@link #PLATFORM_PATH_PREFIX} to avoid
+   * collisions with tenant-scoped paths (which use a UUID prefix).
    */
   private String getPlatformPath(String objectName) {
     if (objectName.startsWith("/")) {
-      return "platform" + objectName;
+      return PLATFORM_PATH_PREFIX + objectName.substring(1);
     }
-    return "platform/" + objectName;
+    return PLATFORM_PATH_PREFIX + objectName;
   }
 }

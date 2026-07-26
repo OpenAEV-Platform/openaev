@@ -513,8 +513,27 @@ public class InjectService {
 
   @Transactional
   public InjectResultOverviewOutput relaunch(String id) {
+    return doRelaunch(id, true);
+  }
+
+  /**
+   * Relaunch an inject (duplicate + queue new + delete old). Scheduled relaunches pass {@code
+   * checkLaunchable = false} to skip the Enterprise executor gate, matching scenario scheduled
+   * execution which never re-gates at run time.
+   */
+  @Transactional
+  public InjectResultOverviewOutput relaunch(String id, boolean checkLaunchable) {
+    return doRelaunch(id, checkLaunchable);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points: an intra-class call to a
+  // @Transactional method bypasses the Spring proxy (self-invocation), so the overloads never call
+  // each other directly.
+  private InjectResultOverviewOutput doRelaunch(String id, boolean checkLaunchable) {
     Inject duplicatedInject = findAndDuplicateInject(id);
-    this.throwIfInjectNotLaunchable(duplicatedInject);
+    if (checkLaunchable) {
+      this.throwIfInjectNotLaunchable(duplicatedInject);
+    }
     Inject savedInject = saveInjectAndStatusAsQueuing(duplicatedInject);
     deleteForRelaunch(id, savedInject.getId());
     return injectMapper.toInjectResultOverviewOutput(savedInject);
@@ -525,8 +544,9 @@ public class InjectService {
     injectRepository.deleteById(id);
   }
 
-  @Transactional
-  public void deleteForRelaunch(String oldId, String newId) {
+  // Only ever runs inside the relaunch transaction: private and non-transactional by design (a
+  // public @Transactional variant would only be reachable through self-invocation).
+  private void deleteForRelaunch(String oldId, String newId) {
     injectDocumentRepository.updateInjectId(newId, oldId);
     injectRepository.deleteByIdNative(oldId);
     // Native delete: notify the search engine so the old inject and its expectation/finding docs

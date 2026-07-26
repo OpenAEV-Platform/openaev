@@ -16,7 +16,7 @@ import {
 } from '@mui/icons-material';
 import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type Dispatch, type SetStateAction, useEffect, useState } from 'react';
+import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { fetchScenarioChallenges } from '../../../../actions/challenge-action';
@@ -58,38 +58,23 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Cron } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
-import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExpressionHandler';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
+import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
 import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
 import ScenarioConfiguration from './ScenarioConfiguration';
 import ScenarioPopover from './ScenarioPopover';
-import ScenarioRecurringFormDialog from './ScenarioRecurringFormDialog';
 
 interface ScenarioHeaderProps {
-  cronObject: PeriodExpressionHandler | null;
-  setCronObject: Dispatch<SetStateAction<PeriodExpressionHandler | null>>;
-  setSelectRecurring: Dispatch<SetStateAction<string>>;
-  selectRecurring: string;
-  setOpenScenarioRecurringFormDialog: Dispatch<SetStateAction<boolean>>;
   setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>>;
-  openScenarioRecurringFormDialog: boolean;
   openInstantiateSimulationAndStart: boolean;
-  noRepeat: boolean;
 }
 
 const ScenarioHeader = ({
-  cronObject,
-  setCronObject,
-  setSelectRecurring,
-  selectRecurring,
-  noRepeat,
-  openScenarioRecurringFormDialog,
-  setOpenScenarioRecurringFormDialog,
   openInstantiateSimulationAndStart,
   setOpenInstantiateSimulationAndStart,
 }: ScenarioHeaderProps) => {
@@ -103,6 +88,7 @@ const ScenarioHeader = ({
   const { canLaunch, canManage } = useScenarioPermissions(scenarioId);
 
   const [openConfiguration, setOpenConfiguration] = useState(false);
+  const [openScheduling, setOpenScheduling] = useState(false);
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
   const [expectationsDrift, setExpectationsDrift] = useState<ExpectationsDriftOutput | null>(null);
 
@@ -194,35 +180,20 @@ const ScenarioHeader = ({
     dispatch(fetchScenarioInjectsSimple(scenarioId));
   };
 
+  // The schedule chip / tooltip derive directly from the store: the dialog
+  // owns its own form state.
+  const cronObject = useMemo(() => handle(scenario.scenario_recurrence), [scenario.scenario_recurrence]);
+
   const onSubmit = (cron: Cron, start: string, end?: string) => {
     dispatch(updateScenarioRecurrence(scenarioId, {
       scenario_recurrence: cron.toCronExpression(),
       scenario_recurrence_start: start,
       scenario_recurrence_end: end,
-    })).then((result: { [x: string]: string }) => {
-      if (!Object.prototype.hasOwnProperty.call(result, 'FINAL_FORM/form-error')) {
-        setCronObject(cron);
-      }
-    });
-    setOpenScenarioRecurringFormDialog(false);
+    }));
+    setOpenScheduling(false);
   };
 
-  useEffect(() => {
-    if (scenario.scenario_recurrence != null) {
-      const newCron = handle(scenario.scenario_recurrence);
-      setCronObject(newCron);
-      if (noRepeat) {
-        setSelectRecurring('noRepeat');
-      } else {
-        setSelectRecurring(newCron?.getRecurrenceMagnitude() || 'daily');
-      }
-    } else {
-      setCronObject(null);
-    }
-  }, [scenario.scenario_recurrence]);
-
   const stop = () => {
-    setCronObject(null);
     dispatch(updateScenarioRecurrence(scenarioId, {
       scenario_recurrence: undefined,
       scenario_recurrence_start: undefined,
@@ -348,7 +319,7 @@ const ScenarioHeader = ({
                     resourceName={scenario.scenario_name}
                   />
                   <Tooltip title={t('Scheduling')}>
-                    <IconButton size="small" color="primary" onClick={() => setOpenScenarioRecurringFormDialog(true)}>
+                    <IconButton size="small" color="primary" onClick={() => setOpenScheduling(true)}>
                       <UpdateOutlined fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -461,15 +432,15 @@ const ScenarioHeader = ({
         />
       </Box>
 
-      <ScenarioRecurringFormDialog
-        cronObject={cronObject}
-        setCronObject={setCronObject}
-        selectRecurring={selectRecurring}
-        onSelectRecurring={setSelectRecurring}
-        open={openScenarioRecurringFormDialog}
-        setOpen={setOpenScenarioRecurringFormDialog}
+      <SchedulingDialog
+        open={openScheduling}
+        onClose={() => setOpenScheduling(false)}
+        initialValues={{
+          recurrence: scenario.scenario_recurrence,
+          recurrenceStart: scenario.scenario_recurrence_start,
+          recurrenceEnd: scenario.scenario_recurrence_end,
+        }}
         onSubmit={onSubmit}
-        initialValues={scenario}
       />
       <Dialog
         open={openInstantiateSimulationAndStart}

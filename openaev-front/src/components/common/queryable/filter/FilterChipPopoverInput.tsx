@@ -24,25 +24,48 @@ export const BasicTextInput: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
-  const handleValueChange = (value: string) => {
-    helpers.handleUpdateValuesById(filter.id, [value.trim()]);
+  const [inputValue, setInputValue] = useState('');
+  const values = filter.values ?? [];
+  // Free-text filters accept several values (chips), like select-based filters:
+  // "Value != 443 and 80" reads as NOT IN (443, 80) on the backend.
+  const commit = (newValues: string[]) => {
+    helpers.handleUpdateValuesById(
+      filter.id,
+      Array.from(new Set(newValues.map(v => v.trim()).filter(v => v.length > 0))),
+    );
   };
   return (
-    <TextField
-      variant="outlined"
-      size="small"
+    <Autocomplete
+      multiple
+      freeSolo
       fullWidth
-      label={t(filter.key)}
-      defaultValue={filter.values?.[0] ?? ''}
-      autoFocus
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') {
-          handleValueChange((event.target as HTMLInputElement).value);
-        }
+      size="small"
+      options={[]}
+      value={values}
+      inputValue={inputValue}
+      onInputChange={(_, search) => setInputValue(search)}
+      onChange={(_, newValues) => {
+        commit(newValues as string[]);
+        setInputValue('');
       }}
-      onBlur={(event) => {
-        handleValueChange((event.target as HTMLInputElement).value);
-      }}
+      renderInput={paramsInput => (
+        <TextField
+          {...paramsInput}
+          variant="outlined"
+          size="small"
+          label={t(filter.key)}
+          placeholder={t('Press Enter to add a value')}
+          autoFocus
+          onBlur={() => {
+            // Clicking away with pending text must still register the value
+            // (historical single-value behavior of this input).
+            if (inputValue.trim().length > 0) {
+              commit([...values, inputValue]);
+              setInputValue('');
+            }
+          }}
+        />
+      )}
     />
   );
 };

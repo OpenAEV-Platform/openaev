@@ -506,7 +506,14 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioRecurrenceInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    if (input.getRecurrenceStart() != null) {
+    // Scheduling itself is a Community Edition feature, but the Enterprise executor gate still
+    // applies: without it, scheduling would bypass the licence check enforced on manual launches
+    // (scheduled executions deliberately skip the gate at run time). Gate on both fields: a
+    // recurrence expression with a null start date still triggers scheduled execution.
+    boolean schedules =
+        input.getRecurrenceStart() != null
+            || (input.getRecurrence() != null && !input.getRecurrence().isBlank());
+    if (schedules) {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
     }
     scenario.setUpdateAttributes(input);

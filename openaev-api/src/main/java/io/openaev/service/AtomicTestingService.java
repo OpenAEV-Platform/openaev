@@ -26,6 +26,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Join;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -235,14 +236,86 @@ public class AtomicTestingService {
 
   @Transactional
   public InjectResultOverviewOutput relaunch(String id) {
+    return doRelaunch(id, true);
+  }
+
+  /**
+   * Relaunch an atomic testing (duplicate + queue new + delete old) and migrate its grants to the
+   * new inject. Scheduled relaunches pass {@code checkLaunchable = false} to skip the Enterprise
+   * executor gate.
+   */
+  @Transactional
+  public InjectResultOverviewOutput relaunch(String id, boolean checkLaunchable) {
+    return doRelaunch(id, checkLaunchable);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points: an intra-class call to a
+  // @Transactional method bypasses the Spring proxy (self-invocation), so the overloads never call
+  // each other directly.
+  private InjectResultOverviewOutput doRelaunch(String id, boolean checkLaunchable) {
     findInject(id);
     // Relaunching an atomic testing is considered as creating a new one.
     // Therefore, any grants created on the current atomic testing will have to be updated with the
     // new ID
-    InjectResultOverviewOutput relaunched = injectService.relaunch(id);
+    InjectResultOverviewOutput relaunched = injectService.relaunch(id, checkLaunchable);
     grantService.updateGrantsForNewResource(
         id, relaunched.getId(), Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING);
     return relaunched;
+  }
+
+  /** Bulk update used by the recurring atomic testing job to self-clear outdated recurrences. */
+  @Transactional
+  public List<Inject> updateInjects(@NotNull final List<Inject> injects) {
+    return fromIterable(this.injectRepository.saveAll(injects));
+  }
+
+  /** Atomic testing is recurring AND end date is after now (or has no end date). */
+  public List<Inject> recurringAtomicTestings(@NotNull final Instant instant) {
+    return injectRepository.findAll(
+        InjectSpecification.isAtomicTesting()
+            .and(InjectSpecification.isRecurring())
+            .and(InjectSpecification.recurrenceStopDateAfter(instant)));
+  }
+
+  /**
+   * Atomic testing is recurring, bounded by an end date, AND started or already ended. Only
+   * end-bounded recurrences can ever become outdated (the job's outdated check returns false for a
+   * null end date), so unbounded ones are filtered out in SQL instead of being scanned every
+   * minute.
+   */
+  public List<Inject> potentialOutdatedRecurringAtomicTestings(@NotNull final Instant instant) {
+    return injectRepository.findAll(
+        InjectSpecification.isAtomicTesting()
+            .and(InjectSpecification.isRecurring())
+            .and(InjectSpecification.hasRecurrenceEnd())
+            .and(
+                InjectSpecification.recurrenceStartDateBefore(instant)
+                    .or(InjectSpecification.recurrenceStopDateBefore(instant))));
+  }
+
+  @Transactional
+  public InjectResultOverviewOutput updateRecurrence(String injectId, InjectRecurrenceInput input) {
+    Inject inject = findInject(injectId);
+    // Normalize a blank expression to null so a cleared schedule can never be persisted as an
+    // unparseable empty cron that the minutely job would keep selecting (isRecurring checks
+    // isNotNull only).
+    String recurrence =
+        (input.getRecurrence() == null || input.getRecurrence().isBlank())
+            ? null
+            : input.getRecurrence().trim();
+    // Scheduling itself is a Community Edition feature, but the Enterprise executor gate still
+    // applies: without it, scheduling would bypass the licence check enforced on manual launches
+    // (scheduled executions deliberately skip the gate at run time). A recurrence with a null
+    // start date still fires (null start counts as already started), so the gate keys on the
+    // normalized recurrence expression; clearing the schedule stays allowed.
+    if (recurrence != null) {
+      injectService.throwIfInjectNotLaunchable(inject);
+    }
+    inject.setRecurrence(recurrence);
+    inject.setRecurrenceStart(input.getRecurrenceStart());
+    inject.setRecurrenceEnd(input.getRecurrenceEnd());
+    Inject saved = injectRepository.save(inject);
+    return injectMapper.toInjectResultOverviewOutput(saved);
   }
 
   // -- PAGINATION --

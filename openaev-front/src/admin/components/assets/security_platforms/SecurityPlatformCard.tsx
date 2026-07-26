@@ -8,8 +8,8 @@ import ItemTags from '../../../../components/ItemTags';
 import { SECURITY_PLATFORM_BASE_URL } from '../../../../constants/BaseUrls';
 import { type SecurityPlatform } from '../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
-import { isNotEmptyField } from '../../../../utils/utils';
 import SecurityPlatformPopover from './SecurityPlatformPopover';
+import isCollectorManaged from './securityPlatformUtils';
 
 interface Props {
   securityPlatform: SecurityPlatform;
@@ -65,7 +65,7 @@ const SecurityPlatformCard: FunctionComponent<Props> = ({
           onUpdate={onUpdate}
           onDelete={onDelete}
           openEditOnInit={openEditOnInit}
-          disabled={isNotEmptyField(securityPlatform.asset_external_reference)}
+          disabled={isCollectorManaged(securityPlatform)}
         />
       </Box>
 

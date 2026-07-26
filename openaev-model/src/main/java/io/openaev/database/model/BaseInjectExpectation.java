@@ -251,6 +251,18 @@ public class BaseInjectExpectation implements Base, Cloneable {
   @Transient
   private String failureLabel = "Failed";
 
+  /**
+   * True when the collection window of this expectation is over: no collector, player or manual
+   * validation can fulfil it anymore. Mirrors the SQL predicate used by the expectations expiration
+   * manager ({@code created_at + expiration_time seconds < now()}).
+   */
+  @JsonIgnore
+  public boolean isExpired() {
+    return expirationTime != null
+        && createdAt != null
+        && createdAt.plusSeconds(expirationTime).isBefore(now());
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {

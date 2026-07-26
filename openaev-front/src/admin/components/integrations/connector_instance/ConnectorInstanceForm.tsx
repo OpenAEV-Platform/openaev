@@ -51,6 +51,9 @@ const ConnectorInstanceForm = ({
       if (formatFromConf === 'EMAIL') {
         return z.string().email(t('Must be a valid email'));
       }
+      if (formatFromConf === 'UUID') {
+        return z.string().uuid(t('Must be a valid UUID'));
+      }
 
       switch (typeFromConf) {
         case 'ARRAY':
@@ -341,18 +344,10 @@ const ConnectorInstanceForm = ({
         <div style={{
           marginTop: 'auto',
           display: 'flex',
-          flexDirection: 'row-reverse',
+          justifyContent: 'flex-end',
           gap: theme.spacing(1),
         }}
         >
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={isSubmitting || disabled}
-          >
-            {t(getActionLabel())}
-          </Button>
           <Button
             variant="outlined"
             color="primary"
@@ -360,6 +355,14 @@ const ConnectorInstanceForm = ({
             disabled={isSubmitting}
           >
             {t('Cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            type="submit"
+            disabled={isSubmitting || disabled}
+          >
+            {t(getActionLabel())}
           </Button>
         </div>
       </form>

@@ -1248,11 +1248,13 @@ public class V1_DataImporter implements Importer {
               this.injectorContractRepository.findById(injectorContractIdFromNode);
 
           String injectorContractId;
+          InjectorContract resolvedContract = null;
 
           if (injectorContract.isPresent()) {
             injectorContractId = injectorContract.get().getId();
           } else {
-            injectorContractId = resolveInjectorContract(injectContractNode, baseIds);
+            resolvedContract = resolveInjectorContract(injectContractNode, baseIds);
+            injectorContractId = resolvedContract != null ? resolvedContract.getId() : null;
           }
 
           // Record the mapping so importWorkflowSteps can reuse the resolved contract
@@ -1270,7 +1272,12 @@ public class V1_DataImporter implements Importer {
               // injects are created before the injector registered
               // once the injector register the contract will be overriden and will be the one
               // provided by the injector
-              Payload createdPayload = injectorContract.map(ic -> ic.getPayload()).orElse(null);
+              // resolveInjectorContract already created and persisted the payload; it just could
+              // not build a contract because no payload-supporting injector is registered yet on a
+              // fresh platform. Carry that payload onto the starter-pack contract so it is not
+              // orphaned (otherwise the inject shows a question mark and "no payload attached").
+              Payload createdPayload =
+                  resolvedContract != null ? resolvedContract.getPayload() : null;
               injectorContractId =
                   importInjectorContractFromStarterPack(injectContractNode, createdPayload, baseIds)
                       .getId();
@@ -1646,9 +1653,15 @@ public class V1_DataImporter implements Importer {
    *   <li>Create via importPayload (new payload)
    * </ol>
    *
-   * @return the resolved injector contract ID, or null if resolution failed
+   * <p>The returned contract may be a transient, id-less contract that only carries the freshly
+   * created payload: this happens when no payload-supporting injector is registered yet (fresh
+   * platform starter-pack import). Callers must handle a null id and, in the starter-pack path,
+   * propagate {@link InjectorContract#getPayload()} so the created payload is not orphaned.
+   *
+   * @return the resolved injector contract (possibly transient, carrying only the payload), or null
+   *     if resolution failed
    */
-  private String resolveInjectorContract(
+  private InjectorContract resolveInjectorContract(
       @NotNull JsonNode injectContractNode, Map<String, Base> baseIds) {
     JsonNode payloadNode = injectContractNode.get("injector_contract_payload");
     if (payloadNode == null || payloadNode.isNull() || payloadNode.isEmpty()) {
@@ -1665,7 +1678,7 @@ public class V1_DataImporter implements Importer {
       Optional<InjectorContract> contractFromPayload =
           injectorContractRepository.findOne(byPayloadExternalId(externalId));
       if (contractFromPayload.isPresent()) {
-        return contractFromPayload.get().getId();
+        return contractFromPayload.get();
       }
 
       Optional<Payload> existingPayload = payloadRepository.findByExternalId(externalId);
@@ -1673,14 +1686,13 @@ public class V1_DataImporter implements Importer {
         Optional<InjectorContract> contractFromExternalId =
             injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
         if (contractFromExternalId.isPresent()) {
-          return contractFromExternalId.get().getId();
+          return contractFromExternalId.get();
         }
       }
     }
 
     // Not found then create the payload and its contract
-    InjectorContract created = importPayload(payloadNode, injectContractNode, baseIds);
-    return created != null ? created.getId() : null;
+    return importPayload(payloadNode, injectContractNode, baseIds);
   }
 
   private InjectorContract importPayload(
@@ -2189,7 +2201,8 @@ public class V1_DataImporter implements Importer {
       return sanitizateStepData(dataJson, stepDataRaw, workflow);
     }
 
-    String newContractId = resolveInjectorContract(injectContractObject, baseIds);
+    InjectorContract resolvedStepContract = resolveInjectorContract(injectContractObject, baseIds);
+    String newContractId = resolvedStepContract != null ? resolvedStepContract.getId() : null;
 
     // Update step_data and cache the mapping
     if (newContractId != null) {

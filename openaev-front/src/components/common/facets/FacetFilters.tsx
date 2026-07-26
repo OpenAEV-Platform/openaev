@@ -1,9 +1,7 @@
 import { CheckOutlined } from '@mui/icons-material';
-import { Box, Button, ButtonBase, Typography } from '@mui/material';
+import { Box, ButtonBase, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ReactElement } from 'react';
-
-import { useFormatter } from '../../i18n';
 
 export interface FacetRow {
   value: string;
@@ -128,19 +126,15 @@ export const FacetRowItem = ({ row }: { row: FacetRow }) => {
   );
 };
 
-interface FacetSidebarProps {
-  sections: FacetSection[];
-  anyActive: boolean;
-  onClearAll: () => void;
-}
+interface FacetSidebarProps { sections: FacetSection[] }
 
 // The sticky faceted sidebar shell (mirrors the integrations marketplace
-// CatalogSidebar): a fixed-width sticky <aside> with a "Clear all" action
-// (shown only when filters are active) and one titled section of
-// FacetRowItems per facet.
-export const FacetSidebar = ({ sections, anyActive, onClearAll }: FacetSidebarProps) => {
+// CatalogSidebar): a fixed-width sticky <aside> with one titled section of
+// FacetRowItems per facet. Clearing is handled by the toolbar's "Clear
+// filters" button (the facets are regular backend filters), so the sidebar
+// carries no clear action of its own.
+export const FacetSidebar = ({ sections }: FacetSidebarProps) => {
   const theme = useTheme();
-  const { t } = useFormatter();
   return (
     <aside
       style={{
@@ -163,18 +157,6 @@ export const FacetSidebar = ({ sections, anyActive, onClearAll }: FacetSidebarPr
         backgroundColor: theme.palette.background.paper,
       }}
       >
-        {anyActive && (
-          <header style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-          }}
-          >
-            <Button size="small" onClick={onClearAll}>
-              {t('Clear all')}
-            </Button>
-          </header>
-        )}
         {sections.map((section, sectionIndex) => (
           <section
             key={section.id}
