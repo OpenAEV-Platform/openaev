@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
 import io.openaev.api.expectations.ExpectationsDriftService;
 import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
@@ -12,7 +13,6 @@ import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.api.expectations.dto.InjectExpectationOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.asset.security_platforms.form.SecurityPlatformSimpleOutput;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.exception.UnprocessableContentException;
 import io.openaev.rest.helper.RestBehavior;

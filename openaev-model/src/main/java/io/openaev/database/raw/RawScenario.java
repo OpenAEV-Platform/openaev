@@ -108,7 +108,8 @@ public interface RawScenario {
   /**
    * Returns the kill chain displayed first in the overview kill chain results.
    *
-   * @return the default kill chain name (e.g., "mitre-attack"), or null for automatic
+   * @return the default kill chain name (e.g., "mitre-attack"), or null for automatic (blank input
+   *     is normalized to null on write, so null is the only automatic marker)
    */
   String getScenario_default_kill_chain();
 

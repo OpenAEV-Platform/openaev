@@ -1,4 +1,4 @@
-package io.openaev.rest.asset.security_platforms.form;
+package io.openaev.api.asset.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.SecurityPlatform;

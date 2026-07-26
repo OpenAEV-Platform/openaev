@@ -1,7 +1,7 @@
 package io.openaev.utils.mapper;
 
+import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
 import io.openaev.database.model.SecurityPlatform;
-import io.openaev.rest.asset.security_platforms.form.SecurityPlatformSimpleOutput;
 import io.openaev.rest.document.form.RelatedEntityOutput;
 import java.util.List;
 import java.util.Set;

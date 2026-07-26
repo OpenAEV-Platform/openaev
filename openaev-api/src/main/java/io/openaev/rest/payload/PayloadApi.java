@@ -3,9 +3,9 @@ package io.openaev.rest.payload;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
-import io.openaev.rest.asset.security_platforms.form.SecurityPlatformSimpleOutput;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.payload.form.*;

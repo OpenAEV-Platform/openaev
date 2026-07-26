@@ -99,13 +99,21 @@ public class Exercise implements GrantableBase, TenantBase {
 
   /**
    * Kill chain (by name, e.g. "mitre-attack") displayed first in the overview's kill chain results.
-   * Null means automatic (ATT&CK first). A user's own selection, remembered in local storage, still
-   * overrides this default.
+   * Null means automatic (ATT&CK first); blank input (the UI's "Automatic" option) is normalized to
+   * null on write. A user's own selection, remembered in local storage, still overrides this
+   * default.
    */
   @Getter
+  @Setter(NONE)
   @Column(name = "exercise_default_kill_chain")
   @JsonProperty("exercise_default_kill_chain")
   private String defaultKillChain;
+
+  public void setDefaultKillChain(String defaultKillChain) {
+    // The UI sends "" for "Automatic": normalize so null is the only automatic marker in DB.
+    this.defaultKillChain =
+        (defaultKillChain == null || defaultKillChain.isBlank()) ? null : defaultKillChain;
+  }
 
   /**
    * Whether the expectation-drift warning was dismissed for this simulation (the drifted

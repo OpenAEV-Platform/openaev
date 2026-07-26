@@ -4,12 +4,12 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.settings.PreviewFeature.INJECT_CHAINING;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
 import io.openaev.api.threat_arsenal.dto.*;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ChainingTypeRegistry;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.asset.security_platforms.form.SecurityPlatformSimpleOutput;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractAuthorCountOutput;
