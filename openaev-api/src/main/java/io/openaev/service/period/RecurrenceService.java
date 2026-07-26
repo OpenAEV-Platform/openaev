@@ -28,6 +28,12 @@ public class RecurrenceService {
    * @return the next occurrence, or empty if no handler can interpret the expression
    */
   public Optional<Instant> getNextOccurrence(String expression, Instant seed, Instant currentTime) {
+    // Short-circuit before probing handlers: a null/blank expression can never match and probing
+    // would only produce parse-exception noise from the cron handler.
+    if (expression == null || expression.isBlank()) {
+      return Optional.empty();
+    }
+
     Optional<PeriodExpressionHandler> handler =
         periodExpressionHandlers.stream()
             .filter(h -> h.canHandleExpression(expression))
