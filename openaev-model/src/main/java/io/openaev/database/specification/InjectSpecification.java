@@ -199,10 +199,8 @@ public class InjectSpecification {
             cb.greaterThanOrEqualTo(root.get("recurrenceEnd"), stopDate));
   }
 
+  /** Strictly matches recurrences with an end date at or before the given instant. */
   public static Specification<Inject> recurrenceStopDateBefore(@NotNull final Instant stopDate) {
-    return (root, query, cb) ->
-        cb.or(
-            cb.isNull(root.get("recurrenceEnd")),
-            cb.lessThanOrEqualTo(root.get("recurrenceEnd"), stopDate));
+    return (root, query, cb) -> cb.lessThanOrEqualTo(root.get("recurrenceEnd"), stopDate);
   }
 }

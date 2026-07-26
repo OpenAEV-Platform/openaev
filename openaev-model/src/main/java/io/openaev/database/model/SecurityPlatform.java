@@ -26,6 +26,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
+import org.hibernate.annotations.BatchSize;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -100,6 +101,7 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
               description = "IDs of the collectors currently managing this security platform",
               implementation = String.class))
   @OneToMany(mappedBy = "securityPlatform", fetch = FetchType.LAZY)
+  @BatchSize(size = 1000)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("security_platform_collectors")
   @EqualsAndHashCode.Exclude

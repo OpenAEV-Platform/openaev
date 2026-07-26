@@ -22,7 +22,7 @@ const StepperColumn = ({ value, onChange, max, min = 0, step = 1, ariaLabel }: {
       alignItems: 'center',
     }}
     >
-      <IconButton size="small" aria-label={`${ariaLabel} +`} onClick={() => stepBy(1)} tabIndex={-1}>
+      <IconButton size="small" aria-label={`${ariaLabel} +`} onClick={() => stepBy(1)}>
         <KeyboardArrowUp fontSize="small" />
       </IconButton>
       <InputBase
@@ -49,7 +49,7 @@ const StepperColumn = ({ value, onChange, max, min = 0, step = 1, ariaLabel }: {
           },
         }}
       />
-      <IconButton size="small" aria-label={`${ariaLabel} -`} onClick={() => stepBy(-1)} tabIndex={-1}>
+      <IconButton size="small" aria-label={`${ariaLabel} -`} onClick={() => stepBy(-1)}>
         <KeyboardArrowDown fontSize="small" />
       </IconButton>
     </Box>

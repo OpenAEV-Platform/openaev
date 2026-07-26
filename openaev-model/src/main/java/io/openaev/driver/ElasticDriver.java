@@ -222,7 +222,7 @@ public class ElasticDriver {
                     .index(indexName + config.getIndexSuffix())
                     .aliases(indexName, new Alias.Builder().build())
                     .build());
-        // A brand-new index must be reindexed from scratch: reset the cursor to null instead of
+        // A brand-new index must be reindexed from scratch: reset the cursor to epoch instead of
         // deleting the row. The row's presence is what tells the next startup that the index is
         // already initialized (a missing row means wipe & recreate at boot). Deleting the row
         // here kept models with no data yet in a wipe/recreate loop at every single boot,

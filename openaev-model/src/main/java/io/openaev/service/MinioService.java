@@ -333,7 +333,7 @@ public class MinioService implements DependenciesManager {
    */
   private String getPlatformPath(String objectName) {
     if (objectName.startsWith("/")) {
-      return "platform" + objectName;
+      return PLATFORM_PATH_PREFIX + objectName.substring(1);
     }
     return PLATFORM_PATH_PREFIX + objectName;
   }
