@@ -506,8 +506,12 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioRecurrenceInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    // Scheduling is a Community Edition feature: no Enterprise licence gate here.
-    // The executor-licensing check stays on the manual launch / relaunch paths only.
+    // Scheduling itself is a Community Edition feature, but the Enterprise executor gate still
+    // applies: without it, scheduling would bypass the licence check enforced on manual launches
+    // (scheduled executions deliberately skip the gate at run time).
+    if (input.getRecurrenceStart() != null) {
+      this.scenarioService.throwIfScenarioNotLaunchable(scenario);
+    }
     scenario.setUpdateAttributes(input);
     return this.scenarioService.updateScenario(scenario);
   }

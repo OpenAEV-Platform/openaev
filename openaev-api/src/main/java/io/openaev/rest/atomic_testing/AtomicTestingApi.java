@@ -206,7 +206,8 @@ public class AtomicTestingApi extends RestBehavior {
   public InjectResultOverviewOutput updateAtomicTestingRecurrence(
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final InjectRecurrenceInput input) {
-    // Scheduling is a Community Edition feature: no Enterprise licence gate here.
+    // Scheduling is a Community Edition feature, but setting a schedule still goes through the
+    // Enterprise executor gate (see AtomicTestingService#updateRecurrence).
     return atomicTestingService.updateRecurrence(injectId, input);
   }
 

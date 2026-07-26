@@ -5044,6 +5044,11 @@ export interface Inject {
   inject_injector?: string;
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
+  inject_recurrence?: string;
+  /** @format date-time */
+  inject_recurrence_end?: string;
+  /** @format date-time */
+  inject_recurrence_start?: string;
   inject_scenario?: string;
   /** @format date-time */
   inject_sent_at?: string;

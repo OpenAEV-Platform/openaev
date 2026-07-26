@@ -338,7 +338,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Scheduling is not Enterprise-gated even with an EE-only executor")
+  @DisplayName("Scheduling is Enterprise-gated with an EE-only executor, clearing is not")
   @WithMockUser(isAdmin = true)
   void updateAtomicTestingRecurrenceWithEEExecutor() throws Exception {
     Inject atomicTesting =
@@ -348,6 +348,9 @@ public class AtomicTestingApiTest extends IntegrationTest {
             .persist()
             .get();
 
+    // Setting a schedule goes through the Enterprise executor gate, exactly like a manual
+    // launch: otherwise scheduling would be a licence bypass (scheduled executions do not
+    // re-gate at run time).
     InjectRecurrenceInput input = new InjectRecurrenceInput();
     input.setRecurrence("0 30 9 * * *");
     mvc.perform(
@@ -355,8 +358,17 @@ public class AtomicTestingApiTest extends IntegrationTest {
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(csrf()))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
+
+    // Clearing a schedule is never gated.
+    mvc.perform(
+            put(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/recurrence")
+                .content(asJsonString(new InjectRecurrenceInput()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
-        .andExpect(jsonPath("$.inject_recurrence").value("0 30 9 * * *"));
+        .andExpect(jsonPath("$.inject_recurrence").doesNotExist());
   }
 
   @Nested
