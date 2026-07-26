@@ -60,7 +60,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path execution detail — security platforms (A1)")
-class AttackPathSecurityPlatformsIT extends IntegrationTest {
+class AttackPathSecurityPlatformsTest extends IntegrationTest {
 
   private static final String SIM = "SIM-SP";
 

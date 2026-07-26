@@ -91,7 +91,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 // endpoint/contract). The run then executes under that tenant scope, as the worker does.
 @io.openaev.utils.mockUser.WithMockUser(isAdmin = true)
 @DisplayName("attack path: a chaining run drives the ingestion (run-level wiring)")
-class AttackPathRunWiringIT extends IntegrationTest {
+class AttackPathRunWiringTest extends IntegrationTest {
 
   // Spy, not mock: tenant provisioning (createTenantWithCurrentUser) uses the real injectorContract
   // resolution; a full mock returns null and NPEs on getPayload() during provisioning.
@@ -107,7 +107,7 @@ class AttackPathRunWiringIT extends IntegrationTest {
   @MockitoSpyBean private AttackPathExecutionIngestionService attackPathIngestion;
 
   // Mocked: this test only checks that update() drives the copy, gated by the flag; the copy itself
-  // is covered by AttackPathFindingIngestionServiceIT.
+  // is covered by AttackPathFindingIngestionServiceTest.
   @MockitoBean private AttackPathFindingIngestionService attackPathFindingIngestion;
 
   @Autowired private InjectExecutionStep injectExecutionStep;
