@@ -197,9 +197,9 @@ public class AttackPathGraphService {
     if (e == null) {
       return null;
     }
-    // Result tab: the findings this execution produced (credential values masked). Each carries
-    // this
-    // execution's own verdict triple (single producer, so no cross-execution aggregation here).
+    // Result tab: the findings this execution produced (credential values masked). Each finding
+    // carries this execution's own verdict triple (single producer, no cross-execution
+    // aggregation).
     AttackPathFindingVerdictsDTO executionVerdicts =
         toVerdictsDto(
             AttackPathFindingVerdicts.ofExecution(

@@ -126,6 +126,28 @@ class AttackPathFindingVerdictsApiTest extends IntegrationTest {
         .andExpect(jsonPath("$.findings[0].verdicts.vulnerability").value("failed"));
   }
 
+  @Test
+  @DisplayName("fail-closed: a cross-simulation link never attaches another run's status")
+  void crossSimulationLinkIsIgnored() throws Exception {
+    AttackPathFinding cve = save(finding("host-a", CVE));
+    // Same-simulation producer: prevented.
+    link(save(execution("host-a", "Prevented")), cve);
+    // Corrupt cross-simulation link: an execution of ANOTHER simulation, not prevented. It must not
+    // leak its status into this simulation's read, on either the expand or the drawer path.
+    AttackPathExecution otherSim = execution("host-a", "Not Prevented");
+    otherSim.setSimulationId("SIM-OTHER");
+    link(save(otherSim), cve);
+    entityManager.flush();
+
+    // Only the same-simulation producer counts: prevention stays success, not failed.
+    expand("host-a").andExpect(verdict(CVE, "prevention", "success"));
+    mvc.perform(
+            get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/findings")
+                .param("category", "cves"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].verdicts.prevention").value("success"));
+  }
+
   // -- helpers --
 
   private ResultActions expand(String endpointKey) throws Exception {

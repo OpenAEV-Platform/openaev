@@ -4,9 +4,9 @@ import io.openaev.expectation.ExpectationType;
 import java.util.Collection;
 
 /**
- * The verdict semantics of a finding, in one place. A finding's verdict for each
- * bucket (prevention, detection, vulnerability) is derived from the status of its producing
- * execution rows.
+ * The verdict semantics of a finding, in one place. A finding's verdict for each bucket
+ * (prevention, detection, vulnerability) is derived from the status of its producing execution
+ * rows.
  *
  * <p>Mapping is done against the {@link ExpectationType} labels of the SAME bucket
  * (case-insensitive), not a global string list: the definitive failure labels ({@code Not
