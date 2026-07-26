@@ -1006,11 +1006,13 @@ export interface AttackPathExecutionDetailDTO {
   targetIp?: string;
   targetPlatform?: string;
   terminalOutput?: string;
+  vulnerabilityStatus?: string;
 }
 
 export interface AttackPathExecutionFindingItemDTO {
   type?: string;
   value?: string;
+  verdicts?: AttackPathFindingVerdictsDTO;
 }
 
 export interface AttackPathExpandDTO {
@@ -1024,12 +1026,19 @@ export interface AttackPathFindingItemDTO {
   executionIds?: string[];
   type?: string;
   value?: string;
+  verdicts?: AttackPathFindingVerdictsDTO;
 }
 
 export interface AttackPathFindingPageDTO {
   items?: AttackPathFindingItemDTO[];
   /** @format int64 */
   total?: number;
+}
+
+export interface AttackPathFindingVerdictsDTO {
+  detection?: string;
+  prevention?: string;
+  vulnerability?: string;
 }
 
 export interface AttackPathNodeDTO {
@@ -1063,6 +1072,7 @@ export interface AttackPathNodeDTO {
   type?: string;
   typeFindings?: string;
   value?: string;
+  verdicts?: AttackPathFindingVerdictsDTO;
 }
 
 export interface AttackPathSecurityPlatformDTO {

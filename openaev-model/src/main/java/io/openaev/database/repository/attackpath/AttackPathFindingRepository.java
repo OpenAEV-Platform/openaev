@@ -2,6 +2,7 @@ package io.openaev.database.repository.attackpath;
 
 import io.openaev.database.model.attackpath.AttackPathFinding;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow;
+import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingVerdictRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointTypeCountRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingExecutionRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingListRow;
@@ -31,19 +32,22 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
   List<AttackPathFindingRow> findGraphRows(@Param("simulationId") String simulationId);
 
   /**
-   * Expand one endpoint: its findings' (type, value), restricted to findings a producing execution
-   * links to. That {@code EXISTS} semi-join is the graph invariant (a finding is in the graph iff
-   * an execution produced it), so expand agrees with the full rebuild (Read B, an inner join) and
-   * with the collapsed counters. One indexed read using {@code idx_ap_find_sim_endpointkey_type};
-   * {@code endpointKey} is the asset id or the raw value.
+   * Expand one endpoint: its findings' (type, value) joined to their producing executions' three
+   * status columns, so the read can carry a per-finding verdict. The inner join to {@code
+   * AttackPathExecutionFinding} is the graph invariant (a finding is in the graph iff an execution
+   * produced it) and replaces the former {@code EXISTS} semi-join; it multiplies rows per producer,
+   * which the service groups per (type, value) and worst-of aggregates. One indexed read using
+   * {@code idx_ap_find_sim_endpointkey_type}; the {@code AttackPathFinding} scope is the tenant
+   * fail-closed boundary; {@code endpointKey} is the asset id or the raw value.
    */
   @Query(
-      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow("
-          + "f.type, f.value) "
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingVerdictRow("
+          + "f.type, f.value, e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus) "
           + "FROM AttackPathFinding f "
-          + "WHERE f.simulationId = :simulationId AND f.endpointKey = :endpointKey "
-          + "AND EXISTS (SELECT ef FROM AttackPathExecutionFinding ef WHERE ef.findingId = f.id)")
-  List<AttackPathEndpointFindingRow> findByEndpoint(
+          + "JOIN AttackPathExecutionFinding ef ON ef.findingId = f.id "
+          + "JOIN AttackPathExecution e ON e.id = ef.executionId "
+          + "WHERE f.simulationId = :simulationId AND f.endpointKey = :endpointKey")
+  List<AttackPathEndpointFindingVerdictRow> findByEndpoint(
       @Param("simulationId") String simulationId, @Param("endpointKey") String endpointKey);
 
   /**
@@ -113,9 +117,11 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingExecutionRow("
-          + "ef.findingId, ef.executionId) "
+          + "ef.findingId, ef.executionId, e.preventionStatus, e.detectionStatus,"
+          + " e.vulnerabilityStatus) "
           + "FROM AttackPathExecutionFinding ef "
           + "JOIN AttackPathFinding f ON f.id = ef.findingId "
+          + "JOIN AttackPathExecution e ON e.id = ef.executionId "
           + "WHERE ef.findingId IN :findingIds "
           + "ORDER BY ef.executionId")
   List<AttackPathFindingExecutionRow> findExecutionLinks(

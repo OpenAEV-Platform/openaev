@@ -3,6 +3,7 @@ package io.openaev.service.attackpath;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow;
+import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingVerdictRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointTypeCountRow;
 import io.openaev.database.model.attackpath.projection.AttackPathExecutionRow;
@@ -32,6 +33,7 @@ import io.openaev.service.attackpath.dto.AttackPathExecutionFindingItemDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingItemDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
+import io.openaev.service.attackpath.dto.AttackPathFindingVerdictsDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
 import io.openaev.utils.mapper.PayloadMapper;
 import java.time.Instant;
@@ -164,7 +166,7 @@ public class AttackPathGraphService {
     Page<AttackPathFindingListRow> page =
         findingRepository.findPageByTypes(simulationId, types, pageable);
     List<AttackPathFindingListRow> rows = page.getContent();
-    Map<String, List<String>> executionIdsByFinding = executionIdsByFinding(rows);
+    FindingLinkData links = findingLinks(rows);
     boolean maskValue = CATEGORY_CREDENTIALS.equalsIgnoreCase(category);
     List<AttackPathFindingItemDTO> items =
         rows.stream()
@@ -175,7 +177,8 @@ public class AttackPathGraphService {
                         maskValue ? maskCredential(r.value()) : r.value(),
                         r.endpointKey(),
                         AttackPathIds.endpointNode(r.endpointKey()),
-                        executionIdsByFinding.getOrDefault(r.id(), List.of())))
+                        links.executionIds().getOrDefault(r.id(), List.of()),
+                        links.verdicts().get(r.id())))
             .toList();
     return new AttackPathFindingPageDTO(items, page.getTotalElements());
   }
@@ -194,19 +197,25 @@ public class AttackPathGraphService {
     if (e == null) {
       return null;
     }
-    // Result tab: the findings this execution produced (credential values masked).
+    // Result tab: the findings this execution produced (credential values masked). Each carries
+    // this
+    // execution's own verdict triple (single producer, so no cross-execution aggregation here).
+    AttackPathFindingVerdictsDTO executionVerdicts =
+        toVerdictsDto(
+            AttackPathFindingVerdicts.ofExecution(
+                e.getPreventionStatus(), e.getDetectionStatus(), e.getVulnerabilityStatus()));
     List<AttackPathExecutionFindingItemDTO> findings = new ArrayList<>();
     for (AttackPathEndpointFindingRow f : findingRepository.findByExecutionId(executionId)) {
       boolean credential = CATEGORY_CREDENTIALS.equals(f.type());
       findings.add(
           new AttackPathExecutionFindingItemDTO(
-              f.type(), credential ? maskCredential(f.value()) : f.value()));
+              f.type(), credential ? maskCredential(f.value()) : f.value(), executionVerdicts));
     }
     // Mask, in the free-text command and output, the secrets of every credential discovered on this
     // endpoint: an execution's command references its endpoint's credentials, not only the ones it
     // links to, so endpoint-scoped masking never leaves a known secret in the clear.
     Set<String> secrets = new HashSet<>();
-    for (AttackPathEndpointFindingRow f :
+    for (AttackPathEndpointFindingVerdictRow f :
         findingRepository.findByEndpoint(simulationId, e.getTargetKey())) {
       if (CATEGORY_CREDENTIALS.equals(f.type())) {
         String secret = credentialSecret(f.value());
@@ -267,6 +276,7 @@ public class AttackPathGraphService {
         e.getTargetPlatform(),
         e.getPreventionStatus(),
         e.getDetectionStatus(),
+        e.getVulnerabilityStatus(),
         e.getExecutedAt() == null ? null : e.getExecutedAt().toString(),
         findings,
         securityPlatformResolver.resolve(injectId, e.getAgentId(), e.getTargetAssetId()),
@@ -302,17 +312,32 @@ public class AttackPathGraphService {
    * The producing-execution ids per finding for a page of rows, from a single link read. The
    * finding ids come from a tenant-scoped page, so the read is already bounded to the tenant.
    */
-  private Map<String, List<String>> executionIdsByFinding(List<AttackPathFindingListRow> rows) {
+  private FindingLinkData findingLinks(List<AttackPathFindingListRow> rows) {
     if (rows.isEmpty()) {
-      return Map.of();
+      return new FindingLinkData(Map.of(), Map.of());
     }
     List<String> findingIds = rows.stream().map(AttackPathFindingListRow::id).toList();
-    Map<String, List<String>> byFinding = new LinkedHashMap<>();
+    Map<String, List<String>> executionIds = new LinkedHashMap<>();
+    Map<String, List<AttackPathFindingVerdicts.Verdicts>> producers = new LinkedHashMap<>();
     for (AttackPathFindingExecutionRow link : findingRepository.findExecutionLinks(findingIds)) {
-      byFinding.computeIfAbsent(link.findingId(), k -> new ArrayList<>()).add(link.executionId());
+      executionIds
+          .computeIfAbsent(link.findingId(), k -> new ArrayList<>())
+          .add(link.executionId());
+      producers
+          .computeIfAbsent(link.findingId(), k -> new ArrayList<>())
+          .add(
+              AttackPathFindingVerdicts.ofExecution(
+                  link.preventionStatus(), link.detectionStatus(), link.vulnerabilityStatus()));
     }
-    return byFinding;
+    Map<String, AttackPathFindingVerdictsDTO> verdicts = new LinkedHashMap<>();
+    producers.forEach(
+        (id, list) -> verdicts.put(id, toVerdictsDto(AttackPathFindingVerdicts.aggregate(list))));
+    return new FindingLinkData(executionIds, verdicts);
   }
+
+  /** The producing-execution ids and the worst-of verdict, per finding row of a drawer page. */
+  private record FindingLinkData(
+      Map<String, List<String>> executionIds, Map<String, AttackPathFindingVerdictsDTO> verdicts) {}
 
   /**
    * The finding types each product widget aggregates (spec 5048 section 2:
@@ -367,18 +392,29 @@ public class AttackPathGraphService {
    */
   @Transactional(readOnly = true)
   public AttackPathExpandDTO expandEndpoint(String simulationId, String endpointKey) {
-    List<AttackPathEndpointFindingRow> findings =
+    List<AttackPathEndpointFindingVerdictRow> findings =
         findingRepository.findByEndpoint(simulationId, endpointKey);
     String assetNodeId = AttackPathIds.endpointNode(endpointKey);
     Map<String, AttackPathNodeDTO> typeNodes = new LinkedHashMap<>();
     Map<String, AttackPathNodeDTO> findingNodes = new LinkedHashMap<>();
-    for (AttackPathEndpointFindingRow f : findings) {
+    Map<String, List<AttackPathFindingVerdicts.Verdicts>> producersByFinding = new HashMap<>();
+    for (AttackPathEndpointFindingVerdictRow f : findings) {
       String typeNodeId = AttackPathIds.findingTypeNode(f.type(), endpointKey);
       typeNodes.computeIfAbsent(typeNodeId, id -> findingTypeNode(id, f.type(), assetNodeId));
       String findingNodeId = AttackPathIds.findingNode(f.type(), f.value());
       findingNodes.computeIfAbsent(
           findingNodeId, id -> findingNode(id, f.type(), f.value(), typeNodeId, assetNodeId));
+      producersByFinding
+          .computeIfAbsent(findingNodeId, id -> new ArrayList<>())
+          .add(
+              AttackPathFindingVerdicts.ofExecution(
+                  f.preventionStatus(), f.detectionStatus(), f.vulnerabilityStatus()));
     }
+    // Worst-of across every producer of the (type, value) on this endpoint.
+    findingNodes.forEach(
+        (id, node) ->
+            node.setVerdicts(
+                toVerdictsDto(AttackPathFindingVerdicts.aggregate(producersByFinding.get(id)))));
     return new AttackPathExpandDTO(
         new ArrayList<>(typeNodes.values()), new ArrayList<>(findingNodes.values()));
   }
@@ -449,6 +485,11 @@ public class AttackPathGraphService {
     // Single pass over findings: finding-type nodes, finding nodes (deduped by type+value), finding
     // edges, the execution -> finding-node cross-reference, and the counters. No extra query,
     // no second walk of the findings.
+    Map<String, AttackPathExecutionRow> executionById = new HashMap<>();
+    for (AttackPathExecutionRow e : executions) {
+      executionById.putIfAbsent(e.id(), e);
+    }
+    Map<String, List<AttackPathFindingVerdicts.Verdicts>> producersByFindingNode = new HashMap<>();
     List<AttackPathNodeDTO> staticFindings = new ArrayList<>();
     Set<String> seenFindingNodes = new HashSet<>();
     Map<String, List<String>> findingNodeIdsByExecution = new LinkedHashMap<>();
@@ -471,6 +512,18 @@ public class AttackPathGraphService {
               findingNodeId, id -> findingNode(id, f.type(), f.value(), typeNodeId, assetNodeId));
       if (seenFindingNodes.add(findingNodeId)) {
         staticFindings.add(findingNode);
+      }
+
+      // Accumulate each producing execution's verdict for the cross-endpoint worst-of on the node.
+      AttackPathExecutionRow producer = executionById.get(f.executionId());
+      if (producer != null) {
+        producersByFindingNode
+            .computeIfAbsent(findingNodeId, k -> new ArrayList<>())
+            .add(
+                AttackPathFindingVerdicts.ofExecution(
+                    producer.preventionStatus(),
+                    producer.detectionStatus(),
+                    producer.vulnerabilityStatus()));
       }
 
       edges.computeIfAbsent(
@@ -496,6 +549,14 @@ public class AttackPathGraphService {
         }
       }
     }
+
+    // Worst-of verdict on each FINDING node, across all its producing executions (cross-endpoint).
+    staticFindings.forEach(
+        node ->
+            node.setVerdicts(
+                toVerdictsDto(
+                    AttackPathFindingVerdicts.aggregate(
+                        producersByFindingNode.getOrDefault(node.getId(), List.of())))));
 
     // Wire the execution -> findings cross-reference onto the feed nodes.
     findingNodeIdsByExecution.forEach(
@@ -994,6 +1055,11 @@ public class AttackPathGraphService {
     node.setFindingsTypeNodeId(typeNodeId);
     node.setAssetNodeId(assetNodeId);
     return node;
+  }
+
+  private static AttackPathFindingVerdictsDTO toVerdictsDto(AttackPathFindingVerdicts.Verdicts v) {
+    return new AttackPathFindingVerdictsDTO(
+        v.prevention().label, v.detection().label, v.vulnerability().label);
   }
 
   private AttackPathNodeDTO node(String id, String type, String label) {
