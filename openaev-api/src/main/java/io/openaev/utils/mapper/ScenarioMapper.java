@@ -82,6 +82,7 @@ public class ScenarioMapper {
         .from(rawScenario.getScenario_mail_from())
         .fromName(rawScenario.getScenario_mail_from_name())
         .mainFocus(rawScenario.getScenario_main_focus())
+        .defaultKillChain(rawScenario.getScenario_default_kill_chain())
         .footer(rawScenario.getScenario_message_footer())
         .header(rawScenario.getScenario_message_header())
         .recurrence(rawScenario.getScenario_recurrence())

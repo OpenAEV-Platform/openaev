@@ -106,6 +106,13 @@ public interface RawScenario {
   String getScenario_main_focus();
 
   /**
+   * Returns the kill chain displayed first in the overview kill chain results.
+   *
+   * @return the default kill chain name (e.g., "mitre-attack"), or null for automatic
+   */
+  String getScenario_default_kill_chain();
+
+  /**
    * Returns the footer text for scenario messages.
    *
    * @return the message footer

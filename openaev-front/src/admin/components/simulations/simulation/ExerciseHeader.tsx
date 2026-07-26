@@ -23,7 +23,7 @@ import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/w
 import { fetchExerciseChallenges } from '../../../../actions/challenge-action';
 import { fetchExerciseArticles } from '../../../../actions/channels/article-action';
 import { type ArticlesHelper } from '../../../../actions/channels/article-helper';
-import { fetchExerciseExpectationsDrift, fetchExerciseTeams, realignExerciseExpectations, searchExerciseHealthchecks, updateExerciseStatus } from '../../../../actions/Exercise';
+import { dismissExerciseExpectationsDrift, fetchExerciseExpectationsDrift, fetchExerciseTeams, realignExerciseExpectations, searchExerciseHealthchecks, updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import { type ChallengeHelper } from '../../../../actions/helper';
 import { fetchExerciseInjectsSimple } from '../../../../actions/Inject';
@@ -310,6 +310,13 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
     dispatch(fetchExerciseInjectsSimple(exerciseId));
   };
 
+  // Dismissal is persisted in database (shared between users); the endpoint
+  // returns the refreshed drift report.
+  const onDismissExpectations = async (dismissed: boolean) => {
+    const result = await dismissExerciseExpectationsDrift(exerciseId, dismissed);
+    setExpectationsDrift(result.data);
+  };
+
   const actions: ExerciseActionPopover[] = isSimulationChaining
     ? ['Update', 'Export', 'Delete']
     : ['Update', 'Duplicate', 'Export', 'Delete', 'Access reports'];
@@ -382,12 +389,14 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
               {permissions.canManage && (
                 <HealthcheckIndicator healthchecks={healthchecks} exerciseId={exerciseId} />
               )}
-              {/* Expectation drift warning - self-hides when aligned. */}
+              {/* Expectation drift warning - self-hides when aligned or dismissed. */}
               {permissions.canManage && (
                 <ExpectationsDriftIndicator
                   drift={expectationsDrift}
                   variant="simulation"
                   onRealign={onRealignExpectations}
+                  onDismiss={onDismissExpectations}
+                  placement="warning"
                 />
               )}
               {/* Configuration promoted to a first-class button (not buried in the
@@ -405,6 +414,17 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                     {t('Configuration')}
                   </Button>
                 </Tooltip>
+              )}
+              {/* Dismissed drift downgraded to a discreet icon after Configuration -
+                  the drift is acknowledged but still reviewable. */}
+              {permissions.canManage && (
+                <ExpectationsDriftIndicator
+                  drift={expectationsDrift}
+                  variant="simulation"
+                  onRealign={onRealignExpectations}
+                  onDismiss={onDismissExpectations}
+                  placement="dismissed"
+                />
               )}
               {/* Secondary actions surfaced as compact icon buttons (with explicit
                   tooltips) instead of being buried in the overflow menu.

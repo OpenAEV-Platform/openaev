@@ -3,7 +3,6 @@ import {
   BrushOutlined,
   CancelOutlined,
   ClearOutlined,
-  CloseOutlined,
   DeleteOutlined,
   DevicesOtherOutlined,
   FileDownloadOutlined,
@@ -15,7 +14,6 @@ import {
   Autocomplete,
   Box,
   Button,
-  Drawer,
   FormControl,
   Grid,
   IconButton,
@@ -35,6 +33,7 @@ import { fetchEndpoints } from '../../../actions/assets/endpoint-actions';
 import { storeHelper } from '../../../actions/Schema';
 import DialogDelete from '../../../components/common/DialogDelete';
 import DialogTest from '../../../components/common/DialogTest';
+import Drawer from '../../../components/common/Drawer';
 import ExportOptionsDialog from '../../../components/common/export/ExportOptionsDialog';
 import inject18n from '../../../components/i18n';
 import {
@@ -661,48 +660,10 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
         </Box>
         <Drawer
           open={this.state.displayUpdate}
-          anchor="right"
-          elevation={1}
-          sx={{
-            'zIndex': 1202,
-            '& .MuiDrawer-paper': {
-              minHeight: '100vh',
-              width: '50%',
-              position: 'fixed',
-              transition: theme => theme.transitions.create('width', {
-                easing: theme.transitions.easing.sharp,
-                duration: theme.transitions.duration.enteringScreen,
-              }),
-            },
-          }}
-          onClose={this.handleCloseUpdate.bind(this)}
+          handleClose={this.handleCloseUpdate.bind(this)}
+          title={t('Update objects')}
         >
-          <Box sx={{
-            backgroundColor: 'background.nav',
-            p: 2.5,
-          }}
-          >
-            <IconButton
-              aria-label="Close"
-              sx={{
-                position: 'absolute',
-                top: 1.5,
-                left: 0.625,
-                color: 'inherit',
-              }}
-              onClick={this.handleCloseUpdate.bind(this)}
-              size="large"
-              color="primary"
-            >
-              <CloseOutlined fontSize="small" color="primary" />
-            </IconButton>
-            <Typography variant="h6">{t('Update objects')}</Typography>
-          </Box>
-          <Box sx={{
-            p: 1.25,
-            mt: 2.5,
-          }}
-          >
+          <Box sx={{ mt: 1 }}>
             {new Array(actionsInputs.length)
               .fill(0)
               .map((_, i) => (

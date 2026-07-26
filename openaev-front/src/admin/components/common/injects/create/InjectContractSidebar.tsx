@@ -17,20 +17,13 @@ import { useHelper } from '../../../../../store';
 import { type Filter, type KillChainPhase, type SearchPaginationInput } from '../../../../../utils/api-types';
 import { sortKillChainPhase } from '../../../../../utils/kill_chain_phases/kill_chain_phases';
 import { type IconBarElement } from '../../domains/IconBar-model';
+import killChainLabel from '../../filters/killChainLabel';
 
 const PLATFORM_FILTER_KEY = 'injector_contract_platforms';
 const KILL_CHAIN_FILTER_KEY = 'injector_contract_kill_chain_phases';
 const STATUS_FILTER_KEY = 'injector_contract_payload_status';
 const AUTHOR_FILTER_KEY = 'injector_contract_payload_author';
 const PLATFORMS = ['Windows', 'Linux', 'MacOS'];
-
-// Well-known kill chains get their official product name; custom ones fall back
-// to their raw name (mirrors the home dashboard MITRE matrix labels).
-const KILL_CHAIN_LABELS: Record<string, string> = {
-  'mitre-attack': 'MITRE ATT&CK',
-  'mitre-atlas': 'MITRE ATLAS',
-};
-const killChainLabel = (name: string) => KILL_CHAIN_LABELS[name.toLowerCase()] ?? name;
 
 interface FacetCounts {
   platforms: Record<string, number>;

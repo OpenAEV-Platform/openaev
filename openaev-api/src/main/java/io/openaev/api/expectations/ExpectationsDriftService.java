@@ -10,9 +10,13 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.context.BulkOperationContext;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Scenario;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.utils.BulkDeleteChunkRunner;
 import io.openaev.service.utils.BulkOperationMonitor;
@@ -59,6 +63,8 @@ public class ExpectationsDriftService {
   private static final String NODE_EXPECTATION_SCORE = "expectation_score";
 
   private final InjectRepository injectRepository;
+  private final ScenarioRepository scenarioRepository;
+  private final ExerciseRepository exerciseRepository;
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final BulkOperationMonitor bulkOperationMonitor;
   private final BulkDeleteChunkRunner chunkRunner;
@@ -68,20 +74,25 @@ public class ExpectationsDriftService {
 
   /** Computes the expectation drift report for all injects of a scenario. */
   public ExpectationsDriftOutput scenarioDrift(String scenarioId) {
-    return computeDrift(injectRepository.findByScenarioId(scenarioId));
+    return computeDrift(
+        injectRepository.findByScenarioId(scenarioId),
+        resolveScenario(scenarioId).isExpectationsDriftDismissed());
   }
 
   /** Computes the expectation drift report for all injects of a simulation. */
   public ExpectationsDriftOutput exerciseDrift(String exerciseId) {
-    return computeDrift(injectRepository.findByExerciseId(exerciseId));
+    return computeDrift(
+        injectRepository.findByExerciseId(exerciseId),
+        resolveExercise(exerciseId).isExpectationsDriftDismissed());
   }
 
   /** Computes the expectation drift report for a single inject (atomic testing). */
   public ExpectationsDriftOutput injectDrift(String injectId) {
-    return computeDrift(List.of(resolveInject(injectId)));
+    Inject inject = resolveInject(injectId);
+    return computeDrift(List.of(inject), inject.isExpectationsDriftDismissed());
   }
 
-  private ExpectationsDriftOutput computeDrift(Collection<Inject> injects) {
+  private ExpectationsDriftOutput computeDrift(Collection<Inject> injects, boolean dismissed) {
     Map<String, List<String>> contractSignatureCache = new HashMap<>();
     int total = 0;
     int drifted = 0;
@@ -94,7 +105,40 @@ public class ExpectationsDriftService {
         drifted++;
       }
     }
-    return new ExpectationsDriftOutput(drifted > 0, drifted, total);
+    return new ExpectationsDriftOutput(drifted > 0, drifted, total, dismissed);
+  }
+
+  // -- DISMISSAL --
+
+  /**
+   * Dismisses (or restores) the drift warning of a scenario. The dismissal acknowledges that the
+   * drifted expectations were customized on purpose: the UI downgrades the warning to a discreet
+   * indicator. Persisted on the entity so it is shared between users; reset on realignment. Callers
+   * must be transactional.
+   */
+  public ExpectationsDriftOutput dismissScenarioDrift(String scenarioId, boolean dismissed) {
+    Scenario scenario = resolveScenario(scenarioId);
+    scenario.setExpectationsDriftDismissed(dismissed);
+    scenarioRepository.save(scenario);
+    return computeDrift(injectRepository.findByScenarioId(scenarioId), dismissed);
+  }
+
+  /** Dismisses (or restores) the drift warning of a simulation. Callers must be transactional. */
+  public ExpectationsDriftOutput dismissExerciseDrift(String exerciseId, boolean dismissed) {
+    Exercise exercise = resolveExercise(exerciseId);
+    exercise.setExpectationsDriftDismissed(dismissed);
+    exerciseRepository.save(exercise);
+    return computeDrift(injectRepository.findByExerciseId(exerciseId), dismissed);
+  }
+
+  /**
+   * Dismisses (or restores) the drift warning of an atomic testing. Callers must be transactional.
+   */
+  public ExpectationsDriftOutput dismissInjectDrift(String injectId, boolean dismissed) {
+    Inject inject = resolveInject(injectId);
+    inject.setExpectationsDriftDismissed(dismissed);
+    injectRepository.save(inject);
+    return computeDrift(List.of(inject), dismissed);
   }
 
   /**
@@ -188,18 +232,43 @@ public class ExpectationsDriftService {
 
   /** Realigns all drifted injects of a scenario onto their contract templates. */
   public ExpectationsRealignOutput realignScenario(String scenarioId) {
-    return realign(
-        chunkRunner.call(() -> List.copyOf(injectRepository.findByScenarioId(scenarioId))));
+    ExpectationsRealignOutput output =
+        realign(chunkRunner.call(() -> List.copyOf(injectRepository.findByScenarioId(scenarioId))));
+    // Realignment closes the drift episode: a future drift is a new event and must surface the
+    // full warning again, not inherit a stale dismissal.
+    chunkRunner.call(
+        () -> {
+          Scenario scenario = resolveScenario(scenarioId);
+          scenario.setExpectationsDriftDismissed(false);
+          return scenarioRepository.save(scenario);
+        });
+    return output;
   }
 
   /** Realigns all drifted injects of a simulation onto their contract templates. */
   public ExpectationsRealignOutput realignExercise(String exerciseId) {
-    return realign(chunkRunner.call(() -> injectRepository.findByExerciseId(exerciseId)));
+    ExpectationsRealignOutput output =
+        realign(chunkRunner.call(() -> injectRepository.findByExerciseId(exerciseId)));
+    chunkRunner.call(
+        () -> {
+          Exercise exercise = resolveExercise(exerciseId);
+          exercise.setExpectationsDriftDismissed(false);
+          return exerciseRepository.save(exercise);
+        });
+    return output;
   }
 
   /** Realigns a single inject (atomic testing) onto its contract template. */
   public ExpectationsRealignOutput realignInject(String injectId) {
-    return realign(chunkRunner.call(() -> List.of(resolveInject(injectId))));
+    ExpectationsRealignOutput output =
+        realign(chunkRunner.call(() -> List.of(resolveInject(injectId))));
+    chunkRunner.call(
+        () -> {
+          Inject inject = resolveInject(injectId);
+          inject.setExpectationsDriftDismissed(false);
+          return injectRepository.save(inject);
+        });
+    return output;
   }
 
   /**
@@ -266,5 +335,17 @@ public class ExpectationsDriftService {
     return injectRepository
         .findById(injectId)
         .orElseThrow(() -> new ElementNotFoundException("Inject not found: " + injectId));
+  }
+
+  private Scenario resolveScenario(String scenarioId) {
+    return scenarioRepository
+        .findById(scenarioId)
+        .orElseThrow(() -> new ElementNotFoundException("Scenario not found: " + scenarioId));
+  }
+
+  private Exercise resolveExercise(String exerciseId) {
+    return exerciseRepository
+        .findById(exerciseId)
+        .orElseThrow(() -> new ElementNotFoundException("Exercise not found: " + exerciseId));
   }
 }

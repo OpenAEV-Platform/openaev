@@ -55,6 +55,11 @@ const ButtonPopover: FunctionComponent<Props> = ({
             color="primary"
             aria-label={t('More actions')}
             onClick={(ev) => {
+              // The kebab may live inside a real link (card / row wrapped in a
+              // router <Link> for ctrl+click support): stopPropagation() alone
+              // does not cancel the browser's native anchor navigation, so
+              // preventDefault() is mandatory here.
+              ev.preventDefault();
               ev.stopPropagation();
               setAnchorEl(ev.currentTarget);
             }}

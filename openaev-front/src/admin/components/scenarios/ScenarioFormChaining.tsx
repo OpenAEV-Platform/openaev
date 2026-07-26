@@ -24,6 +24,7 @@ import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { type PlatformSettings, type ScenarioInput } from '../../../utils/api-types';
 import { zodImplement } from '../../../utils/Zod';
+import DefaultKillChainSelectField from '../common/filters/DefaultKillChainSelectField';
 import { scenarioCategories } from './constants';
 
 interface Props {
@@ -63,6 +64,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
         scenario_category: z.string().optional(),
         scenario_main_focus: z.string().optional(),
         scenario_severity: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+        scenario_default_kill_chain: z.string().optional(),
         scenario_subtitle: z.string().optional(),
         scenario_description: z.string().optional(),
         scenario_tags: z.string().array().optional(),
@@ -160,28 +162,40 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
               </MenuItem>
             </SelectField>
           </div>
-          <SelectField
-            variant="standard"
-            fullWidth={true}
-            name="scenario_severity"
-            label={t('Severity')}
-            error={!!errors.scenario_severity}
-            control={control}
-            defaultValue={initialValues.scenario_severity}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'row',
+            gap: 20,
+          }}
           >
-            <MenuItem key="low" value="low">
-              {t('Low')}
-            </MenuItem>
-            <MenuItem key="medium" value="medium">
-              {t('Medium')}
-            </MenuItem>
-            <MenuItem key="high" value="high">
-              {t('High')}
-            </MenuItem>
-            <MenuItem key="critical" value="critical">
-              {t('Critical')}
-            </MenuItem>
-          </SelectField>
+            <SelectField
+              variant="standard"
+              fullWidth={true}
+              name="scenario_severity"
+              label={t('Severity')}
+              error={!!errors.scenario_severity}
+              control={control}
+              defaultValue={initialValues.scenario_severity}
+            >
+              <MenuItem key="low" value="low">
+                {t('Low')}
+              </MenuItem>
+              <MenuItem key="medium" value="medium">
+                {t('Medium')}
+              </MenuItem>
+              <MenuItem key="high" value="high">
+                {t('High')}
+              </MenuItem>
+              <MenuItem key="critical" value="critical">
+                {t('Critical')}
+              </MenuItem>
+            </SelectField>
+            <DefaultKillChainSelectField<ScenarioInput>
+              name="scenario_default_kill_chain"
+              control={control}
+              defaultValue={initialValues.scenario_default_kill_chain}
+            />
+          </div>
           <TextField
             variant="standard"
             fullWidth

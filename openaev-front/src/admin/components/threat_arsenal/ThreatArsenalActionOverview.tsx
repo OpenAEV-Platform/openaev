@@ -809,7 +809,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
           >
             <PayloadStatusComponent status={undefined} />
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {t('This action does not have a payload attached.')}
+              {t('This arsenal item does not have a payload attached.')}
             </Typography>
           </Box>
         </Section>

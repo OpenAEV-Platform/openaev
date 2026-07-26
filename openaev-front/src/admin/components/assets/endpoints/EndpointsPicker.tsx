@@ -1,5 +1,5 @@
 import { DevicesOtherOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip } from '@mui/material';
+import { Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { normalize } from 'normalizr';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
@@ -12,8 +12,7 @@ import { buildFilter } from '../../../../components/common/queryable/filter/Filt
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
-import SelectList, { type SelectListElements } from '../../../../components/common/SelectList';
-import Transition from '../../../../components/common/Transition';
+import SelectListPicker, { type SelectListPickerElements } from '../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PlatformIcon from '../../../../components/PlatformIcon';
@@ -35,11 +34,13 @@ interface Props {
   onSubmit: (endpointIds: string[]) => void;
   title: string;
   platforms?: string[];
-  payloadType?: string;
   payloadArch?: string;
 }
 
-const EndpointsDialogAdding: FunctionComponent<Props> = ({
+// Always rendered as an inline dialog: every context that picks endpoints
+// (inject form, asset group management, payload drawers) is itself an overlay,
+// and the design system never stacks a drawer over a drawer.
+const EndpointsPicker: FunctionComponent<Props> = ({
   initialState = [],
   open,
   onClose,
@@ -69,14 +70,17 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
     }
   }, [open, initialState]);
 
-  const addEndpoint = (_endpointId: string, endpoint: EndpointOutput) => {
-    setEndpointValues([...endpointValues, endpoint]);
-  };
-  const removeEndpoint = (endpointId: string) => {
-    setEndpointValues(endpointValues.filter(v => v.asset_id !== endpointId));
+  const selectedIds = useMemo(() => endpointValues.map(v => v.asset_id), [endpointValues]);
+
+  const toggleEndpoint = (endpointId: string, endpoint: EndpointOutput) => {
+    if (selectedIds.includes(endpointId)) {
+      setEndpointValues(endpointValues.filter(v => v.asset_id !== endpointId));
+    } else {
+      setEndpointValues([...endpointValues, endpoint]);
+    }
   };
 
-  // Dialog
+  // Drawer
   const handleClose = () => {
     setEndpointValues([]);
     onClose();
@@ -92,19 +96,21 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
   };
 
   // Headers
-  const elements: SelectListElements<EndpointOutput> = useMemo(() => ({
+  const elements: SelectListPickerElements<EndpointOutput> = useMemo(() => ({
     icon: { value: () => <DevicesOtherOutlined color="primary" /> },
     headers: [
-      // Widths must total 100: SelectList renders each cell as `width: N%` in a
-      // flex row, so any excess pushes the last column (tags) out of the row
-      // where its chips get clipped.
+      // Widths must total 100: each cell renders as `width: N%` in a flex row,
+      // so any excess pushes the last column (tags) out of the row.
       {
         field: 'asset_name',
+        label: 'Name',
+        isSortable: true,
         value: (endpoint: EndpointOutput) => endpoint.asset_name,
         width: 30,
       },
       {
         field: 'endpoint_active',
+        label: 'Status',
         value: (endpoint: EndpointOutput) => {
           const status = getActiveMsgTooltip(endpoint.asset_agents.map(a => a.agent_active ?? false), t('Active'), t('Inactive'), t('Agentless'));
           return (
@@ -119,6 +125,8 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
       },
       {
         field: 'endpoint_platform',
+        label: 'Platform',
+        isSortable: true,
         value: (endpoint: EndpointOutput) => (
           <div style={{
             display: 'flex',
@@ -132,11 +140,14 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
       },
       {
         field: 'endpoint_arch',
+        label: 'Architecture',
+        isSortable: true,
         value: (endpoint: EndpointOutput) => endpoint.endpoint_arch,
         width: 15,
       },
       {
         field: 'endpoint_agents_executor',
+        label: 'Executors',
         value: (endpoint: EndpointOutput) => {
           if (endpoint.asset_agents.length > 0) {
             const groupedExecutors = getExecutorsCount(endpoint, executorsMap);
@@ -188,8 +199,8 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
       },
       {
         field: 'asset_tags',
-        // Same tag rendering as the endpoints list (full labels), limited to a
-        // single chip + "+N" counter so the fixed-height cell never wraps.
+        label: 'Tags',
+        // Single chip + "+N" counter so the fixed-height cell never wraps.
         value: (endpoint: EndpointOutput) => <ItemTags variant="list" limit={1} tags={endpoint.asset_tags} />,
         width: 20,
       },
@@ -235,48 +246,22 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
   );
 
   return (
-    <Dialog
+    <SelectListPicker<EndpointOutput>
       open={open}
-      slots={{ transition: Transition }}
       onClose={handleClose}
-      fullWidth
-      maxWidth="lg"
-      slotProps={{
-        paper: {
-          elevation: 1,
-          sx: {
-            minHeight: 580,
-            maxHeight: 580,
-          },
-        },
-      }}
-    >
-      <DialogTitle>{title}</DialogTitle>
-      <DialogContent>
-        <Box sx={{ marginTop: 2 }}>
-          <SelectList<EndpointOutput, Endpoint>
-            values={endpoints}
-            selectedValues={endpointValues}
-            isLoadingValues={isLoading}
-            elements={elements}
-            onSelect={addEndpoint}
-            onDelete={removeEndpoint}
-            paginationComponent={paginationComponent}
-            getId={element => element.asset_id}
-            getName={element => element.asset_name}
-          />
-        </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button variant="outlined" color="primary" onClick={handleClose}>{t('Cancel')}</Button>
-        {!isLoading && (
-          <Button variant="contained" color="primary" onClick={handleSubmit}>
-            {t('Update')}
-          </Button>
-        )}
-      </DialogActions>
-    </Dialog>
+      onSubmit={handleSubmit}
+      title={title}
+      inline
+      headerComponent={paginationComponent}
+      values={endpoints}
+      elements={elements}
+      sortHelpers={queryableHelpers.sortHelpers}
+      selectedIds={selectedIds}
+      onToggle={toggleEndpoint}
+      getId={element => element.asset_id}
+      isLoading={isLoading}
+    />
   );
 };
 
-export default EndpointsDialogAdding;
+export default EndpointsPicker;

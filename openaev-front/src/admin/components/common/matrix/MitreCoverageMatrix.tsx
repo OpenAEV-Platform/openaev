@@ -30,6 +30,12 @@ interface Props {
     source: ContextualSource;
     contextId: string;
   };
+  /**
+   * Entity-configured default kill chain (scenario / simulation setting): the
+   * matrix lands on it when the user has no remembered selection. The user's
+   * own selection, persisted in local storage, still overrides it.
+   */
+  defaultKillChain?: string | null;
 }
 
 // The home dashboard's ATT&CK coverage matrix (SecurityCoverageContent) is fed
@@ -37,7 +43,7 @@ interface Props {
 // the per-attack-pattern expectation results the scenario/simulation overviews
 // already fetch into that shape so both surfaces share the home widget's
 // rendering (kill-chain selector, heat cells) in covered-only result mode.
-const MitreCoverageMatrix: FunctionComponent<Props> = ({ widgetId, injectResults, resultsContext }) => {
+const MitreCoverageMatrix: FunctionComponent<Props> = ({ widgetId, injectResults, resultsContext, defaultKillChain }) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -114,7 +120,7 @@ const MitreCoverageMatrix: FunctionComponent<Props> = ({ widgetId, injectResults
 
   // Overviews are result views: show only techniques actually covered by the
   // scenario / simulation, without the coverage-planning controls and KPI.
-  const content = <SecurityCoverageContent widgetId={widgetId} widgetConfig={widgetConfig} data={data} coveredOnly />;
+  const content = <SecurityCoverageContent widgetId={widgetId} widgetConfig={widgetConfig} data={data} coveredOnly preferredKillChain={defaultKillChain} />;
   if (!resultsContext) {
     return content;
   }

@@ -1,13 +1,16 @@
-import { DevicesOtherOutlined, DnsOutlined, Groups3Outlined, SmartToyOutlined } from '@mui/icons-material';
+import { DnsOutlined, Groups3Outlined, PersonOutlined, SmartToyOutlined } from '@mui/icons-material';
 import { Chip, Tooltip } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
+import { type AssetCategory } from '../admin/components/assets/asset-categories';
+import AssetCategoryIcon from '../admin/components/assets/AssetCategoryIcon';
 import { type TargetSimple } from '../utils/api-types';
 import { getRemainingItemsCount, getVisibleItems, truncate } from '../utils/String';
 import { useFormatter } from './i18n';
+import PlatformIcon from './PlatformIcon';
 
 const useStyles = makeStyles()(theme => ({
   inline: { display: 'flex' },
@@ -110,20 +113,34 @@ const ItemTargets: FunctionComponent<Props> = ({
     return '-';
   }
 
-  const getIcon = (type: string | undefined) => {
-    if (type === 'ASSETS') {
-      return <DevicesOtherOutlined style={{ fontSize: '1rem' }} />;
+  // Mirrors the detail-page TargetIcon glyph selection so a target reads identically in list
+  // chips and on its result page: host-like assets keep their OS platform brand icon, every other
+  // asset category is represented by its taxonomy glyph (web application, cloud, AI target, ...).
+  const getIcon = (target: TargetSimple) => {
+    switch (target.target_type) {
+      case 'ASSETS':
+      case 'ENDPOINTS': {
+        const category = target.target_category as AssetCategory | undefined;
+        const platform = target.target_subtype;
+        // No category (legacy data) or host-like category: the OS platform is the meaningful
+        // glyph. PlatformIcon renders nothing for Unknown, which would leave an empty chip, so
+        // Unknown falls through to the category glyph instead.
+        if (platform && platform !== 'Unknown' && (!category || category === 'HOST' || category === 'MOBILE_DEVICE')) {
+          return <PlatformIcon platform={platform} width={14} />;
+        }
+        return <AssetCategoryIcon category={category ?? null} style={{ fontSize: '1rem' }} />;
+      }
+      case 'ASSETS_GROUPS':
+        return <SelectGroup style={{ fontSize: '1rem' }} />;
+      case 'AI_TARGETS':
+        return <SmartToyOutlined style={{ fontSize: '1rem' }} />;
+      case 'MANUAL':
+        return <DnsOutlined style={{ fontSize: '1rem' }} />;
+      case 'PLAYERS':
+        return <PersonOutlined style={{ fontSize: '1rem' }} />;
+      default:
+        return <Groups3Outlined style={{ fontSize: '1rem' }} />; // Teams
     }
-    if (type === 'ASSETS_GROUPS') {
-      return <SelectGroup style={{ fontSize: '1rem' }} />;
-    }
-    if (type === 'AI_TARGETS') {
-      return <SmartToyOutlined style={{ fontSize: '1rem' }} />;
-    }
-    if (type === 'MANUAL') {
-      return <DnsOutlined style={{ fontSize: '1rem' }} />;
-    }
-    return <Groups3Outlined style={{ fontSize: '1rem' }} />; // Teams
   };
 
   return (
@@ -137,7 +154,7 @@ const ItemTargets: FunctionComponent<Props> = ({
                 variant="outlined"
                 key={target.target_id}
                 classes={{ root: link ? cx(classes.target, classes.clickable) : classes.target }}
-                icon={getIcon(target.target_type)}
+                icon={getIcon(target)}
                 label={truncate(target.target_name!, truncateLimit)}
                 {...(link
                   ? {
@@ -168,7 +185,7 @@ const ItemTargets: FunctionComponent<Props> = ({
                     <tr key={target.target_id}>
                       <td>
                         <span className={classes.tooltipName}>
-                          {getIcon(target.target_type)}
+                          {getIcon(target)}
                           {truncate(target.target_name ?? '-', 40)}
                         </span>
                       </td>

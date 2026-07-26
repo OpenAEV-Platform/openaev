@@ -275,12 +275,4 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       collectorRepository.deleteByIdAndTenantId(collectorId, TenantContext.getCurrentTenant());
     }
   }
-
-  public List<Collector> collectorsForPayload(String payloadId) {
-    return collectorRepository.findByPayloadId(payloadId);
-  }
-
-  public List<Collector> collectorsForAtomicTesting(String injectId) {
-    return collectorRepository.findByInjectId(injectId);
-  }
 }

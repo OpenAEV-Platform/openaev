@@ -97,6 +97,26 @@ public class Exercise implements GrantableBase, TenantBase {
   @Queryable(filterable = true, sortable = true)
   private SEVERITY severity;
 
+  /**
+   * Kill chain (by name, e.g. "mitre-attack") displayed first in the overview's kill chain results.
+   * Null means automatic (ATT&CK first). A user's own selection, remembered in local storage, still
+   * overrides this default.
+   */
+  @Getter
+  @Column(name = "exercise_default_kill_chain")
+  @JsonProperty("exercise_default_kill_chain")
+  private String defaultKillChain;
+
+  /**
+   * Whether the expectation-drift warning was dismissed for this simulation (the drifted
+   * expectations were customized on purpose). Persisted in database so the dismissal is shared
+   * between users. Reset on realignment so a future drift surfaces the full warning again.
+   */
+  @Getter
+  @Column(name = "exercise_expectations_drift_dismissed")
+  @JsonProperty("exercise_expectations_drift_dismissed")
+  private boolean expectationsDriftDismissed;
+
   @Column(name = "exercise_pause_date")
   @JsonIgnore
   private Instant currentPause;

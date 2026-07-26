@@ -35,6 +35,7 @@ import io.openaev.service.FileService;
 import io.openaev.service.ImportEntry;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.utils.CollectorTypeHumanizer;
 import io.openaev.utils.WorkflowScopeRuleUtils;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
@@ -84,7 +85,7 @@ public class V1_DataImporter implements Importer {
   private final InjectDependenciesRepository injectDependenciesRepository;
   private final PayloadCreationService payloadCreationService;
   private final PayloadRepository payloadRepository;
-  private final CollectorTypeRepository collectorTypeRepository;
+  private final SecurityPlatformRepository securityPlatformRepository;
   private final DomainService domainService;
   private final io.openaev.service.chaining.WorkflowService workflowService;
   private final io.openaev.service.chaining.StepService chainingStepService;
@@ -543,6 +544,9 @@ public class V1_DataImporter implements Importer {
     ofNullable(exerciseNode.get("exercise_severity"))
         .map(JsonNode::textValue)
         .ifPresent(severity -> exercise.setSeverity(SEVERITY.valueOf(severity)));
+    ofNullable(exerciseNode.get("exercise_default_kill_chain"))
+        .map(JsonNode::textValue)
+        .ifPresent(exercise::setDefaultKillChain);
     exercise.setHeader(exerciseNode.get("exercise_message_header").textValue());
     exercise.setFooter(exerciseNode.get("exercise_message_footer").textValue());
     exercise.setFrom(exerciseNode.get("exercise_mail_from").textValue());
@@ -572,6 +576,9 @@ public class V1_DataImporter implements Importer {
     ofNullable(scenarioNode.get("scenario_severity"))
         .map(JsonNode::textValue)
         .ifPresent(severity -> scenario.setSeverity(SEVERITY.valueOf(severity)));
+    ofNullable(scenarioNode.get("scenario_default_kill_chain"))
+        .map(JsonNode::textValue)
+        .ifPresent(scenario::setDefaultKillChain);
     ofNullable(scenarioNode.get("scenario_recurrence"))
         .map(JsonNode::textValue)
         .ifPresent(scenario::setRecurrence);
@@ -1737,29 +1744,57 @@ public class V1_DataImporter implements Importer {
 
     for (JsonNode detectionNode : remediationsNode) {
       String valuesText = getTextValue(detectionNode, "detection_remediation_values");
-      String type = getTextValue(detectionNode, "detection_remediation_collector_type");
 
       if (valuesText.isEmpty()) {
         continue;
       }
 
-      Optional<CollectorType> collectorType = collectorTypeRepository.findByName(type);
-      if (collectorType.isPresent()) {
-        detectionRemediationInputs.add(buildDetectionRemediationFromJsonNode(detectionNode));
+      Optional<SecurityPlatform> securityPlatform =
+          resolveDetectionRemediationSecurityPlatform(detectionNode);
+      if (securityPlatform.isPresent()) {
+        DetectionRemediationInput detectionRemediation = new DetectionRemediationInput();
+        detectionRemediation.setValues(valuesText);
+        detectionRemediation.setSecurityPlatformId(securityPlatform.get().getId());
+        detectionRemediationInputs.add(detectionRemediation);
       } else {
-        log.warn("Import Detection Remediations: Missing Collector type: {}", type);
+        log.warn("Import Detection Remediations: unresolvable security platform, skipping entry");
       }
     }
 
     return detectionRemediationInputs;
   }
 
-  private DetectionRemediationInput buildDetectionRemediationFromJsonNode(JsonNode node) {
-    DetectionRemediationInput detectionRemediation = new DetectionRemediationInput();
-    detectionRemediation.setValues((node.get("detection_remediation_values").textValue()));
-    detectionRemediation.setCollectorType(
-        (node.get("detection_remediation_collector_type").textValue()));
-    return detectionRemediation;
+  /**
+   * Resolves the security platform of an imported detection remediation. Recent exports carry the
+   * platform id ({@code detection_remediation_security_platform}); legacy exports carry a collector
+   * type name ({@code detection_remediation_collector_type}, e.g. {@code openaev_crowdstrike})
+   * which is humanized to a platform name, resolved case-insensitively and created as a manual
+   * platform when absent - so old exports keep importing without any collector installed.
+   */
+  private Optional<SecurityPlatform> resolveDetectionRemediationSecurityPlatform(
+      JsonNode detectionNode) {
+    String platformId = getTextValue(detectionNode, "detection_remediation_security_platform");
+    if (!platformId.isEmpty()) {
+      Optional<SecurityPlatform> byId = securityPlatformRepository.findById(platformId);
+      if (byId.isPresent()) {
+        return byId;
+      }
+    }
+    String collectorTypeName = getTextValue(detectionNode, "detection_remediation_collector_type");
+    if (collectorTypeName.isEmpty()) {
+      return Optional.empty();
+    }
+    CollectorTypeHumanizer.HumanizedPlatform humanized =
+        CollectorTypeHumanizer.humanize(collectorTypeName);
+    Optional<SecurityPlatform> byName =
+        securityPlatformRepository.findFirstByNameIgnoreCaseOrderByIdAsc(humanized.name());
+    if (byName.isPresent()) {
+      return byName;
+    }
+    SecurityPlatform created = new SecurityPlatform();
+    created.setName(humanized.name());
+    created.setSecurityPlatformType(humanized.type());
+    return Optional.of(securityPlatformRepository.save(created));
   }
 
   private String getTextValue(JsonNode node, String fieldName) {

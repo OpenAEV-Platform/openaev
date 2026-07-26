@@ -20,6 +20,8 @@ import SortHeadersComponentV2 from '../../../../components/common/queryable/sort
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type Header } from '../../../../components/common/SortHeadersList';
+import Tabs from '../../../../components/common/tabs/Tabs';
+import useTabs from '../../../../components/common/tabs/useTabs';
 import Empty from '../../../../components/Empty';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
@@ -36,6 +38,8 @@ import InjectResultList from '../../atomic_testings/InjectResultList';
 import FindingList from '../../findings/FindingList';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import PostureScore from '../PostureScore';
+import InjectsPlayedOverTimeChart from '../statistics/InjectsPlayedOverTimeChart';
+import PostureScoreOverTimeChart from '../statistics/PostureScoreOverTimeChart';
 import useExpectationPosture from '../useExpectationPosture';
 import AssetGroupPopover from './AssetGroupPopover';
 import computeRuleValues from './assetGroupRules';
@@ -84,6 +88,10 @@ const AssetGroupDetail = () => {
     [assetGroupId],
   ));
   const posture = useExpectationPosture('base_asset_group_side', assetGroupId);
+
+  // Overview keeps the current detail sections; Statistics adds the over-time
+  // charts without eating vertical space on the main tab.
+  const { currentTab, handleChangeTab } = useTabs('overview');
 
   // Injects played: the same scoped search as the hero count above, but
   // server-paginated for the full list section below.
@@ -206,104 +214,136 @@ const AssetGroupDetail = () => {
         )}
       />
 
-      {/* Identity + dynamic rules side by side: both sections are short, so
+      <Tabs
+        entries={[
+          {
+            key: 'overview',
+            label: t('Overview'),
+          },
+          {
+            key: 'statistics',
+            label: t('Statistics'),
+          },
+        ]}
+        currentTab={currentTab}
+        onChange={handleChangeTab}
+      />
+
+      {currentTab === 'statistics' && (
+        // Two simple 50/50 time series: the posture-score evolution (same
+        // formula as the hero gauge) and the injects-played activity.
+        <DetailSections>
+          <SectionBlock title={t('Posture score over time')}>
+            <PostureScoreOverTimeChart scopeField="base_asset_group_side" entityId={assetGroupId} height={280} />
+          </SectionBlock>
+          <SectionBlock title={t('Injects played over time')}>
+            <InjectsPlayedOverTimeChart scopeField="base_asset_groups_side" entityId={assetGroupId} height={280} />
+          </SectionBlock>
+        </DetailSections>
+      )}
+
+      {currentTab === 'overview' && (
+        <>
+          {/* Identity + dynamic rules side by side: both sections are short, so
           sharing one grid row keeps the overview compact. */}
-      <DetailSections>
-        <InformationGrid title={t('Information')}>
-          <Field label={t('Description')}>
-            {assetGroup.asset_group_description
-              ? <ExpandableMarkdown source={assetGroup.asset_group_description} limit={300} />
-              : '-'}
-          </Field>
-          <Field label={t('Tags')}>
-            <ItemTags variant="list" tags={assetGroup.asset_group_tags} />
-          </Field>
-        </InformationGrid>
-        <SectionBlock title={t('Rules')}>
-          {computeRuleValues(assetGroup, t)}
-        </SectionBlock>
-      </DetailSections>
+          <DetailSections>
+            <InformationGrid title={t('Information')}>
+              <Field label={t('Description')}>
+                {assetGroup.asset_group_description
+                  ? <ExpandableMarkdown source={assetGroup.asset_group_description} limit={300} />
+                  : '-'}
+              </Field>
+              <Field label={t('Tags')}>
+                <ItemTags variant="list" tags={assetGroup.asset_group_tags} />
+              </Field>
+            </InformationGrid>
+            <SectionBlock title={t('Rules')}>
+              {computeRuleValues(assetGroup, t)}
+            </SectionBlock>
+          </DetailSections>
 
-      <SectionBlock title={t('Assets')}>
-        <PaginationComponentV2
-          fetch={(input: SearchPaginationInput) => searchEndpointsFromAssetGroup(input, assetGroupId)}
-          searchPaginationInput={searchPaginationInput}
-          setContent={setEndpoints}
-          entityPrefix="endpoint"
-          availableFilterNames={availableFilterNames}
-          queryableHelpers={queryableHelpers}
-          reloadContentCount={reloadContentCount}
-          contextId={assetGroupId}
-        />
-        <List>
-          <ListItem style={{
-            paddingTop: 0,
-            textTransform: 'uppercase',
-          }}
-          >
-            <ListItemIcon />
-            <ListItemText
-              primary={(
-                <SortHeadersComponentV2
-                  headers={headers}
-                  inlineStylesHeaders={inlineStyles}
-                  sortHelpers={queryableHelpers.sortHelpers}
-                />
-              )}
+          <SectionBlock title={t('Assets')}>
+            <PaginationComponentV2
+              fetch={(input: SearchPaginationInput) => searchEndpointsFromAssetGroup(input, assetGroupId)}
+              searchPaginationInput={searchPaginationInput}
+              setContent={setEndpoints}
+              entityPrefix="endpoint"
+              availableFilterNames={availableFilterNames}
+              queryableHelpers={queryableHelpers}
+              reloadContentCount={reloadContentCount}
+              contextId={assetGroupId}
             />
-          </ListItem>
-          {endpoints.length > 0
-            ? endpoints.map(asset => (
-                <ListItem key={asset.asset_id} divider disablePadding data-testid="asset-group-asset-row">
-                  <ListItemButton
-                    component={Link}
-                    to={`${ASSET_BASE_URL}/${asset.asset_id}`}
-                    sx={{ height: 50 }}
-                  >
-                    <ListItemIcon>
-                      <AssetCategoryIcon category={asset.asset_category} color="primary" />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={(
-                        <div style={bodyItemsStyles.bodyItems}>
-                          {headers.map(header => (
-                            <div
-                              key={header.field}
-                              style={{
-                                ...bodyItemsStyles.bodyItem,
-                                ...inlineStyles[header.field],
-                              }}
-                            >
-                              {header.value?.(asset)}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+            <List>
+              <ListItem style={{
+                paddingTop: 0,
+                textTransform: 'uppercase',
+              }}
+              >
+                <ListItemIcon />
+                <ListItemText
+                  primary={(
+                    <SortHeadersComponentV2
+                      headers={headers}
+                      inlineStylesHeaders={inlineStyles}
+                      sortHelpers={queryableHelpers.sortHelpers}
                     />
-                  </ListItemButton>
-                </ListItem>
-              ))
-            : <Empty message={t('No asset in this asset group.')} />}
-        </List>
-      </SectionBlock>
+                  )}
+                />
+              </ListItem>
+              {endpoints.length > 0
+                ? endpoints.map(asset => (
+                    <ListItem key={asset.asset_id} divider disablePadding data-testid="asset-group-asset-row">
+                      <ListItemButton
+                        component={Link}
+                        to={`${ASSET_BASE_URL}/${asset.asset_id}`}
+                        sx={{ height: 50 }}
+                      >
+                        <ListItemIcon>
+                          <AssetCategoryIcon category={asset.asset_category} color="primary" />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={(
+                            <div style={bodyItemsStyles.bodyItems}>
+                              {headers.map(header => (
+                                <div
+                                  key={header.field}
+                                  style={{
+                                    ...bodyItemsStyles.bodyItem,
+                                    ...inlineStyles[header.field],
+                                  }}
+                                >
+                                  {header.value?.(asset)}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  ))
+                : <Empty message={t('No asset in this asset group.')} />}
+            </List>
+          </SectionBlock>
 
-      <SectionBlock title={t('Findings')}>
-        <FindingList
-          filterLocalStorageKey="asset-group-findings"
-          searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_asset_groups', [assetGroupId]))}
-          contextId={assetGroupId}
-        />
-      </SectionBlock>
+          <SectionBlock title={t('Findings')}>
+            <FindingList
+              filterLocalStorageKey="asset-group-findings"
+              searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_asset_groups', [assetGroupId]))}
+              contextId={assetGroupId}
+            />
+          </SectionBlock>
 
-      <SectionBlock title={t('Injects played')}>
-        <InjectResultList
-          fetchInjects={fetchInjectsPlayed}
-          goTo={injectId => `/admin/atomic_testings/${injectId}`}
-          queryableHelpers={injectsHelpers}
-          searchPaginationInput={injectsInput}
-          contextId={assetGroupId}
-        />
-      </SectionBlock>
+          <SectionBlock title={t('Injects played')}>
+            <InjectResultList
+              fetchInjects={fetchInjectsPlayed}
+              goTo={injectId => `/admin/atomic_testings/${injectId}`}
+              queryableHelpers={injectsHelpers}
+              searchPaginationInput={injectsInput}
+              contextId={assetGroupId}
+            />
+          </SectionBlock>
+        </>
+      )}
     </Box>
   );
 };

@@ -14,6 +14,7 @@ import static org.springframework.util.StringUtils.hasText;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.expectations.ExpectationsDriftService;
+import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.context.TenantContext;
@@ -176,6 +177,27 @@ public class ExerciseApi extends RestBehavior {
   public ExpectationsRealignOutput realignExerciseExpectations(
       @PathVariable @NotBlank final String exerciseId) {
     return expectationsDriftService.realignExercise(exerciseId);
+  }
+
+  @Operation(
+      summary = "Dismiss or restore the expectation drift warning of a simulation",
+      description =
+          "Acknowledges that the drifted expectations were customized on purpose: the warning is"
+              + " downgraded to a discreet indicator. Persisted in database so the dismissal is"
+              + " shared between users, and reset on realignment")
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/expectations-drift/dismiss",
+    TENANT_EXERCISE_URI + "/{exerciseId}/expectations-drift/dismiss"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SIMULATION)
+  public ExpectationsDriftOutput dismissExerciseExpectationsDrift(
+      @PathVariable @NotBlank final String exerciseId,
+      @Valid @RequestBody final ExpectationsDriftDismissInput input) {
+    return expectationsDriftService.dismissExerciseDrift(exerciseId, input.dismissed());
   }
 
   // endregion

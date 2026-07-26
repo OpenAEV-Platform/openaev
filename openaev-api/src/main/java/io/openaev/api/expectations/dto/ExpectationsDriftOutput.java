@@ -27,4 +27,11 @@ public record ExpectationsDriftOutput(
             description = "Number of injects whose injector contract exposes expectations",
             requiredMode = Schema.RequiredMode.REQUIRED)
         @JsonProperty("total_inject_count")
-        int totalInjectCount) {}
+        int totalInjectCount,
+    @Schema(
+            description =
+                "True when the drift warning was dismissed (customized on purpose); shared between"
+                    + " users and reset on realignment",
+            requiredMode = Schema.RequiredMode.REQUIRED)
+        @JsonProperty("drift_dismissed")
+        boolean driftDismissed) {}

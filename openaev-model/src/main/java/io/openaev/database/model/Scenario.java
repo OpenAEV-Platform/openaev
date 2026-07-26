@@ -165,6 +165,24 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @Queryable(filterable = true, sortable = true)
   private SEVERITY severity;
 
+  /**
+   * Kill chain (by name, e.g. "mitre-attack") displayed first in the overview's kill chain results.
+   * Null means automatic (ATT&CK first). A user's own selection, remembered in local storage, still
+   * overrides this default.
+   */
+  @Column(name = "scenario_default_kill_chain")
+  @JsonProperty("scenario_default_kill_chain")
+  private String defaultKillChain;
+
+  /**
+   * Whether the expectation-drift warning was dismissed for this scenario (the drifted expectations
+   * were customized on purpose). Persisted in database so the dismissal is shared between users.
+   * Reset on realignment so a future drift surfaces the full warning again.
+   */
+  @Column(name = "scenario_expectations_drift_dismissed")
+  @JsonProperty("scenario_expectations_drift_dismissed")
+  private boolean expectationsDriftDismissed;
+
   @Column(name = "scenario_type_affinity")
   @JsonProperty("scenario_type_affinity")
   private String typeAffinity;

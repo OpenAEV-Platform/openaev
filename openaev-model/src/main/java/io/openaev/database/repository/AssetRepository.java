@@ -120,9 +120,12 @@ public interface AssetRepository
       nativeQuery = true)
   List<RawIndexedAsset> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
+  // Category + platform are returned so target chips can render the same category-aware icon as
+  // detail pages (see TargetSimple.target_category / target_subtype).
   @Query(
       value =
-          "SELECT DISTINCT i.inject_exercise, a.asset_id, a.asset_name "
+          "SELECT DISTINCT i.inject_exercise, a.asset_id, a.asset_name, "
+              + "a.asset_category, a.endpoint_platform "
               + "FROM assets a "
               + "INNER JOIN injects_assets ia ON a.asset_id = ia.asset_id "
               + "INNER JOIN injects i ON ia.inject_id = i.inject_id "
@@ -132,7 +135,8 @@ public interface AssetRepository
 
   @Query(
       value =
-          "SELECT DISTINCT ia.inject_id, a.asset_id, a.asset_name "
+          "SELECT DISTINCT ia.inject_id, a.asset_id, a.asset_name, "
+              + "a.asset_category, a.endpoint_platform "
               + "FROM assets a "
               + "INNER JOIN injects_assets ia ON a.asset_id = ia.asset_id "
               + "WHERE ia.inject_id in :injectIds",

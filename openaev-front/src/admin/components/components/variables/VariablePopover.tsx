@@ -1,9 +1,8 @@
-import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
-import Transition from '../../../../components/common/Transition';
+import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type Variable, type VariableInput } from '../../../../utils/api-types';
 import { PermissionsContext } from '../../common/Context';
@@ -77,24 +76,18 @@ const VariablePopover: FunctionComponent<Props> = ({
         handleSubmit={submitDelete}
         text={t('Do you want to delete the variable?')}
       />
-      <Dialog
-        slots={{ transition: Transition }}
+      <Drawer
         open={editVar}
-        onClose={() => setEditVar(false)}
-        fullWidth
-        maxWidth="md"
-        slotProps={{ paper: { elevation: 1 } }}
+        handleClose={() => setEditVar(false)}
+        title={t('Update the variable')}
       >
-        <DialogTitle>{t('Update the variable')}</DialogTitle>
-        <DialogContent>
-          <VariableForm
-            initialValues={initialValues}
-            editing
-            onSubmit={submitEdit}
-            handleClose={() => setEditVar(false)}
-          />
-        </DialogContent>
-      </Dialog>
+        <VariableForm
+          initialValues={initialValues}
+          editing
+          onSubmit={submitEdit}
+          handleClose={() => setEditVar(false)}
+        />
+      </Drawer>
     </>
   );
 };

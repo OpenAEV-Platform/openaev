@@ -1,10 +1,7 @@
-import { ControlPointOutlined } from '@mui/icons-material';
-import { ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
 import { connect } from 'react-redux';
-import { withStyles } from 'tss-react/mui';
 
 import { addDocument, fetchDocument } from '../../../../actions/Document';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
@@ -14,16 +11,8 @@ import inject18n from '../../../../components/i18n';
 import { DocumentContext } from '../../common/Context';
 import DocumentForm from './DocumentForm';
 
-const styles = theme => ({
-  text: {
-    fontSize: 15,
-    color: theme.palette.primary.main,
-    fontWeight: 500,
-  },
-});
-
 const CreateDocumentComponent = (props) => {
-  const { classes, t, inline, filters } = props;
+  const { t, inline, filters } = props;
   const [open, setOpen] = useState(false);
 
   // Context
@@ -62,15 +51,8 @@ const CreateDocumentComponent = (props) => {
   return (
     <>
       {inline === true ? (
-        <ListItemButton divider onClick={() => setOpen(true)} color="primary">
-          <ListItemIcon color="primary">
-            <ControlPointOutlined color="primary" />
-          </ListItemIcon>
-          <ListItemText
-            primary={t('Create a new document')}
-            classes={{ primary: classes.text }}
-          />
-        </ListItemButton>
+        // Header placement (picker top-right): compact creation button.
+        <ButtonCreate onClick={() => setOpen(true)} label={t('Create a new document')} />
       ) : (
         <ButtonCreate onClick={() => setOpen(true)} />
       )}
@@ -106,7 +88,6 @@ const CreateDocumentComponent = (props) => {
 };
 
 CreateDocumentComponent.propTypes = {
-  classes: PropTypes.object,
   t: PropTypes.func,
   addDocument: PropTypes.func,
   fetchDocument: PropTypes.func,
@@ -120,7 +101,6 @@ const CreateDocument = R.compose(
     fetchDocument,
   }),
   inject18n,
-  Component => withStyles(Component, styles),
 )(CreateDocumentComponent);
 
 export default CreateDocument;

@@ -1,5 +1,5 @@
 import { GroupsOutlined, HelpOutlineOutlined } from '@mui/icons-material';
-import { Box, Checkbox, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useContext, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -32,11 +32,6 @@ import TeamPopover from './TeamPopover';
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
-  drawerPaper: {
-    minHeight: '100vh',
-    width: '50%',
-    padding: 0,
-  },
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
@@ -305,23 +300,13 @@ const Teams = () => {
               </ListItem>
             ))}
       </List>
-      <Drawer
-        open={selectedTeam !== null}
-        keepMounted={false}
-        anchor="right"
-        sx={{ zIndex: 1202 }}
-        classes={{ paper: classes.drawerPaper }}
-        onClose={() => onPlayersChanged(selectedTeam)}
-        elevation={1}
-      >
-        {selectedTeam !== null && (
-          <TeamPlayers
-            teamId={selectedTeam}
-            handleClose={() => onPlayersChanged(selectedTeam)}
-            canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS)}
-          />
-        )}
-      </Drawer>
+      {selectedTeam !== null && (
+        <TeamPlayers
+          teamId={selectedTeam}
+          handleClose={() => onPlayersChanged(selectedTeam)}
+          canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS)}
+        />
+      )}
     </>
   );
 };

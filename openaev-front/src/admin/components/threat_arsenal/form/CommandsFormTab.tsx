@@ -1,5 +1,5 @@
 import { Add, DeleteOutlined } from '@mui/icons-material';
-import { Button, IconButton, Typography } from '@mui/material';
+import { Button, IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect } from 'react';
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
@@ -10,6 +10,7 @@ import SelectFieldController from '../../../../components/fields/SelectFieldCont
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadArgument } from '../../../../utils/api-types';
+import InjectFormSection from '../../common/injects/form/InjectFormSection';
 import PayloadArgumentsField from './PayloadArgumentsField';
 
 interface Props { disabledActionType?: boolean }
@@ -116,11 +117,14 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
       )}
 
       {actionType === 'Command' && (
-        <>
-          <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Attack command')}</Typography>
+        <InjectFormSection
+          title={t('Attack command')}
+          helper={t('The command executed on the targeted assets.')}
+          required
+        >
           <SelectFieldController name="command_executor" label={t('Executor')} items={executorsItems} required />
           <TextFieldController variant="outlined" multiline rows={3} name="command_content" />
-        </>
+        </InjectFormSection>
       )}
 
       {actionType === 'Executable' && (
@@ -168,77 +172,89 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
       {actionType && actionType != '' && (
         <>
           {/* ARGUMENTS */}
-          <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Arguments')}</Typography>
-          {argumentsFields.map((argsField, argIndex) => (
-            <PayloadArgumentsField
-              key={argsField.id}
-              canSelectTargetAsset={actionType == 'Command'}
-              argumentName={`action_arguments.${argIndex}`}
-              onArgumentRemoveClick={() => argumentsRemove(argIndex)}
-            />
-          ))}
-          <Button
-            variant="outlined"
-            onClick={() => {
-              argumentsAppend({
-                type: 'text',
-                key: '',
-                default_value: '',
-              });
-            }}
-            style={{
-              width: '100%',
-              height: theme.spacing(4),
-            }}
+          <InjectFormSection
+            title={t('Arguments')}
+            helper={t('Variables the command can reference at execution time.')}
           >
-            <Add fontSize="small" />
-            {t('New argument')}
-          </Button>
+            {argumentsFields.map((argsField, argIndex) => (
+              <PayloadArgumentsField
+                key={argsField.id}
+                canSelectTargetAsset={actionType == 'Command'}
+                argumentName={`action_arguments.${argIndex}`}
+                onArgumentRemoveClick={() => argumentsRemove(argIndex)}
+              />
+            ))}
+            <Button
+              variant="outlined"
+              onClick={() => {
+                argumentsAppend({
+                  type: 'text',
+                  key: '',
+                  default_value: '',
+                });
+              }}
+              style={{
+                width: '100%',
+                height: theme.spacing(4),
+              }}
+            >
+              <Add fontSize="small" />
+              {t('New argument')}
+            </Button>
+          </InjectFormSection>
 
           {/* PREREQUISITE */}
-          <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Prerequisites')}</Typography>
-          {prerequisitesFields.map((prerequisitesField, prerequisitesIndex) => (
-            <div
-              style={{
-                display: 'flex',
-                gap: theme.spacing(1),
-              }}
-              key={prerequisitesField.id}
-            >
-              <SelectFieldController name={`action_prerequisites.${prerequisitesIndex}.executor` as const} label={t('Executor')} items={executorsItems} required />
-              <TextFieldController name={`action_prerequisites.${prerequisitesIndex}.get_command` as const} label={t('Get command')} required />
-              <TextFieldController name={`action_prerequisites.${prerequisitesIndex}.check_command` as const} label={t('Check command')} />
-              <IconButton
-                onClick={() => prerequisitesRemove(prerequisitesIndex)}
-                size="small"
-                color="primary"
-              >
-                <DeleteOutlined />
-              </IconButton>
-            </div>
-          ))}
-          <Button
-            variant="outlined"
-            onClick={() => {
-              prerequisitesAppend({
-                executor: 'psh',
-                get_command: '',
-                check_command: '',
-              });
-            }}
-            style={{
-              width: '100%',
-              height: theme.spacing(4),
-            }}
+          <InjectFormSection
+            title={t('Prerequisites')}
+            helper={t('Commands run beforehand to make sure the arsenal item can execute.')}
           >
-            <Add fontSize="small" />
-            {t('New prerequisite')}
-          </Button>
+            {prerequisitesFields.map((prerequisitesField, prerequisitesIndex) => (
+              <div
+                style={{
+                  display: 'flex',
+                  gap: theme.spacing(1),
+                }}
+                key={prerequisitesField.id}
+              >
+                <SelectFieldController name={`action_prerequisites.${prerequisitesIndex}.executor` as const} label={t('Executor')} items={executorsItems} required />
+                <TextFieldController name={`action_prerequisites.${prerequisitesIndex}.get_command` as const} label={t('Get command')} required />
+                <TextFieldController name={`action_prerequisites.${prerequisitesIndex}.check_command` as const} label={t('Check command')} />
+                <IconButton
+                  onClick={() => prerequisitesRemove(prerequisitesIndex)}
+                  size="small"
+                  color="primary"
+                >
+                  <DeleteOutlined />
+                </IconButton>
+              </div>
+            ))}
+            <Button
+              variant="outlined"
+              onClick={() => {
+                prerequisitesAppend({
+                  executor: 'psh',
+                  get_command: '',
+                  check_command: '',
+                });
+              }}
+              style={{
+                width: '100%',
+                height: theme.spacing(4),
+              }}
+            >
+              <Add fontSize="small" />
+              {t('New prerequisite')}
+            </Button>
+          </InjectFormSection>
 
           {/* CLEANUP */}
-          <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Cleanup command')}</Typography>
-          <SelectFieldController name="action_cleanup_executor" label={t('Executor')} items={executorsItems} />
-          <TextFieldController variant="outlined" multiline rows={3} name="action_cleanup_command" />
+          <InjectFormSection
+            title={t('Cleanup command')}
+            helper={t('Executed after the arsenal item to restore the asset to its initial state.')}
+          >
+            <SelectFieldController name="action_cleanup_executor" label={t('Executor')} items={executorsItems} />
+            <TextFieldController variant="outlined" multiline rows={3} name="action_cleanup_command" />
+          </InjectFormSection>
         </>
       )}
     </>

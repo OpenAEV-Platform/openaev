@@ -2,14 +2,7 @@ import { MenuItem, Select, Typography } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
-
-// Well-known kill chains get their official product name; custom ones fall back
-// to their raw name (matches the home dashboard matrix + contract picker sidebar).
-const KILL_CHAIN_LABELS: Record<string, string> = {
-  'mitre-attack': 'MITRE ATT&CK',
-  'mitre-atlas': 'MITRE ATLAS',
-};
-const killChainLabel = (name: string) => KILL_CHAIN_LABELS[name.toLowerCase()] ?? name;
+import killChainLabel from './killChainLabel';
 
 interface KillChainSelectProps {
   killChains: string[];

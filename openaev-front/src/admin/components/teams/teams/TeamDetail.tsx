@@ -1,9 +1,8 @@
 import { AssignmentOutlined, GroupsOutlined, HelpOutlineOutlined, HubOutlined, KeyboardArrowRight, PersonOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Box, Chip, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useCallback, useContext, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { searchAtomicTestings } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { searchDistinctFindings } from '../../../../actions/findings/finding-actions';
@@ -42,14 +41,6 @@ import TeamPlayers from '../../components/teams/TeamPlayers';
 import TeamPopover from '../../components/teams/TeamPopover';
 import FindingList from '../../findings/FindingList';
 
-const useStyles = makeStyles()(() => ({
-  drawerPaper: {
-    minHeight: '100vh',
-    width: '50%',
-    padding: 0,
-  },
-}));
-
 const withFilter = (input: SearchPaginationInput, key: string, values: string[]): SearchPaginationInput => {
   const filter: Filter = {
     id: generateFilterId(),
@@ -72,7 +63,6 @@ const withFilter = (input: SearchPaginationInput, key: string, values: string[])
 // the findings linked to the team. Compact and grid-based.
 const TeamDetail = () => {
   const { t, fldt } = useFormatter();
-  const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
   const theme = useTheme();
   const navigate = useNavigate();
@@ -345,33 +335,18 @@ const TeamDetail = () => {
           />
         </SectionBlock>
 
-        <Drawer
-          open={managing}
-          keepMounted={false}
-          anchor="right"
-          sx={{ zIndex: 1202 }}
-          classes={{ paper: classes.drawerPaper }}
-          onClose={() => {
-            setManaging(false);
-            dispatch(fetchTeam(teamId));
-            dispatch(fetchTeamPlayers(teamId));
-            setPersonsReload(count => count + 1);
-          }}
-          elevation={1}
-        >
-          {managing && (
-            <TeamPlayers
-              teamId={teamId}
-              handleClose={() => {
-                setManaging(false);
-                dispatch(fetchTeam(teamId));
-                dispatch(fetchTeamPlayers(teamId));
-                setPersonsReload(count => count + 1);
-              }}
-              canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS)}
-            />
-          )}
-        </Drawer>
+        {managing && (
+          <TeamPlayers
+            teamId={teamId}
+            handleClose={() => {
+              setManaging(false);
+              dispatch(fetchTeam(teamId));
+              dispatch(fetchTeamPlayers(teamId));
+              setPersonsReload(count => count + 1);
+            }}
+            canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS)}
+          />
+        )}
       </Box>
     </TeamContext.Provider>
   );

@@ -14,6 +14,15 @@ public final class InjectContentUtils {
   /** Inject content key holding the referenced AI target id (see the ai-redteam injector). */
   public static final String AI_TARGET_CONTENT_KEY = "ai_target";
 
+  /** Inject content key holding the targeting mode (assets / asset groups / manual). */
+  public static final String TARGET_SELECTOR_CONTENT_KEY = "target_selector";
+
+  /** Inject content key holding the raw manual target (IP, subnet, or hostname). */
+  public static final String MANUAL_TARGETS_CONTENT_KEY = "targets";
+
+  /** Value of {@link #TARGET_SELECTOR_CONTENT_KEY} selecting a raw manual target. */
+  public static final String MANUAL_TARGET_SELECTOR = "manual";
+
   private InjectContentUtils() {}
 
   /**
@@ -28,5 +37,24 @@ public final class InjectContentUtils {
       return Optional.empty();
     }
     return Optional.ofNullable(StringUtils.trimToNull(node.asText()));
+  }
+
+  /**
+   * Extract the raw manual target (IP, subnet, or hostname) set via the inject content, if the
+   * content selects manual targeting ({@code target_selector = "manual"}).
+   */
+  public static Optional<String> contentManualTarget(ObjectNode content) {
+    if (content == null) {
+      return Optional.empty();
+    }
+    JsonNode selector = content.get(TARGET_SELECTOR_CONTENT_KEY);
+    if (selector == null || !MANUAL_TARGET_SELECTOR.equals(selector.asText())) {
+      return Optional.empty();
+    }
+    JsonNode targets = content.get(MANUAL_TARGETS_CONTENT_KEY);
+    if (targets == null || targets.isNull()) {
+      return Optional.empty();
+    }
+    return Optional.ofNullable(StringUtils.trimToNull(targets.asText()));
   }
 }

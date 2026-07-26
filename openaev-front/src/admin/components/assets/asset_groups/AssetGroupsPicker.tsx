@@ -1,4 +1,3 @@
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { normalize } from 'normalizr';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
@@ -8,9 +7,9 @@ import { arrayOfAssetGroups } from '../../../../actions/asset_groups/assetgroup-
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
-import SelectList, { type SelectListElements } from '../../../../components/common/SelectList';
-import Transition from '../../../../components/common/Transition';
+import SelectListPicker, { type SelectListPickerElements } from '../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../components/i18n';
+import ItemTags from '../../../../components/ItemTags';
 import * as Constants from '../../../../constants/ActionTypes';
 import { type AssetGroupOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -22,7 +21,9 @@ interface Props {
   onSubmit: (assetGroupIds: string[]) => void;
 }
 
-const AssetGroupDialogAdding: FunctionComponent<Props> = ({
+// Always rendered as an inline dialog: it is only opened from the inject form
+// drawer, and the design system never stacks a drawer over a drawer.
+const AssetGroupsPicker: FunctionComponent<Props> = ({
   initialState = [],
   open,
   onClose,
@@ -40,10 +41,17 @@ const AssetGroupDialogAdding: FunctionComponent<Props> = ({
     }
   }, [open, initialState]);
 
-  const addAssetGroup = (_assetGroupId: string, assetGroup: AssetGroupOutput) => setAssetGroupValues([...assetGroupValues, assetGroup]);
-  const removeAssetGroup = (assetGroupId: string) => setAssetGroupValues(assetGroupValues.filter(v => v.asset_group_id !== assetGroupId));
+  const selectedIds = useMemo(() => assetGroupValues.map(v => v.asset_group_id), [assetGroupValues]);
 
-  // Dialog
+  const toggleAssetGroup = (assetGroupId: string, assetGroup: AssetGroupOutput) => {
+    if (selectedIds.includes(assetGroupId)) {
+      setAssetGroupValues(assetGroupValues.filter(v => v.asset_group_id !== assetGroupId));
+    } else {
+      setAssetGroupValues([...assetGroupValues, assetGroup]);
+    }
+  };
+
+  // Drawer
   const handleClose = () => {
     setAssetGroupValues([]);
     onClose();
@@ -59,13 +67,21 @@ const AssetGroupDialogAdding: FunctionComponent<Props> = ({
   };
 
   // Headers
-  const elements: SelectListElements<AssetGroupOutput> = useMemo(() => ({
+  const elements: SelectListPickerElements<AssetGroupOutput> = useMemo(() => ({
     icon: { value: () => <SelectGroup color="primary" /> },
     headers: [
       {
         field: 'asset_group_name',
+        label: 'Name',
+        isSortable: true,
         value: (assetGroup: AssetGroupOutput) => <>{assetGroup.asset_group_name}</>,
-        width: 100,
+        width: 60,
+      },
+      {
+        field: 'asset_group_tags',
+        label: 'Tags',
+        value: (assetGroup: AssetGroupOutput) => <ItemTags variant="list" limit={2} tags={assetGroup.asset_group_tags} />,
+        width: 40,
       },
     ],
   }), []);
@@ -88,48 +104,22 @@ const AssetGroupDialogAdding: FunctionComponent<Props> = ({
   );
 
   return (
-    <Dialog
+    <SelectListPicker<AssetGroupOutput>
       open={open}
-      slots={{ transition: Transition }}
       onClose={handleClose}
-      fullWidth
-      maxWidth="lg"
-      slotProps={{
-        paper: {
-          elevation: 1,
-          sx: {
-            minHeight: 580,
-            maxHeight: 580,
-          },
-        },
-      }}
-    >
-      <DialogTitle>{t('Modify asset groups in this inject')}</DialogTitle>
-      <DialogContent>
-        <Box sx={{ marginTop: 2 }}>
-          <SelectList
-            values={assetGroups}
-            selectedValues={assetGroupValues}
-            isLoadingValues={isLoading}
-            elements={elements}
-            onSelect={addAssetGroup}
-            onDelete={removeAssetGroup}
-            paginationComponent={paginationComponent}
-            getId={element => element.asset_group_id}
-            getName={element => element.asset_group_name}
-          />
-        </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button variant="outlined" color="primary" onClick={handleClose}>{t('Cancel')}</Button>
-        {!isLoading && (
-          <Button variant="contained" color="primary" onClick={handleSubmit}>
-            {t('Update')}
-          </Button>
-        )}
-      </DialogActions>
-    </Dialog>
+      onSubmit={handleSubmit}
+      title={t('Modify asset groups in this inject')}
+      inline
+      headerComponent={paginationComponent}
+      values={assetGroups}
+      elements={elements}
+      sortHelpers={queryableHelpers.sortHelpers}
+      selectedIds={selectedIds}
+      onToggle={toggleAssetGroup}
+      getId={element => element.asset_group_id}
+      isLoading={isLoading}
+    />
   );
 };
 
-export default AssetGroupDialogAdding;
+export default AssetGroupsPicker;

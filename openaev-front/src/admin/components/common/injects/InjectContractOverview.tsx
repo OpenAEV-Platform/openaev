@@ -18,8 +18,8 @@ interface Props {
 }
 
 /**
- * "Action info" panel of the inject update drawer: renders the exact same
- * overview as the Threat Arsenal "Action information" drawer, fed from the
+ * "Arsenal item info" panel of the inject update drawer: renders the exact same
+ * overview as the Threat Arsenal "Arsenal item information" drawer, fed from the
  * inject's injector contract. Expectations are intentionally omitted - they
  * are already editable in the "Inject details" tab.
  */

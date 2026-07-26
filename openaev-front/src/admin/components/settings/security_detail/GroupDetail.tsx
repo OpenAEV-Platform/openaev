@@ -1,5 +1,5 @@
 import { GroupsOutlined, KeyboardArrowRight, PermIdentityOutlined, SecurityOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
@@ -25,6 +25,7 @@ import { type Header } from '../../../../components/common/SortHeadersList';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
+import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { GROUP_BASE_URL, ROLE_BASE_URL, USER_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { type Group, type PlatformGroupOutput, type PlatformRoleOutput, type RoleOutput, type SearchPaginationInput, type UserOutput } from '../../../../utils/api-types';
@@ -74,6 +75,11 @@ const GroupDetail = () => {
   const [roles, setRoles] = useState<RoleOutput[]>([]);
   const [platformMembers, setPlatformMembers] = useState<UserOutput[]>([]);
   const [platformRoles, setPlatformRoles] = useState<PlatformRoleOutput[]>([]);
+  // In platform scope the members and roles resolve through two chained calls
+  // (ids first, details later): gate the empty states on these flags so the
+  // lists show skeletons instead of flashing "No member/role" while loading.
+  const [platformMembersReady, setPlatformMembersReady] = useState(false);
+  const [platformRolesReady, setPlatformRolesReady] = useState(false);
 
   const { usersMap } = useHelper((helper: UserHelper) => ({ usersMap: helper.getUsersMap() }));
   useDataLoader(() => {
@@ -86,6 +92,8 @@ const GroupDetail = () => {
     setGroup(null);
     setPlatformGroup(null);
     setNotFound(false);
+    setPlatformMembersReady(!isPlatform);
+    setPlatformRolesReady(!isPlatform);
     if (isPlatform) {
       fetchPlatformGroupById(groupId)
         .then(response => setPlatformGroup(response.data as PlatformGroupOutput))
@@ -95,19 +103,23 @@ const GroupDetail = () => {
           const ids = (response.data ?? []) as string[];
           if (ids.length === 0) {
             setPlatformMembers([]);
-            return;
+            return undefined;
           }
-          findPlatformUsers(ids).then(usersResponse => setPlatformMembers((usersResponse.data ?? []) as UserOutput[]));
-        });
+          return findPlatformUsers(ids).then(usersResponse => setPlatformMembers((usersResponse.data ?? []) as UserOutput[]));
+        })
+        .catch(() => {})
+        .finally(() => setPlatformMembersReady(true));
       fetchPlatformGroupRoleIds(groupId)
         .then((response) => {
           const ids = (response.data ?? []) as string[];
           if (ids.length === 0) {
             setPlatformRoles([]);
-            return;
+            return undefined;
           }
-          findPlatformRoles(ids).then(rolesResponse => setPlatformRoles((rolesResponse.data ?? []) as PlatformRoleOutput[]));
-        });
+          return findPlatformRoles(ids).then(rolesResponse => setPlatformRoles((rolesResponse.data ?? []) as PlatformRoleOutput[]));
+        })
+        .catch(() => {})
+        .finally(() => setPlatformRolesReady(true));
     } else {
       fetchGroupById(groupId)
         .then(response => setGroup(response.data as Group))
@@ -147,7 +159,9 @@ const GroupDetail = () => {
   // paginated client-side - the membership is already fully loaded for both
   // scopes and users are not server-searchable by group.
   const [memberRows, setMemberRows] = useState<MemberRow[]>([]);
+  const [membersPageLoading, setMembersPageLoading] = useState(true);
   const { queryableHelpers, searchPaginationInput } = useQueryable(buildSearchPagination({ sorts: initSorting('user_email') }));
+  const membersLoading = membersPageLoading || !platformMembersReady;
 
   // The members source resolves asynchronously (group ids first, user details
   // later), so re-run the client-side fetch whenever it actually changes -
@@ -294,20 +308,33 @@ const GroupDetail = () => {
               <Field label={t('Default user assignment')}>{defaultUserAssign ? t('Yes') : t('No')}</Field>
             </InformationGrid>
             <Section title={t('Roles')}>
-              {roleItems.length === 0
-                ? <Empty message={t('No role assigned to this group.')} />
-                : (
-                    <List disablePadding>
-                      {roleItems.map(role => (
-                        <ListItem key={role.id} divider disablePadding>
-                          <ListItemButton component={Link} to={`${ROLE_BASE_URL}/${role.id}${scopeSuffix}`}>
-                            <ListItemIcon sx={{ minWidth: 36 }}><SecurityOutlined color="primary" /></ListItemIcon>
-                            <ListItemText primary={role.name} />
-                          </ListItemButton>
-                        </ListItem>
-                      ))}
-                    </List>
-                  )}
+              {!platformRolesReady && (
+                <List disablePadding>
+                  {[...Array(2)].map((_, index) => (
+                    <ListItem key={index} divider disablePadding>
+                      <ListItemButton disabled sx={{ opacity: 1 }}>
+                        <ListItemIcon sx={{ minWidth: 36 }}><SecurityOutlined color="disabled" /></ListItemIcon>
+                        <ListItemText primary={<Skeleton variant="text" width="40%" />} />
+                      </ListItemButton>
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+              {platformRolesReady && roleItems.length === 0 && (
+                <Empty message={t('No role assigned to this group.')} />
+              )}
+              {platformRolesReady && roleItems.length > 0 && (
+                <List disablePadding>
+                  {roleItems.map(role => (
+                    <ListItem key={role.id} divider disablePadding>
+                      <ListItemButton component={Link} to={`${ROLE_BASE_URL}/${role.id}${scopeSuffix}`}>
+                        <ListItemIcon sx={{ minWidth: 36 }}><SecurityOutlined color="primary" /></ListItemIcon>
+                        <ListItemText primary={role.name} />
+                      </ListItemButton>
+                    </ListItem>
+                  ))}
+                </List>
+              )}
             </Section>
           </DetailSections>
 
@@ -317,6 +344,7 @@ const GroupDetail = () => {
               fetch={fetchMembers}
               searchPaginationInput={searchPaginationInput}
               setContent={setMemberRows}
+              setLoading={setMembersPageLoading}
               disableFilters
               queryableHelpers={queryableHelpers}
               reloadContentCount={membersVersion}
@@ -341,7 +369,10 @@ const GroupDetail = () => {
                   )}
                 />
               </ListItem>
-              {memberRows.map(member => (
+              {membersLoading && (
+                <PaginatedListLoader Icon={PermIdentityOutlined} headers={memberHeaders} headerStyles={memberInlineStyles} number={5} />
+              )}
+              {!membersLoading && memberRows.map(member => (
                 <ListItem
                   key={member.user_id}
                   divider
@@ -376,7 +407,7 @@ const GroupDetail = () => {
                   </ListItemButton>
                 </ListItem>
               ))}
-              {memberRows.length === 0 && <Empty message={t('No member in this group.')} />}
+              {!membersLoading && memberRows.length === 0 && <Empty message={t('No member in this group.')} />}
             </List>
           </div>
         </Box>

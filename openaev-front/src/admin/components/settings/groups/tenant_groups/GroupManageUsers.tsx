@@ -1,14 +1,12 @@
 import { PersonOutlined } from '@mui/icons-material';
-import { Box, Button } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 
 import { findUsers, searchUsers } from '../../../../../actions/users/User';
-import Drawer from '../../../../../components/common/Drawer';
 import { type Page } from '../../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
-import SelectList, { type SelectListElements } from '../../../../../components/common/SelectList';
+import SelectListPicker, { type SelectListPickerElements } from '../../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
 import { type SearchPaginationInput, type UserOutput } from '../../../../../utils/api-types';
@@ -45,30 +43,41 @@ const GroupManageUsers: FunctionComponent<Props> = ({
     }
   }, [open, initialState]);
 
+  const selectedIds = useMemo(() => selectedUserValues.map(v => v.user_id), [selectedUserValues]);
+
+  const toggleUser = (userId: string, user: UserOutput) => {
+    if (selectedIds.includes(userId)) {
+      setSelectedUserValues(selectedUserValues.filter(v => v.user_id !== userId));
+    } else {
+      setSelectedUserValues([...selectedUserValues, user]);
+    }
+  };
+
   // Headers
-  const elements: SelectListElements<UserOutput> = useMemo(() => ({
+  const elements: SelectListPickerElements<UserOutput> = useMemo(() => ({
     icon: { value: () => <PersonOutlined /> },
     headers: [
       {
-        field: 'user_name',
+        field: 'user_email',
+        label: 'Name',
+        isSortable: true,
         value: (user: UserOutput) => resolveUserName(user),
         width: 50,
       },
       {
         field: 'user_organization_name',
+        label: 'Organization',
         value: (user: UserOutput) => user.user_organization_name ?? '',
         width: 20,
       },
       {
         field: 'user_tags',
-        value: (user: UserOutput) => <ItemTags variant="list" tags={user.user_tags} />,
+        label: 'Tags',
+        value: (user: UserOutput) => <ItemTags variant="list" limit={1} tags={user.user_tags} />,
         width: 30,
       },
     ],
   }), []);
-
-  const addUser = (_userId: string, user: UserOutput) => setSelectedUserValues([...selectedUserValues, user]);
-  const removeUser = (userId: string) => setSelectedUserValues(selectedUserValues.filter(v => v.user_id !== userId));
 
   // Pagination
   const { queryableHelpers, searchPaginationInput } = useQueryable(buildSearchPagination({}));
@@ -96,40 +105,20 @@ const GroupManageUsers: FunctionComponent<Props> = ({
   const title = t('Manage users for group: {groupName}', { groupName });
 
   return (
-    <Drawer
+    <SelectListPicker<UserOutput>
       open={open}
-      handleClose={handleClose}
+      onClose={handleClose}
+      onSubmit={handleSubmit}
       title={title}
-      variant="full"
-    >
-      <Box sx={{ marginTop: 2 }}>
-        <SelectList
-          values={userValues}
-          selectedValues={selectedUserValues}
-          isLoadingValues={isLoading}
-          elements={elements}
-          onSelect={addUser}
-          onDelete={removeUser}
-          paginationComponent={paginationComponent}
-          getId={element => element.user_id}
-          getName={(element: UserOutput) => resolveUserName(element)}
-        />
-        <div style={{
-          float: 'right',
-          marginTop: 20,
-        }}
-        >
-          <Button variant="outlined" color="primary" style={{ marginRight: 10 }} onClick={onClose}>
-            {t('Cancel')}
-          </Button>
-          {!isLoading && (
-            <Button variant="contained" color="primary" onClick={handleSubmit}>
-              {t('Update')}
-            </Button>
-          )}
-        </div>
-      </Box>
-    </Drawer>
+      headerComponent={paginationComponent}
+      values={userValues}
+      elements={elements}
+      sortHelpers={queryableHelpers.sortHelpers}
+      selectedIds={selectedIds}
+      onToggle={toggleUser}
+      getId={element => element.user_id}
+      isLoading={isLoading}
+    />
   );
 };
 

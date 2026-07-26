@@ -8,7 +8,6 @@ import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteri
 import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
@@ -456,16 +455,13 @@ public class InjectSearchService {
       if (inject.getId() == null || inject.getContent() == null) {
         continue;
       }
-      JsonNode selector = inject.getContent().get("target_selector");
-      JsonNode targets = inject.getContent().get("targets");
-      if (selector != null
-          && "manual".equals(selector.asText())
-          && targets != null
-          && !targets.isNull()
-          && !targets.asText().isBlank()) {
-        String value = targets.asText().trim();
-        result.put(inject.getId(), List.<Object[]>of(new Object[] {inject.getId(), value, value}));
-      }
+      // Key parsing shared with ExerciseMapper#contentTargetsByExerciseIds via InjectContentUtils.
+      InjectContentUtils.contentManualTarget(inject.getContent())
+          .ifPresent(
+              value ->
+                  result.put(
+                      inject.getId(),
+                      List.<Object[]>of(new Object[] {inject.getId(), value, value})));
     }
     return result;
   }
@@ -506,7 +502,10 @@ public class InjectSearchService {
         (injectId, aiTargetId) -> {
           String name = aiTargetNameById.get(aiTargetId);
           if (name != null) {
-            result.put(injectId, List.<Object[]>of(new Object[] {injectId, aiTargetId, name}));
+            result.put(
+                injectId,
+                List.<Object[]>of(
+                    new Object[] {injectId, aiTargetId, name, AssetCategory.AI_TARGET.name()}));
           }
         });
     return result;

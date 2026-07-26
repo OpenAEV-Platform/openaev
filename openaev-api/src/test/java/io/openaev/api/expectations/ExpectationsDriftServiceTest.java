@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -18,7 +19,10 @@ import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Scenario;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.utils.BulkDeleteChunkRunner;
 import io.openaev.service.utils.BulkOperationMonitor;
@@ -44,6 +48,8 @@ class ExpectationsDriftServiceTest {
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   @Mock private InjectRepository injectRepository;
+  @Mock private ScenarioRepository scenarioRepository;
+  @Mock private ExerciseRepository exerciseRepository;
   @Mock private BulkOperationMonitor bulkOperationMonitor;
   @Mock private BulkDeleteChunkRunner chunkRunner;
 
@@ -54,6 +60,8 @@ class ExpectationsDriftServiceTest {
     service =
         new ExpectationsDriftService(
             injectRepository,
+            scenarioRepository,
+            exerciseRepository,
             new InjectorContractContentUtils(),
             bulkOperationMonitor,
             chunkRunner,
@@ -132,6 +140,10 @@ class ExpectationsDriftServiceTest {
   private void stubScenarioInjects(Inject... injects) {
     Set<Inject> set = new LinkedHashSet<>(List.of(injects));
     when(injectRepository.findByScenarioId(SCENARIO_ID)).thenReturn(set);
+    Scenario scenario = new Scenario();
+    scenario.setId(SCENARIO_ID);
+    lenient().when(scenarioRepository.findById(SCENARIO_ID)).thenReturn(Optional.of(scenario));
+    lenient().when(scenarioRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
   }
 
   private void stubChunkRunnerPassthrough() {
