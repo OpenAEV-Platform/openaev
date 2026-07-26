@@ -203,6 +203,21 @@ public class DocumentService {
           "Document is still in use for some payloads and cannot be deleted.");
     }
 
+    // Security platform logos are uploaded to Documents by collectors at registration
+    // time and referenced by the platform: deleting them would break the platform icon
+    // everywhere (cards, detail page, expectation results).
+    boolean isUsedAsLogoDark =
+        document.getSecurityPlatformsByLogoDark() != null
+            && !document.getSecurityPlatformsByLogoDark().isEmpty();
+    boolean isUsedAsLogoLight =
+        document.getSecurityPlatformsByLogoLight() != null
+            && !document.getSecurityPlatformsByLogoLight().isEmpty();
+
+    if (isUsedAsLogoDark || isUsedAsLogoLight) {
+      throw new BadRequestException(
+          "Document is used as a security platform logo and cannot be deleted.");
+    }
+
     List<Document> documents = documentRepository.removeById(documentId);
 
     // Remove document from minio

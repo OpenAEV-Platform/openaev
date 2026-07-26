@@ -10,11 +10,10 @@ import { type AssetGroupsHelper } from '../../../../actions/asset_groups/assetgr
 import { searchAtomicTestings } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { searchDistinctFindings } from '../../../../actions/findings/finding-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, SectionBlock, SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
-import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
+import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import AssetTypeFragment from '../../../../components/common/list/fragments/AssetTypeFragment';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
-import { initSorting } from '../../../../components/common/queryable/Page';
+import { initSorting, type Page } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -29,10 +28,13 @@ import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import { ASSET_BASE_URL, ASSET_GROUP_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
-import { type AssetOutput, type Filter, type SearchPaginationInput } from '../../../../utils/api-types';
+import { type AssetOutput, type Filter, type InjectResultOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
+import InjectResultList from '../../atomic_testings/InjectResultList';
+import FindingList from '../../findings/FindingList';
+import AssetCategoryIcon from '../AssetCategoryIcon';
 import PostureScore from '../PostureScore';
 import useExpectationPosture from '../useExpectationPosture';
 import AssetGroupPopover from './AssetGroupPopover';
@@ -82,6 +84,18 @@ const AssetGroupDetail = () => {
     [assetGroupId],
   ));
   const posture = useExpectationPosture('base_asset_group_side', assetGroupId);
+
+  // Injects played: the same scoped search as the hero count above, but
+  // server-paginated for the full list section below.
+  const { queryableHelpers: injectsHelpers, searchPaginationInput: injectsInput } = useQueryableWithLocalStorage(
+    'asset-group-injects',
+    buildSearchPagination({ sorts: initSorting('inject_updated_at', 'DESC') }),
+  );
+  const fetchInjectsPlayed = useCallback(
+    (input: SearchPaginationInput): Promise<{ data: Page<InjectResultOutput> }> =>
+      searchAtomicTestings(withFilter(input, 'inject_asset_groups', [assetGroupId])) as Promise<{ data: Page<InjectResultOutput> }>,
+    [assetGroupId],
+  );
 
   // Fetching data
   const { assetGroup } = useHelper((helper: AssetGroupsHelper) => ({ assetGroup: helper.getAssetGroup(assetGroupId) }));
@@ -210,10 +224,7 @@ const AssetGroupDetail = () => {
         </SectionBlock>
       </DetailSections>
 
-      {/* Flat list (no surrounding Paper): the section label sits directly above
-          the assets list, matching the standard entity lists on detail pages. */}
-      <div>
-        <SectionLabel>{t('Assets')}</SectionLabel>
+      <SectionBlock title={t('Assets')}>
         <PaginationComponentV2
           fetch={(input: SearchPaginationInput) => searchEndpointsFromAssetGroup(input, assetGroupId)}
           searchPaginationInput={searchPaginationInput}
@@ -250,7 +261,7 @@ const AssetGroupDetail = () => {
                     sx={{ height: 50 }}
                   >
                     <ListItemIcon>
-                      <AssetPlatformFragment platform={asset.endpoint_platform} />
+                      <AssetCategoryIcon category={asset.asset_category} color="primary" />
                     </ListItemIcon>
                     <ListItemText
                       primary={(
@@ -274,7 +285,25 @@ const AssetGroupDetail = () => {
               ))
             : <Empty message={t('No asset in this asset group.')} />}
         </List>
-      </div>
+      </SectionBlock>
+
+      <SectionBlock title={t('Findings')}>
+        <FindingList
+          filterLocalStorageKey="asset-group-findings"
+          searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_asset_groups', [assetGroupId]))}
+          contextId={assetGroupId}
+        />
+      </SectionBlock>
+
+      <SectionBlock title={t('Injects played')}>
+        <InjectResultList
+          fetchInjects={fetchInjectsPlayed}
+          goTo={injectId => `/admin/atomic_testings/${injectId}`}
+          queryableHelpers={injectsHelpers}
+          searchPaginationInput={injectsInput}
+          contextId={assetGroupId}
+        />
+      </SectionBlock>
     </Box>
   );
 };

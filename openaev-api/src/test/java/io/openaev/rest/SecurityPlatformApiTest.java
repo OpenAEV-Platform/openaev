@@ -15,13 +15,17 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.model.Tag;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.rest.asset.security_platforms.form.SecurityPlatformInput;
+import io.openaev.rest.asset.security_platforms.form.SecurityPlatformUpsertInput;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
+import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.composers.CollectorComposer;
 import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
+import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
@@ -49,6 +53,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private CollectorComposer collectorComposer;
+  @Autowired private TagComposer tagComposer;
   @Autowired private SecurityPlatformRepository securityPlatformRepository;
   @Autowired private CollectorRepository collectorRepository;
   @Autowired private EntityManager entityManager;
@@ -57,6 +62,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
   public void beforeEach() {
     securityPlatformComposer.reset();
     collectorComposer.reset();
+    tagComposer.reset();
   }
 
   @DisplayName("Test create SecurityPlatform")
@@ -177,6 +183,84 @@ class SecurityPlatformApiTest extends IntegrationTest {
                 .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.asset_name").value("PlatformE-Updated"));
+  }
+
+  @DisplayName("Upsert matched by external reference updates description and tags")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void upsertByExternalReferenceShouldUpdateDescriptionAndTags() throws Exception {
+    SecurityPlatform platform =
+        SecurityPlatformFixture.createDefault(
+            "PlatformUpserted", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name());
+    platform.setExternalReference("stable-collector-id");
+    String platformId =
+        securityPlatformComposer.forSecurityPlatform(platform).persist().get().getId();
+    Tag tag = tagComposer.forTag(TagFixture.getTagWithText("edr")).persist().get();
+    entityManager.flush();
+    entityManager.clear();
+
+    SecurityPlatformUpsertInput input = new SecurityPlatformUpsertInput();
+    input.setName("PlatformUpserted");
+    input.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
+    input.setExternalReference("stable-collector-id");
+    input.setDescription("Description set by the collector at registration");
+    input.setTagIds(List.of(tag.getId()));
+
+    mvc.perform(
+            post(SECURITY_PLATFORM_URI + "/upsert")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.asset_id").value(platformId))
+        .andExpect(
+            jsonPath("$.asset_description")
+                .value("Description set by the collector at registration"))
+        .andExpect(jsonPath("$.asset_tags[0]").value(tag.getId()));
+  }
+
+  @DisplayName("Upsert from a redeployed collector matches on name/type and adopts the new ref")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void upsertWithNewExternalReferenceShouldMatchOnNameAndType() throws Exception {
+    // Platform created by a previous collector deployment: the Integration Manager
+    // generates a fresh collector id per deployment, so the re-registration upsert
+    // arrives with an external reference that matches no row.
+    SecurityPlatform platform =
+        SecurityPlatformFixture.createDefault(
+            "PlatformRedeployed", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name());
+    platform.setExternalReference("old-collector-id");
+    String platformId =
+        securityPlatformComposer.forSecurityPlatform(platform).persist().get().getId();
+    entityManager.flush();
+    entityManager.clear();
+
+    SecurityPlatformUpsertInput input = new SecurityPlatformUpsertInput();
+    input.setName("PlatformRedeployed");
+    input.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
+    input.setExternalReference("new-collector-id");
+    input.setDescription("Description from the redeployed collector");
+
+    // The upsert must update the existing row (no duplicate, no unique-constraint 500)
+    // and adopt the new external reference.
+    mvc.perform(
+            post(SECURITY_PLATFORM_URI + "/upsert")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.asset_id").value(platformId))
+        .andExpect(jsonPath("$.asset_external_reference").value("new-collector-id"))
+        .andExpect(
+            jsonPath("$.asset_description").value("Description from the redeployed collector"));
+
+    entityManager.flush();
+    entityManager.clear();
+    assertEquals(
+        "new-collector-id",
+        securityPlatformRepository.findById(platformId).orElseThrow().getExternalReference());
   }
 
   @DisplayName("security_platform_collectors reflects the live collector link, not the stale ref")

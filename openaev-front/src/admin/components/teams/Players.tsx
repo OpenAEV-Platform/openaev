@@ -1,7 +1,7 @@
 import { HelpOutlineOutlined, PersonOutlined } from '@mui/icons-material';
 import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useContext, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type OrganizationHelper, type UserHelper } from '../../../actions/helper';
@@ -51,7 +51,6 @@ const Players = () => {
   // Standard hooks
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
 
@@ -260,7 +259,7 @@ const Players = () => {
                   />
                 )}
               >
-                <ListItemButton classes={{ root: classes.item }} onClick={() => navigate(`${PERSON_BASE_URL}/${player.user_id}`)}>
+                <ListItemButton classes={{ root: classes.item }} component={Link} to={`${PERSON_BASE_URL}/${player.user_id}`}>
                   {canManage && (
                     <ListItemIcon
                       style={{ minWidth: 40 }}

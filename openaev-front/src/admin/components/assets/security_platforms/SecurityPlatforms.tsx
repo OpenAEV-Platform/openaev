@@ -2,7 +2,7 @@ import { GridViewOutlined, HelpOutlineOutlined, ViewListOutlined } from '@mui/ic
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, Skeleton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type SyntheticEvent, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { searchSecurityPlatforms } from '../../../../actions/assets/securityPlatform-actions';
@@ -56,8 +56,6 @@ const SecurityPlatforms = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const theme = useTheme();
   const { t } = useFormatter();
-  const navigate = useNavigate();
-
   // Query param
   const [searchParams] = useSearchParams();
   const [search] = searchParams.getAll('search');
@@ -148,7 +146,7 @@ const SecurityPlatforms = () => {
       return (
         <Box sx={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
           gap: 2,
           mt: 2,
         }}
@@ -162,7 +160,7 @@ const SecurityPlatforms = () => {
     return (
       <Box sx={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
         gap: 2,
         mt: 2,
       }}
@@ -255,7 +253,8 @@ const SecurityPlatforms = () => {
                   >
                     <ListItemButton
                       classes={{ root: classes.item }}
-                      onClick={() => navigate(`${SECURITY_PLATFORM_BASE_URL}/${securityPlatform.asset_id}`)}
+                      component={Link}
+                      to={`${SECURITY_PLATFORM_BASE_URL}/${securityPlatform.asset_id}`}
                     >
                       <ListItemIcon>
                         <img

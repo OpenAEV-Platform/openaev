@@ -6,6 +6,10 @@ const getAuthorizedPerspectives = (): Map<string, string[]> => new Map([
   ['inject', ['base_created_at', 'inject_status', 'base_tags_side', 'base_assets_side', 'base_asset_groups_side', 'base_teams_side', 'base_platforms_side_denormalized', 'base_simulation_side', 'base_scenario_side']],
   ['simulation', ['base_created_at', 'status', 'base_tags_side', 'base_assets_side', 'base_asset_groups_side', 'base_teams_side', 'base_platforms_side_denormalized', 'base_scenario_side']],
   ['scenario', ['base_created_at', 'status', 'base_tags_side', 'base_assets_side', 'base_asset_groups_side', 'base_teams_side', 'base_platforms_side_denormalized']],
+  // Hero-stat drill-down lists: the ES documents only carry the name and the
+  // base dates (see resultsListConfig).
+  ['team', ['base_created_at', 'base_updated_at']],
+  ['asset-group', ['base_created_at', 'base_updated_at']],
 ]);
 
 export default getAuthorizedPerspectives;

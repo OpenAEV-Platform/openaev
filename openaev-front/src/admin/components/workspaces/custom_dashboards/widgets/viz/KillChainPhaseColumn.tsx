@@ -61,7 +61,7 @@ const KillChainPhaseColumn: FunctionComponent<{
   // Standard hooks
   const { classes } = useStyles();
   const theme = useTheme();
-  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
+  const { openWidgetResults } = useContext(CustomDashboardContext);
 
   // Fetching data - stable selector
   const { attackPatternMap }: { attackPatternMap: Record<string, AttackPattern> } = useHelper(
@@ -129,12 +129,12 @@ const KillChainPhaseColumn: FunctionComponent<{
     const subTechniqueIds = Object.values(attackPatternMap)
       .filter(attackPattern => attackPattern.attack_pattern_parent === clickedId)
       .map(attackPattern => attackPattern.attack_pattern_id);
-    openWidgetDataDrawer({
+    openWidgetResults({
       widgetId,
       filter_values_map: { [widgetConfig.field]: [clickedId, ...subTechniqueIds] },
       series_index: 0,
     });
-  }, [openWidgetDataDrawer, widgetId, widgetConfig.field, attackPatternMap]);
+  }, [openWidgetResults, widgetId, widgetConfig.field, attackPatternMap]);
 
   // Memoize title style
   const titleStyle = useMemo(() => ({ marginBottom: theme.spacing(2) }), [theme]);

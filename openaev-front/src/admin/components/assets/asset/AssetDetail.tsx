@@ -173,7 +173,7 @@ const AssetDetail = () => {
         elements={[
           {
             label: t('Assets'),
-            link: '/admin/assets/inventory',
+            link: '/admin/assets',
           },
           {
             label: asset.asset_name,
@@ -191,7 +191,7 @@ const AssetDetail = () => {
             endpoint={asset as AssetPopoverProps['endpoint']}
             agentless={!hasAgents}
             onUpdate={() => loadAsset()}
-            onDelete={() => navigate('/admin/assets/inventory')}
+            onDelete={() => navigate('/admin/assets')}
           />
         )}
         stats={(

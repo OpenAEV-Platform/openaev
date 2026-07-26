@@ -17,7 +17,7 @@ import {
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
 import { fetchExerciseChallenges } from '../../../../actions/challenge-action';
@@ -45,6 +45,7 @@ import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
+import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
 import ExerciseDatePopover from './ExerciseDatePopover';
 import ExercisePopover, { type ExerciseActionPopover } from './ExercisePopover';
 import ExerciseStatus from './ExerciseStatus';
@@ -79,7 +80,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
         if (permissions.canLaunch) {
           return (
             <Tooltip
-              title={isScopeMissing ? t('A Chaining Simulation requires a defined scope.') : ''}
+              title={isScopeMissing ? t('A chained simulation requires a defined scope.') : ''}
             >
               <span style={{ display: 'inline-flex' }}>
                 <Button
@@ -234,6 +235,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   const theme = useTheme();
   const { t, fldt } = useFormatter();
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useAppDispatch();
 
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
@@ -332,7 +334,20 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   const teamsCount = teams?.length ?? 0;
   const playersCount = exercise.exercise_all_users_number ?? exercise.exercise_users_number ?? 0;
   const articlesCount = articles?.length ?? 0;
-  const { assets: assetsCount, assetGroups: assetGroupsCount } = countDistinctInjectTargets(injects);
+  const { assets: assetsCount, assetGroups: assetGroupsCount, assetGroupIds } = countDistinctInjectTargets(injects);
+
+  // Countable stats drill down to the full-page results explorer (the same
+  // one the dashboards use), scoped to this simulation. Players, media
+  // pressure and challenges are not indexed in the engine, so they stay
+  // static.
+  const statResultsUrl = (entity: string, filterValuesMap?: Record<string, string[] | undefined>) =>
+    contextualResultsUrl(
+      CONTEXTUAL_ENTITY_WIDGET_IDS[entity],
+      'simulation',
+      exerciseId,
+      location.pathname + location.search,
+      filterValuesMap,
+    );
 
   return (
     <>
@@ -460,6 +475,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                   label={t('Teams')}
                   value={teamsCount}
                   color={theme.palette.secondary.main}
+                  to={statResultsUrl('team', { base_id: teams.map((team: Team) => team.team_id) })}
                 />
               )}
               {playersCount > 0 && (
@@ -477,6 +493,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                   label={t('Assets')}
                   value={assetsCount}
                   color={theme.palette.info.main}
+                  to={statResultsUrl('asset')}
                 />
               )}
               {assetGroupsCount > 0 && (
@@ -485,6 +502,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                   label={t('Asset groups')}
                   value={assetGroupsCount}
                   color={theme.palette.info.main}
+                  to={statResultsUrl('asset-group', { base_id: assetGroupIds })}
                 />
               )}
               {/* Content dimension - media pressure and gamification. */}

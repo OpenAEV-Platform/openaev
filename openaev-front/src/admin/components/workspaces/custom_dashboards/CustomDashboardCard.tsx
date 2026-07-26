@@ -2,7 +2,7 @@ import { AnalyticsOutlined } from '@mui/icons-material';
 import { Box, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
-import { useNavigate } from 'react-router';
+import { Link } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type CustomDashboard } from '../../../../utils/api-types';
@@ -22,14 +22,15 @@ const CustomDashboardCard: FunctionComponent<Props> = ({
   onDelete,
 }) => {
   const theme = useTheme();
-  const navigate = useNavigate();
   const { t, fldt } = useFormatter();
 
   return (
     <Paper
       variant="outlined"
       data-testid="custom-dashboard-card"
-      onClick={() => navigate(`/admin/workspaces/custom_dashboards/${customDashboard.custom_dashboard_id}`)}
+      // Real router link (not a JS navigate) so ctrl/cmd+click opens a new tab.
+      component={Link}
+      to={`/admin/workspaces/custom_dashboards/${customDashboard.custom_dashboard_id}`}
       sx={{
         'position': 'relative',
         'display': 'flex',
@@ -39,6 +40,8 @@ const CustomDashboardCard: FunctionComponent<Props> = ({
         'borderRadius': 1,
         'height': '100%',
         'cursor': 'pointer',
+        'textDecoration': 'none',
+        'color': 'inherit',
         'transition': theme.transitions.create(['border-color', 'box-shadow', 'transform']),
         '&:hover': {
           borderColor: alpha(theme.palette.primary.main, 0.5),

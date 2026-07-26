@@ -21,19 +21,23 @@ interface Props {
   onToggle: (attackPatternId: string) => void;
   /** Free-text filter applied to technique id + name. */
   search?: string;
-  /** When true, only techniques that have at least one payload are shown. */
-  onlyWithPayloads?: boolean;
+  /** Active kill chain (MITRE ATT&CK, MITRE ATLAS, ...); shows every phase when absent. */
+  killChain?: string;
+  /** When true, only techniques covered by at least one threat arsenal item are shown. */
+  onlyWithArsenal?: boolean;
 }
 
-// A controlled ATT&CK matrix: one column per kill-chain phase, one selectable
-// tile per technique. Mirrors the marketplace card language (accent border +
-// tint on selection, hover lift) so the assistant reads like the rest of the
-// redesigned platform. Selection state is owned by the parent.
+// A controlled attack matrix: one column per kill-chain phase of the active
+// kill chain, one selectable tile per technique. Mirrors the marketplace card
+// language (accent border + tint on selection, hover lift) so the assistant
+// reads like the rest of the redesigned platform. Selection state is owned by
+// the parent.
 const AttackMatrixSelector: FunctionComponent<Props> = ({
   selectedIds,
   onToggle,
   search = '',
-  onlyWithPayloads = false,
+  killChain,
+  onlyWithArsenal = false,
 }) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -50,16 +54,17 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
   const normalizedSearch = search.trim().toLowerCase();
 
-  const sortedKillChainPhases = useMemo(
-    () => [...killChainPhases].sort(
-      (k1: KillChainPhase, k2: KillChainPhase) => (k1.phase_order ?? 0) - (k2.phase_order ?? 0),
-    ),
-    [killChainPhases],
+  const sortedKillChainPhases = useMemo<KillChainPhase[]>(
+    () => (killChainPhases as KillChainPhase[])
+      .filter((p: KillChainPhase) => !killChain || p.phase_kill_chain_name === killChain)
+      .sort((k1: KillChainPhase, k2: KillChainPhase) => (k1.phase_order ?? 0) - (k2.phase_order ?? 0)),
+    [killChainPhases, killChain],
   );
 
-  // Payload count per technique (technique + its sub-techniques), used as a
-  // "coverage" hint so users prefer TTPs that already have injects available.
-  const payloadCountByExternalId = useMemo(() => {
+  // Threat arsenal item count per technique (technique + its sub-techniques),
+  // used as a "coverage" hint so users prefer TTPs that already have arsenal
+  // items available to generate injects from.
+  const arsenalCountByExternalId = useMemo(() => {
     const counts = new Map<string, number>();
     const parents = attackPatterns.filter(
       (ap: AttackPattern) => !ap.attack_pattern_external_id.includes('.'),
@@ -84,8 +89,8 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
       .filter((ap: AttackPattern) => ap.attack_pattern_kill_chain_phases?.includes(phase.phase_id))
       .filter((ap: AttackPattern) => !ap.attack_pattern_external_id.includes('.'))
       .filter((ap: AttackPattern) => {
-        if (!onlyWithPayloads) return true;
-        return (payloadCountByExternalId.get(ap.attack_pattern_external_id) ?? 0) > 0;
+        if (!onlyWithArsenal) return true;
+        return (arsenalCountByExternalId.get(ap.attack_pattern_external_id) ?? 0) > 0;
       })
       .filter((ap: AttackPattern) => {
         if (!normalizedSearch) return true;
@@ -96,7 +101,7 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
       phase,
       techniques,
     };
-  }).filter(column => column.techniques.length > 0), [sortedKillChainPhases, attackPatterns, normalizedSearch, onlyWithPayloads, payloadCountByExternalId]);
+  }).filter(column => column.techniques.length > 0), [sortedKillChainPhases, attackPatterns, normalizedSearch, onlyWithArsenal, arsenalCountByExternalId]);
 
   if (columns.length === 0) {
     return (
@@ -173,7 +178,7 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
             >
               {techniques.map((technique: AttackPattern) => {
                 const isSelected = selected.has(technique.attack_pattern_id);
-                const payloadCount = payloadCountByExternalId.get(technique.attack_pattern_external_id) ?? 0;
+                const arsenalCount = arsenalCountByExternalId.get(technique.attack_pattern_external_id) ?? 0;
                 return (
                   <Box
                     key={technique.attack_pattern_id}
@@ -234,19 +239,34 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
                         fontSize: 9.5,
                         fontFamily: 'monospace',
                         color: 'text.secondary',
+                        flex: 1,
+                        minWidth: 0,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                       }}
                       >
                         {technique.attack_pattern_external_id}
                       </Typography>
-                      {payloadCount > 0 && (
-                        <Typography sx={{
-                          fontSize: 9.5,
-                          color: accent,
-                          fontWeight: 600,
-                        }}
-                        >
-                          {t('{count} payloads', { count: payloadCount })}
-                        </Typography>
+                      {arsenalCount > 0 && (
+                        <Tooltip title={t('{count} threat arsenal items available', { count: arsenalCount })}>
+                          <Box
+                            component="span"
+                            sx={{
+                              flexShrink: 0,
+                              fontSize: 9.5,
+                              fontWeight: 600,
+                              lineHeight: '16px',
+                              minWidth: 18,
+                              textAlign: 'center',
+                              paddingInline: 0.5,
+                              borderRadius: '4px',
+                              color: accent,
+                              backgroundColor: alpha(accent, 0.14),
+                            }}
+                          >
+                            {arsenalCount}
+                          </Box>
+                        </Tooltip>
                       )}
                     </Box>
                     {isSelected && (

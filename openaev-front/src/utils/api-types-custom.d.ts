@@ -202,6 +202,14 @@ export type ToolBarBulkUpdateActionInput = Omit<ApiTypes.InjectBulkUpdateOperati
 
 export type ToolBarTeamInput = Pick<ApiTypes.Team, 'team_name' | 'team_id'>;
 
+// Bulk processing input for notifications (mirrors the generated
+// XxxBulkProcessingInput shapes until the API types are regenerated).
+export type NotificationBulkProcessingInput = {
+  search_pagination_input?: ApiTypes.SearchPaginationInput;
+  notification_ids_to_process?: string[];
+  notification_ids_to_ignore?: string[];
+};
+
 export type ToolBarEndpointInput = Pick<ApiTypes.Endpoint, 'asset_name' | 'asset_id'>;
 
 export type ToolBarAssetGroupInput = Pick<ApiTypes.AssetGroup, 'asset_group_name' | 'asset_group_id'>;

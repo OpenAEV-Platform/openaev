@@ -46,7 +46,7 @@ const VerticalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, se
     return toApexSeries(sample);
   }, [isSample, realSeries, widgetMode]);
 
-  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
+  const { openWidgetResults } = useContext(CustomDashboardContext);
 
   // Memoize click handler
   const onBarClick = useCallback((_: Event, config: {
@@ -58,12 +58,12 @@ const VerticalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, se
       ? 'date'
       : (widgetConfig as StructuralHistogramWidget).field;
 
-    openWidgetDataDrawer({
+    openWidgetResults({
       widgetId,
       filter_values_map: { [filterKey]: [dataPoint?.meta ?? ''] },
       series_index: config.seriesIndex,
     });
-  }, [series, openWidgetDataDrawer, widgetId]);
+  }, [series, openWidgetResults, widgetId]);
 
   // Memoize empty chart text
   const emptyChartText = useMemo(

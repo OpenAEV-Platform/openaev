@@ -14,6 +14,12 @@ import { useFormatter } from '../../i18n';
 interface Props {
   expectationResultsByTypes?: ExpectationResultsByType[] | null;
   humanValidationLink?: string;
+  /**
+   * When set, gauges become clickable and drill down to the expectations
+   * behind the ring (same actionability as the dashboard widgets). Leave
+   * unset for sample/preview data.
+   */
+  onTypeClick?: (type: string) => void;
 }
 
 interface Buckets {
@@ -56,7 +62,8 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 const Gauge: FunctionComponent<{
   type: string;
   buckets: Buckets;
-}> = ({ type, buckets }) => {
+  onClick?: () => void;
+}> = ({ type, buckets, onClick }) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const Icon = expectationTypeIcon(type);
@@ -114,12 +121,19 @@ const Gauge: FunctionComponent<{
       });
 
   return (
-    <Box sx={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 1,
-    }}
+    <Box
+      onClick={onClick}
+      sx={{
+        'display': 'flex',
+        'flexDirection': 'column',
+        'alignItems': 'center',
+        'gap': 1,
+        'cursor': onClick ? 'pointer' : 'default',
+        'borderRadius': 1,
+        'padding': 1,
+        'transition': 'background 0.15s',
+        '&:hover': onClick ? { backgroundColor: alpha(accent, 0.06) } : undefined,
+      }}
     >
       <Box sx={{
         display: 'flex',
@@ -274,7 +288,7 @@ const Gauge: FunctionComponent<{
  * Drop-in replacement for the ResponsePie donuts, reusing the exact ring visual
  * from the default home dashboard's ResilienceGaugeWidget.
  */
-const PostureGauges: FunctionComponent<Props> = ({ expectationResultsByTypes, humanValidationLink }) => {
+const PostureGauges: FunctionComponent<Props> = ({ expectationResultsByTypes, humanValidationLink, onTypeClick }) => {
   const theme = useTheme();
   const { t } = useFormatter();
 
@@ -312,7 +326,12 @@ const PostureGauges: FunctionComponent<Props> = ({ expectationResultsByTypes, hu
       }}
       >
         {entries.map(entry => (
-          <Gauge key={entry.type} type={entry.type} buckets={bucketize(entry.distribution, theme)} />
+          <Gauge
+            key={entry.type}
+            type={entry.type}
+            buckets={bucketize(entry.distribution, theme)}
+            onClick={onTypeClick ? () => onTypeClick(entry.type) : undefined}
+          />
         ))}
       </Box>
       {humanValidationLink && pendingHumanValidations > 0 && (

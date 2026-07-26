@@ -2,7 +2,7 @@ import { HelpOutlineOutlined } from '@mui/icons-material';
 import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { type CSSProperties, useContext, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { bulkDeleteAssetGroups, searchAssetGroups } from '../../../../actions/asset_groups/assetgroup-action';
@@ -48,8 +48,6 @@ const AssetGroups = () => {
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
-  const navigate = useNavigate();
-
   // Query param
   const [searchParams] = useSearchParams();
   const [search] = searchParams.getAll('search');
@@ -268,7 +266,8 @@ const AssetGroups = () => {
                 >
                   <ListItemButton
                     classes={{ root: classes.item }}
-                    onClick={() => navigate(`${ASSET_GROUP_BASE_URL}/${assetGroup.asset_group_id}`)}
+                    component={Link}
+                    to={`${ASSET_GROUP_BASE_URL}/${assetGroup.asset_group_id}`}
                   >
                     {canManage && (
                       <ListItemIcon

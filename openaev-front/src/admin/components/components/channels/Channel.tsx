@@ -166,7 +166,10 @@ const Channel = () => {
           gap: 16,
         }}
         >
-          <SectionBlock title={t('Parameters')}>
+          {/* action={null} adopts the 32px header row so the Paper top-aligns
+              with the Live preview column (whose header holds the theme
+              toggle). */}
+          <SectionBlock title={t('Parameters')} action={null}>
             <ChannelParametersForm
               initialValues={initialValues}
               onSubmit={submitUpdate}
@@ -239,6 +242,17 @@ const Channel = () => {
               exclusive
               value={previewMode}
               onChange={(_, value: 'dark' | 'light' | null) => value && setPreviewMode(value)}
+              // The global MuiToggleButtonGroup override pins the group to
+              // 36px; cap it (and its buttons) at the 32px header height so
+              // this column's Paper top-aligns with the Parameters column
+              // (same normalization as DetailHero).
+              sx={{
+                'height': 32,
+                '& .MuiToggleButton-root': {
+                  width: 32,
+                  height: 32,
+                },
+              }}
             >
               <ToggleButton value="dark" aria-label={t('Dark theme')}>
                 <Tooltip title={t('Dark theme')}>

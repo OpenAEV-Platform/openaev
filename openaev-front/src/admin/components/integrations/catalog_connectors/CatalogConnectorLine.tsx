@@ -3,7 +3,7 @@ import { Box, SvgIcon, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { LogoFiligranIcon } from 'filigran-icon';
 import { type ReactNode } from 'react';
-import { useNavigate } from 'react-router';
+import { Link } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type ConnectorItem, type ConnectorItemType } from './catalog-facets';
@@ -149,7 +149,6 @@ interface Props {
 const CatalogConnectorLine = ({ connector, footerAction }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const navigate = useNavigate();
   const { detailUrl } = connector;
 
   const typeLabels: Record<ConnectorItemType, string> = {
@@ -160,38 +159,21 @@ const CatalogConnectorLine = ({ connector, footerAction }: Props) => {
 
   const isClickable = detailUrl != null;
 
-  return (
-    // Keyboard parity with the card variant (whose CardActionArea is natively
-    // focusable): clickable rows are tab stops activated with Enter or Space.
-    // The row divider lives on the list container (ConnectorMarketplace), not
-    // here: `& + &` would rely on every row sharing the same emotion class,
-    // which breaks as soon as rows mix clickable and non-clickable styles.
-    <Box
-      data-testid="connector-line"
-      role={isClickable ? 'button' : undefined}
-      tabIndex={isClickable ? 0 : undefined}
-      onClick={isClickable ? () => navigate(detailUrl) : undefined}
-      onKeyDown={isClickable
-        ? (event) => {
-            // Ignore key events bubbling from the interactive action cell.
-            if (event.target !== event.currentTarget) return;
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              navigate(detailUrl);
-            }
-          }
-        : undefined}
-      sx={{
-        'display': 'flex',
-        'alignItems': 'center',
-        'gap': 1.5,
-        'paddingInline': 1.5,
-        'paddingBlock': 0.75,
-        'cursor': isClickable ? 'pointer' : 'default',
-        'transition': 'background-color 0.2s ease-in-out',
-        '&:hover': isClickable ? { backgroundColor: theme.palette.action.hover } : undefined,
-      }}
-    >
+  const rowSx = {
+    'display': 'flex',
+    'alignItems': 'center',
+    'gap': 1.5,
+    'paddingInline': 1.5,
+    'paddingBlock': 0.75,
+    'cursor': isClickable ? 'pointer' : 'default',
+    'textDecoration': 'none',
+    'color': 'inherit',
+    'transition': 'background-color 0.2s ease-in-out',
+    '&:hover': isClickable ? { backgroundColor: theme.palette.action.hover } : undefined,
+  };
+
+  const cells = (
+    <>
       {/* Name column: logo and title. */}
       <Box
         sx={{
@@ -304,6 +286,30 @@ const CatalogConnectorLine = ({ connector, footerAction }: Props) => {
       >
         {footerAction}
       </Box>
+    </>
+  );
+
+  // The row divider lives on the list container (ConnectorMarketplace), not
+  // here: `& + &` would rely on every row sharing the same emotion class,
+  // which breaks as soon as rows mix clickable and non-clickable styles.
+  if (isClickable) {
+    // Real router link (not a JS navigate) so ctrl/cmd+click opens a new tab;
+    // an anchor is also natively focusable and Enter-activated (keyboard
+    // parity with the card variant's CardActionArea).
+    return (
+      <Box
+        data-testid="connector-line"
+        component={Link}
+        to={detailUrl}
+        sx={rowSx}
+      >
+        {cells}
+      </Box>
+    );
+  }
+  return (
+    <Box data-testid="connector-line" sx={rowSx}>
+      {cells}
     </Box>
   );
 };

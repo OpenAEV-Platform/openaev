@@ -95,10 +95,13 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
   const elements: SelectListElements<EndpointOutput> = useMemo(() => ({
     icon: { value: () => <DevicesOtherOutlined color="primary" /> },
     headers: [
+      // Widths must total 100: SelectList renders each cell as `width: N%` in a
+      // flex row, so any excess pushes the last column (tags) out of the row
+      // where its chips get clipped.
       {
         field: 'asset_name',
         value: (endpoint: EndpointOutput) => endpoint.asset_name,
-        width: 35,
+        width: 30,
       },
       {
         field: 'endpoint_active',
@@ -112,7 +115,7 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
             </Tooltip>
           );
         },
-        width: 25,
+        width: 15,
       },
       {
         field: 'endpoint_platform',
@@ -130,7 +133,7 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
       {
         field: 'endpoint_arch',
         value: (endpoint: EndpointOutput) => endpoint.endpoint_arch,
-        width: 20,
+        width: 15,
       },
       {
         field: 'endpoint_agents_executor',
@@ -185,7 +188,9 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
       },
       {
         field: 'asset_tags',
-        value: (endpoint: EndpointOutput) => <ItemTags variant="reduced-view" tags={endpoint.asset_tags} />,
+        // Same tag rendering as the endpoints list (full labels), limited to a
+        // single chip + "+N" counter so the fixed-height cell never wraps.
+        value: (endpoint: EndpointOutput) => <ItemTags variant="list" limit={1} tags={endpoint.asset_tags} />,
         width: 20,
       },
     ],

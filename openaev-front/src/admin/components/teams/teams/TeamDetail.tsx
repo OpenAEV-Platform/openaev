@@ -327,20 +327,20 @@ const TeamDetail = () => {
           </List>
         </SectionBlock>
 
+        <SectionBlock title={t('Findings')}>
+          <FindingList
+            filterLocalStorageKey="team-findings"
+            searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_teams', [teamId]))}
+            contextId={teamId}
+          />
+        </SectionBlock>
+
         <SectionBlock title={t('Injects played')}>
           <InjectResultList
             fetchInjects={fetchInjectsPlayed}
             goTo={injectId => `/admin/atomic_testings/${injectId}`}
             queryableHelpers={injectsHelpers}
             searchPaginationInput={injectsInput}
-            contextId={teamId}
-          />
-        </SectionBlock>
-
-        <SectionBlock title={t('Findings')}>
-          <FindingList
-            filterLocalStorageKey="team-findings"
-            searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_teams', [teamId]))}
             contextId={teamId}
           />
         </SectionBlock>

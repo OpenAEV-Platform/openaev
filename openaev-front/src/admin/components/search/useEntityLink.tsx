@@ -1,19 +1,35 @@
-const useEntityLink = (entity: string, id: string, searchTerm: string) => {
+import {
+  ASSET_BASE_URL,
+  ASSET_GROUP_BASE_URL,
+  ORGANIZATION_BASE_URL,
+  PERSON_BASE_URL,
+  SCENARIO_BASE_URL,
+  SECURITY_PLATFORM_BASE_URL,
+  SIMULATION_BASE_URL,
+  TEAM_BASE_URL,
+} from '../../../constants/BaseUrls';
+
+// Maps a search result class to its canonical overview page: every searchable
+// entity now has a dedicated overview, so results must never land on a list
+// page with an edit drawer.
+const useEntityLink = (entity: string, id: string) => {
   switch (entity) {
     case 'Asset':
-      return `/admin/assets/endpoints?search=${searchTerm}&id=${id}`;
+      return `${ASSET_BASE_URL}/${id}`;
     case 'AssetGroup':
-      return `/admin/assets/asset_groups?search=${searchTerm}&id=${id}`;
+      return `${ASSET_GROUP_BASE_URL}/${id}`;
+    case 'SecurityPlatform':
+      return `${SECURITY_PLATFORM_BASE_URL}/${id}`;
     case 'User':
-      return `/admin/persons/${id}`;
+      return `${PERSON_BASE_URL}/${id}`;
     case 'Team':
-      return `/admin/teams/${id}`;
+      return `${TEAM_BASE_URL}/${id}`;
     case 'Organization':
-      return `/admin/organizations/${id}`;
+      return `${ORGANIZATION_BASE_URL}/${id}`;
     case 'Scenario':
-      return `/admin/scenarios/${id}`;
+      return `${SCENARIO_BASE_URL}/${id}`;
     case 'Exercise':
-      return `/admin/simulations/${id}`;
+      return `${SIMULATION_BASE_URL}/${id}`;
     default:
       return ('');
   }

@@ -22,6 +22,21 @@ const ALL = 'all';
 // Cap per class when merging the "All" view (search result sets are small).
 const ALL_FETCH_SIZE = 100;
 
+// The backend sends class simple names ("AssetGroup", "Exercise"...): map them
+// to the i18n keys used by the left menu so search speaks the same language as
+// the rest of the platform.
+const ENTITY_LABELS: Record<string, string> = {
+  Asset: 'Asset',
+  AssetGroup: 'Asset group',
+  SecurityPlatform: 'Security platform',
+  User: 'Person',
+  Team: 'Team',
+  Organization: 'Organization',
+  Scenario: 'Scenario',
+  Exercise: 'Simulation',
+};
+const entityLabel = (clazz: string) => ENTITY_LABELS[clazz] ?? clazz;
+
 interface Category {
   // Backend map key = fully-qualified class name, required by the by-class endpoint.
   key: string;
@@ -103,7 +118,7 @@ const CategoryRail: FunctionComponent<CategoryRailProps> = ({ categories, total,
           textOverflow: 'ellipsis',
         }}
         >
-          {t(clazz)}
+          {t(entityLabel(clazz))}
         </Typography>
         <Chip
           label={count}
@@ -222,7 +237,7 @@ const FullTextSearch = () => {
     {
       field: 'result_type',
       label: 'Type',
-      value: r => <span>{t(r.clazz)}</span>,
+      value: r => <span>{t(entityLabel(r.clazz))}</span>,
     },
     {
       field: 'result_description',
@@ -315,7 +330,7 @@ const FullTextSearch = () => {
                     />
                   </ListItem>
                   {elements.map((element) => {
-                    const to = useEntityLink(element.clazz, element.id, search);
+                    const to = useEntityLink(element.clazz, element.id);
                     return (
                       <ListItem
                         key={element.id}

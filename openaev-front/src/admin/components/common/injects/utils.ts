@@ -13,6 +13,10 @@ import type { ContractElement } from '../../../../utils/api-types-custom';
 export const countDistinctInjectTargets = (injects: Inject[]): {
   assets: number;
   assetGroups: number;
+  /** Distinct targeted asset group ids: asset groups carry no scenario /
+   * simulation scope on their ES documents, so the hero-stat drill-down
+   * scopes the results list with this explicit id list instead. */
+  assetGroupIds: string[];
 } => {
   const assets = new Set<string>();
   const assetGroups = new Set<string>();
@@ -23,6 +27,7 @@ export const countDistinctInjectTargets = (injects: Inject[]): {
   return {
     assets: assets.size,
     assetGroups: assetGroups.size,
+    assetGroupIds: [...assetGroups],
   };
 };
 

@@ -381,6 +381,80 @@ class ExpectationApiTest extends IntegrationTest {
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(100.00, getScore(injectExpectations));
     }
+
+    /**
+     * Validates that deleting a result at asset level (asset with agents) cascades the deletion of
+     * that source's result to every agent expectation of the asset, then recomputes the asset and
+     * asset group scores from the remaining agent results.
+     */
+    @Test
+    @DisplayName("Delete result on asset expectation from UI cascades to all agents")
+    @WithMockUser(isAdmin = true)
+    void deleteResultOnAssetWithAgentsFromUI() throws Exception {
+      // -- PREPARE --
+      ExecutableInject executableInject = newExecutableInjectWithTargets(true);
+      List<Expectation> detectionExpectations =
+          createDetectionExpectations(
+              List.of(savedAgent1, savedAgent2),
+              savedEndpoint,
+              savedAssetGroup,
+              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.buildAndSaveInjectExpectations(
+          executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
+
+      // Fill the same source's result on both agents, like a security platform collector does
+      ExpectationUpdateInput expectationUpdateInput = getExpectationUpdateInput("fake-1", 100.0);
+      callUpdateInjectExpectationFromUI(
+          injectExpectationRepository
+              .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
+              .getFirst(),
+          expectationUpdateInput);
+      callUpdateInjectExpectationFromUI(
+          injectExpectationRepository
+              .findAllByInjectAndAgent(savedInject.getId(), savedAgent2.getId())
+              .getFirst(),
+          expectationUpdateInput);
+
+      List<BaseInjectExpectation> assetExpectations =
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
+      assertEquals(100.0, getScore(assetExpectations));
+
+      // -- EXECUTE --
+
+      // Delete the source's result directly at ASSET level
+      callDeleteInjectExpectationFromUI(assetExpectations.getFirst(), expectationUpdateInput);
+
+      // -- ASSERT --
+      // Agent 1: result removed, score reset
+      List<BaseInjectExpectation> injectExpectations =
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
+      assertTrue(
+          injectExpectations.getFirst().getResults().stream()
+              .noneMatch(r -> "fake-1".equals(r.getSourceId())));
+      assertEquals(null, getScore(injectExpectations));
+      // Agent 2: result removed, score reset
+      injectExpectations =
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
+      assertTrue(
+          injectExpectations.getFirst().getResults().stream()
+              .noneMatch(r -> "fake-1".equals(r.getSourceId())));
+      assertEquals(null, getScore(injectExpectations));
+      // Asset: score recomputed from agents
+      injectExpectations =
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
+      assertEquals(null, getScore(injectExpectations));
+      // Asset Group: score recomputed from assets
+      injectExpectations =
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
+              savedInject.getId(), savedAssetGroup.getId());
+      assertEquals(null, getScore(injectExpectations));
+    }
   }
 
   @Nested

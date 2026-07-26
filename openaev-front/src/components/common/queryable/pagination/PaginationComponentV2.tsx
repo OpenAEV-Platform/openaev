@@ -3,6 +3,7 @@ import { Box, Button, Chip } from '@mui/material';
 import { cloneElement, type ReactElement, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import { engineSchemas } from '../../../../actions/schema/schema-action';
 import KillChainSelect from '../../../../admin/components/common/filters/KillChainSelect';
 import MitreFilter, { MITRE_FILTER_KEY } from '../../../../admin/components/common/filters/MitreFilter';
 import useKillChains from '../../../../admin/components/common/filters/useKillChains';
@@ -52,6 +53,10 @@ interface Props<T> {
   disablePagination?: boolean;
   disableFilters?: boolean;
   entityPrefix?: string;
+  // For Elasticsearch-backed lists: the engine model name (e.g.
+  // 'expectation-inject') whose schema drives the filter options, instead of
+  // the JPA class resolved from entityPrefix.
+  engineEntityName?: string;
   availableFilterNames?: string[];
   queryableHelpers: QueryableHelpers;
   topBarButtons?: ReactElement | null;
@@ -75,6 +80,7 @@ const PaginationComponentV2 = <T extends object>({
   disablePagination,
   disableFilters,
   entityPrefix,
+  engineEntityName,
   availableFilterNames = [],
   queryableHelpers,
   attackPatterns,
@@ -93,22 +99,33 @@ const PaginationComponentV2 = <T extends object>({
   const [options, setOptions] = useState<OptionPropertySchema[]>([]);
 
   useEffect(() => {
-    if (entityPrefix) {
-      useFilterableProperties(entityPrefix, availableFilterNames).then((propertySchemas: PropertySchemaDTO[]) => {
-        const newOptions = propertySchemas.filter(property => property.schema_property_name !== MITRE_FILTER_KEY)
-          .map(property => (
-            {
-              id: property.schema_property_name,
-              label: t(property.schema_property_name),
-              operator: availableOperators(property)[0],
-            } as OptionPropertySchema
-          ))
-          .sort((a, b) => a.label.localeCompare(b.label));
-        setOptions(newOptions);
-        setProperties(propertySchemas);
-      });
-    }
-  }, [entityPrefix]);
+    // ES-backed lists resolve their filterable properties from the engine
+    // schema (the JPA schema may not expose ES-only computed fields such as
+    // inject_expectation_status); JPA-backed lists keep using entityPrefix.
+    const fetchProperties: Promise<PropertySchemaDTO[]> | null = (() => {
+      if (engineEntityName) {
+        return engineSchemas([engineEntityName]).then((result: { data: PropertySchemaDTO[] }) =>
+          result.data.filter(p => availableFilterNames.length === 0 || availableFilterNames.includes(p.schema_property_name)));
+      }
+      if (entityPrefix) {
+        return useFilterableProperties(entityPrefix, availableFilterNames);
+      }
+      return null;
+    })();
+    fetchProperties?.then((propertySchemas: PropertySchemaDTO[]) => {
+      const newOptions = propertySchemas.filter(property => property.schema_property_name !== MITRE_FILTER_KEY)
+        .map(property => (
+          {
+            id: property.schema_property_name,
+            label: t(property.schema_property_name),
+            operator: availableOperators(property)[0],
+          } as OptionPropertySchema
+        ))
+        .sort((a, b) => a.label.localeCompare(b.label));
+      setOptions(newOptions);
+      setProperties(propertySchemas);
+    });
+  }, [entityPrefix, engineEntityName]);
 
   useEffect(() => {
     // Modify URI

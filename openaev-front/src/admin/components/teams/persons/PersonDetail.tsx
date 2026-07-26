@@ -17,7 +17,7 @@ import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, Section, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
-import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
+import { buildEmptyPage, buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
@@ -97,9 +97,13 @@ const PersonDetail = () => {
     'person-injects',
     buildSearchPagination({ sorts: initSorting('inject_updated_at', 'DESC') }),
   );
+  // A person with no team cannot have played injects, and an empty
+  // inject_teams filter would match everything - so short-circuit to an empty
+  // page while keeping the list (search, filters, pagination) rendered.
   const fetchInjectsPlayed = useCallback(
-    (input: SearchPaginationInput): Promise<{ data: Page<InjectResultOutput> }> =>
-      searchAtomicTestings(withFilter(input, 'inject_teams', teamIds)) as Promise<{ data: Page<InjectResultOutput> }>,
+    (input: SearchPaginationInput): Promise<{ data: Page<InjectResultOutput> }> => (teamIds.length === 0
+      ? Promise.resolve(buildEmptyPage<InjectResultOutput>(input))
+      : searchAtomicTestings(withFilter(input, 'inject_teams', teamIds)) as Promise<{ data: Page<InjectResultOutput> }>),
     [teamIds],
   );
 
@@ -207,24 +211,20 @@ const PersonDetail = () => {
         </Section>
       </DetailSections>
 
-      <SectionBlock title={t('Injects played')}>
-        {teamIds.length === 0
-          ? <Empty message={t('This person is not part of any team, so has no injects played.')} />
-          : (
-              <InjectResultList
-                fetchInjects={fetchInjectsPlayed}
-                goTo={injectId => `/admin/atomic_testings/${injectId}`}
-                queryableHelpers={injectsHelpers}
-                searchPaginationInput={injectsInput}
-                contextId={userId}
-              />
-            )}
-      </SectionBlock>
-
       <SectionBlock title={t('Findings')}>
         <FindingList
           filterLocalStorageKey="person-findings"
           searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_users', [userId]))}
+          contextId={userId}
+        />
+      </SectionBlock>
+
+      <SectionBlock title={t('Injects played')}>
+        <InjectResultList
+          fetchInjects={fetchInjectsPlayed}
+          goTo={injectId => `/admin/atomic_testings/${injectId}`}
+          queryableHelpers={injectsHelpers}
+          searchPaginationInput={injectsInput}
           contextId={userId}
         />
       </SectionBlock>
