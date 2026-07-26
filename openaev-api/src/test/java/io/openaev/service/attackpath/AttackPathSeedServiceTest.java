@@ -164,17 +164,21 @@ class AttackPathSeedServiceTest extends IntegrationTest {
   @Test
   @DisplayName("the raw-JDBC exemption stays insert-only, so its stated reason stays true")
   void theRawJdbcExemptionStaysInsertOnly() throws Exception {
-    // The multi-tenancy runbook forbids @AllowRawJdbc on a tenant table, and this service carries
-    // it. The exemption is defensible for exactly one reason: it only emits INSERT ... VALUES with
-    // an explicit tenant_id, and the statement inspector adds nothing to that shape. A reason that
-    // lives only in a comment rots, so it is enforced here: adding a SELECT, UPDATE or DELETE to
-    // this service, or dropping tenant_id from a column list, fails the build and forces the
+    // The multi-tenancy runbook forbids @AllowRawJdbc on a tenant table, and two attack-path
+    // classes
+    // carry it: the seed generator and the findings copy. Both are defensible for exactly one
+    // reason:
+    // they only emit INSERT ... VALUES with an explicit tenant_id, and the statement inspector adds
+    // nothing to that shape (it rejects the batched INSERT ... SELECT the copy needs and is far
+    // slower per row). A reason that lives only in a comment rots, so it is enforced here: adding a
+    // SELECT, UPDATE or DELETE to either, or a third bypass, fails the build and forces the
     // conversation rather than silently widening the bypass.
     List<Path> bypasses = rawJdbcClassesTouchingAttackPath();
     assertThat(bypasses)
-        .as("only the seed may bypass the inspector on the attack path tables")
-        .singleElement()
-        .satisfies(p -> assertThat(p.getFileName()).hasToString("AttackPathSeedService.java"));
+        .as(
+            "only the seed and the findings copy may bypass the inspector on the attack path tables")
+        .extracting(p -> p.getFileName().toString())
+        .containsExactlyInAnyOrder("AttackPathSeedService.java", "AttackPathFindingWriter.java");
 
     for (Path bypass : bypasses) {
       assertThat(sqlLiterals(Files.readString(bypass)))

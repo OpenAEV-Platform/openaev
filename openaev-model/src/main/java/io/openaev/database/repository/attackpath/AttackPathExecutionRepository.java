@@ -242,4 +242,13 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   List<AttackPathInjectorMetaRow> findInjectorMetadata(@Param("simulationId") String simulationId);
 
   void deleteAllBySimulationId(String simulationId);
+
+  /**
+   * The frozen execution rows of one run step, used to attribute a copied finding to its endpoint:
+   * each row carries the link key ({@code id}) and the endpoint key ({@code targetKey}). The tenant
+   * is passed explicitly so the read is scoped even off the request thread.
+   */
+  @Query("SELECT e FROM AttackPathExecution e WHERE e.stepId = :stepId AND e.tenant.id = :tenantId")
+  List<AttackPathExecution> findByStepIdAndTenantId(
+      @Param("stepId") String stepId, @Param("tenantId") String tenantId);
 }

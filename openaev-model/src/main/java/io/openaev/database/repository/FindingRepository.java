@@ -26,6 +26,20 @@ public interface FindingRepository
   // For testing purposes only
   List<Finding> findAllByInjectId(@NotNull final String injectId);
 
+  /**
+   * An inject's findings, scoped explicitly to a tenant, with their assets fetch-joined. Used off
+   * the request thread (the attack-path findings copy): the scope is a query predicate rather than
+   * the incidental uniqueness of the inject id (the ambient {@code @Filter tenantFilter} is not
+   * enabled there), and the fetch-join preloads {@code assets} so the copy's per-finding {@code
+   * getAssets()} does not trigger an N+1 read on a large run. {@code DISTINCT} collapses the join
+   * fan-out.
+   */
+  @Query(
+      "SELECT DISTINCT f FROM Finding f LEFT JOIN FETCH f.assets"
+          + " WHERE f.inject.id = :injectId AND f.tenant.id = :tenantId")
+  List<Finding> findAllByInjectIdAndTenantId(
+      @NotBlank @Param("injectId") String injectId, @NotBlank @Param("tenantId") String tenantId);
+
   // For testing purposes only
   @Query(
       value =
