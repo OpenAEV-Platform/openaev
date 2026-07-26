@@ -199,23 +199,14 @@ public final class OperationUtilsJpa {
 
   // -- NOT EQUALS --
 
-  public static Predicate notEqualsTexts(
-      Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
-    return notEqualsTexts(paths, cb, texts, type, FilterMode.and);
-  }
-
   /**
-   * Negative operators must combine values with AND by default: {@code value != A OR value != B} is
-   * a tautology whenever A != B, while the user intent behind a multi-value {@code not_eq} is
-   * always NOT IN ("different from all of these"). This mirrors the ES engine which builds a {@code
-   * mustNot} clause per value.
+   * Negative operators always combine values with AND: {@code value != A OR value != B} is a
+   * tautology whenever A != B, while the user intent behind a multi-value {@code not_eq} is always
+   * NOT IN ("different from all of these"). This mirrors the runtime engine ({@code
+   * OperationUtilsRuntime}) and the ES engine which builds a {@code mustNot} clause per value.
    */
   public static Predicate notEqualsTexts(
-      Expression<String> paths,
-      CriteriaBuilder cb,
-      List<String> texts,
-      Class<?> type,
-      FilterMode mode) {
+      Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
     if (isEmpty(texts)) {
       return cb.conjunction();
     }
@@ -223,7 +214,7 @@ public final class OperationUtilsJpa {
     Predicate[] predicates =
         texts.stream().map(text -> notEqualsText(paths, cb, text, type)).toArray(Predicate[]::new);
 
-    return FilterMode.or.equals(mode) ? cb.or(predicates) : cb.and(predicates);
+    return cb.and(predicates);
   }
 
   private static Predicate notEqualsText(
@@ -283,18 +274,9 @@ public final class OperationUtilsJpa {
 
   // -- NOT START WITH --
 
+  /** See {@link #notEqualsTexts(Expression, CriteriaBuilder, List, Class)}. */
   public static Predicate notStartWithTexts(
       Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
-    return notStartWithTexts(paths, cb, texts, type, FilterMode.and);
-  }
-
-  /** See {@link #notEqualsTexts(Expression, CriteriaBuilder, List, Class, FilterMode)}. */
-  public static Predicate notStartWithTexts(
-      Expression<String> paths,
-      CriteriaBuilder cb,
-      List<String> texts,
-      Class<?> type,
-      FilterMode mode) {
     if (isEmpty(texts)) {
       return cb.conjunction();
     }
@@ -304,7 +286,7 @@ public final class OperationUtilsJpa {
             .map(text -> notStartWithText(paths, cb, text, type))
             .toArray(Predicate[]::new);
 
-    return FilterMode.or.equals(mode) ? cb.or(predicates) : cb.and(predicates);
+    return cb.and(predicates);
   }
 
   public static Predicate notStartWithText(

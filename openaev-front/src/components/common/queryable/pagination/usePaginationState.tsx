@@ -4,7 +4,9 @@ import { type Pagination } from '../../../../utils/api-types';
 import { type PaginationHelpers } from './PaginationHelpers';
 
 export const ROWS_PER_PAGE_OPTIONS = [20, 50, 100];
-export const DEFAULT_ROWS_PER_PAGE = 50;
+// Keep the historical platform-wide default (the smallest option): heavy lists
+// are sized for it, so any change must be a deliberate, screen-by-screen call.
+export const DEFAULT_ROWS_PER_PAGE = ROWS_PER_PAGE_OPTIONS[0];
 
 /**
  * Controlled pagination helpers: the single source of truth for page/size is
