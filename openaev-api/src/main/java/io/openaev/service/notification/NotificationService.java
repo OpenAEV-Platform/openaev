@@ -88,8 +88,9 @@ public class NotificationService {
   public List<String> bulkMarkRead(
       @NotNull final NotificationBulkProcessingInput input, final boolean read) {
     List<Notification> scope = resolveBulkScope(input);
+    // Entities are managed within this transaction: dirty checking flushes the
+    // read flag on commit, no explicit saveAll needed.
     scope.forEach(notification -> notification.setRead(read));
-    notificationRepository.saveAll(scope);
     return scope.stream().map(Notification::getId).toList();
   }
 

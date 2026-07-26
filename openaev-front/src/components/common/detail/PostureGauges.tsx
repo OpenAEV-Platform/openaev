@@ -122,8 +122,16 @@ const Gauge: FunctionComponent<{
 
   return (
     <Box
+      component={onClick ? 'button' : 'div'}
+      type={onClick ? 'button' : undefined}
       onClick={onClick}
       sx={{
+        // Reset native button styling when rendered as a real, focusable button.
+        'appearance': 'none',
+        'border': 'none',
+        'background': 'transparent',
+        'font': 'inherit',
+        'color': 'inherit',
         'display': 'flex',
         'flexDirection': 'column',
         'alignItems': 'center',

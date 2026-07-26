@@ -28,8 +28,8 @@ const DigestNotificationDialog = ({ notification, onClose }: {
     >
       <DialogTitle>{t('Digest details')}</DialogTitle>
       <DialogContent>
-        {notification !== null && contentGroupsOf(notification).map(group => (
-          <div key={`${notification.notification_id}-${group.title}`}>
+        {notification !== null && contentGroupsOf(notification).map((group, groupIndex) => (
+          <div key={`${notification.notification_id}-${groupIndex}`}>
             {group.title && (
               <Typography variant="subtitle2" style={{ marginTop: 8 }}>
                 {group.title}
