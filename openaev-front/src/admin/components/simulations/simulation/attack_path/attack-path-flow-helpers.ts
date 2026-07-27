@@ -1729,25 +1729,42 @@ export const buildCausalChainFlow = (
   // step consumes but no produced finding matches (value not surfaced, or a pure ordering dependency), fall
   // back to a dashed dependsOn edge so the sequencing is still shown.
   const findingNodes = nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.finding);
+  const nodeById = new Map(nodes.map(n => [n.id, n]));
+  // One causal edge per (consumer, label): a key like `share_name IS_NOT_NULL` matches EVERY produced
+  // share, but drawing one "Triggered SHARE" edge per matching finding stacks N identical labels over the
+  // consumer node — illegible as soon as an endpoint yields several findings of the type. Collapse them to
+  // a single edge, anchored to the matching finding nearest (vertically) to the consumer so the line stays
+  // short and crosses the least. This keeps a hub endpoint (1 asset, many findings) as readable as a
+  // linear multi-endpoint chain.
+  const drawnCausal = new Set<string>();
   for (const [injId, s] of steps) {
     let matched = false;
+    const injY = nodeById.get(injId)?.position.y ?? 0;
     for (const key of s.consumed) {
-      for (const fn of findingNodes) {
-        if (findingMatchesKey(fn, key)) {
-          matched = true;
-          edges.push({
-            id: `${AP_FLOW_CAUSAL_EDGE_TYPE}-finding-${fn.id}-${injId}`,
-            source: fn.id,
-            target: injId,
-            type: AP_FLOW_CAUSAL_EDGE_TYPE,
-            data: {
-              count: 1,
-              causalKind: 'finding',
-              label: causalKeyLabel(key, t),
-            },
-          });
-        }
+      const matches = findingNodes.filter(fn => findingMatchesKey(fn, key));
+      if (matches.length === 0) {
+        continue;
       }
+      matched = true;
+      const label = causalKeyLabel(key, t);
+      const dedupKey = `${injId}|${label}`;
+      if (drawnCausal.has(dedupKey)) {
+        continue;
+      }
+      drawnCausal.add(dedupKey);
+      const fn = matches.reduce((best, cur) =>
+        Math.abs(cur.position.y - injY) < Math.abs(best.position.y - injY) ? cur : best, matches[0]);
+      edges.push({
+        id: `${AP_FLOW_CAUSAL_EDGE_TYPE}-finding-${fn.id}-${injId}`,
+        source: fn.id,
+        target: injId,
+        type: AP_FLOW_CAUSAL_EDGE_TYPE,
+        data: {
+          count: 1,
+          causalKind: 'finding',
+          label,
+        },
+      });
     }
     if (!matched) {
       for (const dep of s.deps) {

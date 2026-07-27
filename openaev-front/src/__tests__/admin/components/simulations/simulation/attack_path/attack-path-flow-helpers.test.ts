@@ -570,6 +570,68 @@ describe('buildCausalChainFlow', () => {
     expect(causal[0].data?.causalKind).toBe('finding');
   });
 
+  it('collapses N findings matching one consumed key into a single causal edge (legibility on hub endpoints)', () => {
+    // A hub endpoint yields THREE shares; NetExec's event consumes `share_name IS_NOT_NULL`, which matches
+    // every one of them. Without dedup that stacks three identical "Triggered …" labels over the consumer.
+    // We must draw exactly ONE causal edge (anchored to a single matching finding).
+    const hub: AttackPathDTO = {
+      ...chainDto,
+      attackPathNodes: [
+        ...(chainDto.attackPathNodes ?? []),
+        {
+          id: 'NODE_FINDING|share|NETLOGON',
+          type: 'FINDING',
+          typeFindings: 'share',
+          value: 'NETLOGON',
+          label: 'NETLOGON',
+        },
+        {
+          id: 'NODE_FINDING|share|SYSVOL',
+          type: 'FINDING',
+          typeFindings: 'share',
+          value: 'SYSVOL',
+          label: 'SYSVOL',
+        },
+        {
+          id: 'NODE_FINDING|share|CertEnroll',
+          type: 'FINDING',
+          typeFindings: 'share',
+          value: 'CertEnroll',
+          label: 'CertEnroll',
+        },
+      ],
+      attackPathExecutions: [
+        {
+          id: 'x1',
+          type: 'EXECUTION',
+          ref: 'exec-1',
+          stepTemplateId: 'step-A',
+          findingsNodeIds: ['NODE_FINDING|share|NETLOGON', 'NODE_FINDING|share|SYSVOL', 'NODE_FINDING|share|CertEnroll'],
+          dependsOn: [],
+        },
+        {
+          id: 'x2',
+          type: 'EXECUTION',
+          ref: 'exec-2',
+          stepTemplateId: 'step-B',
+          consumedFindingKeys: [{
+            keyType: 'share_name',
+            operator: 'IS_NOT_NULL',
+            value: null as unknown as string,
+            eventName: 'SHARE',
+          }],
+          dependsOn: [],
+        },
+      ],
+    };
+    const { edges } = buildCausalChainFlow(hub, tt);
+    const causal = edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE);
+    expect(causal).toHaveLength(1);
+    expect(causal[0].target).toBe('inj-smb');
+    expect(causal[0].source).toMatch(/^NODE_FINDING\|share\|/);
+    expect(causal[0].data?.causalKind).toBe('finding');
+  });
+
   it('merges same-depth injectors hitting the same asset onto one shared endpoint node', () => {
     // Arrange: two INDEPENDENT injectors (no dependsOn → both at depth 0) target the SAME asset ep-1.
     const parallel: AttackPathDTO = {
