@@ -427,8 +427,37 @@ The pilot does not use it: the resolver's single-tenant rule already refuses
 ambiguous writes. Do not add it unless the endpoint must refuse even an
 implicit single-tenant scope.
 
-Leave `TenantBaseListener` on the entity: it only fills a null tenant, the
-resolver-set value wins.
+Do NOT keep `TenantBaseListener` / `TenantIdBaseListener` on the entity. It is
+a v1 pattern that reads from `TenantContext` — which is no longer the source of
+truth for activated tables. Write attribution is now explicit via the resolver;
+any test that relied on the listener auto-populating tenant must be fixed to set
+`tenantId` explicitly. Keeping the listener creates a hidden fallback path that
+masks missing write attribution and blocks the eventual removal of
+`TenantContext` from the codebase.
+
+**Write-path completeness check — before removing the listener, audit every
+persist call on the entity:**
+
+```bash
+# 4.1 Find every save/persist of the entity
+grep -rn "{EntityRepository}\.\(save\|saveAll\|saveAndFlush\)\|persist({entity}\|merge({entity}" \
+  openaev-api/src/main/java openaev-model/src/main/java --include="*.java"
+
+# 4.2 For each hit, confirm one of:
+#   (a) it calls writeScopeResolver.tenantForWrite(ctx, ...) and stamps the entity
+#       with setTenant(new Tenant(tenantId)) BEFORE the save — a CREATE path
+#   (b) it is an UPDATE-only path (the row already exists with tenant_id set;
+#       the inspector scopes the statement, no re-attribution needed)
+#   (c) it is a background writer covered by Phase 5b (stamped inside a
+#       forEachTenant or execute(forTenant(id), ...) scope)
+```
+
+Any save that creates a new entity without explicit tenant attribution is a
+**silent data corruption** once the listener is removed — `tenant_id` will be
+NULL. Fix it (add `tenantForWrite` + `setTenant`) before proceeding to go-live.
+This check catches paths that the Phase 1 inventory (which greps for readers)
+and the Phase 2 isolation test (which covers the main API only) can miss:
+services shared by multiple controllers, internal helpers, bulk importers.
 
 Re-run: create/import/upsert tests green, including "no selector → 400".
 
@@ -669,11 +698,11 @@ Model (from PR #6255): commit "feat(multi-tenancy): activate import_mappers on v
 (find it with `git log --oneline --grep "activate import_mappers on v2 isolation"`). Four changes, together, nothing else:
 
 1. Remove `@Filter(name = "tenantFilter", ...)` and remove the `TenantBaseListener.class`
-   from the entity in
+   (or `TenantIdBaseListener.class`) from `@EntityListeners` in
    `openaev-model/src/main/java/io/openaev/database/model/{Entity}.java`.
-   Replace it with the pilot's two-line comment stating the table is fully on
-   v2 and why the v1 filter must not come back
-   (see `ImportMapper.java` after the pilot commit).
+   Replace it with a javadoc comment stating the table is fully on v2 and why
+   the v1 filter and listener must not come back. Fix any test that relied on
+   the listener to auto-populate `tenantId` — set it explicitly instead.
 2. Append `{table}` to `openaev.tenant.active-tables` in
    `openaev-api/src/main/resources/application.properties` (comma-separated,
    keep existing entries).
@@ -759,7 +788,7 @@ grep -n "TenantBaseListener" \
 | `TenantContext.getCurrentTenant()` used to look up a *different* entity | No | **Report only** — out of scope for this activation |
 | `findByIdAndTenantId` on `{EntityRepository}` | Yes | **Replace with `findById`** — inspector handles scoping, explicit tenant filter blocks multi-tenant reads |
 | `findByIdAndTenantId` on a *different* repository | No | **Report only** — that table is still on v1 |
-| `TenantBaseListener` on `{Entity}` | Yes | **Remove only if every write path attributes the tenant explicitly** (resolver / `setTenant`); otherwise **keep** — a listener-dependent path (e.g. an importer that `save()`s without `setTenant`) would write a NULL tenant |
+| `TenantBaseListener` on `{Entity}` | Yes | **Remove** — it is a v1 pattern that reads from `TenantContext`; write attribution is now explicit via the resolver. Fix any test or code path that relied on the listener to auto-populate tenant; set `tenantId` explicitly instead |
 | Specification with `tenant_id` predicate on `{table}` | Yes | **Remove the predicate** — inspector handles it |
 
 **Output: audit report**

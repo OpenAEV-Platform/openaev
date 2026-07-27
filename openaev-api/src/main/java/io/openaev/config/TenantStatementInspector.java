@@ -18,11 +18,13 @@ import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.AllColumns;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Join;
+import net.sf.jsqlparser.statement.select.LateralSubSelect;
 import net.sf.jsqlparser.statement.select.ParenthesedFromItem;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.select.SelectItem;
+import net.sf.jsqlparser.statement.select.TableFunction;
 import net.sf.jsqlparser.statement.select.Values;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.util.TablesNamesFinder;
@@ -258,7 +260,16 @@ public class TenantStatementInspector implements StatementInspector {
    * rejected.
    */
   private FromItem filterFromItem(FromItem item) {
-    if (item instanceof ParenthesedSelect) {
+    // Sub-selects and lateral sub-selects are never real tables; they do not need tenant
+    // filtering. A LATERAL table function (e.g. "LEFT JOIN LATERAL jsonb_array_elements(...)")
+    // unnests a column of the row already being joined, never a whole table, so it is safe too.
+    // A non-lateral table function (e.g. "CROSS JOIN generate_series(1, 10)") is NOT unnesting an
+    // existing row and is not a shape this rewriter has reviewed; it stays rejected.
+    if (item instanceof ParenthesedSelect || item instanceof LateralSubSelect) {
+      return item;
+    }
+    if (item instanceof TableFunction tableFunction
+        && "LATERAL".equalsIgnoreCase(tableFunction.getPrefix())) {
       return item;
     }
     if (item instanceof ParenthesedFromItem group) {
