@@ -2,6 +2,7 @@ package io.openaev.api.attackpath;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -32,6 +33,12 @@ import org.springframework.transaction.annotation.Transactional;
  * the {@code can_access_tenant} rewrite, and the JPQL reads), so it proves the isolation claim
  * rather than the mere presence of a guard. It is the HTTP-layer complement to the inspector's own
  * SQL-layer tests.
+ *
+ * <p>The version counter is covered here too, and it is the one attack-path table the inspector
+ * does NOT filter: its bump is an {@code INSERT ... ON CONFLICT}, so the table is keyed by
+ * (simulation, tenant) and every statement carries the tenant instead. A foreign tenant must
+ * therefore read no counter at all — version 0, and a cursor answered by a resync — not the owner's
+ * number.
  *
  * <p>Each test stays on a single tenant path: the per-request scope is set once and the aspect
  * refuses to redefine it within one transaction.
@@ -99,16 +106,48 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   void deltaUnderOtherTenantIsHidden() throws Exception {
     // The delta is a second, polled path into the same projection, so it needs its own proof: the
     // cursor reads and the affected-endpoint aggregations are all separate queries from the
-    // snapshot's. The version number itself is not tenant data (it is a counter behind
-    // assertCanReadSimulation); what must never cross is a row, a node, an edge or a count.
+    // snapshot's. The version counter is tenant-scoped too (its table is keyed by (simulation,
+    // tenant) and every statement carries the tenant), so the foreign tenant reads no counter at
+    // all: version 0, no rows, and no counters to recompute.
     mvc.perform(get(DELTA, tenantB, SIM).param("since", "0"))
         .andExpect(status().isOk())
+        .andExpect(jsonPath("$.resyncRequired").value(false))
+        .andExpect(jsonPath("$.newVersion").value(0))
         .andExpect(jsonPath("$.attackPathNodes").isEmpty())
         .andExpect(jsonPath("$.attackPathEdges").isEmpty())
         .andExpect(jsonPath("$.attackPathExecutions").isEmpty())
         .andExpect(jsonPath("$.staticAttackPathFindings").isEmpty())
-        .andExpect(jsonPath("$.counters.endpoints").value(0))
-        .andExpect(jsonPath("$.counters.credentials").value(0));
+        .andExpect(jsonPath("$.counters").value(nullValue()));
+  }
+
+  @Test
+  @DisplayName(
+      "under another tenant's path: a cursor on the owner's counter is answered by a resync")
+  void deltaUnderOtherTenantWithACursorResyncs() throws Exception {
+    // The owner's counter sits at 1. A foreign tenant claiming that cursor must not be told that
+    // nothing changed since 1: from its own scope the simulation has no attack-path data at all, so
+    // the only answerable reply is a resync, and a resync carries no rows.
+    mvc.perform(get(DELTA, tenantB, SIM).param("since", "1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.resyncRequired").value(true))
+        .andExpect(jsonPath("$.newVersion").value(0))
+        .andExpect(jsonPath("$.attackPathNodes").isEmpty());
+  }
+
+  @Test
+  @DisplayName("under another tenant's path: the graph carries no version of the owner's counter")
+  void graphUnderOtherTenantCarriesNoVersion() throws Exception {
+    mvc.perform(get(GRAPH, tenantB, SIM))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.graphVersion").value(0));
+  }
+
+  @Test
+  @DisplayName("under the owner tenant's path: the graph is labelled with the owner's version")
+  void graphUnderOwnerTenantCarriesItsVersion() throws Exception {
+    mvc.perform(get(GRAPH, tenantA, SIM))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.graphVersion").value(1));
   }
 
   @Test

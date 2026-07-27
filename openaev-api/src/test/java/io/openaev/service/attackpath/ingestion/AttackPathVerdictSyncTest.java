@@ -2,6 +2,8 @@ package io.openaev.service.attackpath.ingestion;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
@@ -62,6 +64,7 @@ class AttackPathVerdictSyncTest extends IntegrationTest {
   private JdbcTemplate jdbc;
   private Tenant tenant;
   private String simulationId;
+  private String manualTargets;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -105,6 +108,57 @@ class AttackPathVerdictSyncTest extends IntegrationTest {
 
     assertThat(detectionStatus("exec-1")).isEqualTo("Detected");
     assertThat(detectionStatus("exec-2")).isNull();
+  }
+
+  @Test
+  @DisplayName("two asset-level verdicts of one type land on both rows under the same version")
+  void assetLevelVerdictsAreAppliedTogether() {
+    // Several assets carrying one verdict is what an asset-group expectation expands into, and what
+    // the batched IN-list update exists for. What this pins is the behaviour that batching must not
+    // change: every targeted row gets the verdict, under the single version the batch took, and
+    // rows
+    // outside the set are left alone.
+    freezeExecution("exec-1", AGENT_ID, ASSET_ID);
+    freezeExecution("exec-2", "other-agent", "other-asset");
+
+    sync(
+        detection(null, endpoint(ASSET_ID), 100.0),
+        detection(null, endpoint("other-asset"), 100.0));
+
+    assertThat(detectionStatus("exec-1")).isEqualTo("Detected");
+    assertThat(detectionStatus("exec-2")).isEqualTo("Detected");
+    assertThat(rowVersion("exec-1")).isEqualTo(rowVersion("exec-2")).isEqualTo(currentVersion());
+  }
+
+  @Test
+  @DisplayName("an inject-level verdict lands on the discovered target rows of a manual inject")
+  void injectLevelVerdictIsAppliedByTargetKey() {
+    // The rows the ingestion writes for a manual injector target have no asset id and no agent, so
+    // neither of the other two granularities can reach them; the expectation names nothing either,
+    // and the keys come from the inject content, exactly as the ingestion derived them.
+    freezeDiscoveredExecution("exec-raw-1", "10.0.0.1");
+    freezeDiscoveredExecution("exec-raw-2", "10.0.0.2");
+    freezeExecution("exec-asset", AGENT_ID, ASSET_ID);
+
+    withManualTargets("10.0.0.1,10.0.0.2");
+    sync(prevention(null, null, 100.0));
+
+    assertThat(preventionStatus("exec-raw-1")).isEqualTo("Prevented");
+    assertThat(preventionStatus("exec-raw-2")).isEqualTo("Prevented");
+    assertThat(rowVersion("exec-raw-1")).isEqualTo(currentVersion());
+    // The asset row is not a target of this inject's manual selector, so it stays untouched.
+    assertThat(preventionStatus("exec-asset")).isNull();
+  }
+
+  @Test
+  @DisplayName("an inject-level verdict on an inject with no manual target is dropped")
+  void injectLevelVerdictWithoutTargetKeysIsDropped() {
+    freezeExecution("exec-1", AGENT_ID, ASSET_ID);
+
+    sync(prevention(null, null, 100.0));
+
+    assertThat(preventionStatus("exec-1")).isNull();
+    assertThat(versionRowCount()).isZero();
   }
 
   @Test
@@ -168,14 +222,25 @@ class AttackPathVerdictSyncTest extends IntegrationTest {
     TenantContext.clearCurrentTenant();
   }
 
-  /** The inject as the chaining seam hands it over: only its tenant and simulation are read. */
+  /** The inject as the chaining seam hands it over: its tenant, simulation and content are read. */
   private Inject inject() {
     Inject inject = new Inject();
     inject.setTenant(tenant);
     Exercise exercise = new Exercise();
     exercise.setId(simulationId);
     inject.setExercise(exercise);
+    if (manualTargets != null) {
+      ObjectNode content = JsonNodeFactory.instance.objectNode();
+      content.put("target_selector", "manual");
+      content.put("targets", manualTargets);
+      inject.setContent(content);
+    }
     return inject;
+  }
+
+  /** Makes the next {@link #sync} run against an injector inject with manual (raw) targets. */
+  private void withManualTargets(String targets) {
+    manualTargets = targets;
   }
 
   private TechnicalInjectExpectation prevention(Agent agent, Endpoint asset, Double score) {
@@ -222,6 +287,21 @@ class AttackPathVerdictSyncTest extends IntegrationTest {
         agentId,
         assetId,
         assetId);
+  }
+
+  /** A row as the ingestion freezes it for a discovered (raw) target: no agent, no asset id. */
+  private void freezeDiscoveredExecution(String executionId, String targetKey) {
+    jdbc.update(
+        "INSERT INTO attackpath_execution (attackpath_execution_id, tenant_id,"
+            + " attackpath_execution_simulation_id, attackpath_execution_step_id,"
+            + " attackpath_execution_source_kind, attackpath_execution_target_kind,"
+            + " attackpath_execution_target_key, attackpath_execution_executed_at)"
+            + " VALUES (?, ?, ?, ?, 'INJECTOR', 'DISCOVERED', ?, now())",
+        executionId,
+        tenant.getId(),
+        simulationId,
+        STEP_ID,
+        targetKey);
   }
 
   private String preventionStatus(String executionId) {

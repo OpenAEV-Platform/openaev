@@ -21,13 +21,14 @@ import io.openaev.service.attackpath.dto.AttackPathDeltaDTO;
 import io.openaev.service.attackpath.dto.AttackPathEdges;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
-import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -64,12 +65,16 @@ class AttackPathDeltaApiTest extends IntegrationTest {
   @Autowired private AttackPathExecutionRepository executionRepository;
   @Autowired private AttackPathFindingRepository findingRepository;
   @Autowired private ObjectMapper objectMapper;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
 
   private Tenant tenant;
 
   @BeforeEach
-  void setUp() {
-    tenant = tenantRepository.save(TenantFixture.getTenant("ap-delta-tenant"));
+  void setUp() throws Exception {
+    // Attached to the mock user, not just persisted: the HTTP reads below resolve their tenant
+    // scope
+    // from the caller's memberships, and the version counter is read under that scope.
+    tenant = tenantHelper.createTenantWithCurrentUser("ap-delta-tenant");
   }
 
   @Test
@@ -85,12 +90,56 @@ class AttackPathDeltaApiTest extends IntegrationTest {
         });
     AttackPathDTO atV2 = snapshot();
 
-    AttackPathDeltaDTO delta = deltaService.buildDelta(SIM, v1);
+    AttackPathDeltaDTO delta = deltaSince(v1);
 
     assertThat(delta.resyncRequired()).isFalse();
     assertThat(delta.sinceVersion()).isEqualTo(v1);
     assertThat(delta.newVersion()).isGreaterThan(v1);
     assertThatApplyingEquals(atV1, delta, atV2);
+  }
+
+  @Test
+  @DisplayName(
+      "given a finding value rediscovered by a second execution, its new link reaches the delta")
+  void given_a_relinked_finding_should_ship_the_new_execution_link_in_the_delta() {
+    // The finding row already exists with this (type, value, endpoint), so the copy hits its
+    // conflict branch. Only the link is new. If the conflict branch left the row's version alone,
+    // the finding would stay attached to its first execution in every client's graph, forever —
+    // the link is only reachable through the finding row.
+    AttackPathFinding finding =
+        writeReturning(
+            () -> findingOn(executionOn("dc-01", "nmap", null), "credentials", "admin:secret"));
+    long v1 = currentVersion();
+    AttackPathDTO atV1 = snapshot();
+
+    write(() -> relinkFinding(finding, executionOn("dc-01", "hydra", null)));
+    AttackPathDTO atV2 = snapshot();
+
+    assertThatApplyingEquals(atV1, deltaSince(v1), atV2);
+  }
+
+  @Test
+  @DisplayName("the snapshot carries the version a client then polls the delta with")
+  void the_snapshot_is_labelled_with_the_current_version() throws Exception {
+    long version = write(() -> executionOn("dc-01", "nmap", null));
+
+    assertThat(snapshot().graphVersion()).isEqualTo(version);
+    // A delta taken at the snapshot's own version is empty: the label is the cursor, not an
+    // approximation of it.
+    assertThat(deltaSince(snapshot().graphVersion()).attackPathNodes()).isEmpty();
+
+    mvc.perform(get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/graph"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.graphVersion").value(version));
+  }
+
+  @Test
+  @DisplayName("a negative cursor is rejected rather than reinterpreted")
+  void a_negative_cursor_is_rejected() throws Exception {
+    mvc.perform(
+            get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/graph/delta")
+                .param("since", "-1"))
+        .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -100,7 +149,7 @@ class AttackPathDeltaApiTest extends IntegrationTest {
     AttackPathDTO atV1 = snapshot();
     write(() -> executionOn("dc-02", "nmap", null));
 
-    AttackPathDeltaDTO delta = deltaService.buildDelta(SIM, v1);
+    AttackPathDeltaDTO delta = deltaSince(v1);
 
     Map<String, JsonNode> once = apply(atV1, delta);
     Map<String, JsonNode> twice = apply(atV1, delta, delta);
@@ -112,7 +161,7 @@ class AttackPathDeltaApiTest extends IntegrationTest {
   void given_no_change_should_return_an_empty_delta_at_the_same_version() {
     long version = write(() -> executionOn("dc-01", "nmap", null));
 
-    AttackPathDeltaDTO delta = deltaService.buildDelta(SIM, version);
+    AttackPathDeltaDTO delta = deltaSince(version);
 
     assertThat(delta.resyncRequired()).isFalse();
     assertThat(delta.newVersion()).isEqualTo(version);
@@ -130,7 +179,7 @@ class AttackPathDeltaApiTest extends IntegrationTest {
   void given_a_cursor_ahead_of_the_current_version_should_require_a_resync() {
     long version = write(() -> executionOn("dc-01", "nmap", null));
 
-    AttackPathDeltaDTO delta = deltaService.buildDelta(SIM, version + 10);
+    AttackPathDeltaDTO delta = deltaSince(version + 10);
 
     assertThat(delta.resyncRequired()).isTrue();
     assertThat(delta.attackPathNodes()).isEmpty();
@@ -142,18 +191,18 @@ class AttackPathDeltaApiTest extends IntegrationTest {
     long version = write(() -> executionOn("dc-01", "nmap", null));
     executionRepository.deleteAllBySimulationId(SIM);
     findingRepository.deleteAllBySimulationId(SIM);
-    versionService.deleteBySimulationId(SIM);
+    versionService.deleteBySimulationId(SIM, tenant.getId());
     entityManager.flush();
 
-    assertThat(deltaService.buildDelta(SIM, version).resyncRequired()).isTrue();
+    assertThat(deltaSince(version).resyncRequired()).isTrue();
     // A client that holds nothing has nothing to catch up on: it gets an empty delta, not a resync.
-    assertThat(deltaService.buildDelta(SIM, 0).resyncRequired()).isFalse();
+    assertThat(deltaSince(0).resyncRequired()).isFalse();
   }
 
   @Test
   @DisplayName("given a simulation with no attack-path data, a fresh client gets an empty delta")
   void given_a_simulation_with_no_data_should_return_an_empty_delta_at_version_zero() {
-    AttackPathDeltaDTO delta = deltaService.buildDelta("SIM-NEVER-RUN", 0);
+    AttackPathDeltaDTO delta = deltaService.buildDelta("SIM-NEVER-RUN", 0, List.of(tenant.getId()));
 
     assertThat(delta.resyncRequired()).isFalse();
     assertThat(delta.newVersion()).isZero();
@@ -169,10 +218,10 @@ class AttackPathDeltaApiTest extends IntegrationTest {
     // is
     // recomputed over both rows, which is exactly what a subset of rows cannot do on its own.
     write(() -> executionOn("dc-01", "nmap", null));
-    long v1 = versionService.current(SIM).orElseThrow();
+    long v1 = currentVersion();
     write(() -> executionOn("dc-01", "hydra", "Prevented"));
 
-    AttackPathDeltaDTO delta = deltaService.buildDelta(SIM, v1);
+    AttackPathDeltaDTO delta = deltaSince(v1);
 
     AttackPathNodeDTO endpoint =
         delta.attackPathNodes().stream()
@@ -243,6 +292,14 @@ class AttackPathDeltaApiTest extends IntegrationTest {
     return version;
   }
 
+  /** {@link #write}, for a body whose written row the test needs to keep hold of. */
+  private <T> T writeReturning(Supplier<T> body) {
+    pendingVersion = versionService.bump(SIM, tenant.getId());
+    T written = body.get();
+    entityManager.flush();
+    return written;
+  }
+
   private long pendingVersion;
 
   private AttackPathExecution executionOn(String targetKey, String injector, String prevention) {
@@ -261,7 +318,7 @@ class AttackPathDeltaApiTest extends IntegrationTest {
     return executionRepository.save(execution);
   }
 
-  private void findingOn(AttackPathExecution execution, String type, String value) {
+  private AttackPathFinding findingOn(AttackPathExecution execution, String type, String value) {
     AttackPathFinding finding = new AttackPathFinding();
     finding.setTenant(tenant);
     finding.setSimulationId(SIM);
@@ -272,6 +329,22 @@ class AttackPathDeltaApiTest extends IntegrationTest {
     finding.setRowVersion(pendingVersion);
     finding = findingRepository.save(finding);
 
+    link(execution, finding);
+    return finding;
+  }
+
+  /**
+   * A finding value already in the projection, re-discovered by another execution: the copy's
+   * conflict branch re-stamps the row version and adds the new link, which is exactly what makes
+   * the new edge reachable by a delta.
+   */
+  private void relinkFinding(AttackPathFinding finding, AttackPathExecution execution) {
+    finding.setRowVersion(pendingVersion);
+    findingRepository.save(finding);
+    link(execution, finding);
+  }
+
+  private void link(AttackPathExecution execution, AttackPathFinding finding) {
     AttackPathExecutionFinding link = new AttackPathExecutionFinding();
     link.setExecutionId(execution.getId());
     link.setFindingId(finding.getId());
@@ -280,6 +353,16 @@ class AttackPathDeltaApiTest extends IntegrationTest {
 
   private AttackPathDTO snapshot() {
     entityManager.flush();
-    return graphService.buildGraph(SIM, "full");
+    // The read path's order: the version first, then the rows (see AttackPathApi#graph).
+    return graphService.buildGraph(SIM, "full", currentVersion());
+  }
+
+  private long currentVersion() {
+    return versionService.current(SIM, List.of(tenant.getId())).orElseThrow();
+  }
+
+  private AttackPathDeltaDTO deltaSince(long since) {
+    entityManager.flush();
+    return deltaService.buildDelta(SIM, since, List.of(tenant.getId()));
   }
 }
