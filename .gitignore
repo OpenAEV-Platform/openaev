@@ -41,3 +41,4 @@ openaev-dev/telemetry-output/
 
 ### FDS token migration (local validation artifacts, never committed) ###
 .fds-validation-artifacts/
+fds-migration/reports/
