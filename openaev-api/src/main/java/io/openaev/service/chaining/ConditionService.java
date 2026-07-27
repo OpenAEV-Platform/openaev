@@ -808,11 +808,9 @@ public class ConditionService {
 
   private void validateConditionInputKeyTypes(List<ConditionCreateInput> conditionInputs) {
     for (ConditionCreateInput conditionInput : conditionInputs) {
-      List<PrimitiveType> keyTypes = resolveInputKeyTypes(conditionInput);
-      if (keyTypes == null || keyTypes.size() <= 1) {
-        continue;
-      }
-      if (conditionInput.getType() != ConditionType.MAPPER) {
+      List<PrimitiveType> rawKeyTypes =
+          ConditionKeyTypesUtils.normalize(conditionInput.getKeyTypes());
+      if (conditionInput.getType() != ConditionType.MAPPER && rawKeyTypes.size() > 1) {
         throw new BadRequestException(
             "Only mapper conditions can define multiple condition_key_types");
       }
@@ -1052,7 +1050,7 @@ public class ConditionService {
         // DEFAULT: value is static, no state lookup needed.
         // Stored in defaultValues so it is included in every batch's inputString.
         // If blank, skip — the injector contract default for that field is preserved.
-        String key = mapper.getKey();
+        String key = resolveMapperTargetKey(mapper);
         String value = mapper.getValue();
         if (key != null && !key.isBlank() && value != null && !value.isBlank()) {
           defaultValues.put(key, value);
@@ -1244,7 +1242,7 @@ public class ConditionService {
   private Condition toResolvedMapper(Condition template, Map<String, String> fullInput) {
     Condition resolved = new Condition();
     resolved.setType(ConditionType.MAPPER);
-    resolved.setKey(template.getKey());
+    resolved.setKey(resolveMapperTargetKey(template));
     resolved.setKeyTypes(template.getKeyTypes());
     resolved.setMappingType(template.getMappingType());
     resolved.setDescription(template.getDescription());
@@ -1269,6 +1267,14 @@ public class ConditionService {
         return sourceKey;
       }
     }
+    return sourceKeys.isEmpty() ? null : sourceKeys.getFirst();
+  }
+
+  private String resolveMapperTargetKey(Condition mapper) {
+    if (mapper.getKey() != null && !mapper.getKey().isBlank()) {
+      return mapper.getKey();
+    }
+    List<String> sourceKeys = resolveMapperSourceKeys(mapper);
     return sourceKeys.isEmpty() ? null : sourceKeys.getFirst();
   }
 
