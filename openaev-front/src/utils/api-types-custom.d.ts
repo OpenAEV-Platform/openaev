@@ -62,10 +62,11 @@ export interface AttackPathDeltaDTO {
   newVersion?: number;
   /** The cursor cannot be answered (run reset / too far behind): re-read the full snapshot. */
   resyncRequired?: boolean;
+  staticAttackPathFindings?: ApiTypes.AttackPathNodeDTO[];
+  attackPathExecutions?: ApiTypes.AttackPathNodeDTO[];
   attackPathNodes?: ApiTypes.AttackPathNodeDTO[];
   attackPathEdges?: ApiTypes.AttackPathEdges[];
-  attackPathExecutions?: ApiTypes.AttackPathNodeDTO[];
-  findings?: ApiTypes.AttackPathFindingItemDTO[];
+  /** Absent means "unchanged, keep the ones you have". */
   counters?: ApiTypes.AttackPathCounters;
 }
 

@@ -1,4 +1,4 @@
-import type { AttackPathCounters, AttackPathDTO, AttackPathEdges, AttackPathFindingItemDTO, AttackPathNodeDTO } from '../../../../../utils/api-types';
+import type { AttackPathCounters, AttackPathDTO, AttackPathEdges, AttackPathNodeDTO } from '../../../../../utils/api-types';
 import type { AttackPathDeltaDTO } from '../../../../../utils/api-types-custom';
 
 // Accumulated attack-path graph (issue 6647). A run keeps discovering endpoints, executions and
@@ -9,30 +9,12 @@ import type { AttackPathDeltaDTO } from '../../../../../utils/api-types-custom';
 
 // Node/edge type discriminants, mirroring the backend's AttackPathGraphService constants.
 const TYPE_FINDING = 'FINDING';
-const TYPE_FINDING_TYPE = 'FINDING_TYPE';
 const EDGE_EXECUTIONS = 'EDGE_EXECUTIONS';
-const EDGE_ENDPOINT_FINDINGS_TYPE = 'EDGE_ENDPOINT_FINDINGS_TYPE';
-const EDGE_FINDINGS_TYPE_FINDING = 'EDGE_FINDINGS_TYPE_FINDING';
 
 // The collapsed projection is exactly the endpoint/injector topology: the clustered layout reads only
 // these node and edge kinds, so restricting them keeps `dto` identical to today's collapsed read even
 // once the store also holds the full graph's finding nodes.
 const COLLAPSED_NODE_TYPES = new Set(['ASSET', 'INJECTOR']);
-
-/**
- * Deterministic graph ids, mirroring the backend `AttackPathIds` encoding (kind prefix, components
- * joined by `|`, each component escaping `\` and `|` so the encoding stays injective). Only the ids the
- * delta path has to rebuild front-side are here: the delta ships changed findings as list rows (the
- * masked `AttackPathFindingItemDTO`, per FR6), so their FINDING / FINDING_TYPE nodes and edges are
- * recomposed locally rather than duplicated in the payload.
- */
-const escapeIdPart = (part: string): string => part.replace(/([\\|])/g, '\\$1');
-const encodeId = (kind: string, ...parts: string[]): string =>
-  [kind, ...parts.map(escapeIdPart)].join('|');
-export const findingNodeId = (type: string, value: string): string => encodeId('NODE_FINDING', type, value);
-export const findingTypeNodeId = (type: string, endpointKey: string): string => encodeId('NODE_FINDINGS_TYPE', type, endpointKey);
-const endpointFindingTypeEdgeId = (type: string, endpointKey: string): string => encodeId('EDGE_ENDPOINT_FINDINGS_TYPE', type, endpointKey);
-const findingTypeFindingEdgeId = (type: string, endpointKey: string, value: string): string => encodeId('EDGE_FINDINGS_TYPE_FINDING', type, endpointKey, value);
 
 /**
  * The accumulated graph. Maps are keyed by the backend's deterministic ids, so a delta is a pure
@@ -151,13 +133,17 @@ const upsert = <T extends object>(
 // full causal layout resolves each execution's injector/endpoint through this list, so dropping the
 // known refs would make already-rendered executions disappear.
 const mergeEdge = (existing: AttackPathEdges, incoming: AttackPathEdges): AttackPathEdges => {
-  const known = existing.executionIds ?? [];
-  const added = (incoming.executionIds ?? []).filter(id => !known.includes(id));
-  return {
+  const merged = {
     ...existing,
     ...incoming,
-    executionIds: added.length > 0 ? [...known, ...added] : known,
   };
+  const known = existing.executionIds;
+  if (!known || known.length === 0) {
+    return merged;
+  }
+  const added = (incoming.executionIds ?? []).filter(id => !known.includes(id));
+  merged.executionIds = added.length > 0 ? [...known, ...added] : known;
+  return merged;
 };
 
 const indexBy = <T>(entries: T[] | undefined, key: (entry: T) => string | undefined): ReadonlyMap<string, T> => {
@@ -216,58 +202,6 @@ const unchangedResult = (store: AttackPathGraphStore, version: number): AttackPa
     newNodeIds: [],
     changedFindingTypes: [],
   };
-};
-
-// A changed finding row rebuilt into the three graph entities the full snapshot would carry for it:
-// its FINDING node (deduplicated by type+value across endpoints), the endpoint's FINDING_TYPE node,
-// and the two edges linking endpoint -> type -> finding. Ids follow the backend encoding, so a
-// subsequent resync lands on exactly the same entries.
-const applyFindingItem = (
-  finding: AttackPathFindingItemDTO,
-  nodes: Map<string, AttackPathNodeDTO>,
-  edges: Map<string, AttackPathEdges>,
-  staticFindings: Map<string, AttackPathNodeDTO>,
-  track: TrackFn,
-) => {
-  const { type, value, endpointKey, endpointNodeId } = finding;
-  if (!type || value === undefined || !endpointKey || !endpointNodeId) {
-    return;
-  }
-  const typeNodeId = findingTypeNodeId(type, endpointKey);
-  const nodeId = findingNodeId(type, value);
-  track(upsert(nodes, typeNodeId, {
-    id: typeNodeId,
-    type: TYPE_FINDING_TYPE,
-    label: type,
-    typeFindings: type,
-    assetNodeId: endpointNodeId,
-  }), typeNodeId);
-  const findingNode: AttackPathNodeDTO = {
-    id: nodeId,
-    type: TYPE_FINDING,
-    label: value,
-    value,
-    typeFindings: type,
-    findingsTypeNodeId: typeNodeId,
-    assetNodeId: endpointNodeId,
-    verdicts: finding.verdicts,
-  };
-  track(upsert(nodes, nodeId, findingNode), nodeId);
-  upsert(staticFindings, nodeId, findingNode);
-  const typeEdgeId = endpointFindingTypeEdgeId(type, endpointKey);
-  track(upsert(edges, typeEdgeId, {
-    edgeId: typeEdgeId,
-    edgeSourceId: endpointNodeId,
-    edgeTargetId: typeNodeId,
-    type: EDGE_ENDPOINT_FINDINGS_TYPE,
-  }));
-  const findingEdgeId = findingTypeFindingEdgeId(type, endpointKey, value);
-  track(upsert(edges, findingEdgeId, {
-    edgeId: findingEdgeId,
-    edgeSourceId: typeNodeId,
-    edgeTargetId: nodeId,
-    type: EDGE_FINDINGS_TYPE_FINDING,
-  }));
 };
 
 /**
@@ -356,17 +290,26 @@ export const applyDelta = (
     }
   };
 
-  (delta.attackPathNodes ?? []).forEach(n => track(upsert(nodes, n.id, n), n.id));
+  // The delta is built by the very same pass as the snapshot, over the changed rows only, so its node
+  // list already carries every kind (endpoints, injectors, finding types, findings) with the
+  // aggregates recomputed whole — upserting it is the entire reducer.
+  const noteFindingType = (node: AttackPathNodeDTO) => {
+    if (node.type === TYPE_FINDING && node.typeFindings) {
+      changedFindingTypes.add(node.typeFindings);
+    }
+  };
+  (delta.attackPathNodes ?? []).forEach((n) => {
+    track(upsert(nodes, n.id, n), n.id);
+    noteFindingType(n);
+  });
   (delta.attackPathEdges ?? []).forEach(e => track(upsert(edges, e.edgeId, e, mergeEdge)));
   // Feed entries only exist in the full projection; when it was never seeded (run above the size gate)
   // they are still accumulated so a later render-mode switch has them, at no layout cost.
   (delta.attackPathExecutions ?? []).forEach(e => track(upsert(executions, e.id, e), e.id));
-
-  (delta.findings ?? []).forEach((finding) => {
-    if (finding.type) {
-      changedFindingTypes.add(finding.type);
-    }
-    applyFindingItem(finding, nodes, edges, staticFindings, track);
+  (delta.staticAttackPathFindings ?? []).forEach((f) => {
+    upsert(staticFindings, f.id, f);
+    track(upsert(nodes, f.id, f), f.id);
+    noteFindingType(f);
   });
 
   const countersChanged = delta.counters !== undefined && !sameValue(store.counters, delta.counters);
