@@ -1413,10 +1413,21 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     // injector (action) to its reach. Same visual, mirrored direction, so both feel consistent.
     const pathSet = new Set<string>();
     if (selectedInjectorId) {
+      // An injector's downstream highlight shows its REACH — the endpoints it targeted — not the findings.
+      // In the clustered view findings hang off the SHARED endpoint hub and aggregate every injector, so
+      // walking into them would wrongly credit one injector with another's findings (e.g. NetExec lighting
+      // Nmap's portscans). Stop the walk at endpoint/hub nodes: never propagate into finding-type nodes.
+      const findingNodeIds = new Set(
+        baseFlow.nodes
+          .filter(n => n.type === AP_FLOW_NODE_TYPE.finding
+            || n.type === AP_FLOW_NODE_TYPE.findingType
+            || n.type === AP_FLOW_NODE_TYPE.findingCluster)
+          .map(n => n.id),
+      );
       pathSet.add(selectedInjectorId);
       for (let pass = 0; pass < 6; pass += 1) {
         for (const e of baseFlow.edges) {
-          if (e.source && e.target && pathSet.has(e.source) && !pathSet.has(e.target)) {
+          if (e.source && e.target && pathSet.has(e.source) && !pathSet.has(e.target) && !findingNodeIds.has(e.target)) {
             pathSet.add(e.target);
           }
         }

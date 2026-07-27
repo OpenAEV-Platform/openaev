@@ -487,7 +487,10 @@ export const buildClusteredAttackPathFlow = (
   // the shared hub surfaces the chokepoints (and their badges) up front rather than burying them.
   const endpointFindingTotal = (assetId: string): number =>
     Object.values(assetById.get(assetId)?.findingCounts ?? {}).reduce((s, v) => s + (v ?? 0), 0);
-  reachedOrder.sort((a, b) => endpointFindingTotal(b) - endpointFindingTotal(a));
+  // Deterministic order: by finding total desc, then a stable tie-breaker on the asset id. Without the
+  // tie-breaker, endpoints with equal totals (common — every endpoint is 0 early in a run) keep DTO edge
+  // insertion order, which can differ between live-refresh polls and makes the endpoints visibly swap.
+  reachedOrder.sort((a, b) => endpointFindingTotal(b) - endpointFindingTotal(a) || a.localeCompare(b));
 
   const nodes: AttackPathFlowNode[] = [];
   const edges: AttackPathFlowEdge[] = [];
@@ -1362,7 +1365,8 @@ export const buildCausalEdges = (
 const CHAIN_COL_W = 620; // horizontal span of one causal depth (inject + endpoint + finding + gap)
 const CHAIN_EP_DX = 210; // inject → endpoint horizontal offset within a step
 const CHAIN_FIND_DX = 400; // inject → produced-finding horizontal offset within a step
-const CHAIN_FIND_ROW = 96; // vertical gap between findings stacked on the SAME endpoint
+const CHAIN_FIND_ROW = 130; // vertical gap between findings stacked on the SAME endpoint (room for the
+// value label rendered above each finding node, so stacked findings never overlap)
 const CHAIN_STEP_GAP = 80; // vertical gap between two asset blocks sharing a depth (same column)
 const CHAIN_INJECTOR_ROW = 110; // vertical slot per injector when several share one endpoint block
 const CHAIN_EP_BLOCK_MIN = 120; // minimum height of one endpoint block (endpoint node + breathing room)
