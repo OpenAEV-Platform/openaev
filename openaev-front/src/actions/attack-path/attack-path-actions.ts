@@ -1,5 +1,6 @@
 import { simpleCall, simplePostCall } from '../../utils/Action';
 import type { AttackPathDTO, AttackPathEndpointRelationsDTO, AttackPathExecutionDetailDTO, AttackPathExpandDTO, AttackPathFindingPageDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../utils/api-types';
+import type { AttackPathDeltaDTO } from '../../utils/api-types-custom';
 
 // Attack-path execution-store POC (issue 6647), gated by the ATTACK_PATH preview feature.
 // The tenant prefix is added centrally by Action.buildUri, so these use the plain /api paths.
@@ -27,6 +28,16 @@ export const fetchAttackPathGraph = (
   mode?: 'full' | 'collapsed',
 ): Promise<{ data: AttackPathDTO }> =>
   simpleCall(`${simulationUri(simulationId)}/graph${mode ? `?mode=${mode}` : ''}`, undefined, false);
+
+// Everything that changed in the graph since a given version: upserted nodes/edges/executions, the
+// changed finding rows and the recomputed counters, plus the new version to poll from next. An
+// unanswerable cursor (run reset, or too far behind) comes back as resyncRequired, and the caller
+// re-reads the full graph instead of patching.
+export const fetchAttackPathGraphDelta = (
+  simulationId: string,
+  since: number,
+): Promise<{ data: AttackPathDeltaDTO }> =>
+  simpleCall(`${simulationUri(simulationId)}/graph/delta?since=${since}`, undefined, false);
 
 // Expand one endpoint into its finding-type and finding nodes (single indexed read).
 export const fetchEndpointFindings = (
