@@ -62,7 +62,6 @@ import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -98,6 +97,8 @@ public class ExerciseApi extends RestBehavior {
   private final EvaluationRepository evaluationRepository;
   private final KillChainPhaseRepository killChainPhaseRepository;
   private final GrantRepository grantRepository;
+  private final CommunicationRepository communicationRepository;
+  private final InjectorContractRepository injectorContractRepository;
   // endregion
 
   // region services
@@ -682,12 +683,11 @@ public class ExerciseApi extends RestBehavior {
     // We get the raw exercise
     RawSimulationIndexing rawSimulation = exerciseService.rawSimulation(exerciseId);
     // We get aggregated inject metadata: platforms, comms count, kill chain phases
-    long communicationsNumber = injectRepository.countCommunicationsByExerciseId(exerciseId);
-    List<String> killChainPhaseIds =
-        injectRepository.findDistinctKillChainPhaseIdsByExerciseId(exerciseId);
+    long communicationsNumber = communicationRepository.countByExerciseId(exerciseId);
+    List<KillChainPhase> killChainPhases =
+        killChainPhaseRepository.findDistinctByExerciseId(exerciseId);
     List<String> platforms =
-        injectRepository.findDistinctContractsByExerciseId(exerciseId).stream()
-            .map(InjectorContract::getInjectorContractPlatformEffective)
+        injectorContractRepository.findDistinctPlatformsByExerciseId(exerciseId).stream()
             .filter(Objects::nonNull)
             .flatMap(Arrays::stream)
             .distinct()
@@ -708,11 +708,6 @@ public class ExerciseApi extends RestBehavior {
     Map<String, List<RawGrant>> rawGrants =
         grantRepository.rawByExerciseIds(List.of(exerciseId)).stream()
             .collect(Collectors.groupingBy(RawGrant::getGrant_name));
-    // We get all the kill chain phases
-    List<KillChainPhase> killChainPhase =
-        StreamSupport.stream(
-                killChainPhaseRepository.findAllById(killChainPhaseIds).spliterator(), false)
-            .collect(Collectors.toList());
 
     // We create objectives and fill them with evaluations
     List<Objective> objectives =
@@ -743,7 +738,7 @@ public class ExerciseApi extends RestBehavior {
     SimulationDetails detail = fromRawExercise(rawSimulation, listExerciseTeamUsers, objectives);
     detail.setPlatforms(platforms);
     detail.setCommunicationsNumber(communicationsNumber);
-    detail.setKillChainPhases(killChainPhase);
+    detail.setKillChainPhases(killChainPhases);
     if (rawGrants.get(Grant.GRANT_TYPE.OBSERVER.name()) != null) {
       detail.setObservers(
           rawGrants.get(Grant.GRANT_TYPE.OBSERVER.name()).stream()

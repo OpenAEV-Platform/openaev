@@ -1507,9 +1507,6 @@ public class InjectService {
     if (ids == null) {
       return Collections.emptyList();
     }
-    if (ids.isEmpty()) {
-      return injectRepository.findRawByIds(ids);
-    }
     // Deduplicate to avoid duplicates across batches (SQL IN de-dupes within a
     // single query, but not across separate batch calls).
     List<String> uniqueIds = ids.stream().distinct().toList();
