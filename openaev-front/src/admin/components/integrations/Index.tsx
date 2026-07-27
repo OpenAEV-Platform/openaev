@@ -5,6 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 import { errorWrapper } from '../../../components/Error';
 import Loader from '../../../components/Loader';
 import NotFound from '../../../components/NotFound';
+import { isFeatureEnabled } from '../../../utils/utils';
 import ConnectorDetails from './common/ConnectorDetails';
 import InjectorPage from './injectors/InjectorPage';
 
@@ -20,6 +21,9 @@ const ConnectorPage = lazy(() => import('./common/ConnectorPage'));
 const useStyles = makeStyles()(() => ({ root: { flexGrow: 1 } }));
 
 const Index = () => {
+  const isCredentialAssetEnabled = isFeatureEnabled(
+    'CREDENTIAL_ASSET' as Parameters<typeof isFeatureEnabled>[0],
+  );
   const { classes } = useStyles();
   return (
     <div className={classes.root}>
@@ -49,10 +53,18 @@ const Index = () => {
             <Route path=":executorId" element={<ConnectorPage />} />
           </Route>
 
-          <Route path="secrets-providers" element={errorWrapper(SecretsProviderLayout)()}>
-            <Route index element={<Navigate to="../deployed" replace={true} />} />
-            <Route path=":secrets_providerId" element={<ConnectorPage />} />
-          </Route>
+          {!isCredentialAssetEnabled && (
+            <Route
+              path="secrets-providers/*"
+              element={<Navigate to="../deployed" replace={true} />}
+            />
+          )}
+          {isCredentialAssetEnabled && (
+            <Route path="secrets-providers" element={errorWrapper(SecretsProviderLayout)()}>
+              <Route index element={<Navigate to="../deployed" replace={true} />} />
+              <Route path=":secrets_providerId" element={<ConnectorPage />} />
+            </Route>
+          )}
 
           {/* deployed / available tabs of the merged integrations page */}
           <Route path=":tab" element={errorWrapper(Integrations)()} />

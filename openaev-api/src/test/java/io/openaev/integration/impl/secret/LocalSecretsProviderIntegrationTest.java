@@ -15,6 +15,7 @@ import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.impl.LocalSecretsProvider;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.NativeEncryptionService;
@@ -43,6 +44,7 @@ public class LocalSecretsProviderIntegrationTest {
   @Autowired private NativeEncryptionService nativeEncryptionService;
   @Autowired private SecretService secretService;
   @Autowired private SecretReferenceService secretReferenceService;
+  @Autowired private PreviewFeatureService previewFeatureService;
 
   private LocalSecretsProviderIntegrationFactory getFactory() {
     return new LocalSecretsProviderIntegrationFactory(
@@ -52,7 +54,8 @@ public class LocalSecretsProviderIntegrationTest {
         null,
         nativeEncryptionService,
         secretService,
-        secretReferenceService);
+        secretReferenceService,
+        previewFeatureService);
   }
 
   @Nested

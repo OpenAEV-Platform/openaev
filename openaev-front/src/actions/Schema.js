@@ -256,9 +256,9 @@ export const executor = new schema.Entity(
 export const arrayOfExecutors = new schema.Array(executor);
 
 export const secretsProvider = new schema.Entity(
-    'secretsproviders',
-    {},
-    { idAttribute: 'secrets_provider_id' },
+  'secretsproviders',
+  {},
+  { idAttribute: 'secrets_provider_id' },
 );
 export const arrayOfSecretsProviders = new schema.Array(secretsProvider);
 
