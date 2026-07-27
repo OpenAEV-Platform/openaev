@@ -1213,6 +1213,39 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     if (ownedRefs.size === 0) {
       return;
     }
+    // Prefer the full graph: each execution lists EVERY finding type it produced (findingsNodeIds), so
+    // shares surface here — the drawer category endpoint only covers credentials/users/cves/files and maps
+    // "files"→"file", so an injector that only produced shares wrongly read "No findings on this endpoint".
+    const findingById = new Map((fullDto?.attackPathNodes ?? [])
+      .filter(n => n.type === 'FINDING' && n.id)
+      .map(n => [n.id as string, n]));
+    if (findingById.size > 0) {
+      const byType = new Map<string, string[]>();
+      for (const e of fullDto?.attackPathExecutions ?? []) {
+        if (!e.ref || !ownedRefs.has(e.ref)) {
+          continue;
+        }
+        for (const fid of e.findingsNodeIds ?? []) {
+          const f = findingById.get(fid);
+          const type = f?.typeFindings ?? '';
+          const value = maskFindingValue(type, f?.value);
+          if (!type || !value) {
+            continue;
+          }
+          const arr = byType.get(type) ?? [];
+          if (!arr.includes(value)) {
+            arr.push(value);
+          }
+          byType.set(type, arr);
+        }
+      }
+      setInjectorFindingGroups([...byType.entries()].map(([type, values]) => ({
+        type,
+        values,
+      })));
+      return;
+    }
+    // Fallback (collapsed-only graph, no full data loaded): resolve from the drawer category endpoint.
     setInjectorFindingsLoading(true);
     Promise.all(
       INJECTOR_FINDING_CATEGORIES.map(cat => fetchFindingsByCategory(simulationId, cat, 0, DRAWER_FETCH_SIZE)
@@ -1239,7 +1272,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         })));
       })
       .finally(() => setInjectorFindingsLoading(false));
-  }, [simulationId]);
+  }, [simulationId, fullDto?.attackPathNodes, fullDto?.attackPathExecutions]);
 
   // Load an injector's own executions (its contracts) across every endpoint it reached, for the injector
   // panel — the action-side mirror of the endpoint panel. Executions are gathered from the injector's
@@ -1549,7 +1582,11 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     if (!findingDetail) {
       return [];
     }
-    return executions
+    // The endpoint feed loads asynchronously on click, so filtering it alone flashed "no producing action"
+    // until the fetch resolved. The full graph already carries the same executions in memory, so use it as
+    // the source when the feed has not loaded yet — the producing actions appear immediately.
+    const source = executions.length > 0 ? executions : (fullDto?.attackPathExecutions ?? []);
+    return source
       .filter(e => !!e.ref && highlightedExecutionIds.has(e.ref))
       .map(e => ({
         ref: e.ref as string,
@@ -1558,7 +1595,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         statusLabel: t(statusLabelKey(e.status)),
         subtitle: [e.agentName, e.privilege].filter(Boolean).join(' · '),
       }));
-  }, [findingDetail, highlightedExecutionIds, executions, theme, t]);
+  }, [findingDetail, highlightedExecutionIds, executions, fullDto?.attackPathExecutions, theme, t]);
 
   // Prevention / detection / vulnerability verdicts shown at the top of the finding panel.
   // TODO(#6647): replace this placeholder with the real per-finding expectation verdicts once the
