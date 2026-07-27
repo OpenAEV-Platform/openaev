@@ -1053,10 +1053,6 @@ public class ConditionService {
         // Stored in defaultValues so it is included in every batch's inputString.
         // If blank, skip — the injector contract default for that field is preserved.
         String key = mapper.getKey();
-        if (key == null || key.isBlank()) {
-          List<String> sourceKeys = resolveMapperSourceKeys(mapper);
-          key = sourceKeys.isEmpty() ? null : sourceKeys.getFirst();
-        }
         String value = mapper.getValue();
         if (key != null && !key.isBlank() && value != null && !value.isBlank()) {
           defaultValues.put(key, value);
