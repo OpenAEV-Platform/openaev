@@ -46,6 +46,7 @@ const Vulnerabilities = () => {
   // Filter
   const availableFilterNames = [
     'vulnerability_external_id',
+    'vulnerability_vuln_status',
   ];
   const [vulnerabilities, setVulnerabilities] = useState<VulnerabilitySimple[]>([]);
   const [searchParams] = useSearchParams();

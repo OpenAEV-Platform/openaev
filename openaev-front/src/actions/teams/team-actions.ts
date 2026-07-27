@@ -35,6 +35,13 @@ export const findTeams = (teamIds: string[]) => {
   return simplePostCall(uri, data);
 };
 
+// "Injects played" for the team detail page: every inject (atomic testing or simulation inject)
+// that concerns the team - targeted directly or evidenced by the table-top expectations persisted
+// at execution time. Same scope as the team expectation counters.
+export const searchInjectsForTeam = (teamId: string, searchPaginationInput: SearchPaginationInput) => {
+  return simplePostCall(`${TEAMS_URI}/${teamId}/injects/search`, searchPaginationInput);
+};
+
 export const fetchTeamPlayers = (teamId: Team['team_id']) => (dispatch: Dispatch) => {
   const uri = `${TEAMS_URI}/${teamId}/players`;
   return getReferential(schema.arrayOfUsers, uri)(dispatch);

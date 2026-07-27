@@ -1,4 +1,4 @@
-import { DevicesOtherOutlined, KeyboardArrowRight } from '@mui/icons-material';
+import { KeyboardArrowRight } from '@mui/icons-material';
 import {
   Box,
   List as MuiList,
@@ -8,8 +8,8 @@ import {
   ListItemText, TablePagination,
 } from '@mui/material';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { type ChangeEvent, memo, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { type ChangeEvent, memo, useMemo, useRef } from 'react';
+import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../../../../../actions/attack_patterns/attackpattern-helper';
@@ -26,11 +26,12 @@ import {
   type ListConfiguration, type Pagination,
 } from '../../../../../../../utils/api-types';
 import { expectationTypeIcon } from '../../../../../common/ExpectationIconByType';
+import AssetElementStyles from './elements/AssetElementStyles';
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
-import EndpointElementStyles from './elements/EndpointElementStyles';
+import getEntityLeadingIcon from './elements/EntityLeadingIcon';
 import listConfigRenderer, { defaultRenderer } from './elements/ListColumnConfig';
-import navigationHandlers from './elements/ListNavigationHandler';
+import { getNavigationUrl } from './elements/ListNavigationHandler';
 
 // Shared row height: used both for the list-item CSS and the virtualizer size
 // estimate so the two stay aligned.
@@ -62,19 +63,16 @@ const ListWidgetItem = memo<{
     bodyItem: React.CSSProperties;
   };
   attackPatterns: AttackPattern[];
-  onItemClick: (element: EsBase) => void;
   itemClass: string;
-}>(({ element, columns, columnStyles, bodyItemsStyles, attackPatterns, onItemClick, itemClass }) => {
-  const hasHandler = navigationHandlers[element.base_entity];
-
-  const handleClick = useCallback(() => {
-    onItemClick(element);
-  }, [element, onItemClick]);
+}>(({ element, columns, columnStyles, bodyItemsStyles, attackPatterns, itemClass }) => {
+  // Real router link (not a JS navigate) so ctrl/cmd+click opens a new tab.
+  const url = getNavigationUrl(element);
 
   // Inject-expectation rows lead with the expectation-type icon (shield /
-  // sensor / bug / support agent...) instead of the generic device icon.
+  // sensor / bug / support agent...); every other entity leads with the same
+  // icon as its own list page (simulation play, scenario route, finding...).
   const expectationType = (element as EsInjectExpectation).inject_expectation_type;
-  const LeadingIcon = expectationType ? expectationTypeIcon(expectationType) : DevicesOtherOutlined;
+  const LeadingIcon = expectationType ? expectationTypeIcon(expectationType) : getEntityLeadingIcon(element);
 
   const renderedColumns = useMemo(() => columns.map((col) => {
     const renderer = listConfigRenderer[col] ?? defaultRenderer;
@@ -95,29 +93,52 @@ const ListWidgetItem = memo<{
     );
   }), [columns, columnStyles, bodyItemsStyles, element, attackPatterns]);
 
+  const rowContent = (
+    <>
+      <ListItemIcon>
+        <LeadingIcon color="primary" />
+      </ListItemIcon>
+      <ListItemText
+        primary={(
+          <div style={bodyItemsStyles.bodyItems}>
+            {renderedColumns}
+          </div>
+        )}
+      />
+    </>
+  );
+
   return (
     <MuiListItem
       component="div"
       divider
       disablePadding
-      secondaryAction={hasHandler !== undefined ? <KeyboardArrowRight color="action" /> : <EmptySecondaryAction />}
+      secondaryAction={url !== null ? <KeyboardArrowRight color="action" /> : <EmptySecondaryAction />}
     >
-      <ListItemButton
-        onClick={handleClick}
-        classes={{ root: itemClass }}
-        className="noDrag"
-      >
-        <ListItemIcon>
-          <LeadingIcon color="primary" />
-        </ListItemIcon>
-        <ListItemText
-          primary={(
-            <div style={bodyItemsStyles.bodyItems}>
-              {renderedColumns}
-            </div>
-          )}
-        />
-      </ListItemButton>
+      {url !== null ? (
+        <ListItemButton
+          component={Link}
+          to={url}
+          classes={{ root: itemClass }}
+          className="noDrag"
+        >
+          {rowContent}
+        </ListItemButton>
+      ) : (
+        // Non-navigable row: disabled so it is neither focusable nor announced
+        // as actionable; opacity restored so the content stays readable.
+        <ListItemButton
+          classes={{ root: itemClass }}
+          className="noDrag"
+          disabled
+          sx={{
+            '&.Mui-disabled': { opacity: 1 },
+            'cursor': 'default',
+          }}
+        >
+          {rowContent}
+        </ListItemButton>
+      )}
     </MuiListItem>
   );
 });
@@ -152,7 +173,6 @@ const ListWidget = ({
   const { classes } = useStyles();
   const { t } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
-  const navigate = useNavigate();
 
   const { attackPatterns } = useHelper((helper: AttackPatternHelper) => ({ attackPatterns: helper.getAttackPatterns() }));
 
@@ -182,17 +202,12 @@ const ListWidget = ({
     }
     const entityType = elements[0].base_entity;
     switch (entityType) {
-      case 'endpoint':
-        return buildStyles(columns, EndpointElementStyles);
+      case 'asset':
+        return buildStyles(columns, AssetElementStyles);
       default:
         return defaultStyles;
     }
   }, [columns, elements]);
-
-  const onListItemClick = useCallback((element: EsBase): void => {
-    const handler = navigationHandlers[element.base_entity];
-    handler?.(element, navigate);
-  }, [navigate]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -285,7 +300,6 @@ const ListWidget = ({
                     columnStyles={columnStyles}
                     bodyItemsStyles={bodyItemsStyles}
                     attackPatterns={attackPatterns}
-                    onItemClick={onListItemClick}
                     itemClass={classes.item}
                   />
                 </div>

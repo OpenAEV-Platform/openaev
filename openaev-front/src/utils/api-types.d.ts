@@ -132,6 +132,7 @@ export interface AgentOutput {
 }
 
 export interface AgentTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -173,16 +174,19 @@ export interface AgentTarget {
 
 export interface AggregatedFindingOutput {
   /**
-   * Asset groups linked to endpoints
+   * Asset groups linked to assets
    * @uniqueItems true
    */
   finding_asset_groups?: AssetGroupSimple[];
   /**
-   * Endpoint linked to finding
+   * Assets linked to the finding (any asset type, not only endpoints)
    * @uniqueItems true
    */
   finding_assets: EndpointSimple[];
-  /** @format date-time */
+  /**
+   * First time the finding was seen
+   * @format date-time
+   */
   finding_created_at: string;
   /**
    * Finding Id
@@ -215,6 +219,11 @@ export interface AggregatedFindingOutput {
     | "asreproastable_account"
     | "kerberoastable_account"
     | "expectation_signature";
+  /**
+   * Last time the finding was seen
+   * @format date-time
+   */
+  finding_updated_at: string;
   /**
    * Finding Value
    * @minLength 1
@@ -265,6 +274,7 @@ export interface AiAttack {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   payload_external_id?: string;
@@ -367,6 +377,7 @@ export interface AiTargetInput {
 }
 
 export interface AiTargetTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -604,7 +615,8 @@ export interface Asset {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
@@ -690,6 +702,7 @@ export interface AssetGroupSimple {
 }
 
 export interface AssetGroupTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -727,6 +740,15 @@ export interface AssetGroupTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+}
+
+export interface AssetOptionOutput {
+  /** Product-facing asset category, used to group options in pickers */
+  category?: string;
+  /** Asset id */
+  id?: string;
+  /** Asset name */
+  label?: string;
 }
 
 export interface AssetOutput {
@@ -850,7 +872,8 @@ export interface AssetOutput {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   /**
    * Tags
    * @uniqueItems true
@@ -916,6 +939,13 @@ export interface AtomicTestingUpdateTagsInput {
   atomic_tags?: string[];
 }
 
+export interface AttackPathAlertDTO {
+  date?: string;
+  id?: string;
+  link?: string;
+  title?: string;
+}
+
 export interface AttackPathAttackPatternDTO {
   externalId?: string;
   name?: string;
@@ -973,16 +1003,19 @@ export interface AttackPathExecutionDetailDTO {
   payloadId?: string;
   payloadName?: string;
   preventionStatus?: string;
+  securityPlatforms?: AttackPathSecurityPlatformDTO[];
   stepId?: string;
   targetHostname?: string;
   targetIp?: string;
   targetPlatform?: string;
   terminalOutput?: string;
+  vulnerabilityStatus?: string;
 }
 
 export interface AttackPathExecutionFindingItemDTO {
   type?: string;
   value?: string;
+  verdicts?: AttackPathFindingVerdictsDTO;
 }
 
 export interface AttackPathExpandDTO {
@@ -996,12 +1029,19 @@ export interface AttackPathFindingItemDTO {
   executionIds?: string[];
   type?: string;
   value?: string;
+  verdicts?: AttackPathFindingVerdictsDTO;
 }
 
 export interface AttackPathFindingPageDTO {
   items?: AttackPathFindingItemDTO[];
   /** @format int64 */
   total?: number;
+}
+
+export interface AttackPathFindingVerdictsDTO {
+  detection?: string;
+  prevention?: string;
+  vulnerability?: string;
 }
 
 export interface AttackPathNodeDTO {
@@ -1035,6 +1075,16 @@ export interface AttackPathNodeDTO {
   type?: string;
   typeFindings?: string;
   value?: string;
+  verdicts?: AttackPathFindingVerdictsDTO;
+}
+
+export interface AttackPathSecurityPlatformDTO {
+  alerts?: AttackPathAlertDTO[];
+  bucket?: string;
+  detectedAt?: string;
+  platformName?: string;
+  platformType?: string;
+  status?: string;
 }
 
 export interface AttackPathSeedInput {
@@ -1159,6 +1209,7 @@ type BaseEsBaseBaseEntityMapping<Key, Type> = {
 } & Type;
 
 interface BaseInjectTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -1261,6 +1312,7 @@ interface BasePayload {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   payload_external_id?: string;
@@ -1333,6 +1385,7 @@ interface BasePayloadCreateInput {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   /** @minLength 1 */
@@ -1472,6 +1525,8 @@ export interface CatalogConnector {
   catalog_connector_max_confidence_level?: number;
   /** Connector playbook supported */
   catalog_connector_playbook_supported?: boolean;
+  /** Whether the legacy properties configuration has already been migrated */
+  catalog_connector_properties_migrated?: boolean;
   /** Connector description */
   catalog_connector_short_description?: string;
   /** Connector slug */
@@ -1519,7 +1574,8 @@ export interface CatalogConnectorConfiguration {
     | "DURATION"
     | "EMAIL"
     | "PASSWORD"
-    | "URI";
+    | "URI"
+    | "UUID";
   /** Connector ID */
   connector_configuration_id?: string;
   /** Connector configuration key */
@@ -1539,6 +1595,8 @@ export interface CatalogConnectorConfiguration {
 }
 
 export interface CatalogConnectorOutput {
+  /** Connector container version referenced in the catalog */
+  catalog_connector_container_version?: string;
   catalog_connector_description?: string;
   /** @minLength 1 */
   catalog_connector_id: string;
@@ -1739,6 +1797,7 @@ export interface CheckScenarioRulesOutput {
 }
 
 export interface Collector {
+  collector_author?: string;
   /** @format date-time */
   collector_created_at: string;
   collector_external?: boolean;
@@ -1760,6 +1819,7 @@ export interface Collector {
 }
 
 export interface CollectorCreateInput {
+  collector_author?: string;
   /** @minLength 1 */
   collector_id: string;
   /** @minLength 1 */
@@ -1878,6 +1938,7 @@ export interface Command {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   payload_external_id?: string;
@@ -2323,6 +2384,7 @@ export interface CreateConnectorInstanceInput {
 export interface CreateExerciseInput {
   exercise_category?: string;
   exercise_custom_dashboard?: string;
+  exercise_default_kill_chain?: string;
   exercise_description?: string;
   exercise_is_chaining?: boolean;
   /**
@@ -2345,14 +2407,6 @@ export interface CreateExerciseInput {
   exercise_start_date?: string | null;
   exercise_subtitle?: string;
   exercise_tags?: string[];
-}
-
-export interface CreateNotificationRuleInput {
-  resource_id: string;
-  resource_type: string;
-  subject: string;
-  trigger: string;
-  type: string;
 }
 
 export interface CustomDashboard {
@@ -2576,12 +2630,12 @@ export type DateHistogramWidget = UtilRequiredKeys<
 
 export interface DetectionRemediation {
   author_rule: "HUMAN" | "AI" | "AI_OUTDATED";
-  detection_remediation_collector_type: string;
   /** @format date-time */
   detection_remediation_created_at?: string;
   /** @minLength 1 */
   detection_remediation_id: string;
   detection_remediation_payload_id: string;
+  detection_remediation_security_platform: string;
   /** @format date-time */
   detection_remediation_updated_at?: string;
   detection_remediation_values: string;
@@ -2623,9 +2677,12 @@ export interface DetectionRemediationHealthResponse {
 
 export interface DetectionRemediationInput {
   author_rule: "HUMAN" | "AI" | "AI_OUTDATED";
-  /** Collector type */
-  detection_remediation_collector: string;
   detection_remediation_id?: string;
+  /**
+   * Security platform id
+   * @minLength 1
+   */
+  detection_remediation_security_platform: string;
   /** Value of detection remediation, for exemple: query for sentinel */
   detection_remediation_values: string;
 }
@@ -2633,11 +2690,13 @@ export interface DetectionRemediationInput {
 export interface DetectionRemediationOutput {
   /** Author of rules: Human, AI or AI out of date (for rules generated before payload updated) */
   detection_remediation_author_rule: "HUMAN" | "AI" | "AI_OUTDATED";
-  /** Collector type */
-  detection_remediation_collector: string;
   detection_remediation_id?: string;
   /** Payload id */
   detection_remediation_payload: string;
+  /** Security platform id */
+  detection_remediation_security_platform: string;
+  /** Security platform name */
+  detection_remediation_security_platform_name?: string;
   /** Value of detection remediation, for exemple: query for sentinel */
   detection_remediation_values: string;
 }
@@ -2690,6 +2749,7 @@ export interface DnsResolution {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   payload_external_id?: string;
@@ -2949,7 +3009,8 @@ export interface Endpoint {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
@@ -3084,7 +3145,8 @@ export interface EndpointInput {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   asset_tags?: string[];
   asset_url?: string | null;
   endpoint_agent_version?: string;
@@ -3234,7 +3296,8 @@ export interface EndpointOutput {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   /**
    * Tags
    * @uniqueItems true
@@ -3433,7 +3496,8 @@ export interface EndpointOverviewOutput {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   /**
    * Tags
    * @uniqueItems true
@@ -3578,7 +3642,8 @@ export interface EndpointRegisterInput {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   asset_tags?: string[];
   asset_url?: string | null;
   elevated?: boolean;
@@ -3602,6 +3667,8 @@ export interface EndpointRegisterInput {
 }
 
 export interface EndpointSimple {
+  /** Asset category (taxonomy: HOST, WEB_APPLICATION, CLOUD_RESOURCE, ...) */
+  asset_category?: string;
   /**
    * Asset Id
    * @minLength 1
@@ -3612,9 +3679,14 @@ export interface EndpointSimple {
    * @minLength 1
    */
   asset_name: string;
+  /** Asset type discriminator (e.g. Endpoint, SecurityPlatform) */
+  asset_type?: string;
+  /** OS platform when the asset is an endpoint */
+  endpoint_platform?: string;
 }
 
 export interface EndpointTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -3688,6 +3760,40 @@ export interface EntitiesPaginationInput {
   parameters?: Record<string, string>;
 }
 
+export interface EsAsset {
+  asset_category?: string;
+  asset_description?: string;
+  asset_external_reference?: string;
+  asset_hostname?: string;
+  /** @uniqueItems true */
+  asset_ips?: string[];
+  /** @uniqueItems true */
+  asset_mac_addresses?: string[];
+  asset_name?: string;
+  asset_seen_ip?: string;
+  /** @format date-time */
+  base_created_at?: string;
+  base_dependencies?: string[];
+  base_entity?: string;
+  /** @uniqueItems true */
+  base_findings_side?: string[];
+  base_id?: string;
+  base_representative?: string;
+  base_restrictions?: string[];
+  /** @uniqueItems true */
+  base_scenario_side?: string[];
+  /** @uniqueItems true */
+  base_simulation_side?: string[];
+  /** @uniqueItems true */
+  base_tags_side?: string[];
+  base_tenant_side?: string;
+  /** @format date-time */
+  base_updated_at?: string;
+  endpoint_arch?: string;
+  endpoint_is_eol?: boolean;
+  endpoint_platform?: string;
+}
+
 export interface EsAssetGroup {
   /** @format date-time */
   base_created_at?: string;
@@ -3746,7 +3852,7 @@ export interface EsAvgs {
 export type EsBase = BaseEsBase &
   (
     | BaseEsBaseBaseEntityMapping<"attack-pattern", EsAttackPattern>
-    | BaseEsBaseBaseEntityMapping<"endpoint", EsEndpoint>
+    | BaseEsBaseBaseEntityMapping<"asset", EsAsset>
     | BaseEsBaseBaseEntityMapping<"finding", EsFinding>
     | BaseEsBaseBaseEntityMapping<"inject", EsInject>
     | BaseEsBaseBaseEntityMapping<"expectation-inject", EsInjectExpectation>
@@ -3773,40 +3879,6 @@ export interface EsDomainsAvgData {
   data: EsSeries[];
   /** @minLength 1 */
   label: string;
-}
-
-export interface EsEndpoint {
-  /** @format date-time */
-  base_created_at?: string;
-  base_dependencies?: string[];
-  base_entity?: string;
-  /** @uniqueItems true */
-  base_findings_side?: string[];
-  base_id?: string;
-  base_representative?: string;
-  base_restrictions?: string[];
-  /** @uniqueItems true */
-  base_scenario_side?: string[];
-  /** @uniqueItems true */
-  base_simulation_side?: string[];
-  /** @uniqueItems true */
-  base_tags_side?: string[];
-  base_tenant_side?: string;
-  /** @format date-time */
-  base_updated_at?: string;
-  endpoint_arch?: string;
-  endpoint_category?: string;
-  endpoint_description?: string;
-  endpoint_external_reference?: string;
-  endpoint_hostname?: string;
-  /** @uniqueItems true */
-  endpoint_ips?: string[];
-  endpoint_is_eol?: boolean;
-  /** @uniqueItems true */
-  endpoint_mac_addresses?: string[];
-  endpoint_name?: string;
-  endpoint_platform?: string;
-  endpoint_seen_ip?: string;
 }
 
 export interface EsEntities {
@@ -4186,6 +4258,7 @@ export interface Executable {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   payload_external_id?: string;
@@ -4374,10 +4447,12 @@ export interface Exercise {
   /** @format date-time */
   exercise_created_at: string;
   exercise_custom_dashboard?: string;
+  exercise_default_kill_chain?: string;
   exercise_description?: string;
   exercise_documents?: string[];
   /** @format date-time */
   exercise_end_date?: string;
+  exercise_expectations_drift_dismissed?: boolean;
   /** @minLength 1 */
   exercise_id: string;
   exercise_injects?: string[];
@@ -4563,6 +4638,36 @@ export interface ExpectationUpdateInput {
   source_type: string;
 }
 
+export interface ExpectationsDriftDismissInput {
+  /** True to dismiss the drift warning, false to restore it */
+  dismissed: boolean;
+}
+
+export interface ExpectationsDriftOutput {
+  /** True when at least one inject drifted from its contract expectations */
+  drift_detected: boolean;
+  /** True when the drift warning was dismissed (customized on purpose); shared between users and reset on realignment */
+  drift_dismissed: boolean;
+  /**
+   * Number of injects whose expectations drifted from their contract
+   * @format int32
+   */
+  drifted_inject_count: number;
+  /**
+   * Number of injects whose injector contract exposes expectations
+   * @format int32
+   */
+  total_inject_count: number;
+}
+
+export interface ExpectationsRealignOutput {
+  /**
+   * Number of injects whose expectations were realigned onto their contract
+   * @format int32
+   */
+  realigned_inject_count: number;
+}
+
 export interface ExportMapperInput {
   export_mapper_name?: string;
   ids_to_export: string[];
@@ -4612,6 +4717,7 @@ export interface FileDrop {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   payload_external_id?: string;
@@ -4978,11 +5084,17 @@ export interface Inject {
   inject_enabled?: boolean;
   inject_exercise?: string;
   inject_expectations?: string[];
+  inject_expectations_drift_dismissed?: boolean;
   /** @minLength 1 */
   inject_id: string;
   inject_injector?: string;
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
+  inject_recurrence?: string;
+  /** @format date-time */
+  inject_recurrence_end?: string;
+  /** @format date-time */
+  inject_recurrence_start?: string;
   inject_scenario?: string;
   /** @format date-time */
   inject_sent_at?: string;
@@ -5088,6 +5200,12 @@ export interface InjectExecutionInput {
     | "data"
     | "complete";
   /**
+   * Ids of the targets (assets / AI targets) this trace relates to. When set on an injector callback (no agent), the trace becomes target-scoped and shows up in the per-target execution view instead of the global timeline.
+   * @maxItems 1000
+   * @minItems 0
+   */
+  execution_context_identifiers?: string[];
+  /**
    * Duration of the execution in miliseconds
    * @format int32
    */
@@ -5110,6 +5228,7 @@ export interface InjectExpectationAgentOutput {
   inject_expectation_group?: boolean;
   /** @minLength 1 */
   inject_expectation_id: string;
+  inject_expectation_inject?: string;
   inject_expectation_name?: string;
   inject_expectation_results?: InjectExpectationResult[];
   /** @format double */
@@ -5160,6 +5279,18 @@ export interface InjectExpectationOutput {
    * @format double
    */
   inject_expectation_expected_score: number;
+  /** Security platform types expected to fulfil this technical expectation. Empty means any security platform. */
+  inject_expectation_expected_security_platforms?: (
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER"
+  )[];
   /** Whether this expectation is a group expectation */
   inject_expectation_group?: boolean;
   /**
@@ -5453,9 +5584,21 @@ export interface InjectReceptionInput {
   tracking_total_count?: number;
 }
 
+export interface InjectRecurrenceInput {
+  inject_recurrence?: string;
+  /** @format date-time */
+  inject_recurrence_end?: string;
+  /** @format date-time */
+  inject_recurrence_start?: string;
+}
+
 export interface InjectResultOutput {
   /** Domain of the inject */
   inject_contract_domains?: string[];
+  /** Whether the inject is enabled (disabled injects are never executed) */
+  inject_enabled?: boolean;
+  /** Id of the simulation (exercise) this inject belongs to, if any */
+  inject_exercise?: string;
   /** Result of expectations */
   inject_expectation_results: ExpectationResultsByType[];
   /**
@@ -5502,6 +5645,18 @@ export interface InjectResultOverviewOutput {
   inject_kill_chain_phases?: KillChainPhaseSimple[];
   /** Indicates whether the inject is ready for use */
   inject_ready?: boolean;
+  /** Recurrence cron expression for scheduled relaunch */
+  inject_recurrence?: string;
+  /**
+   * End date of the recurrence scheduling
+   * @format date-time
+   */
+  inject_recurrence_end?: string;
+  /**
+   * Start date of the recurrence scheduling
+   * @format date-time
+   */
+  inject_recurrence_start?: string;
   /** status */
   inject_status?: InjectStatusSimple;
   /**
@@ -5554,8 +5709,6 @@ export interface InjectStatus {
     | "EXECUTED"
     | "PARTIAL"
     | "ERROR"
-    | "MAYBE_PREVENTED"
-    | "MAYBE_PARTIAL_PREVENTED"
     | "DRAFT"
     | "QUEUING"
     | "EXECUTING"
@@ -5766,6 +5919,15 @@ export interface InjectorContractDomainDTO {
   domain_id: string;
   /** @minLength 1 */
   domain_name: string;
+}
+
+export interface InjectorContractFacetCountsOutput {
+  /** Number of contracts per kill chain phase id under the current filters, through the attack pattern relation */
+  kill_chain_phases?: Record<string, number>;
+  /** Number of contracts per platform under the current filters */
+  platforms?: Record<string, number>;
+  /** Number of contracts per payload status under the current filters */
+  statuses?: Record<string, number>;
 }
 
 export interface InjectorContractFullOutput {
@@ -6517,6 +6679,7 @@ export interface NetworkTraffic {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   payload_external_id?: string;
@@ -6554,19 +6717,265 @@ export interface NetworkTraffic {
     | "AI_ATTACK";
 }
 
-export interface NotificationRuleOutput {
-  /** ID of the notification rule */
-  notification_rule_id: string;
-  /** Owner of the notification rule */
-  notification_rule_owner?: string;
-  /** Resource id of the resource associated with the rule */
-  notification_rule_resource_id?: string;
-  /** Resource type of the resource associated with the rule */
-  notification_rule_resource_type?: string;
-  /** Subject of the notification rule */
-  notification_rule_subject?: string;
-  /** Event that will trigger the notification */
-  notification_rule_trigger?: string;
+export interface NotificationBulkProcessingInput {
+  /** Ids excluded from the select-all scope */
+  notification_ids_to_ignore?: string[];
+  /** Explicit ids of the notifications to process */
+  notification_ids_to_process?: string[];
+  /** Search input selecting the notifications to process (select all) */
+  search_pagination_input?: SearchPaginationInput;
+}
+
+export interface NotificationOutput {
+  /** Content groups: [{title, events: [{operation, message, ...}]}] */
+  notification_content?: Record<string, any>[];
+  /**
+   * Creation date
+   * @format date-time
+   */
+  notification_created_at?: string;
+  /** ID of the notification */
+  notification_id: string;
+  /** Whether the notification has been read */
+  notification_is_read?: boolean;
+  /** Name of the trigger that produced the notification */
+  notification_name?: string;
+  /** Type of the notification (LIVE or DIGEST) */
+  notification_type?: "LIVE" | "DIGEST";
+}
+
+export interface NotificationTriggerInput {
+  /** Composed live trigger ids for a digest */
+  notification_trigger_children?: string[];
+  /** Whether the trigger is enabled */
+  notification_trigger_enabled?: boolean;
+  /** Subscribed lifecycle operations (CREATE, UPDATE, DELETE) */
+  notification_trigger_event_types?: (
+    | "CREATE"
+    | "UPDATE"
+    | "DELETE"
+    | "SCORE_DEGRADATION"
+  )[];
+  /** Filter group applied to matching entities */
+  notification_trigger_filters?: FilterGroup;
+  /** Entity id for instance triggers */
+  notification_trigger_instance_id?: string;
+  /**
+   * Name of the notification trigger
+   * @minLength 1
+   */
+  notification_trigger_name: string;
+  /** Notifier ids used for delivery */
+  notification_trigger_notifiers?: string[];
+  /** Digest period (HOUR, DAY, WEEK, MONTH) */
+  notification_trigger_period?: "HOUR" | "DAY" | "WEEK" | "MONTH";
+  /** Targeted recipient group ids (admins only) */
+  notification_trigger_recipient_groups?: string[];
+  /** Targeted recipient user ids (admins only; empty = owner) */
+  notification_trigger_recipient_users?: string[];
+  /** Resource type watched by a live trigger */
+  notification_trigger_resource_type?:
+    | "ASSET"
+    | "AGENT"
+    | "SCENARIO"
+    | "SIMULATION"
+    | "PLAYER"
+    | "USER"
+    | "TEAM"
+    | "ATOMIC_TESTING"
+    | "NOTIFICATION_TRIGGER"
+    | "NOTIFIER"
+    | "NOTIFICATION"
+    | "PAYLOAD"
+    | "THREAT_ARSENAL"
+    | "RESOURCE_TYPE"
+    | "SECURITY_PLATFORM"
+    | "DOCUMENT"
+    | "CHANNEL"
+    | "FINDING"
+    | "DASHBOARD"
+    | "PLATFORM_SETTING"
+    | "LESSON_LEARNED"
+    | "CHALLENGE"
+    | "INJECT"
+    | "JOB"
+    | "TAG"
+    | "TAG_RULE"
+    | "KILL_CHAIN_PHASE"
+    | "ATTACK_PATTERN"
+    | "ASSET_GROUP"
+    | "VULNERABILITY"
+    | "USER_GROUP"
+    | "INJECTOR"
+    | "INJECTOR_CONTRACT"
+    | "MAPPER"
+    | "GROUP_ROLE"
+    | "ORGANIZATION"
+    | "COLLECTOR"
+    | "STIX_BUNDLE"
+    | "DOMAIN"
+    | "OBJECTIVE"
+    | "EVALUATION"
+    | "CATALOG"
+    | "CONNECTOR_INSTANCE_LOG"
+    | "TENANT"
+    | "TENANT_SETTING"
+    | "PLATFORM_ROLE"
+    | "PLATFORM_GROUP"
+    | "PLATFORM_USER"
+    | "XTM_HUB_REGISTRATION"
+    | "UNKNOWN"
+    | "SIMULATION_OR_SCENARIO"
+    | "WORKFLOW"
+    | "STEP"
+    | "CONDITION"
+    | "SKIP_RBAC";
+  /** Digest firing time (UTC): DAY=HH:mm, WEEK=<1-7>-HH:mm, MONTH=<1-31>-HH:mm */
+  notification_trigger_time?: string;
+  /** Type of the trigger (LIVE or DIGEST) */
+  notification_trigger_type: "LIVE" | "DIGEST";
+}
+
+export interface NotificationTriggerOutput {
+  /** Composed live trigger ids for a digest */
+  notification_trigger_children?: string[];
+  /**
+   * Creation date
+   * @format date-time
+   */
+  notification_trigger_created_at?: string;
+  /** Whether the trigger is enabled */
+  notification_trigger_enabled?: boolean;
+  /** Subscribed lifecycle operations */
+  notification_trigger_event_types?: (
+    | "CREATE"
+    | "UPDATE"
+    | "DELETE"
+    | "SCORE_DEGRADATION"
+  )[];
+  /** Filter group applied to matching entities */
+  notification_trigger_filters?: FilterGroup;
+  /** ID of the notification trigger */
+  notification_trigger_id: string;
+  /** Entity id for instance triggers */
+  notification_trigger_instance_id?: string;
+  /** Name of the notification trigger */
+  notification_trigger_name?: string;
+  /** Notifier ids used for delivery */
+  notification_trigger_notifiers?: string[];
+  /** Owner user id */
+  notification_trigger_owner?: string;
+  /** Digest period */
+  notification_trigger_period?: "HOUR" | "DAY" | "WEEK" | "MONTH";
+  /** Targeted recipient group ids */
+  notification_trigger_recipient_groups?: string[];
+  /** Targeted recipient user ids */
+  notification_trigger_recipient_users?: string[];
+  /** Resource type watched by a live trigger */
+  notification_trigger_resource_type?:
+    | "ASSET"
+    | "AGENT"
+    | "SCENARIO"
+    | "SIMULATION"
+    | "PLAYER"
+    | "USER"
+    | "TEAM"
+    | "ATOMIC_TESTING"
+    | "NOTIFICATION_TRIGGER"
+    | "NOTIFIER"
+    | "NOTIFICATION"
+    | "PAYLOAD"
+    | "THREAT_ARSENAL"
+    | "RESOURCE_TYPE"
+    | "SECURITY_PLATFORM"
+    | "DOCUMENT"
+    | "CHANNEL"
+    | "FINDING"
+    | "DASHBOARD"
+    | "PLATFORM_SETTING"
+    | "LESSON_LEARNED"
+    | "CHALLENGE"
+    | "INJECT"
+    | "JOB"
+    | "TAG"
+    | "TAG_RULE"
+    | "KILL_CHAIN_PHASE"
+    | "ATTACK_PATTERN"
+    | "ASSET_GROUP"
+    | "VULNERABILITY"
+    | "USER_GROUP"
+    | "INJECTOR"
+    | "INJECTOR_CONTRACT"
+    | "MAPPER"
+    | "GROUP_ROLE"
+    | "ORGANIZATION"
+    | "COLLECTOR"
+    | "STIX_BUNDLE"
+    | "DOMAIN"
+    | "OBJECTIVE"
+    | "EVALUATION"
+    | "CATALOG"
+    | "CONNECTOR_INSTANCE_LOG"
+    | "TENANT"
+    | "TENANT_SETTING"
+    | "PLATFORM_ROLE"
+    | "PLATFORM_GROUP"
+    | "PLATFORM_USER"
+    | "XTM_HUB_REGISTRATION"
+    | "UNKNOWN"
+    | "SIMULATION_OR_SCENARIO"
+    | "WORKFLOW"
+    | "STEP"
+    | "CONDITION"
+    | "SKIP_RBAC";
+  /** Digest firing time (UTC) */
+  notification_trigger_time?: string;
+  /** Type of the trigger (LIVE or DIGEST) */
+  notification_trigger_type?: "LIVE" | "DIGEST";
+  /**
+   * Last update date
+   * @format date-time
+   */
+  notification_trigger_updated_at?: string;
+}
+
+export interface NotifierInput {
+  /** Type-specific configuration: email = subject/template (FreeMarker), webhook = url/verb/headers/template */
+  notifier_configuration?: Record<string, any>;
+  /** Description of the notifier */
+  notifier_description?: string;
+  /**
+   * Name of the notifier
+   * @minLength 1
+   */
+  notifier_name: string;
+  /** Type of the notifier (UI, EMAIL, WEBHOOK) */
+  notifier_type: "UI" | "EMAIL" | "WEBHOOK";
+}
+
+export interface NotifierOutput {
+  /** Whether the notifier is built-in (read-only) */
+  notifier_built_in?: boolean;
+  /** Type-specific configuration */
+  notifier_configuration?: Record<string, any>;
+  /**
+   * Creation date of the notifier
+   * @format date-time
+   */
+  notifier_created_at?: string;
+  /** Description of the notifier */
+  notifier_description?: string;
+  /** ID of the notifier */
+  notifier_id: string;
+  /** Name of the notifier */
+  notifier_name?: string;
+  /** Type of the notifier (UI, EMAIL, WEBHOOK) */
+  notifier_type?: "UI" | "EMAIL" | "WEBHOOK";
+  /**
+   * Last update date of the notifier
+   * @format date-time
+   */
+  notifier_updated_at?: string;
 }
 
 export interface OAuthProvider {
@@ -7063,8 +7472,46 @@ export interface PageMitigation {
   totalPages?: number;
 }
 
-export interface PageNotificationRuleOutput {
-  content?: NotificationRuleOutput[];
+export interface PageNotificationOutput {
+  content?: NotificationOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageNotificationTriggerOutput {
+  content?: NotificationTriggerOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageNotifierOutput {
+  content?: NotifierOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -7535,6 +7982,7 @@ export interface PayloadInput {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   /** @minLength 1 */
@@ -7616,6 +8064,7 @@ export interface PayloadOutput {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   /** External reference identifier */
@@ -7716,6 +8165,7 @@ export interface PayloadUpdateInput {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   /** @minLength 1 */
@@ -7781,6 +8231,7 @@ export interface PayloadUpsertInput {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   /** @minLength 1 */
@@ -8097,6 +8548,7 @@ export interface PlayerInput {
 
 export interface PlayerOutput {
   user_phone2?: string;
+  user_admin?: boolean;
   user_country?: string;
   /** @minLength 1 */
   user_email: string;
@@ -8112,6 +8564,7 @@ export interface PlayerOutput {
 }
 
 export interface PlayerTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -8398,16 +8851,19 @@ export interface RelatedEntityOutput {
 
 export interface RelatedFindingOutput {
   /**
-   * Asset groups linked to endpoints
+   * Asset groups linked to assets
    * @uniqueItems true
    */
   finding_asset_groups?: AssetGroupSimple[];
   /**
-   * Endpoint linked to finding
+   * Assets linked to the finding (any asset type, not only endpoints)
    * @uniqueItems true
    */
   finding_assets: EndpointSimple[];
-  /** @format date-time */
+  /**
+   * First time the finding was seen
+   * @format date-time
+   */
   finding_created_at: string;
   /**
    * Finding Id
@@ -8446,6 +8902,11 @@ export interface RelatedFindingOutput {
     | "asreproastable_account"
     | "kerberoastable_account"
     | "expectation_signature";
+  /**
+   * Last time the finding was seen
+   * @format date-time
+   */
+  finding_updated_at: string;
   /**
    * Finding Value
    * @minLength 1
@@ -8660,10 +9121,12 @@ export interface Scenario {
   /** @format date-time */
   scenario_created_at: string;
   scenario_custom_dashboard?: string;
+  scenario_default_kill_chain?: string;
   scenario_dependencies?: "STARTERPACK"[];
   scenario_description?: string;
   scenario_documents?: string[];
   scenario_exercises?: string[];
+  scenario_expectations_drift_dismissed?: boolean;
   scenario_external_reference?: string;
   scenario_external_url?: string;
   /** @minLength 1 */
@@ -8753,6 +9216,7 @@ export interface ScenarioIdsAndInjectorContractsInputs {
 export interface ScenarioInput {
   scenario_category?: string;
   scenario_custom_dashboard?: string;
+  scenario_default_kill_chain?: string;
   scenario_description?: string;
   scenario_external_reference?: string;
   scenario_external_url?: string;
@@ -8791,6 +9255,8 @@ export interface ScenarioOutput {
   scenario_created_at: string;
   /** Custom dashboard of the scenario */
   scenario_custom_dashboard?: string;
+  /** Kill chain displayed first in the overview kill chain results */
+  scenario_default_kill_chain?: string;
   /** @uniqueItems true */
   scenario_dependencies?: string[];
   /** Description of the scenario */
@@ -9184,13 +9650,15 @@ export interface SecurityPlatform {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
   asset_updated_at: string;
   asset_url?: string;
   listened?: boolean;
+  security_platform_collectors?: string[];
   security_platform_logo_dark?: string;
   security_platform_logo_light?: string;
   security_platform_traces?: InjectExpectationTrace[];
@@ -9202,7 +9670,8 @@ export interface SecurityPlatform {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
 }
 
 export interface SecurityPlatformInput {
@@ -9221,7 +9690,32 @@ export interface SecurityPlatformInput {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
+}
+
+export interface SecurityPlatformSimpleOutput {
+  /**
+   * Security platform id
+   * @minLength 1
+   */
+  asset_id: string;
+  /**
+   * Security platform name
+   * @minLength 1
+   */
+  asset_name: string;
+  /** Security platform type */
+  security_platform_type:
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
 }
 
 export interface SecurityPlatformUpsertInput {
@@ -9240,7 +9734,8 @@ export interface SecurityPlatformUpsertInput {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
 }
 
 export interface Series {
@@ -9316,6 +9811,7 @@ export interface SimulationDetails {
   /** @format date-time */
   exercise_created_at?: string;
   exercise_custom_dashboard?: string;
+  exercise_default_kill_chain?: string;
   exercise_description?: string;
   /** @format date-time */
   exercise_end_date?: string;
@@ -9591,9 +10087,11 @@ export interface TagUpdateInput {
 }
 
 export interface TargetSimple {
+  target_category?: string;
   /** @minLength 1 */
   target_id: string;
   target_name?: string;
+  target_subtype?: string;
   target_type?:
     | "AGENT"
     | "AGENTS"
@@ -9602,7 +10100,8 @@ export interface TargetSimple {
     | "AI_TARGETS"
     | "PLAYERS"
     | "TEAMS"
-    | "ENDPOINTS";
+    | "ENDPOINTS"
+    | "MANUAL";
 }
 
 export interface Team {
@@ -9759,6 +10258,7 @@ export interface TeamOutput {
 }
 
 export interface TeamTarget {
+  target_category?: string;
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -10047,6 +10547,7 @@ export interface ThreatArsenalActionFullOutput {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   /** External reference identifier */
@@ -10204,6 +10705,13 @@ export interface ThreatArsenalBulkDeleteOutput {
   deleted_ids?: string[];
 }
 
+export interface ThreatArsenalFacetCountsOutput {
+  /** Number of contracts per platform under the current filters */
+  platforms?: Record<string, number>;
+  /** Number of contracts per payload status under the current filters */
+  statuses?: Record<string, number>;
+}
+
 export interface Token {
   listened?: boolean;
   /** @format date-time */
@@ -10228,6 +10736,7 @@ export interface UpdateExerciseInput {
   apply_tag_rule?: boolean;
   exercise_category?: string;
   exercise_custom_dashboard?: string;
+  exercise_default_kill_chain?: string;
   exercise_description?: string;
   exercise_is_chaining?: boolean;
   /**
@@ -10257,10 +10766,6 @@ export interface UpdateMePasswordInput {
   user_plain_password: string;
 }
 
-export interface UpdateNotificationRuleInput {
-  subject: string;
-}
-
 export interface UpdateProfileInput {
   user_country?: string;
   /**
@@ -10284,6 +10789,7 @@ export interface UpdateScenarioInput {
   apply_tag_rule?: boolean;
   scenario_category?: string;
   scenario_custom_dashboard?: string;
+  scenario_default_kill_chain?: string;
   scenario_description?: string;
   scenario_external_reference?: string;
   scenario_external_url?: string;

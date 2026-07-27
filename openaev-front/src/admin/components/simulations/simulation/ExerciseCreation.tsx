@@ -51,6 +51,7 @@ const ExerciseCreation = () => {
     exercise_category: 'attack-scenario',
     exercise_main_focus: 'incident-response',
     exercise_severity: 'high',
+    exercise_default_kill_chain: '',
     exercise_tags: [],
     exercise_start_date: null,
     exercise_mail_from_name: settings.default_mailer_name ?? '',

@@ -31,7 +31,7 @@ interface EntityVisual {
 
 const NumberWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, data }) => {
   const theme = useTheme();
-  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
+  const { openWidgetResults } = useContext(CustomDashboardContext);
 
   const animatedCount = useCountUp(data.interval_count ?? 0, 1200);
 
@@ -57,7 +57,7 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, data }
         icon: <BoltOutlined />,
         color: theme.palette.warning.main,
       },
-      'endpoint': {
+      'asset': {
         icon: <DnsOutlined />,
         color: theme.palette.primary.main,
       },
@@ -85,12 +85,12 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, data }
   }, [widgetConfig, theme]);
 
   const onClick = useCallback(() => {
-    openWidgetDataDrawer({
+    openWidgetResults({
       widgetId,
       filter_values_map: {},
       series_index: 0,
     });
-  }, [openWidgetDataDrawer, widgetId]);
+  }, [openWidgetResults, widgetId]);
 
   return (
     <div

@@ -49,42 +49,21 @@ const ThreatArsenalSelectionBar: FunctionComponent<Props> = ({
           maxWidth: 'calc(100vw - 48px)',
         }}
       >
+        {/* The counts live in the text only: a separate count bubble would just
+            repeat the "N actions selected out of N" line next to it. */}
         <Box sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
           paddingRight: 1,
           borderRight: `1px solid ${theme.palette.divider}`,
         }}
         >
-          <Box
-            sx={{
-              minWidth: 28,
-              height: 28,
-              borderRadius: '50%',
-              backgroundColor: theme.palette.primary.main,
-              color: theme.palette.primary.contrastText,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: 12,
-              fontVariantNumeric: 'tabular-nums',
-              paddingInline: 0.75,
-            }}
-          >
-            {count}
-          </Box>
-          <Box>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {count === 1 ? t('1 action selected') : t('{count} actions selected', { count })}
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {count === 1 ? t('1 action selected') : t('{count} actions selected', { count })}
+          </Typography>
+          {totalElements > 0 && (
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {t('out of {total}', { total: totalElements })}
             </Typography>
-            {totalElements > 0 && (
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {t('out of {total}', { total: totalElements })}
-              </Typography>
-            )}
-          </Box>
+          )}
         </Box>
 
         <Box sx={{

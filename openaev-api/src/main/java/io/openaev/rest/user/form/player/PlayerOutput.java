@@ -41,4 +41,9 @@ public class PlayerOutput {
 
   @JsonProperty("user_tags")
   private Set<String> tags;
+
+  // Platform administrators are protected accounts: the persons UI disables
+  // deletion (and restricts update) for them, so the flag must flow to the list.
+  @JsonProperty("user_admin")
+  private boolean admin;
 }

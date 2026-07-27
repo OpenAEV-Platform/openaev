@@ -5,14 +5,15 @@ import { type FunctionComponent } from 'react';
 import { fetchExerciseTeams } from '../../../../actions/Exercise';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import Chart from '../../../../components/Chart';
-import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type Exercise, type Team } from '../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../utils/Charts';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { sampleHorizontalBarHeight, sampleHorizontalBarSeries } from '../../../../utils/SampleCharts';
 import { getTeamsColors } from '../../teams/utils';
+import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 
 interface Props { exerciseId: Exercise['exercise_id'] }
 
@@ -46,20 +47,23 @@ const InjectDistributionByTeam: FunctionComponent<Props> = ({ exerciseId }) => {
     },
   ];
 
+  // Dashboard convention: charts without real data render a greyed-out sample
+  // (with a "Sample" chip) instead of a bare empty message.
+  const isSample = sortedTeamsByExpectedScore.length === 0;
+  const sampleLabels = ['Blue team', 'SOC', 'CERT'];
+
   return (
-    <>
-      {sortedTeamsByExpectedScore.length > 0 ? (
-        <Chart
-          options={horizontalBarsChartOptions({ theme })}
-          series={expectedScoreByTeamData}
-          type="bar"
-          width="100%"
-          height={50 + sortedTeamsByExpectedScore.length * 50}
-        />
-      ) : (
-        <Empty message={t('No teams in this exercise.')} />
-      )}
-    </>
+    <SamplePreview active={isSample}>
+      <Chart
+        options={horizontalBarsChartOptions({ theme })}
+        series={isSample
+          ? sampleHorizontalBarSeries(t('Total expected score'), sampleLabels, theme)
+          : expectedScoreByTeamData}
+        type="bar"
+        width="100%"
+        height={isSample ? sampleHorizontalBarHeight(sampleLabels) : 50 + sortedTeamsByExpectedScore.length * 50}
+      />
+    </SamplePreview>
   );
 };
 

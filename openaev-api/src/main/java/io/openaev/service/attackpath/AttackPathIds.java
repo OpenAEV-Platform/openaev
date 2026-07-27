@@ -67,6 +67,17 @@ public final class AttackPathIds {
     return encode("NODE_FINDING", type, value);
   }
 
+  /**
+   * {@code FINDING_ROW}: a copied finding's full identity within a simulation ({@code
+   * simulationId}, {@code type}, {@code field}, {@code value}, {@code endpointKey}). Deterministic,
+   * so re-copying the same finding lands on the same row; the simulation is part of the id, so the
+   * same finding in two runs never collides.
+   */
+  public static String findingRow(
+      String simulationId, String type, String field, String value, String endpointKey) {
+    return encode("FINDING_ROW", simulationId, type, field, value, endpointKey);
+  }
+
   /** {@code EDGE_ENDPOINT_FINDINGS_TYPE}: an endpoint to one of its finding-type nodes. */
   public static String endpointFindingTypeEdge(String type, String endpointKey) {
     return encode("EDGE_ENDPOINT_FINDINGS_TYPE", type, endpointKey);

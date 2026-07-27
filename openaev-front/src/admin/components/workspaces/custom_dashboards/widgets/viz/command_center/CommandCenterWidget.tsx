@@ -1,8 +1,8 @@
 import { Box, Tooltip } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Binoculars, MovieOpenOutline, Radar, Target } from 'mdi-material-ui';
-import { type FunctionComponent, type KeyboardEvent, memo, type ReactElement, useContext, useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { type FunctionComponent, memo, type ReactElement, useContext, useMemo } from 'react';
+import { Link } from 'react-router';
 
 import { type SecurityPlatformHelper } from '../../../../../../../actions/assets/asset-helper';
 import { useFormatter } from '../../../../../../../components/i18n';
@@ -65,8 +65,7 @@ const computeDomainScores = (series: EsSeries[]): DomainScore[] => {
 const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const navigate = useNavigate();
-  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
+  const { openWidgetResults } = useContext(CustomDashboardContext);
 
   const securityPlatforms: SecurityPlatform[] = useHelper(
     (helper: SecurityPlatformHelper) => helper.getSecurityPlatforms(),
@@ -161,7 +160,7 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
   const onInvestigate = (typeKey: string) => {
     // breached assets: every failed validation, regardless of type
     if (typeKey === 'breach') {
-      openWidgetDataDrawer({
+      openWidgetResults({
         widgetId,
         filter_values_map: { inject_expectation_type: layers.map(l => l.key.toUpperCase()) },
         series_index: 1,
@@ -170,14 +169,14 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
     }
     // adversary: every attempted validation (statuses override the series filter)
     if (typeKey === 'all') {
-      openWidgetDataDrawer({
+      openWidgetResults({
         widgetId,
         filter_values_map: { inject_expectation_status: ['SUCCESS', 'FAILED', 'PENDING'] },
         series_index: 0,
       });
       return;
     }
-    openWidgetDataDrawer({
+    openWidgetResults({
       widgetId,
       filter_values_map: { inject_expectation_type: [typeKey.toUpperCase()] },
       series_index: 0,
@@ -285,16 +284,11 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
             {ctas.map((cta, i) => (
               <Tooltip key={cta.to} title={`${cta.label} - ${cta.caption}`} placement="left">
                 <Box
-                  role="button"
-                  tabIndex={0}
+                  // Real router link (not a JS navigate) so ctrl/cmd+click opens a
+                  // new tab; native anchors also handle Enter activation themselves.
+                  component={Link}
+                  to={cta.to}
                   aria-label={cta.label}
-                  onClick={() => navigate(cta.to)}
-                  onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      navigate(cta.to);
-                    }
-                  }}
                   sx={{
                     'position': 'relative',
                     'display': 'flex',
@@ -304,6 +298,7 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
                     'height': 38,
                     'borderRadius': 1,
                     'cursor': 'pointer',
+                    'textDecoration': 'none',
                     'color': cta.color,
                     'background': alpha(cta.color, 0.08),
                     'transition': 'all 0.2s cubic-bezier(0.22, 1, 0.36, 1)',

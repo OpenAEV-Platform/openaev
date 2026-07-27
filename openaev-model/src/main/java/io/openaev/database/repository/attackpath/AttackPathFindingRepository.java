@@ -2,6 +2,7 @@ package io.openaev.database.repository.attackpath;
 
 import io.openaev.database.model.attackpath.AttackPathFinding;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow;
+import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingVerdictRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointTypeCountRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingExecutionRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingListRow;
@@ -31,19 +32,25 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
   List<AttackPathFindingRow> findGraphRows(@Param("simulationId") String simulationId);
 
   /**
-   * Expand one endpoint: its findings' (type, value), restricted to findings a producing execution
-   * links to. That {@code EXISTS} semi-join is the graph invariant (a finding is in the graph iff
-   * an execution produced it), so expand agrees with the full rebuild (Read B, an inner join) and
-   * with the collapsed counters. One indexed read using {@code idx_ap_find_sim_endpointkey_type};
-   * {@code endpointKey} is the asset id or the raw value.
+   * Expand one endpoint: its findings' (type, value) joined to their producing executions' three
+   * status columns, so the read can carry a per-finding verdict. The inner join to {@code
+   * AttackPathExecutionFinding} is the graph invariant (a finding is in the graph iff an execution
+   * produced it) and replaces the former {@code EXISTS} semi-join; it multiplies rows per producer,
+   * which the service groups per (type, value) and worst-of aggregates. One indexed read using
+   * {@code idx_ap_find_sim_endpointkey_type}; the {@code AttackPathFinding} scope is the tenant
+   * fail-closed boundary; {@code endpointKey} is the asset id or the raw value. The joined
+   * execution is pinned to the same simulation, so a corrupt cross-simulation link cannot attach
+   * another run's status.
    */
   @Query(
-      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow("
-          + "f.type, f.value) "
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingVerdictRow("
+          + "f.type, f.value, e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus) "
           + "FROM AttackPathFinding f "
+          + "JOIN AttackPathExecutionFinding ef ON ef.findingId = f.id "
+          + "JOIN AttackPathExecution e ON e.id = ef.executionId "
           + "WHERE f.simulationId = :simulationId AND f.endpointKey = :endpointKey "
-          + "AND EXISTS (SELECT ef FROM AttackPathExecutionFinding ef WHERE ef.findingId = f.id)")
-  List<AttackPathEndpointFindingRow> findByEndpoint(
+          + "AND e.simulationId = :simulationId")
+  List<AttackPathEndpointFindingVerdictRow> findByEndpoint(
       @Param("simulationId") String simulationId, @Param("endpointKey") String endpointKey);
 
   /**
@@ -109,14 +116,19 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
    * deliberately not tenant-active and the statement inspector adds no predicate to it. Read alone
    * it would return every tenant's links. Joined to its guarded parent, it inherits the parent's
    * scope. Isolation here is enforced by the mechanism rather than argued from the caller passing
-   * ids it obtained from a scoped page. Pinned by {@code linkReadWithoutScopeIsFailClosed}.
+   * ids it obtained from a scoped page. Pinned by {@code linkReadWithoutScopeIsFailClosed}. The
+   * joined execution is pinned to the finding's simulation, so a corrupt cross-simulation link
+   * cannot attach another run's status.
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingExecutionRow("
-          + "ef.findingId, ef.executionId) "
+          + "ef.findingId, ef.executionId, e.preventionStatus, e.detectionStatus,"
+          + " e.vulnerabilityStatus) "
           + "FROM AttackPathExecutionFinding ef "
           + "JOIN AttackPathFinding f ON f.id = ef.findingId "
+          + "JOIN AttackPathExecution e ON e.id = ef.executionId "
           + "WHERE ef.findingId IN :findingIds "
+          + "AND e.simulationId = f.simulationId "
           + "ORDER BY ef.executionId")
   List<AttackPathFindingExecutionRow> findExecutionLinks(
       @Param("findingIds") Collection<String> findingIds);

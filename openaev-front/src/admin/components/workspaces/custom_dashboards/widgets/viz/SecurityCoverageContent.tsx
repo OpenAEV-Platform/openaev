@@ -16,6 +16,7 @@ import {
   type StructuralHistogramWidget,
 } from '../../../../../../utils/api-types';
 import { sortKillChainPhase } from '../../../../../../utils/kill_chain_phases/kill_chain_phases';
+import killChainLabel from '../../../../common/filters/killChainLabel';
 import ColoredPercentageRate from './components/ColoredPercentageRate';
 import KillChainPhaseColumn from './KillChainPhaseColumn';
 import { buildKillChainPhaseIndex, getCoverageAccent, resolvedData } from './securityCoverageUtils';
@@ -44,16 +45,13 @@ interface Props {
    * matrix is a result view, not a coverage-planning tool.
    */
   coveredOnly?: boolean;
+  /**
+   * Entity-configured default kill chain (the scenario / simulation "default kill
+   * chain" setting): shown first when the user has no remembered selection yet.
+   * A selection stored in local storage still takes precedence.
+   */
+  preferredKillChain?: string | null;
 }
-
-// Well-known kill chain identifiers get their official product name; anything
-// else (custom kill chains) falls back to the raw name from the data.
-const KILL_CHAIN_LABELS: Record<string, string> = {
-  'mitre-attack': 'MITRE ATT&CK',
-  'mitre-atlas': 'MITRE ATLAS',
-};
-
-const killChainLabel = (name: string) => KILL_CHAIN_LABELS[name.toLowerCase()] ?? name;
 
 // Shared overline label style for the header sections (heading font, uppercase).
 const OVERLINE_SX = {
@@ -66,7 +64,7 @@ const OVERLINE_SX = {
   lineHeight: 1,
 } as const;
 
-const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetConfig, data, coveredOnly = false }) => {
+const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetConfig, data, coveredOnly = false, preferredKillChain }) => {
   // Standard hooks
   const { classes } = useStyles();
   const theme = useTheme();
@@ -116,10 +114,14 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetCon
     () => [...new Set(sortedPhases.map(phase => phase.phase_kill_chain_name))].sort((a, b) => a.localeCompare(b)),
     [sortedPhases],
   );
-  const defaultKillChain = useMemo(
-    () => killChains.find(chain => chain.toLowerCase().includes('attack')) ?? killChains[0],
-    [killChains],
-  );
+  // Landing kill chain: the entity-configured default (scenario / simulation
+  // setting) when it still exists on the platform, otherwise ATT&CK first.
+  const defaultKillChain = useMemo(() => {
+    const preferred = preferredKillChain
+      ? killChains.find(chain => chain.toLowerCase() === preferredKillChain.toLowerCase())
+      : undefined;
+    return preferred ?? killChains.find(chain => chain.toLowerCase().includes('attack')) ?? killChains[0];
+  }, [killChains, preferredKillChain]);
   const [selectedKillChain, setSelectedKillChain] = useLocalStorage<string | null>('widget-' + widgetId + '-kill-chain', null);
   // A stored selection that no longer matches any kill chain falls back to the default.
   const activeKillChain = selectedKillChain != null && killChains.includes(selectedKillChain)

@@ -61,7 +61,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId")
   List<AttackPathExecutionRow> findGraphRows(@Param("simulationId") String simulationId);
 
@@ -74,7 +74,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.targetKey = :targetKey")
   List<AttackPathExecutionRow> findByTarget(
@@ -159,4 +159,13 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   List<AttackPathInjectorMetaRow> findInjectorMetadata(@Param("simulationId") String simulationId);
 
   void deleteAllBySimulationId(String simulationId);
+
+  /**
+   * The frozen execution rows of one run step, used to attribute a copied finding to its endpoint:
+   * each row carries the link key ({@code id}) and the endpoint key ({@code targetKey}). The tenant
+   * is passed explicitly so the read is scoped even off the request thread.
+   */
+  @Query("SELECT e FROM AttackPathExecution e WHERE e.stepId = :stepId AND e.tenant.id = :tenantId")
+  List<AttackPathExecution> findByStepIdAndTenantId(
+      @Param("stepId") String stepId, @Param("tenantId") String tenantId);
 }

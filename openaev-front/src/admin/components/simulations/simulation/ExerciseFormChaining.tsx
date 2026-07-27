@@ -20,6 +20,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type CreateExerciseInput, type PlatformSettings } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
+import DefaultKillChainSelectField from '../../common/filters/DefaultKillChainSelectField';
 import { scenarioCategories } from '../../scenarios/constants';
 import { EXERCISE_NAME_MAX_LENGTH, EXERCISE_NAME_MIN_LENGTH } from '../constants';
 
@@ -46,6 +47,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
     exercise_category: 'attack-scenario',
     exercise_main_focus: 'incident-response',
     exercise_severity: 'high',
+    exercise_default_kill_chain: '',
     exercise_tags: [],
     exercise_mail_from_name: '',
     exercise_mails_reply_to: [],
@@ -76,6 +78,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         exercise_category: z.string().optional(),
         exercise_main_focus: z.string().optional(),
         exercise_severity: z.string().optional(),
+        exercise_default_kill_chain: z.string().optional(),
         exercise_description: z.string().optional(),
         exercise_start_date: z.iso.datetime().optional().nullable(),
         exercise_tags: z.string().array().optional(),
@@ -122,7 +125,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         maxLength={255}
       />
       <GridLegacy container spacing={2}>
-        <GridLegacy item xs={7}>
+        <GridLegacy item xs={6}>
           <SelectField
             variant="standard"
             fullWidth={true}
@@ -139,7 +142,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
             ))}
           </SelectField>
         </GridLegacy>
-        <GridLegacy item xs={5}>
+        <GridLegacy item xs={6}>
           <SelectField
             variant="standard"
             fullWidth={true}
@@ -171,28 +174,39 @@ const ExerciseForm: FunctionComponent<Props> = ({
         </GridLegacy>
       </GridLegacy>
 
-      <SelectField
-        variant="standard"
-        fullWidth={true}
-        name="exercise_severity"
-        label={t('Severity')}
-        error={!!errors.exercise_severity}
-        control={control}
-        defaultValue={initialValues.exercise_severity}
-      >
-        <MenuItem key="low" value="low">
-          {t('Low')}
-        </MenuItem>
-        <MenuItem key="medium" value="medium">
-          {t('Medium')}
-        </MenuItem>
-        <MenuItem key="high" value="high">
-          {t('High')}
-        </MenuItem>
-        <MenuItem key="critical" value="critical">
-          {t('Critical')}
-        </MenuItem>
-      </SelectField>
+      <GridLegacy container spacing={2}>
+        <GridLegacy item xs={6}>
+          <SelectField
+            variant="standard"
+            fullWidth={true}
+            name="exercise_severity"
+            label={t('Severity')}
+            error={!!errors.exercise_severity}
+            control={control}
+            defaultValue={initialValues.exercise_severity}
+          >
+            <MenuItem key="low" value="low">
+              {t('Low')}
+            </MenuItem>
+            <MenuItem key="medium" value="medium">
+              {t('Medium')}
+            </MenuItem>
+            <MenuItem key="high" value="high">
+              {t('High')}
+            </MenuItem>
+            <MenuItem key="critical" value="critical">
+              {t('Critical')}
+            </MenuItem>
+          </SelectField>
+        </GridLegacy>
+        <GridLegacy item xs={6}>
+          <DefaultKillChainSelectField<CreateExerciseInput>
+            name="exercise_default_kill_chain"
+            control={control}
+            defaultValue={initialValues.exercise_default_kill_chain}
+          />
+        </GridLegacy>
+      </GridLegacy>
       <TextField
         variant="standard"
         fullWidth

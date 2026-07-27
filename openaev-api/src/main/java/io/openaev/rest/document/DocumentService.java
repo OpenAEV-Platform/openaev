@@ -74,7 +74,8 @@ public class DocumentService {
     byte[] content = fileIS.readAllBytes();
     String extension = FilenameUtils.getExtension(fileName);
     String fileTarget = DigestUtils.md5Hex(new ByteArrayInputStream(content)) + "." + extension;
-    Optional<Document> targetDocument = documentRepository.findByTarget(fileTarget);
+    Optional<Document> targetDocument =
+        documentRepository.findFirstByTargetOrderByIdAsc(fileTarget);
     // Document already exists by hash
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
@@ -101,7 +102,8 @@ public class DocumentService {
       document.setTags(tags);
       return save(document);
     } else {
-      Optional<Document> existingDocument = documentRepository.findByName(fileName);
+      Optional<Document> existingDocument =
+          documentRepository.findFirstByNameOrderByIdAsc(fileName);
       if (existingDocument.isPresent()) {
         Document document = existingDocument.get();
         // Update doc
@@ -199,6 +201,21 @@ public class DocumentService {
     if (isUsedInFileDrop || isUsedInExecutable) {
       throw new BadRequestException(
           "Document is still in use for some payloads and cannot be deleted.");
+    }
+
+    // Security platform logos are uploaded to Documents by collectors at registration
+    // time and referenced by the platform: deleting them would break the platform icon
+    // everywhere (cards, detail page, expectation results).
+    boolean isUsedAsLogoDark =
+        document.getSecurityPlatformsByLogoDark() != null
+            && !document.getSecurityPlatformsByLogoDark().isEmpty();
+    boolean isUsedAsLogoLight =
+        document.getSecurityPlatformsByLogoLight() != null
+            && !document.getSecurityPlatformsByLogoLight().isEmpty();
+
+    if (isUsedAsLogoDark || isUsedAsLogoLight) {
+      throw new BadRequestException(
+          "Document is used as a security platform logo and cannot be deleted.");
     }
 
     List<Document> documents = documentRepository.removeById(documentId);

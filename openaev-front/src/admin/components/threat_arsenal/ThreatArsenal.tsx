@@ -25,11 +25,13 @@ import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import {
   bulkDeleteThreatArsenalActions,
   exportThreatArsenalCsvMapper,
+  fetchThreatArsenalAuthorCounts,
   searchThreatArsenalActions,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import DialogDelete from '../../../components/common/DialogDelete';
 import ExportButton from '../../../components/common/ExportButton';
+import { useAuthorFacetOptions } from '../../../components/common/facets/ContractFacets';
 import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -41,6 +43,7 @@ import {
   type SearchPaginationInput,
   type ThreatArsenalAction,
 } from '../../../utils/api-types';
+import { useBulkOperationsFinishedCount } from '../../../utils/bulkOperations';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
@@ -57,7 +60,7 @@ import ThreatArsenalListRow from './ThreatArsenalListRow';
 import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
 import ThreatArsenalSidebar from './ThreatArsenalSidebar';
 import ThreatArsenalSortSelect from './ThreatArsenalSortSelect';
-import useThreatArsenalAuthorFacet from './useThreatArsenalAuthorFacet';
+import useThreatArsenalFacetCounts from './useThreatArsenalFacetCounts';
 
 type ViewMode = 'grid' | 'list';
 
@@ -105,6 +108,12 @@ const ThreatArsenal = () => {
     return searchThreatArsenalActions({ ...input }).finally(() => setLoading(false));
   };
 
+  // Massive operations (bulk delete) run detached from this screen: reload the page
+  // of actions every time one finishes, so the list and the total stop showing the
+  // rows that were deleted in the background. Only live transitions bump this count
+  // (the history replayed at startup does not), so mounting never triggers a reload.
+  const finishedBulkOperations = useBulkOperationsFinishedCount();
+
   const totalElements = queryableHelpers.paginationHelpers.getTotalElements();
 
   const {
@@ -132,12 +141,10 @@ const ThreatArsenal = () => {
     domainFilterKey: 'action_domains',
   });
 
-  // Per-status counts are intentionally NOT computed from `threatArsenalActions`
-  // here: that array only holds the currently loaded page, while `totalElements`
-  // covers the full filtered dataset, so page-bound counts would be misleading
-  // (e.g. "Verified: 23" on page 1, "Verified: 8" on page 2). Users can drill
-  // by status via the Status quick filter underneath the hero. If a global
-  // aggregation endpoint is ever added, status chips can be wired here.
+  // Platform + status counts come from a global aggregation endpoint (never
+  // from `threatArsenalActions`, which only holds the currently loaded page and
+  // would yield misleading page-bound counts).
+  const facetCounts = useThreatArsenalFacetCounts(searchPaginationInput);
 
   const availableFilterNames = [
     'action_injectors',
@@ -220,22 +227,24 @@ const ThreatArsenal = () => {
     }
   };
 
+  // Fire and forget, like every other massive operation in the platform: the dialog
+  // closes and the selection clears immediately, progress is reported by the
+  // massive-operations indicator in the top bar, and the list reloads once the
+  // operation reaches a terminal state (see `reloadContentCount` below). Returning
+  // the promise instead would keep the confirmation dialog in its loading state for
+  // the whole deletion - minutes on a large scope, where the request may even
+  // outlive the proxy timeout while the backend keeps committing chunk by chunk.
   const handleBulkDelete = () => {
     const input = {
       ...searchPaginationInput,
       injector_contract_ids_to_process: selectAll ? [] : Object.keys(selectedElements),
       injector_contract_ids_to_ignore: selectAll ? Object.keys(deSelectedElements) : [],
     };
-    return bulkDeleteThreatArsenalActions(input).then((response) => {
-      const deletedIds: string[] = response?.data?.deleted_ids ?? [];
-      const deletedSet = new Set(deletedIds);
-      setThreatArsenalActions(prev => prev.filter(a => !deletedSet.has(a.injector_contract_id)));
-      queryableHelpers.paginationHelpers.handleChangeTotalElements(
-        Math.max(0, totalElements - deletedIds.length),
-      );
-      handleClearSelectedElements();
-      setBulkDeleteDialogOpened(false);
-    });
+    setBulkDeleteDialogOpened(false);
+    handleClearSelectedElements();
+    // Failures are already surfaced by the shared error notifier, so the rethrow is
+    // swallowed here to avoid an unhandled rejection on this detached call.
+    bulkDeleteThreatArsenalActions(input).catch(() => {});
   };
 
   const hasActiveFilters = !!(
@@ -245,7 +254,7 @@ const ThreatArsenal = () => {
 
   // Full author universe + per-filter counts (backend aggregation), so the
   // sidebar keeps every author visible and greys out the zero-count ones.
-  const authorOptions = useThreatArsenalAuthorFacet(searchPaginationInput);
+  const authorOptions = useAuthorFacetOptions(fetchThreatArsenalAuthorCounts, searchPaginationInput);
 
   const renderGridView = () => {
     if (loading) {
@@ -414,10 +423,6 @@ const ThreatArsenal = () => {
 
   const headerRightSlot = (
     <>
-      {/* List view sorts via its column headers; the select is grid-only. */}
-      {viewMode === 'grid' && (
-        <ThreatArsenalSortSelect sortHelpers={queryableHelpers.sortHelpers} />
-      )}
       <ToggleButtonGroup
         value={viewMode}
         exclusive
@@ -489,6 +494,7 @@ const ThreatArsenal = () => {
           <ThreatArsenalSidebar
             domainElements={iconBarOrderedDomains}
             authorOptions={authorOptions}
+            facetCounts={facetCounts}
             searchPaginationInput={searchPaginationInput}
             filterHelpers={queryableHelpers.filterHelpers}
           />
@@ -509,6 +515,15 @@ const ThreatArsenal = () => {
                 entityPrefix="threat_arsenal"
                 availableFilterNames={availableFilterNames}
                 queryableHelpers={queryableHelpers}
+                reloadContentCount={finishedBulkOperations}
+                filtersEndSlot={viewMode === 'grid'
+                  ? (
+                      // List view sorts via its column headers; the select is grid-only.
+                      // Sits at the end of the filter row (after the clear-filters icon),
+                      // matching the OpenCTI card-view sort placement.
+                      <ThreatArsenalSortSelect sortHelpers={queryableHelpers.sortHelpers} />
+                    )
+                  : null}
                 topBarButtons={(
                   <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
                     <CreateThreatArsenalAction

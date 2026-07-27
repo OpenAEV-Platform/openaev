@@ -23,11 +23,14 @@ public interface DocumentRepository
 
   List<Document> removeById(@NotNull String id);
 
+  // document_target and document_name are not unique (concurrent uploads can create
+  // duplicates), so lookups must be duplicate-tolerant and deterministic instead of
+  // failing with a NonUniqueResultException.
   @NotNull
-  Optional<Document> findByTarget(@NotNull String target);
+  Optional<Document> findFirstByTargetOrderByIdAsc(@NotNull String target);
 
   @NotNull
-  Optional<Document> findByName(@NotNull String name);
+  Optional<Document> findFirstByNameOrderByIdAsc(@NotNull String name);
 
   @Query(
       value =

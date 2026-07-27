@@ -259,9 +259,9 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange, t: Translat
     layout(4, 26, 2, 2),
   ),
   widget(
-    'default-kpi-endpoints',
+    'default-kpi-assets',
     'number',
-    flat(t('Endpoints'), [series('Endpoint', filter('base_entity', ['endpoint']))], timeRange),
+    flat(t('Assets'), [series('Asset', filter('base_entity', ['asset']))], timeRange),
     layout(6, 26, 2, 2),
   ),
   widget(

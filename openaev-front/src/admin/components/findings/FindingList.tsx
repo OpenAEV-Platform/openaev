@@ -1,7 +1,7 @@
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
 import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link } from 'react-router';
 
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -24,15 +24,15 @@ interface Props {
 }
 
 const inlineStyles: Record<string, CSSProperties> = ({
-  finding_type: { width: '15%' },
-  finding_value: { width: '31%' },
-  finding_assets: { width: '20%' },
-  finding_asset_groups: { width: '18%' },
-  finding_created_at: { width: '16%' },
+  finding_type: { width: '13%' },
+  finding_value: { width: '27%' },
+  finding_assets: { width: '17%' },
+  finding_asset_groups: { width: '15%' },
+  finding_created_at: { width: '14%' },
+  finding_updated_at: { width: '14%' },
 });
 
 const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId }: Props) => {
-  const navigate = useNavigate();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const [loading, setLoading] = useState<boolean>(true);
@@ -40,12 +40,16 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
   const availableFilterNames = [
     'finding_type',
     'finding_created_at',
+    'finding_updated_at',
     'finding_asset_groups',
     'finding_assets',
   ];
 
   const [findings, setFindings] = useState<AggregatedFindingOutput[]>([]);
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(filterLocalStorageKey, buildSearchPagination({ sorts: initSorting('finding_created_at', 'DESC') }));
+  // Default sort on last seen: the most recent activity is what tells whether a finding is still
+  // alive or has been solved. The storage key is suffixed (-v2) so browsers that persisted the
+  // previous "first seen" default pick up the new one instead of restoring the stale sort.
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(`${filterLocalStorageKey}-v2`, buildSearchPagination({ sorts: initSorting('finding_updated_at', 'DESC') }));
   const searchFindingsToload = (input: SearchPaginationInput) => {
     setLoading(true);
     return searchDistinctFindings(input).finally(() => {
@@ -74,15 +78,36 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
       field: 'finding_value',
       label: 'Value',
       isSortable: true,
+      // Findings are technical values (ports, sockets, hostnames, credentials...): render them
+      // as inline code, mirroring the <pre> block of the finding overview page.
       value: (finding: AggregatedFindingOutput) => (
         <Tooltip title={finding.finding_value}>
-          <span>{finding.finding_value}</span>
+          <Box
+            component="code"
+            sx={theme => ({
+              display: 'inline-block',
+              maxWidth: '95%',
+              padding: '2px 8px',
+              borderRadius: 1,
+              backgroundColor: theme.palette.background.accent,
+              border: `1px solid ${theme.palette.divider}`,
+              fontFamily: 'Consolas, monaco, monospace',
+              fontSize: 12,
+              lineHeight: '18px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              verticalAlign: 'middle',
+            })}
+          >
+            {finding.finding_value}
+          </Box>
         </Tooltip>
       ),
     },
     {
       field: 'finding_assets',
-      label: 'Endpoints',
+      label: 'Assets',
       isSortable: false,
       value: (finding: AggregatedFindingOutput) => (
         <ItemTargets
@@ -90,8 +115,11 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
             target_id: asset.asset_id,
             target_name: asset.asset_name,
             target_type: 'ASSETS',
+            // Category + platform drive the chip glyph (taxonomy icon, or the OS brand icon
+            // for host-like endpoints) - same rendering as the asset pages.
+            target_category: asset.asset_category,
+            target_subtype: asset.endpoint_platform,
           })) as TargetSimple[]}
-          variant="reduced-view"
         />
       ),
     },
@@ -106,7 +134,6 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
             target_name: group.asset_group_name,
             target_type: 'ASSETS_GROUPS',
           })) as TargetSimple[]}
-          variant="reduced-view"
         />
       ),
     },
@@ -115,6 +142,12 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
       label: 'First seen',
       isSortable: true,
       value: (finding: AggregatedFindingOutput) => <>{nsdt(finding.finding_created_at)}</>,
+    },
+    {
+      field: 'finding_updated_at',
+      label: 'Last seen',
+      isSortable: true,
+      value: (finding: AggregatedFindingOutput) => <>{nsdt(finding.finding_updated_at)}</>,
     },
   ];
 
@@ -159,7 +192,8 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
               >
                 <ListItemButton
                   sx={{ height: 50 }}
-                  onClick={() => navigate(`/admin/findings/${finding.finding_id}`)}
+                  component={Link}
+                  to={`/admin/findings/${finding.finding_id}`}
                 >
                   <ListItemIcon>
                     <FindingIcon findingType={finding.finding_type} />

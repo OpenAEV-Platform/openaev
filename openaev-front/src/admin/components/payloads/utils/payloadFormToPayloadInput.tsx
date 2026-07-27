@@ -30,7 +30,7 @@ export const payloadFormToPayloadInputForAI = (data: FieldValues): Partial<Paylo
     payload_output_parsers: data.action_output_parsers,
     payload_detection_remediations: (Object.entries(data.remediations) as [string, DetectionRemediationForm][]).filter(value => value[1])
       .map(([key, remediation]) => ({
-        detection_remediation_collector: key,
+        detection_remediation_security_platform: key,
         detection_remediation_values: remediation.content,
         detection_remediation_id: remediation.remediationId,
         author_rule: remediation.author_rule,

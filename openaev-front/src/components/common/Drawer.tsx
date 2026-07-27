@@ -1,6 +1,6 @@
 import { Close } from '@mui/icons-material';
 import { Chip, Drawer as DrawerMUI, IconButton, type PaperProps, Tooltip, Typography } from '@mui/material';
-import { cloneElement, type CSSProperties, type FunctionComponent, type ReactElement } from 'react';
+import { cloneElement, type CSSProperties, type FunctionComponent, type ReactElement, type ReactNode } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { computeBannerSettings } from '../../public/components/systembanners/utils';
@@ -78,6 +78,8 @@ interface DrawerProps {
   title: string;
   additionalTitle?: string;
   additionalChipLabel?: string;
+  /** Custom content rendered in the header band, right-aligned before the close button. */
+  headerActions?: ReactNode;
   children:
     (() => ReactElement)
     | ReactElement
@@ -94,6 +96,7 @@ const Drawer: FunctionComponent<DrawerProps> = ({
   title,
   additionalTitle,
   additionalChipLabel,
+  headerActions,
   children,
   variant = 'half',
   PaperProps = undefined,
@@ -161,6 +164,7 @@ const Drawer: FunctionComponent<DrawerProps> = ({
           gap: 10,
         }}
         >
+          {headerActions}
           {additionalTitle && (<Typography variant="subtitle1">{additionalTitle}</Typography>)}
           {additionalChipLabel && (
             <Chip

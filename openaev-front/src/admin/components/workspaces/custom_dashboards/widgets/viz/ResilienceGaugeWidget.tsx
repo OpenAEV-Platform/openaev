@@ -43,11 +43,11 @@ const SAMPLE = [
 const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
+  const { openWidgetResults } = useContext(CustomDashboardContext);
 
   // Drill into the expectations behind the gauge, optionally scoped by status.
   const investigate = (statuses: string[]) => {
-    openWidgetDataDrawer({
+    openWidgetResults({
       widgetId,
       filter_values_map: { inject_expectation_status: statuses },
       series_index: 0,

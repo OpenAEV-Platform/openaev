@@ -2,7 +2,10 @@ package io.openaev.engine;
 
 import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -81,6 +84,39 @@ class EngineListenerTest {
     ArgumentCaptor<Collection<String>> journaledCaptor = ArgumentCaptor.forClass(Collection.class);
     verify(deletionJournal).record(journaledCaptor.capture());
     assertThat(journaledCaptor.getValue()).containsExactly("inject-1", "inject-2");
+  }
+
+  @Test
+  @DisplayName("given_engineFailureOutsideTransaction_should_notPropagateToCaller")
+  void given_engineFailureOutsideTransaction_should_notPropagateToCaller() {
+    // Arrange: the engine rejects the flush (e.g. search_phase_execution_exception)
+    doThrow(new RuntimeException("engine down")).when(engineService).bulkDelete(anyList());
+
+    // Act & Assert: the deletion is journaled and the failure is swallowed - the replay job
+    // converges the engine later.
+    assertThatCode(() -> engineListener.listenIndexEvent(new IndexEvent(DATA_DELETE, "inject-1")))
+        .doesNotThrowAnyException();
+    verify(deletionJournal).record(List.of("inject-1"));
+  }
+
+  @Test
+  @DisplayName("given_engineFailureAfterCommit_should_notPropagateToCommittingTransaction")
+  void given_engineFailureAfterCommit_should_notPropagateToCommittingTransaction() {
+    // Arrange: the DB transaction commits, then the engine rejects the after-commit flush. This
+    // must never fail the caller: the rows are already deleted from PostgreSQL (bulk scenario
+    // deletions were observed returning HTTP 500 for already-committed chunks).
+    TransactionSynchronizationManager.initSynchronization();
+    doThrow(new RuntimeException("engine down")).when(engineService).bulkDelete(anyList());
+
+    engineListener.listenIndexEvent(new IndexEvent(DATA_DELETE, "inject-1"));
+    List<TransactionSynchronization> synchronizations =
+        TransactionSynchronizationManager.getSynchronizations();
+
+    // Act & Assert
+    assertThatCode(() -> synchronizations.forEach(TransactionSynchronization::afterCommit))
+        .doesNotThrowAnyException();
+    verify(deletionJournal).record(any());
+    TransactionSynchronizationManager.clearSynchronization();
   }
 
   @Test

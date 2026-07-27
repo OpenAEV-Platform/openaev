@@ -1,11 +1,10 @@
 import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
-import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, lazy, Suspense, useMemo, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
 import { searchInjectTests } from '../../../../actions/inject_test/scenario-inject-test-actions';
 import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
-import { findNotificationRuleByResource } from '../../../../actions/scenarios/scenario-notification-rules';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { errorWrapper } from '../../../../components/Error';
 import { useFormatter } from '../../../../components/i18n';
@@ -13,20 +12,16 @@ import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
 import { useHelper } from '../../../../store';
 import {
-  type NotificationRuleOutput,
   type Scenario,
   type ScenarioOutput,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import handle from '../../../../utils/period/Period';
-import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExpressionHandler';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import useHasInjectTests from '../../injects/useHasInjectTests';
-import ScenarioNotificationRulesDrawer from './notification_rule/ScenarioNotificationRulesDrawer';
 import injectContextForScenario from './ScenarioContext';
 import ScenarioHeader from './ScenarioHeader';
 
@@ -42,13 +37,15 @@ const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
 const ScenarioStatistics = lazy(() => import('./analysis/ScenarioAnalysis'));
 const ScenarioAttackPath = lazy(() => import('./attack_path/ScenarioAttackPath'));
 
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
 const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = ({ scenario }) => {
   const { t } = useFormatter();
   const location = useLocation();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
+  // Attack path only exists for chained scenarios (workflow-backed), never
+  // for time-based ones: same gating as the simulation side.
+  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH')
+    && isChainingFeatureEnabled
+    && !!scenario.scenario_workflow_id;
   const permissions = useScenarioPermissions(scenario.scenario_id);
   // The Tests tab only exists for email/SMS injects that have actually been
   // tested; hide it entirely otherwise.
@@ -77,48 +74,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
   } else if (location.pathname.includes(`/admin/scenarios/${scenario.scenario_id}/tests`)) {
     tabValue = `/admin/scenarios/${scenario.scenario_id}/tests`;
   }
-  const [openScenarioRecurringFormDialog, setOpenScenarioRecurringFormDialog] = useState<boolean>(false);
   const [openInstantiateSimulationAndStart, setOpenInstantiateSimulationAndStart] = useState<boolean>(false);
-  const [selectRecurring, setSelectRecurring] = useState('noRepeat');
-  const [cronObject, setCronObject] = useState<PeriodExpressionHandler | null>(handle(scenario.scenario_recurrence));
-  const noRepeat = !!scenario.scenario_recurrence_end && !!scenario.scenario_recurrence_start
-    && new Date(scenario.scenario_recurrence_end).getTime() - new Date(scenario.scenario_recurrence_start).getTime() <= MS_PER_DAY
-    && ['noRepeat', 'daily'].includes(selectRecurring);
-  const [openScenarioNotificationRuleDrawer, setOpenScenarioNotificationRuleDrawer] = useState(false);
-  const [editNotification, setEditNotification] = useState<boolean>(false);
-  const [notificationRule, setNotificationRule] = useState<NotificationRuleOutput>({
-    notification_rule_id: '',
-    notification_rule_resource_id: '',
-    notification_rule_resource_type: '',
-    notification_rule_subject: '',
-    notification_rule_trigger: '',
-  });
-
-  useEffect(() => {
-    findNotificationRuleByResource(scenario.scenario_id).then((result: { data: NotificationRuleOutput[] }) => {
-      if (result.data.length > 0) {
-        setEditNotification(true);
-        setNotificationRule(result.data[0]);
-      }
-    });
-  }, []);
-
-  const onCreateNotification = (result: NotificationRuleOutput) => {
-    setEditNotification(true);
-    setNotificationRule(result);
-  };
-
-  const onDeleteNotification = () => {
-    setEditNotification(false);
-    setNotificationRule({
-      notification_rule_id: '',
-      notification_rule_resource_id: '',
-      notification_rule_resource_type: '',
-      notification_rule_subject: '',
-      notification_rule_trigger: '',
-    });
-  };
-
   return (
     <PermissionsContext.Provider value={permissionsContext}>
       <DocumentContext.Provider value={documentContext}>
@@ -137,17 +93,8 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
             ]}
           />
           <ScenarioHeader
-            cronObject={cronObject}
-            setCronObject={setCronObject}
-            setSelectRecurring={setSelectRecurring}
-            selectRecurring={selectRecurring}
-            setOpenScenarioRecurringFormDialog={setOpenScenarioRecurringFormDialog}
-            openScenarioRecurringFormDialog={openScenarioRecurringFormDialog}
             setOpenInstantiateSimulationAndStart={setOpenInstantiateSimulationAndStart}
             openInstantiateSimulationAndStart={openInstantiateSimulationAndStart}
-            noRepeat={noRepeat}
-            editNotification={editNotification}
-            setOpenScenarioNotificationRuleDrawer={setOpenScenarioNotificationRuleDrawer}
           />
           <Box
             sx={{
@@ -237,14 +184,8 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
                     value={`/admin/scenarios/${scenario.scenario_id}/findings`}
                     label={t('Findings')}
                   />
-                  {isAttackPathEnabled && (
-                    <Tab
-                      component={Link}
-                      to={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
-                      value={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
-                      label={t('Attack path')}
-                    />
-                  )}
+                  {/* Attack path is a chained-scenario concept (workflow logic):
+                      time-based scenarios never get the tab. */}
                   <Tab
                     component={Link}
                     to={`/admin/scenarios/${scenario.scenario_id}/statistics`}
@@ -255,19 +196,6 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
               )
             }
           </Box>
-          {permissionsContext.permissions.canManage && (
-            <ScenarioNotificationRulesDrawer
-              open={openScenarioNotificationRuleDrawer}
-              setOpen={setOpenScenarioNotificationRuleDrawer}
-              editing={editNotification}
-              onCreate={onCreateNotification}
-              onUpdate={result => setNotificationRule(result)}
-              onDelete={onDeleteNotification}
-              notificationRule={notificationRule}
-              scenarioId={scenario.scenario_id}
-              scenarioName={scenario.scenario_name}
-            />
-          )}
           <Suspense fallback={<Loader />}>
             <Routes>
               <Route path="" element={errorWrapper(ScenarioComponent)({ setOpenInstantiateSimulationAndStart })} />

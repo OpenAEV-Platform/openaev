@@ -1,16 +1,33 @@
 import {
   AddOutlined,
+  ArrowBackOutlined,
   AutoAwesomeOutlined,
-  ChevronLeft,
+  CloseOutlined,
+  DevicesOtherOutlined,
   RemoveOutlined,
-  RouteOutlined,
+  TrackChangesOutlined,
+  TuneOutlined,
 } from '@mui/icons-material';
-import { alpha, Box, Button, IconButton, Paper, SvgIcon, TextField, Tooltip, Typography } from '@mui/material';
+import {
+  alpha,
+  Box,
+  Button,
+  IconButton,
+  Paper,
+  SvgIcon,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
-import { type FunctionComponent, useContext, useEffect, useState } from 'react';
+import { SelectGroup } from 'mdi-material-ui';
+import { type FunctionComponent, type ReactNode, useContext, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
+import { findAssetGroups } from '../../../../../actions/asset_groups/assetgroup-action';
 import { findEndpoints } from '../../../../../actions/assets/endpoint-actions';
 import { fetchAttackPatterns } from '../../../../../actions/AttackPattern';
 import { playInjectsAssistantForScenario } from '../../../../../actions/Inject';
@@ -18,8 +35,10 @@ import { fetchInjectorsContracts } from '../../../../../actions/InjectorContract
 import { fetchKillChainPhases } from '../../../../../actions/KillChainPhase';
 import LoaderDialog from '../../../../../components/common/loader/LoaderDialog';
 import { useFormatter } from '../../../../../components/i18n';
+import PlatformIcon from '../../../../../components/PlatformIcon';
 import SearchInput from '../../../../../components/SearchFilter';
 import {
+  type AssetGroupOutput,
   type EndpointOutput,
   type InjectAssistantInput,
   type Scenario,
@@ -31,11 +50,9 @@ import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEditio
 import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import FiligranAiCguDialog from '../../../ariane/FiligranAiCguDialog';
-import AssetGroupPopover from '../../../assets/asset_groups/AssetGroupPopover';
-import AssetGroupsList from '../../../assets/asset_groups/AssetGroupsList';
-import AssetPopover from '../../../assets/endpoints/AssetPopover';
-import AssetsList from '../../../assets/endpoints/AssetsList';
 import EEChip from '../../../common/entreprise_edition/EEChip';
+import KillChainSelect from '../../../common/filters/KillChainSelect';
+import useKillChains from '../../../common/filters/useKillChains';
 import InjectAddAssetGroups from '../../../simulations/simulation/injects/asset_groups/InjectAddAssetGroups';
 import InjectAddEndpoints from '../../../simulations/simulation/injects/endpoints/InjectAddEndpoints';
 import AttackMatrixSelector from './AttackMatrixSelector';
@@ -53,9 +70,58 @@ const sectionLabelSx = {
   color: 'text.secondary',
 };
 
-// Full-page Scenario assistant: pick targets, cover the ATT&CK matrix (manually
-// or with the XTM One AI assistant), and generate injects. Replaces the former
-// cramped drawer + nested TTP drawer.
+// Compact target row: icon + name + remove. The standard list fragments
+// (platform / tags / type columns) don't fit the narrow rail, so targets render
+// as minimal rows here.
+const TargetRow: FunctionComponent<{
+  icon: ReactNode;
+  label: string;
+  removeLabel: string;
+  onRemove: () => void;
+}> = ({ icon, label, removeLabel, onRemove }) => {
+  const theme = useTheme();
+  return (
+    <Box sx={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1,
+      height: 36,
+      paddingInline: 1,
+      borderRadius: 1,
+      border: `1px solid ${theme.palette.divider}`,
+      backgroundColor: theme.palette.background.default,
+    }}
+    >
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
+        flexShrink: 0,
+      }}
+      >
+        {icon}
+      </Box>
+      <Typography sx={{
+        fontSize: 13,
+        flex: 1,
+        minWidth: 0,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      }}
+      >
+        {label}
+      </Typography>
+      <Tooltip title={removeLabel}>
+        <IconButton size="small" aria-label={removeLabel} onClick={onRemove}>
+          <CloseOutlined sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Tooltip>
+    </Box>
+  );
+};
+
+// Full-page Scenario assistant: pick targets, cover the attack matrix (manually
+// or with the XTM One AI assistant), and generate injects.
 const ScenarioAssistant: FunctionComponent = () => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -72,7 +138,6 @@ const ScenarioAssistant: FunctionComponent = () => {
   } = useEnterpriseEdition();
 
   const listUrl = `/admin/scenarios/${scenarioId}/injects`;
-  const ai = theme.palette.ai.main;
 
   useDataLoader(() => {
     dispatch(fetchAttackPatterns());
@@ -87,7 +152,10 @@ const ScenarioAssistant: FunctionComponent = () => {
   const [injectsByTtp, setInjectsByTtp] = useState<number>(1);
   const [showErrors, setShowErrors] = useState(false);
   const [search, setSearch] = useState('');
-  const [onlyWithPayloads, setOnlyWithPayloads] = useState(false);
+  const [onlyWithArsenal, setOnlyWithArsenal] = useState(false);
+
+  // -- Kill chain switcher (the assistant supports every kill chain, not only ATT&CK)
+  const { killChains, activeKillChain, selectKillChain } = useKillChains();
 
   // -- Dialogs
   const [openAiDialog, setOpenAiDialog] = useState(false);
@@ -95,7 +163,7 @@ const ScenarioAssistant: FunctionComponent = () => {
   const [openLoaderDialog, setOpenLoaderDialog] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // -- Resolve endpoint objects for the selected asset ids (for the list view)
+  // -- Resolve endpoint / asset group objects for the compact target rows
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
   useEffect(() => {
     if (assetIds.length > 0 && ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
@@ -104,6 +172,14 @@ const ScenarioAssistant: FunctionComponent = () => {
       setEndpoints([]);
     }
   }, [assetIds]);
+  const [assetGroups, setAssetGroups] = useState<AssetGroupOutput[]>([]);
+  useEffect(() => {
+    if (assetGroupIds.length > 0 && ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
+      findAssetGroups(assetGroupIds).then(result => setAssetGroups(result.data));
+    } else {
+      setAssetGroups([]);
+    }
+  }, [assetGroupIds]);
 
   const hasTargets = assetIds.length > 0 || assetGroupIds.length > 0;
   const hasTtps = attackPatternIds.length > 0;
@@ -151,6 +227,10 @@ const ScenarioAssistant: FunctionComponent = () => {
       .catch(() => setOpenLoaderDialog(false));
   };
 
+  // AI gradient, aligned with the Ask Ariane top-bar button: borderless,
+  // gradient-painted label + AI-colored icon, subtle AI-tinted hover.
+  const aiGradient = `linear-gradient(90deg, ${theme.palette.ai.light} 0%, ${theme.palette.ai.main} 100%)`;
+
   return (
     <Box sx={{
       display: 'flex',
@@ -159,90 +239,59 @@ const ScenarioAssistant: FunctionComponent = () => {
       paddingBottom: canSubmit ? 12 : 4,
     }}
     >
-      {/* Hero band (AI-accented, distinct from the standard scenario hero) */}
-      <Paper
-        variant="outlined"
-        sx={{
-          position: 'relative',
-          overflow: 'hidden',
-          borderRadius: 1,
-          padding: {
-            xs: 2,
-            md: 3,
-          },
-          borderColor: alpha(ai, 0.3),
-          background: `linear-gradient(135deg, ${alpha(ai, 0.14)}, transparent 60%)`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 2,
-          flexWrap: 'wrap',
-        }}
+      {/* Compact header: back to the injects list + page title (no hero band) */}
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+      }}
       >
-        <Box
-          aria-hidden
-          sx={{
-            position: 'absolute',
-            top: -100,
-            right: -40,
-            width: 260,
-            height: 260,
-            borderRadius: '50%',
-            background: alpha(ai, 0.16),
-            filter: 'blur(70px)',
-            pointerEvents: 'none',
-          }}
-        />
-        <Box sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          minWidth: 0,
-        }}
-        >
-          <Box sx={{
-            width: 52,
-            height: 52,
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            color: ai,
-            backgroundColor: alpha(ai, 0.16),
-            border: `1px solid ${alpha(ai, 0.4)}`,
-          }}
+        <Tooltip title={t('Back')}>
+          <IconButton onClick={() => navigate(listUrl)} aria-label={t('Back')} size="small">
+            <ArrowBackOutlined fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Typography variant="h1" sx={{ margin: 0 }}>
+          {t('Scenario assistant')}
+        </Typography>
+        {aiEnabled && (
+          <Button
+            variant="text"
+            onClick={onUseAiClick}
+            startIcon={(
+              <SvgIcon
+                component={LogoXtmOneIcon}
+                inheritViewBox
+                sx={{
+                  fontSize: '20px !important',
+                  color: theme.palette.ai.main,
+                }}
+              />
+            )}
+            endIcon={!isEnterpriseEdition ? <span><EEChip /></span> : undefined}
+            sx={{
+              'marginLeft': 'auto',
+              'height': 36,
+              'paddingInline': 1.5,
+              'borderRadius': 1,
+              'fontWeight': 600,
+              'whiteSpace': 'nowrap',
+              '&:hover': { backgroundColor: alpha(theme.palette.ai.main, 0.15) },
+              '& .assistant-ai-label': {
+                background: aiGradient,
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              },
+              '& .MuiButton-startIcon': { marginRight: '6px' },
+            }}
           >
-            <AutoAwesomeOutlined />
-          </Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              variant="h1"
-              sx={{
-                margin: 0,
-                fontSize: 22,
-              }}
-            >
-              {t('Scenario assistant')}
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {t('Pick your targets, cover the ATT&CK matrix, and auto-generate injects.')}
-            </Typography>
-          </Box>
-        </Box>
-        <Button
-          variant="outlined"
-          color="inherit"
-          size="small"
-          startIcon={<ChevronLeft />}
-          onClick={() => navigate(listUrl)}
-          sx={{ borderColor: theme.palette.divider }}
-        >
-          {t('Back')}
-        </Button>
-      </Paper>
+            <span className="assistant-ai-label">{t('Suggest TTPs with XTM One')}</span>
+          </Button>
+        )}
+      </Box>
 
-      {/* Two-column body: config rail + matrix */}
+      {/* Two-column body: configuration rail + matrix */}
       <Box sx={{
         display: 'grid',
         gridTemplateColumns: {
@@ -253,7 +302,7 @@ const ScenarioAssistant: FunctionComponent = () => {
         alignItems: 'start',
       }}
       >
-        {/* Left rail (sticky): targets + generation options */}
+        {/* Left rail (sticky): targets + configuration */}
         <Box sx={{
           display: 'flex',
           flexDirection: 'column',
@@ -281,23 +330,33 @@ const ScenarioAssistant: FunctionComponent = () => {
               gap: 1,
             }}
             >
-              <RouteOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
+              <TrackChangesOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
               <Typography sx={sectionLabelSx}>{t('Target')}</Typography>
             </Box>
 
             <Box>
               <Typography variant="h3" sx={{ marginBottom: 0.5 }}>{t('Assets')}</Typography>
-              <AssetsList
-                endpoints={endpoints}
-                renderActions={asset => (
-                  <AssetPopover
-                    inline
-                    endpoint={asset}
-                    removeFromContextLabel="Remove"
-                    onRemoveFromContext={assetId => setAssetIds(assetIds.filter(id => id !== assetId))}
-                  />
-                )}
-              />
+              {endpoints.length > 0 && (
+                <Box sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 0.5,
+                  marginBottom: 0.5,
+                }}
+                >
+                  {endpoints.map(endpoint => (
+                    <TargetRow
+                      key={endpoint.asset_id}
+                      icon={endpoint.endpoint_platform
+                        ? <PlatformIcon platform={endpoint.endpoint_platform} width={16} />
+                        : <DevicesOtherOutlined color="primary" sx={{ fontSize: 16 }} />}
+                      label={endpoint.asset_name}
+                      removeLabel={t('Remove')}
+                      onRemove={() => setAssetIds(assetIds.filter(id => id !== endpoint.asset_id))}
+                    />
+                  ))}
+                </Box>
+              )}
               <Can I={ACTIONS.ACCESS} a={SUBJECTS.ASSETS}>
                 <InjectAddEndpoints
                   endpointIds={assetIds}
@@ -309,18 +368,25 @@ const ScenarioAssistant: FunctionComponent = () => {
 
             <Box>
               <Typography variant="h3" sx={{ marginBottom: 0.5 }}>{t('Asset groups')}</Typography>
-              <AssetGroupsList
-                assetGroupIds={assetGroupIds}
-                renderActions={assetGroup => (
-                  <AssetGroupPopover
-                    assetGroup={assetGroup}
-                    inline
-                    onRemoveAssetGroupFromList={assetGroupId => setAssetGroupIds(assetGroupIds.filter(id => id !== assetGroupId))}
-                    removeAssetGroupFromListMessage="Remove"
-                    actions={['remove']}
-                  />
-                )}
-              />
+              {assetGroups.length > 0 && (
+                <Box sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 0.5,
+                  marginBottom: 0.5,
+                }}
+                >
+                  {assetGroups.map(assetGroup => (
+                    <TargetRow
+                      key={assetGroup.asset_group_id}
+                      icon={<SelectGroup color="primary" sx={{ fontSize: 16 }} />}
+                      label={assetGroup.asset_group_name}
+                      removeLabel={t('Remove')}
+                      onRemove={() => setAssetGroupIds(assetGroupIds.filter(id => id !== assetGroup.asset_group_id))}
+                    />
+                  ))}
+                </Box>
+              )}
               <Can I={ACTIONS.ACCESS} a={SUBJECTS.ASSETS}>
                 <InjectAddAssetGroups
                   assetGroupIds={assetGroupIds}
@@ -347,33 +413,9 @@ const ScenarioAssistant: FunctionComponent = () => {
               gap: 1,
             }}
             >
-              <AutoAwesomeOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
-              <Typography sx={sectionLabelSx}>{t('Generation')}</Typography>
+              <TuneOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
+              <Typography sx={sectionLabelSx}>{t('Configuration')}</Typography>
             </Box>
-
-            {aiEnabled && (
-              <Button
-                variant="outlined"
-                fullWidth
-                onClick={onUseAiClick}
-                startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
-                endIcon={isEnterpriseEdition ? undefined : <EEChip />}
-                sx={{
-                  'justifyContent': 'flex-start',
-                  'color': ai,
-                  'borderColor': alpha(ai, 0.5),
-                  'backgroundColor': alpha(ai, 0.06),
-                  'textTransform': 'none',
-                  'fontWeight': 600,
-                  '&:hover': {
-                    borderColor: ai,
-                    backgroundColor: alpha(ai, 0.12),
-                  },
-                }}
-              >
-                {t('Suggest TTPs with XTM One')}
-              </Button>
-            )}
 
             <Box>
               <Typography variant="h3" sx={{ marginBottom: 0.5 }}>{t('Number of injects by TTP')}</Typography>
@@ -453,7 +495,7 @@ const ScenarioAssistant: FunctionComponent = () => {
           </Paper>
         </Box>
 
-        {/* Right column: ATT&CK matrix */}
+        {/* Right column: attack matrix (any kill chain) */}
         <Paper
           variant="outlined"
           sx={{
@@ -473,7 +515,11 @@ const ScenarioAssistant: FunctionComponent = () => {
             flexWrap: 'wrap',
           }}
           >
-            <Typography sx={sectionLabelSx}>{t('Scenario coverage')}</Typography>
+            <KillChainSelect
+              killChains={killChains}
+              value={activeKillChain}
+              onChange={selectKillChain}
+            />
             <Box sx={{
               display: 'flex',
               alignItems: 'center',
@@ -481,27 +527,41 @@ const ScenarioAssistant: FunctionComponent = () => {
             }}
             >
               <SearchInput onChange={value => setSearch(value ?? '')} placeholder={`${t('Search a technique')}...`} />
-              <Tooltip title={t('Only techniques with available injects')}>
-                <Button
-                  size="small"
-                  variant={onlyWithPayloads ? 'contained' : 'outlined'}
-                  color={onlyWithPayloads ? 'primary' : 'inherit'}
-                  onClick={() => setOnlyWithPayloads(v => !v)}
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                value={onlyWithArsenal ? 'arsenal' : 'all'}
+                onChange={(_, value) => {
+                  if (value) setOnlyWithArsenal(value === 'arsenal');
+                }}
+              >
+                <ToggleButton
+                  value="all"
                   sx={{
                     textTransform: 'none',
-                    borderColor: onlyWithPayloads ? undefined : theme.palette.divider,
+                    paddingInline: 1.5,
                   }}
                 >
-                  {t('With injects')}
-                </Button>
-              </Tooltip>
+                  {t('All techniques')}
+                </ToggleButton>
+                <ToggleButton
+                  value="arsenal"
+                  sx={{
+                    textTransform: 'none',
+                    paddingInline: 1.5,
+                  }}
+                >
+                  {t('With actions')}
+                </ToggleButton>
+              </ToggleButtonGroup>
             </Box>
           </Box>
           <AttackMatrixSelector
             selectedIds={attackPatternIds}
             onToggle={toggleTtp}
             search={search}
-            onlyWithPayloads={onlyWithPayloads}
+            killChain={activeKillChain}
+            onlyWithArsenal={onlyWithArsenal}
           />
         </Paper>
       </Box>

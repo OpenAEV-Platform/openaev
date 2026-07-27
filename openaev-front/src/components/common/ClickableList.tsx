@@ -8,7 +8,9 @@ export interface ClickableListHeader<T> {
 }
 
 export interface ClickableListElements<T> {
-  icon: { value: () => ReactElement };
+  // The row element is passed so the icon can depend on the row (e.g. the
+  // category-aware asset glyph); element-agnostic callers can ignore it.
+  icon: { value: (element: T) => ReactElement };
   headers: ClickableListHeader<T>[];
 }
 
@@ -113,7 +115,7 @@ const ClickableList = <T extends object>({
                         disableRipple
                       />
                     )
-                  : elements.icon.value()}
+                  : elements.icon.value(value)}
               </ListItemIcon>
               <ListItemText
                 primary={(

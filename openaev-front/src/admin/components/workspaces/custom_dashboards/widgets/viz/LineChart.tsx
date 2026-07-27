@@ -27,7 +27,7 @@ const LineChart: FunctionComponent<Props> = ({ widgetId, series: realSeries }) =
     ));
   }, [isSample, realSeries]);
 
-  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
+  const { openWidgetResults } = useContext(CustomDashboardContext);
 
   // Memoize click handler
   const onDataPointClick = useCallback((_: Event, config: {
@@ -42,12 +42,12 @@ const LineChart: FunctionComponent<Props> = ({ widgetId, series: realSeries }) =
       return;
     }
 
-    openWidgetDataDrawer({
+    openWidgetResults({
       widgetId,
       filter_values_map: { date: [dataPointIndex?.x ?? ''] },
       series_index: config.seriesIndex,
     });
-  }, [series, openWidgetDataDrawer, widgetId]);
+  }, [series, openWidgetResults, widgetId]);
 
   // Memoize distributed flag
   const distributed = useMemo(

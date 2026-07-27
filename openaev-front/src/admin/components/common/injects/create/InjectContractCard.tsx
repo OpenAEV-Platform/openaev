@@ -37,7 +37,7 @@ const InjectContractCard: FunctionComponent<Props> = ({
   onSelect,
   onToggle,
 }) => {
-  const { t, tPick } = useFormatter();
+  const { tPick } = useFormatter();
   const theme = useTheme();
 
   const allDomains: Domain[] = useHelper(
@@ -60,6 +60,13 @@ const InjectContractCard: FunctionComponent<Props> = ({
       .map(attackPattern => attackPattern.attack_pattern_external_id)
       .filter(Boolean),
   )] as string[], [attackPatterns]);
+
+  // Footer context line: prefer the kill chain phase; when none is mapped, show
+  // the executing injector(s) instead of a noisy "Unknown kill chain phase".
+  const injectorNames = useMemo(() => [...new Set(
+    Object.values(contract.injector_contract_injector_names ?? {}).filter(Boolean),
+  )], [contract.injector_contract_injector_names]);
+  const footerCaption = killChainPhaseName ?? (injectorNames.length > 0 ? injectorNames.join(', ') : null);
 
   const showCheckbox = selectable && (anySelected || checked);
 
@@ -318,12 +325,13 @@ const InjectContractCard: FunctionComponent<Props> = ({
             color: 'text.disabled',
             fontSize: 11,
             marginTop: 0.25,
+            minHeight: 16,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
           }}
         >
-          {killChainPhaseName ?? t('Unknown kill chain phase')}
+          {footerCaption}
         </Typography>
       </CardActionArea>
     </Card>

@@ -22,7 +22,7 @@ import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.InjectRepository;
-import io.openaev.database.repository.NotificationRuleRepository;
+import io.openaev.database.repository.NotificationTriggerRepository;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.ReportRepository;
 import io.openaev.database.repository.VulnerabilityRepository;
@@ -59,7 +59,7 @@ class ProductInventoryMetricCollectorTest {
   @Mock private ArticleRepository articleRepository;
   @Mock private CustomDashboardRepository customDashboardRepository;
   @Mock private ImportMapperRepository importMapperRepository;
-  @Mock private NotificationRuleRepository notificationRuleRepository;
+  @Mock private NotificationTriggerRepository notificationTriggerRepository;
   @Mock private WorkflowRepository workflowRepository;
   @Mock private FindingRepository findingRepository;
   @Mock private VulnerabilityRepository vulnerabilityRepository;
@@ -88,7 +88,7 @@ class ProductInventoryMetricCollectorTest {
             articleRepository,
             customDashboardRepository,
             importMapperRepository,
-            notificationRuleRepository,
+            notificationTriggerRepository,
             workflowRepository,
             findingRepository,
             vulnerabilityRepository,

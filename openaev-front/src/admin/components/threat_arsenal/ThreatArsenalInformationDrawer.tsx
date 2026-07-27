@@ -102,7 +102,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
     <Drawer
       open={open}
       handleClose={onClose}
-      title={t('Action information')}
+      title={t('Action details')}
     >
       {threatArsenalAction == null ? <></> : (
         <ThreatArsenalActionOverview

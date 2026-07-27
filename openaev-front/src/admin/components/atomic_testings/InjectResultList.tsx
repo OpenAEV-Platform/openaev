@@ -14,6 +14,7 @@ import { type Header } from '../../../components/common/SortHeadersList';
 import Empty from '../../../components/Empty';
 import { useFormatter } from '../../../components/i18n';
 import ItemDomains from '../../../components/ItemDomains';
+import ItemStatus from '../../../components/ItemStatus';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import {
@@ -52,7 +53,9 @@ const inlineStyles: Record<string, CSSProperties> = {
 interface Props {
   showActions?: boolean;
   fetchInjects: (input: SearchPaginationInput) => Promise<{ data: Page<InjectResultOutput> }>;
-  goTo: (injectId: string) => string;
+  // The full row is passed as second argument so cross-scope lists (e.g. the injects played on an
+  // asset) can route simulation injects and atomic testings to their respective detail pages.
+  goTo: (injectId: string, inject: InjectResultOutput) => string;
   queryableHelpers: QueryableHelpers;
   searchPaginationInput: SearchPaginationInput;
   availableFilterNames?: string[];
@@ -69,6 +72,11 @@ interface Props {
   }) => Promise<string[]>;
   // Already-translated delete confirmation text builder (count-aware)
   deleteConfirmation?: (count: number) => string;
+  // Display-only mapping: injects without a status are serialized as DRAFT by the
+  // backend. In a launched simulation they are actually waiting for dispatch, so
+  // callers in that context can display them as PENDING instead. Disabled injects
+  // always display as "Disabled" regardless of this flag.
+  displayDraftAsPending?: boolean;
 }
 
 const InjectResultList: FunctionComponent<Props> = ({
@@ -81,6 +89,7 @@ const InjectResultList: FunctionComponent<Props> = ({
   createButton,
   onBulkDelete,
   deleteConfirmation,
+  displayDraftAsPending,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -155,7 +164,22 @@ const InjectResultList: FunctionComponent<Props> = ({
       label: 'Execution status',
       isSortable: false,
       value: (injectResultOutput: InjectResultOutput) => {
-        return (<InjectStatus status={injectResultOutput.inject_status?.status_name as InjectStatusType['status_name']} />);
+        // Disabled injects are never picked up by the scheduler, so they never get a
+        // status row (which the backend serializes as DRAFT): name the real cause.
+        if (injectResultOutput.inject_enabled === false) {
+          return (
+            <ItemStatus
+              status="DISABLED"
+              label={t('Disabled')}
+              tooltipLabel={t('This inject is disabled and will not be executed.')}
+            />
+          );
+        }
+        const statusName = injectResultOutput.inject_status?.status_name;
+        const displayStatus = displayDraftAsPending && (!statusName || statusName === 'DRAFT')
+          ? 'PENDING'
+          : statusName;
+        return (<InjectStatus status={displayStatus as InjectStatusType['status_name']} />);
       },
     },
     {
@@ -184,7 +208,7 @@ const InjectResultList: FunctionComponent<Props> = ({
         return <>{nsdt(injectResultOutput.inject_updated_at)}</>;
       },
     },
-  ], []);
+  ], [displayDraftAsPending]);
 
   const search = (input: SearchPaginationInput) => {
     setLoading(true);
@@ -335,7 +359,7 @@ const InjectResultList: FunctionComponent<Props> = ({
                     <ListItemButton
                       component={Link}
                       classes={{ root: classes.item }}
-                      to={goTo(injectResultOutput.inject_id)}
+                      to={goTo(injectResultOutput.inject_id, injectResultOutput)}
                     >
                       {bulkDeleteEnabled && (
                         <ListItemIcon

@@ -244,8 +244,10 @@ describe('buildClusteredAttackPathFlow', () => {
     expect(byId['cl-ft-cve'].data.count).toBe(1);
     // no real endpoint nodes while collapsed
     expect(byId['ep1']).toBeUndefined();
-    // edges: injector -> shared hub (labelled with the injector's reached-endpoint count) -> findings
-    expect(edges.find(e => e.id === 'inj-cl-ep-all')?.data?.count).toBe(2);
+    // edges: injector -> shared hub carries no count badge (the reached-endpoint count is shown on the
+    // hub itself, so repeating it on the injector edge is redundant) -> findings
+    expect(edges.find(e => e.id === 'inj-cl-ep-all')?.data?.count).toBe(1);
+    expect(edges.find(e => e.id === 'inj-cl-ep-all')?.data?.label).toBeUndefined();
     expect(edges.filter(e => e.source === 'cl-ep-all')).toHaveLength(2);
     expect(edges[0].type).toBe(AP_FLOW_EDGE_TYPE);
   });
@@ -480,9 +482,10 @@ describe('buildCausalChainFlow', () => {
 
     // The producer (nmap) sits upstream (left) of the consumer (netexec).
     expect(byId['inj-nmap'].position.x).toBeLessThan(byId['inj-smb'].position.x);
-    // Each step renders its own endpoint node (suffixed id, shared endpoint shown per hop).
-    expect(byId['chain-ep|inj-nmap|ep-1'].type).toBe(AP_FLOW_NODE_TYPE.asset);
-    expect(byId['chain-ep|inj-smb|ep-1'].type).toBe(AP_FLOW_NODE_TYPE.asset);
+    // Endpoint nodes are keyed by DEPTH+asset: the producer (depth 0) and consumer (depth 1) are at
+    // different depths, so the shared asset ep-1 renders once per depth (the causal chain is preserved).
+    expect(byId['chain-ep|0|ep-1'].type).toBe(AP_FLOW_NODE_TYPE.asset);
+    expect(byId['chain-ep|1|ep-1'].type).toBe(AP_FLOW_NODE_TYPE.asset);
     // The produced finding is placed on its producer step, upstream of the consuming injector.
     expect(byId['NODE_FINDING|port|445'].type).toBe(AP_FLOW_NODE_TYPE.finding);
     expect(byId['NODE_FINDING|port|445'].position.x).toBeLessThan(byId['inj-smb'].position.x);
@@ -528,5 +531,43 @@ describe('buildCausalChainFlow', () => {
     expect(causal[0].source).toBe('inj-nmap');
     expect(causal[0].target).toBe('inj-smb');
     expect(causal[0].data?.causalKind).toBe('depend');
+  });
+
+  it('merges same-depth injectors hitting the same asset onto one shared endpoint node', () => {
+    // Arrange: two INDEPENDENT injectors (no dependsOn → both at depth 0) target the SAME asset ep-1.
+    const parallel: AttackPathDTO = {
+      ...chainDto,
+      attackPathExecutions: [
+        {
+          id: 'x1',
+          type: 'EXECUTION',
+          ref: 'exec-1',
+          stepTemplateId: 'step-A',
+          findingsNodeIds: [],
+          dependsOn: [],
+        },
+        {
+          id: 'x2',
+          type: 'EXECUTION',
+          ref: 'exec-2',
+          stepTemplateId: 'step-B',
+          findingsNodeIds: [],
+          dependsOn: [],
+        },
+      ],
+    };
+
+    // Act
+    const { nodes, edges } = buildCausalChainFlow(parallel, tt);
+
+    // Assert: a single endpoint node for ep-1 (keyed by depth 0 + asset), not one per injector.
+    const epNodes = nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.asset);
+    expect(epNodes).toHaveLength(1);
+    expect(epNodes[0].id).toBe('chain-ep|0|ep-1');
+    // Both injectors point their own labelled edge at that shared endpoint.
+    const toEp = edges.filter(e => e.target === 'chain-ep|0|ep-1');
+    expect(toEp.map(e => e.source).sort()).toEqual(['inj-nmap', 'inj-smb']);
+    // No causal edge: independent injectors share the asset but form no kill chain.
+    expect(edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE)).toHaveLength(0);
   });
 });

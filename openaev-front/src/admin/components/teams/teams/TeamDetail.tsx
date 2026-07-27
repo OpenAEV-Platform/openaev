@@ -1,48 +1,45 @@
-import { AssignmentOutlined, GroupsOutlined, HubOutlined, PersonOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Box, Chip, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { AssignmentOutlined, GroupsOutlined, HelpOutlineOutlined, HubOutlined, KeyboardArrowRight, PersonOutlined, TrackChangesOutlined } from '@mui/icons-material';
+import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useCallback, useContext, useMemo, useState } from 'react';
+import { type CSSProperties, useCallback, useContext, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
-import { searchAtomicTestings } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { searchDistinctFindings } from '../../../../actions/findings/finding-actions';
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
 import { fetchOrganizations } from '../../../../actions/Organization';
+import { searchPlayers } from '../../../../actions/players/player-actions';
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
-import { fetchTeam, fetchTeamPlayers, searchTeams, updateTeamPlayers } from '../../../../actions/teams/team-actions';
+import { fetchTeam, fetchTeamPlayers, searchInjectsForTeam, searchTeams, updateTeamPlayers } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, Section, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
+import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
+import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
+import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
+import { type Header } from '../../../../components/common/SortHeadersList';
 import Empty from '../../../../components/Empty';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
+import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ORGANIZATION_BASE_URL, PERSON_BASE_URL, TEAM_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
-import { type Filter, type InjectResultOutput, type SearchPaginationInput, type Team, type TeamOutput, type User } from '../../../../utils/api-types';
+import { type Filter, type InjectResultOutput, type PlayerOutput, type SearchPaginationInput, type Team, type TeamOutput, type User } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import InjectResultList from '../../atomic_testings/InjectResultList';
+import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import { TeamContext, type TeamContextType } from '../../common/Context';
 import TeamPlayers from '../../components/teams/TeamPlayers';
 import TeamPopover from '../../components/teams/TeamPopover';
 import FindingList from '../../findings/FindingList';
-
-const useStyles = makeStyles()(() => ({
-  drawerPaper: {
-    minHeight: '100vh',
-    width: '50%',
-    padding: 0,
-  },
-}));
 
 const withFilter = (input: SearchPaginationInput, key: string, values: string[]): SearchPaginationInput => {
   const filter: Filter = {
@@ -66,7 +63,7 @@ const withFilter = (input: SearchPaginationInput, key: string, values: string[])
 // the findings linked to the team. Compact and grid-based.
 const TeamDetail = () => {
   const { t, fldt } = useFormatter();
-  const { classes } = useStyles();
+  const bodyItemsStyles = useBodyItemsStyles();
   const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -92,12 +89,23 @@ const TeamDetail = () => {
     [team, usersMap],
   );
 
+  // Persons: server-paginated players search scoped to this team (same logic
+  // as the injects played and findings sections below).
+  const [persons, setPersons] = useState<PlayerOutput[]>([]);
+  const [personsLoading, setPersonsLoading] = useState(true);
+  // Bumped whenever the team membership or a player actually changes (add,
+  // remove, update, delete) so the list refreshes reactively - never on a mere
+  // open/close of the manage-players drawer.
+  const [personsReload, setPersonsReload] = useState(0);
+
   const teamContext: TeamContextType = useMemo(() => ({
-    onAddUsersTeam(id: Team['team_id'], userIds: string[]): Promise<void> {
-      return dispatch(updateTeamPlayers(id, { team_users: [...(team?.team_users ?? []), ...userIds] }));
+    async onAddUsersTeam(id: Team['team_id'], userIds: string[]): Promise<void> {
+      await dispatch(updateTeamPlayers(id, { team_users: [...(team?.team_users ?? []), ...userIds] }));
+      setPersonsReload(count => count + 1);
     },
-    onRemoveUsersTeam(id: Team['team_id'], userIds: string[]): Promise<void> {
-      return dispatch(updateTeamPlayers(id, { team_users: (team?.team_users ?? []).filter((u: string) => !userIds.includes(u)) }));
+    async onRemoveUsersTeam(id: Team['team_id'], userIds: string[]): Promise<void> {
+      await dispatch(updateTeamPlayers(id, { team_users: (team?.team_users ?? []).filter((u: string) => !userIds.includes(u)) }));
+      setPersonsReload(count => count + 1);
     },
     searchTeams(input: SearchPaginationInput): Promise<{ data: Page<TeamOutput> }> {
       return searchTeams(input) as Promise<{ data: Page<TeamOutput> }>;
@@ -108,11 +116,66 @@ const TeamDetail = () => {
     'team-injects',
     buildSearchPagination({ sorts: initSorting('inject_updated_at', 'DESC') }),
   );
+  // Injects played: every inject (atomic testing or simulation inject) that
+  // concerns this team - targeted directly or evidenced by the table-top
+  // expectations persisted at execution time. Same scope as the expectation
+  // counters in the hero, so the list and the counters stay consistent.
   const fetchInjectsPlayed = useCallback(
     (input: SearchPaginationInput): Promise<{ data: Page<InjectResultOutput> }> =>
-      searchAtomicTestings(withFilter(input, 'inject_teams', [teamId])) as Promise<{ data: Page<InjectResultOutput> }>,
+      searchInjectsForTeam(teamId, input) as Promise<{ data: Page<InjectResultOutput> }>,
     [teamId],
   );
+
+  const { queryableHelpers: personsHelpers, searchPaginationInput: personsInput } = useQueryableWithLocalStorage(
+    'team-persons',
+    buildSearchPagination({ sorts: initSorting('user_email') }),
+  );
+  const fetchTeamPersons = useCallback(
+    (input: SearchPaginationInput): Promise<{ data: Page<PlayerOutput> }> =>
+      searchPlayers(withFilter(input, 'user_teams', [teamId])) as Promise<{ data: Page<PlayerOutput> }>,
+    [teamId],
+  );
+
+  const personsInlineStyles: Record<string, CSSProperties> = {
+    user_email: { width: '25%' },
+    user_firstname: { width: '15%' },
+    user_lastname: { width: '15%' },
+    user_organization: { width: '20%' },
+    user_tags: { width: '25%' },
+  };
+
+  const personsHeaders: Header[] = useMemo(() => [
+    {
+      field: 'user_email',
+      label: 'Email address',
+      isSortable: true,
+      value: (player: PlayerOutput) => player.user_email,
+    },
+    {
+      field: 'user_firstname',
+      label: 'Firstname',
+      isSortable: true,
+      value: (player: PlayerOutput) => player.user_firstname || '-',
+    },
+    {
+      field: 'user_lastname',
+      label: 'Lastname',
+      isSortable: true,
+      value: (player: PlayerOutput) => player.user_lastname || '-',
+    },
+    {
+      field: 'user_organization',
+      label: 'Organization',
+      isSortable: false,
+      value: (player: PlayerOutput) => (player.user_organization ? organizationsMap[player.user_organization]?.organization_name : '-'),
+    },
+    {
+      field: 'user_tags',
+      label: 'Tags',
+      isSortable: true,
+      value: (player: PlayerOutput) => <ItemTags variant="list" tags={player.user_tags} />,
+    },
+  ], [organizationsMap]);
 
   if (!team) {
     return <Loader />;
@@ -150,7 +213,6 @@ const TeamDetail = () => {
           title={team.team_name}
           chips={(
             <>
-              <Chip size="small" variant="outlined" label={t('{count} players', { count: team.team_users_number ?? players.length })} sx={{ borderRadius: 1 }} />
               {organizationName && <Chip size="small" variant="outlined" label={organizationName} sx={{ borderRadius: 1 }} />}
               {team.team_contextual && <Chip size="small" color="primary" variant="outlined" label={t('Contextual')} sx={{ borderRadius: 1 }} />}
             </>
@@ -175,58 +237,93 @@ const TeamDetail = () => {
           )}
         />
 
-        {/* Identity + members side by side: both sections are short, so
-            sharing one grid row keeps the overview compact (they stack
-            automatically on narrow viewports). */}
-        <DetailSections>
-          <InformationGrid title={t('Information')}>
-            <Field label={t('Description')}>
-              <ExpandableMarkdown source={team.team_description ?? ''} limit={300} />
-            </Field>
-            <Field label={t('Organization')}>
-              {team.team_organization
-                ? <Link to={`${ORGANIZATION_BASE_URL}/${team.team_organization}`}>{organizationName || team.team_organization}</Link>
-                : '-'}
-            </Field>
-            <Field label={t('Contextual')}>{team.team_contextual ? t('Yes') : t('No')}</Field>
-            <Field label={t('Tags')}>
-              <ItemTags variant="list" tags={team.team_tags ?? []} />
-            </Field>
-            <Field label={t('Creation date')}>{fldt(team.team_created_at)}</Field>
-            <Field label={t('Update date')}>{fldt(team.team_updated_at)}</Field>
-          </InformationGrid>
-          <Section title={t('Players')}>
-            {players.length === 0
-              ? <Empty message={t('No player in this team.')} />
-              : (
-                  <List disablePadding>
-                    {players.map((player) => {
-                      const label = [player.user_firstname, player.user_lastname].filter(Boolean).join(' ').trim() || player.user_email;
-                      return (
-                        <ListItem key={player.user_id} divider disablePadding>
-                          <ListItemButton component={Link} to={`${PERSON_BASE_URL}/${player.user_id}`}>
-                            <ListItemIcon sx={{ minWidth: 36 }}><PersonOutlined color="primary" /></ListItemIcon>
-                            <ListItemText
-                              primary={label}
-                              secondary={player.user_organization ? organizationsMap[player.user_organization]?.organization_name : undefined}
-                            />
-                          </ListItemButton>
-                        </ListItem>
-                      );
-                    })}
-                  </List>
-                )}
-          </Section>
-        </DetailSections>
+        <InformationGrid title={t('Information')}>
+          <Field label={t('Description')}>
+            <ExpandableMarkdown source={team.team_description ?? ''} limit={300} />
+          </Field>
+          <Field label={t('Organization')}>
+            {team.team_organization
+              ? <Link to={`${ORGANIZATION_BASE_URL}/${team.team_organization}`}>{organizationName || team.team_organization}</Link>
+              : '-'}
+          </Field>
+          <Field label={t('Contextual')}>{team.team_contextual ? t('Yes') : t('No')}</Field>
+          <Field label={t('Tags')}>
+            <ItemTags variant="list" tags={team.team_tags ?? []} />
+          </Field>
+          <Field label={t('Creation date')}>{fldt(team.team_created_at)}</Field>
+          <Field label={t('Update date')}>{fldt(team.team_updated_at)}</Field>
+        </InformationGrid>
 
-        <SectionBlock title={t('Injects played')}>
-          <InjectResultList
-            fetchInjects={fetchInjectsPlayed}
-            goTo={injectId => `/admin/atomic_testings/${injectId}`}
-            queryableHelpers={injectsHelpers}
-            searchPaginationInput={injectsInput}
-            contextId={teamId}
+        <SectionBlock title={t('Persons')}>
+          <PaginationComponentV2
+            fetch={fetchTeamPersons}
+            searchPaginationInput={personsInput}
+            setContent={setPersons}
+            setLoading={setPersonsLoading}
+            entityPrefix="user"
+            availableFilterNames={['user_email', 'user_firstname', 'user_lastname', 'user_organization', 'user_tags']}
+            queryableHelpers={personsHelpers}
+            reloadContentCount={personsReload}
           />
+          <List>
+            <ListItem
+              divider={false}
+              style={{
+                paddingTop: 0,
+                textTransform: 'uppercase',
+              }}
+              secondaryAction={<>&nbsp;</>}
+            >
+              <ListItemIcon />
+              <ListItemText
+                primary={(
+                  <SortHeadersComponentV2
+                    headers={personsHeaders}
+                    inlineStylesHeaders={personsInlineStyles}
+                    sortHelpers={personsHelpers.sortHelpers}
+                  />
+                )}
+              />
+            </ListItem>
+            {personsLoading
+              ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={personsHeaders} headerStyles={personsInlineStyles} />
+              : persons.map(player => (
+                  <ListItem
+                    key={player.user_id}
+                    divider
+                    disablePadding
+                    secondaryAction={<KeyboardArrowRight color="action" />}
+                  >
+                    <ListItemButton
+                      style={{ height: 50 }}
+                      component={Link}
+                      to={`${PERSON_BASE_URL}/${player.user_id}`}
+                    >
+                      <ListItemIcon>
+                        <PersonOutlined color="primary" />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={(
+                          <div style={bodyItemsStyles.bodyItems}>
+                            {personsHeaders.map(header => (
+                              <div
+                                key={header.field}
+                                style={{
+                                  ...bodyItemsStyles.bodyItem,
+                                  ...personsInlineStyles[header.field],
+                                }}
+                              >
+                                {header.value?.(player)}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+            {!personsLoading && persons.length === 0 && <Empty message={t('No player in this team.')} />}
+          </List>
         </SectionBlock>
 
         <SectionBlock title={t('Findings')}>
@@ -237,31 +334,27 @@ const TeamDetail = () => {
           />
         </SectionBlock>
 
-        <Drawer
-          open={managing}
-          keepMounted={false}
-          anchor="right"
-          sx={{ zIndex: 1202 }}
-          classes={{ paper: classes.drawerPaper }}
-          onClose={() => {
-            setManaging(false);
-            dispatch(fetchTeam(teamId));
-            dispatch(fetchTeamPlayers(teamId));
-          }}
-          elevation={1}
-        >
-          {managing && (
-            <TeamPlayers
-              teamId={teamId}
-              handleClose={() => {
-                setManaging(false);
-                dispatch(fetchTeam(teamId));
-                dispatch(fetchTeamPlayers(teamId));
-              }}
-              canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS)}
-            />
-          )}
-        </Drawer>
+        <SectionBlock title={t('Injects played')}>
+          <InjectResultList
+            fetchInjects={fetchInjectsPlayed}
+            goTo={injectResultDetailPath}
+            queryableHelpers={injectsHelpers}
+            searchPaginationInput={injectsInput}
+            contextId={teamId}
+          />
+        </SectionBlock>
+
+        {managing && (
+          <TeamPlayers
+            teamId={teamId}
+            // Closing without touching anything must not reload the page lists:
+            // every mutation already refreshes reactively (context handlers +
+            // onPlayersChange below).
+            handleClose={() => setManaging(false)}
+            onPlayersChange={() => setPersonsReload(count => count + 1)}
+            canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS)}
+          />
+        )}
       </Box>
     </TeamContext.Provider>
   );

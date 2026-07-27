@@ -10,6 +10,7 @@ import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import { type InjectTarget } from '../../../../utils/api-types';
 import NewTargetListItem from './NewTargetListItem';
+import { TargetListSkeleton } from './TargetSkeletons';
 
 interface Props {
   handleSelectTarget: (target: InjectTarget) => void;
@@ -19,6 +20,7 @@ interface Props {
   reloadContentCount: number;
   selectedTargetId?: string;
   onTargetsChange?: (targets: InjectTarget[]) => void;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
 const PaginatedTargetTab: React.FC<Props> = (props) => {
@@ -32,9 +34,17 @@ const PaginatedTargetTab: React.FC<Props> = (props) => {
   }));
 
   const [targets, setTargets] = useState<InjectTarget[]>();
+  // Starts true so the very first paint shows the skeleton instead of
+  // flashing the "No target configured." empty state while the fetch runs.
+  const [loading, setLoading] = useState(true);
   const [searchReloadContentCount, setSearchReloadContentCount] = useState(0);
 
-  const { onTargetsChange } = props;
+  const { onTargetsChange, onLoadingChange } = props;
+
+  const handleSetLoading = (value: boolean) => {
+    setLoading(value);
+    onLoadingChange?.(value);
+  };
 
   useEffect(() => {
     setSearchReloadContentCount(previous => previous + 1);
@@ -61,12 +71,13 @@ const PaginatedTargetTab: React.FC<Props> = (props) => {
         fetch={input => searchTargets(props.inject_id, props.target_type, input)}
         searchPaginationInput={pagination.searchPaginationInput}
         setContent={handleSetTargets}
+        setLoading={handleSetLoading}
         entityPrefix={props.entityPrefix}
         queryableHelpers={pagination.queryableHelpers}
         reloadContentCount={searchReloadContentCount}
         contextId={props.inject_id}
       />
-      {targets && targets.length > 0 ? (
+      {targets && targets.length > 0 && (
         <Box
           sx={{
             'marginTop': 1,
@@ -87,7 +98,9 @@ const PaginatedTargetTab: React.FC<Props> = (props) => {
             ))}
           </List>
         </Box>
-      ) : (
+      )}
+      {(!targets || targets.length === 0) && loading && <TargetListSkeleton />}
+      {targets && targets.length === 0 && !loading && (
         <div>
           <Empty message={t('No target configured.')} />
         </div>

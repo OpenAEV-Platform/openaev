@@ -1,15 +1,15 @@
 import { Box, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
-import { useNavigate } from 'react-router';
+import { Link } from 'react-router';
 
 import ItemSecurityPlatformType from '../../../../components/ItemSecurityPlatformType';
 import ItemTags from '../../../../components/ItemTags';
 import { SECURITY_PLATFORM_BASE_URL } from '../../../../constants/BaseUrls';
 import { type SecurityPlatform } from '../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
-import { isNotEmptyField } from '../../../../utils/utils';
 import SecurityPlatformPopover from './SecurityPlatformPopover';
+import isCollectorManaged from './securityPlatformUtils';
 
 interface Props {
   securityPlatform: SecurityPlatform;
@@ -25,13 +25,14 @@ const SecurityPlatformCard: FunctionComponent<Props> = ({
   openEditOnInit,
 }) => {
   const theme = useTheme();
-  const navigate = useNavigate();
 
   return (
     <Paper
       variant="outlined"
       data-testid="security-platform-card"
-      onClick={() => navigate(`${SECURITY_PLATFORM_BASE_URL}/${securityPlatform.asset_id}`)}
+      // Real router link (not a JS navigate) so ctrl/cmd+click opens a new tab.
+      component={Link}
+      to={`${SECURITY_PLATFORM_BASE_URL}/${securityPlatform.asset_id}`}
       sx={{
         'position': 'relative',
         'display': 'flex',
@@ -41,6 +42,8 @@ const SecurityPlatformCard: FunctionComponent<Props> = ({
         'borderRadius': 1,
         'height': '100%',
         'cursor': 'pointer',
+        'textDecoration': 'none',
+        'color': 'inherit',
         'transition': theme.transitions.create(['border-color', 'box-shadow', 'transform']),
         '&:hover': {
           borderColor: alpha(theme.palette.primary.main, 0.5),
@@ -55,7 +58,12 @@ const SecurityPlatformCard: FunctionComponent<Props> = ({
           top: 6,
           right: 6,
         }}
-        onClick={event => event.stopPropagation()}
+        onClick={(event) => {
+          // The card is a real link: also cancel the native anchor navigation,
+          // stopPropagation() alone only blocks the router's client-side handler.
+          event.preventDefault();
+          event.stopPropagation();
+        }}
       >
         <SecurityPlatformPopover
           securityPlatform={{
@@ -65,7 +73,7 @@ const SecurityPlatformCard: FunctionComponent<Props> = ({
           onUpdate={onUpdate}
           onDelete={onDelete}
           openEditOnInit={openEditOnInit}
-          disabled={isNotEmptyField(securityPlatform.asset_external_reference)}
+          disabled={isCollectorManaged(securityPlatform)}
         />
       </Box>
 

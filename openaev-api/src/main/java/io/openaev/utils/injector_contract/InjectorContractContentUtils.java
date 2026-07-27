@@ -159,7 +159,7 @@ public class InjectorContractContentUtils {
    * @param injectorContract the injector contract to inspect
    * @return list of predefined expectation JSON nodes (never null)
    */
-  private List<JsonNode> getPredefinedExpectationNodes(InjectorContract injectorContract) {
+  public List<JsonNode> getPredefinedExpectationNodes(InjectorContract injectorContract) {
     ObjectNode convertedContent = injectorContract.getConvertedContent();
     if (convertedContent == null
         || !convertedContent.has(FIELDS)

@@ -1,7 +1,4 @@
-import { ControlPointOutlined } from '@mui/icons-material';
-import { ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
 import { type TeamInputForm } from '../../../../actions/teams/Team';
 import { addTeam } from '../../../../actions/teams/team-actions';
@@ -15,14 +12,6 @@ import { type Option } from '../../../../utils/Option';
 import { TeamContext } from '../../common/Context';
 import TeamForm from './TeamForm';
 
-const useStyles = makeStyles()(theme => ({
-  text: {
-    fontSize: theme.typography.h2.fontSize,
-    color: theme.palette.primary.main,
-    fontWeight: theme.typography.h2.fontWeight,
-  },
-}));
-
 interface CreateTeamProps {
   inline?: boolean;
   onCreate: (result: Team) => void;
@@ -33,7 +22,6 @@ const CreateTeam: FunctionComponent<CreateTeamProps> = ({
   onCreate,
 }) => {
   const dispatch = useAppDispatch();
-  const { classes } = useStyles();
   const { t } = useFormatter();
   const [openDialog, setOpenDialog] = useState(false);
   const { onCreateTeam } = useContext(TeamContext);
@@ -64,15 +52,8 @@ const CreateTeam: FunctionComponent<CreateTeamProps> = ({
   return (
     <div>
       {inline ? (
-        <ListItemButton divider onClick={handleOpen} color="primary">
-          <ListItemIcon color="primary">
-            <ControlPointOutlined color="primary" />
-          </ListItemIcon>
-          <ListItemText
-            primary={t('Create a new team')}
-            classes={{ primary: classes.text }}
-          />
-        </ListItemButton>
+        // Header placement (picker top-right): compact creation button.
+        <ButtonCreate onClick={handleOpen} label={t('Create a new team')} />
       ) : (
         <ButtonCreate onClick={handleOpen} />
       )}

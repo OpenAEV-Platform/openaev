@@ -59,6 +59,14 @@ public class Collector extends BaseConnectorEntity implements TenantIdBase {
   @JsonProperty("collector_period")
   private int period;
 
+  /**
+   * Optional source-declared author override. When set, the collector's payloads (and their arsenal
+   * contracts) are attributed to this author organization instead of the collector's display name.
+   */
+  @Column(name = "collector_author")
+  @JsonProperty("collector_author")
+  private String author;
+
   @Column(name = "collector_external")
   @JsonProperty("collector_external")
   private boolean external = false;
@@ -77,7 +85,9 @@ public class Collector extends BaseConnectorEntity implements TenantIdBase {
   @JsonProperty("collector_last_execution")
   private Instant lastExecution;
 
-  @OneToOne(fetch = FetchType.LAZY)
+  // ManyToOne (not OneToOne): the collector_security_platform column carries no unique
+  // constraint, several collectors may legitimately point to the same security platform.
+  @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "collector_security_platform")
   @JsonProperty("collector_security_platform")
   private SecurityPlatform securityPlatform;

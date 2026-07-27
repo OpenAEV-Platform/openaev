@@ -10,6 +10,7 @@ import XlsMappers from './data_ingestion/XlsMappers';
 import Experience from './experience/Experience';
 import Groups from './groups/Groups';
 import KillChainPhases from './kill_chain_phases/KillChainPhases';
+import Notifiers from './notifiers/Notifiers';
 import Organizations from './organizations/Organizations';
 import Policies from './policies/Policies';
 import Roles from './roles/Roles';
@@ -77,7 +78,14 @@ const Index = () => {
       <Route path="taxonomies/vulnerabilities" element={errorWrapper(Vulnerabilities)()} />
       <Route path="data_ingestion" element={<Navigate to="xls_mappers" replace={true} />} />
       <Route path="data_ingestion/xls_mappers" element={errorWrapper(XlsMappers)()} />
-      <Route path="asset_rules" element={errorWrapper(TagRules)()} />
+      {/* Customization section (OpenCTI-aligned): asset rules + notifiers
+          behind a shared right submenu (CustomizationMenu). */}
+      <Route path="customization" element={<Navigate to="asset_rules" replace={true} />} />
+      <Route path="customization/asset_rules" element={errorWrapper(TagRules)()} />
+      <Route path="customization/notifiers" element={errorWrapper(Notifiers)()} />
+      {/* Legacy flat paths kept as redirects so old bookmarks keep working. */}
+      <Route path="asset_rules" element={<Navigate to="../customization/asset_rules" replace={true} />} />
+      <Route path="notifiers" element={<Navigate to="../customization/notifiers" replace={true} />} />
       <Route path="experience" element={errorWrapper(Experience)()} />
 
       {/* Not found */}

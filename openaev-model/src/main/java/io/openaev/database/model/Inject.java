@@ -95,10 +95,37 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonProperty("inject_enabled")
   private boolean enabled = true;
 
+  /**
+   * Whether the expectation-drift warning was dismissed for this inject (atomic testing whose
+   * drifted expectations were customized on purpose). Persisted in database so the dismissal is
+   * shared between users. Reset on realignment so a future drift surfaces the full warning again.
+   */
+  @Getter
+  @Column(name = "inject_expectations_drift_dismissed")
+  @JsonProperty("inject_expectations_drift_dismissed")
+  private boolean expectationsDriftDismissed;
+
   @Getter
   @Column(name = "inject_trigger_now_date")
   @JsonProperty("inject_trigger_now_date")
   private Instant triggerNowDate;
+
+  // Recurrence scheduling for atomic testings (mirrors Scenario recurrence). When set, a minutely
+  // job relaunches the atomic testing on each occurrence between start and end.
+  @Getter
+  @Column(name = "inject_recurrence")
+  @JsonProperty("inject_recurrence")
+  private String recurrence; // cron expression
+
+  @Getter
+  @Column(name = "inject_recurrence_start")
+  @JsonProperty("inject_recurrence_start")
+  private Instant recurrenceStart;
+
+  @Getter
+  @Column(name = "inject_recurrence_end")
+  @JsonProperty("inject_recurrence_end")
+  private Instant recurrenceEnd;
 
   @Getter
   @Column(name = "inject_content")
@@ -212,9 +239,15 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   private User user;
 
   // CascadeType.ALL is required here because inject status are embedded
+  // Filter/sort on the execution status name (not the relation id), with the
+  // enum values exposed to the UI so the filter is a picker instead of free text
   @OneToOne(mappedBy = "inject", cascade = CascadeType.ALL, orphanRemoval = true)
   @JsonProperty("inject_status")
-  @Queryable(filterable = true, sortable = true)
+  @Queryable(
+      filterable = true,
+      sortable = true,
+      path = "status.name",
+      refEnumClazz = ExecutionStatus.class)
   private InjectStatus status;
 
   @Column(name = "inject_collect_status", nullable = false)
@@ -530,7 +563,13 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   }
 
   @JsonProperty("inject_type")
-  @Queryable(filterable = true, path = "injectorContract.labels", clazz = Map.class)
+  // dynamicValues: the filter matches contract label text, so the UI offers an autocomplete of
+  // injector contract labels instead of a free-text input.
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      path = "injectorContract.labels",
+      clazz = Map.class)
   public String getType() {
     if (this.injector != null) {
       return this.injector.getType();

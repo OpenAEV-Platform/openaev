@@ -1,15 +1,13 @@
 package io.openaev.notification.handler;
 
-import static io.openaev.helper.UrlHelper.buildFrontScenarioUrl;
-
-import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.expectation.ExpectationType;
+import io.openaev.notification.engine.NotificationEngineService;
+import io.openaev.notification.engine.NotificationResourceCatalog;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
-import io.openaev.service.NotificationRuleService;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
@@ -23,13 +21,17 @@ import org.hibernate.Session;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Detects scenario score degradations between the two most recent finished simulations and, when
+ * one occurs, fires a {@code SCORE_DEGRADATION} event through the notifications engine (successor
+ * of the legacy {@code NotificationRule} DIFFERENCE email).
+ */
 @Component
 @RequiredArgsConstructor
 public class ScenarioNotificationEventHandler implements NotificationEventHandler {
   private final EntityManager entityManager;
-  private final OpenAEVConfig openAEVConfig;
   private final ExerciseService exerciseService;
-  private final NotificationRuleService notificationRuleService;
+  private final NotificationEngineService notificationEngineService;
 
   @Override
   @Transactional(rollbackFor = Exception.class)
@@ -61,12 +63,14 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
 
       if (exerciseService.isThereAScoreDegradation(
           lastSimulationResultsMap, secondLastSimulationResultsMap)) {
-        // notify
-        notificationRuleService.activateNotificationRules(
-            lastSimulation.getScenario().getId(),
-            NotificationRuleTrigger.DIFFERENCE,
-            buildScenarioNotificationData(
-                lastSimulation.getScenario(),
+        Scenario scenario = lastSimulation.getScenario();
+        notificationEngineService.handleEventWithMessage(
+            NotificationResourceCatalog.SCENARIO,
+            scenario.getId(),
+            scenario.getTenant() != null ? scenario.getTenant().getId() : null,
+            NotificationTriggerEventType.SCORE_DEGRADATION,
+            buildDegradationMessage(
+                scenario,
                 lastSimulation,
                 secondLastSimulation,
                 lastSimulationResultsMap,
@@ -75,47 +79,36 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
     }
   }
 
-  private Map<String, String> buildScenarioNotificationData(
+  private String buildDegradationMessage(
       @NotNull final Scenario scenario,
       @NotNull final Exercise lastSimulation,
       @NotNull final Exercise secondLastSimulation,
       @NotNull final Map<ExpectationType, ExpectationResultsByType> lastSimulationResultsMap,
       @NotNull
           final Map<ExpectationType, ExpectationResultsByType> secondLastSimulationResultsMap) {
-    // TODO handle date format dynamically
     DateTimeFormatter formatter =
         DateTimeFormatter.ofPattern("yyyy/MM/dd").withZone(ZoneId.systemDefault());
 
-    String scenarioId = scenario.getId();
-    String url = openAEVConfig.getBaseUrl();
-    float lastSimulationPrevScore =
+    float lastPrevention =
         getRoundedPercentageSafe(lastSimulationResultsMap.get(ExpectationType.PREVENTION));
-    float lastSimulationDetectScore =
+    float lastDetection =
         getRoundedPercentageSafe(lastSimulationResultsMap.get(ExpectationType.DETECTION));
-    float secondLastSimulationPrevScore =
+    float previousPrevention =
         getRoundedPercentageSafe(secondLastSimulationResultsMap.get(ExpectationType.PREVENTION));
-    float secondLastSimulationDetectScore =
+    float previousDetection =
         getRoundedPercentageSafe(secondLastSimulationResultsMap.get(ExpectationType.DETECTION));
-    float decreasePrev = secondLastSimulationPrevScore - lastSimulationPrevScore;
-    float decreaseDetect = secondLastSimulationDetectScore - lastSimulationDetectScore;
 
-    Map<String, String> data = new HashMap<>();
-    data.put("decrease_prev", Float.toString(decreasePrev));
-    data.put("decrease_detect", Float.toString(decreaseDetect));
-    data.put(
-        "prev_simulation_date", secondLastSimulation.getEnd().map(formatter::format).orElse("NA"));
-    data.put("prev_percentage_detection", Float.toString(secondLastSimulationDetectScore));
-    data.put("prev_percentage_prevention", Float.toString(secondLastSimulationPrevScore));
-    data.put("new_simulation_date", lastSimulation.getEnd().map(formatter::format).orElse("NA"));
-    data.put("new_percentage_detection", Float.toString(lastSimulationDetectScore));
-    data.put("new_percentage_prevention", Float.toString(lastSimulationPrevScore));
-    data.put(
-        "scenarioLink",
-        buildFrontScenarioUrl(
-            openAEVConfig.getBaseUrl(), scenario.getTenant().getId(), scenarioId));
-    data.put("instanceLink", url);
-    data.put("scenario_name", scenario.getName());
-    return data;
+    return String.format(
+        Locale.ROOT,
+        "[scenario] %s: score degradation detected - prevention %.0f%% -> %.0f%%, detection"
+            + " %.0f%% -> %.0f%% (previous simulation %s, new simulation %s)",
+        scenario.getName(),
+        previousPrevention,
+        lastPrevention,
+        previousDetection,
+        lastDetection,
+        secondLastSimulation.getEnd().map(formatter::format).orElse("NA"),
+        lastSimulation.getEnd().map(formatter::format).orElse("NA"));
   }
 
   /**

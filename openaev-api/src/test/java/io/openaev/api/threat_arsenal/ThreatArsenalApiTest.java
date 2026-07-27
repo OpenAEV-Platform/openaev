@@ -16,7 +16,6 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
-import io.openaev.collectors.utils.CollectorsUtils;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
@@ -36,6 +35,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
@@ -64,7 +64,6 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   @Autowired private CollectorRepository collectorRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
-  @Autowired private CollectorComposer collectorComposer;
   @Autowired private DomainComposer domainComposer;
   @Autowired private TagComposer tagComposer;
   @Autowired private PayloadComposer payloadComposer;
@@ -72,7 +71,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private DetectionRemediationComposer detectionRemediationComposer;
-  @Autowired private CollectorTypeComposer collectorTypeComposer;
+  @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private UserTestHelper userTestHelper;
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
@@ -85,12 +84,11 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     tagComposer.reset();
     domainComposer.reset();
     detectionRemediationComposer.reset();
-    collectorTypeComposer.reset();
+    securityPlatformComposer.reset();
   }
 
   @BeforeAll
   void beforeAll() {
-    collectorComposer.reset();
     EXECUTABLE_FILE = documentRepository.save(PayloadInputFixture.createDefaultExecutableFile());
   }
 
@@ -753,6 +751,36 @@ public class ThreatArsenalApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(input)))
           .andExpect(status().isOk());
+      String facetResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/facet-counts")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      // Under the Windows filter, the Windows+Linux contract is the only match:
+      // both of its platforms count 1, MacOS counts 0.
+      assertEquals(
+          1,
+          (int) JsonPath.read(facetResponse, "$.platforms.Windows"),
+          "Windows facet count should match the filtered contract");
+      assertEquals(
+          1,
+          (int) JsonPath.read(facetResponse, "$.platforms.Linux"),
+          "Linux facet count should include the Windows+Linux contract");
+      assertEquals(
+          0,
+          (int) JsonPath.read(facetResponse, "$.platforms.MacOS"),
+          "No MacOS contract should match under the Windows filter");
+      // The matched contract has no payload: contracts without a payload are excluded from the
+      // status facet, so the statuses map is present but empty.
+      Map<String, Integer> statuses = JsonPath.read(facetResponse, "$.statuses");
+      assertTrue(
+          statuses.isEmpty(),
+          "Contracts without a payload should not contribute to status facet counts");
     }
 
     private String searchWith(SearchPaginationInput input) throws Exception {
@@ -1500,11 +1528,11 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
   @Nested
   @WithMockUser(isAdmin = true)
-  @DisplayName("Get collector used in action remediation")
-  class GetCollectorForActionRemediation {
+  @DisplayName("Get security platform used in action remediation")
+  class GetSecurityPlatformForActionRemediation {
 
     @Test
-    @DisplayName("Getting collectors for a non-payload-based action should fail")
+    @DisplayName("Getting security platforms for a non-payload-based action should fail")
     void given_nonPayloadContract_should_returnFailed() throws Exception {
       // Arrange
       Injector emailInjector = injectorFixture.getWellKnownEmailInjector(false);
@@ -1519,7 +1547,10 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       // Act & Assert
       mvc.perform(
               get(tenantUri(
-                      TENANT_THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId() + "/collectors"))
+                      TENANT_THREAT_ARSENAL_URI
+                          + "/"
+                          + nonPayloadContract.getId()
+                          + "/security-platforms"))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON))
           .andExpect(status().isNotFound())
@@ -1527,27 +1558,17 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               content()
                   .string(
                       containsString(
-                          "Only payload-based injector contracts can provide collectors for action remediation.")));
+                          "Only payload-based threat arsenal items can provide security platforms for action remediation.")));
     }
 
     @Test
     @DisplayName(
-        "Getting collectors for a payload-based action should return the associated collectors")
-    void given_nonPayloadContract_should_returnCollectorsForActionRemediation() throws Exception {
-      // Arrange — create and delete
+        "Getting security platforms for a payload-based action should return the associated security platforms")
+    void given_payloadContract_should_returnSecurityPlatformsForActionRemediation()
+        throws Exception {
+      // Arrange
       Injector oaevImplantInjector = injectorFixture.getWellKnownOaevImplantInjector();
-      Collector crowdstrikeCollector =
-          collectorComposer
-              .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
-              .persist()
-              .get();
-      Collector defenderCollector =
-          collectorComposer
-              .forCollector(
-                  CollectorFixture.createDefaultCollector(CollectorsUtils.MICROSOFT_DEFENDER))
-              .persist()
-              .get();
-      InjectorContract nonPayloadContract =
+      InjectorContract payloadContract =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
               .withInjector(oaevImplantInjector)
@@ -1559,18 +1580,18 @@ public class ThreatArsenalApiTest extends IntegrationTest {
                           detectionRemediationComposer
                               .forDetectionRemediation(
                                   DetectionRemediationFixture.createDefaultDetectionRemediation())
-                              .withCollectorType(
-                                  collectorTypeComposer.forCollectorType(
-                                      CollectorTypeFixture.createCollectorType(
-                                          crowdstrikeCollector.getType()))))
+                              .withSecurityPlatform(
+                                  securityPlatformComposer.forSecurityPlatform(
+                                      SecurityPlatformFixture.createDefault(
+                                          "CrowdStrike Falcon", "EDR"))))
                       .withDetectionRemediation(
                           detectionRemediationComposer
                               .forDetectionRemediation(
                                   DetectionRemediationFixture.createDefaultDetectionRemediation())
-                              .withCollectorType(
-                                  collectorTypeComposer.forCollectorType(
-                                      CollectorTypeFixture.createCollectorType(
-                                          defenderCollector.getType())))))
+                              .withSecurityPlatform(
+                                  securityPlatformComposer.forSecurityPlatform(
+                                      SecurityPlatformFixture.createDefault(
+                                          "Microsoft Defender", "EDR")))))
               .persist()
               .get();
 
@@ -1579,8 +1600,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
                   get(tenantUri(
                           TENANT_THREAT_ARSENAL_URI
                               + "/"
-                              + nonPayloadContract.getId()
-                              + "/collectors"))
+                              + payloadContract.getId()
+                              + "/security-platforms"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -1589,10 +1610,9 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      List<String> collectorTypes = JsonPath.read(response, "$[*].collector_type");
-      assertThat(collectorTypes)
-          .containsExactlyInAnyOrder(
-              CollectorsUtils.CROWDSTRIKE, CollectorsUtils.MICROSOFT_DEFENDER);
+      List<String> securityPlatformNames = JsonPath.read(response, "$[*].asset_name");
+      assertThat(securityPlatformNames)
+          .containsExactlyInAnyOrder("CrowdStrike Falcon", "Microsoft Defender");
     }
   }
 }

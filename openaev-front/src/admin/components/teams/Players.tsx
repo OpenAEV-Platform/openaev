@@ -1,7 +1,7 @@
 import { HelpOutlineOutlined, PersonOutlined } from '@mui/icons-material';
 import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useContext, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type OrganizationHelper, type UserHelper } from '../../../actions/helper';
@@ -51,7 +51,6 @@ const Players = () => {
   // Standard hooks
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
 
@@ -250,11 +249,17 @@ const Players = () => {
                 secondaryAction={(
                   <PlayerPopover
                     user={player}
+                    onUpdate={result => setPlayers(players.map(p => (p.user_id === result.user_id
+                      ? {
+                          ...p,
+                          ...result,
+                        }
+                      : p)))}
                     onDelete={result => setPlayers(players.filter(p => (p.user_id !== result)))}
                   />
                 )}
               >
-                <ListItemButton classes={{ root: classes.item }} onClick={() => navigate(`${PERSON_BASE_URL}/${player.user_id}`)}>
+                <ListItemButton classes={{ root: classes.item }} component={Link} to={`${PERSON_BASE_URL}/${player.user_id}`}>
                   {canManage && (
                     <ListItemIcon
                       style={{ minWidth: 40 }}

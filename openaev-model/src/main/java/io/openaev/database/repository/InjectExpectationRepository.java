@@ -128,6 +128,13 @@ public interface InjectExpectationRepository
   // Only LEAF asset expectations are returned (asset_id IS NOT NULL): asset-group parents
   // (asset_id NULL, asset_group_id set) are never fulfilled directly - their score is recomputed by
   // propagation from the asset leaves - and updating them directly would dereference a null asset.
+  // Two additional guards keep collectors away from expectations that are not theirs to answer:
+  // 1. PARENT asset expectations (same shape: asset set, agent null) whose asset has agent-level
+  //    children are excluded - their score is derived from the agents, and a collector answering
+  //    the parent directly would clobber that derived verdict (e.g. an LLM firewall stamping
+  //    "Not Detected" on an endpoint parent whose EDR agents were already green).
+  // 2. When the expectation restricts its expected security platform types, only collectors whose
+  //    security platform matches one of those types receive it (empty/null means any platform).
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
@@ -136,6 +143,19 @@ public interface InjectExpectationRepository
               + "AND e.inject_expectation_type = :type "
               + "AND e.agent_id IS NULL "
               + "AND e.asset_id IS NOT NULL "
+              + "AND NOT EXISTS (SELECT 1 FROM injects_expectations child "
+              + "  WHERE child.inject_id = e.inject_id "
+              + "  AND child.asset_id = e.asset_id "
+              + "  AND child.inject_expectation_type = e.inject_expectation_type "
+              + "  AND child.agent_id IS NOT NULL) "
+              + "AND (e.inject_expectation_expected_security_platforms IS NULL "
+              + "  OR jsonb_typeof(e.inject_expectation_expected_security_platforms::jsonb) <> 'array' "
+              + "  OR jsonb_array_length(e.inject_expectation_expected_security_platforms::jsonb) = 0 "
+              + "  OR EXISTS (SELECT 1 FROM collectors c "
+              + "    JOIN assets sp ON sp.asset_id = c.collector_security_platform "
+              + "    WHERE c.collector_id = :sourceId "
+              + "    AND sp.security_platform_type IS NOT NULL "
+              + "    AND jsonb_exists(e.inject_expectation_expected_security_platforms::jsonb, sp.security_platform_type))) "
               + "AND "
               + RESULTS_HAS_NO_RESULT_FOR_SOURCE
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",

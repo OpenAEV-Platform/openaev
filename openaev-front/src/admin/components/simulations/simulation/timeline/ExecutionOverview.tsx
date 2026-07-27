@@ -119,6 +119,21 @@ const ExecutionOverview = () => {
     (expectation: InjectExpectationOutput) => expectation.inject_expectation_type === 'MANUAL' && expectation.inject_expectation_status === 'PENDING',
   ).length;
 
+  // Next planned inject, computed from the injects list with the same formula
+  // as the attack timeline (start date + depends_duration). Computed here
+  // rather than read from exercise_next_inject_date because that field only
+  // exists on the raw Exercise entity returned by mutations - the
+  // SimulationDetails DTO of GET /exercises/{id} does not carry it, so the
+  // countdown would silently disappear after a page reload.
+  const exerciseStartTime = exercise?.exercise_start_date ? new Date(exercise.exercise_start_date).getTime() : null;
+  const nextInjectTime = exerciseStartTime === null
+    ? null
+    : enabledInjects
+        .filter((inject: InjectStore) => inject.inject_status === null)
+        .map((inject: InjectStore) => exerciseStartTime + (inject.inject_depends_duration ?? 0) * 1000)
+        .filter((time: number) => time >= now)
+        .reduce((min: number | null, time: number) => (min === null || time < min ? time : min), null);
+
   const onUpdateInject = async (inject: Inject) => {
     if (selectedInjectId) {
       await dispatch(updateInjectForExercise(exerciseId, selectedInjectId, inject));
@@ -150,6 +165,7 @@ const ExecutionOverview = () => {
           errorCount={errorCount}
           pendingValidations={pendingValidations}
           now={now}
+          nextInjectTime={nextInjectTime}
         />
 
         {/* Scoping toolbar for the timeline and board below */}

@@ -2,8 +2,8 @@ import { PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
 import { Avatar, Box, Button, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
-import { type Dispatch, type SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { type AgentHelper } from '../../../../actions/agents/agent-helper';
 import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
@@ -50,6 +50,7 @@ import { isEmptyField, isFeatureEnabled } from '../../../../utils/utils';
 import MitreCoverageMatrix from '../../common/matrix/MitreCoverageMatrix';
 import ExercisePopover from '../../simulations/simulation/ExercisePopover';
 import SimulationList from '../../simulations/SimulationList';
+import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
 import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import ScenarioDistributionByExercise from './ScenarioDistributionByExercise';
 
@@ -236,6 +237,24 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   const killChainPhases = sortByOrder(scenario.scenario_kill_chain_phases ?? []) as KillChainPhase[];
   const hasExternalUrl = !isEmptyField(scenario.scenario_external_url);
 
+  // Posture / MITRE drill-downs: the overview surfaces the LATEST run's
+  // results, so clicks land on the results explorer scoped to that simulation
+  // (real results only - sample previews have nothing to drill into).
+  const navigate = useNavigate();
+  const location = useLocation();
+  const openPostureResults = useCallback((type: string) => {
+    if (!lastSimulationId) {
+      return;
+    }
+    navigate(contextualResultsUrl(
+      CONTEXTUAL_POSTURE_WIDGET_ID,
+      'simulation',
+      lastSimulationId,
+      `${location.pathname}${location.search}`,
+      { inject_expectation_type: [type] },
+    ));
+  }, [navigate, location, lastSimulationId]);
+
   return (
     <Box sx={{
       display: 'flex',
@@ -276,7 +295,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
             </Typography>
           </Box>
           {canLaunch && (
-            <Tooltip title={isScopeMissing ? t('A Chaining Scenario requires a defined scope.') : ''}>
+            <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : ''}>
               <span style={{ display: 'inline-flex' }}>
                 <Button
                   startIcon={<PlayArrowOutlined />}
@@ -299,6 +318,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
             <PostureGauges
               expectationResultsByTypes={postureResults}
               humanValidationLink={!isSample && lastSimulationId ? `/admin/simulations/${lastSimulationId}/execution/validations` : undefined}
+              onTypeClick={!isSample && lastSimulationId ? openPostureResults : undefined}
             />
           </SamplePreview>
         </SectionBlock>
@@ -396,7 +416,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
       </Box>
 
       {showMitre && (
-        <SectionBlock title={t('MITRE ATT&CK Results')}>
+        <SectionBlock title={t('Kill chain results')}>
           {/* In sample mode the matrix lists the REAL techniques targeted by
               the scenario's injects (muted boxes, coverage unknown): only grey
               it as an illustrative sample when even the techniques are not
@@ -405,6 +425,13 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
             <MitreCoverageMatrix
               widgetId={`scenario-mitre-${scenarioId}`}
               injectResults={isSample ? plannedInjectResults : lastInjectResults}
+              defaultKillChain={scenario.scenario_default_kill_chain}
+              resultsContext={!isSample && lastSimulationId
+                ? {
+                    source: 'simulation',
+                    contextId: lastSimulationId,
+                  }
+                : undefined}
             />
           </SamplePreview>
         </SectionBlock>

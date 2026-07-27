@@ -14,29 +14,29 @@ public class DetectionRemediationComposer extends ComposerBase<DetectionRemediat
   public class Composer extends InnerComposerBase<DetectionRemediation> {
 
     private final DetectionRemediation detectionRemediation;
-    private Optional<CollectorTypeComposer.Composer> collectorTypeComposer = Optional.empty();
+    private Optional<SecurityPlatformComposer.Composer> securityPlatformComposer = Optional.empty();
 
     public Composer(DetectionRemediation detectionRemediation) {
       this.detectionRemediation = detectionRemediation;
     }
 
-    public Composer withCollectorType(CollectorTypeComposer.Composer newCollectorType) {
-      collectorTypeComposer = Optional.of(newCollectorType);
-      detectionRemediation.setCollectorType(newCollectorType.get());
+    public Composer withSecurityPlatform(SecurityPlatformComposer.Composer newSecurityPlatform) {
+      securityPlatformComposer = Optional.of(newSecurityPlatform);
+      detectionRemediation.setSecurityPlatform(newSecurityPlatform.get());
       return this;
     }
 
-    public void persistCollectorTypeDependency() {
-      collectorTypeComposer.ifPresent(
-          ctc -> {
-            ctc.persist();
-            detectionRemediation.setCollectorType(ctc.get());
+    public void persistSecurityPlatformDependency() {
+      securityPlatformComposer.ifPresent(
+          spc -> {
+            spc.persist();
+            detectionRemediation.setSecurityPlatform(spc.get());
           });
     }
 
     @Override
     public Composer persist() {
-      persistCollectorTypeDependency();
+      persistSecurityPlatformDependency();
       detectionRemediationRepository.save(this.detectionRemediation);
       return this;
     }

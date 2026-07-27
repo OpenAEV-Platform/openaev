@@ -39,7 +39,7 @@ const SecurityDomainCardWidget: FunctionComponent<Props> = ({
   const theme = useTheme();
   const { label: domainName } = esDomainDatas;
 
-  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
+  const { openWidgetResults } = useContext(CustomDashboardContext);
   const domains: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
 
   const hasData = esDomainDatas.data.length > 0;
@@ -80,7 +80,7 @@ const SecurityDomainCardWidget: FunctionComponent<Props> = ({
     if (!domain) {
       return;
     }
-    openWidgetDataDrawer({
+    openWidgetResults({
       widgetId,
       filter_values_map: {
         base_security_domains_side: [domain?.domain_id],

@@ -7,13 +7,14 @@ import { type InjectorContractHelper } from '../../../../actions/injector_contra
 import { type InjectStore } from '../../../../actions/injects/Inject';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import Chart from '../../../../components/Chart';
-import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type Exercise, type InjectExpectationOutput } from '../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../utils/Charts';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { sampleHorizontalBarHeight, sampleHorizontalBarSeries } from '../../../../utils/SampleCharts';
+import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 
 interface Props { exerciseId: Exercise['exercise_id'] }
 
@@ -50,24 +51,23 @@ const InjectDistributionByType: FunctionComponent<Props> = ({ exerciseId }) => {
     },
   ];
 
+  // Dashboard convention: charts without real data render a greyed-out sample
+  // (with a "Sample" chip) instead of a bare empty message.
+  const isSample = injectsByType.length === 0;
+  const sampleLabels = ['Email', 'Command execution', 'HTTP request'];
+
   return (
-    <>
-      {injectsByType.length > 0 ? (
-        <Chart
-          options={horizontalBarsChartOptions({ theme })}
-          series={injectsByInjectorContractData}
-          type="bar"
-          width="100%"
-          height={50 + injectsByType.length * 50}
-        />
-      ) : (
-        <Empty
-          message={t(
-            'No data to display or the simulation has not started yet',
-          )}
-        />
-      )}
-    </>
+    <SamplePreview active={isSample}>
+      <Chart
+        options={horizontalBarsChartOptions({ theme })}
+        series={isSample
+          ? sampleHorizontalBarSeries(t('Number of injects'), sampleLabels, theme)
+          : injectsByInjectorContractData}
+        type="bar"
+        width="100%"
+        height={isSample ? sampleHorizontalBarHeight(sampleLabels) : 50 + injectsByType.length * 50}
+      />
+    </SamplePreview>
   );
 };
 

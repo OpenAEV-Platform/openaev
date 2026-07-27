@@ -11,11 +11,14 @@ import io.openaev.config.SessionManager;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
+import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.user.form.player.PlayerBulkProcessingInput;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.rest.user.form.player.PlayerOutput;
+import io.openaev.service.InjectSearchService;
 import io.openaev.service.UserService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.FilterUtilsJpa;
@@ -25,6 +28,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +52,7 @@ public class PlayerApi extends RestBehavior {
   private final TagRepository tagRepository;
   private final UserService userService;
   private final PlayerService playerService;
+  private final InjectSearchService injectSearchService;
 
   @GetMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLAYER)
@@ -66,6 +71,28 @@ public class PlayerApi extends RestBehavior {
   public Page<PlayerOutput> players(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return this.playerService.playerPagination(searchPaginationInput);
+  }
+
+  /**
+   * "Injects played" for the person detail page: every inject (atomic testing or simulation inject)
+   * that concerns this player, whether it was targeted through one of the player's teams or
+   * evidenced by the player-level expectations persisted at execution time. Resolved server-side so
+   * the page does not need to load every team of the platform to build the scope.
+   */
+  @LogExecutionTime
+  @PostMapping({
+    PLAYER_URI + "/{userId}/injects/search",
+    TENANT_PLAYER_URI + "/{userId}/injects/search"
+  })
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.PLAYER)
+  @Transactional(readOnly = true)
+  public Page<InjectResultOutput> searchInjectsForPlayer(
+      @PathVariable @NotBlank final String userId,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return injectSearchService.getPageOfInjectResultsForPlayer(userId, searchPaginationInput);
   }
 
   @PostMapping({PLAYER_URI, TENANT_PLAYER_URI})
@@ -91,6 +118,11 @@ public class PlayerApi extends RestBehavior {
   public User updatePlayer(@PathVariable String userId, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+    // A platform administrator account can only be modified by another administrator:
+    // otherwise anyone with the players capability could rewrite an admin's email.
+    if (user.isAdmin() && !userService.currentUser().isAdmin()) {
+      throw new ForbiddenException("Only an administrator can update a platform administrator");
+    }
     user.setUpdateAttributes(input);
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     user.setOrganization(
@@ -105,6 +137,16 @@ public class PlayerApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PLAYER)
   public void deletePlayer(@PathVariable String userId) {
+    User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+    // Mirror the bulk deletion guards: platform administrator accounts and the
+    // current user can never be removed through the players API.
+    if (user.isAdmin()) {
+      throw new ForbiddenException(
+          "Platform administrator accounts cannot be deleted through the players API");
+    }
+    if (user.getId().equals(userService.currentUser().getId())) {
+      throw new ForbiddenException("You cannot delete your own account");
+    }
     userService.delete(userId);
   }
 

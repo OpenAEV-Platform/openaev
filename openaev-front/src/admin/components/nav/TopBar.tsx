@@ -1,4 +1,4 @@
-import { AccountCircleOutlined, ImportantDevicesOutlined } from '@mui/icons-material';
+import { AccountCircleOutlined, AlarmOnOutlined, ImportantDevicesOutlined } from '@mui/icons-material';
 import { AppBar, Divider, IconButton, Menu, MenuItem, Stack, Toolbar, Tooltip } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useEffect, useState } from 'react';
@@ -17,6 +17,7 @@ import AskArianePanel from '../ariane/AskArianePanel';
 import CtemCommandCenterButton from '../ariane/CtemCommandCenterButton';
 import { useChatbot } from '../ariane/useChatbotHooks';
 import BulkOperationsIndicator from './BulkOperationsIndicator';
+import TopBarNotifications from './TopBarNotifications';
 
 // Drawer widths shared with the left menu (OpenCTI: OPEN_BAR_WIDTH / SMALL_BAR_WIDTH).
 export const OPEN_BAR_WIDTH = 180;
@@ -163,6 +164,19 @@ const TopBar: FunctionComponent = () => {
                 <ItemBoolean variant="large" label="EE DEV LICENSE" status={false} />
               )}
               <BulkOperationsIndicator />
+              {/* OpenCTI-aligned pair: the triggers alarm icon right before the
+                  notifications bell, each leading to its own profile page. */}
+              <Tooltip title={t('Triggers')}>
+                <IconButton
+                  aria-label="triggers"
+                  component={Link}
+                  to="/admin/profile/triggers"
+                  sx={topBarIconButtonSx(location.pathname === '/admin/profile/triggers')}
+                >
+                  <AlarmOnOutlined fontSize="medium" />
+                </IconButton>
+              </Tooltip>
+              <TopBarNotifications iconButtonSx={topBarIconButtonSx} />
               <Tooltip title={t('Install simulation agents')}>
                 <IconButton
                   aria-haspopup="true"

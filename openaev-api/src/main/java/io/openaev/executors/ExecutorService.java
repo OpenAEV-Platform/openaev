@@ -18,6 +18,7 @@ import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.AbstractConnectorService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
 import jakarta.annotation.Resource;
@@ -203,8 +204,18 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     return executorRepository.save(executor);
   }
 
+  /**
+   * Deletes an executor and, when it was deployed through the Integration Manager, the connector
+   * instance that owns it - otherwise the deployment keeps running against an executor that no
+   * longer exists and recreates it on its next registration heartbeat (see {@link
+   * io.openaev.service.connectors.AbstractConnectorService#deleteOwningConnectorInstance}). The
+   * instance delete performs the same source-tag cleanup.
+   */
   @Transactional
-  public void remove(String id) {
+  public void remove(String id) throws ConnectorStatusException {
+    if (deleteOwningConnectorInstance(id)) {
+      return;
+    }
     executorRepository
         .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
         .ifPresent(
