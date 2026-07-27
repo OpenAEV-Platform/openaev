@@ -145,7 +145,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       // -- EXECUTE --
       expireExpectationsInDbByInjectId(savedInject.getId());
-      expectationsExpirationManagerService.computeExpectations(TenantContext.getCurrentTenant());
+      expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
 
       // -- ASSERT --
       // Agent Expectation
@@ -231,7 +231,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       // -- EXECUTE --
       expireExpectationsInDbByInjectId(savedInject.getId());
-      expectationsExpirationManagerService.computeExpectations(TenantContext.getCurrentTenant());
+      expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
 
       // -- ASSERT --
       // Agent Expectation
@@ -325,7 +325,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       // -- EXECUTE --
       expireExpectationsInDbByInjectId(savedInject.getId());
-      expectationsExpirationManagerService.computeExpectations(TenantContext.getCurrentTenant());
+      expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
 
       // -- ASSERT --
       // Agent Expectation
@@ -400,7 +400,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       // -- EXECUTE --
       expireExpectationsInDbByInjectId(savedInject.getId());
-      expectationsExpirationManagerService.computeExpectations();
+      expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
 
       // -- ASSERT -- full green on agent, asset and asset group for both types
       injectExpectationRepository
@@ -464,7 +464,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       em.clear();
 
       // -- EXECUTE --
-      expectationsExpirationManagerService.computeExpectations();
+      expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
 
       // -- ASSERT -- everything still pending: agents within their window, parents wait for them
       List<BaseInjectExpectation> injectExpectations =
@@ -527,7 +527,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       // -- EXECUTE --
       expireExpectationsInDbByInjectId(savedInject.getId());
-      expectationsExpirationManagerService.computeExpectations(TenantContext.getCurrentTenant());
+      expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
 
       // -- ASSERT --
       // Asset
@@ -566,7 +566,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       // -- EXECUTE --
       expireExpectationsInDbByInjectId(savedInject.getId());
-      expectationsExpirationManagerService.computeExpectations(TenantContext.getCurrentTenant());
+      expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
 
       // -- ASSERT --
       injectExpectations =
