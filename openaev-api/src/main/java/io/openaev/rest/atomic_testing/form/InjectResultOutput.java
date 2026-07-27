@@ -50,6 +50,12 @@ public class InjectResultOutput {
   @JsonProperty("inject_enabled")
   private Boolean enabled = Boolean.TRUE;
 
+  // Cross-scope lists (e.g. "injects played" on an asset) mix atomic testings and simulation
+  // injects: the exercise id lets the UI route each row to the right detail page.
+  @Schema(description = "Id of the simulation (exercise) this inject belongs to, if any")
+  @JsonProperty("inject_exercise")
+  private String exerciseId;
+
   @JsonIgnore private ObjectNode content;
   @JsonIgnore private String[] teamIds;
   @JsonIgnore private String[] assetIds;

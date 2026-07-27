@@ -71,6 +71,13 @@ export const searchEndpointsFromAssetGroup = (searchPaginationInput: SearchPagin
   return simplePostCall(uri, data);
 };
 
+// "Injects played" for the asset group detail page: every inject (atomic testing or simulation
+// inject) that concerns the group - targeted directly or evidenced by the technical expectations
+// persisted at execution time. Same scope as the asset group posture score.
+export const searchInjectsForAssetGroup = (assetGroupId: string, searchPaginationInput: SearchPaginationInput) => {
+  return simplePostCall(`${ASSET_GROUP_URI}/${assetGroupId}/injects/search`, searchPaginationInput);
+};
+
 export const searchAssetGroupAsOption = (searchText: string = '', sourceId: string = '', inputFilterOption: string = '') => {
   const params = {
     searchText,

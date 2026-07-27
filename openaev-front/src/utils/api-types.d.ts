@@ -274,6 +274,7 @@ export interface AiAttack {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   payload_external_id?: string;
@@ -614,7 +615,8 @@ export interface Asset {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
@@ -870,7 +872,8 @@ export interface AssetOutput {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   /**
    * Tags
    * @uniqueItems true
@@ -1309,6 +1312,7 @@ interface BasePayload {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   payload_external_id?: string;
@@ -1381,6 +1385,7 @@ interface BasePayloadCreateInput {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   /** @minLength 1 */
@@ -1933,6 +1938,7 @@ export interface Command {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   payload_external_id?: string;
@@ -2743,6 +2749,7 @@ export interface DnsResolution {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   payload_external_id?: string;
@@ -3002,7 +3009,8 @@ export interface Endpoint {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
@@ -3137,7 +3145,8 @@ export interface EndpointInput {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   asset_tags?: string[];
   asset_url?: string | null;
   endpoint_agent_version?: string;
@@ -3287,7 +3296,8 @@ export interface EndpointOutput {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   /**
    * Tags
    * @uniqueItems true
@@ -3486,7 +3496,8 @@ export interface EndpointOverviewOutput {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   /**
    * Tags
    * @uniqueItems true
@@ -3631,7 +3642,8 @@ export interface EndpointRegisterInput {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   asset_tags?: string[];
   asset_url?: string | null;
   elevated?: boolean;
@@ -3655,6 +3667,8 @@ export interface EndpointRegisterInput {
 }
 
 export interface EndpointSimple {
+  /** Asset category (taxonomy: HOST, WEB_APPLICATION, CLOUD_RESOURCE, ...) */
+  asset_category?: string;
   /**
    * Asset Id
    * @minLength 1
@@ -3665,6 +3679,10 @@ export interface EndpointSimple {
    * @minLength 1
    */
   asset_name: string;
+  /** Asset type discriminator (e.g. Endpoint, SecurityPlatform) */
+  asset_type?: string;
+  /** OS platform when the asset is an endpoint */
+  endpoint_platform?: string;
 }
 
 export interface EndpointTarget {
@@ -4240,6 +4258,7 @@ export interface Executable {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   payload_external_id?: string;
@@ -4698,6 +4717,7 @@ export interface FileDrop {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   payload_external_id?: string;
@@ -5269,6 +5289,7 @@ export interface InjectExpectationOutput {
     | "ISPM"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER"
   )[];
   /** Whether this expectation is a group expectation */
   inject_expectation_group?: boolean;
@@ -5576,6 +5597,8 @@ export interface InjectResultOutput {
   inject_contract_domains?: string[];
   /** Whether the inject is enabled (disabled injects are never executed) */
   inject_enabled?: boolean;
+  /** Id of the simulation (exercise) this inject belongs to, if any */
+  inject_exercise?: string;
   /** Result of expectations */
   inject_expectation_results: ExpectationResultsByType[];
   /**
@@ -6656,6 +6679,7 @@ export interface NetworkTraffic {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   payload_external_id?: string;
@@ -7958,6 +7982,7 @@ export interface PayloadInput {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   /** @minLength 1 */
@@ -8039,6 +8064,7 @@ export interface PayloadOutput {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   /** External reference identifier */
@@ -8139,6 +8165,7 @@ export interface PayloadUpdateInput {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   /** @minLength 1 */
@@ -8204,6 +8231,7 @@ export interface PayloadUpsertInput {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   /** @minLength 1 */
@@ -9622,7 +9650,8 @@ export interface SecurityPlatform {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
@@ -9641,7 +9670,8 @@ export interface SecurityPlatform {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
 }
 
 export interface SecurityPlatformInput {
@@ -9660,7 +9690,8 @@ export interface SecurityPlatformInput {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
 }
 
 export interface SecurityPlatformSimpleOutput {
@@ -9683,7 +9714,8 @@ export interface SecurityPlatformSimpleOutput {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
 }
 
 export interface SecurityPlatformUpsertInput {
@@ -9702,7 +9734,8 @@ export interface SecurityPlatformUpsertInput {
     | "NDR"
     | "ISPM"
     | "LLM_FIREWALL"
-    | "AI_GATEWAY";
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER";
 }
 
 export interface Series {
@@ -10514,6 +10547,7 @@ export interface ThreatArsenalActionFullOutput {
       | "ISPM"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
     )[]
   >;
   /** External reference identifier */

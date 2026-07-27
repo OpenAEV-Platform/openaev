@@ -5,15 +5,13 @@ import { Binoculars } from 'mdi-material-ui';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
-import { fetchAssetOverview } from '../../../../actions/assets/endpoint-actions';
-import { searchAtomicTestings } from '../../../../actions/atomic_testings/atomic-testing-actions';
+import { fetchAssetOverview, searchInjectsForAsset } from '../../../../actions/assets/endpoint-actions';
 import { searchDistinctFindingsOnEndpoint } from '../../../../actions/findings/finding-actions';
 import { type UserHelper } from '../../../../actions/helper';
 import { fetchPlayers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import EndpointArchFragment from '../../../../components/common/list/fragments/EndpointArchFragment';
-import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { type Page } from '../../../../components/common/queryable/Page';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -29,7 +27,6 @@ import PlatformIcon from '../../../../components/PlatformIcon';
 import { useHelper } from '../../../../store';
 import {
   type EndpointOverviewOutput,
-  type Filter,
   type InjectResultOutput,
   type SearchPaginationInput,
 } from '../../../../utils/api-types';
@@ -38,6 +35,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import { emptyFilled, formatIp, formatMacAddress } from '../../../../utils/String';
 import InjectResultList from '../../atomic_testings/InjectResultList';
+import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
@@ -99,27 +97,16 @@ const AssetDetail = () => {
     ? ([linkedPerson.user_firstname, linkedPerson.user_lastname].filter(Boolean).join(' ').trim() || linkedPerson.user_email)
     : asset?.asset_linked_person;
 
-  // Injects played: atomic tests that directly targeted this asset (inject_assets filter).
+  // Injects played: every inject that concerned this asset (atomic testings and simulation
+  // injects; targeted directly, through an asset group - static or dynamic - or evidenced by the
+  // expectations persisted at execution time). Same scope as the posture score, so the counter,
+  // the list and the expectation KPIs stay consistent.
   const { queryableHelpers: injectsHelpers, searchPaginationInput: injectsInput } = useQueryableWithLocalStorage(
     'asset-injects',
     buildSearchPagination({ sorts: initSorting('inject_updated_at', 'DESC') }),
   );
   const fetchInjectsPlayed = useCallback((input: SearchPaginationInput): Promise<{ data: Page<InjectResultOutput> }> => {
-    const assetFilter: Filter = {
-      id: generateFilterId(),
-      key: 'inject_assets',
-      mode: 'or',
-      operator: 'contains',
-      values: [id],
-    };
-    const scopedInput: SearchPaginationInput = {
-      ...input,
-      filterGroup: {
-        mode: input.filterGroup?.mode ?? 'and',
-        filters: [...(input.filterGroup?.filters ?? []), assetFilter],
-      },
-    };
-    return searchAtomicTestings(scopedInput) as Promise<{ data: Page<InjectResultOutput> }>;
+    return searchInjectsForAsset(id, input) as Promise<{ data: Page<InjectResultOutput> }>;
   }, [id]);
 
   // Headline hero counts: size-1 probes of the same searches feeding the lists
@@ -378,7 +365,7 @@ const AssetDetail = () => {
           <SectionBlock title={t('Injects played')}>
             <InjectResultList
               fetchInjects={fetchInjectsPlayed}
-              goTo={injectId => `/admin/atomic_testings/${injectId}`}
+              goTo={injectResultDetailPath}
               queryableHelpers={injectsHelpers}
               searchPaginationInput={injectsInput}
               contextId={id}

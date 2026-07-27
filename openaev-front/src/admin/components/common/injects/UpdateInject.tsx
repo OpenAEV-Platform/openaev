@@ -97,7 +97,7 @@ const UpdateInject: React.FC<Props> = ({
     dispatch(fetchInject(injectId)).then(() => {
       const payloadId = inject?.inject_injector_contract?.injector_contract_payload?.payload_id;
       if (payloadId) {
-        setAvailableTabs(['Inject details', 'Arsenal item info', 'Logical chains']);
+        setAvailableTabs(['Inject details', 'Action details', 'Logical chains']);
       }
       setIsInjectLoading(false);
     });
@@ -107,7 +107,7 @@ const UpdateInject: React.FC<Props> = ({
   const handleTabChange = (_: SyntheticEvent, newValue: string) => {
     setActiveTab(newValue);
 
-    if (newValue === 'Arsenal item info' && !documentsMap) {
+    if (newValue === 'Action details' && !documentsMap) {
       fetchDocumentsPayloadByInject(injectId, contractPayload?.payload_id)
         .then(documents => setDocumentsMap(arrayToRecord<Document, 'document_id'>(documents, 'document_id')));
     }
@@ -230,9 +230,9 @@ const UpdateInject: React.FC<Props> = ({
             )}
           </TabPanel>
 
-          {/* Arsenal item info */}
+          {/* Action details */}
           {contractPayload && !isAtomic && (
-            <TabPanel value="Arsenal item info" keepMounted className={classes.tabPanel}>
+            <TabPanel value="Action details" keepMounted className={classes.tabPanel}>
               {!isInjectLoading && inject && (
                 <InjectContractOverview
                   injectorContract={inject.inject_injector_contract}

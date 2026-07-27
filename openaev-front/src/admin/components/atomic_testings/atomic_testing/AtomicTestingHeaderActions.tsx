@@ -231,7 +231,7 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
               icon={<TrackChangesOutlined fontSize="inherit" />}
               style={{ marginTop: theme.spacing(1) }}
             >
-              {t('The expectations of this atomic testing no longer match the validation requirements defined by its threat arsenal item.')}
+              {t('The expectations of this atomic testing no longer match the validation requirements defined by its action.')}
               <FormControlLabel
                 sx={{
                   display: 'flex',
@@ -244,7 +244,7 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
                     onChange={event => setRealignOnRelaunch(event.target.checked)}
                   />
                 )}
-                label={t('Realign expectations to the current threat arsenal item before relaunching')}
+                label={t('Realign expectations to the current action before relaunching')}
                 slotProps={{ typography: { variant: 'body2' } }}
               />
             </Alert>

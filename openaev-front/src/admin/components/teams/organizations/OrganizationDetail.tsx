@@ -5,10 +5,9 @@ import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
-import { searchAtomicTestings } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { searchDistinctFindings } from '../../../../actions/findings/finding-actions';
 import type { UserHelper } from '../../../../actions/helper';
-import { fetchOrganization } from '../../../../actions/organizations/organization-actions';
+import { fetchOrganization, searchInjectsForOrganization } from '../../../../actions/organizations/organization-actions';
 import { searchPlayers } from '../../../../actions/players/player-actions';
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { fetchTeams } from '../../../../actions/teams/team-actions';
@@ -37,6 +36,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import InjectResultList from '../../atomic_testings/InjectResultList';
+import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
 import OrganizationPopover from './OrganizationPopover';
 
@@ -172,15 +172,14 @@ const OrganizationDetailContent = () => {
     [teamIds],
   );
 
-  // Headline hero counts, scoped through the organization's teams - the exact
-  // same scope as the findings and injects lists below, so counts and lists
-  // can never diverge. Empty `contains` filters would match everything, so an
-  // empty team scope short-circuits to 0.
+  // Headline hero counts. Injects are resolved server-side (every inject that
+  // concerns the organization through its teams, whether targeted directly or
+  // evidenced by the expectations persisted at execution time). Findings stay
+  // scoped through the organization's teams; an empty `contains` filter would
+  // match everything, so an empty team scope short-circuits to 0.
   const injectsTotal = useSearchTotal(useCallback(
-    (input: SearchPaginationInput) => (teamIds.length === 0
-      ? Promise.resolve({ data: { totalElements: 0 } })
-      : searchAtomicTestings(withTeamsScope(input, 'inject_teams'))),
-    [teamIds, withTeamsScope],
+    (input: SearchPaginationInput) => searchInjectsForOrganization(organizationId, input),
+    [organizationId],
   ));
   const findingsTotal = useSearchTotal(useCallback(
     (input: SearchPaginationInput) => (teamIds.length === 0
@@ -189,20 +188,19 @@ const OrganizationDetailContent = () => {
     [teamIds, withTeamsScope],
   ));
 
-  // Injects played: server-paginated search scoped to the organization's teams.
+  // Injects played: server-paginated search scoped to the organization.
   const { queryableHelpers: injectsHelpers, searchPaginationInput: injectsInput } = useQueryableWithLocalStorage(
     'organization-injects',
     buildSearchPagination({ sorts: initSorting('inject_updated_at', 'DESC') }),
   );
-  // An organization with no team cannot have injects or findings, and an empty
-  // `contains` scope would match everything - so short-circuit to an empty page
-  // while keeping the lists (search, filters, pagination) rendered.
   const fetchInjectsPlayed = useCallback(
-    (input: SearchPaginationInput): Promise<{ data: Page<InjectResultOutput> }> => (teamIds.length === 0
-      ? Promise.resolve(buildEmptyPage<InjectResultOutput>(input))
-      : searchAtomicTestings(withTeamsScope(input, 'inject_teams')) as Promise<{ data: Page<InjectResultOutput> }>),
-    [teamIds, withTeamsScope],
+    (input: SearchPaginationInput): Promise<{ data: Page<InjectResultOutput> }> =>
+      searchInjectsForOrganization(organizationId, input) as Promise<{ data: Page<InjectResultOutput> }>,
+    [organizationId],
   );
+  // An organization with no team cannot have findings, and an empty `contains`
+  // scope would match everything - so short-circuit to an empty page while
+  // keeping the list (search, filters, pagination) rendered.
   const fetchOrganizationFindings = useCallback(
     (input: SearchPaginationInput): Promise<{ data: Page<AggregatedFindingOutput> }> => (teamIds.length === 0
       ? Promise.resolve(buildEmptyPage<AggregatedFindingOutput>(input))
@@ -349,7 +347,7 @@ const OrganizationDetailContent = () => {
         <SectionBlock title={t('Injects played')}>
           <InjectResultList
             fetchInjects={fetchInjectsPlayed}
-            goTo={injectId => `/admin/atomic_testings/${injectId}`}
+            goTo={injectResultDetailPath}
             queryableHelpers={injectsHelpers}
             searchPaginationInput={injectsInput}
             contextId={organizationId}

@@ -128,7 +128,7 @@ const ThreatArsenalHero: FunctionComponent<Props> = ({
                 fontSize: 13,
               }}
               >
-                {t('total arsenal items')}
+                {t('total actions')}
               </Typography>
             </Box>
             {stats.map(stat => (

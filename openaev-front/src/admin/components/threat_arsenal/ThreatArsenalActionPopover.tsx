@@ -251,7 +251,7 @@ const ThreatArsenalActionPopover = ({
         open={deletion}
         handleClose={handleCloseDelete}
         handleSubmit={submitDelete}
-        text={`${t('Do you want to delete this arsenal item: ')} ${name ?? actionId} ?`}
+        text={`${t('Do you want to delete this action: ')} ${name ?? actionId} ?`}
       />
 
       <Dialog
@@ -262,7 +262,7 @@ const ThreatArsenalActionPopover = ({
       >
         <DialogContent>
           <DialogContentText>
-            {t('Do you want to duplicate this arsenal item?')}
+            {t('Do you want to duplicate this action?')}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -274,7 +274,7 @@ const ThreatArsenalActionPopover = ({
       <Drawer
         open={openEdit}
         handleClose={handleCloseEdit}
-        title={`${t('Update the arsenal item :')} ${name}`}
+        title={`${t('Update the action :')} ${name}`}
       >
         <>
           {fetchedAction && !!payloadId && (

@@ -23,7 +23,7 @@ interface Props {
   search?: string;
   /** Active kill chain (MITRE ATT&CK, MITRE ATLAS, ...); shows every phase when absent. */
   killChain?: string;
-  /** When true, only techniques covered by at least one threat arsenal item are shown. */
+  /** When true, only techniques covered by at least one action are shown. */
   onlyWithArsenal?: boolean;
 }
 
@@ -61,9 +61,9 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
     [killChainPhases, killChain],
   );
 
-  // Threat arsenal item count per technique (technique + its sub-techniques),
-  // used as a "coverage" hint so users prefer TTPs that already have arsenal
-  // items available to generate injects from.
+  // Action count per technique (technique + its sub-techniques), used as a
+  // "coverage" hint so users prefer TTPs that already have actions available
+  // to generate injects from.
   const arsenalCountByExternalId = useMemo(() => {
     const counts = new Map<string, number>();
     const parents = attackPatterns.filter(
@@ -248,7 +248,7 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
                         {technique.attack_pattern_external_id}
                       </Typography>
                       {arsenalCount > 0 && (
-                        <Tooltip title={t('{count} threat arsenal items available', { count: arsenalCount })}>
+                        <Tooltip title={t('{count} actions available', { count: arsenalCount })}>
                           <Box
                             component="span"
                             sx={{

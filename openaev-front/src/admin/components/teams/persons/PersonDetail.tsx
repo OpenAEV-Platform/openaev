@@ -5,10 +5,10 @@ import { Binoculars } from 'mdi-material-ui';
 import { useCallback, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
-import { searchAtomicTestings } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { searchDistinctFindings } from '../../../../actions/findings/finding-actions';
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
 import { fetchOrganizations } from '../../../../actions/Organization';
+import { searchInjectsForPlayer } from '../../../../actions/players/player-actions';
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { fetchTeams } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
@@ -17,7 +17,7 @@ import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, Section, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
-import { buildEmptyPage, buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
+import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
@@ -36,6 +36,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import { emptyFilled } from '../../../../utils/String';
 import InjectResultList from '../../atomic_testings/InjectResultList';
+import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
 import PlayerPopover from '../players/PlayerPopover';
 
@@ -91,30 +92,24 @@ const PersonDetail = () => {
       .sort((a: Team, b: Team) => (a.team_name ?? '').localeCompare(b.team_name ?? '')),
     [teamsMap, userId],
   );
-  const teamIds = useMemo(() => teams.map((team: Team) => team.team_id), [teams]);
-
   const { queryableHelpers: injectsHelpers, searchPaginationInput: injectsInput } = useQueryableWithLocalStorage(
     'person-injects',
     buildSearchPagination({ sorts: initSorting('inject_updated_at', 'DESC') }),
   );
-  // A person with no team cannot have played injects, and an empty
-  // inject_teams filter would match everything - so short-circuit to an empty
-  // page while keeping the list (search, filters, pagination) rendered.
+  // Injects played: every inject (atomic testing or simulation inject) that
+  // concerns this person - targeted through one of their teams or evidenced by
+  // the player-level expectations persisted at execution time. Resolved
+  // server-side, so no need to load every team of the platform to build the scope.
   const fetchInjectsPlayed = useCallback(
-    (input: SearchPaginationInput): Promise<{ data: Page<InjectResultOutput> }> => (teamIds.length === 0
-      ? Promise.resolve(buildEmptyPage<InjectResultOutput>(input))
-      : searchAtomicTestings(withFilter(input, 'inject_teams', teamIds)) as Promise<{ data: Page<InjectResultOutput> }>),
-    [teamIds],
+    (input: SearchPaginationInput): Promise<{ data: Page<InjectResultOutput> }> =>
+      searchInjectsForPlayer(userId, input) as Promise<{ data: Page<InjectResultOutput> }>,
+    [userId],
   );
 
-  // Headline hero counts: size-1 probes of the same searches feeding the lists
-  // below. A person with no team cannot have played injects (an empty
-  // inject_teams filter would match everything, so short-circuit to 0).
+  // Headline hero counts: size-1 probes of the same searches feeding the lists below.
   const injectsTotal = useSearchTotal(useCallback(
-    (input: SearchPaginationInput) => (teamIds.length === 0
-      ? Promise.resolve({ data: { totalElements: 0 } })
-      : searchAtomicTestings(withFilter(input, 'inject_teams', teamIds))),
-    [teamIds],
+    (input: SearchPaginationInput) => searchInjectsForPlayer(userId, input),
+    [userId],
   ));
   const findingsTotal = useSearchTotal(useCallback(
     (input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_users', [userId])),
@@ -222,7 +217,7 @@ const PersonDetail = () => {
       <SectionBlock title={t('Injects played')}>
         <InjectResultList
           fetchInjects={fetchInjectsPlayed}
-          goTo={injectId => `/admin/atomic_testings/${injectId}`}
+          goTo={injectResultDetailPath}
           queryableHelpers={injectsHelpers}
           searchPaginationInput={injectsInput}
           contextId={userId}

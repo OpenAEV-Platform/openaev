@@ -59,7 +59,7 @@ const ThreatArsenalEmptyState: FunctionComponent<Props> = ({
           marginBottom: 1,
         }}
       >
-        {hasFilters ? t('No arsenal items match your filters') : t('Your threat arsenal is empty')}
+        {hasFilters ? t('No actions match your filters') : t('Your threat arsenal is empty')}
       </Typography>
       <Typography
         variant="body2"
@@ -70,8 +70,8 @@ const ThreatArsenalEmptyState: FunctionComponent<Props> = ({
         }}
       >
         {hasFilters
-          ? t('Try adjusting filters or clearing them to see more arsenal items.')
-          : t('Create your first arsenal item or import an existing arsenal to get started.')}
+          ? t('Try adjusting filters or clearing them to see more actions.')
+          : t('Create your first action or import an existing arsenal to get started.')}
       </Typography>
       {hasFilters && (
         <Button

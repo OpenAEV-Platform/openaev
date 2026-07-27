@@ -7,15 +7,18 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawOrganization;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.organization.form.OrganizationBulkProcessingInput;
 import io.openaev.rest.organization.form.OrganizationCreateInput;
 import io.openaev.rest.organization.form.OrganizationUpdateInput;
+import io.openaev.service.InjectSearchService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -23,6 +26,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -41,6 +45,7 @@ public class OrganizationApi extends RestBehavior {
   private final OrganizationRepository organizationRepository;
   private final TagRepository tagRepository;
   private final OrganizationService organizationService;
+  private final InjectSearchService injectSearchService;
 
   @GetMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
   @Transactional
@@ -72,6 +77,29 @@ public class OrganizationApi extends RestBehavior {
     return organizationRepository
         .findById(organizationId)
         .orElseThrow(ElementNotFoundException::new);
+  }
+
+  /**
+   * "Injects played" for the organization detail page: every inject (atomic testing or simulation
+   * inject) that concerns this organization through its teams, whether they were targeted directly
+   * or evidenced by the table-top expectations persisted at execution time. Resolved server-side so
+   * the page does not need to load every team of the platform to build the scope.
+   */
+  @LogExecutionTime
+  @PostMapping({
+    ORGANIZATION_URI + "/{organizationId}/injects/search",
+    TENANT_ORGANIZATION_URI + "/{organizationId}/injects/search"
+  })
+  @AccessControl(
+      resourceId = "#organizationId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.ORGANIZATION)
+  @Transactional(readOnly = true)
+  public Page<InjectResultOutput> searchInjectsForOrganization(
+      @PathVariable @NotBlank final String organizationId,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return injectSearchService.getPageOfInjectResultsForOrganization(
+        organizationId, searchPaginationInput);
   }
 
   @PostMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})

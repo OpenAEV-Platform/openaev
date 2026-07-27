@@ -89,6 +89,10 @@ const RelatedInjectsTab = ({ searchFindings, finding, contextId, additionalHeade
             target_id: asset.asset_id,
             target_name: asset.asset_name,
             target_type: 'ASSETS',
+            // Category + platform drive the chip glyph (taxonomy icon, or the OS brand icon
+            // for host-like endpoints) - same rendering as the asset pages.
+            target_category: asset.asset_category,
+            target_subtype: asset.endpoint_platform,
           })) as TargetSimple[]}
           getTargetLink={target => `${ASSET_BASE_URL}/${target.target_id}`}
         />

@@ -69,7 +69,7 @@ const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate }) => {
       <Drawer
         open={open}
         handleClose={handleClose}
-        title={t('Create a new arsenal item')}
+        title={t('Create a new action')}
       >
         <ThreatArsenalActionForm
           editing={false}

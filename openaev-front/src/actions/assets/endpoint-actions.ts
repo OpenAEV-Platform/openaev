@@ -59,6 +59,13 @@ export const fetchAssetOverview = (assetId: string) => {
   return simpleCall(`/api/assets/${assetId}`);
 };
 
+// "Injects played" for the asset detail page: every inject (atomic testing or simulation inject)
+// that concerns the asset - targeted directly, through an asset group (static or dynamic) or
+// evidenced by the expectations persisted at execution time. Same scope as the posture score.
+export const searchInjectsForAsset = (assetId: string, searchPaginationInput: SearchPaginationInput) => {
+  return simplePostCall(`/api/assets/${assetId}/injects/search`, searchPaginationInput);
+};
+
 export const findEndpoints = (endpointIds: string[]) => {
   const data = endpointIds;
   const uri = `${ENDPOINT_URI}/find`;

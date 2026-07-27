@@ -3,6 +3,7 @@ import { type FunctionComponent, useContext, useMemo, useState } from 'react';
 
 import { type OrganizationHelper } from '../../../../actions/helper';
 import { searchPlayers } from '../../../../actions/players/player-actions';
+import { fetchTeamPlayers } from '../../../../actions/teams/team-actions';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -12,6 +13,7 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import { useHelper } from '../../../../store';
 import { type Organization, type PlayerOutput, type Team, type User } from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { resolveUserName } from '../../../../utils/String';
@@ -26,6 +28,7 @@ interface Props {
 
 const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => {
   const { t } = useFormatter();
+  const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
   const [usersIds, setUsersIds] = useState<UserStore['user_id'][]>([]);
 
@@ -50,6 +53,10 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
 
   const submitAddUsers = async () => {
     await onAddUsersTeam?.(teamId, usersIds);
+    // The players picker is server-paginated, so newly added users may not be
+    // in the Redux users map yet; without this refresh the team players list
+    // (getTeamUsers) silently drops them until the drawer is reopened.
+    await dispatch(fetchTeamPlayers(teamId));
     handleClose();
   };
 

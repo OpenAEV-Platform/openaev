@@ -53,7 +53,9 @@ const inlineStyles: Record<string, CSSProperties> = {
 interface Props {
   showActions?: boolean;
   fetchInjects: (input: SearchPaginationInput) => Promise<{ data: Page<InjectResultOutput> }>;
-  goTo: (injectId: string) => string;
+  // The full row is passed as second argument so cross-scope lists (e.g. the injects played on an
+  // asset) can route simulation injects and atomic testings to their respective detail pages.
+  goTo: (injectId: string, inject: InjectResultOutput) => string;
   queryableHelpers: QueryableHelpers;
   searchPaginationInput: SearchPaginationInput;
   availableFilterNames?: string[];
@@ -357,7 +359,7 @@ const InjectResultList: FunctionComponent<Props> = ({
                     <ListItemButton
                       component={Link}
                       classes={{ root: classes.item }}
-                      to={goTo(injectResultOutput.inject_id)}
+                      to={goTo(injectResultOutput.inject_id, injectResultOutput)}
                     >
                       {bulkDeleteEnabled && (
                         <ListItemIcon

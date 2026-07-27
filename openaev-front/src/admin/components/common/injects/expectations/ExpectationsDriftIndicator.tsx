@@ -60,8 +60,8 @@ const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, 
   const total = drift.total_inject_count;
 
   const detail = variant === 'atomic'
-    ? t('The expectations of this atomic testing no longer match the validation requirements defined by its threat arsenal item.')
-    : t('{count} of {total} injects use expectations that no longer match the validation requirements defined by their threat arsenal items.', {
+    ? t('The expectations of this atomic testing no longer match the validation requirements defined by its action.')
+    : t('{count} of {total} injects use expectations that no longer match the validation requirements defined by their actions.', {
         count,
         total,
       });

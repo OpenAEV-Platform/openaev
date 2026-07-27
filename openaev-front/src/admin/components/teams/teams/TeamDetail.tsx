@@ -4,13 +4,12 @@ import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useCallback, useContext, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
-import { searchAtomicTestings } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { searchDistinctFindings } from '../../../../actions/findings/finding-actions';
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
 import { fetchOrganizations } from '../../../../actions/Organization';
 import { searchPlayers } from '../../../../actions/players/player-actions';
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
-import { fetchTeam, fetchTeamPlayers, searchTeams, updateTeamPlayers } from '../../../../actions/teams/team-actions';
+import { fetchTeam, fetchTeamPlayers, searchInjectsForTeam, searchTeams, updateTeamPlayers } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { DetailHero, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
@@ -36,6 +35,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import InjectResultList from '../../atomic_testings/InjectResultList';
+import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import { TeamContext, type TeamContextType } from '../../common/Context';
 import TeamPlayers from '../../components/teams/TeamPlayers';
 import TeamPopover from '../../components/teams/TeamPopover';
@@ -89,12 +89,23 @@ const TeamDetail = () => {
     [team, usersMap],
   );
 
+  // Persons: server-paginated players search scoped to this team (same logic
+  // as the injects played and findings sections below).
+  const [persons, setPersons] = useState<PlayerOutput[]>([]);
+  const [personsLoading, setPersonsLoading] = useState(true);
+  // Bumped whenever the team membership or a player actually changes (add,
+  // remove, update, delete) so the list refreshes reactively - never on a mere
+  // open/close of the manage-players drawer.
+  const [personsReload, setPersonsReload] = useState(0);
+
   const teamContext: TeamContextType = useMemo(() => ({
-    onAddUsersTeam(id: Team['team_id'], userIds: string[]): Promise<void> {
-      return dispatch(updateTeamPlayers(id, { team_users: [...(team?.team_users ?? []), ...userIds] }));
+    async onAddUsersTeam(id: Team['team_id'], userIds: string[]): Promise<void> {
+      await dispatch(updateTeamPlayers(id, { team_users: [...(team?.team_users ?? []), ...userIds] }));
+      setPersonsReload(count => count + 1);
     },
-    onRemoveUsersTeam(id: Team['team_id'], userIds: string[]): Promise<void> {
-      return dispatch(updateTeamPlayers(id, { team_users: (team?.team_users ?? []).filter((u: string) => !userIds.includes(u)) }));
+    async onRemoveUsersTeam(id: Team['team_id'], userIds: string[]): Promise<void> {
+      await dispatch(updateTeamPlayers(id, { team_users: (team?.team_users ?? []).filter((u: string) => !userIds.includes(u)) }));
+      setPersonsReload(count => count + 1);
     },
     searchTeams(input: SearchPaginationInput): Promise<{ data: Page<TeamOutput> }> {
       return searchTeams(input) as Promise<{ data: Page<TeamOutput> }>;
@@ -105,18 +116,16 @@ const TeamDetail = () => {
     'team-injects',
     buildSearchPagination({ sorts: initSorting('inject_updated_at', 'DESC') }),
   );
+  // Injects played: every inject (atomic testing or simulation inject) that
+  // concerns this team - targeted directly or evidenced by the table-top
+  // expectations persisted at execution time. Same scope as the expectation
+  // counters in the hero, so the list and the counters stay consistent.
   const fetchInjectsPlayed = useCallback(
     (input: SearchPaginationInput): Promise<{ data: Page<InjectResultOutput> }> =>
-      searchAtomicTestings(withFilter(input, 'inject_teams', [teamId])) as Promise<{ data: Page<InjectResultOutput> }>,
+      searchInjectsForTeam(teamId, input) as Promise<{ data: Page<InjectResultOutput> }>,
     [teamId],
   );
 
-  // Persons: server-paginated players search scoped to this team (same logic
-  // as the injects played and findings sections below).
-  const [persons, setPersons] = useState<PlayerOutput[]>([]);
-  const [personsLoading, setPersonsLoading] = useState(true);
-  // Bumped when the manage-players drawer closes so the list reflects the changes.
-  const [personsReload, setPersonsReload] = useState(0);
   const { queryableHelpers: personsHelpers, searchPaginationInput: personsInput } = useQueryableWithLocalStorage(
     'team-persons',
     buildSearchPagination({ sorts: initSorting('user_email') }),
@@ -328,7 +337,7 @@ const TeamDetail = () => {
         <SectionBlock title={t('Injects played')}>
           <InjectResultList
             fetchInjects={fetchInjectsPlayed}
-            goTo={injectId => `/admin/atomic_testings/${injectId}`}
+            goTo={injectResultDetailPath}
             queryableHelpers={injectsHelpers}
             searchPaginationInput={injectsInput}
             contextId={teamId}
@@ -338,12 +347,11 @@ const TeamDetail = () => {
         {managing && (
           <TeamPlayers
             teamId={teamId}
-            handleClose={() => {
-              setManaging(false);
-              dispatch(fetchTeam(teamId));
-              dispatch(fetchTeamPlayers(teamId));
-              setPersonsReload(count => count + 1);
-            }}
+            // Closing without touching anything must not reload the page lists:
+            // every mutation already refreshes reactively (context handlers +
+            // onPlayersChange below).
+            handleClose={() => setManaging(false)}
+            onPlayersChange={() => setPersonsReload(count => count + 1)}
             canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS)}
           />
         )}

@@ -18,11 +18,13 @@ import io.openaev.database.specification.EndpointSpecification;
 import io.openaev.rest.asset.endpoint.form.*;
 import io.openaev.rest.asset.endpoint.output.EndpointTargetOutput;
 import io.openaev.rest.asset.form.AssetBulkProcessingInput;
+import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.AssetService;
 import io.openaev.service.EndpointService;
+import io.openaev.service.InjectSearchService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.InputFilterOptions;
@@ -55,6 +57,7 @@ public class EndpointApi extends RestBehavior {
 
   private final EndpointService endpointService;
   private final AssetService assetService;
+  private final InjectSearchService injectSearchService;
   private final InjectStatusService injectStatusService;
   private final EndpointRepository endpointRepository;
   private final AssetAgentJobRepository assetAgentJobRepository;
@@ -244,6 +247,29 @@ public class EndpointApi extends RestBehavior {
       resourceType = ResourceType.ASSET)
   public EndpointOverviewOutput asset(@PathVariable @NotBlank final String assetId) {
     return endpointMapper.toAssetOverviewOutput(assetService.asset(assetId));
+  }
+
+  /**
+   * "Injects played" for the asset detail page: every inject (atomic testing or simulation inject)
+   * that concerns this asset, whether it was targeted directly, through an asset group (static or
+   * dynamic) or evidenced by the expectations persisted at execution time. This matches the scope
+   * of the asset posture score, unlike the plain atomic-testing search which only sees direct
+   * targeting of standalone injects.
+   */
+  @LogExecutionTime
+  @PostMapping({
+    ASSET_URI + "/{assetId}/injects/search",
+    TENANT_ASSET_URI + "/{assetId}/injects/search"
+  })
+  @AccessControl(
+      resourceId = "#assetId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.ASSET)
+  @Transactional(readOnly = true)
+  public Page<InjectResultOutput> searchInjectsForAsset(
+      @PathVariable @NotBlank final String assetId,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return injectSearchService.getPageOfInjectResultsForAsset(assetId, searchPaginationInput);
   }
 
   /**
