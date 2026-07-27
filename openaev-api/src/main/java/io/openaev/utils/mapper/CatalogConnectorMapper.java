@@ -31,6 +31,7 @@ public class CatalogConnectorMapper {
         .useCases(catalogConnector.getUseCases())
         .isManagerSupported(catalogConnector.isManagerSupported())
         .instanceDeployedCount(instanceDeployedCount)
+        .containerVersion(catalogConnector.getContainerVersion())
         .build();
   }
 

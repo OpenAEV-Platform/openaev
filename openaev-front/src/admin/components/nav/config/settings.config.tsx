@@ -51,7 +51,9 @@ const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
       userRight: canAccessTenantSettings || canAccessPlatformUGR || canAccessTenants,
     },
     {
-      link: '/admin/settings/asset_rules',
+      // Section root: redirects to asset_rules; Notifiers lives in the
+      // Customization right submenu (OpenCTI-aligned), not as a direct entry.
+      link: '/admin/settings/customization',
       label: 'Customization',
       userRight: canAccessTenantSettings,
     },

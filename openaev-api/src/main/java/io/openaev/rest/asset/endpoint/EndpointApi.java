@@ -17,6 +17,7 @@ import io.openaev.database.specification.AssetAgentJobSpecification;
 import io.openaev.database.specification.EndpointSpecification;
 import io.openaev.rest.asset.endpoint.form.*;
 import io.openaev.rest.asset.endpoint.output.EndpointTargetOutput;
+import io.openaev.rest.asset.form.AssetBulkProcessingInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.service.InjectStatusService;
@@ -257,6 +258,21 @@ public class EndpointApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public void deleteAsset(@PathVariable @NotBlank final String assetId) {
     this.assetService.deleteAsset(assetId);
+  }
+
+  /**
+   * Bulk deletion for the unified asset inventory: deletes assets of any category from an explicit
+   * id list or from a search input (select-all with optional exclusions). Security platforms are
+   * always excluded from the scope.
+   */
+  @LogExecutionTime
+  @DeleteMapping({ASSET_URI, TENANT_ASSET_URI})
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ASSET)
+  // SUPPORTS (not REQUIRED) on purpose: the service deletes in small independent transactions
+  // (chunked, with deadlock retry) - a request-wide transaction would defeat that.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  public List<String> bulkDeleteAssets(@RequestBody @Valid final AssetBulkProcessingInput input) {
+    return this.assetService.bulkDeleteAssets(input);
   }
 
   @GetMapping({ENDPOINT_URI + "/resolve", TENANT_ENDPOINT_URI + "/resolve"})

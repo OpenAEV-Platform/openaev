@@ -1,5 +1,5 @@
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Menu, MenuItem } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
@@ -7,6 +7,7 @@ import { connect } from 'react-redux';
 
 import { deleteLog, updateLog } from '../../../../../actions/Log';
 import { storeHelper } from '../../../../../actions/Schema';
+import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
 import inject18n from '../../../../../components/i18n';
 import { tagOptions } from '../../../../../utils/Option';
@@ -115,24 +116,18 @@ class LogPopoverComponent extends Component {
             </Button>
           </DialogActions>
         </Dialog>
-        <Dialog
-          TransitionComponent={Transition}
+        <Drawer
           open={this.state.openEdit}
-          onClose={this.handleCloseEdit.bind(this)}
-          fullWidth
-          maxWidth="md"
-          PaperProps={{ elevation: 1 }}
+          handleClose={this.handleCloseEdit.bind(this)}
+          title={t('Update the log')}
         >
-          <DialogTitle>{t('Update the log')}</DialogTitle>
-          <DialogContent>
-            <LogForm
-              initialValues={initialValues}
-              editing
-              onSubmit={this.onSubmitEdit.bind(this)}
-              handleClose={this.handleCloseEdit.bind(this)}
-            />
-          </DialogContent>
-        </Dialog>
+          <LogForm
+            initialValues={initialValues}
+            editing
+            onSubmit={this.onSubmitEdit.bind(this)}
+            handleClose={this.handleCloseEdit.bind(this)}
+          />
+        </Drawer>
       </div>
     );
   }

@@ -42,7 +42,7 @@ final class OpenaevImplantCommandBuilder {
     }
   }
 
-  static Map<String, String> buildExecutorCommands() {
+  static Map<String, String> buildExecutorCommands(int timeoutSeconds) {
     Map<String, String> commands = new HashMap<>();
     CommandVars vars = new CommandVars();
     // --- PALO ALTO WINDOWS SPECIFIC ---
@@ -54,14 +54,14 @@ final class OpenaevImplantCommandBuilder {
     buildMdeWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars);
     buildMdeWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars);
     // --- WINDOWS ---
-    buildGenericWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars);
-    buildGenericWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars);
+    buildGenericWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars, timeoutSeconds);
+    buildGenericWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars, timeoutSeconds);
     // --- LINUX ---
-    buildGenericLinuxCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars);
-    buildGenericLinuxCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars);
+    buildGenericLinuxCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars, timeoutSeconds);
+    buildGenericLinuxCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars, timeoutSeconds);
     // --- MACOS ---
-    buildGenericMacOSCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars);
-    buildGenericMacOSCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars);
+    buildGenericMacOSCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars, timeoutSeconds);
+    buildGenericMacOSCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars, timeoutSeconds);
     return commands;
   }
 
@@ -188,7 +188,10 @@ final class OpenaevImplantCommandBuilder {
   }
 
   private static void buildGenericWindowsCommand(
-      Endpoint.PLATFORM_ARCH arch, Map<String, String> commands, CommandVars vars) {
+      Endpoint.PLATFORM_ARCH arch,
+      Map<String, String> commands,
+      CommandVars vars,
+      int timeoutSeconds) {
     commands.put(
         Endpoint.PLATFORM_TYPE.Windows.name() + "." + arch.name(),
         "[Net.ServicePointManager]::SecurityProtocol +="
@@ -213,14 +216,21 @@ final class OpenaevImplantCommandBuilder {
             + " Inbound -Program \"$location\\$filename\" -Action Allow |"
             + " Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV"
             + " Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction"
-            + " Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Start-Process"
+            + " Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;$proc=Start-Process"
             + " -FilePath \"$location\\$filename\" -ArgumentList \"--uri $server --token $token"
             + " --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id"
-            + " #{agent} --inject-id #{inject} --tenant-id #{tenant}\" -WindowStyle hidden;");
+            + " #{agent} --inject-id #{inject} --tenant-id #{tenant}\" -WindowStyle hidden -PassThru;"
+            + "if(-not $proc.WaitForExit("
+            + (timeoutSeconds * 1000L)
+            + ")){Stop-Process -Id $proc.Id -Force;exit 124};"
+            + "exit $proc.ExitCode;");
   }
 
   private static void buildGenericLinuxCommand(
-      Endpoint.PLATFORM_ARCH arch, Map<String, String> commands, CommandVars vars) {
+      Endpoint.PLATFORM_ARCH arch,
+      Map<String, String> commands,
+      CommandVars vars,
+      int timeoutSeconds) {
     commands.put(
         Endpoint.PLATFORM_TYPE.Linux.name() + "." + arch.name(),
         "x=\"#{location}\";location=$(echo \"$x\" | sed"
@@ -238,11 +248,19 @@ final class OpenaevImplantCommandBuilder {
             + dlUri("linux", arch.name())
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri"
             + " $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy"
-            + " $with_proxy --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant} &");
+            + " $with_proxy --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant} & pid=$!;"
+            + "(sleep "
+            + timeoutSeconds
+            + ";if kill -0 $pid 2>/dev/null;then kill -TERM $pid 2>/dev/null;sleep 5;"
+            + "kill -KILL $pid 2>/dev/null;fi) & watchdog=$!;wait $pid 2>/dev/null;exit_code=$?;"
+            + "kill $watchdog 2>/dev/null;wait $watchdog 2>/dev/null;exit $exit_code");
   }
 
   private static void buildGenericMacOSCommand(
-      Endpoint.PLATFORM_ARCH arch, Map<String, String> commands, CommandVars vars) {
+      Endpoint.PLATFORM_ARCH arch,
+      Map<String, String> commands,
+      CommandVars vars,
+      int timeoutSeconds) {
     commands.put(
         Endpoint.PLATFORM_TYPE.MacOS.name() + "." + arch.name(),
         "x=\"#{location}\";location=$(echo \"$x\" | sed"
@@ -262,6 +280,11 @@ final class OpenaevImplantCommandBuilder {
             + dlUri("macos", arch.name())
             + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri"
             + " $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy"
-            + " $with_proxy --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant} &");
+            + " $with_proxy --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant} & pid=$!;"
+            + "(sleep "
+            + timeoutSeconds
+            + ";if kill -0 $pid 2>/dev/null;then kill -TERM $pid 2>/dev/null;sleep 5;"
+            + "kill -KILL $pid 2>/dev/null;fi) & watchdog=$!;wait $pid 2>/dev/null;exit_code=$?;"
+            + "kill $watchdog 2>/dev/null;wait $watchdog 2>/dev/null;exit $exit_code");
   }
 }

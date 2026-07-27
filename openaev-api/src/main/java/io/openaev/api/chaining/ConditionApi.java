@@ -84,9 +84,7 @@ public class ConditionApi extends RestBehavior {
       resourceType = ResourceType.WORKFLOW)
   @GetMapping(params = "workflow_id")
   public List<EventOutput> findAllByWorkflow(@RequestParam("workflow_id") String workflowId) {
-    return conditionService.findNonMapperConditionsByWorkflowId(workflowId).stream()
-        .map(ConditionMapper::toOutput)
-        .toList();
+    return conditionService.findEventsByWorkflowId(workflowId);
   }
 
   // -- UPDATE --

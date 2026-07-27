@@ -47,6 +47,7 @@ public interface CollectorRepository
           """)
   List<Collector> findByInjectId(@Param("injectId") String injectId);
 
+
   @Modifying
   @Query(
       nativeQuery = true,

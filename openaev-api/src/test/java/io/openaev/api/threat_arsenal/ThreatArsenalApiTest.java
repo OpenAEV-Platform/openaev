@@ -16,7 +16,6 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
-import io.openaev.collectors.utils.CollectorsUtils;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
@@ -36,6 +35,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
@@ -64,7 +64,6 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   @Autowired private CollectorRepository collectorRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
-  @Autowired private CollectorComposer collectorComposer;
   @Autowired private DomainComposer domainComposer;
   @Autowired private TagComposer tagComposer;
   @Autowired private PayloadComposer payloadComposer;
@@ -72,7 +71,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private DetectionRemediationComposer detectionRemediationComposer;
-  @Autowired private CollectorTypeComposer collectorTypeComposer;
+  @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private UserTestHelper userTestHelper;
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
@@ -85,12 +84,11 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     tagComposer.reset();
     domainComposer.reset();
     detectionRemediationComposer.reset();
-    collectorTypeComposer.reset();
+    securityPlatformComposer.reset();
   }
 
   @BeforeAll
   void beforeAll() {
-    collectorComposer.reset();
     EXECUTABLE_FILE = documentRepository.save(PayloadInputFixture.createDefaultExecutableFile());
   }
 
@@ -648,6 +646,170 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       assertTrue(
           resultDomains.stream().noneMatch(domains -> domains.contains(domain1.get().getId())),
           "No result should contain domain1");
+    }
+
+    @Test
+    @DisplayName("given action_platforms eq filter should match by array membership")
+    void given_actionPlatformsEqFilter_should_returnMatchingContracts() throws Exception {
+      // Arrange — eq on a text[] column (platforms) used to fail with a 500
+      // because lower() cannot be applied to an array expression.
+      injectorContractComposer
+          .forInjectorContract(
+              InjectorContractFixture.createInjectorContractWithPlatforms(
+                  new Endpoint.PLATFORM_TYPE[] {
+                    Endpoint.PLATFORM_TYPE.Windows, Endpoint.PLATFORM_TYPE.Linux
+                  }))
+          .withInjector(injectorFixture.getWellKnownEmailInjector(false))
+          .withDomain(domain1)
+          .persist();
+
+      // Act & Assert — single value (or mode) matches only the Windows contract
+      String response =
+          searchWith(
+              buildSearchInputForActionPlatformsEq(List.of("Windows"), Filters.FilterMode.or));
+      assertEquals(
+          1, (int) JsonPath.read(response, "$.totalElements"), "Windows should match one contract");
+
+      // and mode requires every value to be present in the array
+      response =
+          searchWith(
+              buildSearchInputForActionPlatformsEq(
+                  List.of("Windows", "Linux"), Filters.FilterMode.and));
+      assertEquals(
+          1,
+          (int) JsonPath.read(response, "$.totalElements"),
+          "Windows and Linux should match one contract");
+
+      response =
+          searchWith(
+              buildSearchInputForActionPlatformsEq(
+                  List.of("Windows", "MacOS"), Filters.FilterMode.and));
+      assertEquals(
+          0,
+          (int) JsonPath.read(response, "$.totalElements"),
+          "Windows and MacOS should match no contract");
+
+      // not_eq is the negation of the membership predicate: contracts without the
+      // value — including those with an empty platforms array — are kept. Assert
+      // relative to the unfiltered total: the environment may register extra
+      // contracts (without platforms) after the setup's deleteAll.
+      int unfilteredTotal =
+          JsonPath.read(searchWith(PaginationFixture.getDefault().build()), "$.totalElements");
+      SearchPaginationInput notEqInput =
+          buildSearchInputForActionPlatformsEq(List.of("Windows"), Filters.FilterMode.and);
+      notEqInput
+          .getFilterGroup()
+          .getFilters()
+          .getFirst()
+          .setOperator(Filters.FilterOperator.not_eq);
+      response = searchWith(notEqInput);
+      assertEquals(
+          unfilteredTotal - 1,
+          (int) JsonPath.read(response, "$.totalElements"),
+          "not_eq Windows should keep every contract except the Windows one");
+
+      // starts_with exercises the symmetric array branch of startWithText (same
+      // lower()-on-array 500 failure mode as eq). It matches on the joined array string.
+      SearchPaginationInput startsWithInput =
+          buildSearchInputForActionPlatformsEq(List.of("Wind"), Filters.FilterMode.or);
+      startsWithInput
+          .getFilterGroup()
+          .getFilters()
+          .getFirst()
+          .setOperator(Filters.FilterOperator.starts_with);
+      response = searchWith(startsWithInput);
+      assertEquals(
+          1,
+          (int) JsonPath.read(response, "$.totalElements"),
+          "starts_with Wind should match the Windows contract");
+
+      SearchPaginationInput startsWithMissInput =
+          buildSearchInputForActionPlatformsEq(List.of("Sola"), Filters.FilterMode.or);
+      startsWithMissInput
+          .getFilterGroup()
+          .getFilters()
+          .getFirst()
+          .setOperator(Filters.FilterOperator.starts_with);
+      response = searchWith(startsWithMissInput);
+      assertEquals(
+          0,
+          (int) JsonPath.read(response, "$.totalElements"),
+          "starts_with Sola should match no contract");
+
+      // The facet count endpoints receive the same filter group and must not fail either
+      SearchPaginationInput input =
+          buildSearchInputForActionPlatformsEq(List.of("Windows"), Filters.FilterMode.and);
+      mvc.perform(
+              post(THREAT_ARSENAL_URI + "/domain-counts")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk());
+      mvc.perform(
+              post(THREAT_ARSENAL_URI + "/author-counts")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk());
+      String facetResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/facet-counts")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      // Under the Windows filter, the Windows+Linux contract is the only match:
+      // both of its platforms count 1, MacOS counts 0.
+      assertEquals(
+          1,
+          (int) JsonPath.read(facetResponse, "$.platforms.Windows"),
+          "Windows facet count should match the filtered contract");
+      assertEquals(
+          1,
+          (int) JsonPath.read(facetResponse, "$.platforms.Linux"),
+          "Linux facet count should include the Windows+Linux contract");
+      assertEquals(
+          0,
+          (int) JsonPath.read(facetResponse, "$.platforms.MacOS"),
+          "No MacOS contract should match under the Windows filter");
+      // The matched contract has no payload: contracts without a payload are excluded from the
+      // status facet, so the statuses map is present but empty.
+      Map<String, Integer> statuses = JsonPath.read(facetResponse, "$.statuses");
+      assertTrue(
+          statuses.isEmpty(),
+          "Contracts without a payload should not contribute to status facet counts");
+    }
+
+    private String searchWith(SearchPaginationInput input) throws Exception {
+      return mvc.perform(
+              post(THREAT_ARSENAL_URI + "/search")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    private SearchPaginationInput buildSearchInputForActionPlatformsEq(
+        List<String> platforms, Filters.FilterMode mode) {
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("action_platforms");
+      filter.setOperator(Filters.FilterOperator.eq);
+      filter.setMode(mode);
+      filter.setValues(platforms);
+
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.and);
+      filterGroup.setFilters(new ArrayList<>(List.of(filter)));
+
+      SearchPaginationInput input = PaginationFixture.getDefault().build();
+      input.setFilterGroup(filterGroup);
+      return input;
     }
 
     private SearchPaginationInput buildSearchInputForActionDomainsNotEqAnd(List<String> domainIds) {
@@ -1366,11 +1528,11 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
   @Nested
   @WithMockUser(isAdmin = true)
-  @DisplayName("Get collector used in action remediation")
-  class GetCollectorForActionRemediation {
+  @DisplayName("Get security platform used in action remediation")
+  class GetSecurityPlatformForActionRemediation {
 
     @Test
-    @DisplayName("Getting collectors for a non-payload-based action should fail")
+    @DisplayName("Getting security platforms for a non-payload-based action should fail")
     void given_nonPayloadContract_should_returnFailed() throws Exception {
       // Arrange
       Injector emailInjector = injectorFixture.getWellKnownEmailInjector(false);
@@ -1385,7 +1547,10 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       // Act & Assert
       mvc.perform(
               get(tenantUri(
-                      TENANT_THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId() + "/collectors"))
+                      TENANT_THREAT_ARSENAL_URI
+                          + "/"
+                          + nonPayloadContract.getId()
+                          + "/security-platforms"))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON))
           .andExpect(status().isNotFound())
@@ -1393,27 +1558,17 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               content()
                   .string(
                       containsString(
-                          "Only payload-based injector contracts can provide collectors for action remediation.")));
+                          "Only payload-based threat arsenal items can provide security platforms for action remediation.")));
     }
 
     @Test
     @DisplayName(
-        "Getting collectors for a payload-based action should return the associated collectors")
-    void given_nonPayloadContract_should_returnCollectorsForActionRemediation() throws Exception {
-      // Arrange — create and delete
+        "Getting security platforms for a payload-based action should return the associated security platforms")
+    void given_payloadContract_should_returnSecurityPlatformsForActionRemediation()
+        throws Exception {
+      // Arrange
       Injector oaevImplantInjector = injectorFixture.getWellKnownOaevImplantInjector();
-      Collector crowdstrikeCollector =
-          collectorComposer
-              .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
-              .persist()
-              .get();
-      Collector defenderCollector =
-          collectorComposer
-              .forCollector(
-                  CollectorFixture.createDefaultCollector(CollectorsUtils.MICROSOFT_DEFENDER))
-              .persist()
-              .get();
-      InjectorContract nonPayloadContract =
+      InjectorContract payloadContract =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
               .withInjector(oaevImplantInjector)
@@ -1425,18 +1580,18 @@ public class ThreatArsenalApiTest extends IntegrationTest {
                           detectionRemediationComposer
                               .forDetectionRemediation(
                                   DetectionRemediationFixture.createDefaultDetectionRemediation())
-                              .withCollectorType(
-                                  collectorTypeComposer.forCollectorType(
-                                      CollectorTypeFixture.createCollectorType(
-                                          crowdstrikeCollector.getType()))))
+                              .withSecurityPlatform(
+                                  securityPlatformComposer.forSecurityPlatform(
+                                      SecurityPlatformFixture.createDefault(
+                                          "CrowdStrike Falcon", "EDR"))))
                       .withDetectionRemediation(
                           detectionRemediationComposer
                               .forDetectionRemediation(
                                   DetectionRemediationFixture.createDefaultDetectionRemediation())
-                              .withCollectorType(
-                                  collectorTypeComposer.forCollectorType(
-                                      CollectorTypeFixture.createCollectorType(
-                                          defenderCollector.getType())))))
+                              .withSecurityPlatform(
+                                  securityPlatformComposer.forSecurityPlatform(
+                                      SecurityPlatformFixture.createDefault(
+                                          "Microsoft Defender", "EDR")))))
               .persist()
               .get();
 
@@ -1445,8 +1600,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
                   get(tenantUri(
                           TENANT_THREAT_ARSENAL_URI
                               + "/"
-                              + nonPayloadContract.getId()
-                              + "/collectors"))
+                              + payloadContract.getId()
+                              + "/security-platforms"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -1455,10 +1610,9 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      List<String> collectorTypes = JsonPath.read(response, "$[*].collector_type");
-      assertThat(collectorTypes)
-          .containsExactlyInAnyOrder(
-              CollectorsUtils.CROWDSTRIKE, CollectorsUtils.MICROSOFT_DEFENDER);
+      List<String> securityPlatformNames = JsonPath.read(response, "$[*].asset_name");
+      assertThat(securityPlatformNames)
+          .containsExactlyInAnyOrder("CrowdStrike Falcon", "Microsoft Defender");
     }
   }
 }

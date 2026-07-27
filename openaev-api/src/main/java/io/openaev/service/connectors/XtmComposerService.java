@@ -129,10 +129,10 @@ public class XtmComposerService {
   }
 
   /**
-   * Check if the last connectivity check is older than 1 day
+   * Check if the last connectivity check is older than 2 hours
    *
    * @param lastConnectivityCheckValue Last connectivity check value as string
-   * @return true if the last connectivity check is older than 1 day, false otherwise
+   * @return true if the last connectivity check is older than 2 hours, false otherwise
    */
   public boolean isLastConnectivityCheckTooOld(String lastConnectivityCheckValue) {
     try {

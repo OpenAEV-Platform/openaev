@@ -155,7 +155,7 @@ const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: 
       }}
       >
         <Typography variant="subtitle2" color="text.secondary">
-          {`${t('Most exposed endpoints')} (${rows.length})`}
+          {`${t('Most exposed assets')} (${rows.length})`}
         </Typography>
         <Button
           size="small"

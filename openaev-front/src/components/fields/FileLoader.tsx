@@ -31,6 +31,7 @@ const useStyles = makeStyles()(theme => ({
     'cursor': 'pointer',
     '&:hover': { backgroundColor: theme.palette.action?.hover },
   },
+  icon: { minWidth: 30 },
   text: {
     fontSize: 15,
     color: theme.palette.primary.main,
@@ -208,8 +209,8 @@ const FileLoader: FunctionComponent<Props> = ({
                   onClick={handleOpen}
                   color="primary"
                 >
-                  <ListItemIcon color="primary">
-                    <ControlPointOutlined color="primary" />
+                  <ListItemIcon color="primary" classes={{ root: classes.icon }}>
+                    <ControlPointOutlined color="primary" fontSize="small" />
                   </ListItemIcon>
                   <ListItemText
                     primary="Add document"

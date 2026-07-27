@@ -20,6 +20,8 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.hibernate.Session;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.util.function.Tuple2;
@@ -40,6 +42,9 @@ import reactor.util.function.Tuples;
 public class InjectHelper {
 
   @Resource protected ObjectMapper mapper;
+
+  @Value("${inject.execution.batch-size:500}")
+  private int batchSize;
 
   private final InjectRepository injectRepository;
   private final ExecutionContextService executionContextService;
@@ -174,9 +179,12 @@ public class InjectHelper {
     // Get injects whose planned date can already be reached (coarse SQL filter); the exact
     // pause-aware date check is still applied in memory below
     List<Inject> injects =
-        this.injectRepository.findAll(
-            InjectSpecification.executable()
-                .and(InjectSpecification.plannedDateReachable(Instant.now())));
+        this.injectRepository
+            .findAll(
+                InjectSpecification.executable()
+                    .and(InjectSpecification.plannedDateReachable(Instant.now())),
+                PageRequest.ofSize(batchSize))
+            .getContent();
     Stream<ExecutableInject> executableInjects =
         injects.stream()
             .filter(this::isBeforeOrEqualsNow)
@@ -184,7 +192,9 @@ public class InjectHelper {
             .map(this::toExecutableInject);
     // Get atomic testing injects
     List<Inject> atomicTests =
-        this.injectRepository.findAll(InjectSpecification.forAtomicTesting());
+        this.injectRepository
+            .findAll(InjectSpecification.forAtomicTesting(), PageRequest.ofSize(batchSize))
+            .getContent();
     Stream<ExecutableInject> executableAtomicTests =
         atomicTests.stream()
             .filter(this::isBeforeOrEqualsNow)

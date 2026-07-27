@@ -26,10 +26,10 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../utils/permissions/types';
 import { arrayToRecord, isNotEmptyField } from '../../../../utils/utils';
-import PayloadComponent from '../../payloads/PayloadComponent';
 import { PermissionsContext } from '../Context';
 import InjectForm from './form/InjectForm';
 import InjectCardComponent from './InjectCardComponent';
+import InjectContractOverview from './InjectContractOverview';
 import InjectIcon from './InjectIcon';
 import UpdateInjectLogicalChains from './UpdateInjectLogicalChains';
 
@@ -97,7 +97,7 @@ const UpdateInject: React.FC<Props> = ({
     dispatch(fetchInject(injectId)).then(() => {
       const payloadId = inject?.inject_injector_contract?.injector_contract_payload?.payload_id;
       if (payloadId) {
-        setAvailableTabs(['Inject details', 'Action info', 'Logical chains']);
+        setAvailableTabs(['Inject details', 'Arsenal item info', 'Logical chains']);
       }
       setIsInjectLoading(false);
     });
@@ -107,7 +107,7 @@ const UpdateInject: React.FC<Props> = ({
   const handleTabChange = (_: SyntheticEvent, newValue: string) => {
     setActiveTab(newValue);
 
-    if (newValue === 'Action info' && !documentsMap) {
+    if (newValue === 'Arsenal item info' && !documentsMap) {
       fetchDocumentsPayloadByInject(injectId, contractPayload?.payload_id)
         .then(documents => setDocumentsMap(arrayToRecord<Document, 'document_id'>(documents, 'document_id')));
     }
@@ -186,74 +186,79 @@ const UpdateInject: React.FC<Props> = ({
         gap: theme.spacing(2),
       }}
     >
-      <TabContext value={activeTab}>
-        {!isAtomic && (
-          <Tabs value={activeTab} onChange={handleTabChange} variant="fullWidth">
-            {availableTabs.map(tab => (
-              <Tab key={tab} label={t(tab)} value={tab} />
-            ))}
-          </Tabs>
-        )}
-        {/* Inject details */}
-        <TabPanel value="Inject details" keepMounted className={classes.tabPanel}>
-          {injectFormContent}
-          {!isInjectLoading && inject && (
-            <InjectForm
-              handleClose={handleClose}
-              disabled={
-                !inject.inject_enabled
-                || !injectorContractContent
-                || permissions.readOnly
-                || (inherited_context === INHERITED_CONTEXT.NONE
-                  && ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId)
-                  && ability.cannot(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT))
-              }
-              isAtomic={isAtomic}
-              defaultInject={inject}
-              injectorContractContent={injectorContractContent}
-              onSubmitInject={(data: InjectInput) => onUpdateInject(data as Inject)}
-              articlesFromExerciseOrScenario={articlesFromExerciseOrScenario}
-              uriVariable={uriVariable}
-              variablesFromExerciseOrScenario={variablesFromExerciseOrScenario}
-              injectorNames={injectorNamesMap}
-              onInjectorChange={(_id, name) => setSelectedInjectorName(name)}
-            />
+      <>
+        {/* The inject card is shared by every tab, so it lives above the tab bar. */}
+        {injectFormContent}
+        <TabContext value={activeTab}>
+          {!isAtomic && (
+            <Tabs
+              value={activeTab}
+              onChange={handleTabChange}
+              indicatorColor="primary"
+              textColor="primary"
+            >
+              {availableTabs.map(tab => (
+                <Tab key={tab} label={t(tab)} value={tab} />
+              ))}
+            </Tabs>
           )}
-        </TabPanel>
-
-        {/* Action info */}
-        {contractPayload && !isAtomic && (
-          <TabPanel value="Action info" keepMounted className={classes.tabPanel}>
+          {/* Inject details */}
+          <TabPanel value="Inject details" keepMounted className={classes.tabPanel}>
             {!isInjectLoading && inject && (
-              <PayloadComponent
-                documentsMap={documentsMap}
-                selectedPayload={contractPayload}
-                attackPatternIds={inject?.inject_injector_contract.injector_contract_attack_patterns ?? []}
-                domains={inject?.inject_injector_contract.injector_contract_domains ?? []}
-                tagIds={inject?.inject_injector_contract.injector_contract_tags ?? []}
+              <InjectForm
+                handleClose={handleClose}
+                // A disabled inject stays fully editable: "disabled" only means it is excluded from
+                // execution, it is not a read-only state. Only missing contract content and
+                // permissions make the form read-only.
+                disabled={
+                  !injectorContractContent
+                  || permissions.readOnly
+                  || (inherited_context === INHERITED_CONTEXT.NONE
+                    && ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId)
+                    && ability.cannot(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT))
+                }
+                isAtomic={isAtomic}
+                defaultInject={inject}
+                injectorContractContent={injectorContractContent}
+                onSubmitInject={(data: InjectInput) => onUpdateInject(data as Inject)}
+                articlesFromExerciseOrScenario={articlesFromExerciseOrScenario}
+                uriVariable={uriVariable}
+                variablesFromExerciseOrScenario={variablesFromExerciseOrScenario}
+                injectorNames={injectorNamesMap}
+                onInjectorChange={(_id, name) => setSelectedInjectorName(name)}
               />
             )}
           </TabPanel>
-        )}
 
-        {/* Logical chains */}
-        <TabPanel value="Logical chains" keepMounted className={classes.tabPanel}>
-          {injectFormContent}
-          {!isInjectLoading && inject && !isAtomic && (
-            <UpdateInjectLogicalChains
-              inject={inject}
-              handleClose={handleClose}
-              onUpdateInject={massUpdateInject}
-              injects={injects}
-              isDisabled={
-                !inject.inject_enabled
-                || (!permissions.canManage
-                  && ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId))
-              }
-            />
+          {/* Arsenal item info */}
+          {contractPayload && !isAtomic && (
+            <TabPanel value="Arsenal item info" keepMounted className={classes.tabPanel}>
+              {!isInjectLoading && inject && (
+                <InjectContractOverview
+                  injectorContract={inject.inject_injector_contract}
+                  documentsMap={documentsMap}
+                />
+              )}
+            </TabPanel>
           )}
-        </TabPanel>
-      </TabContext>
+
+          {/* Logical chains */}
+          <TabPanel value="Logical chains" keepMounted className={classes.tabPanel}>
+            {!isInjectLoading && inject && !isAtomic && (
+              <UpdateInjectLogicalChains
+                inject={inject}
+                handleClose={handleClose}
+                onUpdateInject={massUpdateInject}
+                injects={injects}
+                isDisabled={
+                  !permissions.canManage
+                  && ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId)
+                }
+              />
+            )}
+          </TabPanel>
+        </TabContext>
+      </>
     </Drawer>
   );
 };

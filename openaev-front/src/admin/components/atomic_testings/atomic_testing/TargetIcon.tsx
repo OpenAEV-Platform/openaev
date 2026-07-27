@@ -7,6 +7,13 @@ import { type FunctionComponent } from 'react';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import { type InjectTarget } from '../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
+import { type AssetCategory } from '../../assets/asset-categories';
+import AssetCategoryIcon from '../../assets/AssetCategoryIcon';
+
+// Asset categories whose OS platform brand icon (Windows / Linux / macOS / iOS / Android) is the
+// meaningful glyph. Every other category has no OS platform (its target_subtype is "Unknown"), so it
+// is represented by its taxonomy glyph via AssetCategoryIcon instead of an empty box.
+const OS_PLATFORM_CATEGORIES = new Set<AssetCategory>(['HOST', 'MOBILE_DEVICE']);
 
 interface Props {
   target: InjectTarget;
@@ -23,8 +30,18 @@ const TargetIcon: FunctionComponent<Props> = ({ target, size = 32 }) => {
     switch (target.target_type) {
       case 'ASSETS_GROUPS':
         return <SelectGroup sx={{ fontSize: glyphSize }} />;
-      case 'ASSETS':
-        return <PlatformIcon platform={target?.target_subtype ?? 'Unknown'} width={glyphSize} />;
+      case 'ASSETS': {
+        // Host-like assets keep their OS/platform brand icon. Other categories (web application,
+        // cloud, network device, identity, ...) have no meaningful OS platform, so the platform is
+        // "Unknown" and PlatformIcon would render nothing - fall back to the asset category glyph.
+        const category = target?.target_category as AssetCategory | undefined;
+        const platform = target?.target_subtype;
+        // No category (legacy data): preserve the previous platform-icon behavior.
+        if (platform && (!category || OS_PLATFORM_CATEGORIES.has(category))) {
+          return <PlatformIcon platform={platform} width={glyphSize} />;
+        }
+        return <AssetCategoryIcon category={category ?? null} sx={{ fontSize: glyphSize }} />;
+      }
       case 'TEAMS':
         return <Groups3Outlined sx={{ fontSize: glyphSize }} />;
       case 'PLAYERS':

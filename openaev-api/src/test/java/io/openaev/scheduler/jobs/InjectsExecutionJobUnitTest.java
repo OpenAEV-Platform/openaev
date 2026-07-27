@@ -11,6 +11,7 @@ import io.openaev.database.repository.InjectDependenciesRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
 import io.openaev.service.NotificationEventService;
@@ -20,11 +21,15 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.composers.InjectComposer;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -48,6 +53,8 @@ class InjectsExecutionJobUnitTest {
   @Mock private SecurityCoverageSendJobService securityCoverageSendJobService;
   @Mock private NotificationEventService notificationEventService;
   @Mock private InjectExpectationRepository injectExpectationRepository;
+  @Mock private InjectService injectService;
+  @Mock private EntityManager entityManager;
 
   @InjectMocks private InjectsExecutionJob injectsExecutionJob;
 
@@ -254,7 +261,7 @@ class InjectsExecutionJobUnitTest {
 
       NotificationEvent event = notificationEventCaptor.getValue();
       assertEquals(NotificationEventType.SIMULATION_COMPLETED, event.getEventType());
-      assertEquals(NotificationRuleResourceType.SCENARIO, event.getResourceType());
+      assertEquals(ResourceType.SCENARIO, event.getResourceType());
       assertEquals(scenarioId, event.getResourceId());
       assertNotNull(event.getTimestamp());
     }
@@ -373,6 +380,95 @@ class InjectsExecutionJobUnitTest {
 
       // Assert
       verify(notificationEventService, times(2)).sendNotificationEventWithDelay(any(), anyLong());
+    }
+  }
+
+  // ========================================================================
+  // Inject expectation collect status
+  // ========================================================================
+  @Nested
+  @DisplayName("handleInjectExpectationCollectStatus")
+  class HandleInjectExpectationCollectStatusTests {
+
+    @Captor private ArgumentCaptor<List<Inject>> injectsCaptor;
+
+    private Inject inject;
+
+    @BeforeEach
+    void setUpCollectStatus() {
+      Session session = mock(Session.class, withSettings().strictness(LENIENT));
+      when(entityManager.unwrap(Session.class)).thenReturn(session);
+      inject = new Inject();
+      when(injectService.getExecutedAndNotFinished()).thenReturn(List.of(inject));
+    }
+
+    private BaseInjectExpectation buildExpectation(
+        Instant createdAt, long expirationSeconds, String... resultTexts) {
+      BaseInjectExpectation expectation = new BaseInjectExpectation();
+      expectation.setCreatedAt(createdAt);
+      expectation.setExpirationTime(expirationSeconds);
+      expectation.setResults(
+          Arrays.stream(resultTexts)
+              .map(text -> InjectExpectationResult.builder().result(text).build())
+              .collect(Collectors.toCollection(ArrayList::new)));
+      return expectation;
+    }
+
+    private List<Inject> actAndCaptureSaved() {
+      injectsExecutionJob.handleInjectExpectationCollectStatus();
+      verify(injectService).saveAll(injectsCaptor.capture());
+      return injectsCaptor.getValue();
+    }
+
+    @Test
+    @DisplayName("should complete collect status when the inject has no expectations")
+    void shouldCompleteWhenNoExpectations() {
+      List<Inject> saved = actAndCaptureSaved();
+
+      assertEquals(1, saved.size());
+      assertEquals(CollectExecutionStatus.COMPLETED, saved.get(0).getCollectExecutionStatus());
+    }
+
+    @Test
+    @DisplayName("should complete collect status when every expectation result is filled")
+    void shouldCompleteWhenAllResultsFilled() {
+      inject
+          .getExpectations()
+          .add(buildExpectation(Instant.now(), 3600, "Prevented", "Not Prevented"));
+
+      List<Inject> saved = actAndCaptureSaved();
+
+      assertEquals(1, saved.size());
+    }
+
+    @Test
+    @DisplayName("should keep collecting while an unexpired expectation has an unfilled result")
+    void shouldKeepCollectingWhileUnexpiredResultUnfilled() {
+      // One collector reported, the other placeholder is still empty and the window is open
+      inject.getExpectations().add(buildExpectation(Instant.now(), 3600, "Prevented", ""));
+
+      List<Inject> saved = actAndCaptureSaved();
+
+      assertTrue(saved.isEmpty());
+      assertEquals(CollectExecutionStatus.COLLECTING, inject.getCollectExecutionStatus());
+    }
+
+    @Test
+    @DisplayName(
+        "should complete collect status when an expectation with unfilled results has expired "
+            + "(prevents simulations from staying on-going forever)")
+    void shouldCompleteWhenExpectationExpiredDespiteUnfilledResults() {
+      // Partially filled expectation: score was set by the reporting collector, so the
+      // expiration manager never back-fills the empty placeholder. Once the collection
+      // window is over the inject must stop blocking the simulation auto-close.
+      inject
+          .getExpectations()
+          .add(buildExpectation(Instant.now().minusSeconds(7200), 3600, "Prevented", ""));
+
+      List<Inject> saved = actAndCaptureSaved();
+
+      assertEquals(1, saved.size());
+      assertEquals(CollectExecutionStatus.COMPLETED, saved.get(0).getCollectExecutionStatus());
     }
   }
 }

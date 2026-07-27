@@ -52,6 +52,7 @@ const InjectEndpointsList = ({ name, platforms = [], architectures, disabled = f
     <>
       <AssetsList
         endpoints={endpoints}
+        withHeaders
         renderActions={endpoint => (
           <AssetPopover
             inline

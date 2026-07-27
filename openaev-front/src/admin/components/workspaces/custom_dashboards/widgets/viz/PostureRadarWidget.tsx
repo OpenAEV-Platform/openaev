@@ -23,7 +23,7 @@ interface Props {
 const PostureRadarWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, series }) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
+  const { openWidgetResults } = useContext(CustomDashboardContext);
 
   const isSample = isSeriesEmpty(series);
   const displaySeries = isSample ? sampleRadarSeries : series;
@@ -58,12 +58,12 @@ const PostureRadarWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, 
   }) => {
     const key = labelKeys[config.dataPointIndex];
     if (!key) return;
-    openWidgetDataDrawer({
+    openWidgetResults({
       widgetId,
       filter_values_map: { [widgetConfig.field]: [key] },
       series_index: config.seriesIndex,
     });
-  }, [labelKeys, openWidgetDataDrawer, widgetId, widgetConfig.field]);
+  }, [labelKeys, openWidgetResults, widgetId, widgetConfig.field]);
 
   const chartSeries = useMemo(
     () => displaySeries.map(s => ({

@@ -131,10 +131,20 @@ export const SectionLabel = ({ children }: { children: ReactNode }) => (
   <Typography sx={SECTION_LABEL_SX}>{children}</Typography>
 );
 
-export const SectionBlock = ({ title, children, disablePadding }: {
+export const SectionBlock = ({ title, action, children, disablePadding, centerContent }: {
   title: string;
+  // Right-aligned node in a 32px header row (same geometry as the
+  // InformationGrid action slot). Pass `action={null}` to adopt the taller
+  // header without an action, so the Paper top-aligns with an action-bearing
+  // sibling column in the same grid row.
+  action?: ReactNode;
   children: ReactNode;
   disablePadding?: boolean;
+  // Vertically centers the content when a side-by-side sibling stretches the
+  // Paper taller than the content (grid alignItems: stretch). A plain
+  // `height: 100%` on the child does not resolve inside the flex-grown Paper,
+  // so the Paper itself must become the centering flex container.
+  centerContent?: boolean;
 }) => (
   <div style={{
     display: 'flex',
@@ -142,13 +152,38 @@ export const SectionBlock = ({ title, children, disablePadding }: {
     height: '100%',
   }}
   >
-    <Typography sx={SECTION_LABEL_SX}>{title}</Typography>
+    {action !== undefined
+      ? (
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            minHeight: 32,
+            marginBottom: 1.5,
+          }}
+          >
+            <Typography sx={{
+              ...SECTION_LABEL_SX,
+              marginBottom: 0,
+            }}
+            >
+              {title}
+            </Typography>
+            <div style={{ flex: 1 }} />
+            {action}
+          </Box>
+        )
+      : <Typography sx={SECTION_LABEL_SX}>{title}</Typography>}
     <Paper
       variant="outlined"
       sx={{
         padding: disablePadding ? 0 : 2,
         borderRadius: 1,
         flex: 1,
+        ...(centerContent && {
+          display: 'flex',
+          alignItems: 'center',
+        }),
       }}
     >
       {children}

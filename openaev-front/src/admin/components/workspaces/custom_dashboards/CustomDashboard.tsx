@@ -26,6 +26,7 @@ const CustomDashboard = () => {
   const configuration = useMemo(() => ({
     customDashboardId: customDashboardId,
     paramLocalStorageKey: 'custom-dashboard-' + customDashboardId,
+    resultsSource: { source: 'workspace' as const },
     fetchCustomDashboard: () => fetchCustomDashboard(customDashboardId),
     fetchAverage: (widgetId: string, params: Record<string, string | undefined>) => average(widgetId, params),
     fetchCount: (widgetId: string, params: Record<string, string | undefined>) => count(widgetId, params),

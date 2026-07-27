@@ -365,8 +365,10 @@ public class MapperService {
           new CsvExportConfig<>(
               "Endpoints", EndpointExportImport.class, this::getEndpointsToExport);
       case INJECTOR_CONTRACTS ->
+          // User-facing filename: threat arsenal wording, never the technical
+          // "injector contract" name.
           new CsvExportConfig<>(
-              "InjectorContracts",
+              "ThreatArsenalItems",
               InjectorContractExport.class,
               this::getInjectorContractsToExport);
       default ->

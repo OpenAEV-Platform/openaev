@@ -25,6 +25,7 @@ import io.openaev.rest.user.form.player.PlayerOutput;
 import io.openaev.service.UserService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.tenants.TenantUserService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
@@ -46,7 +47,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -63,16 +63,20 @@ public class PlayerService {
 
   private final UserRepository userRepository;
   private final UserService userService;
+  private final BulkDeleteExecutor bulkDeleteExecutor;
 
   /**
    * Bulk delete of players, either from an explicit list of ids or from a search input (select
    * all). The current user, admin users and reserved service accounts are always excluded from the
    * deletion scope.
    *
+   * <p>Not transactional as a whole: the deletion scope is resolved in a short transaction, then
+   * players are deleted in small independent chunks (with deadlock retry) tracked as a massive
+   * operation, so per-entity stream events are suppressed in favor of aggregated progress events.
+   *
    * @param input the bulk processing input
    * @return the ids of the deleted players
    */
-  @Transactional(rollbackFor = Exception.class)
   public List<String> bulkDeletePlayers(@NotNull final PlayerBulkProcessingInput input) {
     if ((CollectionUtils.isEmpty(input.getUserIdsToProcess())
             && input.getSearchPaginationInput() == null)
@@ -81,41 +85,52 @@ public class PlayerService {
       throw new BadRequestException(
           "Either user_ids_to_process or search_pagination_input must be provided, and not both at the same time");
     }
-    Specification<User> specification;
-    if (input.getSearchPaginationInput() != null) {
-      // Same specification chain as the list search (filter group + text search), so the deletion
-      // scope matches exactly what the user sees in the list.
-      specification =
-          FilterUtilsJpa.<User>computeFilterGroupJpa(
-                  input.getSearchPaginationInput().getFilterGroup())
-              .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
-    } else {
-      specification = SpecificationUtils.hasIdIn(input.getUserIdsToProcess());
-    }
-    // Users are a platform-level (dual-scope) entity: scope explicitly to the current tenant,
-    // like the players list search does.
-    specification = specification.and(inTenant(TenantContext.getCurrentTenant()));
-    if (!CollectionUtils.isEmpty(input.getUserIdsToIgnore())) {
-      List<String> idsToIgnore = input.getUserIdsToIgnore();
-      specification =
-          specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
-    }
     String currentUserId = userService.currentUser().getId();
-    List<String> deletedIds =
-        userRepository.findAll(specification).stream()
-            // Never delete yourself, admin accounts or reserved service accounts through a bulk
-            // players deletion (the single delete has per-resource RBAC checks instead).
-            .filter(user -> !user.getId().equals(currentUserId))
-            .filter(user -> !user.isAdmin())
-            .filter(user -> !ReservedKeyValidator.isReservedUserEmail(user.getEmail()))
-            .map(User::getId)
-            .toList();
-    deletedIds.forEach(userService::delete);
-    return deletedIds;
+    List<String> userIdsToDelete =
+        bulkDeleteExecutor.resolveInTransaction(
+            () -> {
+              Specification<User> specification;
+              if (input.getSearchPaginationInput() != null) {
+                // Same specification chain as the list search (filter group + text search), so the
+                // deletion scope matches exactly what the user sees in the list.
+                specification =
+                    FilterUtilsJpa.<User>computeFilterGroupJpa(
+                            input.getSearchPaginationInput().getFilterGroup())
+                        .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
+              } else {
+                specification = SpecificationUtils.hasIdIn(input.getUserIdsToProcess());
+              }
+              // Users are a platform-level (dual-scope) entity: scope explicitly to the current
+              // tenant, like the players list search does.
+              specification = specification.and(inTenant(TenantContext.getCurrentTenant()));
+              if (!CollectionUtils.isEmpty(input.getUserIdsToIgnore())) {
+                List<String> idsToIgnore = input.getUserIdsToIgnore();
+                specification =
+                    specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+              }
+              return userRepository.findAll(specification).stream()
+                  // Never delete yourself, admin accounts or reserved service accounts through a
+                  // bulk players deletion (the single delete has per-resource RBAC checks
+                  // instead).
+                  .filter(user -> !user.getId().equals(currentUserId))
+                  .filter(user -> !user.isAdmin())
+                  .filter(user -> !ReservedKeyValidator.isReservedUserEmail(user.getEmail()))
+                  .map(User::getId)
+                  .toList();
+            });
+    return bulkDeleteExecutor.deleteInChunks(
+        "players", userIdsToDelete, chunk -> chunk.forEach(userService::delete));
   }
 
   public Page<PlayerOutput> playerPagination(@NotNull SearchPaginationInput searchPaginationInput) {
-    Specification<User> tenantSpec = inTenant(TenantContext.getCurrentTenant());
+    // Reserved service/connector accounts (service-*@openaev.invalid,
+    // connector-*@openaev.invalid - see ReservedKeyValidator) are system users:
+    // they are not players and can never be added to a team, so they must not
+    // be listed in player search results (Players page, team players picker...).
+    Specification<User> excludeReservedAccounts =
+        (root, query, cb) -> cb.notLike(cb.lower(root.get("email")), "%@openaev.invalid");
+    Specification<User> tenantSpec =
+        inTenant(TenantContext.getCurrentTenant()).and(excludeReservedAccounts);
     TriFunction<Specification<User>, Specification<User>, Pageable, Page<PlayerOutput>>
         playersFunction;
     playersFunction =

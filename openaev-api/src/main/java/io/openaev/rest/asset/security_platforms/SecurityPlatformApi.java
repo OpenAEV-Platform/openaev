@@ -21,7 +21,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
@@ -78,46 +77,33 @@ public class SecurityPlatformApi {
   @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform upsertSecurityPlatform(
       @Valid @RequestBody SecurityPlatformUpsertInput input) {
-    Optional<SecurityPlatform> securityPlatform =
-        securityPlatformRepository.findByExternalReference(input.getExternalReference());
-    if (securityPlatform.isPresent()) {
-      SecurityPlatform existingSecurityPlatform = securityPlatform.get();
-      existingSecurityPlatform.setUpdateAttributes(input);
-      existingSecurityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
-      if (input.getLogoDark() != null) {
-        existingSecurityPlatform.setLogoDark(
-            documentRepository.findById(input.getLogoDark()).orElse(null));
-      } else {
-        existingSecurityPlatform.setLogoDark(null);
-      }
-      if (input.getLogoLight() != null) {
-        existingSecurityPlatform.setLogoLight(
-            documentRepository.findById(input.getLogoLight()).orElse(null));
-      } else {
-        existingSecurityPlatform.setLogoLight(null);
-      }
-      existingSecurityPlatform.setTags(
-          iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
-      return this.securityPlatformRepository.save(existingSecurityPlatform);
+    // A collector redeployed through the Integration Manager registers with a freshly
+    // generated collector id (the external reference), while the platform row created by
+    // the previous deployment still exists: fall back to the unique (name, type) pair so
+    // the upsert updates that row (adopting the new external reference through
+    // setUpdateAttributes) instead of failing on unique_security_platform_name_type_ci_idx.
+    SecurityPlatform securityPlatform =
+        securityPlatformRepository
+            .findByExternalReference(input.getExternalReference())
+            .or(
+                () ->
+                    securityPlatformRepository.findByNameIgnoreCaseAndSecurityPlatformType(
+                        input.getName(), input.getSecurityPlatformType()))
+            .orElseGet(SecurityPlatform::new);
+    securityPlatform.setUpdateAttributes(input);
+    securityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
+    if (input.getLogoDark() != null) {
+      securityPlatform.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
     } else {
-      SecurityPlatform newSecurityPlatform = new SecurityPlatform();
-      newSecurityPlatform.setUpdateAttributes(input);
-      newSecurityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
-      if (input.getLogoDark() != null) {
-        newSecurityPlatform.setLogoDark(
-            documentRepository.findById(input.getLogoDark()).orElse(null));
-      } else {
-        newSecurityPlatform.setLogoDark(null);
-      }
-      if (input.getLogoLight() != null) {
-        newSecurityPlatform.setLogoLight(
-            documentRepository.findById(input.getLogoLight()).orElse(null));
-      } else {
-        newSecurityPlatform.setLogoLight(null);
-      }
-      newSecurityPlatform.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
-      return this.securityPlatformRepository.save(newSecurityPlatform);
+      securityPlatform.setLogoDark(null);
     }
+    if (input.getLogoLight() != null) {
+      securityPlatform.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
+    } else {
+      securityPlatform.setLogoLight(null);
+    }
+    securityPlatform.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    return this.securityPlatformRepository.save(securityPlatform);
   }
 
   @GetMapping({

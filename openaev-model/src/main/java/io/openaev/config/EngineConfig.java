@@ -121,4 +121,18 @@ public class EngineConfig {
   private boolean rejectUnauthorized = Defaults.REJECT_UNAUTHORIZED;
 
   private int indexingBatchSize = Defaults.INDEXING_BATCH_SIZE;
+
+  /**
+   * Wildcard pattern matching all indices of this platform and only them.
+   *
+   * <p>Index names are always built as {@code {prefix}_{name}}, so the pattern includes the
+   * underscore separator. Using {@code {prefix}*} instead would also match indices of another
+   * platform whose prefix merely starts with this one (e.g. {@code openaev} matching {@code
+   * openaevci_*} indices), leaking foreign documents into every engine query.
+   *
+   * @return the index wildcard pattern, e.g. {@code openaev_*}
+   */
+  public String getIndexPattern() {
+    return indexPrefix + "_*";
+  }
 }

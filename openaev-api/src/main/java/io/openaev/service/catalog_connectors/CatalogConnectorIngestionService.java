@@ -216,7 +216,8 @@ public class CatalogConnectorIngestionService {
               CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.valueOf(
                   connectorConfigurationType.trim().toUpperCase()));
         } catch (IllegalArgumentException e) {
-          log.warn("Unknown type '{}', ignoring it", connectorConfigurationType);
+          log.warn(
+              "Unknown type '{}' for property '{}', ignoring it", connectorConfigurationType, key);
         }
       } else {
         log.warn("type is null or empty");
@@ -230,7 +231,10 @@ public class CatalogConnectorIngestionService {
               CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.valueOf(
                   connectorConfigurationFormat.trim().toUpperCase()));
         } catch (IllegalArgumentException e) {
-          log.warn("Unknown format '{}', ignoring it", connectorConfigurationFormat);
+          log.warn(
+              "Unknown format '{}' for property '{}', ignoring it",
+              connectorConfigurationFormat,
+              key);
         }
       } else {
         log.debug("format is null or empty");

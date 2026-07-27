@@ -26,6 +26,13 @@ public class CollectorCreateInput {
   @JsonProperty("collector_period")
   private int period;
 
+  /**
+   * Optional source-declared author override for this collector's payloads and contracts. Falls
+   * back to the collector name when absent.
+   */
+  @JsonProperty("collector_author")
+  private String author;
+
   @JsonProperty("collector_security_platform")
   private String securityPlatform;
 }

@@ -59,6 +59,7 @@ import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionServi
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
@@ -129,6 +130,7 @@ public class ExerciseService {
   private final InjectExpectationRepository injectExpectationRepository;
   private final ArticleRepository articleRepository;
   private final ExerciseRepository exerciseRepository;
+  private final BulkDeleteExecutor bulkDeleteExecutor;
   private final InjectStatusRepository injectStatusRepository;
   private final PauseRepository pauseRepository;
   private final LessonsQuestionRepository lessonsQuestionRepository;
@@ -280,6 +282,7 @@ public class ExerciseService {
     exerciseDuplicate.setHeader(exerciseOrigin.getHeader());
     exerciseDuplicate.setMainFocus(exerciseOrigin.getMainFocus());
     exerciseDuplicate.setSeverity(exerciseOrigin.getSeverity());
+    exerciseDuplicate.setDefaultKillChain(exerciseOrigin.getDefaultKillChain());
     exerciseDuplicate.setSubtitle(exerciseOrigin.getSubtitle());
     exerciseDuplicate.setLogoDark(exerciseOrigin.getLogoDark());
     exerciseDuplicate.setLogoLight(exerciseOrigin.getLogoLight());
@@ -586,10 +589,14 @@ public class ExerciseService {
    * (select-all with optional exclusions). Only simulations the user is allowed to manage are
    * deleted.
    *
+   * <p>Deliberately NOT transactional as a whole: the scope is resolved in a short read
+   * transaction, then simulations are deleted in small independent chunks (with deadlock retry). A
+   * single all-encompassing transaction holds row locks on {@code exercises} for its whole duration
+   * and deadlocks against concurrent inject expectation updates.
+   *
    * @param input the bulk processing input (ids or search input, plus ids to ignore)
    * @return the list of deleted simulation ids
    */
-  @Transactional(rollbackFor = Exception.class)
   public List<String> bulkDelete(@NotNull final ExerciseBulkProcessingInput input) {
     if ((CollectionUtils.isEmpty(input.getExerciseIdsToProcess())
             && input.getSearchPaginationInput() == null)
@@ -598,36 +605,41 @@ public class ExerciseService {
       throw new BadRequestException(
           "Either exercise_ids_to_process or search_pagination_input must be provided, and not both at the same time");
     }
-    Specification<Exercise> specification;
-    if (input.getSearchPaginationInput() != null) {
-      // Same specification chain as the list search (filter group + text search), so the deletion
-      // scope matches exactly what the user sees in the list.
-      specification =
-          FilterUtilsJpa.<Exercise>computeFilterGroupJpa(
-                  input.getSearchPaginationInput().getFilterGroup())
-              .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
-    } else {
-      specification = SpecificationUtils.hasIdIn(input.getExerciseIdsToProcess());
-    }
-    if (!CollectionUtils.isEmpty(input.getExerciseIdsToIgnore())) {
-      List<String> idsToIgnore = input.getExerciseIdsToIgnore();
-      specification =
-          specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
-    }
-    // Restrict to simulations the user is granted to plan on (no-op for admins and users with the
-    // delete capability)
     User user = userService.currentUser();
-    specification =
-        specification.and(
-            SpecificationUtils.hasGrantAccess(
-                user.getId(),
-                user.isAdminOrBypass(),
-                user.getCapabilities().contains(Capability.DELETE_ASSESSMENT),
-                Grant.GRANT_TYPE.PLANNER));
-    List<String> deletedIds =
-        exerciseRepository.findAll(specification).stream().map(Exercise::getId).toList();
-    deletedIds.forEach(this::deleteById);
-    return deletedIds;
+    List<String> exerciseIdsToDelete =
+        bulkDeleteExecutor.resolveInTransaction(
+            () -> {
+              Specification<Exercise> specification;
+              if (input.getSearchPaginationInput() != null) {
+                // Same specification chain as the list search (filter group + text search), so the
+                // deletion scope matches exactly what the user sees in the list.
+                specification =
+                    FilterUtilsJpa.<Exercise>computeFilterGroupJpa(
+                            input.getSearchPaginationInput().getFilterGroup())
+                        .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
+              } else {
+                specification = SpecificationUtils.hasIdIn(input.getExerciseIdsToProcess());
+              }
+              if (!CollectionUtils.isEmpty(input.getExerciseIdsToIgnore())) {
+                List<String> idsToIgnore = input.getExerciseIdsToIgnore();
+                specification =
+                    specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+              }
+              // Restrict to simulations the user is granted to plan on (no-op for admins and users
+              // with the delete capability)
+              specification =
+                  specification.and(
+                      SpecificationUtils.hasGrantAccess(
+                          user.getId(),
+                          user.isAdminOrBypass(),
+                          user.getCapabilities().contains(Capability.DELETE_ASSESSMENT),
+                          Grant.GRANT_TYPE.PLANNER));
+              return exerciseRepository.findAll(specification).stream()
+                  .map(Exercise::getId)
+                  .toList();
+            });
+    return bulkDeleteExecutor.deleteInChunks(
+        "simulations", exerciseIdsToDelete, chunk -> chunk.forEach(this::deleteById));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -1028,8 +1040,17 @@ public class ExerciseService {
         getTeamsOrAssetsOrAssetGroupsByExerciseIds(
             assetGroupRepository.assetGroupsByExerciseIds(exerciseIds));
 
+    // AI and manual targets are content references (not JPA relations): resolved separately so
+    // the simulation list "Target" column also surfaces AI-target and manual-target injects.
+    ExerciseMapper.ContentTargetsByExerciseIds contentTargets =
+        exerciseMapper.contentTargetsByExerciseIds(exerciseIds);
+
     return new MappingsByExerciseIds(
-        teamsByExerciseIds, assetsByExerciseIds, assetGroupByExerciseIds);
+        teamsByExerciseIds,
+        assetsByExerciseIds,
+        assetGroupByExerciseIds,
+        contentTargets.aiTargets(),
+        contentTargets.manualTargets());
   }
 
   private Map<String, List<Object[]>> getTeamsOrAssetsOrAssetGroupsByExerciseIds(
@@ -1046,7 +1067,9 @@ public class ExerciseService {
   private record MappingsByExerciseIds(
       Map<String, List<Object[]>> teamsByExerciseIds,
       Map<String, List<Object[]>> assetsByExerciseIds,
-      Map<String, List<Object[]>> assetGroupsByExerciseIds) {}
+      Map<String, List<Object[]>> assetGroupsByExerciseIds,
+      Map<String, List<Object[]>> aiTargetsByExerciseIds,
+      Map<String, List<Object[]>> manualTargetsByExerciseIds) {}
 
   private Map<String, List<RawInjectExpectationIndexing>> getExpectationsByExerciseId(
       Set<String> exerciseIds) {
@@ -1079,6 +1102,12 @@ public class ExerciseService {
                     exercise,
                     mappingsByExerciseIds.assetGroupsByExerciseIds,
                     TargetType.ASSETS_GROUPS)
+                    .stream(),
+                getTargets(
+                    exercise, mappingsByExerciseIds.aiTargetsByExerciseIds, TargetType.AI_TARGETS)
+                    .stream(),
+                getTargets(
+                    exercise, mappingsByExerciseIds.manualTargetsByExerciseIds, TargetType.MANUAL)
                     .stream())
             .flatMap(Function.identity())
             .toList();

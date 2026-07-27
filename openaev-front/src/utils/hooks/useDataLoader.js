@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { DATA_DELETE_SUCCESS } from '../../constants/ActionTypes';
 import { store } from '../../store';
 import { buildUri } from '../Action';
+import { ingestBulkOperation } from '../bulkOperations';
 import { SseActionBatcher } from '../sse/SseActionBatcher';
 import { evaluateWatchdogTick } from '../sse/watchdogPolicy';
 
@@ -213,6 +214,29 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
           return;
         }
         scheduleBatchedDispatch();
+      }
+    });
+    // Massive operations do not stream one event per mutated entity (which used to force a
+    // refresh per delete on every open screen): they emit aggregated progress snapshots instead.
+    // The header indicator renders them live, and the data of mounted screens is refreshed
+    // exactly once, when an operation reaches a terminal state.
+    sseClient.addEventListener('bulk-operation', (event) => {
+      // A malformed payload must never break the SSE processing of this tab: skip it, the
+      // periodic seed endpoint reconciles the indicator anyway.
+      let justFinished = false;
+      try {
+        justFinished = ingestBulkOperation(JSON.parse(event.data));
+      } catch {
+        return;
+      }
+      if (justFinished) {
+        if (isDocumentHidden()) {
+          // Hidden tab: defer the reload to the visibility transition, like the
+          // backlog-overflow resync, so background tabs never hammer the API.
+          needsResync = true;
+        } else {
+          resyncNow();
+        }
       }
     });
     sseClient.addEventListener('ping', () => {

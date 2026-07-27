@@ -44,6 +44,12 @@ public class InjectResultOutput {
   @JsonProperty("inject_status")
   private InjectStatusSimple status;
 
+  // Disabled injects are skipped by the execution scheduler and therefore never get a status
+  // row: expose the flag so the UI can label them "Disabled" instead of the DRAFT fallback.
+  @Schema(description = "Whether the inject is enabled (disabled injects are never executed)")
+  @JsonProperty("inject_enabled")
+  private Boolean enabled = Boolean.TRUE;
+
   @JsonIgnore private ObjectNode content;
   @JsonIgnore private String[] teamIds;
   @JsonIgnore private String[] assetIds;

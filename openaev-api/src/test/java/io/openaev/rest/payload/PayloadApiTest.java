@@ -25,6 +25,7 @@ import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
+import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
@@ -36,8 +37,10 @@ import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.PayloadInputFixture;
+import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.CollectorComposer;
 import io.openaev.utils.fixtures.composers.DomainComposer;
+import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
@@ -62,9 +65,11 @@ class PayloadApiTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private PayloadRepository payloadRepository;
   @Autowired private CollectorRepository collectorRepository;
+  @Autowired private SecurityPlatformRepository securityPlatformRepository;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   @Autowired private CollectorComposer collectorComposer;
+  @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private DomainComposer domainComposer;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private jakarta.persistence.EntityManager entityManager;
@@ -80,12 +85,35 @@ class PayloadApiTest extends IntegrationTest {
     managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
   }
 
+  private List<String> securityPlatformIds;
+
   @BeforeAll
   void beforeAll() {
     collectorComposer.reset();
     collectorComposer.forCollector(CollectorFixture.createDefaultCollector("CS")).persist();
     collectorComposer.forCollector(CollectorFixture.createDefaultCollector("SENTINEL")).persist();
     collectorComposer.forCollector(CollectorFixture.createDefaultCollector("DEFENDER")).persist();
+    securityPlatformComposer.reset();
+    securityPlatformIds =
+        List.of(
+            securityPlatformComposer
+                .forSecurityPlatform(
+                    SecurityPlatformFixture.createDefault("CrowdStrike Falcon", "EDR"))
+                .persist()
+                .get()
+                .getId(),
+            securityPlatformComposer
+                .forSecurityPlatform(
+                    SecurityPlatformFixture.createDefault("Microsoft Sentinel", "SIEM"))
+                .persist()
+                .get()
+                .getId(),
+            securityPlatformComposer
+                .forSecurityPlatform(
+                    SecurityPlatformFixture.createDefault("Microsoft Defender", "EDR"))
+                .persist()
+                .get()
+                .getId());
     EXECUTABLE_FILE = documentRepository.save(PayloadInputFixture.createDefaultExecutableFile());
   }
 
@@ -96,6 +124,9 @@ class PayloadApiTest extends IntegrationTest {
       this.documentRepository.deleteById(EXECUTABLE_FILE.getId());
     }
     this.collectorRepository.deleteAll();
+    if (securityPlatformIds != null) {
+      this.securityPlatformRepository.deleteAllById(securityPlatformIds);
+    }
   }
 
   @Nested
@@ -213,7 +244,7 @@ class PayloadApiTest extends IntegrationTest {
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputWithDetectionRemediation(
-              List.of(domain.getId()));
+              List.of(domain.getId()), securityPlatformIds);
 
       mvc.perform(
               post(PAYLOAD_URI)
@@ -235,7 +266,7 @@ class PayloadApiTest extends IntegrationTest {
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputWithDetectionRemediation(
-              List.of(domain.getId()));
+              List.of(domain.getId()), securityPlatformIds);
 
       String response =
           mvc.perform(
@@ -255,7 +286,7 @@ class PayloadApiTest extends IntegrationTest {
           PayloadInputFixture.getDefaultCommandPayloadUpdateInput(List.of(domain.getId()));
       String updatedValues = "test values";
       List<DetectionRemediationInput> detectionRemediation =
-          PayloadInputFixture.buildDetectionRemediations();
+          PayloadInputFixture.buildDetectionRemediations(securityPlatformIds);
       detectionRemediation.stream().forEach(dr -> dr.setValues(updatedValues));
       updateInput.setDetectionRemediations(detectionRemediation);
       mvc.perform(
@@ -715,7 +746,7 @@ class PayloadApiTest extends IntegrationTest {
 
     PayloadUpdateInput updateInput =
         PayloadInputFixture.getDefaultPayloadUpdateInputWithDetectionRemediation(
-            List.of(domain.getId()));
+            List.of(domain.getId()), securityPlatformIds);
 
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
@@ -839,7 +870,7 @@ class PayloadApiTest extends IntegrationTest {
 
     PayloadUpsertInput upsertInput =
         PayloadInputFixture.getDefaultCommandPayloadUpsertInputWithDetectionRemediations(
-            Set.of(domain));
+            Set.of(domain), securityPlatformIds);
     upsertInput.setExternalId("external-id");
 
     mvc.perform(

@@ -26,6 +26,14 @@ public class ExternalUpdateEvent implements Queueable {
   @JsonProperty("step_id")
   private String stepId;
 
+  /**
+   * The tenant this event's work belongs to. Carried so the consumer can restore the tenant context
+   * the producer thread had. Null on legacy/in-flight messages (pre-#6357); the consumer falls
+   * back.
+   */
+  @JsonProperty("tenant_id")
+  private String tenantId;
+
   /** The timestamp when this event was emitted, in milliseconds since epoch. */
   @JsonProperty("event_emission_date")
   private long emissionDate;

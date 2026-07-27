@@ -82,6 +82,24 @@ public class InjectTargetSearchTest extends IntegrationTest {
     return assetGroupComposer.forAssetGroup(dynamicAssetGroup);
   }
 
+  /**
+   * Builds the expected search output for an endpoint target, including the product-facing asset
+   * category the API now serializes (used client-side to pick the icon of non-host assets).
+   */
+  private static EndpointTarget expectedEndpointTarget(EndpointComposer.Composer wrapper) {
+    Endpoint endpoint = wrapper.get();
+    EndpointTarget target =
+        new EndpointTarget(
+            endpoint.getId(),
+            endpoint.getName(),
+            endpoint.getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
+            endpoint.getPlatform().name());
+    if (endpoint.getCategory() != null) {
+      target.setTargetCategory(endpoint.getCategory().name());
+    }
+    return target;
+  }
+
   private InjectComposer.Composer getInjectWithAllTeams() {
     return injectComposer
         .forInject(InjectFixture.getInjectWithAllTeams())
@@ -1616,21 +1634,9 @@ public class InjectTargetSearchTest extends IntegrationTest {
 
         List<EndpointTarget> expected =
             List.of(
-                new EndpointTarget(
-                    ep1Wrapper.get().getId(),
-                    ep1Wrapper.get().getName(),
-                    ep1Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                    ep1Wrapper.get().getPlatform().name()),
-                new EndpointTarget(
-                    ep2Wrapper.get().getId(),
-                    ep2Wrapper.get().getName(),
-                    ep2Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                    ep2Wrapper.get().getPlatform().name()),
-                new EndpointTarget(
-                    ep3Wrapper.get().getId(),
-                    ep3Wrapper.get().getName(),
-                    ep3Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                    ep3Wrapper.get().getPlatform().name()));
+                expectedEndpointTarget(ep1Wrapper),
+                expectedEndpointTarget(ep2Wrapper),
+                expectedEndpointTarget(ep3Wrapper));
 
         assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
       }
@@ -1726,20 +1732,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        EndpointTarget expectedTarget1 =
-            new EndpointTarget(
-                ep1Wrapper.get().getId(),
-                ep1Wrapper.get().getName(),
-                ep1Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                ep1Wrapper.get().getPlatform().name());
+        EndpointTarget expectedTarget1 = expectedEndpointTarget(ep1Wrapper);
         expectedTarget1.setTargetDetectionStatus(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
         expectedTarget1.setTargetPreventionStatus(BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL);
-        EndpointTarget expectedTarget2 =
-            new EndpointTarget(
-                ep2Wrapper.get().getId(),
-                ep2Wrapper.get().getName(),
-                ep2Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                ep2Wrapper.get().getPlatform().name());
+        EndpointTarget expectedTarget2 = expectedEndpointTarget(ep2Wrapper);
         expectedTarget2.setTargetDetectionStatus(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
         expectedTarget2.setTargetPreventionStatus(BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL);
         // expect two out of three endpoints in the resultset, i.e. not the extra one
@@ -1805,12 +1801,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        EndpointTarget expectedTarget =
-            new EndpointTarget(
-                ep1Wrapper.get().getId(),
-                ep1Wrapper.get().getName(),
-                ep1Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                ep1Wrapper.get().getPlatform().name());
+        EndpointTarget expectedTarget = expectedEndpointTarget(ep1Wrapper);
         List<EndpointTarget> expected = List.of(expectedTarget);
 
         assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
@@ -1875,21 +1866,9 @@ public class InjectTargetSearchTest extends IntegrationTest {
 
         List<EndpointTarget> expected =
             List.of(
-                new EndpointTarget(
-                    ep1Wrapper.get().getId(),
-                    ep1Wrapper.get().getName(),
-                    ep1Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                    ep1Wrapper.get().getPlatform().name()),
-                new EndpointTarget(
-                    ep2Wrapper.get().getId(),
-                    ep2Wrapper.get().getName(),
-                    ep2Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                    ep2Wrapper.get().getPlatform().name()),
-                new EndpointTarget(
-                    ep3Wrapper.get().getId(),
-                    ep3Wrapper.get().getName(),
-                    ep3Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                    ep3Wrapper.get().getPlatform().name()));
+                expectedEndpointTarget(ep1Wrapper),
+                expectedEndpointTarget(ep2Wrapper),
+                expectedEndpointTarget(ep3Wrapper));
 
         assertThatJson(response)
             .when(Option.IGNORING_ARRAY_ORDER)
@@ -1955,12 +1934,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        EndpointTarget expectedTarget =
-            new EndpointTarget(
-                ep2Wrapper.get().getId(),
-                ep2Wrapper.get().getName(),
-                ep2Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                ep2Wrapper.get().getPlatform().name());
+        EndpointTarget expectedTarget = expectedEndpointTarget(ep2Wrapper);
         List<EndpointTarget> expected = List.of(expectedTarget);
 
         assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
@@ -2020,12 +1994,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        EndpointTarget expectedTarget =
-            new EndpointTarget(
-                ep1Wrapper.get().getId(),
-                ep1Wrapper.get().getName(),
-                ep1Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                ep1Wrapper.get().getPlatform().name());
+        EndpointTarget expectedTarget = expectedEndpointTarget(ep1Wrapper);
         List<EndpointTarget> expected = List.of(expectedTarget);
 
         assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
@@ -2085,12 +2054,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        EndpointTarget expectedTarget =
-            new EndpointTarget(
-                ep2Wrapper.get().getId(),
-                ep2Wrapper.get().getName(),
-                ep2Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                ep2Wrapper.get().getPlatform().name());
+        EndpointTarget expectedTarget = expectedEndpointTarget(ep2Wrapper);
         List<EndpointTarget> expected = List.of(expectedTarget);
 
         assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
@@ -2153,12 +2117,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        EndpointTarget expectedTarget =
-            new EndpointTarget(
-                ep1Wrapper.get().getId(),
-                ep1Wrapper.get().getName(),
-                ep1Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                ep1Wrapper.get().getPlatform().name());
+        EndpointTarget expectedTarget = expectedEndpointTarget(ep1Wrapper);
         List<EndpointTarget> expected = List.of(expectedTarget);
 
         assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));

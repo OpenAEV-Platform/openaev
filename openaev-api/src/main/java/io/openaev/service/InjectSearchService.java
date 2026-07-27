@@ -11,6 +11,7 @@ import static java.util.Optional.ofNullable;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
+import io.openaev.database.repository.AiTargetRepository;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
@@ -22,6 +23,7 @@ import io.openaev.rest.atomic_testing.form.InjectorContractSimple;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.payload.output.PayloadSimple;
+import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.mapper.InjectExpectationMapper;
@@ -52,6 +54,7 @@ public class InjectSearchService {
   private final TeamRepository teamRepository;
   private final AssetRepository assetRepository;
   private final AssetGroupRepository assetGroupRepository;
+  private final AiTargetRepository aiTargetRepository;
 
   private final InjectMapper injectMapper;
   private final InjectExpectationMapper injectExpectationMapper;
@@ -395,10 +398,13 @@ public class InjectSearchService {
       Map<String, List<Object[]>> teamMap = fetchRelatedTargets(injectIds, "teams");
       Map<String, List<Object[]>> assetMap = fetchRelatedTargets(injectIds, "assets");
       Map<String, List<Object[]>> assetGroupMap = fetchRelatedTargets(injectIds, "assetGroups");
+      Map<String, List<Object[]>> manualMap = buildManualTargetMap(injects);
+      Map<String, List<Object[]>> aiTargetMap = buildAiTargetMap(injects);
       Map<String, List<RawInjectExpectationIndexing>> expectationMap = fetchExpectations(injectIds);
 
       // Map results to InjectResultOutput and set targets
-      mapResultsToInjects(injects, teamMap, assetMap, assetGroupMap, expectationMap);
+      mapResultsToInjects(
+          injects, teamMap, assetMap, assetGroupMap, manualMap, aiTargetMap, expectationMap);
     }
   }
 
@@ -443,11 +449,75 @@ public class InjectSearchService {
         .collect(Collectors.groupingBy(RawInjectExpectationIndexing::getInject_id));
   }
 
+  private Map<String, List<Object[]>> buildManualTargetMap(List<InjectResultOutput> injects) {
+    Map<String, List<Object[]>> result = new HashMap<>();
+    for (InjectResultOutput inject : injects) {
+      if (inject.getId() == null || inject.getContent() == null) {
+        continue;
+      }
+      // Key parsing shared with ExerciseMapper#contentTargetsByExerciseIds via InjectContentUtils.
+      InjectContentUtils.contentManualTarget(inject.getContent())
+          .ifPresent(
+              value ->
+                  result.put(
+                      inject.getId(),
+                      List.<Object[]>of(new Object[] {inject.getId(), value, value})));
+    }
+    return result;
+  }
+
+  /**
+   * Resolve the AI target referenced from each inject's content ({@code ai_target} key) into a
+   * target row {@code [injectId, assetId, assetName]}. AI targets are not a JPA relation on the
+   * inject (unlike endpoints / asset groups which live in {@code injects_assets}); they are a
+   * content reference, so the plain {@code assetsByInjectIds} join never surfaces them and the list
+   * "Target" column would otherwise stay empty for AI-target injects. Mirrors {@link
+   * AiTargetSearchAdaptor} which powers the atomic-testing detail "AI targets" panel. Asset-group
+   * mode AI targets already surface through the asset-group chip, so only the direct content
+   * reference is resolved here.
+   */
+  private Map<String, List<Object[]>> buildAiTargetMap(List<InjectResultOutput> injects) {
+    // injectId -> referenced AI target id (from content)
+    Map<String, String> injectToAiTargetId = new HashMap<>();
+    for (InjectResultOutput inject : injects) {
+      if (inject.getId() == null || inject.getContent() == null) {
+        continue;
+      }
+      InjectContentUtils.contentAiTargetId(inject.getContent())
+          .ifPresent(aiTargetId -> injectToAiTargetId.put(inject.getId(), aiTargetId));
+    }
+    if (injectToAiTargetId.isEmpty()) {
+      return new HashMap<>();
+    }
+
+    // Single category-scoped lookup for every referenced AI target, then map id -> name.
+    Map<String, String> aiTargetNameById =
+        aiTargetRepository
+            .findAiTargetsByIds(List.copyOf(new HashSet<>(injectToAiTargetId.values())))
+            .stream()
+            .collect(Collectors.toMap(Asset::getId, Asset::getName));
+
+    Map<String, List<Object[]>> result = new HashMap<>();
+    injectToAiTargetId.forEach(
+        (injectId, aiTargetId) -> {
+          String name = aiTargetNameById.get(aiTargetId);
+          if (name != null) {
+            result.put(
+                injectId,
+                List.<Object[]>of(
+                    new Object[] {injectId, aiTargetId, name, AssetCategory.AI_TARGET.name()}));
+          }
+        });
+    return result;
+  }
+
   private void mapResultsToInjects(
       List<InjectResultOutput> injects,
       Map<String, List<Object[]>> teamMap,
       Map<String, List<Object[]>> assetMap,
       Map<String, List<Object[]>> assetGroupMap,
+      Map<String, List<Object[]>> manualMap,
+      Map<String, List<Object[]>> aiTargetMap,
       Map<String, List<RawInjectExpectationIndexing>> expectationMap) {
 
     for (InjectResultOutput inject : injects) {
@@ -459,24 +529,22 @@ public class InjectSearchService {
                 expectationMap.getOrDefault(inject.getId(), emptyList()),
                 InjectExpectationResultUtils::getScoresFromRaw));
 
-        // Set targets (teams, assets, asset groups)
+        // Set targets (teams, assets, asset groups, manual IP/hostname and AI target from content)
         List<TargetSimple> allTargets =
-            Stream.concat(
-                    injectMapper
-                        .toTargetSimple(
-                            teamMap.getOrDefault(inject.getId(), emptyList()), TargetType.TEAMS)
-                        .stream(),
-                    Stream.concat(
-                        injectMapper
-                            .toTargetSimple(
-                                assetMap.getOrDefault(inject.getId(), emptyList()),
-                                TargetType.ASSETS)
-                            .stream(),
-                        injectMapper
-                            .toTargetSimple(
-                                assetGroupMap.getOrDefault(inject.getId(), emptyList()),
-                                TargetType.ASSETS_GROUPS)
-                            .stream()))
+            Stream.of(
+                    injectMapper.toTargetSimple(
+                        teamMap.getOrDefault(inject.getId(), emptyList()), TargetType.TEAMS),
+                    injectMapper.toTargetSimple(
+                        assetMap.getOrDefault(inject.getId(), emptyList()), TargetType.ASSETS),
+                    injectMapper.toTargetSimple(
+                        assetGroupMap.getOrDefault(inject.getId(), emptyList()),
+                        TargetType.ASSETS_GROUPS),
+                    injectMapper.toTargetSimple(
+                        manualMap.getOrDefault(inject.getId(), emptyList()), TargetType.MANUAL),
+                    injectMapper.toTargetSimple(
+                        aiTargetMap.getOrDefault(inject.getId(), emptyList()),
+                        TargetType.AI_TARGETS))
+                .flatMap(List::stream)
                 .toList();
 
         inject.getTargets().addAll(allTargets);
@@ -518,6 +586,7 @@ public class InjectSearchService {
     cq.multiselect(
         injectRoot.get("id").alias("inject_id"),
         injectRoot.get("title").alias("inject_title"),
+        injectRoot.get("enabled").alias("inject_enabled"),
         injectRoot.get("updatedAt").alias("inject_updated_at"),
         injectRoot.get("content").alias("inject_content"),
         injectorJoin.get("type").alias("inject_type"),
@@ -597,6 +666,7 @@ public class InjectSearchService {
               InjectResultOutput injectResultOutput = new InjectResultOutput();
               injectResultOutput.setId(tuple.get("inject_id", String.class));
               injectResultOutput.setTitle(tuple.get("inject_title", String.class));
+              injectResultOutput.setEnabled(tuple.get("inject_enabled", Boolean.class));
               injectResultOutput.setContent(tuple.get("inject_content", ObjectNode.class));
               injectResultOutput.setUpdatedAt(tuple.get("inject_updated_at", Instant.class));
               injectResultOutput.setInjectType(tuple.get("inject_type", String.class));

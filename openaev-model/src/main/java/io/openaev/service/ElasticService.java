@@ -336,7 +336,7 @@ public class ElasticService implements EngineService {
     try {
       SearchResponse<EsBase> response =
           elasticClient.search(
-              b -> b.index(engineConfig.getIndexPrefix() + "*").size(ids.size()).query(query),
+              b -> b.index(engineConfig.getIndexPattern()).size(ids.size()).query(query),
               EsBase.class);
       List<Hit<EsBase>> hits = response.hits().hits();
       return hits.stream()
@@ -479,6 +479,15 @@ public class ElasticService implements EngineService {
     if (ids == null || ids.isEmpty()) {
       return;
     }
+    // Batch internally: a bulk deletion cascade can journal thousands of ids in one flush, and
+    // both the terms clauses and the painless "valuesToRemove" params must stay bounded.
+    for (int start = 0; start < ids.size(); start += EngineService.BULK_DELETE_BATCH_SIZE) {
+      bulkDeleteBatch(
+          ids.subList(start, Math.min(start + EngineService.BULK_DELETE_BATCH_SIZE, ids.size())));
+    }
+  }
+
+  private void bulkDeleteBatch(List<String> ids) {
     try {
       List<FieldValue> values = ids.stream().map(FieldValue::of).toList();
       // Delete the direct document corresponding to the id
@@ -497,7 +506,7 @@ public class ElasticService implements EngineService {
           BoolQuery.of(b -> b.should(directId, dependenciesId).minimumShouldMatch("1"))._toQuery();
       elasticClient.deleteByQuery(
           new DeleteByQueryRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .query(query)
               .refresh(true)
               .conflicts(Conflicts.Proceed)
@@ -507,10 +516,14 @@ public class ElasticService implements EngineService {
       // runs synchronously after every entity delete (the HTTP response waits for it), and an
       // unscoped request rewrites every document of every index - minutes on a production
       // dataset (relaunching an atomic testing was observed blocking for over a minute).
+      Query sideReferences = sideReferencesQuery(values);
+      if (sideReferences == null) {
+        return;
+      }
       elasticClient.updateByQuery(
           new UpdateByQueryRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
-              .query(sideReferencesQuery(ids))
+              .index(engineConfig.getIndexPattern())
+              .query(sideReferences)
               .script(
                   Script.of(
                       s ->
@@ -521,7 +534,10 @@ public class ElasticService implements EngineService {
               .conflicts(Conflicts.Proceed)
               .build());
     } catch (IOException e) {
-      log.error(String.format("bulkDelete exception: %s", e.getMessage()), e);
+      // Propagate: callers decide resilience (the after-commit flush swallows and relies on the
+      // deletion journal + replay job; the replay job retries on its next pass).
+      throw new RuntimeException(
+          String.format("bulkDelete failed for %d id(s): %s", ids.size(), e.getMessage()), e);
     }
   }
 
@@ -554,18 +570,32 @@ public class ElasticService implements EngineService {
 
   /**
    * Matches only the documents that reference one of the deleted ids in a denormalized {@code
-   * base_XXX_side} field (exact match on the dynamic keyword sub-fields, expanded by the engine
-   * through the field wildcard).
+   * base_XXX_side} field, with one {@code terms} clause per concrete side field.
+   *
+   * <p>The field list comes from the indexed model classes instead of a {@code base_*_side.keyword}
+   * field wildcard on purpose: a {@code query_string} wildcard expands to (#ids x #fields) boolean
+   * clauses, which blows past the engine's {@code max_clause_count} on large deletion cascades
+   * (bulk scenario deletions were observed failing every shard with
+   * search_phase_execution_exception). A {@code terms} query is a single clause regardless of the
+   * number of ids.
+   *
+   * @return the scoped query, or {@code null} when no side field exists (nothing to clean)
    */
-  private static Query sideReferencesQuery(List<String> ids) {
-    // Escape backslashes and quotes so an unexpected character in an id cannot break out of the
-    // quoted phrase and change the query_string semantics.
-    String quotedIds =
-        ids.stream()
-            .map(id -> "\"" + id.replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
-            .collect(Collectors.joining(" OR "));
-    return QueryStringQuery.of(q -> q.fields("base_*_side.keyword").query(quotedIds).lenient(true))
-        ._toQuery();
+  private Query sideReferencesQuery(List<FieldValue> values) {
+    List<Query> perField =
+        commonSearchService.getSideFieldNames().stream()
+            .map(
+                field ->
+                    TermsQuery.of(
+                            t ->
+                                t.field(field + ".keyword")
+                                    .terms(TermsQueryField.of(tq -> tq.value(values))))
+                        ._toQuery())
+            .toList();
+    if (perField.isEmpty()) {
+      return null;
+    }
+    return BoolQuery.of(b -> b.should(perField).minimumShouldMatch("1"))._toQuery();
   }
 
   @Override
@@ -589,7 +619,7 @@ public class ElasticService implements EngineService {
               ._toQuery();
       elasticClient.deleteByQuery(
           new DeleteByQueryRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .query(query)
               .refresh(true)
               .conflicts(Conflicts.Proceed)
@@ -621,9 +651,7 @@ public class ElasticService implements EngineService {
         BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
         Query query = queryBuilder.must(countQuery).build()._toQuery();
         long allTimeCount =
-            elasticClient
-                .count(c -> c.index(engineConfig.getIndexPrefix() + "*").query(query))
-                .count();
+            elasticClient.count(c -> c.index(engineConfig.getIndexPattern()).query(query)).count();
         return new EsCountInterval(allTimeCount, 0L, allTimeCount);
       } else {
         // Compute the current interval count
@@ -639,8 +667,7 @@ public class ElasticService implements EngineService {
             currentBuilder.must(currentIntervalDateRangeQuery, countQuery).build()._toQuery();
         long currentIntervalCount =
             elasticClient
-                .count(
-                    c -> c.index(engineConfig.getIndexPrefix() + "*").query(currentIntervalQuery))
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(currentIntervalQuery))
                 .count();
 
         // Compute the previous interval
@@ -656,8 +683,7 @@ public class ElasticService implements EngineService {
             previousBuilder.must(previousIntervalDateRangeQuery, countQuery).build()._toQuery();
         long previousIntervalCount =
             elasticClient
-                .count(
-                    c -> c.index(engineConfig.getIndexPrefix() + "*").query(previousIntervalQuery))
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(previousIntervalQuery))
                 .count();
 
         return new EsCountInterval(
@@ -718,7 +744,7 @@ public class ElasticService implements EngineService {
 
       SearchRequest request =
           new SearchRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .size(0)
               .query(query)
               .aggregations(
@@ -823,10 +849,7 @@ public class ElasticService implements EngineService {
       String elasticField = toElasticField(field);
 
       SearchRequest.Builder searchBuilder =
-          new SearchRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
-              .size(0)
-              .query(query);
+          new SearchRequest.Builder().index(engineConfig.getIndexPattern()).size(0).query(query);
 
       // Avoid this exception
       // co.elastic.clients.elasticsearch._types.ElasticsearchException: [es/search] failed:
@@ -965,7 +988,7 @@ public class ElasticService implements EngineService {
       SearchResponse<Void> response =
           elasticClient.search(
               b ->
-                  b.index(engineConfig.getIndexPrefix() + "*")
+                  b.index(engineConfig.getIndexPattern())
                       .size(0)
                       .query(query)
                       .aggregations(
@@ -1059,7 +1082,7 @@ public class ElasticService implements EngineService {
       SearchResponse<?> response =
           elasticClient.search(
               b ->
-                  b.index(engineConfig.getIndexPrefix() + "*")
+                  b.index(engineConfig.getIndexPattern())
                       .size(runtime.getPagination().getSize())
                       .from(runtime.getPagination().getPage() * runtime.getPagination().getSize())
                       .query(finalQuery)
@@ -1131,7 +1154,7 @@ public class ElasticService implements EngineService {
       SearchResponse<EsSearch> response =
           elasticClient.search(
               b ->
-                  b.index(engineConfig.getIndexPrefix() + "*")
+                  b.index(engineConfig.getIndexPattern())
                       .size(engineConfig.getSearchCap())
                       .query(query)
                       .sort(

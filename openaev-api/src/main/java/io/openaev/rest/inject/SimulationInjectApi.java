@@ -293,7 +293,7 @@ public class SimulationInjectApi extends RestBehavior {
     InjectorContract injectorContract =
         this.injectorContractRepository
             .findById(input.getInjectorContract())
-            .orElseThrow(() -> new ElementNotFoundException("Injector contract not found"));
+            .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
     Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
     Inject inject = input.toInject(injectorContract, injector);
     inject.setUser(

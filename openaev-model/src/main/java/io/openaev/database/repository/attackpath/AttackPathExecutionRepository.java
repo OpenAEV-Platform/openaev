@@ -144,7 +144,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId")
   List<AttackPathExecutionRow> findGraphRows(@Param("simulationId") String simulationId);
 
@@ -157,7 +157,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.targetKey = :targetKey")
   List<AttackPathExecutionRow> findByTarget(
@@ -178,6 +178,22 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.simulationId, count(distinct e.targetKey), count(e)) "
           + "FROM AttackPathExecution e GROUP BY e.simulationId ORDER BY count(e) DESC")
   List<AttackPathSimSummaryRow> findSimulationSummaries();
+
+  /**
+   * Same summary, restricted to one scenario's simulations (the picker's scenario context, #6647
+   * B0). The subquery maps each {@code simulation_id} back to its {@code exercise} and keeps only
+   * those whose scenario is the requested one; ad-hoc simulations (no scenario) and seed rows (no
+   * real exercise) are naturally excluded.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow("
+          + "e.simulationId, count(distinct e.targetKey), count(e)) "
+          + "FROM AttackPathExecution e "
+          + "WHERE e.simulationId IN "
+          + "(SELECT ex.id FROM Exercise ex WHERE ex.scenario.id = :scenarioId) "
+          + "GROUP BY e.simulationId ORDER BY count(e) DESC")
+  List<AttackPathSimSummaryRow> findSimulationSummariesByScenario(
+      @Param("scenarioId") String scenarioId);
 
   /**
    * Collapsed mode: one endpoint per {@code target_key}, with a representative of its frozen
@@ -226,4 +242,13 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   List<AttackPathInjectorMetaRow> findInjectorMetadata(@Param("simulationId") String simulationId);
 
   void deleteAllBySimulationId(String simulationId);
+
+  /**
+   * The frozen execution rows of one run step, used to attribute a copied finding to its endpoint:
+   * each row carries the link key ({@code id}) and the endpoint key ({@code targetKey}). The tenant
+   * is passed explicitly so the read is scoped even off the request thread.
+   */
+  @Query("SELECT e FROM AttackPathExecution e WHERE e.stepId = :stepId AND e.tenant.id = :tenantId")
+  List<AttackPathExecution> findByStepIdAndTenantId(
+      @Param("stepId") String stepId, @Param("tenantId") String tenantId);
 }

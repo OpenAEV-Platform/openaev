@@ -5,4 +5,9 @@ package io.openaev.database.model.attackpath.projection;
  * discovered each finding to the drawer rows so the front can cross-focus the map edge and the
  * feed.
  */
-public record AttackPathFindingExecutionRow(String findingId, String executionId) {}
+public record AttackPathFindingExecutionRow(
+    String findingId,
+    String executionId,
+    String preventionStatus,
+    String detectionStatus,
+    String vulnerabilityStatus) {}

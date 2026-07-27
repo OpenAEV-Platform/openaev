@@ -14,6 +14,7 @@ import { isAgentless } from '../../../../utils/target/TargetUtils';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../InjectResultOverviewOutputContext';
 import PaginatedTargetTab from './PaginatedTargetTab';
 import TargetResultsDetail from './target_result/TargetResultsDetail';
+import { TargetResultsSkeleton, TargetsPaneSkeleton } from './TargetSkeletons';
 
 const useStyles = makeStyles()({
   chip: {
@@ -73,6 +74,7 @@ const AtomicTesting = () => {
   const [hasPlayersChecked, setHasPlayersChecked] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState<InjectTarget>();
   const [pageTargets, setPageTargets] = useState<InjectTarget[]>([]);
+  const [targetsLoading, setTargetsLoading] = useState(false);
 
   // Initial tab open
   const [searchParams, setSearchParams] = useSearchParams();
@@ -82,6 +84,9 @@ const AtomicTesting = () => {
     setActiveTab(tab);
     setReloadContentCount(reloadContentCount + 1);
   };
+
+  const allTargetsChecked = hasAssetsGroupChecked && hasTeamsChecked && hasEndpointsChecked
+    && hasAgentsChecked && hasPlayersChecked && hasAiTargetsChecked;
 
   const tabConfig: TabConfig[] = useMemo(() => {
     let index: number = 0;
@@ -106,7 +111,7 @@ const AtomicTesting = () => {
     if (hasEndpoints) {
       tabs.push({
         key: index++,
-        label: t('Endpoints'),
+        label: t('Assets'),
         type: 'ASSETS',
         entityPrefix: 'endpoint_target',
       });
@@ -130,16 +135,28 @@ const AtomicTesting = () => {
     if (hasAiTargets) {
       tabs.push({
         key: index++,
-        label: t('AI targets'),
+        // AI targets are assets too, so the tab carries the same label as the
+        // endpoint-backed one; keep the specific label only in the (theoretical)
+        // case where both tabs coexist, to avoid two tabs named "Assets".
+        label: hasEndpoints ? t('AI targets') : t('Assets'),
         type: 'AI_TARGETS',
         entityPrefix: 'ai_target_target',
       });
     }
 
+    // Wait until every target-type probe has answered before picking a tab:
+    // selecting earlier would latch whichever async check resolved first
+    // (often Agents) instead of the broadest available tab, and the
+    // "keep the current tab" branch below would then retain it forever.
+    if (!allTargetsChecked) {
+      return tabs;
+    }
+
     // tabs visibility may have changed so we reevaluate this structure;
     // figure out which tab to display; if the previously displayed tab
     // is still available, keep it up
-    // otherwise default to the first occurring tab
+    // otherwise default to the first occurring tab (the broadest scope:
+    // asset groups, then teams, then assets, ...)
     if (tabs.length === 0) {
       navigateToTab(undefined);
     }
@@ -155,7 +172,7 @@ const AtomicTesting = () => {
     }
 
     return tabs;
-  }, [hasAssetsGroup, hasTeams, hasEndpoints, hasAgents, hasPlayers, hasAiTargets]);
+  }, [hasAssetsGroup, hasTeams, hasEndpoints, hasAgents, hasPlayers, hasAiTargets, allTargetsChecked]);
 
   const activeTabKey: number = useMemo(() => {
     return activeTab?.key || 0;
@@ -285,6 +302,7 @@ const AtomicTesting = () => {
             reloadContentCount={reloadContentCount}
             selectedTargetId={selectedTarget?.target_id}
             onTargetsChange={setPageTargets}
+            onLoadingChange={setTargetsLoading}
           />
         )}
       </>
@@ -314,7 +332,7 @@ const AtomicTesting = () => {
       >
         <SectionLabel>{t('Targets')}</SectionLabel>
         <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
-          {hasAssetsGroupChecked && hasTeamsChecked && hasEndpointsChecked && hasAgentsChecked && hasPlayersChecked && hasAiTargetsChecked && (
+          {allTargetsChecked ? (
             <>
               <Tabs
                 value={activeTabKey}
@@ -330,6 +348,8 @@ const AtomicTesting = () => {
               </Tabs>
               {drawTabs()}
             </>
+          ) : (
+            <TargetsPaneSkeleton />
           )}
         </Paper>
       </Grid>
@@ -366,7 +386,14 @@ const AtomicTesting = () => {
         )}
         {!selectedTarget && (
           <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
-            <Empty message={t('No target data available.')} />
+            {/* While the target probes or the target page are still loading, no
+                target is selected yet: show the results skeleton instead of
+                flashing "No target data available." before the data lands. */}
+            {(!allTargetsChecked || targetsLoading) ? (
+              <TargetResultsSkeleton />
+            ) : (
+              <Empty message={t('No target data available.')} />
+            )}
           </Paper>
         )}
       </Grid>

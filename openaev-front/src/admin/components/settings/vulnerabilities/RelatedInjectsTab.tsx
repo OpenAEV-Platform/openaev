@@ -13,6 +13,7 @@ import useBodyItemsStyles from '../../../../components/common/queryable/style/st
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import type { Header } from '../../../../components/common/SortHeadersList';
 import FindingIcon from '../../../../components/FindingIcon';
+import { useFormatter } from '../../../../components/i18n';
 import ItemTargets from '../../../../components/ItemTargets';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
@@ -21,7 +22,12 @@ import ContractOutputElementType from '../../findings/ContractOutputElementType'
 
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
-  item: { height: 50 },
+  item: {
+    'height': 50,
+    // Slightly larger pivot chips (asset / inject / simulation / scenario) than the ultra-dense
+    // 20px table default, so they read as tappable buttons without breaking the row rhythm.
+    '& .MuiChip-root': { height: 24 },
+  },
 }));
 
 interface Props {
@@ -35,11 +41,13 @@ interface Props {
 const RelatedInjectsTab = ({ searchFindings, finding, contextId, additionalHeaders = [], additionalFilterNames = [] }: Props) => {
   const { classes } = useStyles();
   const theme = useTheme();
+  const { nsdt } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
   const [loading, setLoading] = useState<boolean>(true);
 
   const availableFilterNames = [
     'finding_created_at',
+    'finding_updated_at',
     'finding_asset_groups',
     'finding_assets',
     ...additionalFilterNames,
@@ -59,7 +67,8 @@ const RelatedInjectsTab = ({ searchFindings, finding, contextId, additionalHeade
     queryableHelpers,
     searchPaginationInput,
   } = useQueryableWithLocalStorage(`related-injects-${finding.finding_type}-${finding.finding_value}-${contextId}`, buildSearchPagination({
-    sorts: initSorting('finding_created_at', 'DESC'),
+    // Last seen first: the most recent occurrence tells whether the finding is still alive.
+    sorts: initSorting('finding_updated_at', 'DESC'),
     filterGroup: baseFilter,
   }));
 
@@ -72,7 +81,7 @@ const RelatedInjectsTab = ({ searchFindings, finding, contextId, additionalHeade
   const headers = [
     {
       field: 'finding_assets',
-      label: 'Endpoints',
+      label: 'Assets',
       isSortable: false,
       value: (finding: RelatedFindingOutput) => (
         <ItemTargets
@@ -81,17 +90,30 @@ const RelatedInjectsTab = ({ searchFindings, finding, contextId, additionalHeade
             target_name: asset.asset_name,
             target_type: 'ASSETS',
           })) as TargetSimple[]}
-          variant="reduced-view"
           getTargetLink={target => `${ASSET_BASE_URL}/${target.target_id}`}
         />
       ),
     },
     ...additionalHeaders,
+    {
+      field: 'finding_created_at',
+      label: 'First seen',
+      isSortable: true,
+      value: (finding: RelatedFindingOutput) => <>{nsdt(finding.finding_created_at)}</>,
+    },
+    {
+      field: 'finding_updated_at',
+      label: 'Last seen',
+      isSortable: true,
+      value: (finding: RelatedFindingOutput) => <>{nsdt(finding.finding_updated_at)}</>,
+    },
   ];
 
-  const basis = `${40 / (additionalHeaders.length - 1)}%`;
+  const basis = `${42 / Math.max(additionalHeaders.length, 1)}%`;
   const inlineStyles: Record<string, CSSProperties> = ({
-    finding_assets: { width: '30%' },
+    finding_assets: { width: '22%' },
+    finding_created_at: { width: '13%' },
+    finding_updated_at: { width: '13%' },
     ...additionalHeaders.reduce((acc, header) => {
       acc[header.field] = { width: basis };
       return acc;
@@ -99,7 +121,9 @@ const RelatedInjectsTab = ({ searchFindings, finding, contextId, additionalHeade
   });
 
   return (
-    <div style={{ padding: theme.spacing(2, 1, 0, 0) }}>
+    // No top padding: the gap under the tab bar (when shown) is owned by FindingDetail, so the
+    // search input sits directly under the section label when the lone tab is hidden.
+    <div style={{ padding: theme.spacing(0, 1, 0, 0) }}>
       <PaginationComponentV2
         fetch={searchFindingsToLoad}
         searchPaginationInput={searchPaginationInput}

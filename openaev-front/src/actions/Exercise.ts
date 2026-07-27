@@ -1,6 +1,6 @@
 import { type Dispatch } from 'redux';
 
-import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall } from '../utils/Action';
+import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../utils/Action';
 import type {
   CreateExerciseInput,
   Exercise,
@@ -129,4 +129,24 @@ export const fetchPlayerExercise = (exerciseId: string, userId: string | null) =
 export const searchExerciseHealthchecks = (exerciseId: Exercise['exercise_id']) => {
   const uri = `/api/exercises/${exerciseId}/healthchecks`;
   return simpleCall(uri);
+};
+
+// -- EXPECTATIONS DRIFT --
+
+export const fetchExerciseExpectationsDrift = (exerciseId: Exercise['exercise_id']) => {
+  const uri = `/api/exercises/${exerciseId}/expectations-drift`;
+  return simpleCall(uri);
+};
+
+export const realignExerciseExpectations = (exerciseId: Exercise['exercise_id']) => {
+  const uri = `/api/exercises/${exerciseId}/expectations-drift/realign`;
+  return simplePostCall(uri);
+};
+
+// Dismissal is stored in database (not local storage) so it is shared between
+// users. The generic success toast is disabled: the caller notifies with a
+// dismissal-specific message.
+export const dismissExerciseExpectationsDrift = (exerciseId: Exercise['exercise_id'], dismissed: boolean) => {
+  const uri = `/api/exercises/${exerciseId}/expectations-drift/dismiss`;
+  return simplePutCall(uri, { dismissed }, undefined, true, false);
 };

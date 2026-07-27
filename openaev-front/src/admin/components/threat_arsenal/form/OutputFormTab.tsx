@@ -1,14 +1,14 @@
-import { Button, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Add } from '@mui/icons-material';
+import { Alert, Button, Chip, Link } from '@mui/material';
 import { useEffect } from 'react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
 import { useFormatter } from '../../../../components/i18n';
+import InjectFormSection from '../../common/injects/form/InjectFormSection';
 import ContractOutputElementCard from './ContractOutputElementCard';
 
 const OutputFormTab = () => {
   const { t } = useFormatter();
-  const theme = useTheme();
   const { control, setValue } = useFormContext();
   const outputParserName = 'action_output_parsers.0.output_parser_contract_output_elements';
 
@@ -28,65 +28,69 @@ const OutputFormTab = () => {
 
   return (
     <>
-      <Typography>
-        {t('Define structured outputs by parsing the raw output of your action.')}
-                &nbsp;
-        <a
+      <Alert severity="info" variant="outlined">
+        {t('Define structured outputs by parsing the raw output of your arsenal item.')}
+        {' '}
+        <Link
           href="https://docs.openaev.io/latest/usage/threat-arsenals/threat-arsenals/#output-parsers"
           target="_blank"
           rel="noreferrer"
+          underline="always"
         >
           {t('Learn more about parser.')}
-        </a>
-      </Typography>
-      <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Parsing rules')}</Typography>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-      }}
+        </Link>
+      </Alert>
+      <InjectFormSection
+        title={t('Parsing rules')}
+        helper={t('Each attribute extracts a structured value from the raw output.')}
+        action={(
+          <Button
+            onClick={() => outputElementAppend({
+              contract_output_element_name: '',
+              contract_output_element_key: '',
+              contract_output_element_type: '',
+              contract_output_element_tags: [],
+              contract_output_element_is_finding: true,
+              contract_output_element_rule: '',
+              contract_output_element_regex_groups: [],
+            })}
+            variant="contained"
+            size="small"
+            startIcon={<Add fontSize="small" />}
+          >
+            {t('add_attribute')}
+          </Button>
+        )}
       >
-        <Typography sx={{ marginBottom: 0 }} variant="h3">
-          {`${t('Output mode')} :`}
-                    &nbsp;
-        </Typography>
-        <Typography>{t('Stdout')}</Typography>
-        <Typography
-          sx={{
-            marginBottom: 0,
-            marginLeft: theme.spacing(2),
-          }}
-          variant="h3"
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
         >
-          {`${t('Parsing')} :`}
-                    &nbsp;
-        </Typography>
-        <Typography>{t('Regex')}</Typography>
-        <Button
-          onClick={() => outputElementAppend({
-            contract_output_element_name: '',
-            contract_output_element_key: '',
-            contract_output_element_type: '',
-            contract_output_element_tags: [],
-            contract_output_element_is_finding: true,
-            contract_output_element_rule: '',
-            contract_output_element_regex_groups: [],
-          })}
-          sx={{ marginLeft: 'auto' }}
-          variant="contained"
-        >
-          {t('add_attribute')}
-        </Button>
-      </div>
+          <Chip
+            variant="outlined"
+            size="small"
+            sx={{ borderRadius: 1 }}
+            label={`${t('Output mode')} : ${t('Stdout')}`}
+          />
+          <Chip
+            variant="outlined"
+            size="small"
+            sx={{ borderRadius: 1 }}
+            label={`${t('Parsing')} : ${t('Regex')}`}
+          />
+        </div>
 
-      {contractOutputElements.map((contracOutputElement, contractOutputElementIndex) => (
-        <ContractOutputElementCard
-          key={contracOutputElement.id} // DO NOT REMOVE, it's used to remove contractOutput from list
-          prefixName={outputParserName}
-          index={contractOutputElementIndex}
-          remove={outputElementRemove}
-        />
-      ))}
-
+        {contractOutputElements.map((contracOutputElement, contractOutputElementIndex) => (
+          <ContractOutputElementCard
+            key={contracOutputElement.id} // DO NOT REMOVE, it's used to remove contractOutput from list
+            prefixName={outputParserName}
+            index={contractOutputElementIndex}
+            remove={outputElementRemove}
+          />
+        ))}
+      </InjectFormSection>
     </>
   );
 };

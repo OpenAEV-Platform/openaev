@@ -6,12 +6,12 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
-import io.openaev.collectors.utils.CollectorsUtils;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.PlatformSettingsService;
 import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.util.Date;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
@@ -51,7 +51,7 @@ public class DetectionRemediationAIService {
   private final PlatformSettingsService platformSettingsService;
 
   public DetectionRemediationAIResponse callRemediationDetectionAIWebservice(
-      DetectionRemediationRequest payload, String collectorType) {
+      DetectionRemediationRequest payload, String securityPlatformName) {
     // Check if account has EE licence
     String certificate = enterpriseEditionService.getEncodedCertificate();
 
@@ -59,9 +59,9 @@ public class DetectionRemediationAIService {
         platformSettingsService.findSettings().getPlatformId() + "-" + new Date().getTime());
 
     Pair<String, ? extends Class<? extends DetectionRemediationAIResponse>> info =
-        inferUrlAndType(collectorType);
+        inferUrlAndType(securityPlatformName);
     String errorMessage =
-        "Request to Remediation Detection AI Webservice " + collectorType + " failed: ";
+        "Request to Remediation Detection AI Webservice " + securityPlatformName + " failed: ";
 
     HttpPost httpPost = new HttpPost(info.getLeft());
 
@@ -86,32 +86,49 @@ public class DetectionRemediationAIService {
     return getDetectionRemediationAIResponse(responseBody, info.getRight(), errorMessage);
   }
 
-  public Pair<String, ? extends Class<? extends DetectionRemediationAIResponse>> inferUrlAndType(
-      String collectorType) {
-    String url;
-    Class<? extends DetectionRemediationAIResponse> classResponse;
-    switch (collectorType) {
-      case CollectorsUtils.CROWDSTRIKE -> {
-        url = REMEDIATION_DETECTION_WEBSERVICE + CROWDSTRIKE_URI;
-        classResponse = DetectionRemediationCrowdstrikeResponse.class;
-      }
-      case CollectorsUtils.SPLUNK -> {
-        url = REMEDIATION_DETECTION_WEBSERVICE + SPLUNK_URI;
-        classResponse = DetectionRemediationSplunkResponse.class;
-      }
-      case CollectorsUtils.MICROSOFT_DEFENDER ->
-          throw new ResponseStatusException(
-              HttpStatus.NOT_IMPLEMENTED,
-              "AI Webservice for collector type microsoft defender not implemented");
+  /** AI rule vendors supported by the detection remediation generation. */
+  public enum Vendor {
+    CROWDSTRIKE,
+    SPLUNK,
+    UNSUPPORTED
+  }
 
-      case CollectorsUtils.MICROSOFT_SENTINEL ->
+  /**
+   * Single source of truth mapping a security platform name to the AI rule vendor. Case-insensitive
+   * contains match: any platform whose name mentions the vendor gets its rule format.
+   *
+   * @param securityPlatformName the security platform name
+   * @return the inferred vendor, {@link Vendor#UNSUPPORTED} when no vendor matches
+   */
+  public static Vendor inferVendor(String securityPlatformName) {
+    String name = securityPlatformName == null ? "" : securityPlatformName.toLowerCase(Locale.ROOT);
+    if (name.contains("crowdstrike")) {
+      return Vendor.CROWDSTRIKE;
+    }
+    if (name.contains("splunk")) {
+      return Vendor.SPLUNK;
+    }
+    return Vendor.UNSUPPORTED;
+  }
+
+  public Pair<String, ? extends Class<? extends DetectionRemediationAIResponse>> inferUrlAndType(
+      String securityPlatformName) {
+    return switch (inferVendor(securityPlatformName)) {
+      case CROWDSTRIKE ->
+          Pair.of(
+              REMEDIATION_DETECTION_WEBSERVICE + CROWDSTRIKE_URI,
+              DetectionRemediationCrowdstrikeResponse.class);
+      case SPLUNK ->
+          Pair.of(
+              REMEDIATION_DETECTION_WEBSERVICE + SPLUNK_URI,
+              DetectionRemediationSplunkResponse.class);
+      case UNSUPPORTED ->
           throw new ResponseStatusException(
               HttpStatus.NOT_IMPLEMENTED,
-              "AI Webservice for collector type microsoft sentinel not implemented");
-      default ->
-          throw new IllegalStateException("Collector :\"" + collectorType + "\" unsupported");
-    }
-    return Pair.of(url, classResponse);
+              "AI Webservice for security platform \""
+                  + securityPlatformName
+                  + "\" not implemented");
+    };
   }
 
   public DetectionRemediationAIResponse getDetectionRemediationAIResponse(

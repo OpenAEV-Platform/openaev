@@ -43,6 +43,7 @@ import io.openaev.service.InjectExpectationTraceService;
 import io.openaev.service.MapperService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
+import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
@@ -234,7 +235,11 @@ class TenantActiveTableAccessArchTest {
               // Background writer, scoped: opens its own transaction through the tenant primitive
               // with the inject's tenant, and stamps the row through TenantWriteScopeResolver.
               // Pinned by AttackPathIngestionTenantAttributionTest:
-              AttackPathExecutionIngestionService.class)
+              AttackPathExecutionIngestionService.class,
+              // Scoped reader: reads the step's execution rows inside its own executeNew (the
+              // inject's tenant) with an explicit tenantId predicate, to attribute copied findings.
+              // Pinned by AttackPathFindingIngestionServiceTest:
+              AttackPathFindingIngestionService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(AttackPathExecutionRepository.class)

@@ -66,7 +66,6 @@ public class AttackPathSeedService {
   private static final int BATCH_ROWS = 200;
   private static final int EXECUTION_BATCH_ROWS = 50;
   private static final int EXECS_PER_ENDPOINT = 250;
-  private static final String SEED_ID_PREFIX = "ap-seed-";
   private static final Instant BASE_TIME = Instant.parse("2026-01-01T00:00:00Z");
 
   private static final String[] FINDING_TYPES = {"credentials", "username", "cve", "port"};
@@ -166,7 +165,7 @@ public class AttackPathSeedService {
     long executionCount = 0;
     long findingCount = 0;
     for (int s = 0; s < params.simulations(); s++) {
-      String simulationId = SEED_ID_PREFIX + params.seed() + "-sim-" + s;
+      String simulationId = AttackPathIds.SEED_ID_PREFIX + params.seed() + "-sim-" + s;
       String simTenantId = tenants.get(s % tenants.size());
       int size = sizeForSimulation(s, params, random);
       long[] simCounts =
@@ -194,7 +193,7 @@ public class AttackPathSeedService {
             "INSERT INTO tenants (tenant_id, tenant_name) VALUES (?, ?)"
                 + " ON CONFLICT (tenant_id) DO NOTHING")) {
       for (int t = 0; t < params.tenants(); t++) {
-        String id = SEED_ID_PREFIX + params.seed() + "-tenant-" + t;
+        String id = AttackPathIds.SEED_ID_PREFIX + params.seed() + "-tenant-" + t;
         statement.setString(1, id);
         statement.setString(2, id);
         statement.executeUpdate();

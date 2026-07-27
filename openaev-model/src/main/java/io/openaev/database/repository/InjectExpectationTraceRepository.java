@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.InjectExpectationTrace;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -19,6 +20,10 @@ public interface InjectExpectationTraceRepository
       "select t from InjectExpectationTrace t where t.injectExpectation.id = :expectationId and t.securityPlatform.id = :sourceId")
   List<InjectExpectationTrace> findByExpectationAndSecurityPlatform(
       @Param("expectationId") final String expectationId, @Param("sourceId") final String sourceId);
+
+  @Query("select t from InjectExpectationTrace t where t.injectExpectation.id in :expectationIds")
+  List<InjectExpectationTrace> findByInjectExpectationIdIn(
+      @Param("expectationIds") final Collection<String> expectationIds);
 
   @Query(
       "select count(distinct t) from InjectExpectationTrace t where t.injectExpectation.id = :expectationId and t.securityPlatform.id = :sourceId")

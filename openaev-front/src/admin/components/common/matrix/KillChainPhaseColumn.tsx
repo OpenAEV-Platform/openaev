@@ -2,6 +2,7 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import EllipsisTooltip from '../../../../components/common/EllipsisTooltip';
 import { type AttackPattern, type InjectExpectationResultsByAttackPattern, type KillChainPhase } from '../../../../utils/api-types';
 import AttackPatternBox from './AttackPatternBox';
 
@@ -54,7 +55,7 @@ const KillChainPhaseColumn: FunctionComponent<KillChainPhaseComponentProps> = ({
         color: dummy ? theme.palette.text?.disabled : theme.palette.text?.primary,
       }}
       >
-        {killChainPhase.phase_name}
+        <EllipsisTooltip>{killChainPhase.phase_name}</EllipsisTooltip>
       </div>
       <div className={classes.column}>
         {[...attackPatterns].sort(sortAttackPattern)

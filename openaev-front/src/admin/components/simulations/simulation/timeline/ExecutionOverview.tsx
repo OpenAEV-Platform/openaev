@@ -1,8 +1,7 @@
-import { ErrorOutlineOutlined, FactCheckOutlined, HourglassEmptyOutlined, PendingActionsOutlined, RocketLaunchOutlined, TaskAltOutlined } from '@mui/icons-material';
-import { Box, List, ListItem, ListItemButton, ListItemText, Paper, Typography, useTheme } from '@mui/material';
-import { alpha } from '@mui/material/styles';
-import { type ComponentType, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Box, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import { useState } from 'react';
+import { useParams } from 'react-router';
 
 import { fetchExerciseChallenges } from '../../../../../actions/challenge-action';
 import type { ArticlesHelper } from '../../../../../actions/channels/article-helper';
@@ -14,12 +13,10 @@ import { type InjectStore } from '../../../../../actions/injects/Inject';
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
 import { fetchVariablesForExercise } from '../../../../../actions/variables/variable-actions';
 import type { VariablesHelper } from '../../../../../actions/variables/variable-helper';
-import { BACK_LABEL, BACK_URI } from '../../../../../components/Breadcrumbs';
-import { HeroStat, HeroStats, SectionBlock } from '../../../../../components/common/detail/EntityDetailCommon';
+import { SECTION_LABEL_SX } from '../../../../../components/common/detail/detailStyles';
+import { SectionBlock } from '../../../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../../../components/i18n';
-import ProgressBarCountdown from '../../../../../components/ProgressBarCountdown';
 import SearchFilter from '../../../../../components/SearchFilter';
-import Timeline from '../../../../../components/Timeline';
 import { useHelper } from '../../../../../store';
 import { type Exercise, type Inject, type InjectExpectationOutput } from '../../../../../utils/api-types';
 import { EndpointContext } from '../../../../../utils/context/endpoint/EndpointContext';
@@ -27,75 +24,35 @@ import endpointContextForExercise from '../../../../../utils/context/endpoint/En
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import useSearchAndFilter from '../../../../../utils/SortingFiltering';
-import { isNotEmptyField } from '../../../../../utils/utils';
 import { ArticleContext, ChallengeContext, TeamContext } from '../../../common/Context';
 import TagsFilter from '../../../common/filters/TagsFilter';
-import InjectIcon from '../../../common/injects/InjectIcon';
-import InjectPopover from '../../../common/injects/InjectPopover';
-import InjectStatus from '../../../common/injects/status/InjectStatus';
 import UpdateInject from '../../../common/injects/UpdateInject';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import articleContextForExercise from '../articles/articleContextForExercise';
 import ExecutionMenu from '../ExecutionMenu';
 import teamContextForExercise from '../teams/teamContextForExercise';
+import AttackTimeline from './AttackTimeline';
+import ExecutionBoard from './ExecutionBoard';
 import ExecutionFlowStrip from './ExecutionFlowStrip';
+import ExecutionHero from './ExecutionHero';
 import { sampleTimelineInjects, sampleTimelineTeams } from './executionSampleData';
+import { useNowTick } from './executionTime';
 
-// Centered tinted-icon empty state used by every block of the execution
-// overview (same anatomy as the simulation overview placeholder).
-const ExecutionPlaceholder = ({ icon: Icon, message }: {
-  icon: ComponentType<{ sx?: object }>;
-  message: string;
-}) => {
-  const theme = useTheme();
-  return (
-    <Box sx={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 1.5,
-      minHeight: 160,
-      height: '100%',
-      padding: 3,
-      textAlign: 'center',
-    }}
-    >
-      <Box sx={{
-        width: 40,
-        height: 40,
-        borderRadius: 1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'primary.main',
-        backgroundColor: alpha(theme.palette.primary.main, 0.1),
-      }}
-      >
-        <Icon sx={{ fontSize: 22 }} />
-      </Box>
-      <Typography
-        variant="body2"
-        sx={{
-          color: 'text.secondary',
-          maxWidth: 420,
-        }}
-      >
-        {message}
-      </Typography>
-    </Box>
-  );
-};
+// Transient statuses of injects that have been dispatched but not concluded.
+const IN_FLIGHT_STATUSES = new Set(['QUEUING', 'EXECUTING', 'PENDING']);
 
-// The Execution tab landing screen: a live overview of the simulation
-// execution - headline progress metrics, the attack timeline, pending vs
-// executed injects and the chronological execution flow. Exposure validation
-// posture intentionally lives on the Overview tab only.
+// The Execution tab landing screen: a live operations view of the simulation
+// execution. Top to bottom: the live hero (status beacon, elapsed clock, next
+// inject countdown, headline stats, progress track), the scoping toolbar, the
+// attack timeline with its animated "now" cursor and the actual-sends strip,
+// and the live execution board where injects flow from "up next" to
+// "completed" in real time. Exposure validation posture intentionally lives
+// on the Overview tab only.
 const ExecutionOverview = () => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
-  const { t, fndt } = useFormatter();
+  const { t } = useFormatter();
   const [selectedInjectId, setSelectedInjectId] = useState<string | null>(null);
 
   const {
@@ -125,6 +82,10 @@ const ExecutionOverview = () => {
     dispatch(fetchExerciseInjectExpectations(exerciseId));
   });
 
+  // Shared 1-second clock driving every live element of the screen.
+  const now = useNowTick();
+  const running = exercise?.exercise_status === 'RUNNING';
+
   // Sort
   const searchColumns = ['title', 'description', 'content'];
   const filtering = useSearchAndFilter(
@@ -135,19 +96,43 @@ const ExecutionOverview = () => {
 
   const isEnable = (inject: InjectStore): boolean => !!inject.inject_enabled;
   const filteredInjects: InjectStore[] = filtering.filterAndSort(injects.filter((inject: InjectStore) => isEnable(inject)));
-  // filteredInjects is already filtered and sorted; a plain partition keeps its order.
+  // filteredInjects is already filtered and sorted (soonest first); the board
+  // lanes are plain partitions of it.
+  const isInFlight = (inject: InjectStore): boolean => !!inject.inject_status && IN_FLIGHT_STATUSES.has(inject.inject_status.status_name);
   const pendingInjects: InjectStore[] = filteredInjects.filter((inject: InjectStore) => inject.inject_status === null);
-  const processedInjects: InjectStore[] = filteredInjects.filter((i: InjectStore) => i.inject_status !== null);
+  const inFlightInjects: InjectStore[] = filteredInjects.filter(isInFlight);
+  const completedInjects: InjectStore[] = filteredInjects
+    .filter((inject: InjectStore) => inject.inject_status !== null && !isInFlight(inject))
+    .sort((a: InjectStore, b: InjectStore) => {
+      const sentA = a.inject_status?.tracking_sent_date ? new Date(a.inject_status.tracking_sent_date).getTime() : 0;
+      const sentB = b.inject_status?.tracking_sent_date ? new Date(b.inject_status.tracking_sent_date).getTime() : 0;
+      return sentB - sentA;
+    });
 
   // Headline metrics computed on the WHOLE simulation (unaffected by the
-  // search / tags filters that scope the timeline and lists below).
+  // search / tags filters that scope the timeline and board below).
   const enabledInjects: InjectStore[] = injects.filter((inject: InjectStore) => isEnable(inject));
-  const executedCount = enabledInjects.filter((inject: InjectStore) => inject.inject_status !== null).length;
+  const completedCount = enabledInjects.filter((inject: InjectStore) => inject.inject_status !== null && !isInFlight(inject)).length;
+  const inFlightCount = enabledInjects.filter(isInFlight).length;
   const errorCount = enabledInjects.filter((inject: InjectStore) => inject.inject_status?.status_name === 'ERROR').length;
-  const progress = enabledInjects.length > 0 ? Math.round((executedCount / enabledInjects.length) * 100) : 0;
   const pendingValidations = (injectExpectations ?? []).filter(
     (expectation: InjectExpectationOutput) => expectation.inject_expectation_type === 'MANUAL' && expectation.inject_expectation_status === 'PENDING',
   ).length;
+
+  // Next planned inject, computed from the injects list with the same formula
+  // as the attack timeline (start date + depends_duration). Computed here
+  // rather than read from exercise_next_inject_date because that field only
+  // exists on the raw Exercise entity returned by mutations - the
+  // SimulationDetails DTO of GET /exercises/{id} does not carry it, so the
+  // countdown would silently disappear after a page reload.
+  const exerciseStartTime = exercise?.exercise_start_date ? new Date(exercise.exercise_start_date).getTime() : null;
+  const nextInjectTime = exerciseStartTime === null
+    ? null
+    : enabledInjects
+        .filter((inject: InjectStore) => inject.inject_status === null)
+        .map((inject: InjectStore) => exerciseStartTime + (inject.inject_depends_duration ?? 0) * 1000)
+        .filter((time: number) => time >= now)
+        .reduce((min: number | null, time: number) => (min === null || time < min ? time : min), null);
 
   const onUpdateInject = async (inject: Inject) => {
     if (selectedInjectId) {
@@ -160,19 +145,6 @@ const ExecutionOverview = () => {
   const endpointContext = endpointContextForExercise(exerciseId);
   const challengeContext = { fetchChallenges: () => dispatch(fetchExerciseChallenges(exerciseId)) };
 
-  const injectIcon = (inject: InjectStore) => (
-    <InjectIcon
-      isPayload={isNotEmptyField(inject.inject_injector_contract?.injector_contract_payload)}
-      type={
-        inject.inject_injector_contract?.injector_contract_payload
-          ? inject.inject_injector_contract.injector_contract_payload?.payload_collector_type
-          || inject.inject_injector_contract.injector_contract_payload?.payload_type
-          : inject.inject_type
-      }
-      variant="inline"
-    />
-  );
-
   return (
     <div>
       <ExecutionMenu exerciseId={exerciseId} />
@@ -183,47 +155,20 @@ const ExecutionOverview = () => {
         paddingBottom: 5,
       }}
       >
-        {/* Headline execution metrics */}
-        <Paper
-          variant="outlined"
-          sx={{
-            padding: 2,
-            borderRadius: 1,
-          }}
-        >
-          <HeroStats spread>
-            <HeroStat
-              icon={RocketLaunchOutlined}
-              label={t('Execution progress')}
-              value={`${progress}%`}
-            />
-            <HeroStat
-              icon={TaskAltOutlined}
-              label={t('Processed injects')}
-              value={executedCount}
-            />
-            <HeroStat
-              icon={PendingActionsOutlined}
-              label={t('Pending injects')}
-              value={enabledInjects.length - executedCount}
-            />
-            <HeroStat
-              icon={ErrorOutlineOutlined}
-              label={t('Execution errors')}
-              value={errorCount}
-              color={errorCount > 0 ? theme.palette.error.main : undefined}
-            />
-            <HeroStat
-              icon={FactCheckOutlined}
-              label={t('Pending validations')}
-              value={pendingValidations}
-              color={pendingValidations > 0 ? theme.palette.warning.main : undefined}
-              to={`/admin/simulations/${exerciseId}/execution/validations`}
-            />
-          </HeroStats>
-        </Paper>
+        {/* Live execution hero */}
+        <ExecutionHero
+          exercise={exercise}
+          exerciseId={exerciseId}
+          totalCount={enabledInjects.length}
+          completedCount={completedCount}
+          inFlightCount={inFlightCount}
+          errorCount={errorCount}
+          pendingValidations={pendingValidations}
+          now={now}
+          nextInjectTime={nextInjectTime}
+        />
 
-        {/* Scoping toolbar for the timeline and lists below */}
+        {/* Scoping toolbar for the timeline and board below */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -243,212 +188,57 @@ const ExecutionOverview = () => {
           />
         </div>
 
-        {/* Attack timeline - previews greyed sample data (like every widget of
-            the platform) while the simulation has no injects yet. */}
+        {/* Attack timeline (planned schedule + live cursor) with the actual
+            sends strip as its footer - previews greyed sample data (like every
+            widget of the platform) while the simulation has no injects yet. */}
         <SectionBlock title={t('Attack timeline')}>
           {filteredInjects.length > 0 ? (
-            <Timeline
+            <AttackTimeline
               injects={filteredInjects}
               teams={teams}
               onSelectInject={(id: string) => setSelectedInjectId(id)}
+              startDate={exercise?.exercise_start_date}
+              running={running}
+              now={now}
             />
           ) : (
             <SamplePreview active>
-              {/* flow-root contains the Timeline floated columns (without
-                  clipping its overhanging tick labels, unlike overflow:hidden)
-                  so the section keeps its height around the sample preview. */}
-              <Box sx={{
-                display: 'flow-root',
-                paddingBottom: 4,
-              }}
-              >
-                <Timeline
-                  injects={sampleTimelineInjects}
-                  teams={sampleTimelineTeams}
-                  onSelectInject={() => {}}
-                />
-              </Box>
+              <AttackTimeline
+                injects={sampleTimelineInjects}
+                teams={sampleTimelineTeams}
+                onSelectInject={() => {}}
+                now={now}
+              />
             </SamplePreview>
           )}
+          <Box sx={{
+            marginTop: 2,
+            paddingTop: 2,
+            borderTop: `1px dashed ${alpha(theme.palette.text.primary, 0.08)}`,
+          }}
+          >
+            <Typography sx={{
+              ...SECTION_LABEL_SX,
+              fontSize: 10,
+              marginBottom: 1,
+            }}
+            >
+              {t('Sent injects over time')}
+            </Typography>
+            <ExecutionFlowStrip injects={filteredInjects} />
+          </Box>
         </SectionBlock>
 
-        {/* Pending / processed injects */}
-        <Box sx={{
-          display: 'grid',
-          gap: 2,
-          gridTemplateColumns: {
-            xs: 'minmax(0, 1fr)',
-            lg: 'repeat(2, minmax(0, 1fr))',
-          },
-          alignItems: 'stretch',
-        }}
-        >
-          <SectionBlock title={t('Pending injects')} disablePadding>
-            {pendingInjects.length > 0 ? (
-              <List disablePadding>
-                {pendingInjects.map((inject: InjectStore) => {
-                  return (
-                    <ListItem
-                      key={inject.inject_id}
-                      divider
-                      disablePadding
-                      secondaryAction={(
-                        <InjectPopover
-                          inject={inject}
-                          setSelectedInjectId={setSelectedInjectId}
-                          canDone
-                          canTriggerNow
-                        />
-                      )}
-                    >
-                      <ListItemButton
-                        dense
-                        onClick={() => setSelectedInjectId(inject.inject_id)}
-                      >
-                        <Box sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 30,
-                          flexShrink: 0,
-                          marginRight: 1.5,
-                        }}
-                        >
-                          {injectIcon(inject)}
-                        </Box>
-                        <ListItemText
-                          disableTypography
-                          primary={(
-                            <Box sx={{
-                              display: 'grid',
-                              gap: 2,
-                              gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr)',
-                              alignItems: 'center',
-                            }}
-                            >
-                              <Typography sx={{
-                                fontSize: 13.5,
-                                fontWeight: 600,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
-                              >
-                                {inject.inject_title}
-                              </Typography>
-                              <div>
-                                <ProgressBarCountdown
-                                  date={inject.inject_date}
-                                  paused={
-                                    exercise?.exercise_status === 'PAUSED'
-                                    || exercise?.exercise_status === 'CANCELED'
-                                  }
-                                />
-                              </div>
-                              <Typography sx={{
-                                fontFamily: 'Consolas, monaco, monospace',
-                                fontSize: 12,
-                                color: 'text.secondary',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
-                              >
-                                {fndt(inject.inject_date)}
-                              </Typography>
-                            </Box>
-                          )}
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  );
-                })}
-              </List>
-            ) : (
-              <ExecutionPlaceholder
-                icon={HourglassEmptyOutlined}
-                message={t('No pending injects in this simulation.')}
-              />
-            )}
-          </SectionBlock>
-          <SectionBlock title={t('Processed injects')} disablePadding>
-            {processedInjects.length > 0 ? (
-              <List disablePadding>
-                {processedInjects.map((inject: InjectStore) => (
-                  <ListItem key={inject.inject_id} divider disablePadding>
-                    <ListItemButton
-                      dense
-                      component={Link}
-                      to={`/admin/simulations/${exerciseId}/injects/${inject.inject_id}?${BACK_LABEL}=${t('Execution')}&${BACK_URI}=/admin/simulations/${exerciseId}/execution/timeline`}
-                    >
-                      <Box sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 30,
-                        flexShrink: 0,
-                        marginRight: 1.5,
-                      }}
-                      >
-                        {injectIcon(inject)}
-                      </Box>
-                      <ListItemText
-                        disableTypography
-                        primary={(
-                          <Box sx={{
-                            display: 'grid',
-                            gap: 2,
-                            gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr)',
-                            alignItems: 'center',
-                          }}
-                          >
-                            <Typography sx={{
-                              fontSize: 13.5,
-                              fontWeight: 600,
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                            >
-                              {inject.inject_title}
-                            </Typography>
-                            <div>
-                              <InjectStatus status={inject.inject_status?.status_name} />
-                            </div>
-                            <Typography sx={{
-                              fontFamily: 'Consolas, monaco, monospace',
-                              fontSize: 12,
-                              color: 'text.secondary',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                            >
-                              {fndt(inject.inject_status?.tracking_sent_date)}
-                              {/* Only render the duration (with its unit) when both tracking dates exist. */}
-                              {inject.inject_status?.tracking_sent_date && inject.inject_status.tracking_end_date
-                                && ` ${((new Date(inject.inject_status.tracking_end_date).getTime() - new Date(inject.inject_status.tracking_sent_date).getTime()) / 1000).toFixed(2)}${t('s')}`}
-                            </Typography>
-                          </Box>
-                        )}
-                      />
-                    </ListItemButton>
-                  </ListItem>
-                ))}
-              </List>
-            ) : (
-              <ExecutionPlaceholder
-                icon={TaskAltOutlined}
-                message={t('No processed injects in this simulation.')}
-              />
-            )}
-          </SectionBlock>
-        </Box>
-
-        {/* Chronological execution flow of the sent injects */}
-        <SectionBlock title={t('Sent injects over time')}>
-          <ExecutionFlowStrip injects={filteredInjects} />
-        </SectionBlock>
+        {/* Live execution board: up next / in flight / completed */}
+        <ExecutionBoard
+          pendingInjects={pendingInjects}
+          inFlightInjects={inFlightInjects}
+          completedInjects={completedInjects}
+          exercise={exercise}
+          exerciseId={exerciseId}
+          now={now}
+          setSelectedInjectId={setSelectedInjectId}
+        />
       </Box>
       {selectedInjectId && (
         <ArticleContext.Provider value={articleContext}>

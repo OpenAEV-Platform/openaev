@@ -14,6 +14,7 @@ import { type Header } from '../../../components/common/SortHeadersList';
 import Empty from '../../../components/Empty';
 import { useFormatter } from '../../../components/i18n';
 import ItemDomains from '../../../components/ItemDomains';
+import ItemStatus from '../../../components/ItemStatus';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import {
@@ -69,6 +70,11 @@ interface Props {
   }) => Promise<string[]>;
   // Already-translated delete confirmation text builder (count-aware)
   deleteConfirmation?: (count: number) => string;
+  // Display-only mapping: injects without a status are serialized as DRAFT by the
+  // backend. In a launched simulation they are actually waiting for dispatch, so
+  // callers in that context can display them as PENDING instead. Disabled injects
+  // always display as "Disabled" regardless of this flag.
+  displayDraftAsPending?: boolean;
 }
 
 const InjectResultList: FunctionComponent<Props> = ({
@@ -81,6 +87,7 @@ const InjectResultList: FunctionComponent<Props> = ({
   createButton,
   onBulkDelete,
   deleteConfirmation,
+  displayDraftAsPending,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -155,7 +162,22 @@ const InjectResultList: FunctionComponent<Props> = ({
       label: 'Execution status',
       isSortable: false,
       value: (injectResultOutput: InjectResultOutput) => {
-        return (<InjectStatus status={injectResultOutput.inject_status?.status_name as InjectStatusType['status_name']} />);
+        // Disabled injects are never picked up by the scheduler, so they never get a
+        // status row (which the backend serializes as DRAFT): name the real cause.
+        if (injectResultOutput.inject_enabled === false) {
+          return (
+            <ItemStatus
+              status="DISABLED"
+              label={t('Disabled')}
+              tooltipLabel={t('This inject is disabled and will not be executed.')}
+            />
+          );
+        }
+        const statusName = injectResultOutput.inject_status?.status_name;
+        const displayStatus = displayDraftAsPending && (!statusName || statusName === 'DRAFT')
+          ? 'PENDING'
+          : statusName;
+        return (<InjectStatus status={displayStatus as InjectStatusType['status_name']} />);
       },
     },
     {
@@ -184,7 +206,7 @@ const InjectResultList: FunctionComponent<Props> = ({
         return <>{nsdt(injectResultOutput.inject_updated_at)}</>;
       },
     },
-  ], []);
+  ], [displayDraftAsPending]);
 
   const search = (input: SearchPaginationInput) => {
     setLoading(true);
@@ -266,10 +288,14 @@ const InjectResultList: FunctionComponent<Props> = ({
         <ListItem
           classes={{ root: classes.itemHead }}
           divider={false}
-          sx={{
-            paddingTop: 0,
-            ...(numberOfSelectedElements > 0 ? { backgroundColor: 'background.accent' } : {}),
-          }}
+          sx={numberOfSelectedElements > 0
+            ? {
+                // Massive-operations toolbar: symmetric vertical padding keeps the
+                // checkbox and actions vertically centered in the accent band.
+                backgroundColor: 'background.accent',
+                paddingBlock: 0.5,
+              }
+            : { paddingTop: 0 }}
           secondaryAction={showActions && numberOfSelectedElements === 0 ? <>&nbsp;</> : null}
         >
           {bulkDeleteEnabled && (
@@ -312,7 +338,7 @@ const InjectResultList: FunctionComponent<Props> = ({
         </ListItem>
         {
           loading
-            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
+            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={bulkDeleteEnabled} />
             : injects.map((injectResultOutput) => {
                 return (
                   <ListItem

@@ -1,13 +1,15 @@
 import { Autocomplete, Checkbox, TextField } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
-import { type FunctionComponent, useContext, useEffect, useState } from 'react';
+import { type FunctionComponent, useCallback, useContext, useEffect, useState } from 'react';
 
 import { type Filter, type PropertySchemaDTO } from '../../../../utils/api-types';
 import { type GroupOption, type Option } from '../../../../utils/Option';
+import { debounce } from '../../../../utils/utils';
 import { useFormatter } from '../../../i18n';
 import { FilterContext } from './context';
 import { type FilterHelpers } from './FilterHelpers';
 import { getSelectedOptions } from './FilterUtils';
+import useRetrieveOptions from './useRetrieveOptions';
 import useSearchOptions, { type SearchOptionsConfig } from './useSearchOptions';
 import wordsToExcludeFromTranslation from './WordsToExcludeFromTranslation';
 
@@ -23,25 +25,48 @@ export const BasicTextInput: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
-  const handleValueChange = (value: string) => {
-    helpers.handleUpdateValuesById(filter.id, [value.trim()]);
+  const [inputValue, setInputValue] = useState('');
+  const values = filter.values ?? [];
+  // Free-text filters accept several values (chips), like select-based filters:
+  // "Value != 443 and 80" reads as NOT IN (443, 80) on the backend.
+  const commit = (newValues: string[]) => {
+    helpers.handleUpdateValuesById(
+      filter.id,
+      Array.from(new Set(newValues.map(v => v.trim()).filter(v => v.length > 0))),
+    );
   };
   return (
-    <TextField
-      variant="outlined"
-      size="small"
+    <Autocomplete
+      multiple
+      freeSolo
       fullWidth
-      label={t(filter.key)}
-      defaultValue={filter.values?.[0] ?? ''}
-      autoFocus
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') {
-          handleValueChange((event.target as HTMLInputElement).value);
-        }
+      size="small"
+      options={[]}
+      value={values}
+      inputValue={inputValue}
+      onInputChange={(_, search) => setInputValue(search)}
+      onChange={(_, newValues) => {
+        commit(newValues as string[]);
+        setInputValue('');
       }}
-      onBlur={(event) => {
-        handleValueChange((event.target as HTMLInputElement).value);
-      }}
+      renderInput={paramsInput => (
+        <TextField
+          {...paramsInput}
+          variant="outlined"
+          size="small"
+          label={t(filter.key)}
+          placeholder={t('Press Enter to add a value')}
+          autoFocus
+          onBlur={() => {
+            // Clicking away with pending text must still register the value
+            // (historical single-value behavior of this input).
+            if (inputValue.trim().length > 0) {
+              commit([...values, inputValue]);
+              setInputValue('');
+            }
+          }}
+        />
+      )}
     />
   );
 };
@@ -55,9 +80,20 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
   // Standard hooks
   const { t } = useFormatter();
   const [inputValue, setInputValue] = useState('');
-  const { options, setOptions, searchOptions } = useSearchOptions();
+  const { options, setOptions, searchOptions, loading } = useSearchOptions();
+  // Resolve the already-selected values (ids) to their labels the same way the
+  // filter chip does: a text search may not return an entity that is already
+  // selected (e.g. an author outside the first page), which would otherwise
+  // render as a raw id in the "Selected" group.
+  const { options: resolvedSelectedOptions, searchOptions: retrieveSelectedOptions } = useRetrieveOptions();
   const { defaultValues } = useContext(FilterContext);
-  const selectedOptions = getSelectedOptions(options, filter.values ?? [], t);
+  // The selected values resolve against both the live search results and the
+  // by-id resolution, so a selected entity always shows its human-readable label.
+  const optionPool = [
+    ...options,
+    ...resolvedSelectedOptions.filter(resolved => !options.some(option => option.id === resolved.id)),
+  ];
+  const selectedOptions = getSelectedOptions(optionPool, filter.values ?? [], t);
   const mergedOptions = [
     ...selectedOptions,
     ...options.filter(option => !selectedOptions.some(selectedOption => selectedOption.id === option.id)),
@@ -70,6 +106,23 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
     };
     searchOptions(searchOptionsConfig, search);
   };
+  // Dynamic options hit the backend: debounce keystrokes so large inventories
+  // (e.g. thousands of assets) trigger one search per pause, not one per character.
+  const debouncedSearchOptions = useCallback(
+    debounce((search?: string) => handleSearchOptions(search ?? ''), 300),
+    [filter.key, contextId],
+  );
+  useEffect(() => {
+    // Resolve the labels of the values selected before the popover opened; new
+    // selections come from the search results and already carry their label.
+    if (filter.values && filter.values.length > 0) {
+      retrieveSelectedOptions(filter.values, {
+        filterKey: filter.key,
+        contextId,
+        defaultValues: defaultValues?.get(filter.key),
+      });
+    }
+  }, []);
   useEffect(() => {
     if (propertySchema.schema_property_values && propertySchema.schema_property_values?.length > 0) {
       setOptions(
@@ -115,7 +168,7 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
           return;
         }
         setInputValue(search);
-        handleSearchOptions(search);
+        debouncedSearchOptions(search);
       }}
       renderInput={paramsInput => (
         <TextField
@@ -125,7 +178,7 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
           size="small"
         />
       )}
-      loading
+      loading={loading}
       renderOption={(props, option) => {
         const checked = filter.values?.includes(option.id);
         return (

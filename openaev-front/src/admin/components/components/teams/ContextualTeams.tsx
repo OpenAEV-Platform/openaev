@@ -1,5 +1,5 @@
 import { CheckCircleOutlined, GroupsOutlined } from '@mui/icons-material';
-import { Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -30,11 +30,6 @@ const useStyles = makeStyles()(() => ({
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-  },
-  drawerPaper: {
-    minHeight: '100vh',
-    width: '50%',
-    padding: 0,
   },
 }));
 
@@ -279,23 +274,13 @@ const ContextualTeams: FunctionComponent<Props> = ({ teams }) => {
           </ListItem>
         ))}
       </List>
-      <Drawer
-        open={selectedTeam !== null}
-        keepMounted={false}
-        anchor="right"
-        sx={{ zIndex: 1202 }}
-        classes={{ paper: classes.drawerPaper }}
-        onClose={() => setSelectedTeam(null)}
-        elevation={1}
-      >
-        {selectedTeam !== null && (
-          <TeamPlayers
-            teamId={selectedTeam}
-            handleClose={() => setSelectedTeam(null)}
-            canManage={permissions.canManage && ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS)}
-          />
-        )}
-      </Drawer>
+      {selectedTeam !== null && (
+        <TeamPlayers
+          teamId={selectedTeam}
+          handleClose={() => setSelectedTeam(null)}
+          canManage={permissions.canManage && ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS)}
+        />
+      )}
     </>
   );
 };

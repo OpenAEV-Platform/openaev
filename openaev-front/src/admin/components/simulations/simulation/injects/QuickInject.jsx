@@ -3,7 +3,6 @@ import {
   ArrowDropUpOutlined,
   AttachmentOutlined,
   CastForEducationOutlined,
-  CloseRounded,
   ControlPointOutlined,
   DeleteOutlined,
   HelpOutlineOutlined,
@@ -57,16 +56,6 @@ import AvailableVariablesDialog from '../variables/AvailableVariablesDialog';
 export const EMAIL_CONTRACT = '138ad8f8-32f8-4a22-8114-aaa12322bd09';
 
 const styles = theme => ({
-  header: {
-    backgroundColor: theme.palette.background.nav,
-    padding: '20px 20px 20px 60px',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 12,
-    left: 5,
-    color: 'inherit',
-  },
   itemHead: {
     paddingLeft: 10,
     textTransform: 'uppercase',
@@ -86,12 +75,11 @@ const styles = theme => ({
     fontSize: 13,
   },
   itemIcon: { color: theme.palette.primary.main },
-  title: { float: 'left' },
   allTeams: {
     float: 'right',
     marginTop: -7,
   },
-  container: { padding: 20 },
+  container: { padding: 0 },
 });
 
 const inlineStylesHeaders = {
@@ -792,7 +780,6 @@ class QuickInjectComponent extends Component {
       t,
       theme,
       classes,
-      handleClose,
       exerciseId,
       exercise,
       injectorContract,
@@ -923,21 +910,6 @@ class QuickInjectComponent extends Component {
       });
     return (
       <div>
-        <div className={classes.header}>
-          <IconButton
-            aria-label="Close"
-            className={classes.closeButton}
-            onClick={handleClose.bind(this)}
-            size="large"
-            color="primary"
-          >
-            <CloseRounded fontSize="small" color="primary" />
-          </IconButton>
-          <Typography variant="h6" classes={{ root: classes.title }}>
-            {t('Quick inject definition')}
-          </Typography>
-          <div className="clearfix" />
-        </div>
         <div className={classes.container}>
           <Form
             keepDirtyOnReinitialize={true}
@@ -1079,6 +1051,7 @@ class QuickInjectComponent extends Component {
                               divider={true}
                               secondaryAction={(
                                 <TeamPopover
+                                  inline
                                   exerciseId={exerciseId}
                                   team={team}
                                   onRemoveTeam={this.handleRemoveTeam.bind(

@@ -1,6 +1,4 @@
-import { Drawer as MuiDrawer } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
 import { deleteAssetGroup, updateAssetGroup, updateAssetsOnAssetGroup } from '../../../../actions/asset_groups/assetgroup-action';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
@@ -13,17 +11,9 @@ import { type AssetGroup, type AssetGroupInput, type AssetGroupOutput } from '..
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import EndpointsDialogAdding from '../endpoints/EndpointsDialogAdding';
+import EndpointsPicker from '../endpoints/EndpointsPicker';
 import AssetGroupForm from './AssetGroupForm';
 import AssetGroupManagement from './AssetGroupManagement';
-
-const useStyles = makeStyles()(() => ({
-  drawerPaper: {
-    minHeight: '100vh',
-    width: '50%',
-    padding: 0,
-  },
-}));
 
 export interface AssetGroupPopoverProps {
   inline?: boolean;
@@ -51,7 +41,6 @@ const AssetGroupPopover: FunctionComponent<AssetGroupPopoverProps> = ({
   actions = ['update', 'delete', 'manage-asset', 'remove'],
 }) => {
   // Standard hooks
-  const { classes } = useStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
@@ -184,7 +173,7 @@ const AssetGroupPopover: FunctionComponent<AssetGroupPopoverProps> = ({
       {inline ? (
         <>
           {selected !== undefined && (
-            <EndpointsDialogAdding
+            <EndpointsPicker
               initialState={assetGroup.asset_group_assets ?? []}
               open={selected}
               onClose={() => setSelected(false)}
@@ -194,24 +183,17 @@ const AssetGroupPopover: FunctionComponent<AssetGroupPopoverProps> = ({
           )}
         </>
       ) : (
-        <MuiDrawer
+        <Drawer
           open={selected}
-          keepMounted={false}
-          anchor="right"
-          sx={{ zIndex: 1202 }}
-          classes={{ paper: classes.drawerPaper }}
-          onClose={() => setSelected(false)}
-          elevation={1}
+          handleClose={() => setSelected(false)}
+          title={assetGroup.asset_group_name}
         >
-          {selected && (
-            <AssetGroupManagement
-              assetGroupId={assetGroup.asset_group_id}
-              handleClose={() => setSelected(false)}
-              onUpdate={onUpdate}
-              onRemoveEndpointFromAssetGroup={onRemoveEndpointFromAssetGroup}
-            />
-          )}
-        </MuiDrawer>
+          <AssetGroupManagement
+            assetGroupId={assetGroup.asset_group_id}
+            onUpdate={onUpdate}
+            onRemoveEndpointFromAssetGroup={onRemoveEndpointFromAssetGroup}
+          />
+        </Drawer>
       )}
     </>
   );

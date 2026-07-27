@@ -1,11 +1,17 @@
 package io.openaev.service.chaining;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import io.openaev.api.chaining.ActionStep;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepActionClass;
 import io.openaev.database.model.StepStatus;
@@ -17,7 +23,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -25,8 +32,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class StepEventServiceTest {
@@ -36,24 +41,34 @@ class StepEventServiceTest {
   @Mock private WorkflowService workflowService;
   @Mock private StepRepository stepRepository;
   @Mock private QueueChainingService queueChainingService;
-  @Mock private TransactionTemplate transactionTemplate;
+  @Mock private TenantScopedTransaction tenantTx;
   @Mock private ActionStep actionStep;
 
   @InjectMocks private StepEventService stepEventService;
 
-  @SuppressWarnings("unchecked")
   @BeforeEach
   void setUp() {
     lenient().when(chainingConfig.getMaxRetryCount()).thenReturn(3);
     lenient()
         .doAnswer(
             invocation -> {
-              Consumer<TransactionStatus> action = invocation.getArgument(0);
-              action.accept(null);
+              Runnable work = invocation.getArgument(1);
+              work.run();
               return null;
             })
-        .when(transactionTemplate)
-        .executeWithoutResult(any());
+        .when(tenantTx)
+        .execute(any(TxCtx.class), any(Runnable.class));
+    // Tenant-propagation tests assert the scope opened around the event, not run() itself; make the
+    // step lookup explicitly empty so the primitive's Runnable takes the (harmless) not-found
+    // branch.
+    lenient().when(stepRepository.findById(any())).thenReturn(Optional.empty());
+  }
+
+  @AfterEach
+  void clearTenantScope() {
+    // Belt and suspenders: the consumer clears TenantContext in a finally, but the tests share the
+    // JUnit thread, so guarantee no scope leaks between them.
+    TenantContext.clearCurrentTenant();
   }
 
   // -- RUN --
@@ -266,8 +281,8 @@ class StepEventServiceTest {
               invocation -> {
                 throw new RuntimeException("DB error");
               })
-          .when(transactionTemplate)
-          .executeWithoutResult(any());
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
 
       // Act
       stepEventService.handleReadyStepEvent(event);
@@ -287,8 +302,8 @@ class StepEventServiceTest {
               invocation -> {
                 throw new RuntimeException("DB error");
               })
-          .when(transactionTemplate)
-          .executeWithoutResult(any());
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
 
       // Act
       stepEventService.handleReadyStepEvent(event);
@@ -306,8 +321,8 @@ class StepEventServiceTest {
               invocation -> {
                 throw new RuntimeException("DB error");
               })
-          .when(transactionTemplate)
-          .executeWithoutResult(any());
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
 
       doThrow(new IOException("RabbitMQ down"))
           .when(queueChainingService)
@@ -319,6 +334,82 @@ class StepEventServiceTest {
       // Assert
       assertEquals(1, event.getRetryCount());
       verify(queueChainingService).republishReadyEvent(event);
+    }
+  }
+
+  // -- TENANT PROPAGATION (#6357) --
+
+  @Nested
+  class TenantPropagation {
+
+    // The chaining worker carries no tenant; the fix restores it from the event on BOTH mechanisms:
+    // the MT v2 primitive (GUC, tenant-active writes) and the v1 TenantContext (@Filter reads).
+    // These
+    // pin the propagation: the consumer MUST open the scope under the event's tenant (and the
+    // default
+    // when absent), and must clear TenantContext after, so a regression that drops either is
+    // caught.
+
+    @Test
+    void handleReadyStepEvent_opensTheScopeUnderTheEventTenant() {
+      StepEvent event =
+          StepEvent.builder().stepId(UUID.randomUUID().toString()).tenantId("tenant-B").build();
+
+      stepEventService.handleReadyStepEvent(event);
+
+      verify(tenantTx).execute(eq(TxCtx.forTenant("tenant-B")), any(Runnable.class));
+    }
+
+    @Test
+    void handleReadyStepEvent_scopesV1TenantContextDuringWork_andClearsAfter() {
+      StepEvent event =
+          StepEvent.builder().stepId(UUID.randomUUID().toString()).tenantId("tenant-B").build();
+      // Capture the v1 @Filter scope (TenantContext) visible while the primitive's work runs: the
+      // v1
+      // entities the run reads (injector contract, endpoints, assets) resolve through it, not the
+      // GUC.
+      AtomicReference<String> seenDuringWork = new AtomicReference<>();
+      doAnswer(
+              invocation -> {
+                seenDuringWork.set(TenantContext.getCurrentTenant());
+                Runnable work = invocation.getArgument(1);
+                work.run();
+                return null;
+              })
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
+
+      stepEventService.handleReadyStepEvent(event);
+
+      assertEquals("tenant-B", seenDuringWork.get());
+      assertFalse(TenantContext.hasCurrentTenant(), "TenantContext must not leak past the event");
+    }
+
+    @Test
+    void handleReadyStepEvent_nullEventTenant_fallsBackToDefault() {
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+
+      stepEventService.handleReadyStepEvent(event);
+
+      verify(tenantTx).execute(eq(TxCtx.forTenant(DEFAULT_TENANT_UUID)), any(Runnable.class));
+    }
+
+    @Test
+    void handleExternalUpdateEvent_opensTheScopeUnderTheEventTenant() {
+      ExternalUpdateEvent event =
+          ExternalUpdateEvent.builder()
+              .stepId(UUID.randomUUID().toString())
+              .tenantId("tenant-B")
+              .build();
+      // Short-circuit the body: this test only asserts the tenant scope is opened, not the update
+      // logic (the setUp stub runs the primitive's Runnable, which would otherwise NPE on a null
+      // step).
+      when(stepService.findByIdAndStatus(any(), any()))
+          .thenThrow(new ElementNotFoundException("short-circuit"));
+
+      stepEventService.handleExternalUpdateEvent(event);
+
+      verify(tenantTx).execute(eq(TxCtx.forTenant("tenant-B")), any(Runnable.class));
     }
   }
 

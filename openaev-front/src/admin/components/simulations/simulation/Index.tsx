@@ -21,7 +21,7 @@ import injectContextForExercise from './ExerciseContext';
 import SimulationShell from './SimulationShell';
 
 const Simulation = lazy(() => import('./overview/SimulationComponent'));
-const SimulationDashboard = lazy(() => import('./analysis/SimulationAnalysis'));
+const SimulationStatistics = lazy(() => import('./analysis/SimulationAnalysis'));
 const Lessons = lazy(() => import('./lessons/SimulationLessons'));
 const SimulationFindings = lazy(() => import('./findings/SimulationFindings'));
 const Injects = lazy(() => import('./injects/ExerciseInjects'));
@@ -46,7 +46,11 @@ const AnimationToExecutionRedirect = () => {
 const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ exercise }) => {
   const location = useLocation();
   const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
-  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
+  // Attack path only exists for chained simulations (workflow-backed), never
+  // for time-based ones: gate the route like the tab in SimulationShell.
+  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH')
+    && isFeatureEnabled('INJECT_CHAINING')
+    && !!exercise.exercise_workflow_id;
   // Stable context identities: these providers wrap the whole simulation subtree and a
   // new value each render forces every consumer (incl. the injects list) to re-render.
   const permissionsContext: PermissionsContextType = useMemo(() => ({
@@ -90,10 +94,12 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                 <Route path="lessons" element={errorWrapper(Lessons)()} />
                 <Route path="findings" element={errorWrapper(SimulationFindings)()} />
                 {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(SimulationAttackPath)()} />}
-                {/* Simulation-scoped custom dashboard, reached from the hero "Analyze" quick action. */}
-                <Route path="dashboard" element={errorWrapper(SimulationDashboard)()} />
-                {/* Analysis is no longer a permanent tab; keep a redirect for old links. */}
-                <Route path="analysis" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/dashboard`} replace />} />
+                {/* Simulation-scoped custom dashboard, surfaced as the Statistics tab. */}
+                <Route path="statistics" element={errorWrapper(SimulationStatistics)()} />
+                {/* Statistics replaced the hero dashboard quick action and the old
+                    Analysis tab; keep redirects for old links. */}
+                <Route path="dashboard" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
+                <Route path="analysis" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
                 <Route path="scope" element={errorWrapper(SimulationScope)()} />
                 <Route path="logic" element={errorWrapper(SimulationLogic)()} />
                 {/* Not found */}

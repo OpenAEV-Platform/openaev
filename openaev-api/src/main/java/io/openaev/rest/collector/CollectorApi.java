@@ -19,6 +19,7 @@ import io.openaev.rest.collector.form.CollectorUpdateInput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.FileService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -243,7 +244,8 @@ public class CollectorApi extends RestBehavior {
           true,
           input.getPeriod(),
           input.getSecurityPlatform(),
-          iconStream);
+          iconStream,
+          input.getAuthor());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

@@ -69,7 +69,7 @@ const CausalEdge = ({
               background: theme.palette.background.paper,
               border: `1px solid ${alpha(color, 0.6)}`,
               borderRadius: theme.shape.borderRadius,
-              padding: `0 ${theme.spacing(0.75)}`,
+              padding: `${theme.spacing(0.5)} ${theme.spacing(0.75)}`,
               fontSize: theme.typography.caption.fontSize,
               color: theme.palette.text.secondary,
               whiteSpace: 'nowrap',

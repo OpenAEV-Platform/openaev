@@ -27,6 +27,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -122,19 +123,19 @@ public class OrganizationApi extends RestBehavior {
   @Operation(
       summary = "Bulk delete organizations",
       description =
-          "Deletes the organizations matching the given ids (organization_ids). Organizations from other tenants are silently skipped.")
+          "Deletes the organizations matching either an explicit id list"
+              + " (organization_ids_to_process) or a search scope (search_pagination_input) with"
+              + " optional exclusions (organization_ids_to_ignore) - exactly one of the two"
+              + " selection modes must be provided. Organizations from other tenants or outside"
+              + " the caller's grants are silently skipped.")
   @DeleteMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
-  @Transactional(rollbackFor = Exception.class)
+  // SUPPORTS (not REQUIRED): the deletion runs in small independent chunk transactions with
+  // deadlock retry; a request-wide transaction would force everything back into one transaction.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ORGANIZATION)
   public List<String> bulkDeleteOrganizations(
       @RequestBody @Valid final OrganizationBulkProcessingInput input) {
-    // findAllById goes through a criteria query, so the Hibernate tenant filter applies and
-    // organizations from other tenants are silently skipped.
-    List<Organization> organizations =
-        fromIterable(organizationRepository.findAllById(input.getOrganizationIds()));
-    List<String> deletedIds = organizations.stream().map(Organization::getId).toList();
-    organizationRepository.deleteAll(organizations);
-    return deletedIds;
+    return organizationService.bulkDelete(input);
   }
 
   // -- OPTION --

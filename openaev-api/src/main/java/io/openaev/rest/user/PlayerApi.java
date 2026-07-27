@@ -12,6 +12,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.user.form.player.PlayerBulkProcessingInput;
 import io.openaev.rest.user.form.player.PlayerInput;
@@ -29,6 +30,7 @@ import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -90,6 +92,11 @@ public class PlayerApi extends RestBehavior {
   public User updatePlayer(@PathVariable String userId, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+    // A platform administrator account can only be modified by another administrator:
+    // otherwise anyone with the players capability could rewrite an admin's email.
+    if (user.isAdmin() && !userService.currentUser().isAdmin()) {
+      throw new ForbiddenException("Only an administrator can update a platform administrator");
+    }
     user.setUpdateAttributes(input);
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     user.setOrganization(
@@ -104,6 +111,16 @@ public class PlayerApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PLAYER)
   public void deletePlayer(@PathVariable String userId) {
+    User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+    // Mirror the bulk deletion guards: platform administrator accounts and the
+    // current user can never be removed through the players API.
+    if (user.isAdmin()) {
+      throw new ForbiddenException(
+          "Platform administrator accounts cannot be deleted through the players API");
+    }
+    if (user.getId().equals(userService.currentUser().getId())) {
+      throw new ForbiddenException("You cannot delete your own account");
+    }
     userService.delete(userId);
   }
 
@@ -115,7 +132,9 @@ public class PlayerApi extends RestBehavior {
           "Deletes players either from an explicit id list (user_ids_to_process) or from a select-all search scope (search_pagination_input) - the two are mutually exclusive. user_ids_to_ignore removes ids from a select-all scope. The current user, admin users and reserved service accounts are always excluded server-side.")
   @LogExecutionTime
   @DeleteMapping({PLAYER_URI, TENANT_PLAYER_URI})
-  @Transactional(rollbackFor = Exception.class)
+  // SUPPORTS (not REQUIRED): the service deletes in small independent chunk transactions with
+  // deadlock retry; a request-wide transaction would force everything back into one transaction.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLAYER)
   public List<String> bulkDeletePlayers(@RequestBody @Valid final PlayerBulkProcessingInput input) {
     return playerService.bulkDeletePlayers(input);

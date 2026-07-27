@@ -34,6 +34,7 @@ public class PlayerQueryHelper {
             userRoot.get("phone").alias("user_phone"),
             userRoot.get("phone2").alias("user_phone2"),
             userRoot.get("pgpKey").alias("user_pgp_key"),
+            userRoot.get("admin").alias("user_admin"),
             organizationJoin.get("id").alias("user_organization"),
             tagIdsExpression.alias("user_tags"))
         .distinct(true);
@@ -57,6 +58,7 @@ public class PlayerQueryHelper {
                     .phone(tuple.get("user_phone", String.class))
                     .phone2(tuple.get("user_phone2", String.class))
                     .pgpKey(tuple.get("user_pgp_key", String.class))
+                    .admin(Boolean.TRUE.equals(tuple.get("user_admin", Boolean.class)))
                     .organization(tuple.get("user_organization", String.class))
                     .tags(
                         Arrays.stream(tuple.get("user_tags", String[].class))

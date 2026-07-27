@@ -199,6 +199,12 @@ public final class OperationUtilsJpa {
 
   // -- NOT EQUALS --
 
+  /**
+   * Negative operators always combine values with AND: {@code value != A OR value != B} is a
+   * tautology whenever A != B, while the user intent behind a multi-value {@code not_eq} is always
+   * NOT IN ("different from all of these"). This mirrors the runtime engine ({@code
+   * OperationUtilsRuntime}) and the ES engine which builds a {@code mustNot} clause per value.
+   */
   public static Predicate notEqualsTexts(
       Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
     if (isEmpty(texts)) {
@@ -208,7 +214,7 @@ public final class OperationUtilsJpa {
     Predicate[] predicates =
         texts.stream().map(text -> notEqualsText(paths, cb, text, type)).toArray(Predicate[]::new);
 
-    return cb.or(predicates);
+    return cb.and(predicates);
   }
 
   private static Predicate notEqualsText(
@@ -253,6 +259,12 @@ public final class OperationUtilsJpa {
       Expression<String[]> values = lowerArray(avals(paths, cb), cb);
       return cb.isNotNull(arrayPosition(values, cb, cb.literal(text.toLowerCase())));
     }
+    if (isArray(type)) {
+      // Array columns (e.g. text[] platforms): equality means membership, and
+      // lower() cannot be applied to the array expression directly.
+      Expression<String[]> values = lowerArray(paths, cb);
+      return cb.isNotNull(arrayPosition(values, cb, cb.literal(text.toLowerCase())));
+    }
     if (text.equalsIgnoreCase("true") || text.equalsIgnoreCase("false")) {
       return cb.equal(paths, Boolean.valueOf(text));
     } else {
@@ -262,6 +274,7 @@ public final class OperationUtilsJpa {
 
   // -- NOT START WITH --
 
+  /** See {@link #notEqualsTexts(Expression, CriteriaBuilder, List, Class)}. */
   public static Predicate notStartWithTexts(
       Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
     if (isEmpty(texts)) {
@@ -273,7 +286,7 @@ public final class OperationUtilsJpa {
             .map(text -> notStartWithText(paths, cb, text, type))
             .toArray(Predicate[]::new);
 
-    return cb.or(predicates);
+    return cb.and(predicates);
   }
 
   public static Predicate notStartWithText(
@@ -307,6 +320,11 @@ public final class OperationUtilsJpa {
 
     if (isCollection(type)) {
       Expression<String> values = lower(arrayToString(avals(paths, cb), cb), cb);
+      return cb.like(values, text.toLowerCase() + "%");
+    }
+    if (isArray(type)) {
+      // Array columns: lower() cannot be applied to the array expression directly.
+      Expression<String> values = lower(arrayToString(paths, cb), cb);
       return cb.like(values, text.toLowerCase() + "%");
     }
 
@@ -440,15 +458,23 @@ public final class OperationUtilsJpa {
 
   // -- CUSTOM FUNCTION --
 
+  /**
+   * Lowercases every element of an array expression by round-tripping through {@code
+   * array_to_string}/{@code string_to_array} with the {@code " && "} separator. Assumes no array
+   * element contains the separator — true today for every queryable array column (enum- or
+   * IP-constrained values).
+   */
   private static Expression<String[]> lowerArray(Expression<?> paths, CriteriaBuilder cb) {
     return stringToArray(lower(arrayToString(paths, cb), cb), cb);
   }
 
   // -- BASE FUNCTION --
 
-  private static Expression<Boolean> arrayPosition(
+  // array_position_wrapper RETURNS INT (V3_50__Adding_wrapper_functions): declare the matching
+  // Java type; membership call sites only wrap the result in isNotNull().
+  private static Expression<Integer> arrayPosition(
       Expression<String[]> paths, CriteriaBuilder cb, Expression<String> text) {
-    return cb.function("array_position_wrapper", Boolean.class, paths, text);
+    return cb.function("array_position_wrapper", Integer.class, paths, text);
   }
 
   private static Expression<String> lower(Expression<String> paths, CriteriaBuilder cb) {

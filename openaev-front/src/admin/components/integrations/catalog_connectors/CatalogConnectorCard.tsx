@@ -20,7 +20,8 @@ interface Props {
 // rgba(0,0,0,0.1) background, 4px radius. Overflow behavior mirrors OpenCTI:
 // chips that fit are shown, the last visible one may ellipsize, the rest
 // collapses into a "+N" chip - a chip is never clipped mid-label.
-const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
+// Exported for reuse by the lines view (CatalogConnectorLine).
+export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
   const { containerRef, chipRefs, visibleCount } = useChipOverflow(useCases);
 
   const hiddenCount = useCases.length - visibleCount;

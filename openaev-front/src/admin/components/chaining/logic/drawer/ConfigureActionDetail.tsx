@@ -1,12 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { InfoOutlined, RestartAlt } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  Chip,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -21,15 +14,20 @@ import { zodImplement } from '../../../../../utils/Zod';
 import DrawerBreadcrumb from '../../../common/DrawerBreadcrumb';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
 import { type ActionDetailData } from '../types';
+import ActionFormButtons from './ActionFormButtons';
+import ActionInjectData from './ActionInjectData';
+import ActionScopeChips from './ActionScopeChips';
 import {
+  applyAutoLinks,
   applyPredefinedExpectations,
   buildContractDefaults,
   EXPECTATION_FIELD_TYPE,
   EXPECTATIONS_CONTENT_KEY,
+  getAutoLinkedFieldKeys,
   getContractFieldDefaultValue,
   isExpectationInput,
 } from './ConfigureActionDetail.utils';
-import InjectDataFieldItem, { type FieldLink } from './InjectDataFieldItem';
+import { type FieldLink } from './InjectDataFieldItem';
 
 interface ConfigureActionDetailProps {
   open: boolean;
@@ -41,6 +39,17 @@ interface ConfigureActionDetailProps {
   onBackToRoot: () => void;
   onSave: (data: ActionDetailData) => void;
 }
+
+// Targeting field types/keys handled by the scope definition — excluded from the generic form.
+const PAYLOAD_HIDDEN_TYPES = new Set(['asset', 'asset-group']);
+const INJECTOR_HIDDEN_TYPES = new Set(['asset', 'asset-group', 'targeted-asset']);
+const INJECTOR_HIDDEN_KEYS = new Set([
+  'target_selector', // type of targets
+  'assets', // targeted assets
+  'asset_groups', // targeted asset groups
+  'target_property_selector', // targeted asset property
+  'targets', // manual targets
+]);
 
 interface FormValues { inject_title: string }
 
@@ -55,6 +64,8 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   onSave,
 }) => {
   const { t, tPick } = useFormatter();
+
+  const isPayload = !!action?.action_payload;
 
   const schema = useMemo(
     () => zodImplement<FormValues>().with({ inject_title: z.string().min(1, { message: t('Title is required') }) }),
@@ -117,6 +128,13 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
         .finally(() => setLoadingContract(false));
     }
   }, [action, initialData]);
+
+  // Auto-link fields with known primitive type mappings (payload injects only).
+  // Extend AUTO_LINK_BY_FIELD_TYPE in ConfigureActionDetail.utils.ts to add more.
+  useEffect(() => {
+    if (!isPayload || contractFields.length === 0) return;
+    setFieldLinks(prev => applyAutoLinks(contractFields, prev));
+  }, [isPayload, contractFields]);
 
   // Resets all input argument fields to contract defaults.
   // Expectations are explicitly restored from current state because they are not part of this reset.
@@ -184,12 +202,40 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   // Expectations are not part of the generic input data because they are handled separately
   // in their own dedicated section via <InjectExpectations>.
   const inputArgumentFields = useMemo(() => {
-    return contractFields.filter(f => !f.readOnly && f.type !== EXPECTATION_FIELD_TYPE);
-  }, [contractFields]);
+    return contractFields.filter((f) => {
+      if (f.readOnly || f.type === EXPECTATION_FIELD_TYPE) return false;
+      if (!isPayload && (f.key.startsWith('targeted-property-') || f.key.startsWith('targeted-asset-separator-'))) return false;
+      if (isPayload) return !PAYLOAD_HIDDEN_TYPES.has(f.type);
+      if (INJECTOR_HIDDEN_TYPES.has(f.type)) return false;
+      if (INJECTOR_HIDDEN_KEYS.has(f.key)) return false;
+      return true;
+    });
+  }, [contractFields, isPayload]);
 
   const expectationField = useMemo(() => {
     return contractFields.find(field => field.type === EXPECTATION_FIELD_TYPE);
   }, [contractFields]);
+
+  const autoLinkedFields = useMemo(
+    () => (isPayload ? getAutoLinkedFieldKeys(contractFields) : new Set<string>()),
+    [isPayload, contractFields],
+  );
+
+  const noLinkFields = useMemo(
+    () =>
+      isPayload
+        ? new Set(
+            contractFields
+              .filter(
+                f =>
+                  f.key.startsWith('targeted-property-')
+                  || f.key.startsWith('targeted-asset-separator-'),
+              )
+              .map(f => f.key),
+          )
+        : new Set<string>(),
+    [isPayload, contractFields],
+  );
 
   const expectations = useMemo(() => {
     if (!expectationField) return [];
@@ -230,105 +276,22 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
             required
           />
 
-          {/* Initial Target Assets */}
-          <Box>
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              mb: 1,
-            }}
-            >
-              <Typography variant="subtitle2" fontWeight={600}>
-                {t('Initial Target Assets')}
-              </Typography>
-              <Tooltip
-                title={t('Additional endpoints may be included during simulation based on real decision logic.')}
-              >
-                <InfoOutlined fontSize="small" color="info" />
-              </Tooltip>
-            </Box>
-            {validAssets.length > 0 ? (
-              <Box sx={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 0.5,
-              }}
-              >
-                {validAssets.map(asset => (
-                  <Chip
-                    key={asset.asset_id ?? ''}
-                    label={asset.asset_name ?? ''}
-                    size="small"
-                    variant="filled"
-                  />
-                ))}
-              </Box>
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                {t('No assets in the allow list.')}
-              </Typography>
-            )}
-          </Box>
+          <ActionScopeChips isPayload={isPayload} validAssets={validAssets} />
 
-          {/* Inject Data (dynamic contract fields) */}
-          <Box>
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              mb: 1,
-            }}
-            >
-              <Typography variant="subtitle2" fontWeight={600}>
-                {t('Inject Data')}
-              </Typography>
-              <Button
-                size="small"
-                startIcon={<RestartAlt />}
-                onClick={handleResetDefaults}
-              >
-                {t('Reset default value')}
-              </Button>
-            </Box>
-            {loadingContract && (
-              <Typography variant="body2" color="text.secondary">
-                {t('Loading contract fields...')}
-              </Typography>
-            )}
-            {!loadingContract && inputArgumentFields.length === 0 && (
-              <Typography variant="body2" color="text.secondary">
-                {t('No configuration fields for this action.')}
-              </Typography>
-            )}
-            <Box sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-            }}
-            >
-              {inputArgumentFields.map((field) => {
-                const fieldLabel = t(field.label) || field.key;
-                const defaultVal = field.defaultValue != null ? String(field.defaultValue) : undefined;
-                return (
-                  <InjectDataFieldItem
-                    key={field.key}
-                    fieldKey={field.key}
-                    fieldLabel={fieldLabel}
-                    value={String(fieldValues[field.key] ?? '')}
-                    defaultValue={defaultVal}
-                    link={fieldLinks[field.key] ?? null}
-                    onValueChange={handleFieldValueChange}
-                    onLink={handleLinkField}
-                    onUnlink={handleUnlinkField}
-                    onToggleLocalScope={handleToggleLocalScope}
-                  />
-                );
-              })}
-            </Box>
-          </Box>
+          <ActionInjectData
+            loading={loadingContract}
+            fields={inputArgumentFields}
+            fieldValues={fieldValues}
+            fieldLinks={fieldLinks}
+            autoLinkedFields={autoLinkedFields}
+            noLinkFields={noLinkFields}
+            onResetDefaults={handleResetDefaults}
+            onValueChange={handleFieldValueChange}
+            onLink={handleLinkField}
+            onUnlink={handleUnlinkField}
+            onToggleLocalScope={handleToggleLocalScope}
+          />
 
-          {/* Expectations */}
           {expectationField && (
             <Box>
               <InjectExpectations
@@ -348,26 +311,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
             </Box>
           )}
 
-          {/* Actions */}
-          <Box sx={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 1,
-            mt: 1,
-          }}
-          >
-            <Button variant="outlined" color="primary" onClick={onClose}>
-              {t('Cancel')}
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={!isValid}
-            >
-              {t('Save')}
-            </Button>
-          </Box>
+          <ActionFormButtons disabled={!isValid} onCancel={onClose} />
         </Box>
       </FormProvider>
     </Drawer>

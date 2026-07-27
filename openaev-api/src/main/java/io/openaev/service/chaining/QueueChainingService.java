@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
+import io.openaev.database.repository.StepRepository;
+import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.queue.QueueExecution;
@@ -28,6 +30,8 @@ public class QueueChainingService {
   private final RabbitmqService rabbitmqService;
   private final OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;
+  private final StepRepository stepRepository;
+  private final WorkflowRepository workflowRepository;
 
   @Setter private BatchQueueService<StepEvent> readyQueueService;
   @Setter private BatchQueueService<ExternalUpdateEvent> updateQueueService;
@@ -88,12 +92,27 @@ public class QueueChainingService {
    * @throws IOException in case there is an error while sending the event
    */
   public void readyStep(Step stepExecution, Workflow workflowRun) throws IOException {
-    log.info("PUBLISH STEP READY : {}", stepExecution.getId());
+    log.info("[Chaining] PUBLISH STEP READY : {}", stepExecution.getId());
     StepEvent event = new StepEvent();
     event.setStepId(stepExecution.getId());
     event.setWorkflowId(workflowRun.getId());
+    event.setTenantId(tenantIdOfWorkflow(workflowRun));
     event.setEmissionDate(Instant.now().toEpochMilli());
     readyQueueService.publish(event);
+  }
+
+  /**
+   * Server-side tenant source for a ready event: the workflow's simulation's tenant, resolved with
+   * a projection query (not {@code TenantContext}, not lazy entity navigation). Correct on any
+   * thread — the request thread, the chaining worker, or a scheduler ({@code QueueChainingJob}) —
+   * none of which is guaranteed to carry the tenant or keep a Hibernate session open. Null for a
+   * standalone/atomic run with no simulation; the consumer falls back rather than failing (#6357).
+   */
+  private String tenantIdOfWorkflow(Workflow workflowRun) {
+    if (workflowRun == null || workflowRun.getId() == null) {
+      return null;
+    }
+    return workflowRepository.findTenantIdByWorkflowId(workflowRun.getId()).orElse(null);
   }
 
   /**
@@ -103,11 +122,25 @@ public class QueueChainingService {
    * @throws IOException in case there is an error while sending the event
    */
   public void updateStep(String stepRunId) throws IOException {
-    log.info("PUBLISH STEP UPDATE : {}", stepRunId);
+    log.info("[Chaining] PUBLISH STEP UPDATE : {}", stepRunId);
     ExternalUpdateEvent event = new ExternalUpdateEvent();
     event.setStepId(stepRunId);
+    event.setTenantId(tenantIdOfStep(stepRunId));
     event.setEmissionDate(Instant.now().toEpochMilli());
     updateQueueService.publish(event);
+  }
+
+  /**
+   * Server-side tenant for update-event stamping: step -&gt; workflow -&gt; simulation -&gt;
+   * tenant, resolved with a projection query. {@code Step}/{@code Workflow} are {@code Base} (not
+   * tenant-filtered), and the query touches no lazy association, so this resolves on any thread
+   * with no ambient tenant context and no open session (the update-event producer runs on a
+   * scheduler/queue thread via {@code WorkflowUpdateEventAspect}). Null when the step or its
+   * simulation is absent; the consumer falls back (#6357). Symmetric with {@link
+   * #tenantIdOfWorkflow} used by {@link #readyStep}.
+   */
+  private String tenantIdOfStep(String stepId) {
+    return stepRepository.findTenantIdByStepId(stepId).orElse(null);
   }
 
   /**
@@ -119,7 +152,10 @@ public class QueueChainingService {
    * @throws IOException in case there is an error while sending the event
    */
   public void republishReadyEvent(StepEvent event) throws IOException {
-    log.info("RE-PUBLISH STEP READY (retry {}): {}", event.getRetryCount(), event.getStepId());
+    log.info(
+        "[Chaining] RE-PUBLISH STEP READY (retry {}): {}",
+        event.getRetryCount(),
+        event.getStepId());
     readyQueueService.publish(event);
   }
 

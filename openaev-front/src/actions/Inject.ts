@@ -49,6 +49,13 @@ export const fetchExerciseInjects = (exerciseId: string) => (dispatch: AppDispat
   return getReferential(schema.arrayOfInjects, uri)(dispatch);
 };
 
+// Lightweight variant (InjectOutput) used where only targeting metadata is
+// needed (e.g. the simulation hero usage stats), not the full inject payload.
+export const fetchExerciseInjectsSimple = (exerciseId: string) => (dispatch: AppDispatch) => {
+  const uri = `/api/exercises/${exerciseId}/injects/simple`;
+  return getReferential(schema.arrayOfInjects, uri)(dispatch);
+};
+
 export const fetchInjectTeams = (exerciseId: string, injectId: string) => (dispatch: AppDispatch) => {
   const uri = `/api/exercises/${exerciseId}/injects/${injectId}/teams`;
   return getReferential(schema.arrayOfTeams, uri)(dispatch);

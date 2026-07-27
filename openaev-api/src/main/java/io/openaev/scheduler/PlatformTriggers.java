@@ -1,8 +1,11 @@
 package io.openaev.scheduler;
 
+import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_REPLAY_TRIGGER;
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_TRIGGER;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_TRIGGER;
+import static io.openaev.scheduler.jobs.notification.NotificationDigestJob.NOTIFICATION_DIGEST_TRIGGER;
+import static io.openaev.scheduler.jobs.notification.NotificationEventRetentionJob.NOTIFICATION_EVENT_RETENTION_TRIGGER;
 import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_TRIGGER;
 import static org.quartz.CronScheduleBuilder.cronSchedule;
 import static org.quartz.SimpleScheduleBuilder.*;
@@ -54,6 +57,16 @@ public class PlatformTriggers {
     return newTrigger()
         .forJob(this.platformJobs.getScenarioExecution())
         .withIdentity("ScenarioExecutionTrigger")
+        .withSchedule(repeatMinutelyForever())
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
+  public Trigger atomicTestingExecutionTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.getAtomicTestingExecution())
+        .withIdentity("AtomicTestingExecutionTrigger")
         .withSchedule(repeatMinutelyForever())
         .build();
   }
@@ -165,11 +178,45 @@ public class PlatformTriggers {
 
   @Bean
   @Profile("!test")
+  public Trigger notificationDigestTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.notificationDigestJobDetail())
+        .withIdentity(NOTIFICATION_DIGEST_TRIGGER)
+        .withSchedule(cronSchedule("0 0/1 * * * ?")) // Every minute align on clock
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
+  public Trigger notificationEventRetentionTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.notificationEventRetentionJobDetail())
+        .withIdentity(NOTIFICATION_EVENT_RETENTION_TRIGGER)
+        .withSchedule(cronSchedule("0 15 1 * * ?")) // Daily at 1:15 AM
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
   public Trigger urlAccessTokenPurgeTrigger() {
     return newTrigger()
         .forJob(this.platformJobs.urlAccessTokenPurgeJobDetail())
         .withIdentity(URL_ACCESS_TOKEN_PURGE_TRIGGER)
         .withSchedule(cronSchedule("0 0 2 ? * SUN")) // Every Sunday at 2:00 AM
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
+  public Trigger engineDeletionReplayTrigger() {
+    // Replays journaled deletions against the search engine: must run frequently enough that a
+    // document resurrected by an in-flight indexer batch disappears quickly from dashboards.
+    SimpleScheduleBuilder every60Seconds =
+        simpleSchedule().withIntervalInSeconds(60).repeatForever();
+    return newTrigger()
+        .forJob(this.platformJobs.engineDeletionReplayJobDetail())
+        .withIdentity(ENGINE_DELETION_REPLAY_TRIGGER)
+        .withSchedule(every60Seconds.withMisfireHandlingInstructionNextWithRemainingCount())
         .build();
   }
 }
