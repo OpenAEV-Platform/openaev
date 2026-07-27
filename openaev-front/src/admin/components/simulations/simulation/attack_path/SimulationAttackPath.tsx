@@ -1069,12 +1069,17 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     }
     // Authoritative for EVERY finding type: the full graph's execution→findings links. This covers types
     // the drawer categories don't (port, hash…), which otherwise resolved to no producer — leaving every
-    // injector on the endpoint highlighted instead of just the one that produced the finding.
-    const findingNodeId = `NODE_FINDING|${type}|${value}`;
-    const fromFull = (fullDto?.attackPathExecutions ?? [])
-      .filter(e => (e.findingsNodeIds ?? []).includes(findingNodeId))
-      .map(e => e.ref)
-      .filter((r): r is string => !!r);
+    // injector on the endpoint highlighted instead of just the one that produced the finding. Resolve the
+    // finding's CANONICAL node id from the graph (the backend escapes `\`/`|`, so a share value never
+    // matches a rebuilt `NODE_FINDING|type|value`) and match executions on that.
+    const canonicalId = (fullDto?.attackPathNodes ?? [])
+      .find(n => n.type === 'FINDING' && (n.typeFindings ?? '') === type && (n.value ?? n.label) === value)?.id;
+    const fromFull = canonicalId
+      ? (fullDto?.attackPathExecutions ?? [])
+          .filter(e => (e.findingsNodeIds ?? []).includes(canonicalId))
+          .map(e => e.ref)
+          .filter((r): r is string => !!r)
+      : [];
     if (fromFull.length > 0) {
       applyExec(fromFull);
       return;
