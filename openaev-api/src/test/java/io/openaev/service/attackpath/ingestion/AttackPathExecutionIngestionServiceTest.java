@@ -33,7 +33,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Phase A create (issue 5048, #203): at RUN, one EXECUTION row per resolved edge, tenant-attributed
@@ -50,6 +53,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AgentComposer agentComposer;
   @Autowired private ExecutorFixture executorFixture;
+  @Autowired private PlatformTransactionManager transactionManager;
 
   @AfterEach
   void clearTenant() {
@@ -220,6 +224,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   }
 
   @Test
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @DisplayName("given_mixedExpectationResults_should_updateExecutionWithHighestPriorityLabels")
   void given_mixedExpectationResults_should_updateExecutionWithHighestPriorityLabels() {
     // Arrange
@@ -248,7 +253,9 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
                     List.of(expectationResult("Vulnerable"), expectationResult("Pending"))));
 
     // Act
-    ingestionService.updateExpectationByExecutionIndex(inject, expectationResults);
+    new TransactionTemplate(transactionManager)
+        .executeWithoutResult(
+            status -> ingestionService.updateExpectationByExecutionIndex(inject, expectationResults));
 
     // Assert
     AttackPathExecution updated = executionRepository.findById(executionId).orElseThrow();
