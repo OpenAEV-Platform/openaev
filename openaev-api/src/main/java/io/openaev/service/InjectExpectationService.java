@@ -1893,11 +1893,14 @@ public class InjectExpectationService {
       return;
     }
 
-    Set<String> vulnerableAssetIds = resolveVulnerableAssetIds(jsonNode, inject);
-    // Older injector outputs may carry findings without any per-asset attribution: fall back to
-    // the legacy blanket verdict, since a false positive on a sibling asset beats silently losing
-    // the finding.
-    boolean blanketVulnerable = anyVulnerable && vulnerableAssetIds.isEmpty();
+    VulnerableAssetResolution resolution = resolveVulnerableAssetIds(jsonNode, inject);
+    Set<String> vulnerableAssetIds = resolution.assetIds();
+    // Injector outputs may carry findings without any per-asset attribution (legacy formats, or a
+    // CVE item whose host matches no targeted asset): fall back to the legacy blanket verdict for
+    // those, even when sibling items are attributed, since a false positive on a sibling asset
+    // beats silently losing the finding.
+    boolean blanketVulnerable =
+        anyVulnerable && (vulnerableAssetIds.isEmpty() || resolution.hasUnattributedFinding());
 
     List<VulnerabilityInjectExpectation> assetExpectations =
         expectations.stream().filter(expectation -> expectation.getAsset() != null).toList();
@@ -1986,13 +1989,16 @@ public class InjectExpectationService {
    *
    * @param cveNode the structured output node (array of CVE items)
    * @param inject the inject being processed
-   * @return the ids of the assets found vulnerable
+   * @return the ids of the assets found vulnerable, and whether any CVE item could not be
+   *     attributed to any targeted asset at all
    */
-  private Set<String> resolveVulnerableAssetIds(@Nullable JsonNode cveNode, Inject inject) {
+  private VulnerableAssetResolution resolveVulnerableAssetIds(
+      @Nullable JsonNode cveNode, Inject inject) {
     if (cveNode == null || !cveNode.isArray()) {
-      return Set.of();
+      return new VulnerableAssetResolution(Set.of(), false);
     }
     Set<String> vulnerableAssetIds = new HashSet<>();
+    boolean hasUnattributedFinding = false;
     Map<String, Endpoint> valueTargetedAssetsMap = null;
     for (JsonNode cveItem : cveNode) {
       boolean attributed =
@@ -2003,19 +2009,34 @@ public class InjectExpectationService {
       Set<String> hosts = new HashSet<>();
       collectTextValues(cveItem.get(CVEOutputProcessor.HOST), hosts);
       if (hosts.isEmpty()) {
+        hasUnattributedFinding = true;
         continue;
       }
       if (valueTargetedAssetsMap == null) {
         valueTargetedAssetsMap = injectService.getValueTargetedAssetMap(inject);
       }
+      boolean hostMatched = false;
       for (Map.Entry<String, Endpoint> entry : valueTargetedAssetsMap.entrySet()) {
         if (hosts.stream().anyMatch(host -> host.contains(entry.getKey()))) {
           vulnerableAssetIds.add(entry.getValue().getId());
+          hostMatched = true;
         }
       }
+      if (!hostMatched) {
+        hasUnattributedFinding = true;
+      }
     }
-    return vulnerableAssetIds;
+    return new VulnerableAssetResolution(vulnerableAssetIds, hasUnattributedFinding);
   }
+
+  /**
+   * Result of the per-asset attribution of the CVE items of a structured output.
+   *
+   * @param assetIds the ids of the targeted assets attributed at least one CVE item
+   * @param hasUnattributedFinding true when at least one CVE item carries no usable attribution (no
+   *     {@code asset_id}, and no {@code host} matching a targeted asset)
+   */
+  private record VulnerableAssetResolution(Set<String> assetIds, boolean hasUnattributedFinding) {}
 
   /**
    * Collects the non-blank text value(s) of a JSON node (plain text or array of texts) into the

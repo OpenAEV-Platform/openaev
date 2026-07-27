@@ -737,6 +737,35 @@ class InjectExpectationServiceTest {
 
     @Test
     @DisplayName(
+        "Mixed attribution: an unattributable finding triggers the blanket verdict for all assets")
+    void shouldFallBackToBlanketVerdictOnMixedAttribution() {
+      when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
+
+      ArrayNode structuredOutput = mapper.createArrayNode();
+      ObjectNode attributedCve = structuredOutput.addObject();
+      attributedCve
+          .put("id", "CVE-2025-0006")
+          .put("host", "https://vulnerable-host")
+          .put("severity", "7.5");
+      attributedCve.putArray("asset_id").add("asset-1");
+      structuredOutput
+          .addObject()
+          .put("id", "CVE-2025-0007")
+          .put("host", "https://unknown-host")
+          .put("severity", "6.1");
+
+      injectExpectationService.matchesVulnerabilityExpectations(
+          injectorContext(structuredOutput), structuredOutput);
+
+      // The second finding cannot be attributed to any targeted asset: rather than silently
+      // dropping it, every asset falls back to the legacy blanket verdict.
+      assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-1").getIsSuccess());
+      assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-2").getIsSuccess());
+      assertEquals(Boolean.FALSE, capturedVerdict("exp-group").getIsSuccess());
+    }
+
+    @Test
+    @DisplayName(
         "Expectation-group semantics keep the group clean while at least one asset is clean")
     void shouldKeepExpectationGroupCleanWhenOneAssetIsClean() {
       expectationGroup.setExpectationGroup(true);
