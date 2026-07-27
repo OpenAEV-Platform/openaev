@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
@@ -1073,6 +1074,15 @@ public class InjectExecutionStep implements ActionStep {
             ? mapping.getKeyTypes().stream().map(Enum::name).toList()
             : List.of();
     if (keyTypes.isEmpty()) {
+      if (mapping.getMappingType() == MappingType.DEFAULT) {
+        // DEFAULT mapper with no keyTypes: apply static value directly.
+        // If blank, leave the injector contract default for this field untouched.
+        String targetJsonKey = mapping.getKey();
+        if (targetJsonKey != null && mapping.getValue() != null && !mapping.getValue().isBlank()) {
+          contentNode.set(targetJsonKey, TextNode.valueOf(mapping.getValue()));
+        }
+        return;
+      }
       log.warn(
           "[Chaining] Skipping mapper condition {} because keyTypes are empty", mapping.getId());
       return;

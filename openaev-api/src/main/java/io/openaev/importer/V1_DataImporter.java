@@ -2102,6 +2102,11 @@ public class V1_DataImporter implements Importer {
           continue;
         }
 
+        MappingType conditionMappingType =
+            condNode.has("condition_mapping_type")
+                    && !condNode.get("condition_mapping_type").isNull()
+                ? MappingType.valueOf(condNode.get("condition_mapping_type").asText())
+                : null;
         Condition condition =
             Condition.builder()
                 .workflowId(workflow.getId())
@@ -2127,13 +2132,10 @@ public class V1_DataImporter implements Importer {
                                         condNode.get("condition_key_type").asText(),
                                         PrimitiveType.class))
                                 : List.of(),
-                        conditionType))
+                        conditionType,
+                        conditionMappingType))
                 .type(conditionType)
-                .mappingType(
-                    condNode.has("condition_mapping_type")
-                            && !condNode.get("condition_mapping_type").isNull()
-                        ? MappingType.valueOf(condNode.get("condition_mapping_type").asText())
-                        : null)
+                .mappingType(conditionMappingType)
                 .value(
                     condNode.has("condition_value") && !condNode.get("condition_value").isNull()
                         ? condNode.get("condition_value").asText()

@@ -128,6 +128,7 @@ public class ConditionMapper {
   }
 
   private static List<PrimitiveType> resolveKeyTypes(ConditionCreateInput input) {
-    return ConditionKeyTypesUtils.normalizeForConditionType(input.getKeyTypes(), input.getType());
+    return ConditionKeyTypesUtils.normalizeForConditionType(
+        input.getKeyTypes(), input.getType(), input.getMappingType());
   }
 }

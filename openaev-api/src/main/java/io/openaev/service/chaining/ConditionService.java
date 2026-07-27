@@ -1045,18 +1045,25 @@ public class ConditionService {
       WorkflowStateEntries globalEntries) {
     List<List<WorkflowStateEntries.Pair>> allPairsList = new ArrayList<>();
     List<DynamicMapperContext> dynamicMappers = new ArrayList<>();
-    Map<String, String> staticValues = new HashMap<>();
+    Map<String, String> defaultValues = new HashMap<>();
 
     for (Condition mapper : mappers) {
+      if (mapper.getMappingType() == MappingType.DEFAULT) {
+        // DEFAULT: value is static, no state lookup needed.
+        // Stored in defaultValues so it is included in every batch's inputString.
+        // If blank, skip — the injector contract default for that field is preserved.
+        String key = mapper.getKey();
+        String value = mapper.getValue();
+        if (key != null && !key.isBlank() && value != null && !value.isBlank()) {
+          defaultValues.put(key, value);
+        }
+        continue;
+      }
+
       List<String> sourceKeys = resolveMapperSourceKeys(mapper);
       if (sourceKeys.isEmpty()) {
         log.warn("[Chaining] Skipping mapper {} because keyTypes are missing", mapper.getId());
         return new MapperInputPreparation(List.of(), List.of(), Map.of(), true);
-      }
-
-      if (mapper.getMappingType() == MappingType.DEFAULT) {
-        staticValues.put(sourceKeys.getFirst(), mapper.getValue());
-        continue;
       }
 
       List<WorkflowStateEntries.Pair> pairs =
@@ -1072,7 +1079,7 @@ public class ConditionService {
       dynamicMappers.add(new DynamicMapperContext(mapper, sourceKeys, mapper.getMappingType()));
     }
 
-    return new MapperInputPreparation(allPairsList, dynamicMappers, staticValues, false);
+    return new MapperInputPreparation(allPairsList, dynamicMappers, defaultValues, false);
   }
 
   /**
@@ -1210,7 +1217,7 @@ public class ConditionService {
     }
 
     Map<String, String> fullInput = new HashMap<>(comboMap);
-    fullInput.putAll(preparation.staticValues());
+    fullInput.putAll(preparation.defaultValues());
 
     List<Condition> resolvedMappers =
         mappers.stream()
@@ -1234,7 +1241,12 @@ public class ConditionService {
     resolved.setCreationDate(Instant.now());
     resolved.setUpdateDate(Instant.now());
     String key = resolveMapperRuntimeKey(template, fullInput);
-    resolved.setValue(key != null ? fullInput.get(key) : null);
+    if (key != null) {
+      resolved.setValue(fullInput.get(key));
+    } else if (template.getMappingType() == MappingType.DEFAULT) {
+      // DEFAULT mapper with no keyTypes: value is already known statically.
+      resolved.setValue(template.getValue());
+    }
     return resolved;
   }
 
@@ -1260,7 +1272,8 @@ public class ConditionService {
   }
 
   private List<PrimitiveType> resolveInputKeyTypes(ConditionCreateInput input) {
-    return ConditionKeyTypesUtils.normalizeForConditionType(input.getKeyTypes(), input.getType());
+    return ConditionKeyTypesUtils.normalizeForConditionType(
+        input.getKeyTypes(), input.getType(), input.getMappingType());
   }
 
   private List<String> resolveConditionKeyNames(Condition condition) {
@@ -1288,7 +1301,7 @@ public class ConditionService {
   private record MapperInputPreparation(
       List<List<WorkflowStateEntries.Pair>> dynamicPairs,
       List<DynamicMapperContext> dynamicMappers,
-      Map<String, String> staticValues,
+      Map<String, String> defaultValues,
       boolean hasMissingDynamicValues) {
 
     /** True when at least one dynamic mapper is LOCAL. */
