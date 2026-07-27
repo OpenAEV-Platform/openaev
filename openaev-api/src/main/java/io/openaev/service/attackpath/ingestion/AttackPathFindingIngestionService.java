@@ -40,6 +40,7 @@ public class AttackPathFindingIngestionService {
   private final AttackPathExecutionRepository executionRepository;
   private final FindingRepository findingRepository;
   private final AttackPathFindingWriter findingWriter;
+  private final AttackPathVersionService versionService;
 
   public void copyFindings(Inject inject, Step step) {
     if (inject.getExercise() == null) {
@@ -104,7 +105,15 @@ public class AttackPathFindingIngestionService {
       }
     }
 
-    findingWriter.insertFindings(findingRows);
+    if (findingRows.isEmpty() && links.isEmpty()) {
+      return; // nothing to write, so nothing to version: never bump on an empty copy
+    }
+    // Bump and stamp inside this transaction, so a client can never hold a version whose rows it
+    // has not been sent (#6647, spec 002). A re-copied identical finding hits ON CONFLICT DO
+    // NOTHING and keeps its original version, so the bump yields one empty delta tick — cheap, and
+    // the alternative (pre-checking every row) is a read per event.
+    long version = versionService.bump(simulationId, tenantId);
+    findingWriter.insertFindings(findingRows, version);
     findingWriter.insertLinks(links);
   }
 

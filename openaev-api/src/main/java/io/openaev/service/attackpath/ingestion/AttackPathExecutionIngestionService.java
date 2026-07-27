@@ -36,6 +36,7 @@ public class AttackPathExecutionIngestionService {
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
   private final TenantScopedTransaction tenantTx;
+  private final AttackPathVersionService versionService;
 
   /**
    * Clears a simulation's attack-path rows (on simulation reset and delete). As a writer of a
@@ -44,6 +45,11 @@ public class AttackPathExecutionIngestionService {
    * (the callers run inside their own tx), so the delete runs under a real scope instead of
    * fail-closing to zero rows. The {@code attackpath_execution_finding} links ride the ON DELETE
    * CASCADE from both parents, so deleting executions and findings clears the links too.
+   *
+   * <p>The simulation's version counter goes with the rows (#6647, spec 002): a client still
+   * polling with an old {@code since} then finds no counter, and the delta read answers that with a
+   * resync, which is how the contract expresses a deletion. Keeping the counter instead would leave
+   * the client convinced it was up to date on an emptied graph.
    */
   public void deleteAllBySimulationId(@NotBlank String simulationId, @NotBlank String tenantId) {
     tenantTx.executeNew(
@@ -51,6 +57,7 @@ public class AttackPathExecutionIngestionService {
         () -> {
           executionRepository.deleteAllBySimulationId(simulationId);
           findingRepository.deleteAllBySimulationId(simulationId);
+          versionService.deleteBySimulationId(simulationId);
         });
   }
 
@@ -75,9 +82,21 @@ public class AttackPathExecutionIngestionService {
     if (inject.getExercise() == null) {
       return; // the attack path is simulation-scoped: no simulation, nothing to record
     }
+    String simulationId = inject.getExercise().getId();
+    String tenantId = inject.getTenant().getId();
     tenantTx.executeNew(
-        TxCtx.forTenant(inject.getTenant().getId()),
-        () -> persistExecution(getAttackPathExecution(inject, step, command)));
+        TxCtx.forTenant(tenantId),
+        () -> {
+          List<AttackPathExecution> rows = getAttackPathExecution(inject, step, command);
+          if (rows.isEmpty()) {
+            return; // nothing written, so nothing to version: never bump on an empty write
+          }
+          // Bump and stamp inside this transaction, so the version a client can observe is never
+          // ahead of the rows backing it (#6647, spec 002).
+          long version = versionService.bump(simulationId, tenantId);
+          rows.forEach(row -> row.setRowVersion(version));
+          persistExecution(rows);
+        });
   }
 
   public void persistExecution(List<AttackPathExecution> attackPathExecutions) {

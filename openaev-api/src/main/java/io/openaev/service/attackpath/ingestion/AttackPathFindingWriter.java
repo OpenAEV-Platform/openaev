@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
             + " insert-only.")
 public class AttackPathFindingWriter {
 
-  /** Rows per statement; 9 params each keeps well under the Postgres parameter limit. */
+  /** Rows per statement; 10 params each keeps well under the Postgres parameter limit. */
   private static final int CHUNK = 500;
 
   private final JdbcTemplate jdbcTemplate;
@@ -53,20 +53,32 @@ public class AttackPathFindingWriter {
   /** One (execution, finding) link. */
   public record Link(String executionId, String findingId) {}
 
-  public void insertFindings(List<FindingRow> rows) {
+  /**
+   * Inserts a batch of copied findings, all stamped with {@code rowVersion} — the simulation's
+   * attack-path version bumped by the caller in this same transaction (#6647, spec 002), which is
+   * what makes a polling client see them as changes. The version is uniform per batch by
+   * construction: one bump covers one copy.
+   *
+   * <p>{@code ON CONFLICT DO NOTHING} means a re-copied identical finding keeps the version of its
+   * first write, which is correct — nothing changed, so there is nothing to ship. Any future writer
+   * that UPDATES a finding row must re-stamp the column, or its change will never reach a client.
+   */
+  public void insertFindings(List<FindingRow> rows, long rowVersion) {
     for (int from = 0; from < rows.size(); from += CHUNK) {
       List<FindingRow> chunk = rows.subList(from, Math.min(from + CHUNK, rows.size()));
       String sql =
           "INSERT INTO attackpath_finding (attackpath_finding_id, tenant_id,"
               + " attackpath_finding_simulation_id, attackpath_finding_type,"
               + " attackpath_finding_field, attackpath_finding_value, attackpath_finding_endpoint_id,"
-              + " attackpath_finding_endpoint_raw, attackpath_finding_endpoint_key) VALUES "
-              + String.join(", ", Collections.nCopies(chunk.size(), "(?, ?, ?, ?, ?, ?, ?, ?, ?)"))
+              + " attackpath_finding_endpoint_raw, attackpath_finding_endpoint_key,"
+              + " attackpath_finding_row_version) VALUES "
+              + String.join(
+                  ", ", Collections.nCopies(chunk.size(), "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
               + " ON CONFLICT (attackpath_finding_simulation_id, attackpath_finding_type,"
               + " attackpath_finding_field, attackpath_finding_value,"
               + " attackpath_finding_endpoint_key) WHERE attackpath_finding_field IS NOT NULL"
               + " DO NOTHING";
-      List<Object> args = new ArrayList<>(chunk.size() * 9);
+      List<Object> args = new ArrayList<>(chunk.size() * 10);
       for (FindingRow r : chunk) {
         args.add(r.id());
         args.add(r.tenantId());
@@ -77,6 +89,7 @@ public class AttackPathFindingWriter {
         args.add(r.endpointId());
         args.add(r.endpointRaw());
         args.add(r.endpointKey());
+        args.add(rowVersion);
       }
       jdbcTemplate.update(sql, args.toArray());
     }

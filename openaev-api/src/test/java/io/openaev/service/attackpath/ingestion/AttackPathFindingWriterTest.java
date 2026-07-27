@@ -96,7 +96,8 @@ class AttackPathFindingWriterTest extends IntegrationTest {
     findingWriter.insertFindings(
         List.of(
             new FindingRow(
-                id, tenant.getId(), SIM, type, field, value, endpointKey, null, endpointKey)));
+                id, tenant.getId(), SIM, type, field, value, endpointKey, null, endpointKey)),
+        1L);
   }
 
   private void seedExecutionRow(String executionId) {
