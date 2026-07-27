@@ -3,7 +3,11 @@ package io.openaev.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.database.model.Agent;
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.DetectionInjectExpectation;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectationTrace;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.CollectorRepository;
@@ -134,6 +138,107 @@ class InjectExpectationTraceServiceTest {
     assertEquals(0L, result);
     verify(injectExpectationTraceRepository)
         .countAlertsForExpectations(List.of(injectExpectationId), securityPlatformId);
+  }
+
+  @Test
+  void getAlertLinksNumber_AssetLevelExpectation_AggregatesChildAgentExpectations() {
+    // Arrange: an asset-level detection expectation (asset set, no agent) whose alerts live on
+    // its two child agent expectations of the same type
+    DetectionInjectExpectation assetExpectation = buildAssetLevelExpectation(injectExpectationId);
+    when(injectExpectationRepository.findById(injectExpectationId))
+        .thenReturn(Optional.of(assetExpectation));
+    when(injectExpectationRepository.findAllWithAgentsByInjectAndAsset(
+            assetExpectation.getInject().getId(),
+            assetExpectation.getAsset().getId(),
+            assetExpectation.getType()))
+        .thenReturn(
+            List.of(
+                buildAgentLevelExpectation("agent-expectation-1"),
+                buildAgentLevelExpectation("agent-expectation-2")));
+    when(injectExpectationTraceRepository.countAlertsForExpectations(anyCollection(), anyString()))
+        .thenReturn(3L);
+
+    // Act
+    long result =
+        injectExpectationTraceService.getAlertLinksNumber(
+            injectExpectationId, securityPlatformId, expectationResultSourceType);
+
+    // Assert: the count query receives the asset expectation id plus both child agent ids
+    assertEquals(3L, result);
+    verify(injectExpectationTraceRepository)
+        .countAlertsForExpectations(
+            List.of(injectExpectationId, "agent-expectation-1", "agent-expectation-2"),
+            securityPlatformId);
+  }
+
+  @Test
+  void getInjectExpectationTracesFromCollector_AssetLevelExpectation_AggregatesChildAgents() {
+    // Arrange
+    DetectionInjectExpectation assetExpectation = buildAssetLevelExpectation(injectExpectationId);
+    when(injectExpectationRepository.findById(injectExpectationId))
+        .thenReturn(Optional.of(assetExpectation));
+    when(injectExpectationRepository.findAllWithAgentsByInjectAndAsset(
+            assetExpectation.getInject().getId(),
+            assetExpectation.getAsset().getId(),
+            assetExpectation.getType()))
+        .thenReturn(List.of(buildAgentLevelExpectation("agent-expectation-1")));
+    when(injectExpectationTraceRepository.findByExpectationsAndSecurityPlatform(
+            anyCollection(), anyString()))
+        .thenReturn(List.of(injectExpectationTrace));
+
+    // Act
+    List<InjectExpectationTrace> result =
+        injectExpectationTraceService.getInjectExpectationTracesFromCollector(
+            injectExpectationId, securityPlatformId);
+
+    // Assert: the list query receives the asset expectation id plus the child agent id
+    assertEquals(1, result.size());
+    verify(injectExpectationTraceRepository)
+        .findByExpectationsAndSecurityPlatform(
+            List.of(injectExpectationId, "agent-expectation-1"), securityPlatformId);
+  }
+
+  @Test
+  void getAlertLinksNumber_AgentLevelExpectation_ResolvesToItself() {
+    // Arrange: an agent-level expectation must never trigger the aggregation lookup
+    DetectionInjectExpectation agentExpectation = buildAgentLevelExpectation(injectExpectationId);
+    when(injectExpectationRepository.findById(injectExpectationId))
+        .thenReturn(Optional.of(agentExpectation));
+    when(injectExpectationTraceRepository.countAlertsForExpectations(anyCollection(), anyString()))
+        .thenReturn(1L);
+
+    // Act
+    long result =
+        injectExpectationTraceService.getAlertLinksNumber(
+            injectExpectationId, securityPlatformId, expectationResultSourceType);
+
+    // Assert
+    assertEquals(1L, result);
+    verify(injectExpectationTraceRepository)
+        .countAlertsForExpectations(List.of(injectExpectationId), securityPlatformId);
+    verify(injectExpectationRepository, never())
+        .findAllWithAgentsByInjectAndAsset(anyString(), anyString(), any());
+  }
+
+  private DetectionInjectExpectation buildAssetLevelExpectation(final String expectationId) {
+    Inject inject = new Inject();
+    inject.setId(UUID.randomUUID().toString());
+    Asset asset = new Asset();
+    asset.setId(UUID.randomUUID().toString());
+    DetectionInjectExpectation assetExpectation = new DetectionInjectExpectation();
+    assetExpectation.setId(expectationId);
+    assetExpectation.setInject(inject);
+    assetExpectation.setAsset(asset);
+    return assetExpectation;
+  }
+
+  private DetectionInjectExpectation buildAgentLevelExpectation(final String expectationId) {
+    Agent agent = new Agent();
+    agent.setId(UUID.randomUUID().toString());
+    DetectionInjectExpectation agentExpectation = new DetectionInjectExpectation();
+    agentExpectation.setId(expectationId);
+    agentExpectation.setAgent(agent);
+    return agentExpectation;
   }
 
   @Test

@@ -83,10 +83,11 @@ public class InjectExpectationTraceService {
               List<String> expectationIds = new ArrayList<>();
               expectationIds.add(injectExpectationId);
               injectExpectationRepository
-                  .findAllAgentExpectationsByInjectAndAsset(
-                      assetExpectation.getInject().getId(), assetExpectation.getAsset().getId())
+                  .findAllWithAgentsByInjectAndAsset(
+                      assetExpectation.getInject().getId(),
+                      assetExpectation.getAsset().getId(),
+                      assetExpectation.getType())
                   .stream()
-                  .filter(child -> child.getType() == assetExpectation.getType())
                   .map(BaseInjectExpectation::getId)
                   .forEach(expectationIds::add);
               return expectationIds;
