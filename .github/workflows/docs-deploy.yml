@@ -53,8 +53,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Resolve latest tag
-        id: latest-tag
+      - name: Validate version tag
         env:
           VERSION: ${{ inputs.version }}
         run: |
@@ -62,7 +61,17 @@ jobs:
             echo "::error::Tag '${VERSION}' does not exist. The version must match an existing git tag."
             exit 1
           fi
-          LATEST_TAG=$(git tag --sort=-v:refname | head -n1)
+
+      - name: Find latest tag
+        uses: ./.github/actions/find-latest-tag
+        id: find-latest-tag
+
+      - name: Resolve latest flag
+        id: latest-tag
+        env:
+          VERSION: ${{ inputs.version }}
+          LATEST_TAG: ${{ steps.find-latest-tag.outputs.latest-tag }}
+        run: |
           IS_LATEST=$( [ "$VERSION" = "$LATEST_TAG" ] && echo "true" || echo "false" )
           echo "is_latest=${IS_LATEST}" >> "$GITHUB_OUTPUT"
           echo "Resolved latest tag: ${LATEST_TAG}, input version is latest: ${IS_LATEST}"
