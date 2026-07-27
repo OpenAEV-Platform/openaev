@@ -19,17 +19,21 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -48,7 +52,19 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private InjectRepository injectRepository;
   @Autowired private ExerciseRepository exerciseRepository;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private TestUserHolder testUserHolder;
   @MockitoSpyBean private EndpointService endpointService;
+
+  @BeforeEach
+  void linkMockUserToDefaultTenant() {
+    // /register carries a TxCtx param (v2 write-scope resolution): the mock user needs a
+    // users_tenants row, otherwise the scope resolves to TxCtx.Missing and the write is refused
+    // with 400 regardless of isAdmin/capabilities.
+    if (testUserHolder.get() != null) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
+  }
 
   private EndpointRegisterInput buildRegisterInput() {
     return createWindowsEndpointRegisterInput(List.of(), "ext-ref-test");

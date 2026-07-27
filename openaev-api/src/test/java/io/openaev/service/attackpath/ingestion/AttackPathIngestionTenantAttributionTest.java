@@ -162,7 +162,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
                     .withAgent(
                         agentComposer.forAgent(
                             AgentFixture.createDefaultAgentSession(
-                                executorFixture.getDefaultExecutor()))));
+                                executorFixture.getDefaultExecutor(tenant.getId())))));
     groupComposer.persist();
     AssetGroup group = groupComposer.get();
     TenantContext.clearCurrentTenant();
@@ -248,7 +248,8 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
             .forEndpoint(EndpointFixture.createEndpoint())
             .withAgent(
                 agentComposer.forAgent(
-                    AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor())))
+                    AgentFixture.createDefaultAgentSession(
+                        executorFixture.getDefaultExecutor(tenant.getId()))))
             .persist()
             .get();
     String endpointId = persisted.getId();
@@ -530,11 +531,13 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
 
   // Eva's resolution reads the endpoint, its agent and the agent's executor back through the
   // services, so the whole graph must be persisted under the inject's tenant.
-  // executorFixture.getDefaultExecutor() looks up / creates the executor under the CURRENT tenant,
-  // so it must run inside this scope (the agents FK is composite on (executor, tenant_id)).
+  // executorFixture.getDefaultExecutor(tenantId) creates the executor explicitly under the given
+  // tenant (Executor carries no ambient tenant default on v2), so it must run inside this scope
+  // (the agents FK is composite on (executor, tenant_id)).
   private Target persistTarget() {
     TenantContext.setCurrentTenant(tenant.getId());
-    Agent agent = AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor());
+    Agent agent =
+        AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor(tenant.getId()));
     Endpoint endpoint =
         endpointComposer
             .forEndpoint(EndpointFixture.createEndpoint())
