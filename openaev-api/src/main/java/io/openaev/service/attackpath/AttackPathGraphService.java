@@ -1,5 +1,6 @@
 package io.openaev.service.attackpath;
 
+import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow;
@@ -1084,22 +1085,24 @@ public class AttackPathGraphService {
   }
 
   /**
-   * Resolves the {@code externalId → contract name} map for a set of injector-contract external
-   * ids, one read per distinct id (a run uses a handful of contracts). Shared by the feed-node
-   * contract names and the injector node labels so neither pays for a second read.
+   * Resolves the {@code externalId → contract name} map for a set of injector-contract external ids
+   * in a single batched read. Shared by the feed-node contract names and the injector node labels
+   * so neither pays for a second read, and constant in the number of contracts.
    */
   private Map<String, String> resolveContractNames(Set<String> externalIds) {
+    if (externalIds.isEmpty()) {
+      return Map.of();
+    }
+    List<InjectorContract> contracts =
+        injectorContractRepository.findAllByIdOrExternalIdIn(externalIds);
     Map<String, String> nameByExternalId = new HashMap<>();
     for (String externalId : externalIds) {
-      injectorContractRepository
-          .findByIdOrExternalId(externalId, externalId)
-          .ifPresent(
-              contract -> {
-                String name = contractLabel(contract.getLabels());
-                if (name != null) {
-                  nameByExternalId.put(externalId, name);
-                }
-              });
+      contracts.stream()
+          .filter(c -> externalId.equals(c.getExternalId()) || externalId.equals(c.getId()))
+          .findFirst()
+          .map(c -> contractLabel(c.getLabels()))
+          .filter(Objects::nonNull)
+          .ifPresent(name -> nameByExternalId.put(externalId, name));
     }
     return nameByExternalId;
   }
