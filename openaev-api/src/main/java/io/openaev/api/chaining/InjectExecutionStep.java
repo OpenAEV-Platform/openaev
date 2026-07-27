@@ -31,6 +31,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
+import io.openaev.service.attackpath.ingestion.AttackPathVerdictSyncService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
@@ -85,6 +86,7 @@ public class InjectExecutionStep implements ActionStep {
   private final PreviewFeatureService previewFeatureService;
   private final AttackPathExecutionIngestionService attackPathIngestion;
   private final AttackPathFindingIngestionService attackPathFindingIngestion;
+  private final AttackPathVerdictSyncService attackPathVerdictSync;
   private final InjectExpectationService injectExpectationService;
 
   private final InjectorContractRepository injectorContractRepository;
@@ -254,6 +256,25 @@ public class InjectExecutionStep implements ActionStep {
     }
   }
 
+  /**
+   * Pushes the step's expectation verdicts (prevention / detection / vulnerability) onto the
+   * attack-path projection: flag-gated and non-fatal, like the two ingestion hooks above. The sync
+   * opens its own tenant-scoped REQUIRES_NEW transaction, so a failure here is caught and logged
+   * and can never roll the step update back. Runs on every execution event; the writes are guarded,
+   * so replaying the same results changes nothing.
+   */
+  private void syncAttackPathVerdicts(
+      Step stepRun, Inject inject, List<BaseInjectExpectation> expectations) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
+      return;
+    }
+    try {
+      attackPathVerdictSync.sync(stepRun, inject, expectations);
+    } catch (Exception e) {
+      log.warn("Attack-path verdict sync skipped for inject {} (non-fatal)", inject.getId(), e);
+    }
+  }
+
   /** Loads the concrete payload subtype (Command, Executable, etc.) into the injector contract. */
   private void prepareGetStatusPayloadFromInject(InjectorContract injectorContract) {
     if (injectorContract.getPayload() == null) {
@@ -310,7 +331,10 @@ public class InjectExecutionStep implements ActionStep {
     }
 
     // FORMAT EXPECTATION TO OUTPUT STEP
-    formatExpectationToOutput(injectId, output);
+    List<BaseInjectExpectation> expectations = formatExpectationToOutput(injectId, output);
+
+    // SYNC the same verdicts onto the attack-path projection (per event, idempotent, non-fatal)
+    syncAttackPathVerdicts(stepRun, inject, expectations);
 
     // UPDATE step output
     if (!output.isEmpty()) {
@@ -1167,18 +1191,21 @@ public class InjectExecutionStep implements ActionStep {
    *
    * @param injectId Inject id
    * @param output the output list to populate
+   * @return the inject's expectations, so the caller can sync the same verdicts elsewhere without a
+   *     second read
    */
-  private void formatExpectationToOutput(String injectId, List<Map<String, JsonElement>> output) {
+  private List<BaseInjectExpectation> formatExpectationToOutput(
+      String injectId, List<Map<String, JsonElement>> output) {
     List<BaseInjectExpectation> expectations = injectExpectationService.findAllByInjectId(injectId);
     Inject inject = injectService.inject(injectId);
     for (BaseInjectExpectation expectation : expectations) {
       for (InjectExpectationResult result : expectation.getResults()) {
         Map<String, JsonElement> map = getExpectationOutput(expectation, result);
         addEndpointContext(inject, expectation, map);
-        // syncAttackPathExecutionStatus(injectId, expectation, result, map);
         output.add(map);
       }
     }
+    return expectations;
   }
 
   /**
