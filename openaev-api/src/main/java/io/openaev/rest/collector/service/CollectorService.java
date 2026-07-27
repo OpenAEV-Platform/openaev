@@ -307,7 +307,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   @Transactional(rollbackFor = Exception.class)
   public void deleteCollector(@NotBlank final String collectorId) throws ConnectorStatusException {
     if (!deleteOwningConnectorInstance(collectorId)) {
-      collectorRepository.deleteByIdAndTenantId(collectorId, TenantContext.getCurrentTenant());
+      collectorRepository.deleteByCollectorId(collectorId);
     }
   }
 }

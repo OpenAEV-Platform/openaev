@@ -1,6 +1,5 @@
 package io.openaev.service.connectors;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
@@ -12,7 +11,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Output> {
+public abstract class AbstractConnectorService<T extends BaseConnectorEntity & TenantIdBase, Output> {
   protected final ConnectorType connectorType;
   protected final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   protected final CatalogConnectorService catalogConnectorService;
@@ -215,14 +214,15 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
    */
   protected boolean deleteOwningConnectorInstance(String connectorId)
       throws ConnectorStatusException {
-    if (getConnectorById(connectorId) == null) {
+    T connector = getConnectorById(connectorId);
+    if (connector == null) {
       // Not a connector of the current tenant (or not registered): nothing to tear down here,
       // the caller's tenant-scoped row delete decides what happens.
       return false;
     }
     ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
         connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
-            this.connectorType.getIdKeyName(), connectorId, TenantContext.getCurrentTenant());
+            this.connectorType.getIdKeyName(), connectorId, connector.getTenantId());
     if (relatedIds == null || relatedIds.getConnectorInstanceId() == null) {
       return false;
     }

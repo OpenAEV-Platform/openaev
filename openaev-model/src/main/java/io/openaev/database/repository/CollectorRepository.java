@@ -46,14 +46,6 @@ public interface CollectorRepository
               )
           """)
   List<Collector> findByInjectId(@Param("injectId") String injectId);
-
-
-  @Modifying
-  @Query(
-      nativeQuery = true,
-      value = "DELETE FROM collectors WHERE collector_id = :id AND tenant_id = :tenantId")
-  void deleteByIdAndTenantId(@Param("id") String id, @Param("tenantId") String tenantId);
-
   /**
    * Deletes a collector by its ID only. Tenant scoping is handled by the v2 SQL inspector, which
    * rewrites this DELETE the same way it rewrites SELECTs on active tables.
