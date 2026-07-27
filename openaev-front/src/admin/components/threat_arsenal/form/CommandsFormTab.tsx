@@ -206,7 +206,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           {/* PREREQUISITE */}
           <InjectFormSection
             title={t('Prerequisites')}
-            helper={t('Commands run beforehand to make sure the arsenal item can execute.')}
+            helper={t('Commands run beforehand to make sure the action can execute.')}
           >
             {prerequisitesFields.map((prerequisitesField, prerequisitesIndex) => (
               <div
@@ -250,7 +250,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           {/* CLEANUP */}
           <InjectFormSection
             title={t('Cleanup command')}
-            helper={t('Executed after the arsenal item to restore the asset to its initial state.')}
+            helper={t('Executed after the action to restore the asset to its initial state.')}
           >
             <SelectFieldController name="action_cleanup_executor" label={t('Executor')} items={executorsItems} />
             <TextFieldController variant="outlined" multiline rows={3} name="action_cleanup_command" />

@@ -29,7 +29,7 @@ const OutputFormTab = () => {
   return (
     <>
       <Alert severity="info" variant="outlined">
-        {t('Define structured outputs by parsing the raw output of your arsenal item.')}
+        {t('Define structured outputs by parsing the raw output of your action.')}
         {' '}
         <Link
           href="https://docs.openaev.io/latest/usage/threat-arsenals/threat-arsenals/#output-parsers"

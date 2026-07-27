@@ -114,7 +114,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         maxLength={255}
       />
       <GridLegacy container spacing={2}>
-        <GridLegacy item xs={7}>
+        <GridLegacy item xs={6}>
           <SelectField
             variant="standard"
             fullWidth={true}
@@ -132,7 +132,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
             ))}
           </SelectField>
         </GridLegacy>
-        <GridLegacy item xs={5}>
+        <GridLegacy item xs={6}>
           <SelectField
             variant="standard"
             fullWidth={true}

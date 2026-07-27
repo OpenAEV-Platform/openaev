@@ -77,7 +77,7 @@ const RemediationFormTabs = ({ actionId }: RemediationFormTabsProps) => {
   return (
     <InjectFormSection
       title={t('Security platforms')}
-      helper={t('Document how each security platform detects and remediates this arsenal item.')}
+      helper={t('Document how each security platform detects and remediates this action.')}
     >
       {loading && <Loader variant="inElement" />}
       {!loading && tabs.length === 0 && (

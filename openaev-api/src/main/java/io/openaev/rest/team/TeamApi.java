@@ -17,6 +17,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.*;
+import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -28,6 +29,7 @@ import io.openaev.rest.team.form.TeamCreateInput;
 import io.openaev.rest.team.form.TeamUpdateInput;
 import io.openaev.rest.team.form.UpdateUsersTeamInput;
 import io.openaev.rest.team.output.TeamOutput;
+import io.openaev.service.InjectSearchService;
 import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
 import io.openaev.utils.FilterUtilsJpa;
@@ -40,6 +42,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
@@ -79,6 +82,7 @@ public class TeamApi extends RestBehavior {
   private final TagRepository tagRepository;
   private final TeamService teamService;
   private final UserService userService;
+  private final InjectSearchService injectSearchService;
 
   @LogExecutionTime
   @GetMapping({TEAM_URI, TENANT_TEAM_URI})
@@ -116,6 +120,35 @@ public class TeamApi extends RestBehavior {
   @Operation(description = "Find a list of teams based on their ids", summary = "Find teams")
   public List<TeamOutput> findTeams(@RequestBody @Valid @NotNull final List<String> teamIds) {
     return this.teamService.find(fromIds(teamIds));
+  }
+
+  /**
+   * "Injects played" for the team detail page: every inject (atomic testing or simulation inject)
+   * that concerns this team, whether it was targeted directly or evidenced by the table-top
+   * expectations persisted at execution time. This matches the scope of the team expectation
+   * counters, unlike the plain atomic-testing search which only sees direct targeting of standalone
+   * injects.
+   */
+  @LogExecutionTime
+  @PostMapping({
+    TEAM_URI + "/{teamId}/injects/search",
+    TENANT_TEAM_URI + "/{teamId}/injects/search"
+  })
+  @AccessControl(
+      resourceId = "#teamId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.TEAM)
+  @Transactional(readOnly = true)
+  @ApiResponses(
+      value = {@ApiResponse(responseCode = "200", description = "The injects played by the team")})
+  @Operation(
+      summary = "Search injects played by team",
+      description =
+          "Search every inject that concerns the team (direct targeting or execution evidence)")
+  public Page<InjectResultOutput> searchInjectsForTeam(
+      @PathVariable @NotBlank final String teamId,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return injectSearchService.getPageOfInjectResultsForTeam(teamId, searchPaginationInput);
   }
 
   @GetMapping({"/api/teams/{teamId}", TENANT_TEAM_URI + "/{teamId}"})

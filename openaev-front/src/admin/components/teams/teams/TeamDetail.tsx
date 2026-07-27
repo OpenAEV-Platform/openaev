@@ -4,13 +4,12 @@ import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useCallback, useContext, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
-import { searchAtomicTestings } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { searchDistinctFindings } from '../../../../actions/findings/finding-actions';
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
 import { fetchOrganizations } from '../../../../actions/Organization';
 import { searchPlayers } from '../../../../actions/players/player-actions';
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
-import { fetchTeam, fetchTeamPlayers, searchTeams, updateTeamPlayers } from '../../../../actions/teams/team-actions';
+import { fetchTeam, fetchTeamPlayers, searchInjectsForTeam, searchTeams, updateTeamPlayers } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { DetailHero, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
@@ -36,6 +35,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import InjectResultList from '../../atomic_testings/InjectResultList';
+import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import { TeamContext, type TeamContextType } from '../../common/Context';
 import TeamPlayers from '../../components/teams/TeamPlayers';
 import TeamPopover from '../../components/teams/TeamPopover';
@@ -105,9 +105,13 @@ const TeamDetail = () => {
     'team-injects',
     buildSearchPagination({ sorts: initSorting('inject_updated_at', 'DESC') }),
   );
+  // Injects played: every inject (atomic testing or simulation inject) that
+  // concerns this team - targeted directly or evidenced by the table-top
+  // expectations persisted at execution time. Same scope as the expectation
+  // counters in the hero, so the list and the counters stay consistent.
   const fetchInjectsPlayed = useCallback(
     (input: SearchPaginationInput): Promise<{ data: Page<InjectResultOutput> }> =>
-      searchAtomicTestings(withFilter(input, 'inject_teams', [teamId])) as Promise<{ data: Page<InjectResultOutput> }>,
+      searchInjectsForTeam(teamId, input) as Promise<{ data: Page<InjectResultOutput> }>,
     [teamId],
   );
 
@@ -328,7 +332,7 @@ const TeamDetail = () => {
         <SectionBlock title={t('Injects played')}>
           <InjectResultList
             fetchInjects={fetchInjectsPlayed}
-            goTo={injectId => `/admin/atomic_testings/${injectId}`}
+            goTo={injectResultDetailPath}
             queryableHelpers={injectsHelpers}
             searchPaginationInput={injectsInput}
             contextId={teamId}

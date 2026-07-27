@@ -72,6 +72,10 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
     LLM_FIREWALL,
     @JsonProperty("AI_GATEWAY")
     AI_GATEWAY,
+    // Vulnerability assessment tools (e.g. the Nuclei injector) that fulfill
+    // VULNERABILITY expectations themselves and appear as the verdict source.
+    @JsonProperty("VULNERABILITY_SCANNER")
+    VULNERABILITY_SCANNER,
   }
 
   @Queryable(filterable = true, sortable = true)

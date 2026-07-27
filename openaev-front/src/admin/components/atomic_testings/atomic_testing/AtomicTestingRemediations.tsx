@@ -11,7 +11,6 @@ import { fetchSecurityPlatforms } from '../../../../actions/assets/securityPlatf
 import { fetchSecurityPlatformsForAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { postDetectionRemediationAIRulesByInject } from '../../../../actions/detection-remediation/detectionremediation-action';
 import { fetchPayloadDetectionRemediationsByInject } from '../../../../actions/injects/inject-action';
-import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
@@ -229,15 +228,6 @@ const AtomicTestingRemediations = () => {
       <Typography variant="body2" color="text.secondary">
         {t('No detection rule available for this security platform yet.')}
       </Typography>
-      {activePlatform && (
-        <DetectionRemediationUseAriane
-          key={activePlatform.asset_id}
-          securityPlatformId={activePlatform.asset_id}
-          securityPlatformName={activePlatform.asset_name}
-          detectionRemediationContent={activeDetectionRemediation?.detection_remediation_values}
-          onSubmit={onClickUseAriane}
-        />
-      )}
     </Paper>
   );
 
@@ -265,7 +255,6 @@ const AtomicTestingRemediations = () => {
             gap: 1,
           }}
         >
-          <Typography sx={SECTION_LABEL_SX}>{t('Detection Rule')}</Typography>
           <Box
             sx={{
               'fontFamily': '"IBM Plex Mono", "Roboto Mono", monospace',
@@ -376,11 +365,15 @@ const AtomicTestingRemediations = () => {
         gap: 1.5,
       }}
       >
+        {/* Toolbar of the active platform pane: the platform itself is already announced by the
+            selected tab on the left, so the title states what the pane contains (the detection
+            rule) and the AI generation action sits top right - no repeated platform name, no
+            dead corner. */}
         <Box sx={{
           display: 'flex',
           alignItems: 'center',
           gap: 1,
-          minHeight: 34,
+          minHeight: 36,
         }}
         >
           <PolicyOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
@@ -389,10 +382,19 @@ const AtomicTestingRemediations = () => {
             fontWeight: 600,
           }}
           >
-            {activePlatform?.asset_name}
+            {t('Detection Rule')}
           </Typography>
           {activeDetectionRemediation?.detection_remediation_values && (
             <DetectionRemediationInfo author_rule={activeDetectionRemediation?.detection_remediation_author_rule} />
+          )}
+          {activePlatform && (
+            <DetectionRemediationUseAriane
+              key={activePlatform.asset_id}
+              securityPlatformId={activePlatform.asset_id}
+              securityPlatformName={activePlatform.asset_name}
+              detectionRemediationContent={activeDetectionRemediation?.detection_remediation_values}
+              onSubmit={onClickUseAriane}
+            />
           )}
         </Box>
         {renderRuleBody()}

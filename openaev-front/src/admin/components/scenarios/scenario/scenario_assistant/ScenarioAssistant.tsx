@@ -551,7 +551,7 @@ const ScenarioAssistant: FunctionComponent = () => {
                     paddingInline: 1.5,
                   }}
                 >
-                  {t('With arsenal items')}
+                  {t('With actions')}
                 </ToggleButton>
               </ToggleButtonGroup>
             </Box>

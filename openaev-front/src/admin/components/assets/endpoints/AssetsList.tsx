@@ -1,4 +1,4 @@
-import { DevicesOtherOutlined, HelpOutlineOutlined } from '@mui/icons-material';
+import { HelpOutlineOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, type ReactElement } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -11,6 +11,7 @@ import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type AssetOutput } from '../../../../utils/api-types';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
+import AssetCategoryIcon from '../AssetCategoryIcon';
 import { type AssetPopoverProps } from './AssetPopover';
 
 // Header labels are still rendered without sort handles when no sortHelpers
@@ -149,7 +150,9 @@ const AssetsList = <T extends AssetOutput>({
             secondaryAction={component(asset)}
           >
             <ListItemIcon>
-              <DevicesOtherOutlined color="primary" />
+              {/* Same category-aware glyph as the assets inventory page, so a web app,
+                  cloud resource or AI target never shows the generic device icon. */}
+              <AssetCategoryIcon category={asset.asset_category} color="primary" />
             </ListItemIcon>
             <ListItemText
               primary={(

@@ -1,5 +1,6 @@
 import {
   BoltOutlined,
+  BugReportOutlined,
   DevicesOtherOutlined,
   FingerprintOutlined,
   HubOutlined,
@@ -29,6 +30,7 @@ export const SECURITY_PLATFORM_TYPE_COLORS: Record<SecurityPlatformType, string>
   ISPM: '#ff7043',
   LLM_FIREWALL: '#00f1bd',
   AI_GATEWAY: '#7e57c2',
+  VULNERABILITY_SCANNER: '#ef5350',
 };
 
 // One icon per security platform type.
@@ -41,6 +43,7 @@ export const SECURITY_PLATFORM_TYPE_ICONS: Record<SecurityPlatformType, Componen
   ISPM: FingerprintOutlined,
   LLM_FIREWALL: SecurityOutlined,
   AI_GATEWAY: SmartToyOutlined,
+  VULNERABILITY_SCANNER: BugReportOutlined,
 };
 
 // Canonical label per security platform type. Labels keep their original (upper)
@@ -55,6 +58,7 @@ export const SECURITY_PLATFORM_TYPE_LABELS: Record<SecurityPlatformType, string>
   ISPM: 'ISPM',
   LLM_FIREWALL: 'LLM FIREWALL',
   AI_GATEWAY: 'AI GATEWAY',
+  VULNERABILITY_SCANNER: 'VULN SCANNER',
 };
 
 // Case-insensitive resolution so a stored "Siem" still resolves to "SIEM".

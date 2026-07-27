@@ -111,7 +111,8 @@ public enum AssetSubCategory {
   NDR(AssetCategory.SECURITY_PLATFORM),
   ISPM(AssetCategory.SECURITY_PLATFORM),
   LLM_FIREWALL(AssetCategory.SECURITY_PLATFORM),
-  AI_GATEWAY(AssetCategory.SECURITY_PLATFORM);
+  AI_GATEWAY(AssetCategory.SECURITY_PLATFORM),
+  VULNERABILITY_SCANNER(AssetCategory.SECURITY_PLATFORM);
 
   private final AssetCategory category;
 
