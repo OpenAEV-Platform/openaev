@@ -13,6 +13,7 @@ import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { PermissionsContext, ReportContext, type ReportContextType } from '../../../common/Context';
 import Reports from '../../../components/reports/Reports';
+import GeneratedReports from '../generated_reports/GeneratedReports';
 import ExerciseReportForm from './ExerciseReportForm';
 
 interface ReportListProps {
@@ -69,6 +70,7 @@ const ExerciseReports: FunctionComponent<ReportListProps> = ({ exerciseId, exerc
         </Box>
       )}
       <Reports reports={reports} navigateToReportPage={navigateToReportPage} />
+      <GeneratedReports exerciseId={exerciseId} />
       {permissions.canManage && (
         <>
           <Dialog

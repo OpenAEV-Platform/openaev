@@ -63,6 +63,12 @@ const LeftBar = () => {
           label: 'Findings',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.FINDINGS),
         },
+        {
+          path: '/admin/reports',
+          icon: () => (<DescriptionOutlined />),
+          label: 'Reports',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT),
+        },
       ],
     },
     {

@@ -4847,6 +4847,42 @@ export interface FullTextSearchResult {
   tags?: Tag[];
 }
 
+export interface GeneratedReport {
+  /** @format date-time */
+  generated_report_created_at: string;
+  generated_report_created_by?: string;
+  generated_report_document?: string;
+  generated_report_error_message?: string;
+  generated_report_exercise?: string;
+  /** @minLength 1 */
+  generated_report_id: string;
+  generated_report_label?: string;
+  generated_report_scenario?: string;
+  generated_report_status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+  generated_report_template: "TECHNICAL" | "EXECUTIVE";
+  generated_report_trigger_source:
+    | "MANUAL"
+    | "AUTO_ON_COMPLETION"
+    | "SCHEDULED";
+  /** @format date-time */
+  generated_report_updated_at: string;
+  listened?: boolean;
+}
+
+export interface GeneratedReportInput {
+  generated_report_label?: string;
+  generated_report_template: "TECHNICAL" | "EXECUTIVE";
+  generated_report_trigger_source?:
+    | "MANUAL"
+    | "AUTO_ON_COMPLETION"
+    | "SCHEDULED";
+}
+
+export interface GeneratedReportStatusInput {
+  generated_report_error_message?: string;
+  generated_report_status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+}
+
 export interface GetExercisesInput {
   exercise_ids?: string[];
 }

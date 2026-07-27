@@ -40,6 +40,7 @@ const ProfileTriggers = lazy(() => import('./components/profile/triggers/Trigger
 const FullTextSearch = lazy(() => import('./components/search/FullTextSearch'));
 const Findings = lazy(() => import('./components/findings/Findings'));
 const FindingOverview = lazy(() => import('./components/findings/FindingOverview'));
+const AllReports = lazy(() => import('./components/reports/AllReports'));
 const Exercises = lazy(() => import('./components/simulations/Simulations'));
 const IndexExercise = lazy(() => import('./components/simulations/simulation/Index'));
 const SimulationInjectCreation = lazy(() => import('./components/simulations/simulation/injects/SimulationInjectCreationRoute'));
@@ -190,6 +191,18 @@ const Index = () => {
                     subject: SUBJECTS.FINDINGS,
                   }]}
                   Component={errorWrapper(FindingOverview)()}
+                />
+              )}
+            />
+            <Route
+              path="reports"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.ASSESSMENT,
+                  }]}
+                  Component={errorWrapper(AllReports)()}
                 />
               )}
             />

@@ -36,6 +36,7 @@ const ScenarioScope = lazy(() => import('./scope/ScenarioScope'));
 const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
 const ScenarioStatistics = lazy(() => import('./analysis/ScenarioAnalysis'));
 const ScenarioAttackPath = lazy(() => import('./attack_path/ScenarioAttackPath'));
+const ScenarioReports = lazy(() => import('./reports/ScenarioReports'));
 
 const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = ({ scenario }) => {
   const { t } = useFormatter();
@@ -192,6 +193,12 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
                     value={`/admin/scenarios/${scenario.scenario_id}/statistics`}
                     label={t('Statistics')}
                   />
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}/reports`}
+                    value={`/admin/scenarios/${scenario.scenario_id}/reports`}
+                    label={t('Reports')}
+                  />
                 </Tabs>
               )
             }
@@ -211,6 +218,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
               {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(ScenarioAttackPath)()} />}
               {/* Scenario-scoped custom dashboard, surfaced as the Statistics tab. */}
               <Route path="statistics" element={errorWrapper(ScenarioStatistics)()} />
+              <Route path="reports" element={errorWrapper(ScenarioReports)()} />
               {/* Statistics replaced the hero dashboard quick action and the old
                   Analysis tab; keep redirects for old links. */}
               <Route path="dashboard" element={<Navigate to={`/admin/scenarios/${scenario.scenario_id}/statistics`} replace />} />

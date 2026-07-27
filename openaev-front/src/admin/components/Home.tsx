@@ -15,6 +15,7 @@ import { type TenantSettingsOutput, type User } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
 import DefaultHomeDashboard from './default_dashboard/DefaultHomeDashboard';
+import GenerateGlobalReportQuickButton from './simulations/simulation/generated_reports/GenerateGlobalReportQuickButton';
 import CustomDashboardWrapper from './workspaces/custom_dashboards/CustomDashboardWrapper';
 import XtmHubDialogPermissionRequired from './xtm_hub/dialog/permission-required/XtmHubDialogPermissionRequired';
 
@@ -62,6 +63,14 @@ const Home = () => {
   return (
     <>
       <XtmHubDialogPermissionRequired />
+      <div style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        marginBottom: 8,
+      }}
+      >
+        <GenerateGlobalReportQuickButton />
+      </div>
       <CustomDashboardWrapper
         configuration={configuration}
         noDashboardSlot={<DefaultHomeDashboard />}
