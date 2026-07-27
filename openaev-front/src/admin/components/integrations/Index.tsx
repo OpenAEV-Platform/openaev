@@ -50,12 +50,14 @@ const Index = () => {
             <Route index element={<Navigate to="../deployed" replace={true} />} />
             <Route path=":executorId" element={<ConnectorPage />} />
           </Route>
+
           {isCredentialAssetEnabled && (
             <Route path="secrets-providers" element={errorWrapper(SecretsProviderLayout)()}>
               <Route index element={<Navigate to="../deployed" replace={true} />} />
               <Route path=":secrets_providerId" element={<ConnectorPage />} />
             </Route>
           )}
+
           {/* deployed / available tabs of the merged integrations page */}
           <Route path=":tab" element={errorWrapper(Integrations)()} />
 

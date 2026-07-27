@@ -6,8 +6,6 @@ import io.openaev.database.model.ConnectorType;
 import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.secrets.provider.SecretsProviderType;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
 import io.openaev.service.FileService;
