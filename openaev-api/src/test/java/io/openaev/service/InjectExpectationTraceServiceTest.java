@@ -255,6 +255,31 @@ class InjectExpectationTraceServiceTest {
         .findAllWithAgentsByInjectAndAsset(anyString(), anyString(), any());
   }
 
+  @Test
+  void getInjectExpectationTracesFromCollector_DuplicateAlerts_KeepsNewestDeterministically() {
+    // Arrange: the same physical alert stored on two agent expectations, returned by the DB in
+    // arbitrary order (oldest first here since the query has no ORDER BY); the aggregated view
+    // must always keep the newest occurrence as the representative
+    Instant now = Instant.now();
+    InjectExpectationTrace olderTrace = buildTrace("Shared Alert", "http://shared-link.com");
+    olderTrace.setAlertDate(now.minusSeconds(3600));
+    InjectExpectationTrace newerTrace = buildTrace("Shared Alert", "http://shared-link.com");
+    newerTrace.setAlertDate(now);
+    when(injectExpectationRepository.findById(injectExpectationId)).thenReturn(Optional.empty());
+    when(injectExpectationTraceRepository.findByExpectationsAndSecurityPlatform(
+            anyCollection(), anyString()))
+        .thenReturn(List.of(olderTrace, newerTrace));
+
+    // Act
+    List<InjectExpectationTrace> result =
+        injectExpectationTraceService.getInjectExpectationTracesFromCollector(
+            injectExpectationId, securityPlatformId);
+
+    // Assert
+    assertEquals(1, result.size());
+    assertEquals(newerTrace, result.get(0));
+  }
+
   private DetectionInjectExpectation buildAssetLevelExpectation(final String expectationId) {
     Inject inject = new Inject();
     inject.setId(UUID.randomUUID().toString());

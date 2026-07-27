@@ -62,20 +62,33 @@ public class InjectExpectationTraceService {
 
   /**
    * A trace belongs to exactly one expectation, and the collector stores the same physical alert
-   * once per matching agent expectation (unique per expectation + source + name + link). When
-   * several expectations are rolled up onto the endpoint row, that alert would therefore be listed
-   * and counted once per agent; keep only the first occurrence of each (name, link) pair so the
-   * aggregated view reflects distinct alerts. Single-expectation lookups are unaffected (the
-   * uniqueness constraint already forbids duplicates there).
+   * once per matching agent expectation. When several expectations are rolled up onto the endpoint
+   * row, that alert would therefore be listed and counted once per agent; keep a single
+   * representative per (name, link) pair so the aggregated view reflects distinct alerts. The DB
+   * query has no ORDER BY, so the traces are first sorted (newest alert first, id as the final
+   * tie-break) to make the chosen representative - and the date it displays - deterministic.
+   * Single-expectation lookups also go through here: the uniqueness constraint on (expectation,
+   * source, name, link) treats NULLs as distinct, so duplicate rows remain possible when the alert
+   * name or link is NULL.
    *
    * @param traces the traces returned for the resolved expectation ids
-   * @return the traces with per-agent duplicates of the same alert removed, original order kept
+   * @return the distinct alerts, newest first, per-agent duplicates removed
    */
   private List<InjectExpectationTrace> deduplicateByAlertIdentity(
       final List<InjectExpectationTrace> traces) {
+    List<InjectExpectationTrace> sortedTraces = new ArrayList<>(traces);
+    sortedTraces.sort(
+        Comparator.comparing(
+                InjectExpectationTrace::getAlertDate,
+                Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(
+                InjectExpectationTrace::getCreatedAt,
+                Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(
+                InjectExpectationTrace::getId, Comparator.nullsLast(Comparator.naturalOrder())));
     Set<AlertIdentity> seenAlerts = new HashSet<>();
     List<InjectExpectationTrace> distinctTraces = new ArrayList<>();
-    for (InjectExpectationTrace trace : traces) {
+    for (InjectExpectationTrace trace : sortedTraces) {
       if (seenAlerts.add(new AlertIdentity(trace.getAlertName(), trace.getAlertLink()))) {
         distinctTraces.add(trace);
       }
