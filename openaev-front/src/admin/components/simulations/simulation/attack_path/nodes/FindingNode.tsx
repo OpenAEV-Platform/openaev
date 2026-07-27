@@ -16,6 +16,7 @@ const FindingNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) => {
   // Verdict colour (green/orange/red) by default; blue only when this finding is the selected path.
   const verdict = data.status ? attackPathStatusColor(theme, data.status) : theme.palette.divider;
   const color = selected ? theme.palette.primary.main : verdict;
+  const value = maskFindingValue(data.typeFindings, data.label);
   return (
     <div
       style={{
@@ -32,21 +33,28 @@ const FindingNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) => {
     >
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
       {/* Value centred above the icon, in the verdict (expectation-result) colour, so the causal edge
-          leaving the icon on the right never crushes it. */}
+          leaving the icon on the right never crushes it. A finding value can be long (an NTLM hash, a UNC
+          share path…): cap the width and ellipsise (full value on hover) so it never sprawls sideways over
+          the neighbouring edge labels or adjacent finding rows. */}
       <Typography
         variant="caption"
+        title={value}
         sx={{
           position: 'absolute',
           bottom: '100%',
           left: '50%',
           transform: 'translateX(-50%)',
           mb: 0.5,
+          maxWidth: 200,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          textAlign: 'center',
           fontWeight: 700,
           color,
         }}
       >
-        {maskFindingValue(data.typeFindings, data.label)}
+        {value}
       </Typography>
       <FindingIcon findingType={data.typeFindings ?? ''} />
       <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
