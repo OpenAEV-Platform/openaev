@@ -8391,7 +8391,6 @@ export interface PlatformSettings {
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
     | "ATTACK_PATH"
-    | "AUDIT_LOG"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** True if the Tanium Executor is enabled */
@@ -8687,7 +8686,6 @@ export interface PublicPlatformSettings {
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
     | "ATTACK_PATH"
-    | "AUDIT_LOG"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */

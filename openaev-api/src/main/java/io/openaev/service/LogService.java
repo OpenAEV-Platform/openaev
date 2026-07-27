@@ -17,7 +17,6 @@ import io.openaev.database.model.User;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.engine.EngineService;
 import io.openaev.engine.model.log.LogEvent;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.log.LogUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
@@ -63,10 +62,7 @@ public class LogService {
   // -- Public API --
 
   public boolean isEnabled() {
-    boolean isAuditConfigured =
-        auditLogProperties.isEnabled()
-            && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
-    if (!isAuditConfigured) {
+    if (!auditLogProperties.isEnabled()) {
       return false;
     }
 

@@ -15,7 +15,6 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.helper.CryptoHelper;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -269,7 +268,6 @@ class LogServiceTest {
   @DisplayName("Given event with entity diffs, should include diffs in context")
   void given_eventWithEntityDiffs_should_includeDiffs() {
     // Arrange
-    when(previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)).thenReturn(true);
     when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
     when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
 
