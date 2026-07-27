@@ -1,17 +1,17 @@
 import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LabelOutlined, LocalFireDepartment, PlayArrowOutlined, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
-import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, GlobalStyles, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
-import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchExecutionDetail, fetchFindingsByCategory, fetchSimulationsMetaById } from '../../../../../actions/attack-path/attack-path-actions';
+import { fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchExecutionDetail, fetchFindingsByCategory, fetchSimulationsMetaById } from '../../../../../actions/attack-path/attack-path-actions';
 import { createRunningExerciseFromScenario } from '../../../../../actions/scenarios/scenario-actions';
 import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { SIMULATION_BASE_URL } from '../../../../../constants/BaseUrls';
-import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
+import type { AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 import attackPathStatusColor, { attackPathChokepointColor } from './attack-path-colors';
 import { AP_ALL_ENDPOINTS, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
@@ -21,6 +21,7 @@ import AttackPathTableView, { type AttackPathEndpointRow } from './AttackPathTab
 import EndpointDetailPanel from './EndpointDetailPanel';
 import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
 import FindingDetailPanel, { type FindingExpectations, type ProducingAction } from './FindingDetailPanel';
+import useAttackPathLiveGraph from './useAttackPathLiveGraph';
 
 // A hot endpoint can have many executions; the read is bounded to the one endpoint, but the side
 // panel still renders a list, so cap it (the backend /relations read would be paginated in prod).
@@ -65,6 +66,26 @@ const CRITICALITY_LABEL: Record<string, string> = {
   MEDIUM: 'Medium',
   LOW: 'Low',
   UNKNOWN: 'Unknown',
+};
+
+// Entrance affordance for nodes a live update just added: a short fade-in, only for users who have not
+// asked for reduced motion (the keyframes live behind the media query, so with the preference set the
+// class simply does nothing).
+const AP_NODE_ENTER_CLASS = 'ap-node-enter';
+const AP_ENTRANCE_STYLES = {
+  '@media (prefers-reduced-motion: no-preference)': {
+    '@keyframes apNodeEnter': {
+      from: {
+        opacity: 0,
+        transform: 'scale(0.94)',
+      },
+      to: {
+        opacity: 1,
+        transform: 'scale(1)',
+      },
+    },
+    [`.${AP_NODE_ENTER_CLASS}`]: { animation: 'apNodeEnter 420ms ease-out' },
+  },
 };
 
 // Synthetic seeded simulations (POST /attack-path/seed) carry no real date/name; keep them hidden
@@ -207,18 +228,45 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   const [simulationId, setSimulationId] = useState(exerciseId ?? '');
   const [simulations, setSimulations] = useState<AttackPathSimSummaryRow[]>([]);
   const [metaById, setMetaById] = useState<Map<string, ExerciseSimple>>(new Map());
-  const [dto, setDto] = useState<AttackPathDTO | null>(null);
-  // Per-injector kill-chain metadata (dependsOn / consumedFindingKeys) for the causal overlay. The
-  // collapsed DTO (setDto) omits the per-execution kill-chain fields (applyKillChain is full-mode only),
-  // so both the causal meta and the causal-chain layout are sourced from a separate, size-gated full-mode
-  // fetch (see the effect below), kept in their own state.
-  const [killChainMeta, setKillChainMeta] = useState<ReturnType<typeof buildKillChainMeta>>(new Map());
-  // Full-mode graph (executions + produced findings), fetched only for small runs (see the gated effect).
-  // Drives the causal execution-chain layout; null for large runs (fall back to the aggregated view).
-  const [fullDto, setFullDto] = useState<AttackPathDTO | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-  const [forbidden, setForbidden] = useState(false);
+  // The selected run's status, from the picker metadata. A finished/canceled run produces nothing more,
+  // so live updating stops there; an unknown status (synthetic seed simulations) is treated as live.
+  const selectedRunStatus = metaById.get(simulationId)?.exercise_status;
+  const runTerminal = selectedRunStatus === 'FINISHED' || selectedRunStatus === 'CANCELED';
+  // The causal overlay needs the per-execution kill-chain fields, which only the full graph carries, so
+  // it is seeded only under the size ceiling (mirrors the backend collapse-threshold) — a large run never
+  // downloads a full payload. The gate uses the initial summary-row count; a run that grows past the
+  // ceiling mid-view keeps its overlay until reselect.
+  const fullEligible = useMemo(() => {
+    const row = simulations.find(s => s.simulationId === simulationId);
+    return !!row && (row.executionCount ?? 0) <= CAUSAL_META_MAX_EXECUTIONS;
+  }, [simulations, simulationId]);
+
+  // One accumulated graph, live (issue 6647): a snapshot then versioned deltas on a single 3 s poll,
+  // serving BOTH render modes. `dto` (collapsed clustered) and `fullDto` (full causal chain) are derived
+  // projections of that store, so every existing consumer keeps its shape — and a delta commit touches
+  // graph data only, never the selection/expansion/drawer state below.
+  const {
+    dto,
+    fullDto,
+    loading,
+    error,
+    forbidden,
+    freshness,
+    lastUpdatedAt,
+    newNodeIds,
+    changedFindingTypes,
+  } = useAttackPathLiveGraph({
+    simulationId,
+    fullEligible,
+    terminal: runTerminal,
+  });
+  // Per-injector kill-chain metadata (dependsOn / consumedFindingKeys) for the causal overlay, derived
+  // from the full projection: the store hands back the same object while nothing changed, so this only
+  // recomputes when the causal data actually moved.
+  const killChainMeta = useMemo<ReturnType<typeof buildKillChainMeta>>(
+    () => (fullDto ? buildKillChainMeta(fullDto) : new Map()),
+    [fullDto],
+  );
   // Card focus: a summary card mapped to its finding types (dim everything off that path).
   const [activeCard, setActiveCard] = useState<AttackPathFindingFilter | null>(null);
 
@@ -331,7 +379,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     document.body.style.userSelect = 'none';
   }, [panelWidth, onResizeMove, onResizeEnd]);
 
-  // Always collapsed-first: the graph auto-loads on simulation change, clustered by injector.
+  // Hard reset on simulation change: drop everything the user had opened/expanded for the previous run
+  // and re-read its graph from scratch. Deliberately NOT what a delta does — a live update keeps every
+  // one of these (FR8); only switching simulations (or an explicit reload) wipes them.
   const load = useCallback(() => {
     if (!simulationId) {
       return;
@@ -340,9 +390,6 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     graphSeq.current = seq;
     // A simulation switch also invalidates any in-flight endpoint read from the previous graph.
     endpointSeq.current += 1;
-    setLoading(true);
-    setError(false);
-    setForbidden(false);
     setEndpointBatch(new Map());
     setExpandedFindingClusters(new Set());
     setFindingsByCluster(new Map());
@@ -360,119 +407,11 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     setHighlightedExecutionIds(new Set());
     setFocusRequest(null);
     setPathFinding(null);
-    fetchAttackPathGraph(simulationId, 'collapsed')
-      .then((r) => {
-        if (seq === graphSeq.current) {
-          setDto(r.data);
-        }
-      })
-      .catch((err) => {
-        if (seq !== graphSeq.current) {
-          return;
-        }
-        // Clear the previous simulation's graph so a failed load shows an error, not stale data.
-        setDto(null);
-        if (err?.status === 403) {
-          setForbidden(true);
-        } else {
-          setError(true);
-        }
-      })
-      .finally(() => {
-        if (seq === graphSeq.current) {
-          setLoading(false);
-        }
-      });
   }, [simulationId]);
 
   useEffect(() => {
     load();
   }, [load]);
-
-  // Live refresh: an on-going run keeps discovering endpoints/findings, so poll the graph on an interval
-  // and update it in place. Deliberately silent — no spinner, no selection/drawer reset (unlike `load`),
-  // and it only swaps state when the payload actually changed, so an open drawer and the current pan/zoom
-  // survive a refresh and a stable graph never churns. A transient error is swallowed (keep last good
-  // graph); the seq guard drops ticks from a previous simulation. Stops on unmount / simulation switch.
-  useEffect(() => {
-    if (!simulationId) {
-      return undefined;
-    }
-    let cancelled = false;
-    const REFRESH_MS = 10000;
-    const timer = setInterval(() => {
-      fetchAttackPathGraph(simulationId, 'collapsed')
-        .then((r) => {
-          // `cancelled` (set on unmount / simulation switch) drops a response that resolves after this
-          // run is no longer current, so a stale simulation's data never lands.
-          if (cancelled) {
-            return;
-          }
-          setDto(prev => (JSON.stringify(prev) === JSON.stringify(r.data) ? prev : r.data));
-        })
-        .catch(() => {
-          // Keep the last good graph on a transient failure; the next tick retries.
-        });
-    }, REFRESH_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [simulationId]);
-
-  // Causal overlay data source (issue 6647) + live refresh. The collapsed graph omits the per-execution
-  // kill-chain fields, so we fetch the full graph (to derive the per-injector meta AND to drive the
-  // causal-chain layout), gated on the execution count (mirrors the backend collapse-threshold) so a
-  // large run never pulls a full payload. Within the gate we also POLL it, so a running chained run
-  // (which renders from fullDto, not dto) live-updates like the collapsed graph does. The gate uses the
-  // initial summary-row count; a run that grows past the ceiling mid-view keeps its overlay until reselect.
-  useEffect(() => {
-    if (!simulationId) {
-      setKillChainMeta(new Map());
-      setFullDto(null);
-      return undefined;
-    }
-    const row = simulations.find(s => s.simulationId === simulationId);
-    // No summary row yet, or above the ceiling: no overlay. Clear any state from a previous simulation.
-    if (!row || (row.executionCount ?? 0) > CAUSAL_META_MAX_EXECUTIONS) {
-      setKillChainMeta(new Map());
-      setFullDto(null);
-      return undefined;
-    }
-    let cancelled = false;
-    let lastJson = '';
-    const REFRESH_MS = 10000;
-    const applyFull = () =>
-      fetchAttackPathGraph(simulationId, 'full')
-        .then((r) => {
-          if (cancelled) {
-            return;
-          }
-          // Skip the swap when nothing changed, so an open drawer / pan-zoom and a stable graph never
-          // churn (same discipline as the collapsed poll).
-          const json = JSON.stringify(r.data);
-          if (json === lastJson) {
-            return;
-          }
-          lastJson = json;
-          setFullDto(r.data);
-          setKillChainMeta(buildKillChainMeta(r.data));
-        })
-        .catch(() => {
-          // Initial fetch failed: show no overlay (never leak the previous simulation's). After a first
-          // success, keep the last good overlay on a transient failure; the next tick retries.
-          if (!cancelled && lastJson === '') {
-            setFullDto(null);
-            setKillChainMeta(new Map());
-          }
-        });
-    applyFull();
-    const timer = setInterval(applyFull, REFRESH_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [simulationId, simulations]);
 
   // Load the picker options once (simulations that have attack-path data in this tenant), then
   // resolve real simulations' date + name so the picker reads dates instead of raw ids. In scenario
@@ -788,6 +727,32 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       }))
       .finally(() => setFindingsLoading(false));
   }, [simulationId]);
+
+  // A live update that touched the open category's findings refreshes its rows silently: the same
+  // bounded read runs again and swaps the loaded page, while the user's search text, current page and
+  // scroll position stay exactly where they were (FR8) — no spinner, no drawer reset.
+  useEffect(() => {
+    if (!drawerCategory || changedFindingTypes.length === 0) {
+      return undefined;
+    }
+    const types = FILTER_TO_FINDING_TYPES[drawerCategory] ?? [drawerCategory];
+    if (!changedFindingTypes.some(type => types.includes(type))) {
+      return undefined;
+    }
+    let cancelled = false;
+    fetchFindingsByCategory(simulationId, drawerCategory, 0, DRAWER_FETCH_SIZE)
+      .then((r) => {
+        if (!cancelled) {
+          setFindingsPage(r.data);
+        }
+      })
+      .catch(() => {
+        // Keep the rows already listed; the next delta touching this category retries.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [changedFindingTypes, drawerCategory, simulationId]);
 
   // Click a finding item in the drawer: close the drawer and refocus the map on ONLY the attack path
   // that produced it (injector(s) -> endpoint -> finding), fitted to an overview. The endpoint's feed
@@ -1477,6 +1442,62 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   );
   const graphEdges = useMemo(() => [...edges, ...causalEdges], [edges, causalEdges]);
 
+  // Entrance affordance (issue 6647): the nodes a live update just introduced get a class that fades
+  // them in, batched per delta rather than per entity, and disabled entirely under
+  // prefers-reduced-motion (see AP_ENTRANCE_STYLES). Nothing else about the node changes, so its
+  // position and identity are untouched.
+  const graphNodes = useMemo(() => {
+    if (newNodeIds.length === 0) {
+      return nodes;
+    }
+    const entering = new Set(newNodeIds);
+    return nodes.map(n => (entering.has(n.id)
+      ? {
+          ...n,
+          className: [n.className, AP_NODE_ENTER_CLASS].filter(Boolean).join(' '),
+        }
+      : n));
+  }, [nodes, newNodeIds]);
+
+  // One screen-reader announcement per delta batch — a summary of what arrived, never one message per
+  // entity (a burst of executions would otherwise flood the live region).
+  const liveSummary = useMemo(() => {
+    if (newNodeIds.length === 0) {
+      return '';
+    }
+    const endpoints = newNodeIds.filter(id => id.startsWith('NODE_ENDPOINT|')).length;
+    const findings = newNodeIds.filter(id => id.startsWith('NODE_FINDING|')).length;
+    const parts: string[] = [];
+    if (endpoints > 0) {
+      parts.push(`${endpoints} ${t('new endpoints')}`);
+    }
+    if (findings > 0) {
+      parts.push(`${findings} ${t('new findings')}`);
+    }
+    return parts.length > 0 ? parts.join(' · ') : t('Attack path updated');
+  }, [newNodeIds, t]);
+
+  // Discreet freshness indicator (FR10): whether the view is still updating itself, retrying after a
+  // failed tick (with when the last good data landed), or done because the run is over.
+  const freshnessLabel = (() => {
+    if (freshness === 'reconnecting') {
+      return t('Reconnecting…');
+    }
+    return freshness === 'finished' ? t('Run finished') : t('Live');
+  })();
+  const freshnessTitle = (() => {
+    const lastUpdate = lastUpdatedAt
+      ? `${t('Last update')}: ${fldt(new Date(lastUpdatedAt).toISOString())}`
+      : '';
+    if (freshness === 'reconnecting') {
+      return [t('Updates interrupted, retrying — showing the last known attack path.'), lastUpdate].filter(Boolean).join(' ');
+    }
+    if (freshness === 'finished') {
+      return [t('The simulation is over: the attack path is final.'), lastUpdate].filter(Boolean).join(' ');
+    }
+    return [t('The attack path updates itself as the simulation runs.'), lastUpdate].filter(Boolean).join(' ');
+  })();
+
   const counters = dto?.counters;
   const focusedEndpoint = useMemo(
     () => (pathFinding
@@ -1809,7 +1830,6 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   const scenarioHasNoSims = showPicker && simulations.length === 0;
   // A run still in progress hasn't produced anything yet — say so (and the graph live-refreshes), rather
   // than showing the "no data" message that suggests something is wrong.
-  const selectedRunStatus = metaById.get(simulationId)?.exercise_status;
   const runInProgress = selectedRunStatus === 'RUNNING' || selectedRunStatus === 'PAUSED';
   const emptyStateMessage = (() => {
     if (scenarioHasNoSims) {
@@ -1852,6 +1872,22 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       gap: theme.spacing(1),
     }}
     >
+      <GlobalStyles styles={AP_ENTRANCE_STYLES} />
+      {/* Live updates are announced once per batch, off-screen: sighted users see the nodes appear. */}
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        style={{
+          position: 'absolute',
+          width: 1,
+          height: 1,
+          overflow: 'hidden',
+          clip: 'rect(0 0 0 0)',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {liveSummary}
+      </div>
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -1926,6 +1962,19 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               onClick={clearPathFocus}
             />
           )}
+          <Tooltip title={freshnessTitle}>
+            <Chip
+              size="small"
+              variant="outlined"
+              label={freshnessLabel}
+              color={freshness === 'reconnecting' ? 'warning' : 'default'}
+              sx={{
+                // Deliberately quiet: it reports a state, it is not an action.
+                opacity: freshness === 'finished' ? 0.6 : 0.85,
+                fontSize: 11,
+              }}
+            />
+          </Tooltip>
           <ToggleButtonGroup
             size="small"
             exclusive
@@ -2319,7 +2368,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               {!loading && !forbidden && !error && graphHasContent && (
                 <ReactFlowProvider>
                   <AttackPathFlow
-                    nodes={nodes}
+                    nodes={graphNodes}
                     edges={graphEdges}
                     onEndpointClick={onEndpointClick}
                     onClusterClick={onClusterClick}
