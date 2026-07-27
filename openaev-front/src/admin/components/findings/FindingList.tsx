@@ -175,6 +175,24 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
 
   const visibleHeaders = headers.filter(h => !hiddenFields.includes(h.field));
 
+  // The column widths above are percentages of the full six-column table: hiding columns would
+  // otherwise leave the remainder crammed on the left with dead space on the right (the assets chips
+  // truncating while the row is half empty). Re-spread the hidden columns' share over the visible
+  // ones, keeping their relative proportions.
+  const visibleStyles: Record<string, CSSProperties> = (() => {
+    const widthOf = (field: string) => Number.parseFloat(String(inlineStyles[field]?.width ?? '0'));
+    const totalWidth = visibleHeaders.reduce((sum, h) => sum + widthOf(h.field), 0);
+    if (totalWidth <= 0 || totalWidth >= 100) {
+      return inlineStyles;
+    }
+    return Object.fromEntries(
+      visibleHeaders.map(h => [h.field, {
+        ...inlineStyles[h.field],
+        width: `${(widthOf(h.field) / totalWidth) * 100}%`,
+      }]),
+    );
+  })();
+
   return (
     <>
       <PaginationComponentV2
@@ -201,14 +219,14 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
             primary={(
               <SortHeadersComponentV2
                 headers={visibleHeaders}
-                inlineStylesHeaders={inlineStyles}
+                inlineStylesHeaders={visibleStyles}
                 sortHelpers={queryableHelpers.sortHelpers}
               />
             )}
           />
         </ListItem>
         {loading
-          ? <PaginatedListLoader Icon={Binoculars} headers={visibleHeaders} headerStyles={inlineStyles} />
+          ? <PaginatedListLoader Icon={Binoculars} headers={visibleHeaders} headerStyles={visibleStyles} />
           : findings.map(finding => (
               <ListItem
                 key={finding.finding_id}
@@ -233,7 +251,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
                             key={header.field}
                             style={{
                               ...bodyItemsStyles.bodyItem,
-                              ...inlineStyles[header.field],
+                              ...visibleStyles[header.field],
                             }}
                           >
                             {header.value && header.value(finding)}

@@ -1802,6 +1802,46 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // Focus a chokepoint endpoint: redraw the graph as the focused endpoint path (injectors -> endpoint
   // -> its finding clusters) and open its side panel (findings + executions). Uses the endpoint-focus
   // mode of buildFindingPathFlow (empty finding type/value).
+  // Entering an endpoint focus, pre-expand every finding-type cluster of that endpoint: the analyst
+  // came here to read the findings, so making them click each cluster open adds a step with no
+  // information gain. One fetch feeds every cluster (they all read the same endpoint).
+  const expandFocusedEndpointClusters = useCallback((endpointNodeId: string, ref: string) => {
+    const counts = (dto?.attackPathNodes ?? []).find(n => n.id === endpointNodeId)?.findingCounts ?? {};
+    const types = Object.entries(counts).filter(([, v]) => (v ?? 0) > 0).map(([type]) => type);
+    if (types.length === 0) {
+      return;
+    }
+    const clusterIdOf = (type: string) => `path-cl-type|${type}|${ref}`;
+    setExpandedFindingClusters(new Set(types.map(clusterIdOf)));
+    setFindingBatch((prev) => {
+      const next = new Map(prev);
+      types.forEach(type => next.set(clusterIdOf(type), FINDING_BATCH_SIZE));
+      return next;
+    });
+    fetchEndpointFindings(simulationId, ref)
+      .then((r) => {
+        const byType = new Map<string, AttackPathNodeDTO[]>();
+        const seen = new Set<string>();
+        for (const f of r.data.findings ?? []) {
+          const type = f.typeFindings ?? '';
+          const key = `${type}|${f.value ?? f.id ?? ''}`;
+          if (seen.has(key)) {
+            continue;
+          }
+          seen.add(key);
+          const list = byType.get(type) ?? [];
+          list.push(f);
+          byType.set(type, list);
+        }
+        setFindingsByCluster((prev) => {
+          const next = new Map(prev);
+          byType.forEach((list, type) => next.set(clusterIdOf(type), list));
+          return next;
+        });
+      })
+      .catch(() => undefined);
+  }, [dto, simulationId]);
+
   const focusChokepoint = (c: {
     nodeId: string;
     ref: string;
@@ -1824,6 +1864,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     });
     setFitNonce(n => n + 1);
     onEndpointClick(c.nodeId, c.ref, c.label);
+    expandFocusedEndpointClusters(c.nodeId, c.ref);
   };
 
   // Keep the selected value in the options so MUI does not warn when the current simulation has no
