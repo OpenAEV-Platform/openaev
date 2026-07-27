@@ -23,6 +23,10 @@ const useSortState = (initSorts: SortField[] = [], onChange?: (sorts: SortField[
       setSortBy(field);
       setSortAsc(prev => !prev);
     }, []),
+    handleDirectedSort: useCallback((field: string, asc: boolean) => {
+      setSortBy(field);
+      setSortAsc(asc);
+    }, []),
     getSortBy: useCallback(() => sortBy, [sortBy]),
     getSortAsc: useCallback(() => sortAsc, [sortAsc]),
   };

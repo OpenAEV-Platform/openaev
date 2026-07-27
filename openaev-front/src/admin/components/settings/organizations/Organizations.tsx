@@ -1,80 +1,33 @@
-import { DomainOutlined, FileDownloadOutlined } from '@mui/icons-material';
-import { IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
-import { type CSSProperties } from 'react';
-import { CSVLink } from 'react-csv';
+import { DomainOutlined } from '@mui/icons-material';
+import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { type CSSProperties, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
-import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
-import { fetchOrganizations } from '../../../../actions/Organization';
+import { searchOrganizations } from '../../../../actions/organizations/organization-actions';
+import { fetchTags } from '../../../../actions/tags/tag-action';
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
+import PaginatedList from '../../../../components/common/list/PaginatedList';
+import { initSorting } from '../../../../components/common/queryable/Page';
+import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
+import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
+import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
+import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
+import { type Header } from '../../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
-import SearchFilter from '../../../../components/SearchFilter';
+import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { SECURITY_ORGANIZATION_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
-import { type Organization } from '../../../../utils/api-types';
-import { exportData } from '../../../../utils/Environment';
+import { type Organization, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import useSearchAndFilter from '../../../../utils/SortingFiltering';
-import { truncate } from '../../../../utils/String';
-import TagsFilter from '../../common/filters/TagsFilter';
+import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import SecurityMenu from '../SecurityMenu';
 import CreateOrganization from './CreateOrganization';
 import OrganizationPopover from './OrganizationPopover';
-
-const useStyles = makeStyles()(() => ({
-  parameters: {
-    marginTop: -10,
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  filters: {
-    display: 'flex',
-    gap: '10px',
-  },
-  itemHead: {
-    textTransform: 'uppercase',
-    cursor: 'pointer',
-    paddingLeft: 10,
-  },
-  downloadButton: {
-    marginRight: 15,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-}));
-
-const inlineStylesHeaders: Record<string, CSSProperties> = {
-  iconSort: {
-    position: 'absolute',
-    margin: '0 0 0 5px',
-    padding: 0,
-    top: '0px',
-  },
-  organization_name: {
-    width: '30%',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  organization_description: {
-    width: '40%',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  organization_tags: {
-    width: '30%',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-};
 
 const inlineStyles: Record<string, CSSProperties> = {
   organization_name: { width: '30%' },
@@ -90,22 +43,13 @@ const Organizations = () => {
   // Standard hooks
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { classes } = useStyles();
-  const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
 
-  // Fetching data
-  const { organizations, tagsMap }: {
-    organizations: ReturnType<OrganizationHelper['getOrganizations']>;
-    tagsMap: ReturnType<TagHelper['getTagsMap']>;
-  }
-    = useHelper((helper: UserHelper & TagHelper & OrganizationHelper) => ({
-      organizations: helper.getOrganizations(),
-      tagsMap: helper.getTagsMap(),
-    }));
+  // Tags map, needed by the edit form inside the popover
+  const { tagsMap } = useHelper((helper: TagHelper) => ({ tagsMap: helper.getTagsMap() }));
 
   useDataLoader(() => {
-    dispatch(fetchOrganizations());
+    dispatch(fetchTags());
   });
 
   // Query param
@@ -113,168 +57,109 @@ const Organizations = () => {
   const [search] = searchParams.getAll('search');
   const [searchId] = searchParams.getAll('id');
 
-  // Filter and sort hook
-  const filtering = useSearchAndFilter(
-    'organization',
-    'name',
-    [
-      'name',
-      'description',
-    ],
-    { defaultKeyword: search },
-  );
+  // Headers
+  const headers: Header[] = useMemo(() => [
+    {
+      field: 'organization_name',
+      label: 'Name',
+      isSortable: true,
+      value: (organization: Organization) => organization.organization_name,
+    },
+    {
+      field: 'organization_description',
+      label: 'Description',
+      isSortable: true,
+      value: (organization: Organization) => organization.organization_description || '-',
+    },
+    {
+      field: 'organization_tags',
+      label: 'Tags',
+      isSortable: false,
+      value: (organization: Organization) => <ItemTags variant="list" tags={organization.organization_tags} />,
+    },
+  ], []);
 
-  const sortedOrganizations: Organization[] = filtering.filterAndSort(organizations);
+  const availableFilterNames = [
+    'organization_name',
+    'organization_tags',
+  ];
+
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('security-organizations', buildSearchPagination({
+    sorts: initSorting('organization_name'),
+    textSearch: search,
+  }));
+
+  const [loading, setLoading] = useState<boolean>(true);
+  const searchOrganizationsToLoad = (input: SearchPaginationInput) => {
+    setLoading(true);
+    return searchOrganizations(input).finally(() => setLoading(false));
+  };
 
   return (
     <div style={{ display: 'flex' }}>
       <div style={{ flexGrow: 1 }}>
         <Breadcrumbs
           variant="list"
-          elements={[{ label: t('Settings') }, { label: t('Security') }, {
+          elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Security') }, {
             label: t('Organizations'),
             current: true,
           }]}
         />
-        <div className={classes.parameters}>
-          <div className={classes.filters}>
-            <SearchFilter
-              variant="small"
-              onChange={filtering.handleSearch}
-              keyword={filtering.keyword}
-            />
-            <TagsFilter
-              onAddTag={filtering.handleAddTag}
-              onRemoveTag={filtering.handleRemoveTag}
-              currentTags={filtering.tags}
-              tagsFetched
-            />
-          </div>
-          <div className={classes.downloadButton}>
-            {sortedOrganizations.length > 0 ? (
-              <CSVLink
-                data={exportData(
-                  'organization',
-                  [
-                    'organization_name',
-                    'organization_description',
-                    'organization_tags',
-                  ],
-                  sortedOrganizations,
-                  tagsMap,
-                )}
-                filename={`${t('Organizations')}.csv`}
-              >
-                <Tooltip title={t('Export this list')}>
-                  <IconButton size="large">
-                    <FileDownloadOutlined color="primary" />
-                  </IconButton>
-                </Tooltip>
-              </CSVLink>
-            ) : (
-              <IconButton size="large" disabled>
-                <FileDownloadOutlined />
-              </IconButton>
-            )}
+        <PaginationComponentV2
+          fetch={searchOrganizationsToLoad}
+          searchPaginationInput={searchPaginationInput}
+          setContent={setOrganizations}
+          entityPrefix="organization"
+          availableFilterNames={availableFilterNames}
+          queryableHelpers={queryableHelpers}
+          topBarButtons={(
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-              <CreateOrganization />
+              <CreateOrganization
+                onCreate={(result: Organization) => setOrganizations(prev => [result, ...prev])}
+              />
             </Can>
-          </div>
-        </div>
-        <div className="clearfix" />
+          )}
+        />
         <List>
           <ListItem
-            classes={{ root: classes.itemHead }}
             divider={false}
-            style={{ paddingTop: 0 }}
             secondaryAction={<>&nbsp;</>}
+            style={{ paddingTop: 0 }}
           >
             <ListItemIcon />
             <ListItemText
+              style={{ textTransform: 'uppercase' }}
               primary={(
-                <div style={bodyItemsStyles.bodyItems}>
-                  {filtering.buildHeader(
-                    'organization_name',
-                    'Name',
-                    true,
-                    inlineStylesHeaders,
-                  )}
-                  {filtering.buildHeader(
-                    'organization_description',
-                    'Description',
-                    true,
-                    inlineStylesHeaders,
-                  )}
-                  {filtering.buildHeader(
-                    'organization_tags',
-                    'Tags',
-                    true,
-                    inlineStylesHeaders,
-                  )}
-                </div>
+                <SortHeadersComponentV2
+                  headers={headers}
+                  inlineStylesHeaders={inlineStyles}
+                  sortHelpers={queryableHelpers.sortHelpers}
+                />
               )}
             />
-            <ListItemSecondaryAction> &nbsp; </ListItemSecondaryAction>
           </ListItem>
-          {sortedOrganizations.map(organization => (
-            <ListItem
-              key={organization.organization_id}
-              secondaryAction={(
-                <OrganizationPopover
-                  organization={organization}
-                  tagsMap={tagsMap}
-                  openEditOnInit={organization.organization_id === searchId}
+          {loading
+            ? <PaginatedListLoader Icon={DomainOutlined} headers={headers} headerStyles={inlineStyles} />
+            : (
+                <PaginatedList<Organization>
+                  Icon={DomainOutlined}
+                  secondaryAction={organization => (
+                    <OrganizationPopover
+                      organization={organization}
+                      tagsMap={tagsMap}
+                      onUpdate={(result: Organization) => setOrganizations(prev => prev.map(o => (o.organization_id !== result.organization_id ? o : result)))}
+                      onDelete={(result: string) => setOrganizations(prev => prev.filter(o => (o.organization_id !== result)))}
+                      openEditOnInit={organization.organization_id === searchId}
+                    />
+                  )}
+                  headers={headers}
+                  items={organizations}
+                  rowKey="organization_id"
+                  onRowClick={organization => navigate(`${SECURITY_ORGANIZATION_BASE_URL}/${organization.organization_id}`)}
+                  itemWidth={inlineStyles}
                 />
               )}
-              divider
-              disablePadding
-            >
-              <ListItemButton
-                onClick={() => navigate(`${SECURITY_ORGANIZATION_BASE_URL}/${organization.organization_id}`)}
-                sx={{ height: 50 }}
-              >
-                <ListItemIcon>
-                  <DomainOutlined color="primary" />
-                </ListItemIcon>
-                <ListItemText
-                  primary={(
-                    <div style={bodyItemsStyles.bodyItems}>
-                      <div
-                        style={{
-                          ...bodyItemsStyles.bodyItem,
-                          ...inlineStyles.organization_name,
-                        }}
-                      >
-                        {organization.organization_name}
-                      </div>
-                      <div
-                        style={{
-                          ...bodyItemsStyles.bodyItem,
-                          ...inlineStyles.organization_description,
-                        }}
-                      >
-                        {truncate(
-                          organization.organization_description || '-',
-                          50,
-                        )}
-                      </div>
-                      <div
-                        style={{
-                          ...bodyItemsStyles.bodyItem,
-                          ...inlineStyles.organization_tags,
-                        }}
-                      >
-                        <ItemTags
-                          variant="list"
-                          tags={organization.organization_tags}
-                        />
-                      </div>
-                    </div>
-                  )}
-                />
-              </ListItemButton>
-            </ListItem>
-          ))}
         </List>
       </div>
       <SecurityMenu />

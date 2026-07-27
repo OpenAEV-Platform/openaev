@@ -14,8 +14,10 @@ import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
+import io.openaev.rest.injector_contract.output.InjectorContractAuthorCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
+import io.openaev.rest.injector_contract.output.InjectorContractFacetCountsOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -96,6 +98,44 @@ public class InjectorContractApi extends RestBehavior {
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
     return injectorContractService.getDomainCounts(filtered);
+  }
+
+  /**
+   * Platform, kill-chain-phase and payload-status facet counts under the current filters, powering
+   * the live count badges of the inject-contract picker sidebar (the domain and author facets have
+   * their own endpoints).
+   */
+  @Operation(summary = "Platform, kill chain phase and status facet counts for the contract picker")
+  @PostMapping({
+    INJECTOR_CONTRACT_URL + "/facet-counts",
+    TENANT_INJECTOR_CONTRACT_URL + "/facet-counts"
+  })
+  @Transactional
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
+  public InjectorContractFacetCountsOutput getFacetCounts(
+      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+    SearchPaginationInput filtered = handleArchitectureFilter(input);
+    return new InjectorContractFacetCountsOutput(
+        injectorContractService.getPlatformCounts(filtered),
+        injectorContractService.getKillChainPhaseCounts(filtered),
+        injectorContractService.getStatusCounts(filtered));
+  }
+
+  /**
+   * Author facet counts under the current filters, so the inject-contract picker sidebar can show
+   * every author and grey out the zero-count ones (mirrors the Threat Arsenal author facet).
+   */
+  @Operation(summary = "Author facet counts for the inject contract picker")
+  @PostMapping({
+    INJECTOR_CONTRACT_URL + "/author-counts",
+    TENANT_INJECTOR_CONTRACT_URL + "/author-counts"
+  })
+  @Transactional
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
+  public List<InjectorContractAuthorCountOutput> getAuthorCounts(
+      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+    SearchPaginationInput filtered = handleArchitectureFilter(input);
+    return injectorContractService.getAuthorCounts(filtered);
   }
 
   /**

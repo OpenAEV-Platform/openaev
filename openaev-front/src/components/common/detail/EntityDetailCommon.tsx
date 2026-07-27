@@ -3,6 +3,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
+import { compactNumber } from '../../../utils/number';
 // The shared section-subtitle style lives in a component-free module so it does
 // not trip react-refresh/only-export-components on this component file.
 import { SECTION_LABEL_SX } from './detailStyles';
@@ -47,8 +48,13 @@ export const Section = ({ title, children }: {
 
 // An information grid section (auto-fitting labelled fields), packed densely
 // into as many columns as fit - the compact, OpenCTI-style overview card.
-export const InformationGrid = ({ title, children }: {
+// The optional `action` slot renders right-aligned in a 32px header row (the
+// ConfigurationSection height); pass `action={null}` to adopt the taller
+// header without an action, so the Paper top-aligns with an action-bearing
+// sibling column in the same grid row.
+export const InformationGrid = ({ title, action, children }: {
   title: string;
+  action?: ReactNode;
   children: ReactNode;
 }) => (
   // Flex column + Paper flex:1 so that, when several InformationGrids sit side by
@@ -60,7 +66,28 @@ export const InformationGrid = ({ title, children }: {
     height: '100%',
   }}
   >
-    <Typography sx={SECTION_LABEL_SX}>{title}</Typography>
+    {action !== undefined
+      ? (
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            minHeight: 32,
+            marginBottom: 1.5,
+          }}
+          >
+            <Typography sx={{
+              ...SECTION_LABEL_SX,
+              marginBottom: 0,
+            }}
+            >
+              {title}
+            </Typography>
+            <div style={{ flex: 1 }} />
+            {action}
+          </Box>
+        )
+      : <Typography sx={SECTION_LABEL_SX}>{title}</Typography>}
     <Paper
       variant="outlined"
       sx={{
@@ -104,10 +131,20 @@ export const SectionLabel = ({ children }: { children: ReactNode }) => (
   <Typography sx={SECTION_LABEL_SX}>{children}</Typography>
 );
 
-export const SectionBlock = ({ title, children, disablePadding }: {
+export const SectionBlock = ({ title, action, children, disablePadding, centerContent }: {
   title: string;
+  // Right-aligned node in a 32px header row (same geometry as the
+  // InformationGrid action slot). Pass `action={null}` to adopt the taller
+  // header without an action, so the Paper top-aligns with an action-bearing
+  // sibling column in the same grid row.
+  action?: ReactNode;
   children: ReactNode;
   disablePadding?: boolean;
+  // Vertically centers the content when a side-by-side sibling stretches the
+  // Paper taller than the content (grid alignItems: stretch). A plain
+  // `height: 100%` on the child does not resolve inside the flex-grown Paper,
+  // so the Paper itself must become the centering flex container.
+  centerContent?: boolean;
 }) => (
   <div style={{
     display: 'flex',
@@ -115,13 +152,38 @@ export const SectionBlock = ({ title, children, disablePadding }: {
     height: '100%',
   }}
   >
-    <Typography sx={SECTION_LABEL_SX}>{title}</Typography>
+    {action !== undefined
+      ? (
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            minHeight: 32,
+            marginBottom: 1.5,
+          }}
+          >
+            <Typography sx={{
+              ...SECTION_LABEL_SX,
+              marginBottom: 0,
+            }}
+            >
+              {title}
+            </Typography>
+            <div style={{ flex: 1 }} />
+            {action}
+          </Box>
+        )
+      : <Typography sx={SECTION_LABEL_SX}>{title}</Typography>}
     <Paper
       variant="outlined"
       sx={{
         padding: disablePadding ? 0 : 2,
         borderRadius: 1,
         flex: 1,
+        ...(centerContent && {
+          display: 'flex',
+          alignItems: 'center',
+        }),
       }}
     >
       {children}
@@ -142,6 +204,10 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
 }) => {
   const theme = useTheme();
   const accent = color ?? theme.palette.primary.main;
+  // Numeric values are shortened ("70.9K") with the exact count in a tooltip;
+  // non-numeric values (percentages, custom nodes) render untouched.
+  const isCompacted = typeof value === 'number' && Math.abs(value) >= 1000;
+  const displayValue = typeof value === 'number' ? compactNumber(value) : value;
   const content = (
     <Box
       sx={{
@@ -183,7 +249,13 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
           color: 'text.primary',
         }}
         >
-          {value}
+          {isCompacted
+            ? (
+                <Tooltip title={(value as number).toLocaleString()}>
+                  <span>{displayValue}</span>
+                </Tooltip>
+              )
+            : displayValue}
         </Typography>
         <Typography sx={{
           fontSize: 9.5,
@@ -207,9 +279,14 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
     : content;
 };
 
-// A horizontal cluster of hero stats separated by hairline dividers, spread
-// across the available width and wrapping on narrow viewports.
-export const HeroStats = ({ children }: { children: ReactNode }) => {
+// A horizontal cluster of hero stats separated by hairline dividers and
+// wrapping on narrow viewports. With `spread`, every stat takes an equal
+// share of the row so the cluster fills the full available width (used by
+// standalone stat bars, e.g. the simulation Execution tab).
+export const HeroStats = ({ children, spread }: {
+  children: ReactNode;
+  spread?: boolean;
+}) => {
   const theme = useTheme();
   return (
     <Box sx={{
@@ -222,6 +299,14 @@ export const HeroStats = ({ children }: { children: ReactNode }) => {
         paddingRight: 4,
         borderRight: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
       },
+      ...(spread
+        ? {
+            '& > *': {
+              flex: 1,
+              minWidth: 150,
+            },
+          }
+        : {}),
     }}
     >
       {children}

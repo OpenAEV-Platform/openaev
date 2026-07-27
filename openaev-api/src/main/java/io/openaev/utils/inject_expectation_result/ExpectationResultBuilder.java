@@ -3,12 +3,14 @@ package io.openaev.utils.inject_expectation_result;
 import static io.openaev.collectors.expectations_vulnerability_manager.ExpectationsVulnerabilityManagerCollector.*;
 import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.service.InjectExpectationService.COLLECTOR;
+import static io.openaev.service.InjectExpectationService.SECURITY_PLATFORM;
 import static java.time.Instant.now;
 import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectationResult;
+import io.openaev.database.model.SecurityPlatform;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationUtils;
@@ -225,6 +227,47 @@ public final class ExpectationResultBuilder {
     }
   }
 
+  /**
+   * Adds (or updates) the result written by a security platform source, mirroring {@link
+   * #addResult(BaseInjectExpectation, InjectExpectationUpdateInput, Collector)} for verdicts that
+   * are attributed to a platform entry instead of a collector (e.g. assessment injectors).
+   */
+  public static void addResult(
+      @NotNull final BaseInjectExpectation baseInjectExpectation,
+      @NotNull final InjectExpectationUpdateInput input,
+      @NotNull final SecurityPlatform securityPlatform) {
+    final double score =
+        InjectExpectationUtils.computeScore(baseInjectExpectation, input.getIsSuccess());
+
+    ensureMutableResults(baseInjectExpectation);
+
+    InjectExpectationResult existing =
+        findResultBySourceId(baseInjectExpectation.getResults(), securityPlatform.getId());
+
+    if (existing != null) {
+      existing.setResult(input.getResult());
+      existing.setScore(score);
+      existing.setMetadata(input.getMetadata());
+    } else {
+      existing =
+          InjectExpectationResult.builder()
+              .sourceId(securityPlatform.getId())
+              .sourceType(SECURITY_PLATFORM)
+              .sourceName(securityPlatform.getName())
+              .sourcePlatform(
+                  securityPlatform.getSecurityPlatformType() != null
+                      ? securityPlatform.getSecurityPlatformType().name()
+                      : null)
+              .sourceAssetId(securityPlatform.getId())
+              .result(input.getResult())
+              .date(Instant.now().toString())
+              .score(score)
+              .metadata(input.getMetadata())
+              .build();
+      baseInjectExpectation.getResults().add(existing);
+    }
+  }
+
   public static void deleteResult(
       @NotNull final BaseInjectExpectation expectation, @NotBlank final String sourceId) {
     expectation.setResults(
@@ -284,6 +327,40 @@ public final class ExpectationResultBuilder {
 
   public static InjectExpectationResult buildDefaultForVulnerabilityManagerInFailed() {
     return buildForVulnerabilityManager(NO_RESULT, NO_SCORE);
+  }
+
+  /**
+   * Builds a result attributed to a real security platform (e.g. the platform entry registered by
+   * an assessment injector such as Nuclei), so the verdict renders as a per-platform row - logo,
+   * type chip and pivot - exactly like detection/prevention platform rows.
+   */
+  public static InjectExpectationResult buildForSecurityPlatform(
+      @NotNull final SecurityPlatform securityPlatform,
+      @Nullable final String result,
+      @Nullable final Double score) {
+    return InjectExpectationResult.builder()
+        .sourceId(securityPlatform.getId())
+        .sourceType(SECURITY_PLATFORM)
+        .sourceName(securityPlatform.getName())
+        .sourcePlatform(
+            securityPlatform.getSecurityPlatformType() != null
+                ? securityPlatform.getSecurityPlatformType().name()
+                : null)
+        .sourceAssetId(securityPlatform.getId())
+        .score(score)
+        .result(result)
+        .date(String.valueOf(Instant.now()))
+        .build();
+  }
+
+  public static InjectExpectationResult buildForSecurityPlatformInFailed(
+      @NotNull final SecurityPlatform securityPlatform) {
+    return buildForSecurityPlatform(securityPlatform, VULNERABILITY.failureLabel, 0.0);
+  }
+
+  public static InjectExpectationResult buildDefaultForSecurityPlatform(
+      @NotNull final SecurityPlatform securityPlatform) {
+    return buildForSecurityPlatform(securityPlatform, NO_RESULT, NO_SCORE);
   }
 
   public static InjectExpectationResult buildDefaultForPlayerManualValidation() {

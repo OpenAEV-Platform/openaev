@@ -16,7 +16,9 @@ import {
   type EsSeries, type Pagination,
   type WidgetToEntitiesInput, type WidgetToEntitiesOutput,
 } from '../../../../utils/api-types';
-import { type WidgetDataDrawerConf } from './widgetDataDrawer/WidgetDataDrawer';
+// A widget element click: the clicked widget plus the clicked scope
+// (field values + series). Consumed by the full-page results explorer.
+export type WidgetResultsConf = WidgetToEntitiesInput & { widgetId: string };
 
 export interface ParameterOption {
   value: string;
@@ -39,9 +41,8 @@ export interface CustomDashboardContextType {
   canChooseDashboard?: boolean;
   handleSelectNewDashboard?: (dashboardId: string) => void;
 
-  // handle widget data drawer
-  openWidgetDataDrawer: (conf: WidgetDataDrawerConf) => void;
-  closeWidgetDataDrawer: () => void;
+  // Widget element clicks land on the full-page results explorer.
+  openWidgetResults: (conf: WidgetResultsConf) => void;
 
   // Grid ready state for loader coordination
   setGridReady: (ready: boolean) => void;
@@ -62,9 +63,8 @@ export const CustomDashboardContext = createContext<CustomDashboardContextType>(
   canChooseDashboard: false,
   handleSelectNewDashboard: undefined,
 
-  // handle widget data drawer
-  openWidgetDataDrawer: () => {},
-  closeWidgetDataDrawer: () => {},
+  // Widget element clicks land on the full-page results explorer.
+  openWidgetResults: () => {},
 
   // Grid ready state for loader coordination
   setGridReady: () => {},

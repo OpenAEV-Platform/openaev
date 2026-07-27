@@ -21,7 +21,7 @@ import FindingContextLink from './FindingContextLink';
 import FindingDetail from './FindingDetail';
 
 // Full-page finding overview: replaces the former drawer so every finding
-// exposes all of its metadata and full pivots (endpoints, injects,
+// exposes all of its metadata and full pivots (assets, injects,
 // simulations, scenarios and - for CVEs - the vulnerability + remediation).
 const FindingOverview = () => {
   const { t, fldt } = useFormatter();
@@ -31,7 +31,7 @@ const FindingOverview = () => {
   const [finding, setFinding] = useState<Finding | null>(null);
   const [cvssScore, setCvssScore] = useState<number | null>(null);
   const [occurrences, setOccurrences] = useState<number | null>(null);
-  const [endpointCount, setEndpointCount] = useState<number | null>(null);
+  const [assetCount, setAssetCount] = useState<number | null>(null);
 
   useEffect(() => {
     fetchFinding(findingId).then(response => setFinding(response.data as Finding));
@@ -51,11 +51,12 @@ const FindingOverview = () => {
         finding_value: finding.finding_value,
         finding_assets: [],
         finding_created_at: finding.finding_created_at,
+        finding_updated_at: finding.finding_updated_at,
       }
     : null), [finding]);
 
-  // Count occurrences and impacted endpoints across the whole platform. The
-  // endpoint count needs every occurrence's assets, so page through the
+  // Count occurrences and impacted assets across the whole platform. The
+  // asset count needs every occurrence's assets, so page through the
   // occurrences (bounded, to stay cheap on pathological findings) and dedupe.
   useEffect(() => {
     if (!finding) return undefined;
@@ -93,11 +94,11 @@ const FindingOverview = () => {
         const totalPages = Math.min(first.data.totalPages ?? 1, maxPages);
         const rest = await Promise.all(Array.from({ length: Math.max(totalPages - 1, 0) }, (_, index) => fetchPage(index + 1)));
         rest.forEach(page => collect(page.data.content));
-        if (!cancelled) setEndpointCount(ids.size);
+        if (!cancelled) setAssetCount(ids.size);
       } catch {
         if (!cancelled) {
           setOccurrences(0);
-          setEndpointCount(null);
+          setAssetCount(null);
         }
       }
     })();
@@ -168,7 +169,7 @@ const FindingOverview = () => {
         stats={(
           <>
             <HeroStat icon={FormatListNumberedOutlined} label={t('Occurrences')} value={occurrences ?? '-'} />
-            <HeroStat icon={DevicesOutlined} label={t('Impacted endpoints')} value={endpointCount ?? '-'} color={theme.palette.primary.main} />
+            <HeroStat icon={DevicesOutlined} label={t('Impacted assets')} value={assetCount ?? '-'} color={theme.palette.primary.main} />
             {isCVE && (
               <HeroStat icon={ShieldOutlined} label={t('CVSS score')} value={cvssScore != null ? cvssScore.toFixed(1) : '-'} color={theme.palette.warning.main} />
             )}
@@ -207,9 +208,11 @@ const FindingOverview = () => {
       </InformationGrid>
 
       {/* Flat list (no surrounding Paper): the section label sits directly above
-          the related-reports list, matching OpenCTI's plain list sections. */}
-      <div>
-        <SectionLabel>{t('Affected endpoints & context')}</SectionLabel>
+          the related-reports list, matching OpenCTI's plain list sections. The
+          extra top margin gives this section a clear break from the Information
+          card above (the shared page gap alone reads as too tight here). */}
+      <div style={{ marginTop: theme.spacing(1) }}>
+        <SectionLabel>{t('Affected assets & context')}</SectionLabel>
         <FindingDetail
           searchFindings={searchFindings}
           selectedFinding={aggregated}

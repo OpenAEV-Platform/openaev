@@ -928,8 +928,8 @@ public class WorkflowService {
 
     // Guard: ignore if workflow run has already ended (e.g. timeout).
     if (this.isWorkflowEnded(workflowRun.getId())) {
-      log.info("Ignoring evalution because workflow run {} has ended.", workflowRun.getId());
-      return workflowRun;
+      log.info(
+          "[Chaining] Ignoring evaluation because workflow run {} has ended.", workflowRun.getId());
     }
 
     // Get all step template
@@ -937,7 +937,7 @@ public class WorkflowService {
 
     if (stepsTemplate.isEmpty()) {
       log.info(
-          "No step template for workflow template {}. End running {}",
+          "[Chaining] No step template for workflow template {}. End running {}",
           workflowTemplateId,
           workflowRun.getId());
       workflowRun.setStatus(WorkflowStatus.END);

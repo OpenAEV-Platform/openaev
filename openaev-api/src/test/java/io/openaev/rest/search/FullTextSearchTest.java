@@ -59,6 +59,7 @@ public class FullTextSearchTest extends IntegrationTest {
   private static Scenario testScenarioCrisis;
   private static Scenario testScenarioIncident;
   private static Asset assetForTest;
+  private static SecurityPlatform securityPlatformForTest;
 
   private User testUser;
 
@@ -74,12 +75,19 @@ public class FullTextSearchTest extends IntegrationTest {
 
     Asset asset = AssetFixture.createDefaultAsset("Asset for full text search test");
     assetForTest = this.assetRepository.save(asset);
+
+    // No word in common with the other fixtures: the ts_rank-based matching is OR-ish
+    // across terms, so any shared token would surface both rows in both searches.
+    securityPlatformForTest =
+        this.assetRepository.save(
+            SecurityPlatformFixture.createDefault("Sentinelish guardian EDR", "EDR"));
   }
 
   @AfterAll
   void afterAll() {
     this.scenarioRepository.deleteAllById(SCENARIO_IDS);
     this.assetRepository.delete(assetForTest);
+    this.assetRepository.delete(securityPlatformForTest);
   }
 
   @AfterEach
@@ -231,6 +239,45 @@ public class FullTextSearchTest extends IntegrationTest {
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.content.size()").value(expectedCount))
         .andExpect(jsonPath("$.content[*].id", containsInAnyOrder(expectedIds.toArray())));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("securityPlatformClazzTestCases")
+  @WithMockUser(isAdmin = true)
+  void search_results_should_expose_the_precise_asset_subclass(
+      String testDisplayName, String searchTerm, String expectedClazz, String expectedId)
+      throws Exception {
+    // -- PREPARE --
+    SearchPaginationInput searchPaginationInput =
+        PaginationFixture.getDefault().textSearch(searchTerm).build();
+
+    // -- EXECUTE --
+    // Security platforms are stored in the assets table, so they surface through the
+    // Asset search category: the result clazz must carry the precise subclass so the
+    // frontend routes to the right overview page.
+    mvc.perform(
+            post(GLOBAL_SEARCH_URI + "/" + Asset.class.getName())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(searchPaginationInput))
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.content.size()").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(expectedId))
+        .andExpect(jsonPath("$.content[0].clazz").value(expectedClazz));
+  }
+
+  private static Stream<Arguments> securityPlatformClazzTestCases() {
+    return Stream.of(
+        Arguments.of(
+            "Security platform result carries the SecurityPlatform clazz",
+            "Sentinelish guardian",
+            SecurityPlatform.class.getSimpleName(),
+            securityPlatformForTest.getId()),
+        Arguments.of(
+            "Plain asset result carries the Asset clazz",
+            "Asset full text",
+            Asset.class.getSimpleName(),
+            assetForTest.getId()));
   }
 
   private static Stream<Arguments> searchAssetTestCases() {

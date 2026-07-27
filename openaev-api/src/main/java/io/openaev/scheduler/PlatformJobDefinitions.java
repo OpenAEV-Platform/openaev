@@ -1,12 +1,17 @@
 package io.openaev.scheduler;
 
+import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_REPLAY_JOB;
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_JOB;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_JOB;
 import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_JOB;
+import static io.openaev.scheduler.jobs.notification.NotificationDigestJob.NOTIFICATION_DIGEST_JOB;
+import static io.openaev.scheduler.jobs.notification.NotificationEventRetentionJob.NOTIFICATION_EVENT_RETENTION_JOB;
 import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_JOB;
 import static org.quartz.JobKey.jobKey;
 
 import io.openaev.scheduler.jobs.*;
+import io.openaev.scheduler.jobs.notification.NotificationDigestJob;
+import io.openaev.scheduler.jobs.notification.NotificationEventRetentionJob;
 import io.openaev.scheduler.jobs.user_event.UserEventRetentionJob;
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
@@ -37,6 +42,14 @@ public class PlatformJobDefinitions {
     return JobBuilder.newJob(ScenarioExecutionJob.class)
         .storeDurably()
         .withIdentity(jobKey("ScenarioExecutionJob"))
+        .build();
+  }
+
+  @Bean
+  public JobDetail getAtomicTestingExecution() {
+    return JobBuilder.newJob(AtomicTestingExecutionJob.class)
+        .storeDurably()
+        .withIdentity(jobKey("AtomicTestingExecutionJob"))
         .build();
   }
 
@@ -118,9 +131,33 @@ public class PlatformJobDefinitions {
   }
 
   @Bean
+  public JobDetail notificationDigestJobDetail() {
+    return JobBuilder.newJob(NotificationDigestJob.class)
+        .withIdentity(NOTIFICATION_DIGEST_JOB)
+        .storeDurably()
+        .build();
+  }
+
+  @Bean
+  public JobDetail notificationEventRetentionJobDetail() {
+    return JobBuilder.newJob(NotificationEventRetentionJob.class)
+        .withIdentity(NOTIFICATION_EVENT_RETENTION_JOB)
+        .storeDurably()
+        .build();
+  }
+
+  @Bean
   public JobDetail urlAccessTokenPurgeJobDetail() {
     return JobBuilder.newJob(UrlAccessTokenPurgeJob.class)
         .withIdentity(URL_ACCESS_TOKEN_PURGE_JOB)
+        .storeDurably()
+        .build();
+  }
+
+  @Bean
+  public JobDetail engineDeletionReplayJobDetail() {
+    return JobBuilder.newJob(EngineDeletionReplayJob.class)
+        .withIdentity(ENGINE_DELETION_REPLAY_JOB)
         .storeDurably()
         .build();
   }

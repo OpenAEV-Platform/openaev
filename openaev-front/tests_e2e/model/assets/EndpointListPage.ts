@@ -10,7 +10,7 @@ class EndpointListPage {
   }
 
   async waitForLoad() {
-    await this.page.waitForURL('**/assets/inventory**');
+    await this.page.waitForURL('**/admin/assets**');
   }
 
   getEndpointByHostname(hostname: string): Locator {

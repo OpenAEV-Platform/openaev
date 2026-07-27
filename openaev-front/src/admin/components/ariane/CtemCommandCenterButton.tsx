@@ -1,6 +1,6 @@
 import { RadarOutlined } from '@mui/icons-material';
 import { IconButton, Tooltip } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../components/i18n';
 import useAuth from '../../../utils/hooks/useAuth';
@@ -37,7 +37,16 @@ const CtemCommandCenterButton = () => {
         href={xtmOneUrl}
         target="_blank"
         rel="noopener noreferrer"
-        sx={{ color: theme.palette.ai.main }}
+        sx={{
+          // Same 36px squared anatomy as the other top bar icon buttons, but
+          // painted with the AI purple: this shortcut belongs to XTM One
+          // (agentic AI), like the Ask Ariane button next to it.
+          'width': 36,
+          'height': 36,
+          'borderRadius': 1,
+          'color': theme.palette.ai.main,
+          '&:hover': { backgroundColor: alpha(theme.palette.ai.main, 0.15) },
+        }}
         aria-label={t('CTEM Command Center')}
       >
         <RadarOutlined fontSize="medium" />

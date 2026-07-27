@@ -55,6 +55,21 @@ public class ThreadPoolTaskSchedulerConfig {
     return executor;
   }
 
+  /** Dedicated executor for the notifications engine (live trigger matching + dispatch). */
+  @Bean(name = "notificationEngineExecutor")
+  public Executor notificationEngineExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setCorePoolSize(2);
+    executor.setMaxPoolSize(4);
+    executor.setQueueCapacity(500);
+    executor.setThreadNamePrefix("NotificationEngine-");
+    // Under event storms (bulk imports), drop the oldest notification evaluations rather than
+    // blocking writers or exhausting memory.
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardOldestPolicy());
+    executor.initialize();
+    return executor;
+  }
+
   /** Dedicated executor for manager integrations tenant sync dispatches. */
   @Bean(name = "managerIntegrationsExecutor")
   public Executor managerIntegrationsExecutor() {

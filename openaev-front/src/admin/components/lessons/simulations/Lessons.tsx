@@ -26,6 +26,7 @@ import { type Inject, type LessonsAnswer, type LessonsCategory, type LessonsQues
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import ConfigurationSection from '../../common/ConfigurationSection';
 import { LessonContext, PermissionsContext } from '../../common/Context';
 import CreateLessonsCategory from '../categories/CreateLessonsCategory';
 import CreateObjective from '../CreateObjective';
@@ -313,37 +314,20 @@ const Lessons: FunctionComponent<Props> = ({
         alignItems: 'stretch',
       }}
       >
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-        }}
+        <ConfigurationSection
+          title={t('Objectives')}
+          count={objectives.length}
+          action={source.isUpdatable ? <CreateObjective /> : undefined}
         >
-          <Typography sx={{
-            ...SECTION_LABEL_SX,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-          }}
-          >
-            {t('Objectives')}
-            {source.isUpdatable && (<CreateObjective />)}
-          </Typography>
           <LessonsObjectives
             objectives={objectives}
             setSelectedObjective={setSelectedObjective}
             source={source}
           />
-        </div>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-        >
-          <Typography sx={SECTION_LABEL_SX}>
-            {t('Crisis intensity (injects by hour)')}
-          </Typography>
+        </ConfigurationSection>
+        <ConfigurationSection title={t('Crisis intensity (injects by hour)')}>
           <CrysisIntensity injects={injects} />
-        </div>
+        </ConfigurationSection>
       </Box>
 
       {/* Categories and questions */}

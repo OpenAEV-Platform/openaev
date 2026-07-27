@@ -1,6 +1,6 @@
 import type { AxiosResponse } from 'axios';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 
 import Loader from '../../../../components/Loader';
@@ -13,15 +13,25 @@ import type {
   WidgetToEntitiesOutput,
 } from '../../../../utils/api-types';
 import CustomDashboardComponent from './CustomDashboardComponent';
-import { CustomDashboardContext, type CustomDashboardContextType, type ParameterOption } from './CustomDashboardContext';
-import type { WidgetDataDrawerConf } from './widgetDataDrawer/WidgetDataDrawer';
+import { CustomDashboardContext, type CustomDashboardContextType, type ParameterOption, type WidgetResultsConf } from './CustomDashboardContext';
 import { LAST_QUARTER_TIME_RANGE } from './widgets/configuration/common/TimeRangeUtils';
 
 const MIN_LOADING_TIME = 800; // Minimum time to show loader to avoid blinking
 
+/**
+ * Where the dashboard definition can be re-fetched from by the full-page
+ * results explorer (each surface reads dashboards through its own
+ * permission-scoped endpoint).
+ */
+export interface ResultsSource {
+  source: 'workspace' | 'tenant' | 'simulation' | 'scenario';
+  contextId?: string;
+}
+
 interface CustomDashboardConfiguration {
   customDashboardId?: CustomDashboard['custom_dashboard_id'];
   paramLocalStorageKey: string;
+  resultsSource?: ResultsSource;
   paramsBuilder?: (dashboardParams: CustomDashboard['custom_dashboard_parameters'], params: Record<string, ParameterOption>) => Promise<Record<string, ParameterOption>> | Record<string, ParameterOption>;
   parentContextId?: string;
   canChooseDashboard?: boolean;
@@ -53,6 +63,7 @@ const CustomDashboardWrapper = ({
   const {
     customDashboardId,
     paramLocalStorageKey,
+    resultsSource,
     paramsBuilder,
     parentContextId: contextId,
     canChooseDashboard,
@@ -85,28 +96,43 @@ const CustomDashboardWrapper = ({
     };
   }, []);
 
-  // Drive the drawer through navigate() rather than useSearchParams(): the
-  // latter would subscribe this provider to every URL change, so opening or
-  // closing the drawer would re-render the whole dashboard subtree (re-running
-  // the parameter-init effect and re-fetching every widget). WidgetDataDrawer
-  // reads useSearchParams() on its own, so only it needs to react to the URL.
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleOpenWidgetDataDrawer = useCallback((conf: WidgetDataDrawerConf) => {
-    const newParams = new URLSearchParams(window.location.search);
-    newParams.set('widget_id', conf.widgetId);
-    newParams.set('series_index', (conf.series_index ?? '').toString());
+  // Every widget element click lands on the full-page results explorer (same
+  // UX as the built-in home dashboard): the clicked scope, the dashboard
+  // source (so the explorer can re-read the widget definition through the
+  // right permission-scoped endpoint), the current parameter values and a
+  // back link to this dashboard all travel through the URL.
+  const handleOpenWidgetResults = useCallback((conf: WidgetResultsConf) => {
+    const params = new URLSearchParams();
+    params.set('widget_id', conf.widgetId);
+    params.set('series_index', (conf.series_index ?? '').toString());
+    const source = resultsSource ?? { source: 'workspace' as const };
+    params.set('source', source.source);
+    if (source.contextId) {
+      params.set('context_id', source.contextId);
+    }
+    if (customDashboardId) {
+      params.set('dashboard_id', customDashboardId);
+    }
+    Object.entries(parameters).forEach(([key, option]) => {
+      if (option.value) {
+        params.set(`param.${key}`, option.value);
+      }
+    });
     if (conf.filter_values_map) {
-      Object.entries(conf.filter_values_map).forEach(([key, value]) => {
-        newParams.set(key, (value ?? []).join(','));
+      // One URL param per value: comma-joining would corrupt values containing
+      // commas, and empty arrays must not produce an empty-string filter value.
+      Object.entries(conf.filter_values_map).forEach(([key, values]) => {
+        (values ?? []).forEach(value => params.append(key, value));
       });
     }
-    navigate({ search: `?${newParams.toString()}` }, { replace: true });
-  }, [navigate]);
-
-  const handleCloseWidgetDataDrawer = useCallback(() => {
-    navigate({ search: '' }, { replace: true });
-  }, [navigate]);
+    // Router-relative path (react-router strips the tenant basename):
+    // window.location would double the tenant prefix on the way back.
+    params.set('back', `${location.pathname}${location.search}`);
+    navigate(`/admin/results?${params.toString()}`);
+  }, [navigate, location, resultsSource, customDashboardId, parameters]);
 
   const setDataReadyWithDelay = () => {
     const elapsed = Date.now() - loadingStartTime.current;
@@ -193,8 +219,7 @@ const CustomDashboardWrapper = ({
     fetchAverage,
     fetchSeries,
     fetchAttackPaths,
-    openWidgetDataDrawer: handleOpenWidgetDataDrawer,
-    closeWidgetDataDrawer: handleCloseWidgetDataDrawer,
+    openWidgetResults: handleOpenWidgetResults,
     setGridReady,
   }), [
     customDashboard,
@@ -209,8 +234,7 @@ const CustomDashboardWrapper = ({
     fetchAverage,
     fetchSeries,
     fetchAttackPaths,
-    handleOpenWidgetDataDrawer,
-    handleCloseWidgetDataDrawer,
+    handleOpenWidgetResults,
   ]);
 
   if (loading) {

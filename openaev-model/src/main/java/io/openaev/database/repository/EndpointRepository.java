@@ -2,7 +2,6 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.AssetType;
 import io.openaev.database.model.Endpoint;
-import io.openaev.database.raw.RawEndpoint;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -156,91 +155,6 @@ public interface EndpointRepository
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindingsWithContext(
       @Param("sourceId") String sourceId, @Param("name") String name, Pageable pageable);
-
-  @Query(
-      value =
-          "WITH changed_assets AS ("
-              + "SELECT a.asset_id FROM assets a WHERE a.asset_type = '"
-              + AssetType.Values.ENDPOINT_TYPE
-              + "' AND a.asset_updated_at > :from "
-              + "UNION "
-              + "SELECT ia.asset_id FROM injects_assets ia "
-              + "JOIN injects i ON ia.inject_id = i.inject_id "
-              + "JOIN assets a ON ia.asset_id = a.asset_id AND a.asset_type = '"
-              + AssetType.Values.ENDPOINT_TYPE
-              + "' WHERE i.inject_updated_at > :from "
-              + "UNION "
-              + "SELECT ia.asset_id FROM injects_assets ia "
-              + "JOIN injects i ON ia.inject_id = i.inject_id "
-              + "JOIN exercises e ON i.inject_exercise = e.exercise_id "
-              + "JOIN assets a ON ia.asset_id = a.asset_id AND a.asset_type = '"
-              + AssetType.Values.ENDPOINT_TYPE
-              + "' WHERE e.exercise_updated_at > :from "
-              + "UNION "
-              + "SELECT ia.asset_id FROM injects_assets ia "
-              + "JOIN injects i ON ia.inject_id = i.inject_id "
-              + "JOIN scenarios s ON i.inject_scenario = s.scenario_id "
-              + "JOIN assets a ON ia.asset_id = a.asset_id AND a.asset_type = '"
-              + AssetType.Values.ENDPOINT_TYPE
-              + "' WHERE s.scenario_updated_at > :from "
-              + "UNION "
-              + "SELECT fa.asset_id FROM findings_assets fa "
-              + "JOIN findings f ON fa.finding_id = f.finding_id "
-              + "JOIN assets a ON fa.asset_id = a.asset_id AND a.asset_type = '"
-              + AssetType.Values.ENDPOINT_TYPE
-              + "' WHERE f.finding_updated_at > :from"
-              + "), "
-              + "inj_maxes AS ("
-              + "SELECT ia.asset_id, max(i.inject_updated_at) AS max_inj, max(e.exercise_updated_at) AS max_ex, max(s.scenario_updated_at) AS max_sc "
-              + "FROM injects_assets ia "
-              + "JOIN injects i ON i.inject_id = ia.inject_id "
-              + "LEFT JOIN exercises e ON e.exercise_id = i.inject_exercise "
-              + "LEFT JOIN scenarios s ON s.scenario_id = i.inject_scenario "
-              + "WHERE ia.asset_id IN (SELECT asset_id FROM changed_assets) "
-              + "GROUP BY ia.asset_id"
-              + "), "
-              + "find_maxes AS ("
-              + "SELECT fa.asset_id, max(f.finding_updated_at) AS max_find "
-              + "FROM findings_assets fa JOIN findings f ON f.finding_id = fa.finding_id "
-              + "WHERE fa.asset_id IN (SELECT asset_id FROM changed_assets) "
-              + "GROUP BY fa.asset_id"
-              + "), "
-              + "ranked_assets AS ("
-              + "SELECT ca.asset_id, GREATEST(a.asset_updated_at, im.max_inj, im.max_ex, im.max_sc, fm.max_find) AS asset_sort "
-              + "FROM changed_assets ca "
-              + "JOIN assets a ON a.asset_id = ca.asset_id "
-              + "LEFT JOIN inj_maxes im ON im.asset_id = ca.asset_id "
-              + "LEFT JOIN find_maxes fm ON fm.asset_id = ca.asset_id "
-              + "ORDER BY asset_sort ASC LIMIT :limit"
-              + "), "
-              + "findings_agg AS ("
-              + "SELECT fa.asset_id, array_agg(DISTINCT fa.finding_id) AS asset_findings "
-              + "FROM findings_assets fa JOIN ranked_assets ra ON ra.asset_id = fa.asset_id GROUP BY fa.asset_id"
-              + "), "
-              + "tags_agg AS ("
-              + "SELECT at.asset_id, array_agg(DISTINCT at.tag_id) AS asset_tags "
-              + "FROM assets_tags at JOIN ranked_assets ra ON ra.asset_id = at.asset_id GROUP BY at.asset_id"
-              + "), "
-              + "ex_agg AS ("
-              + "SELECT ia.asset_id, "
-              + "array_agg(DISTINCT i.inject_exercise) FILTER ( WHERE i.inject_exercise IS NOT NULL ) as endpoint_exercises, "
-              + "array_agg(DISTINCT i.inject_scenario) FILTER ( WHERE i.inject_scenario IS NOT NULL ) as endpoint_scenarios "
-              + "FROM injects_assets ia JOIN ranked_assets ra ON ra.asset_id = ia.asset_id JOIN injects i ON i.inject_id = ia.inject_id "
-              + "GROUP BY ia.asset_id"
-              + ") "
-              + "SELECT a.asset_id, a.asset_type, a.asset_category, a.asset_name, a.asset_external_reference, "
-              + "a.asset_ips as endpoint_ips, a.asset_hostname as endpoint_hostname, a.endpoint_platform, a.endpoint_arch, "
-              + "a.asset_mac_addresses as endpoint_mac_addresses, a.asset_seen_ip as endpoint_seen_ip, a.asset_created_at, a.endpoint_is_eol, a.asset_description, a.tenant_id, "
-              + "ra.asset_sort as endpoint_updated_at, "
-              + "fa.asset_findings, ta.asset_tags, xa.endpoint_exercises, xa.endpoint_scenarios "
-              + "FROM assets a "
-              + "JOIN ranked_assets ra ON ra.asset_id = a.asset_id "
-              + "LEFT JOIN findings_agg fa ON fa.asset_id = a.asset_id "
-              + "LEFT JOIN tags_agg ta ON ta.asset_id = a.asset_id "
-              + "LEFT JOIN ex_agg xa ON xa.asset_id = a.asset_id "
-              + "ORDER BY ra.asset_sort ASC;",
-      nativeQuery = true)
-  List<RawEndpoint> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
   // For testing purposes only
   @Modifying

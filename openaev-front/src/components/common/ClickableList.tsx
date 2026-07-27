@@ -8,7 +8,9 @@ export interface ClickableListHeader<T> {
 }
 
 export interface ClickableListElements<T> {
-  icon: { value: () => ReactElement };
+  // The row element is passed so the icon can depend on the row (e.g. the
+  // category-aware asset glyph); element-agnostic callers can ignore it.
+  icon: { value: (element: T) => ReactElement };
   headers: ClickableListHeader<T>[];
 }
 
@@ -40,59 +42,106 @@ const ClickableList = <T extends object>({
     [selectedIds],
   );
 
+  // Skeleton rows mirror the real row anatomy (checkbox or icon column, then
+  // one line per header) so the list does not reshape when the data lands.
+  if (isLoading) {
+    return (
+      <>
+        {paginationComponent}
+        <List>
+          {[...Array(8)].map((_, index) => (
+            <ListItemButton
+              key={index}
+              divider
+              style={{ pointerEvents: 'none' }}
+            >
+              <ListItemIcon>
+                {onDeselect
+                  ? (
+                      <Checkbox
+                        edge="start"
+                        checked={false}
+                        disabled
+                        disableRipple
+                      />
+                    )
+                  : <Skeleton variant="circular" width={24} height={24} />}
+              </ListItemIcon>
+              <ListItemText
+                primary={(
+                  <Box sx={{ display: 'flex' }}>
+                    {elements.headers.map(header => (
+                      <Box
+                        key={header.field}
+                        sx={{
+                          height: 20,
+                          width: '100%',
+                        }}
+                      >
+                        <Skeleton width="60%" height={20} />
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+              />
+            </ListItemButton>
+          ))}
+        </List>
+      </>
+    );
+  }
+
   return (
     <>
       {paginationComponent}
-      {isLoading ? <Skeleton height={40} /> : (
-        <List>
-          {values.map((value) => {
-            const id = getId(value);
-            const isSelected = selectedIdSet.has(id);
-            return (
-              <ListItemButton
-                key={id}
-                disabled={isSelected && !onDeselect}
-                divider
-                onClick={() => (isSelected && onDeselect ? onDeselect(id) : onSelect(id, value))}
-              >
-                <ListItemIcon>
-                  {onDeselect
-                    ? (
-                        <Checkbox
-                          edge="start"
-                          checked={isSelected}
-                          tabIndex={-1}
-                          disableRipple
-                        />
-                      )
-                    : elements.icon.value()}
-                </ListItemIcon>
-                <ListItemText
-                  primary={(
-                    <Box sx={{ display: 'flex' }}>
-                      {elements.headers.map(header => (
-                        <Box
-                          key={header.field}
-                          sx={{
-                            height: 20,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            width: '100%',
-                          }}
-                        >
-                          {header.value(value)}
-                        </Box>
-                      ))}
-                    </Box>
-                  )}
-                />
-              </ListItemButton>
-            );
-          })}
-          {buttonComponent}
-        </List>
-      )}
+      <List>
+        {values.map((value) => {
+          const id = getId(value);
+          const isSelected = selectedIdSet.has(id);
+          return (
+            <ListItemButton
+              key={id}
+              disabled={isSelected && !onDeselect}
+              divider
+              onClick={() => (isSelected && onDeselect ? onDeselect(id) : onSelect(id, value))}
+            >
+              <ListItemIcon>
+                {onDeselect
+                  ? (
+                      <Checkbox
+                        edge="start"
+                        checked={isSelected}
+                        tabIndex={-1}
+                        disableRipple
+                      />
+                    )
+                  : elements.icon.value(value)}
+              </ListItemIcon>
+              <ListItemText
+                primary={(
+                  <Box sx={{ display: 'flex' }}>
+                    {elements.headers.map(header => (
+                      <Box
+                        key={header.field}
+                        sx={{
+                          height: 20,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          width: '100%',
+                        }}
+                      >
+                        {header.value(value)}
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+              />
+            </ListItemButton>
+          );
+        })}
+        {buttonComponent}
+      </List>
     </>
   );
 };

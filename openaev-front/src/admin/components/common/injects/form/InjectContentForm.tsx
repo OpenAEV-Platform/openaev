@@ -250,7 +250,7 @@ const InjectContentForm = ({
     {
       key: 'inject_data',
       title: t('Inject data'),
-      helper: t('The content and targets specific to this action.'),
+      helper: t('The content and targets specific to this inject.'),
       titleAdornment: canResetDefaults && (
         <Tooltip title={t('Reset to default values')}>
           <span>

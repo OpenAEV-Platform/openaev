@@ -1,8 +1,9 @@
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Menu, MenuItem } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
 
+import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { LessonContext } from '../../common/Context';
@@ -91,24 +92,18 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
           </Button>
         </DialogActions>
       </Dialog>
-      <Dialog
-        TransitionComponent={Transition}
+      <Drawer
         open={openEdit}
-        onClose={handleCloseEdit}
-        fullWidth
-        maxWidth="md"
-        PaperProps={{ elevation: 1 }}
+        handleClose={handleCloseEdit}
+        title={t('Update the lessons learned category')}
       >
-        <DialogTitle>{t('Update the lessons learned category')}</DialogTitle>
-        <DialogContent>
-          <LessonsCategoryForm
-            editing
-            onSubmit={onSubmitEdit}
-            handleClose={handleCloseEdit}
-            initialValues={initialValues}
-          />
-        </DialogContent>
-      </Dialog>
+        <LessonsCategoryForm
+          editing
+          onSubmit={onSubmitEdit}
+          handleClose={handleCloseEdit}
+          initialValues={initialValues}
+        />
+      </Drawer>
     </>
   );
 };

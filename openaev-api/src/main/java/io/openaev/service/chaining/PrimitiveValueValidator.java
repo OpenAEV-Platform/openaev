@@ -81,8 +81,7 @@ public final class PrimitiveValueValidator {
     return context.allowlistedAssetIds().contains(id);
   }
 
-  private static boolean isAssetGroupIdAllowedByScope(
-      String id, PrimitiveValidationContext context) {
+  static boolean isAssetGroupIdAllowedByScope(String id, PrimitiveValidationContext context) {
     if (context.denylistedAssetGroupIds().contains(id)) {
       return false;
     }
@@ -92,7 +91,7 @@ public final class PrimitiveValueValidator {
     return context.allowlistedAssetGroupIds().contains(id);
   }
 
-  private static boolean isIpAllowedByScope(String ip, PrimitiveValidationContext context) {
+  static boolean isIpAllowedByScope(String ip, PrimitiveValidationContext context) {
     if (context.denylistedIps().contains(ip)
         || context.denylistedSubnets().stream()
             .anyMatch(subnet -> IpAddressUtils.isIpInSubnet(ip, subnet))) {
@@ -108,7 +107,7 @@ public final class PrimitiveValueValidator {
             .anyMatch(subnet -> IpAddressUtils.isIpInSubnet(ip, subnet));
   }
 
-  private static boolean isSubnetAllowedByScope(String subnet, PrimitiveValidationContext context) {
+  static boolean isSubnetAllowedByScope(String subnet, PrimitiveValidationContext context) {
     if (context.denylistedSubnets().contains(subnet)) {
       return false;
     }
@@ -118,7 +117,7 @@ public final class PrimitiveValueValidator {
     return context.allowlistedSubnets().contains(subnet);
   }
 
-  private static boolean isDomainAllowedByScope(String domain, PrimitiveValidationContext context) {
+  static boolean isDomainAllowedByScope(String domain, PrimitiveValidationContext context) {
     String normalizedDomain = domain.toLowerCase(Locale.ROOT);
     if (context.denylistedDomains().contains(normalizedDomain)) {
       return false;

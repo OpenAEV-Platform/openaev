@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.DetectionExpectation;
 import io.openaev.expectation.Expectation;
@@ -50,6 +51,10 @@ class InjectExpectationServiceTest {
   @Mock private AssetGroupService assetGroupService;
   @Mock private InjectService injectService;
   @Mock private InjectExpectationLockService injectExpectationLockService;
+
+  // Unstubbed: findByExternalReference defaults to Optional.empty(), so vulnerability verdicts
+  // keep the legacy Expectations Vulnerability Manager attribution in these tests.
+  @Mock private SecurityPlatformRepository securityPlatformRepository;
   @Spy @InjectMocks private InjectExpectationService injectExpectationService;
   @Spy private ObjectMapper mapper = new ObjectMapper();
 

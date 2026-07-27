@@ -21,9 +21,11 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
 import io.openaev.database.model.TenantIdBase;
 import io.openaev.database.model.User;
+import io.openaev.database.model.UserScoped;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
+import io.openaev.service.utils.BulkOperationMonitor;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -33,6 +35,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -53,6 +56,7 @@ public class StreamApi extends RestBehavior {
 
   public static final String EVENT_TYPE_MESSAGE = "message";
   public static final String EVENT_TYPE_PING = "ping";
+  public static final String EVENT_TYPE_BULK_OPERATION = "bulk-operation";
   public static final String X_ACCEL_BUFFERING = "X-Accel-Buffering";
 
   // Mutated from several threads: SSE connect (request thread), disconnect (reactor
@@ -188,6 +192,15 @@ public class StreamApi extends RestBehavior {
             return;
           }
 
+          // User-scoped entities (e.g. notifications) are only delivered to their owner,
+          // bypassing the capability-based masking below.
+          if (event.getInstance() instanceof UserScoped userScoped) {
+            if (consumer.principal().getId().equals(userScoped.getOwnerUserId())) {
+              sendStreamEvent(consumer.fluxSink(), event);
+            }
+            return;
+          }
+
           // Resolved from a short-lived cache instead of a DB query per event per consumer,
           // which used to exhaust the connection pool while viewing busy simulations.
           User user = resolveUser(consumer.principal().getId());
@@ -235,6 +248,42 @@ public class StreamApi extends RestBehavior {
             // consumers in the loop or into later tasks on this pooled thread
             TenantContext.clearCurrentTenant();
           }
+        });
+  }
+
+  /**
+   * Delivers massive-operation progress snapshots to the stream consumers of the user who launched
+   * the operation (massive operations are per user, never shared). These aggregated events replace
+   * the per-entity events suppressed during bulk operations (see {@link
+   * io.openaev.context.BulkOperationContext}): the frontend renders a progress indicator from them
+   * and refreshes its data once, on the terminal event. The payload carries only counts and an
+   * entity label, so no per-resource permission check is needed.
+   */
+  @Async("streamExecutor")
+  @EventListener
+  public void listenBulkOperation(BulkOperationMonitor.BulkOperationEvent event) {
+    BulkOperationMonitor.BulkOperation operation = event.operation();
+    if (operation.userId() == null) {
+      // System operations (no launching user) belong to no one's history or stream.
+      return;
+    }
+    ServerSentEvent<BulkOperationMonitor.BulkOperation> message =
+        ServerSentEvent.builder(operation).event(EVENT_TYPE_BULK_OPERATION).build();
+    consumers.forEach(
+        (key, consumer) -> {
+          if (!operation.userId().equals(consumer.principal().getId())) {
+            return;
+          }
+          // Defensive tenant check on top of the user scoping, mirroring isVisibleForTenant:
+          // tenant-scoped consumers only see operations carrying exactly their tenant id (an
+          // operation without a tenant id stays off tenant streams, so no cross-tenant
+          // operational metadata can leak).
+          if (consumer.tenantId() != null
+              && !consumer.tenantId().isBlank()
+              && !consumer.tenantId().equals(operation.tenantId())) {
+            return;
+          }
+          consumer.fluxSink().next(message);
         });
   }
 

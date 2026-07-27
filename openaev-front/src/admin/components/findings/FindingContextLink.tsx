@@ -1,5 +1,4 @@
-import { PlayCircleOutlineOutlined, RouteOutlined } from '@mui/icons-material';
-import { Target } from 'mdi-material-ui';
+import { PlayCircleOutlineOutlined, RouteOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { type FunctionComponent, useContext } from 'react';
 
 import ContextLink from '../../../components/ContextLink';
@@ -34,7 +33,9 @@ const FindingContextLink: FunctionComponent<Props> = ({ finding, type }) => {
         ? (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT) || ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, injectId))
         : ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, finding.finding_simulation?.exercise_id);
 
-      return userRight ? <ContextLink title={title} url={url} icon={<Target />} /> : title;
+      // TrackChangesOutlined is the platform-wide inject icon (menus, hero
+      // stats, inject results): keep this pivot aligned with it.
+      return userRight ? <ContextLink title={title} url={url} icon={<TrackChangesOutlined />} /> : title;
     }
 
     case SIMULATION: {

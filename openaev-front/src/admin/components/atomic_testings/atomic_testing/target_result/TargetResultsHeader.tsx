@@ -2,7 +2,7 @@ import { ChevronLeftOutlined, ChevronRightOutlined, OpenInNewOutlined } from '@m
 import { Box, Button, IconButton, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
-import { useNavigate } from 'react-router';
+import { Link } from 'react-router';
 
 import { useFormatter } from '../../../../../components/i18n';
 import { type InjectTarget } from '../../../../../utils/api-types';
@@ -23,7 +23,7 @@ interface Props {
 
 const TYPE_LABELS: Record<string, string> = {
   ASSETS_GROUPS: 'Asset group',
-  ASSETS: 'Endpoint',
+  ASSETS: 'Asset',
   TEAMS: 'Team',
   PLAYERS: 'Player',
   AGENT: 'Agent',
@@ -33,7 +33,6 @@ const TYPE_LABELS: Record<string, string> = {
 const TargetResultsHeader: FunctionComponent<Props> = ({ target, position, total, onSelectPrevious, onSelectNext }) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const navigate = useNavigate();
 
   const overviewUrl = getTargetOverviewUrl(target);
   const overviewLabel = isAssetGroups(target) ? t('Open asset group overview') : t('Open asset overview');
@@ -159,10 +158,11 @@ const TargetResultsHeader: FunctionComponent<Props> = ({ target, position, total
         {overviewUrl && (
           <Button
             variant="outlined"
-            color="secondary"
+            color="primary"
             size="small"
             startIcon={<OpenInNewOutlined />}
-            onClick={() => navigate(overviewUrl)}
+            component={Link}
+            to={overviewUrl}
           >
             {overviewLabel}
           </Button>

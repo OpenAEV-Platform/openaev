@@ -3,15 +3,17 @@ package io.openaev.rest.payload;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
-import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.payload.form.*;
 import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.payload.service.*;
+import io.openaev.service.detection_remediation.DetectionRemediationService;
 import io.openaev.utils.mapper.PayloadMapper;
+import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -38,7 +40,7 @@ public class PayloadApi extends RestBehavior {
   private final PayloadUpdateService payloadUpdateService;
   private final PayloadUpsertService payloadUpsertService;
   private final DocumentService documentService;
-  private final CollectorService collectorsService;
+  private final DetectionRemediationService detectionRemediationService;
   private final PayloadMapper payloadMapper;
 
   @PostMapping({PAYLOAD_URI + "/search", TENANT_PAYLOAD_URI + "/search"})
@@ -148,22 +150,24 @@ public class PayloadApi extends RestBehavior {
   }
 
   @GetMapping({
-    PAYLOAD_URI + "/{payloadId}/collectors",
-    TENANT_PAYLOAD_URI + "/{payloadId}/collectors"
+    PAYLOAD_URI + "/{payloadId}/security-platforms",
+    TENANT_PAYLOAD_URI + "/{payloadId}/security-platforms"
   })
   @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)
-  @Operation(summary = "Get the Collectors used in a payload remediation")
+  @Operation(summary = "Get the Security platforms used in a payload remediation")
   @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(
             responseCode = "200",
-            description = "The list of Collectors used in a payload remediation")
+            description = "The list of Security platforms used in a payload remediation")
       })
-  public List<Collector> collectorsFromPayload(@PathVariable String payloadId) {
-    return collectorsService.collectorsForPayload(payloadId);
+  public List<SecurityPlatformSimpleOutput> securityPlatformsFromPayload(
+      @PathVariable String payloadId) {
+    return SecurityPlatformMapper.toSimpleOutputs(
+        detectionRemediationService.securityPlatformsForPayload(payloadId));
   }
 }

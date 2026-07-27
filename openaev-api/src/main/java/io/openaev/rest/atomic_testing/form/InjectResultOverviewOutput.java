@@ -77,6 +77,18 @@ public class InjectResultOverviewOutput {
   @JsonProperty("inject_updated_at")
   private Instant updatedAt;
 
+  @Schema(description = "Recurrence cron expression for scheduled relaunch")
+  @JsonProperty("inject_recurrence")
+  private String recurrence;
+
+  @Schema(description = "Start date of the recurrence scheduling")
+  @JsonProperty("inject_recurrence_start")
+  private Instant recurrenceStart;
+
+  @Schema(description = "End date of the recurrence scheduling")
+  @JsonProperty("inject_recurrence_end")
+  private Instant recurrenceEnd;
+
   // -- COMPUTED ATTRIBUTES --
 
   @Builder.Default

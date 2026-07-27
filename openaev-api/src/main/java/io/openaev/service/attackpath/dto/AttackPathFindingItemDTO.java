@@ -13,4 +13,5 @@ public record AttackPathFindingItemDTO(
     String value,
     String endpointKey,
     String endpointNodeId,
-    List<String> executionIds) {}
+    List<String> executionIds,
+    AttackPathFindingVerdictsDTO verdicts) {}

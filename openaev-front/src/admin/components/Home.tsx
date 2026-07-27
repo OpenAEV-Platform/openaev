@@ -49,6 +49,7 @@ const Home = () => {
   const configuration = {
     customDashboardId: resolvedDashboardId,
     paramLocalStorageKey: 'custom-dashboard-home',
+    resultsSource: { source: 'tenant' as const },
     fetchCustomDashboard: fetchTenantHomeDashboard,
     fetchCount: tenantHomeDashboardCount,
     fetchAverage: tenantHomeDashboardAverage,

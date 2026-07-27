@@ -31,7 +31,7 @@ const HorizontalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, 
     [isSample, realSeries],
   );
 
-  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
+  const { openWidgetResults } = useContext(CustomDashboardContext);
 
   // Memoize click handler
   const onBarClick = useCallback((_: Event, config: {
@@ -39,12 +39,12 @@ const HorizontalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, 
     dataPointIndex: number;
   }) => {
     const dataPoint = series[config.seriesIndex].data[config.dataPointIndex] as SerieData;
-    openWidgetDataDrawer({
+    openWidgetResults({
       widgetId,
       filter_values_map: { [widgetConfig.field]: [dataPoint?.meta ?? ''] },
       series_index: config.seriesIndex,
     });
-  }, [series, openWidgetDataDrawer, widgetId]);
+  }, [series, openWidgetResults, widgetId]);
 
   // Memoize widget mode
   const widgetMode = useMemo((): string => {

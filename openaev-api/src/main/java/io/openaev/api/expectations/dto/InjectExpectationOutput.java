@@ -6,6 +6,7 @@ import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.InjectExpectationSignature;
 import io.openaev.database.model.InjectExpectationTrace;
+import io.openaev.database.model.SecurityPlatform.SECURITY_PLATFORM_TYPE;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -95,4 +96,10 @@ public record InjectExpectationOutput(
         String challengeId,
     @Schema(description = "Target ID resolved from user, team, agent, asset, or asset group")
         @JsonProperty("target_id")
-        String targetId) {}
+        String targetId,
+    @Schema(
+            description =
+                "Security platform types expected to fulfil this technical expectation. Empty means"
+                    + " any security platform.")
+        @JsonProperty("inject_expectation_expected_security_platforms")
+        List<SECURITY_PLATFORM_TYPE> expectedSecurityPlatforms) {}

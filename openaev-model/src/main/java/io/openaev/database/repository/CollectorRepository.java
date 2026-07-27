@@ -18,31 +18,6 @@ public interface CollectorRepository
 
   Optional<Collector> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
-  @Query(
-      """
-              SELECT DISTINCT c FROM Collector c
-              WHERE c.collectorType IN (
-                  SELECT dr.collectorType FROM DetectionRemediation dr
-                  JOIN dr.payload p
-                  WHERE p.id = :payloadId
-              )
-          """)
-  List<Collector> findByPayloadId(@Param("payloadId") String payloadId);
-
-  @Query(
-      """
-              SELECT DISTINCT c FROM Collector c
-              WHERE c.collectorType IN (
-                  SELECT dr.collectorType
-                  FROM Inject i
-                  JOIN i.injectorContract ic
-                  JOIN ic.payload p
-                  JOIN p.detectionRemediations dr
-                  WHERE i.id = :injectId
-              )
-          """)
-  List<Collector> findByInjectId(@Param("injectId") String injectId);
-
   @Modifying
   @Query(
       nativeQuery = true,

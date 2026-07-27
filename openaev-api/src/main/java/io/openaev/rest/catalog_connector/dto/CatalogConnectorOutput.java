@@ -2,6 +2,7 @@ package io.openaev.rest.catalog_connector.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ConnectorType;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotBlank;
@@ -51,6 +52,10 @@ public class CatalogConnectorOutput {
   @JsonProperty("catalog_connector_type")
   @NotNull
   private ConnectorType containerType;
+
+  @JsonProperty("catalog_connector_container_version")
+  @Schema(description = "Connector container version referenced in the catalog")
+  private String containerVersion;
 
   @JsonProperty("catalog_connector_last_verified_date")
   private Instant lastVerifiedDate;

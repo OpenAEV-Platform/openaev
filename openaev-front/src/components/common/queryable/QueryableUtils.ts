@@ -1,14 +1,53 @@
 import { z } from 'zod';
 
 import { type SearchPaginationInput } from '../../../utils/api-types';
-import { ROWS_PER_PAGE_OPTIONS } from './pagination/usePaginationState';
+import { type Page } from './Page';
+import { DEFAULT_ROWS_PER_PAGE } from './pagination/usePaginationState';
 
 export const buildSearchPagination = (searchPaginationInput: Partial<SearchPaginationInput>) => {
   return ({
     page: 0,
-    size: ROWS_PER_PAGE_OPTIONS[0],
+    size: DEFAULT_ROWS_PER_PAGE,
     ...searchPaginationInput,
   });
+};
+
+// Resolved empty page for fetchers that must short-circuit without calling the
+// API - typically when scoping a list on an empty id set, where an empty
+// `contains` filter would match everything instead of nothing. Keeps the list
+// component (search, filters, pagination) rendered with a zero-result state.
+export const buildEmptyPage = <T>(input: SearchPaginationInput): { data: Page<T> } => {
+  const size = input.size ?? DEFAULT_ROWS_PER_PAGE;
+  // Echo the requested page (like the backend would) so the pagination state
+  // stays consistent when a caller short-circuits from a non-zero page.
+  const page = input.page ?? 0;
+  const sort = {
+    empty: true,
+    sorted: false,
+    unsorted: true,
+  };
+  return {
+    data: {
+      content: [],
+      empty: true,
+      first: page === 0,
+      last: true,
+      number: page,
+      numberOfElements: 0,
+      pageable: {
+        offset: page * size,
+        pageNumber: page,
+        pageSize: size,
+        paged: true,
+        sort,
+        unpaged: false,
+      },
+      size,
+      sort,
+      totalElements: 0,
+      totalPages: 0,
+    },
+  };
 };
 
 // -- ZOD --

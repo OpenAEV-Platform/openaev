@@ -43,7 +43,8 @@ public class ExpectationsExpirationManagerJob implements Runnable, BuiltinTenant
         false,
         0,
         null,
-        getClass().getResourceAsStream("/img/icon-fake-detector.png"));
+        getClass().getResourceAsStream("/img/icon-fake-detector.png"),
+        null);
   }
 
   @Override

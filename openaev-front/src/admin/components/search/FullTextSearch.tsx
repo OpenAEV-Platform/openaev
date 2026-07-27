@@ -22,6 +22,21 @@ const ALL = 'all';
 // Cap per class when merging the "All" view (search result sets are small).
 const ALL_FETCH_SIZE = 100;
 
+// The backend sends class simple names ("AssetGroup", "Exercise"...): map them
+// to the i18n keys used by the left menu so search speaks the same language as
+// the rest of the platform.
+const ENTITY_LABELS: Record<string, string> = {
+  Asset: 'Asset',
+  AssetGroup: 'Asset group',
+  SecurityPlatform: 'Security platform',
+  User: 'Person',
+  Team: 'Team',
+  Organization: 'Organization',
+  Scenario: 'Scenario',
+  Exercise: 'Simulation',
+};
+const entityLabel = (clazz: string) => ENTITY_LABELS[clazz] ?? clazz;
+
 interface Category {
   // Backend map key = fully-qualified class name, required by the by-class endpoint.
   key: string;
@@ -103,7 +118,7 @@ const CategoryRail: FunctionComponent<CategoryRailProps> = ({ categories, total,
           textOverflow: 'ellipsis',
         }}
         >
-          {t(clazz)}
+          {t(entityLabel(clazz))}
         </Typography>
         <Chip
           label={count}
@@ -209,15 +224,6 @@ const FullTextSearch = () => {
     });
   };
 
-  const headerSx = {
-    fontFamily: '"Geologica", sans-serif',
-    fontWeight: 600,
-    fontSize: 11,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase' as const,
-    color: 'text.secondary',
-  };
-
   const columns: {
     field: string;
     label: string;
@@ -226,12 +232,12 @@ const FullTextSearch = () => {
     {
       field: 'result_name',
       label: 'Name',
-      value: r => <span style={{ fontWeight: 600 }}>{r.name}</span>,
+      value: r => r.name,
     },
     {
       field: 'result_type',
       label: 'Type',
-      value: r => <span>{t(r.clazz)}</span>,
+      value: r => <span>{t(entityLabel(r.clazz))}</span>,
     },
     {
       field: 'result_description',
@@ -256,24 +262,6 @@ const FullTextSearch = () => {
           },
         ]}
       />
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'baseline',
-        gap: 1.5,
-        marginBottom: 2,
-      }}
-      >
-        <Typography variant="h1" sx={{ margin: 0 }}>{t('Search')}</Typography>
-        {search && (
-          <Typography sx={{
-            fontSize: 13,
-            color: 'text.secondary',
-          }}
-          >
-            {t('{count} results', { count: total })}
-          </Typography>
-        )}
-      </Box>
 
       {(() => {
         if (!search) {
@@ -283,103 +271,117 @@ const FullTextSearch = () => {
           return <Empty message={t('No results found')} />;
         }
         return (
-          <Box sx={{
-            display: 'flex',
-            gap: 3,
-            alignItems: 'flex-start',
-          }}
-          >
-            <CategoryRail
-              categories={categories}
-              total={total}
-              selected={selected}
-              onSelect={setSelected}
+          <>
+            <PaginationComponent
+              // Keyed on the category AND the category set: the "All" fetch
+              // fans out over categoryKeys, which only settles after the
+              // counts request resolves - remount then so the merged page is
+              // never built from the previous query's category set.
+              key={`${selected}:${categoryKeys.join(',')}`}
+              fetch={fetch}
+              searchPaginationInput={searchPaginationInput}
+              setContent={setElements}
+              searchEnable={false}
             />
             <Box sx={{
-              flex: 1,
-              minWidth: 0,
+              display: 'flex',
+              gap: 3,
+              alignItems: 'flex-start',
             }}
             >
-              <PaginationComponent
-                // Keyed on the category AND the category set: the "All" fetch
-                // fans out over categoryKeys, which only settles after the
-                // counts request resolves - remount then so the merged page is
-                // never built from the previous query's category set.
-                key={`${selected}:${categoryKeys.join(',')}`}
-                fetch={fetch}
-                searchPaginationInput={searchPaginationInput}
-                setContent={setElements}
-                searchEnable={false}
+              <CategoryRail
+                categories={categories}
+                total={total}
+                selected={selected}
+                onSelect={setSelected}
               />
-              <List>
-                <ListItem
-                  divider={false}
-                  style={{
-                    paddingTop: 0,
-                    textTransform: 'uppercase',
-                  }}
-                  secondaryAction={<>&nbsp;</>}
-                >
-                  <ListItemIcon />
-                  <ListItemText
-                    primary={(
-                      <div style={bodyItemsStyles.bodyItems}>
-                        {columns.map(header => (
-                          <Typography
-                            key={header.field}
-                            component="div"
-                            sx={{
-                              ...headerSx,
-                              ...inlineStyles[header.field],
-                            }}
-                          >
-                            {t(header.label)}
-                          </Typography>
-                        ))}
-                      </div>
-                    )}
-                  />
-                </ListItem>
-                {elements.map((element) => {
-                  const to = useEntityLink(element.clazz, element.id, search);
-                  return (
-                    <ListItemButton
-                      key={element.id}
-                      divider
-                      component={Link}
-                      to={to}
-                      style={{ height: 50 }}
-                    >
-                      <ListItemIcon>
-                        {useEntityIcon(element.clazz)}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={(
-                          <div style={bodyItemsStyles.bodyItems}>
-                            {columns.map(column => (
-                              <div
-                                key={column.field}
-                                style={{
-                                  ...bodyItemsStyles.bodyItem,
-                                  ...inlineStyles[column.field],
-                                }}
-                              >
-                                {column.value(element)}
+              <Box sx={{
+                flex: 1,
+                minWidth: 0,
+              }}
+              >
+                <List style={{ paddingTop: 0 }}>
+                  <ListItem
+                    divider={false}
+                    style={{
+                      paddingTop: 0,
+                      textTransform: 'uppercase',
+                    }}
+                    secondaryAction={<>&nbsp;</>}
+                  >
+                    <ListItemIcon />
+                    <ListItemText
+                      primary={(
+                        <div style={bodyItemsStyles.bodyItems}>
+                          {columns.map(header => (
+                            <div
+                              key={header.field}
+                              style={{
+                                ...bodyItemsStyles.bodyItem,
+                                ...inlineStyles[header.field],
+                                fontWeight: 700,
+                              }}
+                            >
+                              {t(header.label)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    />
+                  </ListItem>
+                  {elements.map((element) => {
+                    const to = useEntityLink(element.clazz, element.id);
+                    return (
+                      <ListItem
+                        key={element.id}
+                        divider
+                        disablePadding
+                        secondaryAction={to ? <KeyboardArrowRight color="action" /> : <>&nbsp;</>}
+                      >
+                        <ListItemButton
+                          style={{ height: 50 }}
+                          {...(to
+                            ? {
+                                component: Link,
+                                to,
+                              }
+                            : { disabled: true })}
+                          sx={to
+                            ? undefined
+                            : {
+                                '&.Mui-disabled': { opacity: 1 },
+                                'cursor': 'default',
+                              }}
+                        >
+                          <ListItemIcon>
+                            {useEntityIcon(element.clazz)}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={(
+                              <div style={bodyItemsStyles.bodyItems}>
+                                {columns.map(column => (
+                                  <div
+                                    key={column.field}
+                                    style={{
+                                      ...bodyItemsStyles.bodyItem,
+                                      ...inlineStyles[column.field],
+                                    }}
+                                  >
+                                    {column.value(element)}
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
-                        )}
-                      />
-                      <ListItemIcon style={{ justifyContent: 'flex-end' }}>
-                        <KeyboardArrowRight sx={{ color: 'text.disabled' }} />
-                      </ListItemIcon>
-                    </ListItemButton>
-                  );
-                })}
-                {elements.length === 0 && <Empty message={t('No results found')} />}
-              </List>
+                            )}
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    );
+                  })}
+                  {elements.length === 0 && <Empty message={t('No results found')} />}
+                </List>
+              </Box>
             </Box>
-          </Box>
+          </>
         );
       })()}
     </>

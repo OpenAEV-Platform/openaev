@@ -54,9 +54,9 @@ vi.mock('../../../../../components/common/Drawer', () => ({
     : null),
 }));
 
-vi.mock('../../../../../admin/components/common/injects/form/InjectForm', () => ({ default: () => <div data-testid="inject-form" /> }));
+vi.mock('../../../../../admin/components/common/injects/form/InjectForm', () => ({ default: ({ disabled }: { disabled?: boolean }) => <div data-testid="inject-form" data-disabled={String(disabled ?? false)} /> }));
 
-vi.mock('../../../../../admin/components/payloads/PayloadComponent', () => ({ default: () => <div data-testid="payload-component" /> }));
+vi.mock('../../../../../admin/components/common/injects/InjectContractOverview', () => ({ default: () => <div data-testid="inject-contract-overview" /> }));
 
 vi.mock('../../../../../admin/components/common/injects/UpdateInjectLogicalChains', () => ({ default: () => <div data-testid="logical-chains" /> }));
 
@@ -127,7 +127,7 @@ describe('UpdateInject', () => {
     await waitFor(() => expect(mockDispatch).toHaveBeenCalled());
     expect(screen.getByTestId('drawer')).toBeDefined();
     expect(screen.queryByTestId('inject-form')).toBeNull();
-    expect(screen.queryByTestId('payload-component')).toBeNull();
+    expect(screen.queryByTestId('inject-contract-overview')).toBeNull();
     expect(screen.queryByTestId('logical-chains')).toBeNull();
   });
 
@@ -157,5 +157,34 @@ describe('UpdateInject', () => {
 
     // Assert
     await waitFor(() => expect(screen.getByTestId('inject-form')).toBeDefined());
+  });
+
+  it('keeps the form editable when the inject is disabled', async () => {
+    // Arrange: a disabled inject only means "excluded from execution", never read-only
+    currentInject = {
+      inject_id: 'inject-1',
+      inject_enabled: false,
+      inject_title: 'Disabled inject',
+      inject_injector: 'injector-1',
+      inject_attack_patterns: [],
+      inject_kill_chain_phases: [],
+      inject_injector_contract: {
+        convertedContent: {
+          contract_id: 'contract-1',
+          fields: [],
+          variables: [],
+        },
+        injector_contract_injector_names: { 'injector-1': 'Injector One' },
+        injector_contract_platforms: [],
+        injector_contract_needs_executor: false,
+      },
+    };
+
+    // Act
+    renderUpdateInject();
+
+    // Assert
+    await waitFor(() => expect(screen.getByTestId('inject-form')).toBeDefined());
+    expect(screen.getByTestId('inject-form').getAttribute('data-disabled')).toBe('false');
   });
 });

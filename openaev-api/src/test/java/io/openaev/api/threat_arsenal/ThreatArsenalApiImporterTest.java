@@ -133,6 +133,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       String importedActionId = JsonPath.read(importResponse, "$.injector_contract_id");
       String importedPayloadId = JsonPath.read(importResponse, "$.action_payload.payload_id");
       Map<String, String> importedLabels = JsonPath.read(importResponse, "$.action_labels");
+      String importedInjectorType = JsonPath.read(importResponse, "$.action_injector_type");
       Payload importedPayload = payloadRepository.findById(importedPayloadId).orElseThrow();
 
       assertNotEquals(originalActionId, importedActionId);
@@ -140,7 +141,13 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       assertFalse(importedLabels.isEmpty());
       assertTrue(importedLabels.values().stream().allMatch(label -> label.endsWith(" (Import)")));
       assertTrue(payloadRepository.findById(importedPayloadId).isPresent());
-      assertTrue(injectorContractRepository.findById(importedActionId).isPresent());
+      InjectorContract importedContract =
+          injectorContractRepository.findById(importedActionId).orElseThrow();
+      // The injector links are not part of the export: the import must re-link the
+      // contract to the payload-supporting injectors, otherwise the action shows up
+      // as unregistered (update / duplicate / export disabled in the arsenal).
+      assertFalse(importedContract.getInjectors().isEmpty());
+      assertNotNull(importedInjectorType);
     }
   }
 

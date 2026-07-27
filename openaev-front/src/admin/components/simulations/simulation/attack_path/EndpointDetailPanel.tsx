@@ -26,6 +26,9 @@ interface Props {
   // Translated status label for an execution status (prevented / detected / ...).
   execStatusLabel: (status?: string) => string;
   onClose: () => void;
+  // When true, the Findings section is omitted — used for the injector panel, which lists the
+  // injector's contracts under "Executions" but has no findings of its own.
+  hideFindings?: boolean;
 }
 
 // Right-side panel for one endpoint selected in the attack-path graph: its findings grouped by type
@@ -43,6 +46,7 @@ const EndpointDetailPanel = ({
   onSelectExecution,
   execStatusLabel,
   onClose,
+  hideFindings = false,
 }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -51,7 +55,7 @@ const EndpointDetailPanel = ({
     <Paper
       variant="outlined"
       style={{
-        width: 340,
+        flex: 1,
         minWidth: 0,
         overflow: 'auto',
         display: 'flex',
@@ -78,49 +82,53 @@ const EndpointDetailPanel = ({
       </div>
 
       <div style={{ padding: theme.spacing(0, 2.5, 2) }}>
-        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-          {t('Findings')}
-        </Typography>
-        {findingsLoading && (
-          <Box sx={{ minHeight: 60 }}>
-            <Loader variant="inElement" size="sm" />
-          </Box>
-        )}
-        {!findingsLoading && findingGroups.length === 0 && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{
-              display: 'block',
-              mb: 1,
-            }}
-          >
-            {t('No findings on this endpoint')}
-          </Typography>
-        )}
-        {!findingsLoading && findingGroups.map(g => (
-          <Box key={g.type} sx={{ mb: 1 }}>
-            <Typography
-              variant="caption"
-              sx={{
-                display: 'block',
-                fontWeight: 600,
-                color: 'text.secondary',
-                textTransform: 'uppercase',
-                letterSpacing: 0.4,
-              }}
-            >
-              {`${g.type} (${g.values.length})`}
+        {!hideFindings && (
+          <>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              {t('Findings')}
             </Typography>
-            {g.values.map((v, i) => (
-              <Typography key={`${g.type}-${i}`} variant="body2" noWrap title={v}>
-                {v}
+            {findingsLoading && (
+              <Box sx={{ minHeight: 60 }}>
+                <Loader variant="inElement" size="sm" />
+              </Box>
+            )}
+            {!findingsLoading && findingGroups.length === 0 && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  display: 'block',
+                  mb: 1,
+                }}
+              >
+                {t('No findings on this endpoint')}
               </Typography>
+            )}
+            {!findingsLoading && findingGroups.map(g => (
+              <Box key={g.type} sx={{ mb: 1 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: 'block',
+                    fontWeight: 600,
+                    color: 'text.secondary',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.4,
+                  }}
+                >
+                  {`${g.type} (${g.values.length})`}
+                </Typography>
+                {g.values.map((v, i) => (
+                  <Typography key={`${g.type}-${i}`} variant="body2" noWrap title={v}>
+                    {v}
+                  </Typography>
+                ))}
+              </Box>
             ))}
-          </Box>
-        ))}
+          </>
+        )}
 
-        <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 1 }}>
+        <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: hideFindings ? 0 : 1 }}>
           {`${t('Executions')} (${executions.length})`}
         </Typography>
         {executions.slice(0, execDisplayCap).map((e) => {

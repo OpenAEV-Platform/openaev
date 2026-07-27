@@ -59,12 +59,19 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
         label={t('Overview')}
         className={classes.item}
       />
+      <Tab
+        component={Link}
+        to={`/admin/atomic_testings/${injectResultOverview.inject_id}/execution_details`}
+        value={`/admin/atomic_testings/${injectResultOverview.inject_id}/execution_details`}
+        label={t('Execution details')}
+        className={classes.item}
+      />
       {injectResultOverview.inject_injector_contract?.injector_contract_payload && (
         <Tab
           component={Link}
           to={`/admin/atomic_testings/${injectResultOverview.inject_id}/payload_info`}
           value={`/admin/atomic_testings/${injectResultOverview.inject_id}/payload_info`}
-          label={t('Payload details')}
+          label={t('Action details')}
           className={classes.item}
         />
       )}
@@ -96,6 +103,11 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
             </Box>
           )}
           className={classes.item}
+          // The theme forces `text-transform: lowercase` on `.MuiTab-root` and
+          // relies on a `::first-letter` uppercase trick that can't reach text
+          // nested in the flex label. Neutralise it on the root so the already
+          // capitalised, translated label renders verbatim ("Remediations").
+          sx={{ textTransform: 'none' }}
         />
       )}
     </Tabs>

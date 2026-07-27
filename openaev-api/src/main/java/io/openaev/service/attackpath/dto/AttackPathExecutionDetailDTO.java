@@ -26,8 +26,12 @@ public record AttackPathExecutionDetailDTO(
     String targetPlatform,
     String preventionStatus,
     String detectionStatus,
+    String vulnerabilityStatus,
     String executedAt,
     List<AttackPathExecutionFindingItemDTO> findings,
+    // the security platforms that acted (prevention/detection), resolved live from the inject's
+    // expectations, with their linked alerts (A1)
+    List<AttackPathSecurityPlatformDTO> securityPlatforms,
     // terminal
     String command,
     String terminalOutput) {}

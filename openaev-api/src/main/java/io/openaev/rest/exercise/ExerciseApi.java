@@ -13,6 +13,10 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.expectations.ExpectationsDriftService;
+import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
+import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
+import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
@@ -66,6 +70,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -112,6 +117,7 @@ public class ExerciseApi extends RestBehavior {
   private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
   private final PreviewFeatureService previewFeatureService;
+  private final ExpectationsDriftService expectationsDriftService;
 
   // endregion
 
@@ -127,6 +133,71 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public List<HealthCheck> streamHealthChecks(@PathVariable @NotBlank final String exerciseId) {
     return exerciseService.runChecks(exerciseId);
+  }
+
+  // endregion
+
+  // region expectations drift
+  @Operation(
+      summary = "Get the expectation drift report of a simulation",
+      description =
+          "Compares the predefined expectations of the injector contracts with the expectations"
+              + " stored inside the simulation injects")
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/expectations-drift",
+    TENANT_EXERCISE_URI + "/{exerciseId}/expectations-drift"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SIMULATION)
+  public ExpectationsDriftOutput exerciseExpectationsDrift(
+      @PathVariable @NotBlank final String exerciseId) {
+    return expectationsDriftService.exerciseDrift(exerciseId);
+  }
+
+  @Operation(
+      summary = "Realign the expectations of the simulation injects onto their contracts",
+      description =
+          "Overwrites the expectations of every drifted inject with the predefined expectations"
+              + " currently exposed by its injector contract, as a tracked massive operation")
+  // SUPPORTS (not REQUIRED) on purpose: the realignment runs chunk by chunk in the service's own
+  // short transactions, wrapped in a massive-operation scope (header progress indicator +
+  // per-entity stream event suppression) that must cover each commit-time flush.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @PostMapping({
+    EXERCISE_URI + "/{exerciseId}/expectations-drift/realign",
+    TENANT_EXERCISE_URI + "/{exerciseId}/expectations-drift/realign"
+  })
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SIMULATION)
+  public ExpectationsRealignOutput realignExerciseExpectations(
+      @PathVariable @NotBlank final String exerciseId) {
+    return expectationsDriftService.realignExercise(exerciseId);
+  }
+
+  @Operation(
+      summary = "Dismiss or restore the expectation drift warning of a simulation",
+      description =
+          "Acknowledges that the drifted expectations were customized on purpose: the warning is"
+              + " downgraded to a discreet indicator. Persisted in database so the dismissal is"
+              + " shared between users, and reset on realignment")
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/expectations-drift/dismiss",
+    TENANT_EXERCISE_URI + "/{exerciseId}/expectations-drift/dismiss"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SIMULATION)
+  public ExpectationsDriftOutput dismissExerciseExpectationsDrift(
+      @PathVariable @NotBlank final String exerciseId,
+      @Valid @RequestBody final ExpectationsDriftDismissInput input) {
+    return expectationsDriftService.dismissExerciseDrift(exerciseId, input.dismissed());
   }
 
   // endregion
@@ -584,6 +655,21 @@ public class ExerciseApi extends RestBehavior {
   @Transactional
   public void deleteExercise(@PathVariable String exerciseId) {
     exerciseService.deleteById(exerciseId);
+  }
+
+  @Operation(
+      description = "Bulk delete of simulations",
+      tags = {"Simulations"})
+  @LogExecutionTime
+  @DeleteMapping({EXERCISE_URI, TENANT_EXERCISE_URI})
+  // SUPPORTS (not REQUIRED) on purpose: the service deletes in small independent transactions
+  // (chunked, with deadlock retry) - a request-wide transaction would defeat that and deadlock
+  // against concurrent inject expectation updates.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.SIMULATION)
+  public List<String> bulkDeleteExercises(
+      @RequestBody @Valid final ExerciseBulkProcessingInput input) {
+    return exerciseService.bulkDelete(input);
   }
 
   @GetMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})

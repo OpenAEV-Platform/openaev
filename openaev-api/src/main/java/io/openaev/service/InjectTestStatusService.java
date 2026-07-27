@@ -15,6 +15,7 @@ import io.openaev.execution.ExecutionContextService;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.inject.output.InjectTestStatusOutput;
+import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.mapper.InjectStatusMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
@@ -42,6 +43,7 @@ public class InjectTestStatusService {
   private final InjectStatusMapper injectStatusMapper;
   private final ManagerFactory managerFactory;
   private final ConnectorInstanceRepository connectorInstanceRepository;
+  private final BulkOperationMonitor bulkOperationMonitor;
 
   @Autowired
   public void setContext(ApplicationContext context) {
@@ -68,7 +70,8 @@ public class InjectTestStatusService {
   }
 
   /**
-   * Bulk tests of injects
+   * Bulk tests of injects. Tracked as a massive operation (header progress indicator): each inject
+   * test performs a real injection execution, so per-inject progress is meaningful.
    *
    * @param searchSpecifications the criteria to search injects to test
    * @return the list of inject test status
@@ -85,7 +88,17 @@ public class InjectTestStatusService {
             .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
     List<InjectTestStatus> results = new ArrayList<>();
-    searchResult.forEach(inject -> results.add(testInject(inject, user)));
+    String operationId = bulkOperationMonitor.start("test", "injects", searchResult.size());
+    try {
+      for (Inject inject : searchResult) {
+        results.add(testInject(inject, user));
+        bulkOperationMonitor.progress(operationId, 1);
+      }
+      bulkOperationMonitor.complete(operationId);
+    } catch (RuntimeException e) {
+      bulkOperationMonitor.fail(operationId);
+      throw e;
+    }
     return results.stream().map(injectStatusMapper::toInjectTestStatusOutput).toList();
   }
 
@@ -131,7 +144,7 @@ public class InjectTestStatusService {
           inject
               .getInjectorContract()
               .map(contract -> contract.getFirstInjector())
-              .orElseThrow(() -> new EntityNotFoundException("Injector contract not found"));
+              .orElseThrow(() -> new EntityNotFoundException("Threat arsenal item not found"));
     }
     io.openaev.executors.Injector executor;
     ConnectorInstancePersisted connectorInstancePersisted =

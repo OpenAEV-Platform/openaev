@@ -69,7 +69,7 @@ const ScopeTimeOut = ({ workflowConfiguration, onUpdate }: Props) => {
         }}
       >
         {t('Simulation time out')}
-        <Tooltip title={t('Maximum total runtime for the entire attack chaining scenario. Execution stops automatically once the timeout is reached.')}>
+        <Tooltip title={t('Maximum total runtime for the entire chained scenario. Execution stops automatically once the timeout is reached.')}>
           <InfoOutlined
             color="primary"
             sx={{

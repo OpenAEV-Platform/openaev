@@ -10,6 +10,7 @@ import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import Dialog from '../../../../components/common/dialog/Dialog';
 import DialogDelete from '../../../../components/common/DialogDelete';
+import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
@@ -29,6 +30,8 @@ interface TeamPopoverProps {
   onRemoveTeamFromInject?: (teamId: string) => void;
   onUpdate?: (result: Team) => void;
   onDelete?: (result: string) => void;
+  /** Rendered inside another drawer (inject form): edit in a dialog instead of the standard edition drawer. */
+  inline?: boolean;
 }
 
 const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
@@ -39,6 +42,7 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
   onRemoveTeamFromInject = null,
   onUpdate,
   onDelete,
+  inline = false,
 }) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
@@ -183,18 +187,33 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
         handleSubmit={submitDelete}
         text={t('Do you want to delete this team?')}
       />
-      <Dialog
-        open={openEdit}
-        handleClose={handleCloseEdit}
-        title={t('Update the team')}
-      >
-        <TeamForm
-          initialValues={initialValues}
+      {inline ? (
+        <Dialog
+          open={openEdit}
           handleClose={handleCloseEdit}
-          onSubmit={onSubmitEdit}
-          editing
-        />
-      </Dialog>
+          title={t('Update the team')}
+        >
+          <TeamForm
+            initialValues={initialValues}
+            handleClose={handleCloseEdit}
+            onSubmit={onSubmitEdit}
+            editing
+          />
+        </Dialog>
+      ) : (
+        <Drawer
+          open={openEdit}
+          handleClose={handleCloseEdit}
+          title={t('Update the team')}
+        >
+          <TeamForm
+            initialValues={initialValues}
+            handleClose={handleCloseEdit}
+            onSubmit={onSubmitEdit}
+            editing
+          />
+        </Drawer>
+      )}
       <MuiDialog
         open={openRemove}
         slots={{ transition: Transition }}

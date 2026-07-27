@@ -63,7 +63,7 @@ const ThreatArsenalRunTestDrawer: FunctionComponent<Props> = ({
         setSelectedExecutionMode(ExecutionMode.ATOMIC_CREATE);
       },
       disabled: !isOnlyOneItemSelected,
-      tooltip: isOnlyOneItemSelected ? '' : t('Atomic testing validates one attack action in isolation. Select a single action to run the test'),
+      tooltip: isOnlyOneItemSelected ? '' : t('Atomic testing validates one action in isolation. Select a single action to run the test'),
     },
   ];
 

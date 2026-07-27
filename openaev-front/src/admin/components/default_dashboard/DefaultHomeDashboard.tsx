@@ -1,7 +1,7 @@
 import { RefreshOutlined } from '@mui/icons-material';
 import { Box, IconButton, MenuItem, Select, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 
@@ -9,12 +9,12 @@ import { fetchSecurityPlatforms } from '../../../actions/assets/securityPlatform
 import { adHocAverage, adHocCount, adHocEntities, adHocEntitiesRuntime, adHocSeries } from '../../../actions/dashboards/dashboard-action';
 import { useFormatter } from '../../../components/i18n';
 import { type CustomDashboard, type Widget, type WidgetToEntitiesInput } from '../../../utils/api-types';
+import { useBulkOperationsFinishedCount } from '../../../utils/bulkOperations';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import limitConcurrency from '../../../utils/limitConcurrency';
-import { CustomDashboardContext, type CustomDashboardContextType } from '../workspaces/custom_dashboards/CustomDashboardContext';
+import { CustomDashboardContext, type CustomDashboardContextType, type WidgetResultsConf } from '../workspaces/custom_dashboards/CustomDashboardContext';
 import CustomDashboardReactLayout from '../workspaces/custom_dashboards/CustomDashboardReactLayout';
-import { type WidgetDataDrawerConf } from '../workspaces/custom_dashboards/widgetDataDrawer/WidgetDataDrawer';
 import { getTimeRangeItems } from '../workspaces/custom_dashboards/widgets/configuration/common/TimeRangeUtils';
 import {
   buildDefaultHomeWidgets,
@@ -50,6 +50,22 @@ const DefaultHomeDashboard = () => {
 
   const [timeRange, setTimeRange] = useLocalStorage<DefaultTimeRange>('default-home-dashboard-time-range', 'LAST_QUARTER');
   const [refreshCount, setRefreshCount] = useState(0);
+
+  // Massive operations no longer stream one event per deleted entity (which used to force a
+  // widget refresh per delete): refresh the engine-backed widgets once per finished operation,
+  // after a short delay so the search engine has flushed the deletions. Only INCREASES after
+  // mount count: a nonzero value at mount is history (operations finished earlier in the
+  // session), and refreshing for it would refetch every widget right after the initial load.
+  const finishedBulkOperations = useBulkOperationsFinishedCount();
+  const seenFinishedOperations = useRef(finishedBulkOperations);
+  useEffect(() => {
+    if (finishedBulkOperations <= seenFinishedOperations.current) {
+      return undefined;
+    }
+    seenFinishedOperations.current = finishedBulkOperations;
+    const timeout = setTimeout(() => setRefreshCount(count => count + 1), 2500);
+    return () => clearTimeout(timeout);
+  }, [finishedBulkOperations]);
 
   // Titles are localized at build time so the grid headers and the results page agree.
   // `t` from useFormatter() is a NEW function on every render, so it must NOT be a
@@ -87,7 +103,7 @@ const DefaultHomeDashboard = () => {
 
   // Every widget click lands on the full-page results explorer: no drawer,
   // no dashboard re-render, a real navigable page with the scoped entities.
-  const openWidgetDataDrawer = useCallback((conf: WidgetDataDrawerConf) => {
+  const openWidgetResults = useCallback((conf: WidgetResultsConf) => {
     const params = new URLSearchParams();
     params.set('widget_id', conf.widgetId);
     params.set('series_index', (conf.series_index ?? '').toString());
@@ -98,11 +114,8 @@ const DefaultHomeDashboard = () => {
         (values ?? []).forEach(value => params.append(key, value));
       });
     }
+    params.set('back', '/admin');
     navigate(`/admin/results?${params.toString()}`);
-  }, [navigate]);
-
-  const closeWidgetDataDrawer = useCallback(() => {
-    navigate('/admin');
   }, [navigate]);
 
   const contextValue: CustomDashboardContextType = useMemo(() => ({
@@ -128,10 +141,9 @@ const DefaultHomeDashboard = () => {
       const widget = widgetOf(widgetId);
       return limitWidgetQueries(() => adHocEntitiesRuntime(widget.widget_type, widget.widget_config, input));
     },
-    openWidgetDataDrawer,
-    closeWidgetDataDrawer,
+    openWidgetResults,
     setGridReady: () => {},
-  }), [customDashboard, widgetOf, refreshCount, openWidgetDataDrawer, closeWidgetDataDrawer]);
+  }), [customDashboard, widgetOf, refreshCount, openWidgetResults]);
 
   return (
     <CustomDashboardContext.Provider value={contextValue}>

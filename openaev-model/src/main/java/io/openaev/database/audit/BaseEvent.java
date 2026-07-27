@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.BulkOperationContext;
 import io.openaev.database.model.Base;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Id;
@@ -75,7 +76,10 @@ public class BaseEvent implements Cloneable {
     this.type = type;
     this.instance = data;
     this.instanceData = mapper.valueToTree(instance);
-    this.listened = data.isListened();
+    // Events fired from inside a massive operation are not streamed per entity: connected
+    // browsers would refresh once per mutation. They receive aggregated bulk-operation
+    // progress events instead (see BulkOperationContext).
+    this.listened = data.isListened() && !BulkOperationContext.isActive();
     RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
     this.sessionId = requestAttributes != null ? requestAttributes.getSessionId() : null;
     Class<?> baseClass = data.getClass();

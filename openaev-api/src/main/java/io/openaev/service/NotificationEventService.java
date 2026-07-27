@@ -1,6 +1,6 @@
 package io.openaev.service;
 
-import io.openaev.database.model.NotificationRuleResourceType;
+import io.openaev.database.model.ResourceType;
 import io.openaev.notification.handler.NotificationEventHandler;
 import io.openaev.notification.handler.ScenarioNotificationEventHandler;
 import io.openaev.notification.model.NotificationEvent;
@@ -23,7 +23,7 @@ public class NotificationEventService {
   private final ApplicationEventPublisher appPublisher;
   private final ScenarioNotificationEventHandler scenarioNotificationEventHandler;
   private final ThreadPoolTaskScheduler taskScheduler;
-  private final Map<NotificationRuleResourceType, NotificationEventHandler> handlers;
+  private final Map<ResourceType, NotificationEventHandler> handlers;
 
   @Autowired
   public NotificationEventService(
@@ -34,7 +34,7 @@ public class NotificationEventService {
     this.appPublisher = appPublisher;
     this.scenarioNotificationEventHandler = scenarioNotificationEventHandler;
     this.taskScheduler = taskScheduler;
-    this.handlers = Map.of(NotificationRuleResourceType.SCENARIO, scenarioNotificationEventHandler);
+    this.handlers = Map.of(ResourceType.SCENARIO, scenarioNotificationEventHandler);
   }
 
   public void sendNotificationEvent(@NotNull final NotificationEvent notificationEvent) {

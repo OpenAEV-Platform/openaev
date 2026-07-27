@@ -7,13 +7,14 @@ import {
   MovieFilterOutlined,
   NumbersOutlined,
 } from '@mui/icons-material';
-import { Box, Button } from '@mui/material';
+import { Box, Button, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Binoculars, SelectGroup } from 'mdi-material-ui';
 import { type FunctionComponent, memo, type ReactElement, useCallback, useContext, useMemo } from 'react';
 
 import { type EsCountInterval, type Widget } from '../../../../../../utils/api-types';
 import useCountUp from '../../../../../../utils/hooks/useCountUp';
+import { compactNumber } from '../../../../../../utils/number';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
 import TrendChip from './TrendChip';
 
@@ -30,7 +31,7 @@ interface EntityVisual {
 
 const NumberWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, data }) => {
   const theme = useTheme();
-  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
+  const { openWidgetResults } = useContext(CustomDashboardContext);
 
   const animatedCount = useCountUp(data.interval_count ?? 0, 1200);
 
@@ -56,7 +57,7 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, data }
         icon: <BoltOutlined />,
         color: theme.palette.warning.main,
       },
-      'endpoint': {
+      'asset': {
         icon: <DnsOutlined />,
         color: theme.palette.primary.main,
       },
@@ -84,12 +85,12 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, data }
   }, [widgetConfig, theme]);
 
   const onClick = useCallback(() => {
-    openWidgetDataDrawer({
+    openWidgetResults({
       widgetId,
       filter_values_map: {},
       series_index: 0,
     });
-  }, [openWidgetDataDrawer, widgetId]);
+  }, [openWidgetResults, widgetId]);
 
   return (
     <div
@@ -118,22 +119,24 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, data }
       >
         {visual.icon}
       </Box>
-      <Button
-        onClick={onClick}
-        variant="text"
-        className="noDrag"
-        sx={{
-          fontSize: 36,
-          height: 46,
-          fontWeight: 500,
-          fontFamily: '"Geologica", sans-serif',
-          padding: 0,
-          minWidth: 0,
-          color: 'text.primary',
-        }}
-      >
-        {data.interval_count != null ? Math.round(animatedCount) : '-'}
-      </Button>
+      <Tooltip title={data.interval_count != null ? data.interval_count.toLocaleString() : ''}>
+        <Button
+          onClick={onClick}
+          variant="text"
+          className="noDrag"
+          sx={{
+            fontSize: 36,
+            height: 46,
+            fontWeight: 500,
+            fontFamily: '"Geologica", sans-serif',
+            padding: 0,
+            minWidth: 0,
+            color: 'text.primary',
+          }}
+        >
+          {data.interval_count != null ? compactNumber(Math.round(animatedCount)) : '-'}
+        </Button>
+      </Tooltip>
       <TrendChip
         difference={data.difference_count ?? 0}
         previous={data.previous_interval_count}

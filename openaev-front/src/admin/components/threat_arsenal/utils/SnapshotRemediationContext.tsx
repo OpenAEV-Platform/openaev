@@ -7,11 +7,12 @@ export type SnapshotEditionRemediationType = {
   trackedFields?: FieldValues[];
 };
 
-export type SnapshotCollectorRemediationEditionType = Map<string, SnapshotEditionRemediationType>;
+// Keyed by security platform id.
+export type SnapshotRemediationEditionType = Map<string, SnapshotEditionRemediationType>;
 
 export type SnapshotRemediationContextType = {
-  snapshot: SnapshotCollectorRemediationEditionType | undefined;
-  setSnapshot: React.Dispatch<React.SetStateAction<SnapshotCollectorRemediationEditionType | undefined>>;
+  snapshot: SnapshotRemediationEditionType | undefined;
+  setSnapshot: React.Dispatch<React.SetStateAction<SnapshotRemediationEditionType | undefined>>;
 };
 
 export const SnapshotRemediationContext
