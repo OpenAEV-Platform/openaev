@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
@@ -12,12 +13,39 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class Filters {
+
+  private static final int MAX_LOGGED_VALUE_LENGTH = 100;
+
+  // Bound the caller-supplied token echoed in fallback logs
+  private static String abbreviate(String value) {
+    return value.length() <= MAX_LOGGED_VALUE_LENGTH
+        ? value
+        : value.substring(0, MAX_LOGGED_VALUE_LENGTH) + "...";
+  }
 
   public enum FilterMode {
     and,
-    or
+    or;
+
+    @JsonCreator
+    public static FilterMode fromValue(String value) {
+      if (value == null) {
+        return and;
+      }
+      for (FilterMode mode : FilterMode.values()) {
+        if (mode.name().equalsIgnoreCase(value)) {
+          return mode;
+        }
+      }
+      // Tolerate vocabulary drift from external callers (e.g. older injector images), but leave a
+      // trace: a silent coercion would make the drift undiagnosable again (#6927).
+      log.warn("Unknown FilterMode '{}', falling back to '{}'", abbreviate(value), and);
+      return and;
+    }
   }
 
   public enum FilterOperator {
@@ -32,7 +60,23 @@ public class Filters {
     lt,
     lte,
     empty,
-    not_empty,
+    not_empty;
+
+    @JsonCreator
+    public static FilterOperator fromValue(String value) {
+      if (value == null) {
+        return eq;
+      }
+      for (FilterOperator operator : FilterOperator.values()) {
+        if (operator.name().equalsIgnoreCase(value)) {
+          return operator;
+        }
+      }
+      // Tolerate vocabulary drift from external callers (e.g. older injector images), but leave a
+      // trace: a silent coercion would make the drift undiagnosable again (#6927).
+      log.warn("Unknown FilterOperator '{}', falling back to '{}'", abbreviate(value), eq);
+      return eq;
+    }
   }
 
   @Data

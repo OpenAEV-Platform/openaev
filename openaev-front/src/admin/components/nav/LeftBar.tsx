@@ -16,6 +16,7 @@ import {
 } from '@mui/icons-material';
 import {
   Binoculars,
+  FileChartOutline,
   NewspaperVariantMultipleOutline,
   PostOutline,
   SecurityNetwork,
@@ -31,6 +32,7 @@ import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
 import settingsEntries from './config/settings.config';
+import LeftBarHeader from './LeftBarHeader';
 import TenantSwitcher from './LeftBarTenantSwitcher';
 
 const LeftBar = () => {
@@ -55,6 +57,12 @@ const LeftBar = () => {
           icon: () => (<InsertChartOutlined />),
           label: 'Dashboards',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DASHBOARDS),
+        },
+        {
+          path: `/admin/reporting`,
+          icon: () => (<FileChartOutline />),
+          label: 'Reporting',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.REPORTINGS),
         },
         {
           path: '/admin/findings',
@@ -97,13 +105,13 @@ const LeftBar = () => {
       userRight: true,
       items: [
         {
-          path: `/admin/assets/inventory`,
+          path: `/admin/assets`,
           icon: () => (<DnsOutlined />),
           label: 'Assets',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
         },
         {
-          path: `/admin/assets/asset_groups`,
+          path: `/admin/asset_groups`,
           icon: () => (<SelectGroup />),
           label: 'Asset groups',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
@@ -114,19 +122,19 @@ const LeftBar = () => {
       userRight: true,
       items: [
         {
-          path: `/admin/teams/persons`,
+          path: `/admin/persons`,
           icon: () => (<PersonOutlined />),
           label: 'Persons',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
         },
         {
-          path: `/admin/teams/teams`,
+          path: `/admin/teams`,
           icon: () => (<GroupsOutlined />),
           label: 'Teams',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
         },
         {
-          path: `/admin/teams/organizations`,
+          path: `/admin/organizations`,
           icon: () => (<DomainOutlined />),
           label: 'Organizations',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
@@ -143,7 +151,7 @@ const LeftBar = () => {
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
         },
         {
-          path: `/admin/assets/security_platforms`,
+          path: `/admin/security_platforms`,
           icon: () => (<SecurityNetwork />),
           label: 'Security platforms',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
@@ -211,6 +219,7 @@ const LeftBar = () => {
     <LeftMenu
       entries={entries}
       bottomEntries={bottomEntries}
+      logoHeader={(navOpen: boolean) => <LeftBarHeader navOpen={navOpen} />}
       headerElement={hasTenantSwitcher ? (navOpen: boolean) => <TenantSwitcher navOpen={navOpen} /> : undefined}
     />
   );

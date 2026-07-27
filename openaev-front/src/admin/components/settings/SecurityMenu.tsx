@@ -36,7 +36,9 @@ const SecurityMenuComponent: FunctionComponent = () => {
   const ability = useContext(AbilityContext);
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
 
-  const showScopeSwitch = canAccessTenant && canAccessPlatform;
+  // The platform scope is an EE feature: in Community Edition the switcher is
+  // not displayed at all and the section stays on the tenant scope.
+  const showScopeSwitch = isEnterpriseEdition && canAccessTenant && canAccessPlatform;
   const isPlatform = scope === 'platform';
 
   // Carry the current scope on the shared entity links so navigating within
@@ -131,7 +133,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
   // filter repeated under every entry).
   const scopeSwitcher = showScopeSwitch
     ? (
-        <Box sx={{ padding: theme.spacing(1.5, 1.5, 0.5, 1.5) }}>
+        <Box sx={{ padding: theme.spacing(1, 1.5, 1, 1.5) }}>
           <ToggleButtonGroup
             exclusive
             size="small"
@@ -141,15 +143,22 @@ const SecurityMenuComponent: FunctionComponent = () => {
               if (value && value !== scope) changeScope(value);
             }}
             sx={{
+              'gap': 1,
+              // The global MuiToggleButtonGroup override pins the group to 36px
+              // (fine for single-line toggles). This switcher stacks an icon over
+              // a label, so let its height grow with the content + padding.
+              'height': 'auto',
               '& .MuiToggleButton-root': {
                 'flexDirection': 'column',
-                'gap': 0.5,
-                'paddingBlock': 1,
+                'gap': 0.75,
+                'paddingBlock': 1.75,
+                'paddingInline': 1.5,
+                'borderRadius': 1,
+                'border': `1px solid ${theme.palette.divider}`,
                 'textTransform': 'none',
                 'fontSize': 11,
                 'fontWeight': 600,
                 'lineHeight': 1.2,
-                'borderColor': theme.palette.divider,
                 'color': theme.palette.text.secondary,
                 '& .MuiSvgIcon-root': { fontSize: 18 },
                 '&.Mui-selected': {

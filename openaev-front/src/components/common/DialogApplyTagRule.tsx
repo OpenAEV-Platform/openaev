@@ -9,6 +9,7 @@ import {
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
 
+import { ASSET_RULES_BASE_URL } from '../../constants/BaseUrls';
 import { useFormatter } from '../i18n';
 
 interface DialogDeleteProps {
@@ -38,14 +39,14 @@ const DialogApplyTagRule: FunctionComponent<DialogDeleteProps> = ({
         </DialogTitle>
         <DialogContentText>
           {t('We detected that your change will trigger an {assetrule}. Would you like to apply the defined asset groups on your current existing injects?',
-            { assetrule: <Link to="/admin/settings/asset_rules" target="_blank" rel="noreferrer">{t('asset rule')}</Link> })}
+            { assetrule: <Link to={ASSET_RULES_BASE_URL} target="_blank" rel="noreferrer">{t('asset rule')}</Link> })}
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleDontApplyRule}>
+        <Button variant="outlined" color="primary" onClick={handleDontApplyRule}>
           {t('No')}
         </Button>
-        <Button color="secondary" onClick={handleApplyRule}>
+        <Button variant="contained" color="primary" onClick={handleApplyRule}>
           {t('Yes')}
         </Button>
       </DialogActions>

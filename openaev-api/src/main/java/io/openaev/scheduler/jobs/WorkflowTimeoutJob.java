@@ -29,14 +29,15 @@ public class WorkflowTimeoutJob implements Job {
       return;
     }
 
-    log.info("Found {} expired workflow run(s) to force-complete.", expiredWorkflows.size());
+    log.info(
+        "[Chaining] Found {} expired workflow run(s) to force-complete.", expiredWorkflows.size());
 
     for (Workflow workflow : expiredWorkflows) {
       try {
         workflowTimeoutService.forceCompleteWorkflow(workflow);
       } catch (Exception e) {
         log.error(
-            "Failed to force-complete expired workflow run {}. Will retry on next cycle.",
+            "[Chaining] Failed to force-complete expired workflow run {}. Will retry on next cycle.",
             workflow.getId(),
             e);
       }

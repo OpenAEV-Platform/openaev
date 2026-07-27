@@ -1,7 +1,6 @@
 import { DescriptionOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, GridLegacy, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { type FunctionComponent, useEffect, useState } from 'react';
-import { makeStyles } from 'tss-react/mui';
+import { Box } from '@mui/material';
+import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 
 import { type DocumentHelper, type UserHelper } from '../../actions/helper';
 import TagsFilter from '../../admin/components/common/filters/TagsFilter';
@@ -10,27 +9,10 @@ import { useHelper } from '../../store';
 import { type RawDocument } from '../../utils/api-types';
 import { Can } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
-import { truncate } from '../../utils/String';
-import Transition from '../common/Transition';
+import SelectListPicker, { type SelectListPickerElements } from '../common/SelectListPicker';
 import { useFormatter } from '../i18n';
 import ItemTags from '../ItemTags';
 import SearchFilter from '../SearchFilter';
-
-const useStyles = makeStyles()(theme => ({
-  box: {
-    width: '100%',
-    minHeight: '100%',
-    padding: 20,
-    border: `1px dashed ${theme.palette.divider}`,
-  },
-  chip: { margin: '0 10px 10px 0' },
-  item: {
-    'paddingLeft': 10,
-    'height': 50,
-    'cursor': 'pointer',
-    '&:hover': { backgroundColor: theme.palette.action?.hover },
-  },
-}));
 
 interface Props {
   label: string;
@@ -44,6 +26,11 @@ interface Props {
   onSubmitAddDocuments?: (documents: RawDocument[]) => void;
 }
 
+/**
+ * Document picker rendered as a design-system dialog (SelectListPicker inline:
+ * it usually opens above a drawer form, never drawer over drawer). Single mode
+ * selects exactly one document, multiple mode toggles a selection.
+ */
 const FileTransferDialog: FunctionComponent<Props> = ({
   label,
   open,
@@ -54,7 +41,6 @@ const FileTransferDialog: FunctionComponent<Props> = ({
   initialDocumentIds = [],
   onSubmitAddDocuments,
 }) => {
-  const { classes } = useStyles();
   const { t } = useFormatter();
 
   const [keyword, setKeyword] = useState<string>('');
@@ -83,10 +69,6 @@ const FileTransferDialog: FunctionComponent<Props> = ({
     );
   }, [initialDocumentIds]);
 
-  const handleSearchDocuments = (value?: string) => {
-    setKeyword(value || '');
-  };
-
   const handleAddTag = (value: {
     id: string;
     label: string;
@@ -106,25 +88,25 @@ const FileTransferDialog: FunctionComponent<Props> = ({
     setSelectedDocuments([]);
   };
 
-  const handleAddDocument = (document: RawDocument) => {
-    if (!selectedDocuments.some(doc => doc.document_id === document.document_id)) {
-      setSelectedDocuments([...selectedDocuments, document]);
-    }
-    if (!multiple && onAddDocument) {
-      onAddDocument(document);
-      handleClose();
+  const toggleDocument = (documentId: string, document: RawDocument) => {
+    const alreadySelected = selectedDocuments.some(doc => doc.document_id === documentId);
+    if (multiple) {
+      setSelectedDocuments(alreadySelected
+        ? selectedDocuments.filter(doc => doc.document_id !== documentId)
+        : [...selectedDocuments, document]);
+    } else {
+      // Single mode: selecting a row replaces the previous selection.
+      setSelectedDocuments(alreadySelected ? [] : [document]);
     }
   };
 
-  const handleSubmitAddDocuments = () => {
-    if (onSubmitAddDocuments) {
-      onSubmitAddDocuments(selectedDocuments);
+  const handleSubmit = () => {
+    if (multiple) {
+      onSubmitAddDocuments?.(selectedDocuments);
+    } else if (selectedDocuments[0]) {
+      onAddDocument?.(selectedDocuments[0]);
     }
     handleClose();
-  };
-
-  const handleRemoveDocument = (document: RawDocument) => {
-    setSelectedDocuments(selectedDocuments.filter(doc => doc.document_id !== document.document_id));
   };
 
   const filterByExtensions = (document: RawDocument) => {
@@ -143,114 +125,91 @@ const FileTransferDialog: FunctionComponent<Props> = ({
     return tags.length === 0 || tags.every(tag => document.document_tags?.includes(tag.id));
   };
 
-  const selectedIds = selectedDocuments.map(d => d.document_id);
+  const selectedIds = selectedDocuments
+    .map(doc => doc.document_id)
+    .filter((id): id is string => !!id);
 
-  const filteredDocuments = documents.filter((document) => {
-    const isSelected = document.document_id && selectedIds.includes(document.document_id);
-    return !isSelected
-      && filterByExtensions(document)
+  const filteredDocuments = documents
+    .filter(document => filterByExtensions(document)
       && filterByKeyword(document)
-      && filterByTag(document);
-  }).slice(0, 10);
+      && filterByTag(document))
+    .slice(0, 20);
+
+  const elements: SelectListPickerElements<RawDocument> = useMemo(() => ({
+    icon: { value: () => <DescriptionOutlined /> },
+    headers: [
+      {
+        field: 'document_name',
+        label: 'Name',
+        isSortable: true,
+        value: (document: RawDocument) => document.document_name ?? '-',
+        width: 35,
+      },
+      {
+        field: 'document_description',
+        label: 'Description',
+        isSortable: true,
+        value: (document: RawDocument) => document.document_description ?? '-',
+        width: 40,
+      },
+      {
+        field: 'document_tags',
+        label: 'Tags',
+        value: (document: RawDocument) => <ItemTags variant="list" limit={2} tags={document.document_tags} />,
+        width: 25,
+      },
+    ],
+  }), []);
 
   return (
-    <Dialog
+    <SelectListPicker<RawDocument>
       open={open}
       onClose={handleClose}
-      fullWidth
-      maxWidth="lg"
-      slotProps={{
-        paper: {
-          elevation: 1,
-          sx: {
-            minHeight: 580,
-            maxHeight: 580,
-          },
-        },
-      }}
-      slots={{ transition: Transition }}
-    >
-      <DialogTitle>{t(label)}</DialogTitle>
-      <DialogContent>
-        <GridLegacy container spacing={3}>
-          <GridLegacy item xs={multiple ? 8 : 12}>
-            <GridLegacy container spacing={3}>
-              <GridLegacy item xs={6}>
-                <SearchFilter
-                  onChange={handleSearchDocuments}
-                  fullWidth
-                />
-              </GridLegacy>
-              <GridLegacy item xs={6}>
-                <TagsFilter
-                  onAddTag={handleAddTag}
-                  onClearTag={handleClearTag}
-                  currentTags={tags}
-                  fullWidth
-                />
-              </GridLegacy>
-            </GridLegacy>
-            <List>
-              {filteredDocuments.map((document: RawDocument) => {
-                return (
-                  <ListItem
-                    classes={{ root: classes.item }}
-                    key={document.document_id}
-                    divider
-                    onClick={() => handleAddDocument(document)}
-                  >
-                    <ListItemIcon>
-                      <DescriptionOutlined />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={document.document_name}
-                      secondary={document.document_description}
-                    />
-                    <ItemTags
-                      variant="reduced-view"
-                      tags={document.document_tags}
-                    />
-                  </ListItem>
-                );
-              })}
-              <Can I={ACTIONS.MANAGE} a={SUBJECTS.DOCUMENTS}>
-                <CreateDocument
-                  inline
-                  onCreate={handleAddDocument}
-                />
-              </Can>
-            </List>
-          </GridLegacy>
-          {multiple && (
-            <GridLegacy item xs={4}>
-              <Box className={classes.box}>
-                {selectedDocuments.map(document => (
-                  <Chip
-                    key={document.document_id}
-                    variant="outlined"
-                    onDelete={() => handleRemoveDocument(document)}
-                    label={truncate(document?.document_name, 15)}
-                    icon={<DescriptionOutlined />}
-                    classes={{ root: classes.chip }}
-                  />
-                ))}
-              </Box>
-            </GridLegacy>
-          )}
-        </GridLegacy>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose}>{t('Cancel')}</Button>
-        {multiple && (
-          <Button
-            color="secondary"
-            onClick={handleSubmitAddDocuments}
-          >
-            {t('Add')}
-          </Button>
-        )}
-      </DialogActions>
-    </Dialog>
+      onSubmit={handleSubmit}
+      title={label}
+      submitLabel={t('Add')}
+      inline
+      headerComponent={(
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+          }}
+        >
+          <SearchFilter
+            fullWidth
+            onChange={(value?: string) => setKeyword(value ?? '')}
+            keyword={keyword}
+          />
+          <TagsFilter
+            fullWidth
+            onAddTag={handleAddTag}
+            onClearTag={handleClearTag}
+            currentTags={tags}
+          />
+        </Box>
+      )}
+      values={filteredDocuments}
+      elements={elements}
+      selectedIds={selectedIds}
+      onToggle={toggleDocument}
+      getId={document => document.document_id ?? ''}
+      submitDisabled={!multiple && selectedIds.length === 0}
+      buttonComponent={(
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.DOCUMENTS}>
+          <CreateDocument
+            inline
+            onCreate={(document: RawDocument) => {
+              if (multiple) {
+                setSelectedDocuments(prev => [...prev, document]);
+              } else {
+                setSelectedDocuments([document]);
+              }
+            }}
+          />
+        </Can>
+      )}
+    />
   );
 };
 

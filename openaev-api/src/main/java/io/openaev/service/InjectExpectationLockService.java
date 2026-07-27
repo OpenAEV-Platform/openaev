@@ -34,8 +34,13 @@ public class InjectExpectationLockService {
       expectation.getSignatures().clear();
       expectation.getSignatures().addAll(signatures);
     } else {
+      // mergeExpectationSignatures returns the de-duplicated union of the existing and the new
+      // signatures, so it must REPLACE the collection - appending it onto the still-populated
+      // collection would re-add every existing signature and enqueue duplicate composite ids
+      // (NonUniqueObjectException on flush). orphanRemoval makes clear()+addAll the safe pattern.
       List<InjectExpectationSignature> mergedList =
           mergeExpectationSignatures(expectation.getSignatures(), signatures);
+      expectation.getSignatures().clear();
       expectation.getSignatures().addAll(mergedList);
     }
     expectation.setSignaturesInitialized(true);

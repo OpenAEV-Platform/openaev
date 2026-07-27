@@ -15,7 +15,6 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.helper.CryptoHelper;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,7 +36,6 @@ class LogServiceTest {
 
   @Mock private AuditLogProperties auditLogProperties;
   @Mock private AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
-  @Mock private PreviewFeatureService previewFeatureService;
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private LicenseCacheManager licenseCacheManager;
 
@@ -53,7 +51,6 @@ class LogServiceTest {
     logService =
         new LogService(
             auditLogProperties,
-            previewFeatureService,
             auditLogTransportDispatcherUtils,
             mock(io.openaev.utils.object.ObjectNormalizationUtils.class),
             engineService,
@@ -72,7 +69,6 @@ class LogServiceTest {
     @DisplayName("given_auditEnabled_should_buildAndDispatchEvent")
     void given_auditEnabled_should_buildAndDispatchEvent() {
       // -- PREPARE --
-      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
       when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
 
       // -- EXECUTE --
@@ -105,7 +101,6 @@ class LogServiceTest {
     @DisplayName("given_httpSessionContext_should_setSessionIdInUserMetadata")
     void given_httpSessionContext_should_setSessionIdInUserMetadata() {
       // -- PREPARE --
-      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
       when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
 
       HttpServletRequest request = mock(HttpServletRequest.class);
@@ -134,7 +129,6 @@ class LogServiceTest {
     @DisplayName("given_explicitTenantIpUserAgent_should_setThemOnEvent")
     void given_explicitTenantIpUserAgent_should_setThemOnEvent() {
       // -- PREPARE --
-      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
       when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
 
       // -- EXECUTE --
@@ -171,26 +165,9 @@ class LogServiceTest {
     }
 
     @Test
-    @DisplayName("given_previewFeatureDisabled_should_returnTrueWithoutDispatching")
-    void given_previewFeatureDisabled_should_returnTrueWithoutDispatching() {
-      // -- PREPARE --
-      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(false);
-
-      // -- EXECUTE --
-      boolean result =
-          logService.logSessionExpiredEvent(
-              "user-1", "sess-1", 60L, "inactivity_timeout", "1.1.1.1", "test");
-
-      // -- VERIFY --
-      assertTrue(result);
-      verify(auditLogTransportDispatcherUtils, never()).dispatch(any(LogEvent.class), any());
-    }
-
-    @Test
     @DisplayName("given_dispatchException_should_returnFalse")
     void given_dispatchException_should_returnFalse() {
       // -- PREPARE --
-      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
       when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any()))
           .thenThrow(new RuntimeException("dispatch failed"));
 
@@ -215,7 +192,6 @@ class LogServiceTest {
     @DisplayName("given_loginRequestContext_should_populateSessionIdInUserMetadata")
     void given_loginRequestContext_should_populateSessionIdInUserMetadata() {
       // -- PREPARE --
-      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
       when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
 
       ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.setRequestContextData(
@@ -244,7 +220,6 @@ class LogServiceTest {
     @DisplayName("given_noActiveSession_should_notSetSessionIdInUserMetadata")
     void given_noActiveSession_should_notSetSessionIdInUserMetadata() {
       // -- PREPARE --
-      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
       when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
 
       // No ThreadRequestContextHolder set — simulates no active HTTP session
@@ -269,7 +244,6 @@ class LogServiceTest {
   @DisplayName("Given event with entity diffs, should include diffs in context")
   void given_eventWithEntityDiffs_should_includeDiffs() {
     // Arrange
-    when(previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)).thenReturn(true);
     when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
     when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
 
@@ -304,7 +278,6 @@ class LogServiceTest {
 
     @BeforeEach
     void enableAudit() {
-      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
       when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
     }
 

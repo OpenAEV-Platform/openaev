@@ -3,34 +3,42 @@ import { type FunctionComponent, useContext, useState } from 'react';
 
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
-import { deletePlayer } from '../../../../actions/users/User';
-import ButtonPopover from '../../../../components/common/ButtonPopover';
+import { deletePlayer, updatePlayer } from '../../../../actions/users/User';
+import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
+import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
+import { type PlayerInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
+import { countryOption, type Option, organizationOption, tagOptions } from '../../../../utils/Option';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { TeamContext } from '../../common/Context';
-import { type UserStore } from './Player';
+import { type PlayerInputForm, type UserStore } from './Player';
+import PlayerForm from './PlayerForm';
 
 interface PlayerPopoverProps {
   user: UserStore;
   teamId?: string;
+  openEditOnInit?: boolean;
+  onUpdate?: (result: UserStore) => void;
   onDelete?: (result: string) => void;
 }
 
 const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
   user,
   teamId,
+  openEditOnInit = false,
+  onUpdate,
   onDelete,
 }) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
-  const { currentUser } = useHelper(
+  const { organizationsMap, tagsMap, currentUser } = useHelper(
     (
       helper: UserHelper & OrganizationHelper & TagHelper,
     ) => {
@@ -45,7 +53,40 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
   const { onRemoveUsersTeam } = useContext(TeamContext);
 
   const [openDelete, setOpenDelete] = useState(false);
+  const [openEdit, setOpenEdit] = useState(openEditOnInit);
   const [openRemove, setOpenRemove] = useState(false);
+
+  // Platform administrators are protected accounts: they are managed from the
+  // security settings, so the persons screen restricts what can be done on them.
+  const isAdminTarget = user.user_admin === true;
+  const currentUserIsAdmin = currentUser?.user_admin === true;
+
+  // Edition
+  const handleOpenEdit = () => {
+    setOpenEdit(true);
+  };
+
+  const handleCloseEdit = () => setOpenEdit(false);
+
+  const onSubmitEdit = (data: PlayerInputForm) => {
+    const inputValues: PlayerInput = {
+      ...data,
+      user_organization: data.user_organization?.id,
+      user_country: data.user_country?.id,
+      user_tags: data.user_tags?.map((tag: Option) => tag.id),
+    };
+    return dispatch(updatePlayer(user.user_id, inputValues))
+      .then((result: {
+        result: string;
+        entities: { users: Record<string, UserStore> };
+      }) => {
+        if (onUpdate) {
+          const updated = result.entities.users[result.result];
+          onUpdate(updated);
+        }
+        handleCloseEdit();
+      });
+  };
 
   // Deletion
   const handleOpenDelete = () => {
@@ -78,8 +119,25 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
     handleCloseRemove();
   };
 
+  const initialValues: PlayerInputForm = {
+    ...user,
+    user_organization: organizationOption(
+      user.user_organization,
+      organizationsMap,
+    ),
+    user_country: countryOption(user.user_country),
+    user_tags: tagOptions(user.user_tags, tagsMap),
+  };
+
   // Button Popover
-  const entries = [];
+  const entries: PopoverEntry[] = [];
+  entries.push({
+    label: 'Update',
+    action: () => handleOpenEdit(),
+    userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS),
+    disabled: isAdminTarget && !currentUserIsAdmin,
+    disabledMessage: 'Only an administrator can update a platform administrator account.',
+  });
   if (teamId) entries.push({
     label: 'Remove from the team',
     action: () => handleOpenRemove(),
@@ -91,6 +149,8 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
     label: 'Delete',
     action: () => handleOpenDelete(),
     userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TEAMS_AND_PLAYERS),
+    disabled: isAdminTarget,
+    disabledMessage: 'This person is a platform administrator. The account can only be managed from the security settings.',
   });
 
   return (
@@ -102,6 +162,18 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
         handleSubmit={submitDelete}
         text={t('Do you want to delete this player?')}
       />
+      <Drawer
+        open={openEdit}
+        handleClose={handleCloseEdit}
+        title={t('Update the player')}
+      >
+        <PlayerForm
+          initialValues={initialValues}
+          handleClose={handleCloseEdit}
+          onSubmit={onSubmitEdit}
+          editing
+        />
+      </Drawer>
       <MuiDialog
         open={openRemove}
         slots={{ transition: Transition }}
@@ -114,8 +186,8 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitRemove}>
+          <Button variant="outlined" color="primary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
+          <Button variant="contained" color="primary" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

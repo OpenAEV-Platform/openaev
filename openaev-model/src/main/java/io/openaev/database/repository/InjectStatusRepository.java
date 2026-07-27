@@ -30,7 +30,8 @@ public interface InjectStatusRepository
               + "  ON t.execution_inject_status_id = ins.status_id"
               + "  AND t.execution_agent_id IS NULL"
               + "  AND cardinality(t.execution_context_identifiers) = 0"
-              + " WHERE i.inject_id = :injectId",
+              + " WHERE i.inject_id = :injectId"
+              + " ORDER BY t.execution_time ASC, t.execution_trace_id ASC",
       nativeQuery = true)
   Optional<InjectStatus> findInjectStatusWithGlobalExecutionTraces(String injectId);
 

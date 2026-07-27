@@ -46,6 +46,7 @@ const Vulnerabilities = () => {
   // Filter
   const availableFilterNames = [
     'vulnerability_external_id',
+    'vulnerability_vuln_status',
   ];
   const [vulnerabilities, setVulnerabilities] = useState<VulnerabilitySimple[]>([]);
   const [searchParams] = useSearchParams();
@@ -102,6 +103,13 @@ const Vulnerabilities = () => {
           availableFilterNames={availableFilterNames}
           queryableHelpers={queryableHelpers}
           entityPrefix="vulnerability"
+          topBarButtons={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+              <CreateVulnerability
+                onCreate={(result: VulnerabilitySimple) => setVulnerabilities([result, ...vulnerabilities])}
+              />
+            </Can>
+          )}
         />
         <List>
           <ListItem
@@ -162,11 +170,6 @@ const Vulnerabilities = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-          <CreateVulnerability
-            onCreate={(result: VulnerabilitySimple) => setVulnerabilities([result, ...vulnerabilities])}
-          />
-        </Can>
         <Drawer
           open={!!selectedVulnerability}
           handleClose={() => setSelectedVulnerability(null)}

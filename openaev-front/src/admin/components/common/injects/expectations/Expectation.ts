@@ -1,3 +1,4 @@
+import { SECURITY_PLATFORM_TYPE_LABELS, type SecurityPlatformType } from '../../../../../components/securityPlatformType';
 import { type InjectExpectationOutput } from '../../../../../utils/api-types';
 
 export interface InjectExpectationsStore extends Omit<InjectExpectationOutput, 'inject_expectation_team' | 'inject_expectation_user' | 'inject_expectation_article' | 'inject_expectation_challenge' | 'inject_expectation_asset'> {
@@ -20,7 +21,14 @@ export interface ExpectationInput {
   expectation_expectation_group: boolean;
   expectation_expiration_time: number;
   expectation_is_multi_selectable?: boolean;
+  // Security platform types expected to fulfil this expectation (empty = any platform).
+  expectation_expected_security_platform_types?: string[];
+  expectation_is_predefined: boolean;
 }
+
+// Derived from the canonical type map so a platform type added server-side
+// (e.g. VULNERABILITY_SCANNER) always shows up in the expectation forms.
+export const SECURITY_PLATFORM_TYPES = Object.keys(SECURITY_PLATFORM_TYPE_LABELS) as SecurityPlatformType[];
 
 export interface ExpectationInputForm extends Omit<ExpectationInput, 'expectation_expiration_time' | 'expectation_is_multi_selectable'> {
   expiration_time_days: number;

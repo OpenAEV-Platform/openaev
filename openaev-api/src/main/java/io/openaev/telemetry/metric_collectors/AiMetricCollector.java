@@ -33,7 +33,7 @@ public class AiMetricCollector {
 
   private static final String ATTRIBUTE_FEATURE = "feature";
   private static final String ATTRIBUTE_AGENT_SLUG = "agent_slug";
-  private static final String ATTRIBUTE_COLLECTOR_TYPE = "collector_type";
+  private static final String ATTRIBUTE_SECURITY_PLATFORM = "security_platform";
   private static final String ATTRIBUTE_TYPE = "type";
 
   /** Guardrails for the user-supplied agent slug label (see #recordAgentProxyCall). */
@@ -94,7 +94,7 @@ public class AiMetricCollector {
         () -> ttpExtractionCount.getAndSet(0));
     metricRegistry.registerMultiGauge(
         "detection_remediation_ai_count",
-        "AI detection/remediation rule generations broken down by collector type",
+        "AI detection/remediation rule generations broken down by security platform",
         () -> collectAndReset(detectionRemediationStats));
     metricRegistry.registerGauge(
         "inject_assistant_run_count",
@@ -172,9 +172,9 @@ public class AiMetricCollector {
   }
 
   /** Records one detection/remediation rule generation attempt, before the routing branch. */
-  public void recordDetectionRemediation(String collectorType) {
-    String type = normalizeLabel(collectorType);
-    Attributes attributes = Attributes.of(stringKey(ATTRIBUTE_COLLECTOR_TYPE), type);
+  public void recordDetectionRemediation(String securityPlatformName) {
+    String platform = normalizeLabel(securityPlatformName);
+    Attributes attributes = Attributes.of(stringKey(ATTRIBUTE_SECURITY_PLATFORM), platform);
     detectionRemediationStats
         .computeIfAbsent(attributes, key -> new AtomicLong(0))
         .incrementAndGet();

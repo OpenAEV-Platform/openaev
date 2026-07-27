@@ -54,6 +54,11 @@ const PlatformUsersTab = () => {
         entityPrefix={ENTITY_PLATFORM_USER_PREFIX}
         availableFilterNames={PLATFORM_USER_FILTERS}
         queryableHelpers={queryableHelpers}
+        topBarButtons={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES}>
+            <PlatformUserCreate onCreate={addPlatformUser} />
+          </Can>
+        )}
       />
       <List>
         <ListItem
@@ -95,9 +100,6 @@ const PlatformUsersTab = () => {
               />
             )}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES}>
-        <PlatformUserCreate onCreate={addPlatformUser} />
-      </Can>
     </>
   );
 };

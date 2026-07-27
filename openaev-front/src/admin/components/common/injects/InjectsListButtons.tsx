@@ -78,9 +78,10 @@ const InjectsListButtons: FunctionComponent<Props> = ({
               <ToggleButton
                 value="distribution"
                 onClick={() => setViewMode('distribution')}
+                selected={viewModeContext === 'distribution'}
                 aria-label="Distribution view mode"
               >
-                <BarChartOutlined fontSize="small" color="primary" />
+                <BarChartOutlined fontSize="small" color={viewModeContext === 'distribution' ? 'inherit' : 'primary'} />
               </ToggleButton>
             </Tooltip>
           )}

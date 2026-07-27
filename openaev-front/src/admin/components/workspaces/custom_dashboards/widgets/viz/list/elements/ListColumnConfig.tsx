@@ -15,11 +15,17 @@ import ItemTags from '../../../../../../../../components/ItemTags';
 import {
   type AttackPattern,
   type EsBase,
-  type EsInjectExpectation, type InjectStatus as InjectStatusType,
+  type EsInjectExpectation,
+  type EsSimulation,
+  type Exercise,
+  type InjectStatus as InjectStatusType,
 } from '../../../../../../../../utils/api-types';
 import { computeInjectExpectationLabel } from '../../../../../../../../utils/statusUtils';
 import EndpointListItemFragments from '../../../../../../common/endpoints/EndpointListItemFragments';
+import expectationIconByType from '../../../../../../common/ExpectationIconByType';
 import InjectStatus from '../../../../../../common/injects/status/InjectStatus';
+import ScenarioStatus from '../../../../../../scenarios/scenario/ScenarioStatus';
+import ExerciseStatus from '../../../../../../simulations/simulation/ExerciseStatus';
 import ExpectationTypeChip from './ExpectationTypeChip';
 import InjectExpectationSourceFragment from './InjectExpectationSourceFragment';
 
@@ -96,7 +102,14 @@ const injectExpectationRenderers: RendererMap = {
       expectation.inject_expectation_status,
       expectation.inject_expectation_type,
     ) ?? '';
-    return <ItemStatus label={label} variant="inList" status={label} />;
+    return (
+      <ItemStatus
+        label={label}
+        variant="inList"
+        status={label}
+        icon={expectationIconByType(expectation.inject_expectation_type, { fontSize: 14 })}
+      />
+    );
   },
   ['inject_expectation_source']: (_, { element }) => <InjectExpectationSourceFragment element={element} />,
 };
@@ -110,12 +123,36 @@ export const defaultRenderer: ColumnRenderer = (value) => {
   );
 };
 
+// The bare `status` column is shared by the simulation and scenario ES models:
+// render the same status chips as their own list pages (design system) instead
+// of the raw enum text.
+const entityStatusRenderers: RendererMap = {
+  ['status']: (value, opts) => {
+    const { element } = opts;
+    if (element.base_entity === 'simulation') {
+      const simulation = element as EsSimulation;
+      return (
+        <ExerciseStatus
+          variant="list"
+          exerciseStatus={simulation.status as Exercise['exercise_status']}
+          exerciseStartDate={simulation.execution_date}
+        />
+      );
+    }
+    if (element.base_entity === 'scenario') {
+      return <ScenarioStatus variant="list" scheduled={value === 'SCHEDULED'} />;
+    }
+    return defaultRenderer(value, opts);
+  },
+};
+
 const listConfigRenderer = {
   ...commonColumnsRenderers,
   ...endpointColumnsRenderers,
   ...vulnerableEndpointColumnsRenderers,
   ...injectColumnsRenderers,
   ...injectExpectationRenderers,
+  ...entityStatusRenderers,
 };
 
 export default listConfigRenderer;

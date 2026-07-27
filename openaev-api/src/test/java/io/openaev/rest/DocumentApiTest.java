@@ -24,6 +24,7 @@ import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.BinaryFile;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
 import java.io.ByteArrayInputStream;
 import java.util.*;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -48,9 +49,11 @@ class DocumentApiTest extends IntegrationTest {
   @Autowired DomainComposer domainComposer;
   @Autowired ScenarioComposer scenarioComposer;
   @Autowired ExerciseComposer exerciseComposer;
+  @Autowired SecurityPlatformComposer securityPlatformComposer;
   @Autowired private MockMvc mvc;
   @Autowired private DocumentRepository documentRepository;
   @Autowired private ChallengeRepository challengeRepository;
+  @Autowired private EntityManager entityManager;
 
   @BeforeAll
   void beforeAll() {
@@ -91,6 +94,26 @@ class DocumentApiTest extends IntegrationTest {
         .get();
   }
 
+  private Document getDocumentUsedAsSecurityPlatformLogo() {
+    BinaryFile badCoffeeFileContent = FileFixture.getBadCoffeeFileContent();
+    Document document =
+        documentComposer
+            .forDocument(DocumentFixture.getDocument(badCoffeeFileContent))
+            .withInMemoryFile(badCoffeeFileContent)
+            .persist()
+            .get();
+
+    // Collectors upload their platform logo as a Document and reference it from the
+    // security platform: such documents must be protected from deletion.
+    SecurityPlatform securityPlatform =
+        SecurityPlatformFixture.createDefault(
+            "PlatformWithLogo", SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM.name());
+    securityPlatform.setLogoLight(document);
+    securityPlatformComposer.forSecurityPlatform(securityPlatform).persist();
+
+    return document;
+  }
+
   @Nested
   @DisplayName("Documents CRUD")
   @WithMockUser(isAdmin = true)
@@ -100,6 +123,20 @@ class DocumentApiTest extends IntegrationTest {
     @DisplayName("Given a document related to a payload should no delete the payload")
     void givenADocumentRelatedToAPayload_ShouldNoDeleteDocument() throws Exception {
       Document document = getDocumentWithPayload();
+
+      mvc.perform(delete(DOCUMENT_API + "/" + document.getId()).with(csrf()))
+          .andExpect(status().isBadRequest());
+
+      Assertions.assertTrue(documentRepository.findById(document.getId()).isPresent());
+    }
+
+    @Test
+    @DisplayName("Given a document used as a security platform logo should not delete the document")
+    void givenADocumentUsedAsSecurityPlatformLogo_ShouldNotDeleteDocument() throws Exception {
+      Document document = getDocumentUsedAsSecurityPlatformLogo();
+      // Reload from DB so the document's reverse logo collections are populated
+      entityManager.flush();
+      entityManager.clear();
 
       mvc.perform(delete(DOCUMENT_API + "/" + document.getId()).with(csrf()))
           .andExpect(status().isBadRequest());

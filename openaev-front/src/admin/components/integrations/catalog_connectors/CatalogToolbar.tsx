@@ -1,9 +1,12 @@
-import { MenuItem, TextField } from '@mui/material';
+import { GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
+import { MenuItem, TextField, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
 import SearchFilter from '../../../../components/SearchFilter';
 import { type CatalogSort } from './catalog-facets';
+
+export type MarketplaceView = 'cards' | 'list';
 
 interface Props {
   keyword: string;
@@ -13,9 +16,11 @@ interface Props {
   onSortChange: (sort: CatalogSort) => void;
   resultCount: number;
   searchPlaceholder?: string;
+  view: MarketplaceView;
+  onViewChange: (view: MarketplaceView) => void;
 }
 
-const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange, resultCount, searchPlaceholder }: Props) => {
+const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange, resultCount, searchPlaceholder, view, onViewChange }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
 
@@ -38,9 +43,12 @@ const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange,
   ];
 
   return (
+    // Wraps like OpenCTI's marketplace toolbar so the fixed-width search and
+    // sort controls never overflow a narrow main column.
     <div style={{
       display: 'flex',
       alignItems: 'center',
+      flexWrap: 'wrap',
       gap: theme.spacing(1.5),
     }}
     >
@@ -85,6 +93,27 @@ const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange,
           return t('{count} results', { count: resultCount });
         })()}
       </span>
+      <ToggleButtonGroup
+        value={view}
+        exclusive
+        size="small"
+        onChange={(_, value: MarketplaceView | null) => {
+          if (value) onViewChange(value);
+        }}
+        aria-label={t('View mode')}
+        sx={{ backgroundColor: theme.palette.background.paper }}
+      >
+        <ToggleButton value="cards" aria-label={t('Cards view')} data-testid="marketplace-view-cards">
+          <Tooltip title={t('Cards view')}>
+            <GridViewOutlined fontSize="small" />
+          </Tooltip>
+        </ToggleButton>
+        <ToggleButton value="list" aria-label={t('List view')} data-testid="marketplace-view-list">
+          <Tooltip title={t('List view')}>
+            <ViewListOutlined fontSize="small" />
+          </Tooltip>
+        </ToggleButton>
+      </ToggleButtonGroup>
     </div>
   );
 };

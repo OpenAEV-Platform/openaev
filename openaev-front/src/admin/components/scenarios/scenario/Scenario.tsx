@@ -1,9 +1,9 @@
 import { PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
-import { Avatar, Box, Button, Chip, Paper, Tooltip, Typography } from '@mui/material';
+import { Avatar, Box, Button, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
-import { type Dispatch, type SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { type AgentHelper } from '../../../../actions/agents/agent-helper';
 import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
@@ -15,7 +15,9 @@ import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import { searchScenarioExercises, searchScenarioHealthcheks } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { Field, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
+import KillChainTimeline from '../../../../components/common/detail/KillChainTimeline';
 import PostureGauges from '../../../../components/common/detail/PostureGauges';
+import SAMPLE_POSTURE from '../../../../components/common/detail/samplePosture';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -26,8 +28,8 @@ import ItemCategory from '../../../../components/ItemCategory';
 import ItemMainFocus from '../../../../components/ItemMainFocus';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import ItemTags from '../../../../components/ItemTags';
+import ItemTypeAffinity from '../../../../components/ItemTypeAffinity';
 import PlatformIconGroup from '../../../../components/PlatformIconGroup';
-import TypeAffinityChip from '../../../../components/TypeAffinityChip';
 import octiDark from '../../../../static/images/xtm/octi_dark.png';
 import octiLight from '../../../../static/images/xtm/octi_light.png';
 import { useHelper } from '../../../../store';
@@ -45,92 +47,12 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isEmptyField, isFeatureEnabled } from '../../../../utils/utils';
-import Healthchecks from '../../common/healthchecks/Healthchecks';
 import MitreCoverageMatrix from '../../common/matrix/MitreCoverageMatrix';
 import ExercisePopover from '../../simulations/simulation/ExercisePopover';
 import SimulationList from '../../simulations/SimulationList';
+import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
 import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import ScenarioDistributionByExercise from './ScenarioDistributionByExercise';
-
-// Illustrative posture used only when a scenario has never run, so the overview
-// previews the exact insights a real run produces instead of an empty CTA. The
-// distribution labels map through getStatusColor to success/partial/failed/pending.
-const SAMPLE_POSTURE: ExpectationResultsByType[] = [
-  {
-    type: 'PREVENTION',
-    avgResult: 'SUCCESS',
-    distribution: [
-      {
-        id: 'PREVENTED',
-        label: 'Prevented',
-        value: 34,
-      },
-      {
-        id: 'PARTIAL',
-        label: 'Partially prevented',
-        value: 5,
-      },
-      {
-        id: 'FAILED',
-        label: 'Failed',
-        value: 9,
-      },
-    ],
-  },
-  {
-    type: 'DETECTION',
-    avgResult: 'SUCCESS',
-    distribution: [
-      {
-        id: 'DETECTED',
-        label: 'Detected',
-        value: 41,
-      },
-      {
-        id: 'FAILED',
-        label: 'Failed',
-        value: 6,
-      },
-    ],
-  },
-  {
-    type: 'VULNERABILITY',
-    avgResult: 'FAILED',
-    distribution: [
-      {
-        id: 'NOT_VULNERABLE',
-        label: 'Not vulnerable',
-        value: 13,
-      },
-      {
-        id: 'VULNERABLE',
-        label: 'Vulnerable',
-        value: 27,
-      },
-    ],
-  },
-  {
-    type: 'HUMAN_RESPONSE',
-    avgResult: 'PARTIAL',
-    distribution: [
-      {
-        id: 'SUCCESS',
-        label: 'Successful',
-        value: 18,
-      },
-      {
-        id: 'PENDING',
-        label: 'Pending',
-        value: 7,
-      },
-      {
-        id: 'FAILED',
-        label: 'Failed',
-        value: 5,
-      },
-    ],
-  },
-];
 
 const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>> }) => {
   const theme = useTheme();
@@ -219,13 +141,23 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   const [lastSimulationId, setLastSimulationId] = useState<string | null>(null);
   const [lastResults, setLastResults] = useState<ExpectationResultsByType[] | null>(null);
   const [lastInjectResults, setLastInjectResults] = useState<InjectExpectationResultsByAttackPattern[] | null>(null);
+  // Tracks whether the latest-run results fetch has settled, so we only fall back
+  // to the illustrative sample preview once we know there is genuinely nothing to
+  // show (never-run OR a run that produced no results) - never while still loading.
+  const [lastResultsResolved, setLastResultsResolved] = useState<boolean>(false);
   useEffect(() => {
     if (!areAnyExercisesInScenario) {
       setLastSimulationId(null);
       setLastResults(null);
       setLastInjectResults(null);
-      return;
+      setLastResultsResolved(true);
+      return () => {};
     }
+    setLastResultsResolved(false);
+    // Cancellation flag: a stale response must not overwrite the state reset by a
+    // newer effect run, and every path (including failures) must resolve so the
+    // sample fallback can kick in instead of silently dropping the sections.
+    let cancelled = false;
     searchScenarioExercises(scenarioId, {
       size: 1,
       page: 0,
@@ -241,12 +173,31 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
         },
       ],
     }).then((result: { data: { content?: ExerciseSimple[] } }) => {
+      if (cancelled) {
+        return;
+      }
       const simulationId = result.data.content?.[0]?.exercise_id;
-      if (!simulationId) return;
+      if (!simulationId) {
+        setLastResultsResolved(true);
+        return;
+      }
       setLastSimulationId(simulationId);
-      fetchExerciseExpectationResult(simulationId).then((r: { data: ExpectationResultsByType[] }) => setLastResults(r.data));
-      fetchExerciseInjectExpectationResults(simulationId).then((r: { data: InjectExpectationResultsByAttackPattern[] }) => setLastInjectResults(r.data));
+      Promise.all([
+        fetchExerciseExpectationResult(simulationId).then((r: { data: ExpectationResultsByType[] }) => {
+          if (!cancelled) setLastResults(r.data);
+        }),
+        fetchExerciseInjectExpectationResults(simulationId).then((r: { data: InjectExpectationResultsByAttackPattern[] }) => {
+          if (!cancelled) setLastInjectResults(r.data);
+        }),
+      ]).finally(() => {
+        if (!cancelled) setLastResultsResolved(true);
+      });
+    }).catch(() => {
+      if (!cancelled) setLastResultsResolved(true);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [scenarioId, areAnyExercisesInScenario]);
 
   const lastAttackPatternIds = R.uniq(
@@ -257,16 +208,52 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   const hasMitreResults = !!lastInjectResults && lastAttackPatternIds.length > 0;
   const hasPosture = !!lastResults && lastResults.length > 0;
 
-  // When the scenario has never run, render the SAME overview but fed with
-  // illustrative sample data (greyed "Sample" preview), like the home dashboard.
-  const isSample = !areAnyExercisesInScenario;
+  // Render the SAME overview fed with illustrative sample data (greyed "Sample"
+  // preview, like the home dashboard) both when the scenario has never run AND
+  // when its latest run produced no results (e.g. a failed run) - so the overview
+  // never degrades into a half-empty page with the posture / MITRE sections
+  // silently dropped. Guarded by lastResultsResolved to avoid flashing the sample
+  // during the initial results fetch.
+  const hasNeverRun = !areAnyExercisesInScenario;
+  const isSample = hasNeverRun || (lastResultsResolved && !hasPosture && !hasMitreResults);
   const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, scenario.scenario_id);
   const postureResults = isSample ? SAMPLE_POSTURE : lastResults;
   const showPosture = isSample || hasPosture;
   const showMitre = isSample || hasMitreResults;
 
+  // Even without any run result we know which MITRE techniques the scenario's
+  // injects target: feed them to the matrix with empty expectation results so
+  // the REAL techniques render (muted, coverage unknown) instead of a greyed
+  // empty sample.
+  const plannedInjectResults: InjectExpectationResultsByAttackPattern[] = useMemo(
+    () => (injects ?? []).flatMap((inject: Inject) =>
+      (inject.inject_attack_patterns ?? []).map(attackPattern => ({
+        inject_attack_pattern: attackPattern.attack_pattern_id,
+        inject_expectation_results: [],
+      }))),
+    [injects],
+  );
+
   const killChainPhases = sortByOrder(scenario.scenario_kill_chain_phases ?? []) as KillChainPhase[];
   const hasExternalUrl = !isEmptyField(scenario.scenario_external_url);
+
+  // Posture / MITRE drill-downs: the overview surfaces the LATEST run's
+  // results, so clicks land on the results explorer scoped to that simulation
+  // (real results only - sample previews have nothing to drill into).
+  const navigate = useNavigate();
+  const location = useLocation();
+  const openPostureResults = useCallback((type: string) => {
+    if (!lastSimulationId) {
+      return;
+    }
+    navigate(contextualResultsUrl(
+      CONTEXTUAL_POSTURE_WIDGET_ID,
+      'simulation',
+      lastSimulationId,
+      `${location.pathname}${location.search}`,
+      { inject_expectation_type: [type] },
+    ));
+  }, [navigate, location, lastSimulationId]);
 
   return (
     <Box sx={{
@@ -276,13 +263,6 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
       paddingBottom: theme.spacing(5),
     }}
     >
-      {!!healthchecks?.length && (
-        <Healthchecks
-          healthchecks={healthchecks}
-          scenarioId={scenarioId}
-        />
-      )}
-
       {isSample && (
         <Paper
           variant="outlined"
@@ -308,14 +288,14 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               marginBottom: 0.25,
             }}
             >
-              {t('This scenario has not run yet')}
+              {hasNeverRun ? t('This scenario has not run yet') : t('No results to display yet')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {t('The insights below are a sample preview. Launch a simulation to populate them with your real posture.')}
             </Typography>
           </Box>
           {canLaunch && (
-            <Tooltip title={isScopeMissing ? t('A Chaining Scenario requires a defined scope.') : ''}>
+            <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : ''}>
               <span style={{ display: 'inline-flex' }}>
                 <Button
                   startIcon={<PlayArrowOutlined />}
@@ -337,7 +317,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
           <SamplePreview active={isSample} variant="subtle">
             <PostureGauges
               expectationResultsByTypes={postureResults}
-              humanValidationLink={!isSample && lastSimulationId ? `/admin/simulations/${lastSimulationId}/animation/validations` : undefined}
+              humanValidationLink={!isSample && lastSimulationId ? `/admin/simulations/${lastSimulationId}/execution/validations` : undefined}
+              onTypeClick={!isSample && lastSimulationId ? openPostureResults : undefined}
             />
           </SamplePreview>
         </SectionBlock>
@@ -364,8 +345,11 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
             </Field>
             <Box sx={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-              gap: 1.5,
+              gridTemplateColumns: {
+                xs: 'repeat(2, minmax(0, 1fr))',
+                md: 'repeat(3, minmax(0, 1fr))',
+              },
+              columnGap: 3,
               rowGap: 2,
             }}
             >
@@ -379,7 +363,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
                 <ItemMainFocus mainFocus={scenario.scenario_main_focus} label={t(scenario.scenario_main_focus ?? 'Unknown')} />
               </Field>
               <Field label={t('Type Affinity')}>
-                <TypeAffinityChip affinity_text={scenario?.scenario_type_affinity} />
+                <ItemTypeAffinity typeAffinity={scenario?.scenario_type_affinity} />
               </Field>
               <Field label={t('Platforms')}>
                 <PlatformIconGroup platforms={scenario.scenario_platforms} width={25} />
@@ -389,29 +373,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               </Field>
               <Box sx={{ gridColumn: '1 / -1' }}>
                 <Field label={t('Kill Chain Phases')}>
-                  {killChainPhases.length === 0 ? '-' : (
-                    <Box sx={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: 0.5,
-                    }}
-                    >
-                      {killChainPhases.map(killChainPhase => (
-                        <Chip
-                          key={killChainPhase.phase_id}
-                          variant="outlined"
-                          color="error"
-                          size="small"
-                          sx={{
-                            borderRadius: 1,
-                            textTransform: 'uppercase',
-                            fontSize: 11,
-                          }}
-                          label={killChainPhase.phase_name}
-                        />
-                      ))}
-                    </Box>
-                  )}
+                  <KillChainTimeline phases={killChainPhases} />
                 </Field>
               </Box>
               {!isScenarioChaining && hasExternalUrl && (
@@ -444,18 +406,32 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
         </SectionBlock>
 
         <SectionBlock title={t('Posture trend')}>
-          <SamplePreview active={isSample} variant="subtle">
-            <ScenarioDistributionByExercise scenarioId={scenarioId} />
-          </SamplePreview>
+          {/* The trend aggregates every past run, so it can show real history even
+              when only the latest run has no results. It owns its own sample marking
+              (greyed + "Sample" chip when it falls back to illustrative data), so it
+              must NOT be wrapped in an outer SamplePreview here - that would either
+              double-mark it or, worse, hide that its data is a sample. */}
+          <ScenarioDistributionByExercise scenarioId={scenarioId} />
         </SectionBlock>
       </Box>
 
       {showMitre && (
-        <SectionBlock title={t('MITRE ATT&CK Results')}>
-          <SamplePreview active={isSample} variant="subtle">
+        <SectionBlock title={t('Kill chain results')}>
+          {/* In sample mode the matrix lists the REAL techniques targeted by
+              the scenario's injects (muted boxes, coverage unknown): only grey
+              it as an illustrative sample when even the techniques are not
+              known yet (no injects with attack patterns). */}
+          <SamplePreview active={isSample && plannedInjectResults.length === 0} variant="subtle">
             <MitreCoverageMatrix
               widgetId={`scenario-mitre-${scenarioId}`}
-              injectResults={lastInjectResults}
+              injectResults={isSample ? plannedInjectResults : lastInjectResults}
+              defaultKillChain={scenario.scenario_default_kill_chain}
+              resultsContext={!isSample && lastSimulationId
+                ? {
+                    source: 'simulation',
+                    contextId: lastSimulationId,
+                  }
+                : undefined}
             />
           </SamplePreview>
         </SectionBlock>

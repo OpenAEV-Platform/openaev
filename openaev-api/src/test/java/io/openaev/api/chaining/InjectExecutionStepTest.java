@@ -1,5 +1,7 @@
 package io.openaev.api.chaining;
 
+import static io.openaev.database.model.InjectorContract.AVAILABLE_EXPECTATIONS;
+import static io.openaev.database.model.InjectorContract.IS_PREDEFINED_EXPECTATION;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -8,6 +10,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
@@ -17,10 +23,14 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.UserService;
+import io.openaev.service.attackpath.AttackPathIds;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ConditionService;
+import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.fixtures.*;
@@ -43,14 +53,17 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @MockitoBean private ConditionService conditionService;
   @MockitoBean private ConditionUtils conditionUtils;
   @MockitoBean private io.openaev.executors.Executor executor;
+  @MockitoBean private ScopeService scopeService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired InjectExecutionStep injectExecutionStep;
+  @Autowired AttackPathExecutionIngestionService attackPathExecutionIngestionService;
   ObjectMapper mapper = new ObjectMapper();
   @Autowired private InjectTestHelper injectTestHelper;
   String injectInputJson;
   InjectorContract injectorContractSaved;
+  Asset savedAsset;
 
   @BeforeEach
   void beforeEach() throws Exception {
@@ -80,6 +93,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     Inject injectExecuted = new Inject();
     injectExecuted.setId("INJECT-ID");
 
+    injectExecuted.setTenant(new Tenant(io.openaev.context.TenantContext.getCurrentTenant()));
+
     ExecutionTrace executionTrace = new ExecutionTrace();
     executionTrace.setStatus(ExecutionTraceStatus.EXECUTED);
 
@@ -96,6 +111,12 @@ public class InjectExecutionStepTest extends IntegrationTest {
     doReturn(injectExecuted).when(injectService).findInjectOrNull(any());
     Asset asset = AssetFixture.createDefaultAsset("AssetTest");
     asset = injectTestHelper.forceSaveAsset(asset);
+    savedAsset = asset;
+
+    // Mock scope service: return the saved asset so that hasAssetTargets = true in run()
+    doReturn(List.of(savedAsset)).when(scopeService).getValidAssets(any());
+    doReturn(List.of()).when(scopeService).getValidAssetGroupsFromScope(any());
+    doReturn(List.of()).when(scopeService).getValidManualTargetsFromScope(any());
 
     injectInputJson =
         """
@@ -161,7 +182,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     Condition mapperCondition = new Condition();
     mapperCondition.setType(ConditionType.MAPPER);
-    mapperCondition.setKeyType(ConditionKeyType.IPv4);
+    mapperCondition.setKeyType(PrimitiveType.IPv4);
     mapperCondition.setKey("target_ip");
 
     doReturn(List.of(mapperCondition)).when(conditionService).findAllConditionsByStepId("step-1");
@@ -215,6 +236,79 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // Assert
     assertNotNull(updated);
     assertTrue(updated.isEmpty());
+  }
+
+  @Test
+  void given_parsedContainsObjectArraysAndPrimitiveLists_should_extractValues() {
+    // Arrange
+    JsonObject parsed = new JsonObject();
+    JsonArray portscan = new JsonArray();
+    JsonObject portscanItem = new JsonObject();
+    portscanItem.addProperty("asset_id", (String) null);
+    portscanItem.addProperty("host", "0.0.0.0");
+    portscanItem.addProperty("port", 135);
+    portscanItem.addProperty("service", "TCP");
+    JsonObject secondPortscanItem = new JsonObject();
+    secondPortscanItem.addProperty("asset_id", (String) null);
+    secondPortscanItem.addProperty("host", "127.0.0.1");
+    secondPortscanItem.addProperty("port", 5432);
+    secondPortscanItem.addProperty("service", "TCP");
+    portscan.add(portscanItem);
+    portscan.add(secondPortscanItem);
+    parsed.add("portscan", portscan);
+
+    JsonArray ips = new JsonArray();
+    ips.add(new JsonPrimitive("0.0.0.0"));
+    ips.add(new JsonPrimitive("127.0.0.1"));
+    parsed.add("ips", ips);
+
+    JsonArray ports = new JsonArray();
+    ports.add(new JsonPrimitive(135));
+    ports.add(new JsonPrimitive(5432));
+    parsed.add("ports", ports);
+
+    Map<String, JsonElement> outputEntry = new HashMap<>();
+    outputEntry.put("parsed", parsed);
+
+    // Act
+    JsonObject extracted =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "extractDataFromParsed", List.of(outputEntry));
+
+    // Assert
+    assertNotNull(extracted);
+    assertTrue(extracted.get("portscan").isJsonArray());
+    assertEquals(2, extracted.getAsJsonArray("portscan").size());
+    assertEquals(portscanItem, extracted.getAsJsonArray("portscan").get(0).getAsJsonObject());
+    assertEquals(secondPortscanItem, extracted.getAsJsonArray("portscan").get(1).getAsJsonObject());
+    assertEquals("0.0.0.0", extracted.getAsJsonArray("ips").get(0).getAsString());
+    assertEquals("127.0.0.1", extracted.getAsJsonArray("ips").get(1).getAsString());
+    assertEquals(135, extracted.getAsJsonArray("ports").get(0).getAsInt());
+    assertEquals(5432, extracted.getAsJsonArray("ports").get(1).getAsInt());
+  }
+
+  @Test
+  void given_parsedContainsSingleObject_should_wrapValueIntoArray() {
+    // Arrange
+    JsonObject parsed = new JsonObject();
+    JsonObject credential = new JsonObject();
+    credential.addProperty("username", "admin");
+    credential.addProperty("password", "secret");
+    parsed.add("credentials", credential);
+
+    Map<String, JsonElement> outputEntry = new HashMap<>();
+    outputEntry.put("parsed", parsed);
+
+    // Act
+    JsonObject extracted =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "extractDataFromParsed", List.of(outputEntry));
+
+    // Assert
+    assertNotNull(extracted);
+    assertTrue(extracted.get("credentials").isJsonArray());
+    assertEquals(1, extracted.getAsJsonArray("credentials").size());
+    assertEquals(credential, extracted.getAsJsonArray("credentials").get(0).getAsJsonObject());
   }
 
   @Test
@@ -280,7 +374,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -305,8 +399,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
             stepTemplate.getData(), "inject_injector_contract.injector_contract_id"));
     assertEquals("output.message.ip", StepService.getField(stepTemplate.getInput(), "input.path"));
     assertEquals(
-        ConditionKeyType.IPv4.name(),
-        StepService.getField(stepTemplate.getInput(), "input.keyType"));
+        PrimitiveType.IPv4.name(), StepService.getField(stepTemplate.getInput(), "input.keyType"));
   }
 
   /**
@@ -333,7 +426,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -383,7 +476,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -421,7 +514,12 @@ public class InjectExecutionStepTest extends IntegrationTest {
     int expectedPredefinedExpectations = 0;
     for (JsonNode field : injectorContractContent.path("fields")) {
       if ("expectations".equals(field.path("key").asText())) {
-        expectedPredefinedExpectations = field.path("predefinedExpectations").size();
+        JsonNode available = field.path(AVAILABLE_EXPECTATIONS);
+        for (JsonNode exp : available) {
+          if (exp.path(IS_PREDEFINED_EXPECTATION).asBoolean(false)) {
+            expectedPredefinedExpectations++;
+          }
+        }
         break;
       }
     }
@@ -433,7 +531,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -485,7 +583,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -532,7 +630,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -597,7 +695,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -656,7 +754,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -690,7 +788,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     ObjectMapper mapper = new ObjectMapper();
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setContent(
-        "{\"config\":{\"type\":\"openaev_implant\",\"expose\":true,\"label\":{\"en\":\"OpenAEV Implant\",\"fr\":\"OpenAEV Implant\"},\"color_dark\":\"#000000\",\"color_light\":\"#000000\"},\"label\":{\"en\":\"WHOAMI\",\"fr\":\"WHOAMI\"},\"manual\":false,\"fields\":[{\"key\":\"assets\",\"label\":\"Source assets\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"asset_groups\"],\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset\"},{\"key\":\"asset_groups\",\"label\":\"Source asset groups\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"asset_groups\"],\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset-group\"},{\"key\":\"obfuscator\",\"label\":\"Obfuscators\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"1\",\"defaultValue\":[\"plain-text\"],\"choices\":[{\"label\":\"plain-text\",\"value\":\"plain-text\",\"information\":\"\"},{\"label\":\"base64\",\"value\":\"base64\",\"information\":\"CMD does not support base64 obfuscation\"}],\"type\":\"choice\"},{\"key\":\"expectations\",\"label\":\"Expectations\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"predefinedExpectations\":[{\"expectation_type\":\"PREVENTION\",\"expectation_name\":\"Prevention\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600},{\"expectation_type\":\"DETECTION\",\"expectation_name\":\"Detection\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600}],\"type\":\"expectation\"}],\"variables\":[{\"key\":\"user\",\"label\":\"User that will receive the injection\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[{\"key\":\"user.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.email\",\"label\":\"Email of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.firstname\",\"label\":\"First name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lastname\",\"label\":\"Last name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lang\",\"label\":\"Language of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"exercise\",\"label\":\"Exercise of the current injection\",\"type\":\"Object\",\"cardinality\":\"1\",\"children\":[{\"key\":\"exercise.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.name\",\"label\":\"Name of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.description\",\"label\":\"Description of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"teams\",\"label\":\"List of team name for the injection\",\"type\":\"String\",\"cardinality\":\"n\",\"children\":[]},{\"key\":\"player_uri\",\"label\":\"Player interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"challenges_uri\",\"label\":\"Challenges interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"scoreboard_uri\",\"label\":\"Scoreboard interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"lessons_uri\",\"label\":\"Lessons learned interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}],\"context\":{},\"contract_id\":\"73bfd988-b0bd-4740-bb7e-a6209a538835\",\"contract_attack_patterns_external_ids\":[],\"is_atomic_testing\":true,\"needs_executor\":true,\"platforms\":[\"MacOS\"],\"domains\":[{\"listened\":true,\"domain_id\":\"948e3cdc-c345-45dd-80cb-943804c09a3a\",\"domain_name\":\"Endpoint\",\"domain_color\":\"#389CFF\",\"domain_created_at\":\"2026-02-03T12:15:01.323228Z\",\"domain_updated_at\":\"2026-02-03T12:15:01.323228Z\"}]}");
+        "{\"config\":{\"type\":\"openaev_implant\",\"expose\":true,\"label\":{\"en\":\"OpenAEV Implant\",\"fr\":\"OpenAEV Implant\"},\"color_dark\":\"#000000\",\"color_light\":\"#000000\"},\"label\":{\"en\":\"WHOAMI\",\"fr\":\"WHOAMI\"},\"manual\":false,\"fields\":[{\"key\":\"assets\",\"label\":\"Source assets\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"asset_groups\"],\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset\"},{\"key\":\"asset_groups\",\"label\":\"Source asset groups\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"asset_groups\"],\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset-group\"},{\"key\":\"obfuscator\",\"label\":\"Obfuscators\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"1\",\"defaultValue\":[\"plain-text\"],\"choices\":[{\"label\":\"plain-text\",\"value\":\"plain-text\",\"information\":\"\"},{\"label\":\"base64\",\"value\":\"base64\",\"information\":\"CMD does not support base64 obfuscation\"}],\"type\":\"choice\"},{\"key\":\"expectations\",\"label\":\"Expectations\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"availableExpectations\":[{\"expectation_type\":\"PREVENTION\",\"expectation_name\":\"Prevention\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600,\"expectation_is_predefined\":true},{\"expectation_type\":\"DETECTION\",\"expectation_name\":\"Detection\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600,\"expectation_is_predefined\":true}],\"type\":\"expectation\"}],\"variables\":[{\"key\":\"user\",\"label\":\"User that will receive the injection\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[{\"key\":\"user.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.email\",\"label\":\"Email of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.firstname\",\"label\":\"First name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lastname\",\"label\":\"Last name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lang\",\"label\":\"Language of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"exercise\",\"label\":\"Exercise of the current injection\",\"type\":\"Object\",\"cardinality\":\"1\",\"children\":[{\"key\":\"exercise.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.name\",\"label\":\"Name of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.description\",\"label\":\"Description of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"teams\",\"label\":\"List of team name for the injection\",\"type\":\"String\",\"cardinality\":\"n\",\"children\":[]},{\"key\":\"player_uri\",\"label\":\"Player interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"challenges_uri\",\"label\":\"Challenges interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"scoreboard_uri\",\"label\":\"Scoreboard interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"lessons_uri\",\"label\":\"Lessons learned interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}],\"context\":{},\"contract_id\":\"73bfd988-b0bd-4740-bb7e-a6209a538835\",\"contract_attack_patterns_external_ids\":[],\"is_atomic_testing\":true,\"needs_executor\":true,\"platforms\":[\"MacOS\"],\"domains\":[{\"listened\":true,\"domain_id\":\"948e3cdc-c345-45dd-80cb-943804c09a3a\",\"domain_name\":\"Endpoint\",\"domain_color\":\"#389CFF\",\"domain_created_at\":\"2026-02-03T12:15:01.323228Z\",\"domain_updated_at\":\"2026-02-03T12:15:01.323228Z\"}]}");
     injectorContract.setConvertedContent(
         (ObjectNode) mapper.readTree(injectorContract.getContent()));
     injectorContract.setId("73bfd988-b0bd-4740-bb7e-a6209a538835");
@@ -712,7 +810,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
-  public void given_conditionWithKeySubtype_should_includeKeySubtypeInStepInput()
+  public void given_mapperCondition_should_includeKeyTypeInStepInput()
       throws JsonProcessingException, ChainingException {
     // Arrange
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
@@ -720,8 +818,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.Credentials)
-            .keySubtype(ConditionKeySubtype.USERNAME)
+            .keyType(PrimitiveType.Username)
             .key("expectations")
             .value("output.message.credentials")
             .type(ConditionType.MAPPER)
@@ -738,15 +835,12 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Assert
     assertEquals(
-        ConditionKeyType.Credentials.name(),
+        PrimitiveType.Username.name(),
         StepService.getField(stepTemplate.getInput(), "input.keyType"));
-    assertEquals(
-        ConditionKeySubtype.USERNAME.name(),
-        StepService.getField(stepTemplate.getInput(), "input.keySubtype"));
   }
 
   @Test
-  public void given_conditionWithoutKeySubtype_should_haveNullKeySubtypeInStepInput()
+  public void given_mapperConditionWithoutSubtype_should_not_includeKeySubtypeInStepInput()
       throws JsonProcessingException, ChainingException {
     // Arrange
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
@@ -754,7 +848,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(PrimitiveType.IPv4)
             .key("target_ip")
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
@@ -771,8 +865,226 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Assert
     assertEquals(
-        ConditionKeyType.IPv4.name(),
-        StepService.getField(stepTemplate.getInput(), "input.keyType"));
+        PrimitiveType.IPv4.name(), StepService.getField(stepTemplate.getInput(), "input.keyType"));
     assertNull(StepService.getField(stepTemplate.getInput(), "input.keySubtype"));
+  }
+
+  @Test
+  void given_injectWithoutStatus_whenGetCommand_thenReturnEmptyString() {
+    // Arrange
+    Inject inject = new Inject();
+
+    // Act
+    String command = ReflectionTestUtils.invokeMethod(injectExecutionStep, "getCommand", inject);
+
+    // Assert
+    assertEquals("", command);
+  }
+
+  @Test
+  void given_injectWithPayloadCommands_whenGetCommand_thenResolvePayloadVariables() {
+    // Arrange
+    Inject inject = new Inject();
+    InjectorContract contract = new InjectorContract();
+    Command payload = new Command();
+    payload.setExecutor("bash");
+    payload.setContent("echo #{var} && whoami #{user}");
+
+    PayloadArgument varArg = new PayloadArgument();
+    varArg.setType(PrimitiveType.Text);
+    varArg.setKey("var");
+    varArg.setDefaultValue("eva");
+
+    PayloadArgument userArg = new PayloadArgument();
+    userArg.setType(PrimitiveType.Username);
+    userArg.setKey("user");
+    userArg.setDefaultValue("admin");
+
+    payload.setArguments(List.of(varArg, userArg));
+    contract.setPayload(payload);
+    inject.setInjectorContract(contract);
+
+    // Act
+    String command = ReflectionTestUtils.invokeMethod(injectExecutionStep, "getCommand", inject);
+
+    // Assert
+    assertEquals("echo eva && whoami admin", command);
+  }
+
+  @Test
+  void given_injectWithoutStatus_whenGetExecutionTracesByEndpointIndex_thenReturnEmptyMap() {
+    // Arrange
+    Inject inject = new Inject();
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            attackPathExecutionIngestionService, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertTrue(tracesByEndpointSource.isEmpty());
+  }
+
+  @Test
+  void given_injectWithInjector_whenGetExecutionTracesByEndpointIndex_thenGroupByInjectorId() {
+    // Arrange
+    Inject inject = new Inject();
+    inject.setId("inject-1");
+    Injector injector = new Injector();
+    injector.setId("injector-1");
+    inject.setInjector(injector);
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setNeedsExecutor(false);
+    inject.setInjectorContract(injectorContract);
+    Asset targetAsset = new Asset();
+    targetAsset.setId("asset-1");
+    inject.setAssets(List.of(targetAsset));
+    inject.setContent(mapper.createObjectNode().put("target_selector", "assets"));
+
+    ExecutionTrace firstTrace = new ExecutionTrace();
+    firstTrace.setStatus(ExecutionTraceStatus.EXECUTED);
+    firstTrace.setMessage("first");
+
+    ExecutionTrace secondTrace = new ExecutionTrace();
+    secondTrace.setStatus(ExecutionTraceStatus.ERROR);
+    secondTrace.setMessage("second");
+
+    InjectStatus status = new InjectStatus();
+    status.addTrace(firstTrace);
+    status.addTrace(secondTrace);
+    inject.setStatus(status);
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            attackPathExecutionIngestionService, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertEquals(1, tracesByEndpointSource.size());
+    String expectedIndex = AttackPathIds.executionNode("inject-1", "asset-1", "injector-1");
+    assertTrue(tracesByEndpointSource.containsKey(expectedIndex));
+    assertEquals(
+        "EXECUTED first\nERROR second\n", tracesByEndpointSource.get(expectedIndex).toString());
+  }
+
+  @Test
+  void
+      given_injectWithoutInjector_whenGetExecutionTracesByEndpointIndex_thenGroupByAgentAndAsset() {
+    // Arrange
+    Inject inject = new Inject();
+    inject.setId("inject-2");
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setNeedsExecutor(true);
+    DnsResolution dnsResolution = new DnsResolution();
+    dnsResolution.setHostname("target.local");
+    injectorContract.setPayload(dnsResolution);
+    inject.setInjectorContract(injectorContract);
+
+    Endpoint assetOne = new Endpoint();
+    assetOne.setId("asset-1");
+    Agent agentOne = new Agent();
+    agentOne.setId("agent-1");
+    agentOne.setAsset(assetOne);
+
+    Endpoint assetTwo = new Endpoint();
+    assetTwo.setId("asset-2");
+    Agent agentTwo = new Agent();
+    agentTwo.setId("agent-2");
+    agentTwo.setAsset(assetTwo);
+
+    ExecutionTrace firstTrace = new ExecutionTrace();
+    firstTrace.setAgent(agentOne);
+    firstTrace.setAction(ExecutionTraceAction.EXECUTION);
+    firstTrace.setStatus(ExecutionTraceStatus.EXECUTED);
+    firstTrace.setMessage("first");
+
+    ExecutionTrace secondTrace = new ExecutionTrace();
+    secondTrace.setAgent(agentOne);
+    secondTrace.setAction(ExecutionTraceAction.EXECUTION);
+    secondTrace.setStatus(ExecutionTraceStatus.ERROR);
+    secondTrace.setMessage("second");
+
+    ExecutionTrace thirdTrace = new ExecutionTrace();
+    thirdTrace.setAgent(agentTwo);
+    thirdTrace.setAction(ExecutionTraceAction.EXECUTION);
+    thirdTrace.setStatus(ExecutionTraceStatus.INFO);
+    thirdTrace.setMessage("third");
+
+    InjectStatus status = new InjectStatus();
+    status.addTrace(firstTrace);
+    status.addTrace(secondTrace);
+    status.addTrace(thirdTrace);
+    inject.setStatus(status);
+    doReturn(new AgentsAndAssetsAgentless(Set.of(agentOne, agentTwo), Set.of()))
+        .when(injectService)
+        .getAgentsAndAgentlessAssetsByInject(inject);
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            attackPathExecutionIngestionService, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertEquals(2, tracesByEndpointSource.size());
+    String expectedIndexAgentOne =
+        AttackPathIds.executionNode("inject-2", "target.local", "agent-1");
+    String expectedIndexAgentTwo =
+        AttackPathIds.executionNode("inject-2", "target.local", "agent-2");
+    assertEquals("first\nsecond\n", tracesByEndpointSource.get(expectedIndexAgentOne).toString());
+    assertEquals("third\n", tracesByEndpointSource.get(expectedIndexAgentTwo).toString());
+  }
+
+  @Test
+  void given_injectWithoutInjector_whenTraceHasNoAgent_thenSkipAgentlessTrace() {
+    // Arrange
+    Inject inject = new Inject();
+    inject.setId("inject-3");
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setNeedsExecutor(true);
+    DnsResolution dnsResolution = new DnsResolution();
+    dnsResolution.setHostname("target.local");
+    injectorContract.setPayload(dnsResolution);
+    inject.setInjectorContract(injectorContract);
+
+    Endpoint asset = new Endpoint();
+    asset.setId("asset-1");
+    Agent agent = new Agent();
+    agent.setId("agent-1");
+    agent.setAsset(asset);
+
+    ExecutionTrace globalTrace = new ExecutionTrace();
+    globalTrace.setAgent(null);
+    globalTrace.setAction(ExecutionTraceAction.EXECUTION);
+    globalTrace.setStatus(ExecutionTraceStatus.WARNING);
+    globalTrace.setMessage("global warning");
+
+    ExecutionTrace endpointTrace = new ExecutionTrace();
+    endpointTrace.setAgent(agent);
+    endpointTrace.setAction(ExecutionTraceAction.EXECUTION);
+    endpointTrace.setStatus(ExecutionTraceStatus.EXECUTED);
+    endpointTrace.setMessage("endpoint ok");
+
+    InjectStatus status = new InjectStatus();
+    status.addTrace(globalTrace);
+    status.addTrace(endpointTrace);
+    inject.setStatus(status);
+    doReturn(new AgentsAndAssetsAgentless(Set.of(agent), Set.of()))
+        .when(injectService)
+        .getAgentsAndAgentlessAssetsByInject(inject);
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            attackPathExecutionIngestionService, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertEquals(1, tracesByEndpointSource.size());
+    String expectedIndex = AttackPathIds.executionNode("inject-3", "target.local", "agent-1");
+    assertTrue(tracesByEndpointSource.containsKey(expectedIndex));
+    assertEquals("endpoint ok\n", tracesByEndpointSource.get(expectedIndex).toString());
   }
 }

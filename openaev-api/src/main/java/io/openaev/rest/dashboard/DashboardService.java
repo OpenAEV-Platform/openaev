@@ -29,6 +29,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class DashboardService {
 
+  /**
+   * High terms-bucket cap for security coverage widgets so every attack pattern is returned. The
+   * regular widget limit (often the 100 default) silently truncates the per-series buckets on busy
+   * platforms, making coverage tiles show "perfect" scores while failures exist outside the top-N
+   * buckets. Mirrors {@code AttackPatternService.COVERAGE_BUCKET_CAP}.
+   */
+  private static final int COVERAGE_BUCKET_CAP = 10_000;
+
   private final EsAttackPathService esAttackPathService;
   private final EngineService engineService;
   private final UserRepository userRepository;
@@ -88,6 +96,11 @@ public class DashboardService {
         widgetContext.widget().getWidgetConfiguration().getConfigurationType())) {
       StructuralHistogramWidget config =
           (StructuralHistogramWidget) widgetContext.widget().getWidgetConfiguration();
+      if (isSecurityCoverageWidget(widgetContext.widget())) {
+        // Persisted coverage widgets may carry a small stored limit: clamp it up so no
+        // attack pattern bucket is ever truncated (tile counts must match the drill-down).
+        config.setLimit(Math.max(config.getLimit(), COVERAGE_BUCKET_CAP));
+      }
       StructuralHistogramRuntime runtime =
           new StructuralHistogramRuntime(
               config, widgetContext.parameters(), widgetContext.definitionParameters());

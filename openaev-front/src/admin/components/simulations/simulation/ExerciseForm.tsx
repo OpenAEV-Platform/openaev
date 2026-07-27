@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Autocomplete, Button, Chip, GridLegacy, MenuItem, TextField as MuiTextField, Typography } from '@mui/material';
+import { Autocomplete, Button, Chip, FormControlLabel, GridLegacy, MenuItem, Switch, TextField as MuiTextField, Typography } from '@mui/material';
 import { DateTimePicker as MuiDateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
@@ -13,13 +13,19 @@ import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type CreateExerciseInput, type PlatformSettings } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
+import DefaultKillChainSelectField from '../../common/filters/DefaultKillChainSelectField';
 import { scenarioCategories } from '../../scenarios/constants';
 import { EXERCISE_NAME_MAX_LENGTH, EXERCISE_NAME_MIN_LENGTH } from '../constants';
 
+// The lessons learned module toggle rides along the configuration form but is
+// persisted through the dedicated PUT /exercises/{id}/lessons endpoint (see
+// ExercisePopover), so the general update input stays untouched.
+export type ExerciseFormInput = CreateExerciseInput & { exercise_lessons_enabled?: boolean };
+
 interface Props {
-  onSubmit: SubmitHandler<CreateExerciseInput>;
+  onSubmit: SubmitHandler<ExerciseFormInput>;
   handleClose: () => void;
-  initialValues?: CreateExerciseInput;
+  initialValues?: ExerciseFormInput;
   disabled?: boolean;
   edit: boolean;
   simulationId?: string;
@@ -37,6 +43,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
     exercise_category: 'attack-scenario',
     exercise_main_focus: 'incident-response',
     exercise_severity: 'high',
+    exercise_default_kill_chain: '',
     exercise_tags: [],
     exercise_mail_from_name: '',
     exercise_mails_reply_to: [],
@@ -56,16 +63,17 @@ const ExerciseForm: FunctionComponent<Props> = ({
     handleSubmit,
     formState: { errors, isDirty, isSubmitting },
     setValue,
-  } = useForm<CreateExerciseInput>({
+  } = useForm<ExerciseFormInput>({
     mode: 'onTouched',
     resolver: zodResolver(
-      zodImplement<CreateExerciseInput>().with({
+      zodImplement<ExerciseFormInput>().with({
         exercise_name: z.string().min(EXERCISE_NAME_MIN_LENGTH, { message: t('Should not be empty') })
           .max(EXERCISE_NAME_MAX_LENGTH, { message: t('Should not exceed {max_length} characters', { max_length: EXERCISE_NAME_MAX_LENGTH.toString() }) }),
         exercise_subtitle: z.string().optional(),
         exercise_category: z.string().optional(),
         exercise_main_focus: z.string().optional(),
         exercise_severity: z.string().optional(),
+        exercise_default_kill_chain: z.string().optional(),
         exercise_description: z.string().optional(),
         exercise_start_date: z.iso.datetime().optional().nullable(),
         exercise_tags: z.string().array().optional(),
@@ -75,6 +83,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         exercise_message_footer: z.string().optional(),
         exercise_custom_dashboard: z.string().optional(),
         exercise_is_chaining: z.boolean().optional(),
+        exercise_lessons_enabled: z.boolean().optional(),
       }),
     ),
     defaultValues: initialValues,
@@ -105,7 +114,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         maxLength={255}
       />
       <GridLegacy container spacing={2}>
-        <GridLegacy item xs={7}>
+        <GridLegacy item xs={6}>
           <SelectField
             variant="standard"
             fullWidth={true}
@@ -123,7 +132,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
             ))}
           </SelectField>
         </GridLegacy>
-        <GridLegacy item xs={5}>
+        <GridLegacy item xs={6}>
           <SelectField
             variant="standard"
             fullWidth={true}
@@ -156,29 +165,41 @@ const ExerciseForm: FunctionComponent<Props> = ({
         </GridLegacy>
       </GridLegacy>
 
-      <SelectField
-        variant="standard"
-        fullWidth={true}
-        name="exercise_severity"
-        label={t('Severity')}
-        style={{ marginTop: 20 }}
-        error={!!errors.exercise_severity}
-        control={control}
-        defaultValue={initialValues.exercise_severity}
-      >
-        <MenuItem key="low" value="low">
-          {t('Low')}
-        </MenuItem>
-        <MenuItem key="medium" value="medium">
-          {t('Medium')}
-        </MenuItem>
-        <MenuItem key="high" value="high">
-          {t('High')}
-        </MenuItem>
-        <MenuItem key="critical" value="critical">
-          {t('Critical')}
-        </MenuItem>
-      </SelectField>
+      <GridLegacy container spacing={2}>
+        <GridLegacy item xs={6}>
+          <SelectField
+            variant="standard"
+            fullWidth={true}
+            name="exercise_severity"
+            label={t('Severity')}
+            style={{ marginTop: 20 }}
+            error={!!errors.exercise_severity}
+            control={control}
+            defaultValue={initialValues.exercise_severity}
+          >
+            <MenuItem key="low" value="low">
+              {t('Low')}
+            </MenuItem>
+            <MenuItem key="medium" value="medium">
+              {t('Medium')}
+            </MenuItem>
+            <MenuItem key="high" value="high">
+              {t('High')}
+            </MenuItem>
+            <MenuItem key="critical" value="critical">
+              {t('Critical')}
+            </MenuItem>
+          </SelectField>
+        </GridLegacy>
+        <GridLegacy item xs={6}>
+          <DefaultKillChainSelectField<ExerciseFormInput>
+            name="exercise_default_kill_chain"
+            control={control}
+            defaultValue={initialValues.exercise_default_kill_chain}
+            style={{ marginTop: 20 }}
+          />
+        </GridLegacy>
+      </GridLegacy>
       <TextField
         variant="standard"
         fullWidth
@@ -232,6 +253,37 @@ const ExerciseForm: FunctionComponent<Props> = ({
           />
         )}
       />
+
+      {edit && (
+        <>
+          <Typography
+            variant="h2"
+            gutterBottom
+            style={{ marginTop: 40 }}
+          >
+            {t('Modules')}
+          </Typography>
+          <Controller
+            control={control}
+            name="exercise_lessons_enabled"
+            render={({ field }) => (
+              <FormControlLabel
+                control={(
+                  <Switch
+                    checked={field.value ?? false}
+                    onChange={event => field.onChange(event.target.checked)}
+                    disabled={disabled}
+                  />
+                )}
+                label={t('Enable lessons learned')}
+              />
+            )}
+          />
+          <Typography variant="body2" color="textSecondary">
+            {t('Adds a lessons learned tab to collect feedback with objectives and questionnaires.')}
+          </Typography>
+        </>
+      )}
 
       <Typography
         variant="h2"
@@ -340,7 +392,8 @@ const ExerciseForm: FunctionComponent<Props> = ({
       }}
       >
         <Button
-          variant="contained"
+          variant="outlined"
+          color="primary"
           onClick={handleClose}
           style={{ marginRight: 10 }}
           disabled={isSubmitting}
@@ -349,7 +402,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         </Button>
         <Button
           variant="contained"
-          color="secondary"
+          color="primary"
           type="submit"
           disabled={!isDirty || isSubmitting}
         >

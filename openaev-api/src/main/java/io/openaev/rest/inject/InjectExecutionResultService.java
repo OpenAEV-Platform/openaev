@@ -27,6 +27,10 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class InjectExecutionResultService {
 
+  // Synthetic grouping key for traces produced by agentless executions (no agent attached, e.g. an
+  // injector scanning a non-endpoint asset).
+  static final String AGENTLESS_TRACE_KEY = "agentless";
+
   private final InjectService injectService;
   private final InjectStatusService injectStatusService;
 
@@ -43,31 +47,38 @@ public class InjectExecutionResultService {
                     .map(StatusPayload::getPayloadCommandBlocks)
                     .orElse(new ArrayList<>()));
 
-    // group traces by agent
+    // Group execution traces per target key. Agent-based executions are keyed by agent id;
+    // agentless
+    // executions (e.g. an injector scanning a non-endpoint asset such as a web application) carry
+    // no
+    // agent, so they are bucketed under a single synthetic key. Keying on the agent id directly
+    // used
+    // to throw a NullPointerException for agentless traces and also dropped them from the response,
+    // leaving the terminal view empty.
     List<ExecutionTrace> traces =
         injectService.getInjectTracesFromInjectAndTarget(injectId, targetId, targetType);
 
-    Set<String> agentIds =
-        traces.stream()
-            .map(ExecutionTrace::getAgent)
-            .filter(Objects::nonNull)
-            .map(Agent::getId)
-            .collect(toSet());
+    Set<String> targetKeys =
+        traces.stream().map(InjectExecutionResultService::traceKey).collect(toSet());
 
-    Map<String, List<ExecutionTraceOutput>> executionByAgent =
+    Map<String, List<ExecutionTraceOutput>> executionByKey =
         toExecutionTracesOutput(
                 traces.stream().filter(t -> EXECUTION.equals(t.getAction())).toList())
             .stream()
-            .collect(groupingBy(t -> t.getAgent().getId()));
+            .collect(
+                groupingBy(t -> t.getAgent() != null ? t.getAgent().getId() : AGENTLESS_TRACE_KEY));
 
     Map<String, List<ExecutionTraceOutput>> result = new LinkedHashMap<>();
 
-    agentIds.forEach(
-        agentId ->
-            result.put(
-                agentId, new ArrayList<>(executionByAgent.getOrDefault(agentId, List.of()))));
+    targetKeys.forEach(
+        key -> result.put(key, new ArrayList<>(executionByKey.getOrDefault(key, List.of()))));
 
     output.traces(result);
     return output.build();
+  }
+
+  private static String traceKey(final ExecutionTrace trace) {
+    Agent agent = trace.getAgent();
+    return agent != null ? agent.getId() : AGENTLESS_TRACE_KEY;
   }
 }

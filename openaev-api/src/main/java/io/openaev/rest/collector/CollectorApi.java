@@ -3,9 +3,12 @@ package io.openaev.rest.collector;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.ConnectorCompositeId;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
@@ -45,6 +48,7 @@ public class CollectorApi extends RestBehavior {
   private final CollectorService collectorService;
   private final CollectorRepository collectorRepository;
   private final SecurityPlatformRepository securityPlatformRepository;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   private final FileService fileService;
 
@@ -60,7 +64,10 @@ public class CollectorApi extends RestBehavior {
           @Content(
               mediaType = "application/json",
               array = @ArraySchema(schema = @Schema(implementation = CollectorOutput.class))))
+  // TxCtx is resolved from the request and applied by the transaction aspect; it scopes this read
+  // to the caller's tenants. The handler does not use it directly.
   public Iterable<CollectorOutput> collectors(
+      TxCtx ctx,
       @Parameter(
               name = "includeNext",
               description = "Include collectors pending deployment",
@@ -70,7 +77,7 @@ public class CollectorApi extends RestBehavior {
     return collectorService.collectorsOutput(includeNext);
   }
 
-  private Collector updateCollector(
+  private Collector applyCollectorUpdate(
       Collector collector,
       String type,
       String name,
@@ -96,8 +103,12 @@ public class CollectorApi extends RestBehavior {
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.COLLECTOR)
-  public Collector getCollector(@PathVariable String collectorId) {
-    return collectorService.collector(collectorId);
+  // Collector uses a composite PK (collector_id, tenant_id); the same ID exists per tenant.
+  // Require a selector so findByCollectorId never returns multiple rows under a multi-tenant scope.
+  public Collector getCollector(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return collectorService.collector(collectorId, tenantId);
   }
 
   @GetMapping({
@@ -110,8 +121,11 @@ public class CollectorApi extends RestBehavior {
       resourceType = ResourceType.COLLECTOR)
   @Operation(summary = "Retrieve collector related ids")
   @Transactional
-  public ConnectorIds getCollectorRelatedIds(@PathVariable String collectorId) {
-    return collectorService.getCollectorRelationsId(collectorId);
+  // Composite PK: require a tenant selector to avoid NonUniqueResultException on the ID lookup.
+  public ConnectorIds getCollectorRelatedIds(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return collectorService.getCollectorRelationsId(collectorId, tenantId);
   }
 
   // -- IMAGE --
@@ -147,10 +161,12 @@ public class CollectorApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get collector image by collector id")
   @Transactional
-  public ResponseEntity<byte[]> getCollectorImageById(@PathVariable String collectorId)
-      throws IOException {
+  // Composite PK: require a tenant selector to avoid NonUniqueResultException on the ID lookup.
+  public ResponseEntity<byte[]> getCollectorImageById(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) throws IOException {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Optional<Collector> collector =
-        collectorRepository.findByIdAndTenantId(collectorId, TenantContext.getCurrentTenant());
+        collectorRepository.findById(ConnectorCompositeId.of(collectorId, tenantId));
     if (collector.isEmpty()) {
       return ResponseEntity.notFound().build();
     }
@@ -171,10 +187,14 @@ public class CollectorApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.COLLECTOR)
   @Transactional(rollbackFor = Exception.class)
+  // Composite PK: require a tenant selector so the update targets exactly one row.
   public Collector updateCollector(
-      @PathVariable String collectorId, @Valid @RequestBody CollectorUpdateInput input) {
-    Collector collector = collectorService.collector(collectorId);
-    return updateCollector(
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String collectorId,
+      @Valid @RequestBody CollectorUpdateInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    Collector collector = collectorService.collector(collectorId, tenantId);
+    return applyCollectorUpdate(
         collector,
         collector.getType(),
         collector.getName(),
@@ -194,8 +214,10 @@ public class CollectorApi extends RestBehavior {
           "Removes a registered collector. Intended for stopped collectors that no longer ping;"
               + " an active collector re-registers on its next heartbeat.")
   @Transactional(rollbackFor = Exception.class)
-  public void deleteCollector(@PathVariable String collectorId) {
-    collectorRepository.deleteByIdAndTenantId(collectorId, TenantContext.getCurrentTenant());
+  public void deleteCollector(@RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) {
+    // Enforce a single-tenant write scope (400 on ambiguous selector) before issuing the delete.
+    writeScopeResolver.tenantForWrite(ctx, null);
+    collectorRepository.deleteByCollectorId(collectorId);
   }
 
   @PostMapping(
@@ -205,22 +227,25 @@ public class CollectorApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.COLLECTOR)
   @Transactional(rollbackFor = Exception.class)
   public Collector registerCollector(
+      TxCtx ctx,
       @Valid @RequestPart("input") CollectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {
     try {
+      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       InputStream iconStream =
           file.isPresent() && "image/png".equals(file.get().getContentType())
               ? file.get().getInputStream()
               : null;
       return collectorService.register(
-          TenantContext.getCurrentTenant(),
+          tenantId,
           input.getId(),
           input.getType(),
           input.getName(),
           true,
           input.getPeriod(),
           input.getSecurityPlatform(),
-          iconStream);
+          iconStream,
+          input.getAuthor());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

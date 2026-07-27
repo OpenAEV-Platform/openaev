@@ -7,9 +7,9 @@ import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.Condition;
-import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.MappingType;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.service.chaining.ConditionService;
 import java.time.Instant;
 import java.util.List;
@@ -53,14 +53,16 @@ class ConditionApiTest {
   @Test
   void findAllByWorkflow_shouldReturnMappedList() {
     Condition root = conditionTree("c-wf", "wf-9", "ev-9", "d");
-    when(conditionService.findNonMapperConditionsByWorkflowId("wf-9")).thenReturn(List.of(root));
+
+    EventOutput expectedOutput = ConditionMapper.toOutput(root);
+    when(conditionService.findEventsByWorkflowId("wf-9")).thenReturn(List.of(expectedOutput));
 
     List<EventOutput> result = conditionApi.findAllByWorkflow("wf-9");
 
     assertEquals(1, result.size());
     assertEquals("c-wf", result.getFirst().getId());
     assertEquals("wf-9", result.getFirst().getWorkflowId());
-    verify(conditionService).findNonMapperConditionsByWorkflowId("wf-9");
+    verify(conditionService).findEventsByWorkflowId("wf-9");
   }
 
   @Test
@@ -125,7 +127,7 @@ class ConditionApiTest {
     child.setId(rootId + "-child");
     child.setWorkflowId(workflowId);
     child.setType(ConditionType.EQ);
-    child.setKeyType(ConditionKeyType.Portscan);
+    child.setKeyType(PrimitiveType.Port);
     child.setValue("445");
     child.setMappingType(MappingType.LOCAL);
     child.setConditionParent(root);

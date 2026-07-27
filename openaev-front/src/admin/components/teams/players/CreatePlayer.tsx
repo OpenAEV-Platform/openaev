@@ -1,7 +1,4 @@
-import { ControlPointOutlined } from '@mui/icons-material';
-import { ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
 import { addPlayer } from '../../../../actions/users/User';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
@@ -14,14 +11,6 @@ import { type Option } from '../../../../utils/Option';
 import { type PlayerInputForm, type UserStore } from './Player';
 import PlayerForm from './PlayerForm';
 
-const useStyles = makeStyles()(theme => ({
-  text: {
-    fontSize: theme.typography.h2.fontSize,
-    color: theme.palette.primary.main,
-    fontWeight: theme.typography.h2.fontWeight,
-  },
-}));
-
 interface CreatePlayerProps {
   inline?: boolean;
   onCreate: (result: UserStore) => void;
@@ -32,7 +21,6 @@ const CreatePlayer: FunctionComponent<CreatePlayerProps> = ({
   onCreate,
 }) => {
   // Standard hooks
-  const { classes } = useStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
 
@@ -69,15 +57,8 @@ const CreatePlayer: FunctionComponent<CreatePlayerProps> = ({
     <div>
       {inline ? (
         <>
-          <ListItemButton divider onClick={handleOpen} color="primary">
-            <ListItemIcon color="primary">
-              <ControlPointOutlined color="primary" />
-            </ListItemIcon>
-            <ListItemText
-              primary={t('Create a new player')}
-              classes={{ primary: classes.text }}
-            />
-          </ListItemButton>
+          {/* Header placement (picker top-right): compact creation button. */}
+          <ButtonCreate onClick={handleOpen} label={t('Create a new player')} />
           <Dialog
             open={openDialog}
             handleClose={handleClose}

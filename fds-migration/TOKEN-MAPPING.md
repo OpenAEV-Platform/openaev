@@ -389,9 +389,22 @@ not one-off overrides on a component slated for replacement.
   scale-level shapes) — a legitimate future resurrection candidate **if**
   Sandy/Thibault ever want a deeper structural migration, but explicitly
   out of scope for this lot.
-- **`palette.background.gradient.{start,end}`** — zero consumers (grepped).
-  Stays dead, documented.
-- **`palette.leftBar.*`** — zero consumers (grepped). Stays dead, documented.
+  - **Update, §8 (main merge)**: no longer *entirely* dead. #6813 added the
+    namespace's first live consumer —
+    `theme.palette.designSystem.background.bg2`, a menu separator border
+    color in `LeftMenu.tsx` (grepped, confirmed via `git blame` as
+    introduced by `dd030cb1`). Re-grepped the rest of the namespace
+    (`severity.*`, `leftBar.*`, and every other `designSystem.*` sub-path)
+    this pass — all still 0 consumers. Doesn't change the "leave dead"
+    call, since 1 real consumer out of dozens of sub-properties doesn't
+    justify resurrecting/retyping the whole namespace, but the blanket
+    "fully dead" framing no longer holds for `designSystem.background`
+    specifically (also reflected in §6's row for this family).
+- **`palette.background.gradient.{start,end}`** — zero consumers (grepped,
+  re-confirmed §8). Stays dead, documented.
+- **`palette.leftBar.*`** — zero consumers (grepped, re-confirmed §8).
+  Stays dead, documented — still the best candidate for "likely obsolete
+  once the lib's `Navbar` component lands" per the mission-3 table.
 
 ---
 
@@ -403,12 +416,12 @@ OpenCTI and OpenAEV, for the shared Figma backlog with Thibault.
 | Concept | OpenAEV usage | OpenCTI usage | Common value today | Suggested token name |
 |---|---|---|---|---|
 | Tinted "accent" background (distinct from the base accent/code color) | `background.accent` (light only), `#d3eaff` — `ItemCopy.tsx`, `AttackPatternBox.tsx` ×2 | No direct equivalent — closest is `designSystem.background.bg1`-`bg4`, also untokenized on their side | Different per product — genuinely no shared value yet | `--color-elevation-background-tint` (working name) |
-| Multi-tier elevation background (beyond default/paper/accent) | `background.bg1`-`bg4`/`disabled` — **fully dead**, 0 consumers (part of the never-resurrected `designSystem` scaffolding) | `designSystem.background.{bg1,bg2,bg3,bg4,disabled}` — **live**, 0 confident FDS match either (their own report, §6/"Tokens à créer") | n/a (both hardcoded, no shared value) | `--color-elevation-background-layer-{1..4}` extension, or a dedicated `bg-tint-*` scale |
+| Multi-tier elevation background (beyond default/paper/accent) | `designSystem.background.{bg1,bg2,bg3,bg4,disabled}` — **no longer fully dead**: #6813 added the first live consumer, `.bg2` (a menu separator border in `LeftMenu.tsx`) — the other 4 sub-keys remain unconsumed | `designSystem.background.{bg1,bg2,bg3,bg4,disabled}` — **live**, 0 confident FDS match either (their own report, §6/"Tokens à créer") | n/a (both hardcoded, no shared value) | `--color-elevation-background-layer-{1..4}` extension, or a dedicated `bg-tint-*` scale |
 | Severity `none`/`default` (neutral/unset state) | `palette.severity.default`, `#004C66` fallback in `Tag.tsx` | `severity.none`/`.default` — explicitly left untouched, "no feedback-family equivalent" | Different per product | `--color-feedback-neutral-*` (new family — neither product has a "neutral" feedback tier today) |
-| Raw blue hue scale gap | n/a (OpenAEV has no `tertiary.*` scale) | `designSystem.tertiary.blue` (`#0099CC`/`#003242`) — no FDS match at all, closest is `blue-500` which is a completely different, much brighter color | OpenCTI-only | `--color-blue-{step}` scale extension |
-| Generic "border" concept | n/a | `designSystem.border.{main,border1,border2}` — no FDS "border" concept exists today | OpenCTI-only | `--color-border-*` (new family) |
-| Light-mode tonic sub-shades | n/a (OpenAEV has no `secondary.light`/`.dark`) | `designSystem.secondary.{light,dark}` (light mode only) — old values don't match `tonic-secondary`/`tonic-tertiary` the way dark mode's did | OpenCTI-only | Possibly a light-mode-specific tonic sub-shade pair |
-| Dialog/modal background (distinct from generic paper elevation) | No dedicated value — dialogs inherit `background.paper` directly, no `MuiDialog` override exists | `MuiDialog.styleOverrides.paper` hardcoded: `#0F1D34` (dark, distinct from paper `#0d172b`) / `#FFFFFF` (light, = paper `#ffffff`) — already self-flagged "no confident FDS match" in OpenCTI's own `TOKEN-MAPPING.md` (`THEME_DARK_DIALOG_BACKGROUND`/`THEME_LIGHT_DIALOG_BACKGROUND`) | Different per product (OpenAEV has no distinct value at all) | `--color-elevation-background-dialog` (working name) — added following the 2026-07-13 cross-product comparison, see `reports/tokens-visual-validation.md` annex |
+| Raw blue hue scale gap | `designSystem.tertiary.blue.{500,900}` (`#0099CC`/`#003242`) — now **live** as of #6813/§8.6, same 2 residual values, still no FDS match | `designSystem.tertiary.blue` (`#0099CC`/`#003242`) — no FDS match at all, closest is `blue-500` which is a completely different, much brighter color | **Now shared** — identical hardcoded values on both products (was OpenCTI-only) | `--color-blue-{step}` scale extension |
+| Generic "border" concept | `designSystem.border.{main,border1,border2}` — now **live** as of #6813/§8.6, identical values to OpenCTI's (`#D2D2D2`/`#C2C2C2`/`#999797` light) | `designSystem.border.{main,border1,border2}` — no FDS "border" concept exists today | **Now shared** — identical hardcoded values (was OpenCTI-only) | `--color-border-*` (new family) |
+| Light-mode tonic sub-shades | `designSystem.secondary.{light,dark}` (light mode only) — now **live** as of #6813/§8.7; only `.main` was retokenized this pass, `.light`/`.dark` share OpenCTI's exact residual gap | `designSystem.secondary.{light,dark}` (light mode only) — old values don't match `tonic-secondary`/`tonic-tertiary` the way dark mode's did | **Now shared** — same residual gap on both products (was OpenCTI-only) | Possibly a light-mode-specific tonic sub-shade pair |
+| Dialog/modal background (distinct from generic paper elevation) | `MuiDialog.styleOverrides.paper` hardcoded: `#0F1D34` (dark) / `#FFFFFF` (light) — now **live** as of #6813/§8.10, still unwired | `MuiDialog.styleOverrides.paper` hardcoded: `#0F1D34` (dark, distinct from paper `#0d172b`) / `#FFFFFF` (light, = paper `#ffffff`) — already self-flagged "no confident FDS match" in OpenCTI's own `TOKEN-MAPPING.md` (`THEME_DARK_DIALOG_BACKGROUND`/`THEME_LIGHT_DIALOG_BACKGROUND`) | **Now shared** — identical hardcoded pattern and values on both products (was OpenCTI-only) | `--color-elevation-background-dialog` (working name) — added following the 2026-07-13 cross-product comparison, see `reports/tokens-visual-validation.md` annex |
 
 Everything else durable in both products **already has** a matching FDS
 token as of this lot (see §1/§3) — this table is the genuine remaining gap,
@@ -422,46 +435,67 @@ Target state (your words): zero hardcoded color, zero MUI default, in both
 products, 100% resolved from `theme.css`. Every color-bearing property in
 `ThemeDark.ts`/`ThemeLight.ts` now falls into exactly one bucket — a future
 `mui-inventory` scanner can check convergence by counting bucket (a) vs
-(b)+(c):
+(b)+(c).
 
-- **(a) Wired to an existing FDS token — this lot**: `primary`, `secondary`,
-  `EE_COLOR`, `gradient.main`, `xtmhub.main`, `accent`, `paper`,
-  `background.default`, `background.secondary` (dark `nav` for free). 9
-  fields, both modes.
-- **(b) Hardcoded, DURABLE, awaiting a Figma token — wave 2** (token
-  creation in Figma + wiring iteration on both products):
-  - `background.accent` (light), `palette.severity.*` (partial — 5/7 levels
-    have a portable mapping already validated by OpenCTI, `none`/`default`
-    need a new `feedback-neutral` family), `THEME_LIGHT_DEFAULT_NAV`
-    (technically has a token already — `--bg-elevation-heading-layer-0` — just not
-    applied pending your sign-off, so this one may resolve to (a) as soon as
-    you decide).
-  - **Added from the OpenCTI ↔ OpenAEV cross-product comparison (checkpoint
-    2026-07-13) — arbitrated: none of these in this lot, all confirmed wave
-    2.** Full evidence in `reports/tokens-visual-validation.md`'s annex.
-    - **`text.secondary` — marked HIGH PRIORITY for wave 2 (your call).**
-      Currently undefined on OpenAEV (falls through to MUI's translucent
-      dark-mode default, `rgba(255,255,255,0.7)`); OpenCTI wires it to
-      `--text-default-primary` (opaque, `#f2f2f3` dark / `#18191b`
-      light). Widest-reaching of the newly-found gaps — touches secondary
-      text app-wide.
-    - `error.main` / `warn.main` / `warning.main` / `success.main` —
-      hardcoded legacy values on OpenAEV (`#f44336` / `#ffa726` / `#03a847`
-      dark); OpenCTI already wires these to `--color-feedback-error-primary`
-      / `--color-feedback-warning-primary` / `--color-feedback-success-primary`.
-    - `dangerZone` / `ai` — same treatment: hardcoded on OpenAEV, already
-      FDS-wired (error/ia families) on OpenCTI.
-    - `primary.light` — undefined on OpenAEV (falls through to MUI's
-      auto-lightened `primary.main`); OpenCTI hand-tunes a dedicated value
-      (`#B2ECFF` dark / `#7587FF` light). Note this OpenCTI value is *itself*
-      not FDS-sourced either — wave-2 work here is parity/hand-tuning, not a
-      ready-made token application.
-    - `MuiDialog` background — component-level override, not a `palette.*`
-      key (doesn't count toward the 9-field tally above), flagged for
-      symmetry: OpenCTI hardcodes a dedicated shade via
-      `MuiDialog.styleOverrides.paper` (see §6's new Figma-backlog row);
-      OpenAEV has no such override, dialogs inherit `background.paper`
-      directly.
+> **Superseded by §8.** This section originally *predicted* wave 2 (written
+> before #6813 landed). #6813's merge forced wave 2 to happen now — §8 is
+> the executed record. The buckets below are updated to reflect what
+> actually shipped vs. what's still open; where §7's original prediction
+> and §8's actual execution differ (rare — mostly root-level `warn`/
+> `warning`/`success`/`dangerZone`, see the note at the end of bucket (b)),
+> that's called out explicitly rather than silently reconciled.
+
+- **(a) Wired to an existing FDS token — waves 1+2, both modes unless noted**:
+  `primary`, `secondary`, `EE_COLOR`, `gradient.main`, `xtmhub.main`,
+  `accent`, `paper`, `background.default`, `background.secondary` (dark
+  `nav` for free) — **wave 1, 9 fields** — plus, newly wired this pass
+  (**wave 2, executed via §8**): `background.drawer` (rule 3, Option B),
+  `border.main`/`.secondary` (root), `ai.main/light/dark` (palette),
+  `text.disabled`, `error.main/dark` (now genuinely mode-split),
+  `ee.contrastText` (light, bug fix),
+  `severity.critical/high/medium/low/info`,
+  `designSystem.tertiary.*` (17 of 19 values — all but `blue.500/900`),
+  `designSystem.alert.*`, `primary.light` (**light mode only**),
+  `common.grey`/`.lightGrey`, `designSystem.primary.*`,
+  `designSystem.secondary.main`, `designSystem.destructive.*`,
+  `designSystem.ia.*`, `designSystem.background.main`,
+  `designSystem.gradient.ia`/`.focus`, plus the `THEME_LIGHT_DEFAULT_PRIMARY`
+  bug fix (rule 5). **~20 additional field families, both modes** (some
+  single-value, some 3-tier `.main/.light/.dark`) — full detail in §8.1–8.5.
+- **(b) Hardcoded, DURABLE, awaiting a Figma token — remaining after wave 2**:
+  - **Confirmed true gaps (5, §8.6)**: `severity.none`/`.default`,
+    `designSystem.tertiary.blue.{500,900}`,
+    `designSystem.background.{bg1-4,disabled}`, `designSystem.border.{main,
+    border1,border2}`, `primary.light` (**dark mode only** — light is now
+    wired).
+  - **Residual light-mode-only gap (§8.7)**: `designSystem.secondary.{light,
+    dark}` — only `.main` retokenized, matches OpenCTI's own identical gap.
+  - **Bridge-shape gap, not a value gap (§8.7)**: `designSystem.gradient.
+    background` — no `--gradient-background` key exists in OpenAEV's bridge
+    (OpenCTI's does); adopting the nearest key would be a real visual
+    change, so left hardcoded pending a bridge-generation question.
+  - **Pre-existing, deliberate, unchanged (§8.7)**: `background.accent`
+    (light) — distinct from `THEME_LIGHT_DEFAULT_ACCENT`, decided before
+    this merge (§3.5), #6813 didn't touch it.
+  - `THEME_LIGHT_DEFAULT_NAV` (technically has a token already —
+    `--bg-elevation-heading-layer-0` — pending your sign-off, unchanged this
+    pass, still the "7th item" from §1).
+  - **`text.secondary` — still the HIGH PRIORITY item, still untouched.**
+    Deliberately kept as MUI's translucent default (explicit code comment,
+    predates this merge) — not named in your go-ahead rules, not touched.
+  - **Scope note — NOT actioned this pass, flagging for awareness**:
+    root-level (non-`designSystem`) `warn.main` (`#E6700F`), `warning.main`
+    (`#ffa726`), `success.main`/`.dark` (`#17AB1F`/`#094E0B`), and
+    `dangerZone.*` (`#F44336`/`#F8958C`/`#881106`) remain hardcoded exactly
+    as #6813 introduced them. Your rule 4 explicitly named
+    `designSystem.alert.*` (which **was** rewired, §8.4) but not these
+    root-level siblings — OpenCTI already wires the equivalent root-level
+    slots to the same `feedback-*-primary` tokens, so this is a real,
+    available quick win, intentionally left alone as out-of-scope for a
+    strict reading of your rules rather than assumed-in.
+  - `MuiDialog` background — component-level override, not a `palette.*`
+    key. Now hardcoded on **both** products with matching values (§8.10,
+    §6's updated row) — parity reached, still no FDS token exists.
 - **(c) Hardcoded, JETABLE (dies with component migration) — wave 3**: none
   identified in this lot's 6 named properties, and none of the wave-2 items
   above either (all classified DURABLE — cross-cutting platform colors, not
@@ -469,6 +503,213 @@ products, 100% resolved from `theme.css`. Every color-bearing property in
   `leftBar`, `designSystem` are dead code today, not JETABLE in the
   "consumed-by-a-doomed-component" sense — they have zero consumers at all,
   so they carry no convergence debt either way.)
+
+---
+
+## 8. `main` merge (PR #6813 reconciliation) — wave 2 executed, Figma-arbitrated
+
+**Context.** `main` shipped PR #6813 (Samuel Hassine, 2026-07-21, "align UX
+with OpenCTI") in parallel with this pilot's own work on
+`design-system/current`. It re-hardcoded ~13 color families (some
+overlapping §1-§7's already-tokenized fields, some genuinely new:
+`severity.*`, `designSystem.*`, `ai.*`, tertiary ramps, `common.grey`/
+`lightGrey`, `border.*`, `text.disabled`) to visually match OpenCTI, without
+knowledge of the token wiring already landed here. Merging `main` into
+`design-system/current` therefore produced real conflicts in both theme
+files. Per Sandy's explicit go-ahead (chat, Figma-arbitrated), **Figma
+tokens win on every named conflict** — this section is the settled record
+of that merge, executing most of §7's predicted "wave 2" ahead of schedule
+because #6813 forced the question. Verified against `fds-tokens.generated.ts`
+(`themeCssHash` unchanged since §1, see footer) and cross-checked against
+OpenCTI's own currently-wired `ThemeDark.ts`/`ThemeLight.ts` (read-only
+reference, its wiring is more mature on these specific families) — every
+mapping below was confirmed either an exact value match or an explicit,
+evidenced design decision, never a blind copy (two of OpenCTI's own patterns
+were caught as unsafe to copy verbatim — see "Corrections vs. OpenCTI" below).
+
+### 8.1 Rule 1 — named conflicts, Figma wins
+
+| Property | Mode | #6813 value | Resolved to | FDS token |
+|---|---|---|---|---|
+| `EE_COLOR` / `gradient.main` / `xtmhub.main` / `designSystem.secondary.main` | dark | `#00f18d` | `#00f0bc` | `--color-filigran-tonic-primary` (already `EE_COLOR` pre-merge — no drift) |
+| same 4 fields | light | `#00BD94` | `#00f0bc` | `--color-filigran-tonic-primary` (mode-invariant) |
+| `border.main` / `border.secondary` (root) | dark | `#252A35` / `#424751` | `#3665b4` (both) | `--border-elevation-default` — no OpenCTI wiring to mirror, Sandy's own forward decision |
+| `border.main` / `border.secondary` (root) | light | `#D2D2D2` / `#C2C2C2` | `#7a7c85` (both) | `--border-elevation-default` |
+| `ai.main` / `.light` / `.dark` | dark | `#B286FF` / `#D6C2FA` / `#5E1AD5` | `#a47af0` / `#e3d6fa` / `#651fe5` | `ia-primary`/`-secondary`/`-tertiary` (corrected from OpenCTI's stale `-main` key, see below) |
+| `ai.main` / `.light` / `.dark` | light | `#5E1AD5` / `#D6C2FA` / `#3C108C` | `#651fe5` / `#e3d6fa` / `#3c108c` | `ia-primary`/`-tertiary`/`-secondary` (flip vs. dark — confirmed via OpenCTI) |
+| `text.disabled` | dark | `#75829A` | `#a0b4e3` | `--text-default-disabled` (OpenCTI itself doesn't wire this either — original fix) |
+| `text.disabled` | light | `#6E7788` | `#2b4f8d` | `--text-default-disabled` |
+| `error.main` / `.dark` | dark | `#F14337` / `#881106` | unchanged (already exact) | `feedback-error-primary`/`-secondary` |
+| `error.main` / `.dark` | light | `#F14337` / `#881106` (bug: same as dark) | `#e51e10` / `#f8958c` | `feedback-error-primary`/`-tertiary` — now genuinely mode-split |
+| `ee.contrastText` | light | `#F2F2F3` (bug: dark-mode text reused) | `THEME_LIGHT_DEFAULT_TEXT` (`#18191b`) | n/a — copy-paste fix, mirrors dark mode's own pattern |
+
+### 8.2 Rule 2 — `xtmhub` reunification
+
+Confirms §1's original framing ("`xtmhub.main`... not equivalent in consumer
+status" to `gradient.main`): #6813 had drifted `xtmhub.main` to `#00f18d`/
+`#00BD94` while leaving `gradient.main`/`designSystem.secondary.main` on
+different, also-drifted values — the 4 properties this pilot originally
+unified (§1) had silently re-diverged. All 4 now point back at the single
+`EE_COLOR` constant (table above) — `GradientButton.tsx`'s live consumer
+(XTM Hub tab, unregistered-hub CTA, import-from-hub button) confirmed
+unaffected in shape, only in end-color value.
+
+### 8.3 Rule 3 — `background.secondary`/`.drawer` (Option B)
+
+Custom-theme ternary (`paper === DEFAULT ? x : paper`) preserved exactly —
+the per-install override still works unchanged. Only the ternary's DEFAULT
+branch is retokenized:
+
+| Property | Mode | #6813 default | Resolved to | FDS token |
+|---|---|---|---|---|
+| `background.secondary` | dark | `#0C1524` (hardcoded) | `#101b33` | `--bg-elevation-highlight-layer-0` (= this pilot's own §2/§D value, unchanged) |
+| `background.secondary` | light | `#FFFFFF` (hardcoded) | `#e4e5e7` | `--bg-elevation-highlight-layer-0` |
+| `background.drawer` | dark | `#0f1d34` (hardcoded) | `THEME_DARK_DEFAULT_PAPER` (`#0d172b`) | reuses PAPER's own token — close match to old hardcode, avoids a fresh token and avoids the parked `NAV` decision (§1 "7th item") |
+| `background.drawer` | light | `#FFFFFF` (hardcoded) | `THEME_LIGHT_DEFAULT_PAPER` (`#ffffff`) | reuses PAPER's own token — **exact** match |
+
+Option A (a dedicated GraphQL field so an admin can author the drawer/
+secondary surface independently of `paper`) is **not** implemented this
+pass — backlogged per Sandy's instruction, see §8.6.
+
+### 8.4 Rule 4 — rewired onto existing tokens
+
+| Family | Dark: #6813 → resolved | Light: #6813 → resolved | FDS token(s) |
+|---|---|---|---|
+| `severity.critical/high/medium/low/info` | unchanged (already exact) | unchanged (already exact) | `feedback-error/warning/alert/success/info-primary` — executes §4's already-documented, OpenCTI-validated 5-level mapping |
+| `designSystem.tertiary.*` (grey/darkBlue/turquoise/green/red/orange/yellow — 19 values) | unchanged (already exact) | unchanged (already exact) | `FDS.scalars['--<hue>-<step>']` — mode-invariant raw ramp, confirmed OpenAEV's bridge has no mode-specific `--color-<hue>-N` equivalent (unlike OpenCTI's bridge — a real product-to-product bridge-shape difference, not an error) |
+| `designSystem.alert.*` (info/success/alert/warning/error) | unchanged (already exact) | unchanged (already exact) | `feedback-*-primary`/`-secondary`(+`-tertiary` for success) |
+| `primary.light` (root) | **left hardcoded** `#B2ECFF` | `#7587FF` → `#7587ff` | light: `FDS.scalars['--darkblue-300']` (exact match); dark: no scalar match, confirmed gap, stays hardcoded |
+| `common.grey` / `.lightGrey` | `#95969D`/`#E4E5E7` → unchanged (exact) | `#494A50`/`#AFB0B6` → unchanged (exact) | dark: `FDS.scalars['--gray-400']`/`['--gray-150']`; **light uses different scalars than dark** — `['--gray-700']`/`['--gray-300']` — confirmed by exact-value match, not a naive mode mirror |
+| `designSystem.primary.*` | unchanged (already exact) | unchanged (already exact) | `brand-primary`/`-secondary`/`-tertiary` |
+| `designSystem.secondary.main` | unchanged (already exact, = `EE_COLOR`) | `#00BD94` → `#00f0bc` | `tonic-primary` (see 8.2) |
+| `designSystem.destructive.*` | unchanged (already exact) | unchanged (already exact) | `feedback-error-primary`/`-tertiary`/`-secondary` (dark); `-primary`/`-secondary`/`-tertiary` (light — order flips vs. dark, confirmed via OpenCTI) |
+| `designSystem.ia.*` | unchanged (already exact) | unchanged (already exact) | `ia-primary`/`-secondary`/`-tertiary` (dark); `-primary`/`-tertiary`/`-secondary` (light) — corrected from OpenCTI's stale `-main` key |
+| `designSystem.background.main` | `#070D19` → constant ref | `#ECECF2` → constant ref | `THEME_<MODE>_DEFAULT_BACKGROUND` — zero value change, single-source-of-truth cleanup only |
+| `designSystem.gradient.ia` / `.focus` | unchanged (already exact) | unchanged (already exact) | `FDS.gradients.<mode>['--gradient-ia'/'--gradient-focus']` — full pre-built gradient strings replacing hand-rolled hex+stops |
+
+All "unchanged (already exact)" rows above mean #6813's hardcode already
+matched the token bit-for-bit — the rewiring replaces the *literal* with a
+*reference* (convergence/traceability improvement, per §7's methodology),
+not a visual change.
+
+### 8.5 Rule 5 — wiring bug fixed
+
+`THEME_LIGHT_DEFAULT_PRIMARY` was wired to the raw scalar
+`FDS.scalars['--darkblue-600']` (`#001bdb`) — this resolves to a *different*
+value than the actual semantic `--color-filigran-brand-primary` (light)
+token (`#0015a8`), which is what dark mode's equivalent constant already
+correctly used. Fixed to `FDS.colors.light['--color-filigran-brand-primary']`,
+mirroring dark mode's own pattern. Net effect: `THEME_LIGHT_DEFAULT_PRIMARY`
+now resolves to `#0015a8` — coincidentally the exact value #6813 had
+hardcoded for this same slot, so this bug fix and #6813's independent
+hardcode converge on the same corrected value.
+
+### 8.6 Backlog — 5 genuine gaps + Option A (no FDS token exists, left hardcoded)
+
+- `severity.none` / `.default` — no neutral/unset feedback token in FDS (both products).
+- `designSystem.tertiary.blue.500` / `.900` — no scalar ramp matches either value.
+- `designSystem.background.bg1`–`bg4` / `.disabled` — no confident 1:1 FDS token (dead code on OpenAEV, live-but-equally-unmapped on OpenCTI).
+- `designSystem.border.main` / `.border1` / `.border2` — no FDS "border" concept exists yet (OpenCTI leaves the identical values unmapped too, self-flagged in its own TOKEN-MAPPING.md).
+- `primary.light` (root, **dark mode only** — light mode is now wired, see 8.4) — `#B2ECFF`, no scalar match.
+- **Option A** (dedicated GraphQL field for `background.secondary`/`.drawer`, letting an admin author these independently of `paper`) — parked per Sandy's instruction; Option B (8.3) ships this pass instead.
+
+These 5 families + Option A join §6's consolidated cross-product Figma
+backlog table conceptually (not re-tabulated here to avoid duplication);
+update that table the next time it's revisited.
+
+### 8.7 Newly-found residual gaps (discretionary, flagged not fixed)
+
+- **`designSystem.secondary.light`/`.dark` (light mode only)** — only
+  `.main` matches `tonic-primary` exactly; unlike dark mode (where all
+  three tiers match `tonic-primary`/`-secondary`/`-tertiary` exactly),
+  light mode's `.light`/`.dark` (`#74E9CA`/`#0A8268`) don't match
+  `tonic-secondary`/`-tertiary` (`#009474`/`#bdffed`). Confirmed via
+  OpenCTI's own code and comment ("No confident FDS match for light/dark
+  shades") — same gap exists there. Left hardcoded, not named in Sandy's
+  rules, flagging rather than assuming.
+- **`designSystem.gradient.background`** — OpenCTI's bridge has a direct
+  `--gradient-background` key; OpenAEV's bridge does not (only
+  `--gradient-default`, a different angle — 135deg vs. the current 100.35deg
+  hardcode — and different stops on both modes). Adopting it would be a
+  real, unauthorized visual change. Left hardcoded both modes; worth a
+  design-system bridge-generation question (why does OpenCTI's bridge have
+  this key and OpenAEV's not, for the same `theme.css` source?).
+- **`background.accent` (light, standalone)** — unchanged, still the
+  pre-existing `#d3eaff` literal documented at §3.5; #6813 didn't touch this
+  field and neither did this merge.
+
+### 8.8 Corrections vs. OpenCTI (copying its pattern verbatim would have broken)
+
+- **`ia-main` → `ia-primary`.** OpenCTI's own currently-wired code still
+  references `FDS.colors.<mode>['--color-filigran-ia-main']` — a stale key,
+  renamed to `-primary` in a bridge regeneration OpenCTI's theme files never
+  picked up. OpenAEV's bridge only has `-primary` (confirmed via grep, zero
+  `-main` matches) — using OpenCTI's exact key would have resolved to
+  `undefined` at runtime. Flagged for a future OpenCTI-side session (not
+  fixed there — out of scope, read-only per this session's rules).
+- **Mode-specific vs. scalar tertiary-ramp keys.** OpenCTI's bridge exposes
+  `FDS.colors.<mode>['--color-gray-400']`-style mode-specific ramp keys;
+  OpenAEV's bridge has no such keys (confirmed via grep) — only the flat,
+  mode-invariant `FDS.scalars['--gray-400']` namespace. Used the latter;
+  blind copy of OpenCTI's key paths would have broken at runtime.
+
+### 8.9 Merge-mechanics bugs fixed (not color decisions, required for a working build)
+
+- **`ThemeLight.ts`**: `getAppBodyGradientEndColor` was declared twice
+  (both branches added it independently at non-overlapping lines, so git
+  raised no conflict marker) — a real duplicate-`const` JS error. Kept the
+  copy with the explanatory comment, removed the other.
+- **`ThemeDark.ts`**: `background.secondary` was declared twice inside the
+  same object literal (main's Option-B ternary + this pilot's pre-existing
+  flat-token line) — same root cause (clean auto-merge, no conflict marker,
+  invalid duplicate object key). Consolidated into the single Option-B
+  entry shown in 8.3.
+- **`ThemeLight.ts`**: the whole `background: {...}` key was similarly
+  duplicated (git split it into two non-adjacent conflict hunks around the
+  `widgets` block, rather than recognizing one logical change) —
+  consolidated into the single object shown in 8.3/8.4.
+- **Both files**: `MuiCssBaseline.styleOverrides.body` had `background` and
+  `backgroundAttachment` declared twice each (same root cause — the
+  `scrollbarColor`/`scrollbarWidth` lines from one side landed between two
+  copies of the other side's `background`/`backgroundAttachment` pair, so
+  git's line-based diff didn't recognize it as one hunk). Caught by
+  `yarn check-ts` (`TS1117: An object literal cannot have multiple
+  properties with the same name`) *after* the initial resolution pass —
+  a reminder that structural duplicate-key bugs from auto-merge can hide
+  past a manual conflict-marker/brace-balance review and only surface at
+  typecheck. Both instances were byte-identical duplicates (no logic
+  divergence), so no risk of dropped intent — fixed by deleting the
+  redundant copy in each file.
+
+### 8.10 New constants from #6813 (non-color, kept as literals)
+
+`THEME_<MODE>_DEFAULT_TEXT` (`#F2F2F3` dark / `#18191b` light) and
+`THEME_<MODE>_DEFAULT_DIALOG_BACKGROUND` (`#0F1D34` dark / `#FFFFFF` light,
+new `MuiDialog.styleOverrides.paper` override) are new from #6813, with no
+prior OpenAEV equivalent. §6's "Dialog/modal background" backlog row
+predicted exactly this: OpenCTI already hardcodes the identical pattern
+(`THEME_DARK_DIALOG_BACKGROUND`/`THEME_LIGHT_DIALOG_BACKGROUND`,
+self-flagged "no confident FDS match" in its own TOKEN-MAPPING.md) — OpenAEV
+now matches that same, equally-unwired state. Not a token gap to newly
+backlog, §6's row already covers it; update that row's wording (OpenAEV
+"No dedicated value" → "now has the identical hardcoded constants, still
+unwired") next time §6 is revisited.
+
+### 8.11 Out-of-scope finding — bridge staleness (unrelated to this merge)
+
+`node fds-migration/scripts/check-fds-conformity.mjs` flags
+`bridge-freshness: STALE` — the sibling `filigran-design-system` checkout's
+`theme.css` (last changed 2026-07-17, #33 "add IBM Plex Mono...") no longer
+matches the hash recorded in `fds-tokens.generated.meta.json`
+(`sha256:d8710e3...`, this doc's footer). Confirmed pre-existing and
+unrelated to this merge — this pilot never touches `fds-tokens.generated.ts`
+or `theme.css` directly, and the mismatch is purely a function of
+`filigran-design-system`'s own history advancing past this bridge's last
+regeneration. Regenerating the bridge (`pnpm generate:mui-bridge --product
+openaev --write-to-product`, run from `filigran-design-system`) is a
+separate cross-repo action, not authorized by this pass — flagged, not
+actioned. All other 11 conformity checks pass (bridge-integrity, wiring ×2,
+forbidden-pattern ×8).
 
 ---
 

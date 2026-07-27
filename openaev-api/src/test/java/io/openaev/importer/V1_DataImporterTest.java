@@ -198,6 +198,48 @@ class V1_DataImporterTest extends IntegrationTest {
 
   @Test
   @Transactional
+  void
+      testScenario_given_payloadInject_without_payloadInjector_registered_when_starterpack_then_should_attach_payload_to_contract()
+          throws IOException {
+    // -- PREPARE --
+    // Fresh platform: no payload-supporting injector is registered. The starter-pack import
+    // creates the payload and must carry it onto the injector-less contract (regression: the
+    // contract was persisted without its payload, showing a question mark / "no payload
+    // attached").
+    ObjectMapper mapper = new ObjectMapper();
+    String jsonContent =
+        new String(
+            Files.readAllBytes(
+                Paths.get(
+                    "src/test/resources/importer-v1/import-starterpack-scenario-with-payload.json")));
+    this.importNode = mapper.readTree(jsonContent);
+
+    // -- EXECUTE --
+    this.importer.importData(
+        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- ASSERT --
+    InjectorContract importedContract =
+        this.injectorContractRepository
+            .findById("6356f1c3-4152-4cfe-a595-cddcd1d9d233")
+            .orElseThrow();
+    // The created payload is attached to the starter-pack contract, not orphaned
+    assertNotNull(
+        importedContract.getPayload(),
+        "The starter-pack contract must carry the payload created during import");
+    assertEquals("Cleanup artifacts", importedContract.getPayload().getName());
+    // No injector link yet: the payload injector adopts the contract when it registers
+    assertTrue(importedContract.getInjectors().isEmpty());
+    // No payload is left orphaned by the import
+    for (Payload payload : payloadRepository.findAll()) {
+      assertTrue(
+          injectorContractRepository.findInjectorContractByPayload(payload).isPresent(),
+          "Payload '" + payload.getName() + "' must be referenced by an injector contract");
+    }
+  }
+
+  @Test
+  @Transactional
   void testImportXTMHubScenarios() throws IOException {
     MockitoAnnotations.openMocks(this);
 
@@ -602,7 +644,7 @@ class V1_DataImporterTest extends IntegrationTest {
     validStandalone.put("condition_id", "standalone-event-1");
     validStandalone.put("condition_type", "EQ");
     validStandalone.put("condition_key", "status");
-    validStandalone.put("condition_key_type", "status");
+    validStandalone.put("condition_key_type", "text");
     validStandalone.put("condition_value", "SUCCESS");
     validStandalone.put("condition_is_root", true);
     standaloneConditions.add(validStandalone);
@@ -736,6 +778,72 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Assert --
     assertEquals(Boolean.TRUE, shouldResolve);
+  }
+
+  @Test
+  @Transactional
+  void given_scenarioWithLegacyPredefinedExpectations_should_migrateToAvailableExpectations()
+      throws IOException {
+    // Arrange
+    ObjectMapper mapper = new ObjectMapper();
+    String jsonContent =
+        new String(
+            Files.readAllBytes(
+                Paths.get(
+                    "src/test/resources/importer-v1/scenario_with_injects_from_injector.json")));
+    JsonNode importNode = mapper.readTree(jsonContent);
+
+    // Act
+    this.importer.importData(
+        importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // Assert — the injector contract should have been created with migrated expectations
+    InjectorContract importedContract =
+        this.injectorContractRepository
+            .findById("93d27459-68d0-43b1-ad65-eacc3cfa5cf7")
+            .orElseThrow();
+
+    JsonNode content = mapper.readTree(importedContract.getContent());
+    assertNotNull(content.get("fields"), "Contract content should have fields");
+
+    JsonNode expectationsField =
+        java.util.stream.StreamSupport.stream(content.get("fields").spliterator(), false)
+            .filter(f -> "expectations".equals(f.path("key").asText()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Missing expectations field in contract"));
+
+    // predefinedExpectations should no longer exist
+    assertFalse(
+        expectationsField.has("predefinedExpectations"),
+        "predefinedExpectations should have been removed after import");
+
+    // availableExpectations should be present
+    assertTrue(
+        expectationsField.has("availableExpectations"),
+        "availableExpectations should be present after migration");
+    JsonNode available = expectationsField.get("availableExpectations");
+    assertTrue(available.isArray());
+    assertFalse(available.isEmpty(), "availableExpectations should not be empty");
+
+    // Every expectation must have the expectation_is_predefined flag
+    for (JsonNode exp : available) {
+      assertTrue(
+          exp.has("expectation_is_predefined"),
+          "Expectation "
+              + exp.path("expectation_type").asText()
+              + " should have expectation_is_predefined flag");
+    }
+
+    // DETECTION was in predefinedExpectations → should be marked as predefined
+    long predefinedCount =
+        java.util.stream.StreamSupport.stream(available.spliterator(), false)
+            .filter(e -> e.path("expectation_is_predefined").asBoolean())
+            .count();
+    assertTrue(predefinedCount > 0, "At least one expectation should be marked as predefined");
+
+    // Verify the inject was also created
+    List<Inject> injects = injectRepository.findAll();
+    assertFalse(injects.isEmpty(), "Injects should have been created from the scenario import");
   }
 
   // -- UTILS --

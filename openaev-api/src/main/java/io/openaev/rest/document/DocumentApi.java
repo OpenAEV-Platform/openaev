@@ -76,8 +76,8 @@ public class DocumentApi extends RestBehavior {
   private final ExerciseRepository exerciseRepository;
   private final ScenarioRepository scenarioRepository;
   private final UserRepository userRepository;
-  private final CollectorRepository collectorRepository;
   private final SecurityPlatformRepository securityPlatformRepository;
+  private final ReportingGenerationRepository reportingGenerationRepository;
 
   private final DocumentService documentService;
   private final FileService fileService;
@@ -93,7 +93,8 @@ public class DocumentApi extends RestBehavior {
       throws Exception {
     String extension = FilenameUtils.getExtension(file.getOriginalFilename());
     String fileTarget = DigestUtils.md5Hex(file.getInputStream()) + "." + extension;
-    Optional<Document> targetDocument = documentRepository.findByTarget(fileTarget);
+    Optional<Document> targetDocument =
+        documentRepository.findFirstByTargetOrderByIdAsc(fileTarget);
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
       // Compute exercises
@@ -166,6 +167,11 @@ public class DocumentApi extends RestBehavior {
   public Page<RawPaginationDocument> searchDocuments(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     List<Document> securityPlatformLogos = securityPlatformRepository.securityPlatformLogo();
+    // Report generation outputs are read-only from this generic surface: their lifecycle
+    // (naming, storage, deletion) belongs to the Reporting module.
+    // TODO(documents-management sweep): generalize a "system-owned document" contract instead
+    // of per-owner exclusion lists (security platform logos, report outputs, ...).
+    Set<String> reportingDocumentIds = new HashSet<>(reportingGenerationRepository.documentIds());
     return buildPaginationJPA(
             (Specification<Document> specification, Pageable pageable) ->
                 this.documentRepository.findAll(specification, pageable),
@@ -174,8 +180,10 @@ public class DocumentApi extends RestBehavior {
         .map(
             (document) -> {
               var rawPaginationDocument = new RawPaginationDocument(document);
+              boolean isReportingOutput = reportingDocumentIds.contains(document.getId());
               rawPaginationDocument.setDocument_can_be_deleted(
-                  !securityPlatformLogos.contains(document));
+                  !securityPlatformLogos.contains(document) && !isReportingOutput);
+              rawPaginationDocument.setDocument_can_be_updated(!isReportingOutput);
               return rawPaginationDocument;
             });
   }
@@ -214,6 +222,8 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public Document documentTags(
       @PathVariable String documentId, @RequestBody DocumentTagUpdateInput input) {
+    // Report generation outputs are read-only here (owned by the Reporting module).
+    documentService.assertNotReportingGenerationOutput(documentId);
     Document document =
         documentRepository
             .findById(documentId)
@@ -230,6 +240,8 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public Document updateDocumentInformation(
       @PathVariable String documentId, @Valid @RequestBody DocumentUpdateInput input) {
+    // Report generation outputs are read-only here (owned by the Reporting module).
+    documentService.assertNotReportingGenerationOutput(documentId);
     Document document =
         documentRepository
             .findById(documentId)

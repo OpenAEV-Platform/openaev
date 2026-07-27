@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.DetectionExpectation;
 import io.openaev.expectation.Expectation;
@@ -50,6 +51,10 @@ class InjectExpectationServiceTest {
   @Mock private AssetGroupService assetGroupService;
   @Mock private InjectService injectService;
   @Mock private InjectExpectationLockService injectExpectationLockService;
+
+  // Unstubbed: findByExternalReference defaults to Optional.empty(), so vulnerability verdicts
+  // keep the legacy Expectations Vulnerability Manager attribution in these tests.
+  @Mock private SecurityPlatformRepository securityPlatformRepository;
   @Spy @InjectMocks private InjectExpectationService injectExpectationService;
   @Spy private ObjectMapper mapper = new ObjectMapper();
 
@@ -880,6 +885,60 @@ class InjectExpectationServiceTest {
 
       verify(injectExpectationLockService, times(2))
           .applySignaturesForExpectationWithLock(anyString(), any());
+    }
+  }
+
+  @Nested
+  @DisplayName("findMergedExpectationsByInjectAndTargetAndTargetType for assets")
+  class AssetSecurityPlatformEnrichmentTests {
+
+    @Test
+    @DisplayName("Asset expectations mirror their agents' security-platform results")
+    void assetExpectationsAreEnrichedWithAgentSecurityPlatformResults() {
+      DetectionInjectExpectation assetExpectation = new DetectionInjectExpectation();
+      assetExpectation.setId("asset-expectation");
+      DetectionInjectExpectation agentExpectation = new DetectionInjectExpectation();
+      agentExpectation.setId("agent-expectation");
+      InjectExpectationResult collectorResult =
+          InjectExpectationResult.builder()
+              .sourceId("collector-1")
+              .sourceType("collector")
+              .sourceName("EDR Collector")
+              .result("Success")
+              .build();
+      agentExpectation.setResults(new ArrayList<>(List.of(collectorResult)));
+      when(injectExpectationRepository.findAllByInjectAndAsset("inject-id", "asset-id"))
+          .thenReturn(List.of(assetExpectation));
+      when(injectExpectationRepository.findAllAgentExpectationsByInjectAndAsset(
+              "inject-id", "asset-id"))
+          .thenReturn(List.of(agentExpectation));
+
+      List<? extends BaseInjectExpectation> merged =
+          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "parent-id", "ASSETS");
+
+      assertEquals(1, merged.size());
+      assertEquals(List.of(collectorResult), merged.get(0).getResults());
+      // The enrichment must stay display-only: the persistent entity is untouched.
+      assertTrue(assetExpectation.getResults().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Agentless assets keep their own expectation results unchanged")
+    void agentlessAssetExpectationsAreReturnedUnchanged() {
+      DetectionInjectExpectation assetExpectation = new DetectionInjectExpectation();
+      assetExpectation.setId("asset-expectation");
+      when(injectExpectationRepository.findAllByInjectAndAsset("inject-id", "asset-id"))
+          .thenReturn(List.of(assetExpectation));
+      when(injectExpectationRepository.findAllAgentExpectationsByInjectAndAsset(
+              "inject-id", "asset-id"))
+          .thenReturn(List.of());
+
+      List<? extends BaseInjectExpectation> merged =
+          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "parent-id", "ASSETS");
+
+      assertEquals(List.of(assetExpectation), merged);
     }
   }
 }

@@ -17,7 +17,13 @@ public class Theme implements Base {
     ACCENT_COLOR("accent_color", ""),
     LOGO_URL("logo_url", ""),
     LOGO_URL_COLLAPSED("logo_url_collapsed", ""),
-    LOGO_LOGIN_URL("logo_login_url", "");
+    LOGO_LOGIN_URL("logo_login_url", ""),
+    // Login page right-hand aside customization (aligned with OpenCTI):
+    // priority is image > gradient > color > default Filigran gradient.
+    LOGIN_ASIDE_COLOR("login_aside_color", ""),
+    LOGIN_ASIDE_GRADIENT_START("login_aside_gradient_start", ""),
+    LOGIN_ASIDE_GRADIENT_END("login_aside_gradient_end", ""),
+    LOGIN_ASIDE_IMAGE("login_aside_image", "");
 
     private final String key;
     private final String defaultValue;

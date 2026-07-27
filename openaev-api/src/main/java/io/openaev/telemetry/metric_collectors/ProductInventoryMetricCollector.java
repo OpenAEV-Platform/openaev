@@ -14,9 +14,9 @@ import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.InjectRepository;
-import io.openaev.database.repository.NotificationRuleRepository;
+import io.openaev.database.repository.NotificationTriggerRepository;
 import io.openaev.database.repository.OrganizationRepository;
-import io.openaev.database.repository.ReportRepository;
+import io.openaev.database.repository.ReportingRepository;
 import io.openaev.database.repository.VulnerabilityRepository;
 import io.openaev.database.repository.VulnerableEndpointRepository;
 import io.openaev.database.repository.WorkflowRepository;
@@ -59,15 +59,15 @@ public class ProductInventoryMetricCollector {
   private final ChannelRepository channelRepository;
   private final ArticleRepository articleRepository;
   private final CustomDashboardRepository customDashboardRepository;
+  private final ReportingRepository reportingRepository;
   private final ImportMapperRepository importMapperRepository;
-  private final NotificationRuleRepository notificationRuleRepository;
+  private final NotificationTriggerRepository notificationTriggerRepository;
   private final WorkflowRepository workflowRepository;
   private final FindingRepository findingRepository;
   private final VulnerabilityRepository vulnerabilityRepository;
   private final CveRepository cveRepository;
   private final VulnerableEndpointRepository vulnerableEndpointRepository;
   private final AttackPatternRepository attackPatternRepository;
-  private final ReportRepository reportRepository;
 
   @PersistenceContext private EntityManager entityManager;
 
@@ -112,13 +112,15 @@ public class ProductInventoryMetricCollector {
         "Number of custom dashboards",
         () -> safeCount(customDashboardRepository::count));
     metricRegistry.registerGauge(
+        "reports_total", "Number of reports", () -> safeCount(reportingRepository::count));
+    metricRegistry.registerGauge(
         "mappers_total",
         "Number of XLS import mappers",
         () -> safeCount(importMapperRepository::count));
     metricRegistry.registerGauge(
-        "notification_rules_total",
-        "Number of notification rules",
-        () -> safeCount(notificationRuleRepository::count));
+        "notification_triggers_total",
+        "Number of notification triggers",
+        () -> safeCount(notificationTriggerRepository::count));
     metricRegistry.registerGauge(
         "workflows_total",
         "Number of chaining workflows",
@@ -139,8 +141,6 @@ public class ProductInventoryMetricCollector {
         "attack_patterns_total",
         "Number of attack patterns",
         () -> safeCount(attackPatternRepository::count));
-    metricRegistry.registerGauge(
-        "reports_total", "Number of simulation reports", () -> safeCount(reportRepository::count));
   }
 
   private Map<Attributes, Long> collectPayloads() {

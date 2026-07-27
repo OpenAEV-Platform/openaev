@@ -32,15 +32,34 @@ const MenuItemSub: FunctionComponent<Props> = ({
 
   const renderMenuItem = ({ label, link, exact, icon, chip }: LeftMenuSubItem) => {
     const isCurrentTab = location.pathname === link;
+    const selected = exact ? isCurrentTab : location.pathname.includes(link);
     return (
       <MenuItem
         key={label}
         aria-label={t(label)}
         component={Link}
         to={link}
-        selected={exact ? isCurrentTab : location.pathname.includes(link)}
+        selected={selected}
         dense
-        sx={{ paddingLeft: navOpen ? '20px' : undefined }}
+        sx={{
+          'paddingLeft': navOpen ? '20px' : 2.5,
+          'paddingRight': 2.5,
+          // Sub-items carry no border/tint; selection is conveyed by the primary
+          // label + full-opacity icon (aligned with OpenCTI). Neutralize the
+          // app-wide MuiMenuItem selected inset.
+          '&.Mui-selected': {
+            boxShadow: 'none',
+            backgroundColor: 'transparent',
+          },
+          '&:hover, &.Mui-selected:hover': { backgroundColor: theme.palette.leftBar?.hover },
+          '& .MuiListItemIcon-root': {
+            minWidth: 0,
+            marginRight: 1,
+            opacity: selected ? 1 : 0.5,
+            color: selected ? theme.palette.primary.main : theme.palette.text.tertiary,
+          },
+          '& .MuiListItemIcon-root svg': { fontSize: 16 },
+        }}
         onClick={() => {
           if (!navOpen) handleSelectedMenuClose();
         }}
@@ -54,9 +73,9 @@ const MenuItemSub: FunctionComponent<Props> = ({
           primary={t(label)}
           slotProps={{
             primary: {
-              paddingLeft: navOpen ? `${theme.spacing(1)}` : `${theme.spacing(2)}`,
               fontWeight: theme.typography.h4.fontWeight,
               fontSize: theme.typography.h4.fontSize,
+              color: selected ? theme.palette.primary.main : (theme.palette.leftBar?.text ?? 'inherit'),
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',

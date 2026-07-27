@@ -1,14 +1,14 @@
+import { DevicesOutlined, FormatListNumberedOutlined, ShieldOutlined } from '@mui/icons-material';
 import { Box, Chip } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
 import { fetchFinding, searchFindings } from '../../../actions/findings/finding-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
-import { Field, InformationGrid, MetricGrid, MetricTile, SectionBlock } from '../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, Field, HeroStat, InformationGrid, SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
 import { buildFilter } from '../../../components/common/queryable/filter/FilterUtils';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
-import ExpandableMarkdown from '../../../components/ExpandableMarkdown';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
@@ -21,18 +21,17 @@ import FindingContextLink from './FindingContextLink';
 import FindingDetail from './FindingDetail';
 
 // Full-page finding overview: replaces the former drawer so every finding
-// exposes all of its metadata and full pivots (endpoints, injects,
+// exposes all of its metadata and full pivots (assets, injects,
 // simulations, scenarios and - for CVEs - the vulnerability + remediation).
 const FindingOverview = () => {
   const { t, fldt } = useFormatter();
   const theme = useTheme();
-  const accent = theme.palette.primary.main;
   const { findingId } = useParams() as { findingId: string };
 
   const [finding, setFinding] = useState<Finding | null>(null);
   const [cvssScore, setCvssScore] = useState<number | null>(null);
   const [occurrences, setOccurrences] = useState<number | null>(null);
-  const [endpointCount, setEndpointCount] = useState<number | null>(null);
+  const [assetCount, setAssetCount] = useState<number | null>(null);
 
   useEffect(() => {
     fetchFinding(findingId).then(response => setFinding(response.data as Finding));
@@ -52,11 +51,12 @@ const FindingOverview = () => {
         finding_value: finding.finding_value,
         finding_assets: [],
         finding_created_at: finding.finding_created_at,
+        finding_updated_at: finding.finding_updated_at,
       }
     : null), [finding]);
 
-  // Count occurrences and impacted endpoints across the whole platform. The
-  // endpoint count needs every occurrence's assets, so page through the
+  // Count occurrences and impacted assets across the whole platform. The
+  // asset count needs every occurrence's assets, so page through the
   // occurrences (bounded, to stay cheap on pathological findings) and dedupe.
   useEffect(() => {
     if (!finding) return undefined;
@@ -94,11 +94,11 @@ const FindingOverview = () => {
         const totalPages = Math.min(first.data.totalPages ?? 1, maxPages);
         const rest = await Promise.all(Array.from({ length: Math.max(totalPages - 1, 0) }, (_, index) => fetchPage(index + 1)));
         rest.forEach(page => collect(page.data.content));
-        if (!cancelled) setEndpointCount(ids.size);
+        if (!cancelled) setAssetCount(ids.size);
       } catch {
         if (!cancelled) {
           setOccurrences(0);
-          setEndpointCount(null);
+          setAssetCount(null);
         }
       }
     })();
@@ -157,78 +157,47 @@ const FindingOverview = () => {
         ]}
       />
 
-      {/* Hero: framed finding-type icon + type overline + value + CVSS chip */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          padding: 2,
-          borderRadius: 1,
-          border: `1px solid ${theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${alpha(accent, 0.08)}, transparent 60%)`,
-        }}
-      >
-        <Box
-          sx={{
-            width: 52,
-            height: 52,
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            backgroundColor: alpha(accent, 0.12),
-            border: `1px solid ${alpha(accent, 0.3)}`,
-          }}
-        >
-          <FindingIcon findingType={finding.finding_type} />
-        </Box>
-        <Box sx={{
-          minWidth: 0,
-          flex: 1,
-        }}
-        >
-          <Box sx={{
-            fontFamily: '"Geologica", sans-serif',
-            fontWeight: 600,
-            fontSize: 11,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: 'text.secondary',
-          }}
-          >
-            {typeLabel}
-          </Box>
-          <Box
-            sx={{
-              fontSize: 20,
-              fontWeight: 600,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-            title={finding.finding_value}
-          >
-            {finding.finding_value}
-          </Box>
-        </Box>
-        {cvssScore != null && (
-          <Chip color="primary" variant="outlined" label={`CVSS ${cvssScore.toFixed(1)}`} sx={{ borderRadius: 1 }} />
+      {/* Hero: shared DetailHero with the finding type as overline and the
+          CVSS chip in the standard chips row (matching every other detail page). */}
+      <DetailHero
+        iconNode={<FindingIcon findingType={finding.finding_type} />}
+        overline={typeLabel}
+        title={finding.finding_value}
+        chips={cvssScore != null
+          ? <Chip size="small" color="primary" variant="outlined" label={`CVSS ${cvssScore.toFixed(1)}`} sx={{ borderRadius: 1 }} />
+          : undefined}
+        stats={(
+          <>
+            <HeroStat icon={FormatListNumberedOutlined} label={t('Occurrences')} value={occurrences ?? '-'} />
+            <HeroStat icon={DevicesOutlined} label={t('Impacted assets')} value={assetCount ?? '-'} color={theme.palette.primary.main} />
+            {isCVE && (
+              <HeroStat icon={ShieldOutlined} label={t('CVSS score')} value={cvssScore != null ? cvssScore.toFixed(1) : '-'} color={theme.palette.warning.main} />
+            )}
+          </>
         )}
-      </Box>
-
-      <MetricGrid>
-        <MetricTile label={t('Type')} value={typeLabel} />
-        <MetricTile label={t('Occurrences')} value={occurrences ?? '-'} />
-        <MetricTile label={t('Impacted endpoints')} value={endpointCount ?? '-'} />
-        {isCVE && <MetricTile label={t('CVSS score')} value={cvssScore != null ? cvssScore.toFixed(1) : '-'} />}
-      </MetricGrid>
+      />
 
       <InformationGrid title={t('Information')}>
         <Field label={t('Type')}>{typeLabel}</Field>
         <Field label={t('Value')}>
-          <ExpandableMarkdown source={finding.finding_value} limit={300} />
+          <Box
+            component="pre"
+            sx={{
+              margin: 0,
+              padding: theme.spacing(1, 1.5),
+              borderRadius: 1,
+              backgroundColor: theme.palette.background.accent,
+              border: `1px solid ${theme.palette.divider}`,
+              fontFamily: 'Consolas, monaco, monospace',
+              fontSize: 12.5,
+              lineHeight: 1.5,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              color: theme.palette.text.primary,
+            }}
+          >
+            {finding.finding_value}
+          </Box>
         </Field>
         <Field label={t('Field')}>{emptyFilled(finding.finding_field)}</Field>
         <Field label={t('First seen')}>{fldt(finding.finding_created_at)}</Field>
@@ -238,7 +207,12 @@ const FindingOverview = () => {
         </Field>
       </InformationGrid>
 
-      <SectionBlock title={t('Affected endpoints & context')} disablePadding>
+      {/* Flat list (no surrounding Paper): the section label sits directly above
+          the related-reports list, matching OpenCTI's plain list sections. The
+          extra top margin gives this section a clear break from the Information
+          card above (the shared page gap alone reads as too tight here). */}
+      <div style={{ marginTop: theme.spacing(1) }}>
+        <SectionLabel>{t('Affected assets & context')}</SectionLabel>
         <FindingDetail
           searchFindings={searchFindings}
           selectedFinding={aggregated}
@@ -247,7 +221,7 @@ const FindingOverview = () => {
           contextId={findingId}
           onCvssScore={setCvssScore}
         />
-      </SectionBlock>
+      </div>
     </Box>
   );
 };

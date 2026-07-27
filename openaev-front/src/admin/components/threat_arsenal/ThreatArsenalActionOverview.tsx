@@ -34,6 +34,7 @@ import Field from '../../../components/common/overview/Field';
 import KeyValueChip from '../../../components/common/overview/KeyValueChip';
 import Section from '../../../components/common/overview/Section';
 import { useFormatter } from '../../../components/i18n';
+import ItemSecurityPlatformType from '../../../components/ItemSecurityPlatformType';
 import ItemTags from '../../../components/ItemTags';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
@@ -41,6 +42,7 @@ import {
   type AttackPattern,
   type Command,
   type DnsResolution,
+  type Document as ApiDocument,
   type Domain,
   type Executable,
   type FileDrop,
@@ -50,34 +52,61 @@ import {
   type ThreatArsenalAction,
 } from '../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
-import { isFeatureEnabled } from '../../../utils/utils';
+import expectationIconByType, { expectationTypeColor } from '../common/ExpectationIconByType';
+import { isTechnicalExpectation } from '../common/injects/expectations/ExpectationUtils';
 import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
 
+// Human labels for the predefined expectation types carried by a payload/contract.
+const EXPECTATION_TYPE_LABELS: Record<string, string> = {
+  PREVENTION: 'Prevention',
+  DETECTION: 'Detection',
+  VULNERABILITY: 'Vulnerability',
+  MANUAL: 'Manual',
+  ARTICLE: 'Article',
+  CHALLENGE: 'Challenge',
+};
+
+type ExpectationType = 'ARTICLE' | 'CHALLENGE' | 'MANUAL' | 'PREVENTION' | 'DETECTION' | 'VULNERABILITY';
+
 interface Props {
   action: ThreatArsenalAction;
   payload: PayloadType | null;
+  // Predefined expectation types declared by the contract (payload- or
+  // injector-based), passed separately so contracts without a payload still
+  // render an Expectations section.
+  expectations?: ExpectationType[];
+  // Security platform types expected to fulfil each technical expectation
+  // (empty/absent = any security platform).
+  expectedSecurityPlatforms?: Record<string, string[]>;
+  // Optional override for the Redux documents map, for hosts (e.g. the inject
+  // update drawer) that fetch the payload documents ad hoc instead of loading
+  // the whole store.
+  documentsMap?: Record<string, ApiDocument>;
   loading: boolean;
 }
 
 const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
   action,
   payload,
+  expectations,
+  expectedSecurityPlatforms,
+  documentsMap: documentsMapOverride,
   loading,
 }) => {
   const { t, tPick, nsdt } = useFormatter();
   const theme = useTheme();
-  const isChainingEnabled = isFeatureEnabled('INJECT_CHAINING');
 
-  const { attackPatternsMap, documentsMap, allDomains } = useHelper(
+  const { attackPatternsMap, documentsMap: storeDocumentsMap, allDomains } = useHelper(
     (helper: AttackPatternHelper & DocumentHelper & DomainHelper) => ({
       attackPatternsMap: helper.getAttackPatternsMap(),
       documentsMap: helper.getDocumentsMap(),
       allDomains: helper.getDomains(),
     }),
   );
+  const documentsMap = documentsMapOverride ?? storeDocumentsMap;
 
   const attackPatternIds = action.action_attack_patterns_ids ?? [];
   const attackPatterns = useMemo(
@@ -128,6 +157,12 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
   const commandExecutor = payload?.payload_type === 'Command'
     ? (payload as Command).command_executor
     : undefined;
+
+  // Predefined expectations declared by the payload/contract, with the security
+  // platform types expected to fulfil each technical one (empty = any platform).
+  const expectationTypes = expectations ?? payload?.payload_expectations ?? [];
+  const expectedPlatforms: Record<string, string[]>
+    = expectedSecurityPlatforms ?? payload?.payload_expected_security_platforms ?? {};
 
   // The author is the payload's author (a person, team or organization) when
   // set. It can legitimately be absent - such actions are shown with a dash, not
@@ -476,6 +511,93 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
         </Section>
       )}
 
+      {expectationTypes.length > 0 && (
+        <Section title={t('Expectations')} icon={<VerifiedOutlined fontSize="small" />}>
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+          }}
+          >
+            {expectationTypes.map((type) => {
+              // Distinct name: `platforms` at component level holds the endpoint platforms.
+              const expectedPlatformTypes = expectedPlatforms[type] ?? [];
+              const technical = isTechnicalExpectation(type);
+              return (
+                <Box
+                  key={type}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 1.5,
+                    padding: 1.25,
+                    borderRadius: 1,
+                    border: `1px solid ${theme.palette.divider}`,
+                    backgroundColor: alpha(theme.palette.background.paper, 0.4),
+                  }}
+                >
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    minWidth: 0,
+                  }}
+                  >
+                    <Box
+                      aria-hidden
+                      sx={{
+                        width: 28,
+                        height: 28,
+                        flexShrink: 0,
+                        borderRadius: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: expectationTypeColor(type),
+                        backgroundColor: alpha(expectationTypeColor(type), 0.12),
+                      }}
+                    >
+                      {expectationIconByType(type)}
+                    </Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {t(EXPECTATION_TYPE_LABELS[type] ?? type)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 0.5,
+                    justifyContent: 'flex-end',
+                  }}
+                  >
+                    {(() => {
+                      if (!technical) {
+                        return (
+                          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                            {t('Human validation')}
+                          </Typography>
+                        );
+                      }
+                      if (expectedPlatformTypes.length === 0) {
+                        return (
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            {t('Any security platform')}
+                          </Typography>
+                        );
+                      }
+                      return expectedPlatformTypes.map(platform => (
+                        <ItemSecurityPlatformType key={platform} type={platform} />
+                      ));
+                    })()}
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        </Section>
+      )}
+
       {loading && action.action_payload && (
         <Section title={t('Execution')} icon={<TerminalOutlined fontSize="small" />}>
           <Skeleton variant="rectangular" height={120} animation="wave" sx={{ borderRadius: 1 }} />
@@ -564,18 +686,6 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                 >
                   {t('Type')}
                 </TableCell>
-                {isChainingEnabled && (
-                  <TableCell sx={{
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    fontSize: 10.5,
-                    color: 'text.secondary',
-                    letterSpacing: '0.06em',
-                  }}
-                  >
-                    {t('Subtype')}
-                  </TableCell>
-                )}
                 <TableCell sx={{
                   fontWeight: 700,
                   textTransform: 'uppercase',
@@ -604,11 +714,6 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                   <TableCell>
                     <KeyValueChip label="" value={arg.type} />
                   </TableCell>
-                  {isChainingEnabled && (
-                    <TableCell sx={{ color: arg.subtype ? 'text.primary' : 'text.disabled' }}>
-                      {arg.subtype ?? '—'}
-                    </TableCell>
-                  )}
                   <TableCell sx={{
                     fontFamily: 'Consolas, monaco, monospace',
                     fontWeight: 500,

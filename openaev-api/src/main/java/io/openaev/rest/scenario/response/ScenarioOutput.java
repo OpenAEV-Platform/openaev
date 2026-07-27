@@ -47,6 +47,10 @@ public class ScenarioOutput {
   @Schema(description = "Severity of the scenario")
   private String severity;
 
+  @JsonProperty("scenario_default_kill_chain")
+  @Schema(description = "Kill chain displayed first in the overview kill chain results")
+  private String defaultKillChain;
+
   @JsonProperty("scenario_type_affinity")
   @Schema(description = "Type affinity of the scenario")
   private String typeAffinity;
@@ -113,6 +117,10 @@ public class ScenarioOutput {
   @Column(name = "scenario_lessons_anonymized")
   @Schema(description = "Lesson anonymized state of the scenario")
   private boolean lessonsAnonymized;
+
+  @JsonProperty("scenario_lessons_enabled")
+  @Schema(description = "Whether the lessons learned module is enabled for the scenario")
+  private boolean lessonsEnabled;
 
   @JsonProperty("scenario_dependencies")
   @ArraySchema(schema = @Schema(description = "Dependencies of the scenario"))

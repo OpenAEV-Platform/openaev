@@ -3,7 +3,7 @@ package io.openaev.utils.mapper;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionFullOutput;
 import io.openaev.database.model.*;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -55,9 +55,9 @@ public class ThreatArsenalMapper {
     }
     // Resolve the polymorphic author (contract-level first, then payload-level,
     // via the entity getters) so a freshly created action already carries its
-    // author. Name resolution mirrors the search projection: user -> email,
-    // team/organization -> name. Left null for authorless built-in content
-    // (the UI presents those as authored by Filigran).
+    // author. Name resolution mirrors the search projection: user -> full name
+    // (email fallback), team/organization -> name. Left null for authorless
+    // built-in content (the UI presents those as authored by Filigran).
     String authorId = null;
     String authorName = null;
     String authorType = null;
@@ -67,7 +67,7 @@ public class ThreatArsenalMapper {
         resolveAuthor(Organization.class, injectorContract.getPayloadAuthorOrganization());
     if (authorUser != null) {
       authorId = authorUser.getId();
-      authorName = authorUser.getEmail();
+      authorName = authorUser.getNameOrEmail();
       authorType = "user";
     } else if (authorTeam != null) {
       authorId = authorTeam.getId();
@@ -109,6 +109,7 @@ public class ThreatArsenalMapper {
         injectorContract.getExternalId(),
         null,
         injectorContractContentUtils.getPredefinedExpectations(injectorContract),
+        injectorContractContentUtils.getPredefinedExpectedSecurityPlatforms(injectorContract),
         null,
         null,
         null,
@@ -176,6 +177,7 @@ public class ThreatArsenalMapper {
         payload.getExternalId(),
         payload.getSource(),
         payload.getExpectations(),
+        payload.getExpectedSecurityPlatforms(),
         payload.getStatus(),
         payload.getExecutionArch(),
         payload.getCollectorTypeValue(),

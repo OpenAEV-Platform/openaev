@@ -52,6 +52,8 @@ interface FormProps {
   onUpdate?: () => void;
   withSummary?: boolean;
   isDisabled?: boolean;
+  /** The hosting dialog renders its own actions bar submitting form id "expectationForm". */
+  hideActions?: boolean;
 }
 
 const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
@@ -59,6 +61,7 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
   onUpdate,
   withSummary = true,
   isDisabled,
+  hideActions = false,
 }) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
@@ -176,15 +179,18 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
           sx={{ width: '99%' }}
           disabled={isDisabled}
         />
-        <div className={classes.buttons}>
-          <Button
-            type="submit"
-            disabled={isSubmitting || isDisabled}
-            variant="contained"
-          >
-            {t('Validate')}
-          </Button>
-        </div>
+        {!hideActions && (
+          <div className={classes.buttons}>
+            <Button
+              type="submit"
+              disabled={isSubmitting || isDisabled}
+              variant="contained"
+              color="primary"
+            >
+              {t('Validate')}
+            </Button>
+          </div>
+        )}
       </form>
     </div>
   );

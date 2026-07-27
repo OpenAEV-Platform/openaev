@@ -43,7 +43,6 @@ export const entitiesInitializer = Map({
     lessonscategorys: Map({}),
     lessonsquestions: Map({}),
     lessonsanswers: Map({}),
-    reports: Map({}),
     variables: Map({}),
     killchainphases: Map({}),
     attackpatterns: Map({}),
@@ -62,6 +61,7 @@ export const entitiesInitializer = Map({
     platform_capabilities: Map({}),
     tenant_capabilities: Map({}),
     tenantXtmHubRegistrations: Map({}),
+    notifications: Map({}),
   }),
 });
 

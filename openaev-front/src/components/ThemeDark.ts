@@ -1,4 +1,4 @@
-import { buttonClasses, lighten, type ThemeOptions } from '@mui/material';
+import { alpha, buttonClasses, darken, lighten, type ThemeOptions } from '@mui/material';
 
 import LogoCollapsed from '../static/images/logo_dark.png';
 import LogoText from '../static/images/logo_text_dark.png';
@@ -8,8 +8,9 @@ import { FDS } from './fds-tokens.generated';
 import { FONT_FAMILY_CODE, type LabelColor, LabelColorDict } from './Theme';
 
 // fds-migration/TOKEN-MAPPING.md § B/C — recalibrated on FDS tokens (see report for old→new rationale).
-// Single lookup on purpose: secondary, EE, gradient.main and xtmhub.main are deliberately unified
-// on this one token (TOKEN-MAPPING.md § 3.3), so a future key rename only needs one update.
+// Single lookup on purpose: secondary, EE, gradient.main, xtmhub.main and designSystem.secondary.main
+// are deliberately unified on this one token (TOKEN-MAPPING.md § 3.3), so a future key rename only
+// needs one update.
 const EE_COLOR = FDS.colors.dark['--color-filigran-tonic-primary'];
 
 export const THEME_DARK_DEFAULT_BACKGROUND = FDS.colors.dark['--bg-elevation-default-layer-0'];
@@ -21,6 +22,9 @@ const THEME_DARK_DEFAULT_SECONDARY = EE_COLOR;
 const THEME_DARK_DEFAULT_ACCENT = FDS.colors.dark['--bg-elevation-default-layer-3'];
 const THEME_DARK_DEFAULT_PAPER = FDS.colors.dark['--bg-elevation-default-layer-1'];
 const THEME_DARK_DEFAULT_NAV = FDS.colors.dark['--bg-elevation-heading-layer-0'];
+// #6813 additions, non-color, kept as-is (no FDS text/dialog-bg token family exists yet).
+const THEME_DARK_DEFAULT_TEXT = '#F2F2F3';
+export const THEME_DARK_DIALOG_BACKGROUND = '#0F1D34';
 
 // Same derivation as OpenCTI's ThemeDark.ts: a custom (DB-overridden) background still gets a live
 // gradient end-stop via lighten(), since no field lets an admin author that end-stop directly today.
@@ -40,40 +44,55 @@ const ThemeDark = (
   primary: string | null = null,
   secondary: string | null = null,
   accent: string | null = null,
-  text_color = '#ffffff',
+  text_color = THEME_DARK_DEFAULT_TEXT,
 ): ThemeOptions => ({
   logo: logo || fileUri(LogoText),
   logo_collapsed: logo_collapsed || fileUri(LogoCollapsed),
   borderRadius: 4,
+  // OpenCTI-aligned top bar height (68px): every toolbar spacer in the app
+  // follows it through theme.mixins.toolbar.
+  mixins: { toolbar: { minHeight: 68 } },
   palette: {
     mode: 'dark',
     common: {
       white: '#ffffff',
       black: '#000000',
-      grey: '#7A7C85',
-      lightGrey: '#ffffffb3',
+      grey: FDS.scalars['--gray-400'],
+      lightGrey: FDS.scalars['--gray-150'],
     },
+    // fds-migration/TOKEN-MAPPING.md § 1 — error split by mode (was reusing the same dark-appropriate
+    // reds in light theme). secondary/tertiary invert intensity role between modes: dark's "dark"
+    // shade is feedback-*-secondary, light's "dark" shade is feedback-*-tertiary.
     error: {
-      main: '#f44336',
-      dark: '#c62828',
+      main: FDS.colors.dark['--color-feedback-error-primary'],
+      dark: FDS.colors.dark['--color-feedback-error-secondary'],
     },
-    warn: { main: '#ffa726' },
+    warn: { main: '#E6700F' },
     dangerZone: {
-      main: '#f6685e',
-      light: '#fbc2be',
-      dark: '#f44336',
+      main: '#F44336',
+      light: '#F8958C',
+      dark: '#881106',
       contrastText: '#000000',
     },
-    success: { main: '#03a847' },
+    success: {
+      main: '#17AB1F',
+      dark: '#094E0B',
+    },
     warning: { main: '#ffa726' },
-    primary: { main: primary || THEME_DARK_DEFAULT_PRIMARY },
+    primary: {
+      main: primary || THEME_DARK_DEFAULT_PRIMARY,
+      light: primary ? alpha(primary, 0.08) : '#B2ECFF',
+    },
     secondary: { main: secondary || THEME_DARK_DEFAULT_SECONDARY },
     gradient: { main: EE_COLOR },
     border: {
       primary: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.3),
-      secondary: hexToRGB(secondary || THEME_DARK_DEFAULT_SECONDARY, 0.3),
+      // fds-migration/TOKEN-MAPPING.md § 1 — borders retokenized on Figma's default elevation border
+      // (was a hardcoded literal in #6813; no exact hex match, this is a deliberate design decision).
+      secondary: FDS.colors.dark['--border-elevation-default'],
       pagination: hexToRGB('#ffffff', 0.5),
       paper: hexToRGB('#ffffff', 0.12),
+      main: FDS.colors.dark['--border-elevation-default'],
     },
     pagination: { main: '#ffffff' },
     chip: { main: '#ffffff' },
@@ -93,14 +112,18 @@ const ThemeDark = (
         }],
     ]),
     ai: {
-      main: '#9575cd',
-      light: '#d1c4e9',
-      dark: '#673ab7',
+      // fds-migration/TOKEN-MAPPING.md § 1 — AI colors retokenized (was hardcoded; OpenCTI's own
+      // wiring references a phantom '--color-filigran-ia-main' key removed from the current bridge,
+      // corrected here to '-primary').
+      main: FDS.colors.dark['--color-filigran-ia-primary'],
+      light: FDS.colors.dark['--color-filigran-ia-secondary'],
+      dark: FDS.colors.dark['--color-filigran-ia-tertiary'],
       contrastText: '#000000',
+      background: 'rgba(28, 47, 73, 0.94)',
     },
     ee: {
       main: EE_COLOR,
-      contrastText: '#ffffff',
+      contrastText: THEME_DARK_DEFAULT_TEXT,
       background: hexToRGB(EE_COLOR, 0.2),
       lightBackground: hexToRGB(EE_COLOR, 0.08),
     },
@@ -111,11 +134,172 @@ const ThemeDark = (
       nav: nav || THEME_DARK_DEFAULT_NAV,
       accent: accent || THEME_DARK_DEFAULT_ACCENT,
       shadow: 'rgba(200, 200, 200, 0.15)',
+      // fds-migration/TOKEN-MAPPING.md § 3 (Option B) — custom-theme ternary preserved as-is (the
+      // per-install paper override still works); only the ternary's DEFAULT branch is retokenized
+      // (was a hardcoded literal in #6813). DragAndDropImportDialog.tsx consumes this directly and
+      // must never see it resolve to undefined.
+      secondary: paper === THEME_DARK_DEFAULT_PAPER
+        ? FDS.colors.dark['--bg-elevation-highlight-layer-0']
+        : (paper ?? FDS.colors.dark['--bg-elevation-highlight-layer-0']),
+      // Compare the RESOLVED nav (param is null when no custom theme is set), so
+      // the default install gets the lighter drawer surface instead of
+      // darken(nav, 0.5) - the latter made every drawer body near-black.
+      // fds-migration/TOKEN-MAPPING.md § 3 (Option B) — default branch reuses PAPER's own FDS token
+      // (closest elevation match to #6813's hardcoded '#0f1d34'; ternary/override behavior unchanged).
+      drawer: (nav ?? THEME_DARK_DEFAULT_NAV) === THEME_DARK_DEFAULT_NAV
+        ? THEME_DARK_DEFAULT_PAPER
+        : darken(nav ?? THEME_DARK_DEFAULT_NAV, 0.5),
+      disabled: '#363B46',
+      gradient: {
+        start: background || THEME_DARK_DEFAULT_BACKGROUND,
+        end: getAppBodyGradientEndColor(background),
+      },
       code: accent || THEME_DARK_DEFAULT_ACCENT,
       paperInCard: paper || THEME_DARK_DEFAULT_PAPER,
-      // fds-migration/TOKEN-MAPPING.md § D — was declared in Theme.ts but never assigned (resolved to
-      // undefined at runtime); DragAndDropImportDialog.tsx already consumes it.
-      secondary: FDS.colors.dark['--bg-elevation-highlight-layer-0'],
+    },
+    // NOTE: unlike OpenCTI we deliberately keep MUI's muted text.secondary:
+    // OpenAEV components use `text.secondary` pervasively for muted labels,
+    // while OpenCTI reserves muting for `text.tertiary`.
+    text: {
+      tertiary: '#848592',
+      light: '#AFB0B6',
+      // fds-migration/TOKEN-MAPPING.md § 1 — retokenized (was hardcoded, wrong value vs Figma).
+      disabled: FDS.colors.dark['--text-default-disabled'],
+    },
+    leftBar: {
+      header: { itemBackground: '#253348' },
+      popoverItem: '#070D19',
+      hover: '#253348',
+      text: '#F2F2F3',
+    },
+    // fds-migration/TOKEN-MAPPING.md § 4 — critical/high/medium/low/info mapped to the closest FDS
+    // feedback token (not 1:1, mirrors OpenCTI's own wiring). none/default: no FDS equivalent
+    // (neutral/unset states), left as-is, backlogged.
+    severity: {
+      critical: FDS.colors.dark['--color-feedback-error-primary'],
+      high: FDS.colors.dark['--color-feedback-warning-primary'],
+      medium: FDS.colors.dark['--color-feedback-alert-primary'],
+      low: FDS.colors.dark['--color-feedback-success-primary'],
+      info: FDS.colors.dark['--color-feedback-info-primary'],
+      none: '#424242',
+      default: '#1C2F49',
+    },
+    designSystem: {
+      // "filigran-brand" family: light/dark are the -secondary/-tertiary tiers of `main`.
+      primary: {
+        main: FDS.colors.dark['--color-filigran-brand-primary'],
+        light: FDS.colors.dark['--color-filigran-brand-secondary'],
+        dark: FDS.colors.dark['--color-filigran-brand-tertiary'],
+      },
+      // "filigran-tonic" family - same EE_COLOR family as gradient.main/xtmhub (rule 2 reunification).
+      secondary: {
+        main: EE_COLOR,
+        light: FDS.colors.dark['--color-filigran-tonic-secondary'],
+        dark: FDS.colors.dark['--color-filigran-tonic-tertiary'],
+      },
+      // No dedicated "destructive" family in FDS - feedback-error is the closest match (mirrors
+      // OpenCTI's own wiring).
+      destructive: {
+        main: FDS.colors.dark['--color-feedback-error-primary'],
+        light: FDS.colors.dark['--color-feedback-error-tertiary'],
+        dark: FDS.colors.dark['--color-feedback-error-secondary'],
+      },
+      // "filigran-ia" family (corrected from OpenCTI's phantom '-main' key, see palette.ai above).
+      ia: {
+        main: FDS.colors.dark['--color-filigran-ia-primary'],
+        light: FDS.colors.dark['--color-filigran-ia-secondary'],
+        dark: FDS.colors.dark['--color-filigran-ia-tertiary'],
+      },
+      background: {
+        main: THEME_DARK_DEFAULT_BACKGROUND,
+        // bg1-bg4/disabled: no confident 1:1 FDS token found (fds-migration/TOKEN-MAPPING.md § 5
+        // gaps), left as-is, backlogged for design arbitration.
+        bg1: '#0C1524',
+        bg2: '#0D182A',
+        bg3: '#253348',
+        bg4: '#1C2F49',
+        disabled: '#363B46',
+      },
+      // No confident FDS token found for any of these three (fds-migration/TOKEN-MAPPING.md § 5
+      // gaps), left as-is, backlogged for design arbitration.
+      border: {
+        main: '#2B3447',
+        border1: '#424751',
+        border2: '#1C253A',
+      },
+      gradient: {
+        // No FDS gradient exactly named "background" in this bridge (only '--gradient-default', a
+        // different angle/stops) - left as-is pending confirmation this is an acceptable swap
+        // (fds-migration/TOKEN-MAPPING.md backlog).
+        background: 'linear-gradient(100.35deg, #070D19 0%, #08101d 100%)',
+        ia: FDS.gradients.dark['--gradient-ia'],
+        focus: FDS.gradients.dark['--gradient-focus'],
+      },
+      // fds-migration/TOKEN-MAPPING.md § 4 — info/success/alert/warning/error retokenized on
+      // matching feedback-* tokens (mirrors OpenCTI's own wiring exactly).
+      alert: {
+        info: {
+          primary: FDS.colors.dark['--color-feedback-info-primary'],
+          secondary: FDS.colors.dark['--color-feedback-info-secondary'],
+        },
+        success: {
+          primary: FDS.colors.dark['--color-feedback-success-primary'],
+          secondary: FDS.colors.dark['--color-feedback-success-secondary'],
+          tertiary: FDS.colors.dark['--color-feedback-success-tertiary'],
+        },
+        alert: {
+          primary: FDS.colors.dark['--color-feedback-alert-primary'],
+          secondary: FDS.colors.dark['--color-feedback-alert-secondary'],
+        },
+        warning: {
+          primary: FDS.colors.dark['--color-feedback-warning-primary'],
+          secondary: FDS.colors.dark['--color-feedback-warning-secondary'],
+        },
+        error: {
+          primary: FDS.colors.dark['--color-feedback-error-primary'],
+          secondary: FDS.colors.dark['--color-feedback-error-secondary'],
+        },
+      },
+      // fds-migration/TOKEN-MAPPING.md § 4 — retokenized on scalar ramps (mode-invariant, hence
+      // FDS.scalars not FDS.colors.dark). blue.500/900: no scalar matches these two values
+      // (fds-migration/TOKEN-MAPPING.md § 5 gaps), left as-is, backlogged.
+      tertiary: {
+        grey: {
+          400: FDS.scalars['--gray-400'],
+          700: FDS.scalars['--gray-700'],
+          800: FDS.scalars['--gray-800'],
+        },
+        blue: {
+          500: '#0099CC',
+          900: '#003242',
+        },
+        darkBlue: {
+          300: FDS.scalars['--darkblue-300'],
+          500: FDS.scalars['--darkblue-500'],
+        },
+        turquoise: {
+          600: FDS.scalars['--turquoise-600'],
+          800: FDS.scalars['--turquoise-800'],
+        },
+        green: {
+          400: FDS.scalars['--green-400'],
+          600: FDS.scalars['--green-600'],
+          800: FDS.scalars['--green-800'],
+        },
+        red: {
+          100: FDS.scalars['--red-100'],
+          200: FDS.scalars['--red-200'],
+          400: FDS.scalars['--red-400'],
+          500: FDS.scalars['--red-500'],
+          600: FDS.scalars['--red-600'],
+          700: FDS.scalars['--red-700'],
+        },
+        orange: {
+          400: FDS.scalars['--orange-400'],
+          500: FDS.scalars['--orange-500'],
+        },
+        yellow: { 400: FDS.scalars['--yellow-400'] },
+      },
     },
     widgets: {
       securityDomains: {
@@ -130,6 +314,7 @@ const ThemeDark = (
       },
     },
   },
+  tag: { overflowColor: primary || THEME_DARK_DEFAULT_PRIMARY },
   typography: {
     fontFamily: '"IBM Plex Sans", sans-serif',
     body2: {
@@ -146,64 +331,104 @@ const ThemeDark = (
       color: text_color,
     },
     h1: {
-      margin: '0 0 10px 0',
-      padding: 0,
-      fontWeight: 400,
-      fontSize: 22,
-      fontFamily: '"Geologica", sans-serif',
-      color: text_color,
+      'margin': '0 0 10px 0',
+      'padding': 0,
+      'fontWeight': 400,
+      'fontSize': 22,
+      'fontFamily': '"Geologica", sans-serif',
+      'color': text_color,
+      'textTransform': 'lowercase',
+      '&::first-letter': { textTransform: 'uppercase' },
     },
     h2: {
-      margin: '0 0 10px 0',
-      padding: 0,
-      fontWeight: 500,
-      fontSize: 16,
-      textTransform: 'uppercase',
-      fontFamily: '"Geologica", sans-serif',
-      color: text_color,
+      'margin': '0 0 10px 0',
+      'padding': 0,
+      'fontWeight': 500,
+      'fontSize': 16,
+      'fontFamily': '"Geologica", sans-serif',
+      'color': text_color,
+      'textTransform': 'lowercase',
+      '&::first-letter': { textTransform: 'uppercase' },
     },
     h3: {
-      margin: '0 0 10px 0',
-      padding: 0,
-      fontWeight: 400,
-      fontSize: 13,
-      fontFamily: '"Geologica", sans-serif',
-      color: text_color,
+      'margin': '0 0 10px 0',
+      'padding': 0,
+      'fontWeight': 400,
+      'fontSize': 13,
+      'fontFamily': '"Geologica", sans-serif',
+      'color': text_color,
+      'textTransform': 'lowercase',
+      '&::first-letter': { textTransform: 'uppercase' },
     },
     h4: {
-      margin: '0 0 12px 0',
-      padding: 0,
-      textTransform: 'uppercase',
-      fontFamily: '"Geologica", sans-serif',
-      fontSize: 11,
-      fontWeight: 600,
-      letterSpacing: '0.12em',
-      color: 'rgba(255, 255, 255, 0.7)',
+      'height': 15,
+      'margin': '0 0 10px 0',
+      'padding': 0,
+      'fontSize': 12,
+      'fontWeight': 500,
+      'color': text_color,
+      'textTransform': 'lowercase',
+      '&::first-letter': { textTransform: 'uppercase' },
     },
     h5: {
-      fontWeight: 400,
-      fontSize: 13,
-      textTransform: 'uppercase',
-      marginTop: -4,
-      color: text_color,
+      'fontWeight': 700,
+      'fontSize': 16,
+      'color': text_color,
+      'fontFamily': '"Geologica", sans-serif',
+      'textTransform': 'lowercase',
+      '&::first-letter': { textTransform: 'uppercase' },
     },
     h6: {
-      fontWeight: 400,
-      fontSize: 18,
-      color: text_color,
-      fontFamily: '"Geologica", sans-serif',
+      'fontWeight': 600,
+      'fontSize': 14,
+      'color': text_color,
+      'fontFamily': '"Geologica", sans-serif',
+      'textTransform': 'lowercase',
+      '&::first-letter': { textTransform: 'uppercase' },
     },
     subtitle2: {
-      fontWeight: 400,
-      fontSize: 18,
-      color: text_color,
+      'fontWeight': 400,
+      'fontSize': 18,
+      'color': text_color,
+      'textTransform': 'lowercase',
+      '&::first-letter': { textTransform: 'uppercase' },
+    },
+  },
+  button: {
+    sizes: {
+      default: {
+        height: '36px',
+        padding: '8px 16px',
+        minWidth: '36px',
+        width: '36px',
+        fontSize: '14px',
+        fontWeight: 600,
+        lineHeight: '21px',
+        iconSize: '16px',
+      },
+      small: {
+        height: '26px',
+        padding: '4px 12px',
+        minWidth: '26px',
+        width: '26px',
+        fontSize: '13px',
+        fontWeight: 600,
+        lineHeight: '21px',
+        iconSize: '14px',
+      },
     },
   },
   components: {
     MuiAccordion: { defaultProps: { slotProps: { transition: { unmountOnExit: true } } } },
     MuiButton: {
+      defaultProps: { disableElevation: true },
       styleOverrides: {
         root: {
+          // Sentence-case buttons everywhere (aligned with OpenCTI), instead of
+          // MUI's default ALL-CAPS. Labels render exactly as written.
+          // Weight 600 matches OpenCTI's design-system button typography.
+          'textTransform': 'none',
+          'fontWeight': 600,
           [`&.${buttonClasses.outlined}.${buttonClasses.sizeSmall}`]: { padding: '4px 9px' },
           '&.icon-outlined': {
             'borderColor': hexToRGB('#ffffff', 0.15),
@@ -215,12 +440,73 @@ const ThemeDark = (
             },
           },
         },
+        // Outlined primary (used by every Cancel/dismiss button) mirrors OpenCTI's
+        // "secondary" design-system button: neutral grey border + primary-colored
+        // label, not a bright primary-colored border.
+        outlinedPrimary: ({ theme }) => ({
+          'borderColor': theme.palette.border.main,
+          '&:hover': {
+            borderColor: theme.palette.border.main,
+            backgroundColor: alpha(theme.palette.primary.main, 0.15),
+          },
+        }),
+      },
+    },
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          backgroundImage: 'none',
+          backgroundColor: paper === THEME_DARK_DEFAULT_PAPER
+            ? THEME_DARK_DIALOG_BACKGROUND
+            : (paper ?? THEME_DARK_DIALOG_BACKGROUND),
+          borderRadius: 4,
+        },
+      },
+    },
+    MuiDialogTitle: { defaultProps: { variant: 'h5' } },
+    MuiDialogActions: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          // Aligned with OpenCTI: even gap between buttons, generous top gap from
+          // the content, and matching right/bottom padding so buttons never sit
+          // flush against the dialog edge.
+          'gap': theme.spacing(1),
+          'padding': theme.spacing(0, 3, 3, 3),
+          'marginTop': theme.spacing(3),
+          'marginLeft': 0,
+          '& .MuiButton-root': { textTransform: 'none' },
+          // Override the default margin-left
+          '& > :not(style) ~ :not(style)': { marginLeft: 0 },
+        }),
+      },
+    },
+    MuiToggleButtonGroup: {
+      defaultProps: { size: 'small' },
+      styleOverrides: {
+        root: {
+          'height': 36,
+          '& .MuiTouchRipple-root': { display: 'none' },
+          '& .MuiToggleButton-root': {
+            'border': '1px solid #2B3447',
+            'color': primary,
+            '&:focus-visible': {
+              outline: 'none',
+              boxShadow: '0 0 0 2px #BDFFED',
+            },
+            '&.Mui-selected': { backgroundColor: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.25) },
+            '&:hover:not(.Mui-selected)': { backgroundColor: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.15) },
+          },
+        },
       },
     },
     MuiTooltip: {
       styleOverrides: {
         tooltip: { backgroundColor: 'rgba(0,0,0,0.7)' },
         arrow: { color: 'rgba(0,0,0,0.7)' },
+        popper: {
+          'textTransform': 'lowercase',
+          '&::first-letter': { textTransform: 'uppercase' },
+        },
       },
     },
     MuiFormControl: {
@@ -229,13 +515,32 @@ const ThemeDark = (
     },
     MuiTextField: {
       defaultProps: { variant: 'standard' },
-      styleOverrides: { root: { color: text_color } },
+      styleOverrides: {
+        root: {
+          'color': text_color,
+          // Shrink = when at the top of the input in small size.
+          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: '#AFB0B6' },
+        },
+      },
     },
     MuiSelect: {
       defaultProps: { variant: 'standard' },
-      styleOverrides: { root: { color: text_color } },
+      styleOverrides: {
+        root: {
+          'color': text_color,
+          '& fieldset': { border: 'none' },
+        },
+        outlined: {
+          backgroundColor: paper === THEME_DARK_DEFAULT_PAPER
+            ? '#0C1524'
+            : (paper ?? '#0C1524'),
+        },
+      },
     },
     MuiPaper: { styleOverrides: { root: { color: text_color } } },
+    // Design-system icon buttons are squared (4px radius) - never MUI's
+    // default circle/oval ripple.
+    MuiIconButton: { styleOverrides: { root: { borderRadius: 4 } } },
     MuiCssBaseline: {
       styleOverrides: {
         html: {
@@ -247,10 +552,10 @@ const ThemeDark = (
           backgroundColor: background || THEME_DARK_DEFAULT_BACKGROUND,
         },
         body: {
-          'scrollbarColor': `${background || THEME_DARK_DEFAULT_BACKGROUND} ${accent || THEME_DARK_DEFAULT_ACCENT}`,
-          'scrollbarWidth': 'thin',
           'background': `linear-gradient(100deg, ${background || THEME_DARK_DEFAULT_BACKGROUND} 0%, ${getAppBodyGradientEndColor(background)} 100%)`,
           'backgroundAttachment': 'fixed',
+          'scrollbarColor': `${background || THEME_DARK_DEFAULT_BACKGROUND} ${accent || THEME_DARK_DEFAULT_ACCENT}`,
+          'scrollbarWidth': 'thin',
           'html': { WebkitFontSmoothing: 'auto' },
           'a': { color: primary || THEME_DARK_DEFAULT_PRIMARY },
           'input:-webkit-autofill': {
@@ -293,14 +598,14 @@ const ThemeDark = (
           },
           '.error .w-md-editor': {
             'border': '0 !important',
-            'borderBottom': '2px solid #f44336 !important',
+            'borderBottom': '2px solid #F14337 !important',
             '&:hover': {
               border: '0 !important',
-              borderBottom: '2px solid #f44336 !important',
+              borderBottom: '2px solid #F14337 !important',
             },
             '&:focus': {
               border: '0 !important',
-              borderBottom: '2px solid #f44336 !important',
+              borderBottom: '2px solid #F14337 !important',
             },
           },
           '.w-md-editor-toolbar': {
@@ -362,14 +667,57 @@ const ThemeDark = (
     },
     MuiTypography: {
       styleOverrides: {
-        root: { color: text_color },
-        // Section titles read as muted overlines (matches the detail-page SECTION_LABEL_SX);
-        // this slot override is needed because the root color above wins over typography.h4.
-        h4: { color: 'rgba(255, 255, 255, 0.7)' },
+        root: {
+          color: text_color,
+          textTransform: 'none',
+        },
       },
     },
     MuiInputBase: { styleOverrides: { root: { color: text_color } } },
-    MuiChip: { styleOverrides: { root: { color: text_color } } },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          // Design system: chips are square-ish (4px), never pill-shaped
+          'borderRadius': 4,
+          'color': text_color,
+          'textTransform': 'lowercase',
+          '&::first-letter': { textTransform: 'uppercase' },
+        },
+        label: {
+          'textTransform': 'lowercase',
+          '&::first-letter': { textTransform: 'uppercase' },
+          // The label has overflow hidden: a line-height smaller than the font's
+          // ascent + descent clips glyphs at the bottom ("g", "p", ...). Chips
+          // vertically center their label, so 'normal' is always safe here.
+          'lineHeight': 'normal',
+        },
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          'textTransform': 'lowercase',
+          'display': 'inline-block',
+          '&::first-letter': { textTransform: 'uppercase' },
+        },
+      },
+    },
+    MuiFab: { styleOverrides: { root: { textTransform: 'none' } } },
+    MuiAutocomplete: {
+      styleOverrides: {
+        root: {
+          // Shrink = when at the top of the input in small size.
+          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: '#AFB0B6' },
+          '& .MuiOutlinedInput-root': {
+            // the only way for now to know if we should apply the paper color or not
+            'backgroundColor': paper === THEME_DARK_DEFAULT_PAPER
+              ? '#0C1524'
+              : (paper ?? '#0C1524'),
+            '& fieldset': { borderColor: 'transparent' },
+          },
+        },
+      },
+    },
   },
 });
 

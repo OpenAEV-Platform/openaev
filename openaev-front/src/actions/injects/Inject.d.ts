@@ -41,9 +41,10 @@ export interface ConvertedContentType {
   fields: {
     key: string;
     value: string;
-    predefinedExpectations: {
+    availableExpectations: {
       expectation_type: string;
       expectation_name: string;
+      expectation_is_predefined: boolean;
     }[];
   }[];
 }

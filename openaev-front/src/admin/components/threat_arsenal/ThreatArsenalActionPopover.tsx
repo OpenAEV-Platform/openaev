@@ -56,7 +56,7 @@ const buildInitialValues
   } => {
     const remediations: Record<string, DetectionRemediationForm> = {};
     action.action_detection_remediations?.forEach((remediation) => {
-      remediations[remediation.detection_remediation_collector_type ?? ''] = {
+      remediations[remediation.detection_remediation_security_platform ?? ''] = {
         content: remediation.detection_remediation_values ?? '',
         remediationId: remediation.detection_remediation_id ?? '',
         author_rule: remediation.author_rule,
@@ -73,7 +73,7 @@ const buildInitialValues
       dns_resolution_hostname: action.dns_resolution_hostname as string | undefined,
       action_arguments: action.action_arguments?.map(arg => ({
         ...arg,
-        subtype: arg.subtype ?? undefined,
+        type: String(arg.type) === 'targeted_asset' ? 'targeted-asset' : arg.type,
         description: arg.description ?? undefined,
         separator: arg.separator ?? undefined,
       })),
@@ -157,7 +157,7 @@ const ThreatArsenalActionPopover = ({
         .map(([key, value]) => {
           const remediation = value as unknown as DetectionRemediationForm;
           return {
-            detection_remediation_collector: key,
+            detection_remediation_security_platform: key,
             detection_remediation_values: remediation.content,
             detection_remediation_id: remediation.remediationId,
             author_rule: remediation.author_rule,
@@ -227,8 +227,8 @@ const ThreatArsenalActionPopover = ({
 
   return (
     <>
-      <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="large">
-        <MoreVert />
+      <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="small" sx={{ borderRadius: 1 }}>
+        <MoreVert fontSize="small" />
       </IconButton>
       <Menu
         anchorEl={anchorEl}
@@ -266,8 +266,8 @@ const ThreatArsenalActionPopover = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDuplicate}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitDuplicate}>{t('Duplicate')}</Button>
+          <Button variant="outlined" color="primary" onClick={handleCloseDuplicate}>{t('Cancel')}</Button>
+          <Button variant="contained" color="primary" onClick={submitDuplicate}>{t('Duplicate')}</Button>
         </DialogActions>
       </Dialog>
 

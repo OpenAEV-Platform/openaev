@@ -63,6 +63,7 @@ class ExpectationApiTest extends IntegrationTest {
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private CollectorTypeRepository collectorTypeRepository;
   @Autowired private CollectorRepository collectorRepository;
+  @Autowired private SecurityPlatformRepository securityPlatformRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private InjectExpectationService injectExpectationService;
@@ -120,6 +121,7 @@ class ExpectationApiTest extends IntegrationTest {
 
     Collector collector = new Collector();
     collector.setId(UUID.randomUUID().toString());
+    collector.setTenantId(Tenant.DEFAULT_TENANT_UUID);
     collector.setName("collector-name");
     collector.setType(collectorType1.getName());
     collector.setCollectorType(collectorType1);
@@ -128,6 +130,7 @@ class ExpectationApiTest extends IntegrationTest {
 
     Collector collector2 = new Collector();
     collector2.setId(UUID.randomUUID().toString());
+    collector2.setTenantId(Tenant.DEFAULT_TENANT_UUID);
     collector2.setName("collector-2-name");
     collector2.setType(collectorType2.getName());
     collector2.setCollectorType(collectorType2);
@@ -381,6 +384,80 @@ class ExpectationApiTest extends IntegrationTest {
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(100.00, getScore(injectExpectations));
     }
+
+    /**
+     * Validates that deleting a result at asset level (asset with agents) cascades the deletion of
+     * that source's result to every agent expectation of the asset, then recomputes the asset and
+     * asset group scores from the remaining agent results.
+     */
+    @Test
+    @DisplayName("Delete result on asset expectation from UI cascades to all agents")
+    @WithMockUser(isAdmin = true)
+    void deleteResultOnAssetWithAgentsFromUI() throws Exception {
+      // -- PREPARE --
+      ExecutableInject executableInject = newExecutableInjectWithTargets(true);
+      List<Expectation> detectionExpectations =
+          createDetectionExpectations(
+              List.of(savedAgent1, savedAgent2),
+              savedEndpoint,
+              savedAssetGroup,
+              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.buildAndSaveInjectExpectations(
+          executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
+
+      // Fill the same source's result on both agents, like a security platform collector does
+      ExpectationUpdateInput expectationUpdateInput = getExpectationUpdateInput("fake-1", 100.0);
+      callUpdateInjectExpectationFromUI(
+          injectExpectationRepository
+              .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
+              .getFirst(),
+          expectationUpdateInput);
+      callUpdateInjectExpectationFromUI(
+          injectExpectationRepository
+              .findAllByInjectAndAgent(savedInject.getId(), savedAgent2.getId())
+              .getFirst(),
+          expectationUpdateInput);
+
+      List<BaseInjectExpectation> assetExpectations =
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
+      assertEquals(100.0, getScore(assetExpectations));
+
+      // -- EXECUTE --
+
+      // Delete the source's result directly at ASSET level
+      callDeleteInjectExpectationFromUI(assetExpectations.getFirst(), expectationUpdateInput);
+
+      // -- ASSERT --
+      // Agent 1: result removed, score reset
+      List<BaseInjectExpectation> injectExpectations =
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
+      assertTrue(
+          injectExpectations.getFirst().getResults().stream()
+              .noneMatch(r -> "fake-1".equals(r.getSourceId())));
+      assertEquals(null, getScore(injectExpectations));
+      // Agent 2: result removed, score reset
+      injectExpectations =
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent2.getId());
+      assertTrue(
+          injectExpectations.getFirst().getResults().stream()
+              .noneMatch(r -> "fake-1".equals(r.getSourceId())));
+      assertEquals(null, getScore(injectExpectations));
+      // Asset: score recomputed from agents
+      injectExpectations =
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
+      assertEquals(null, getScore(injectExpectations));
+      // Asset Group: score recomputed from assets
+      injectExpectations =
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
+              savedInject.getId(), savedAssetGroup.getId());
+      assertEquals(null, getScore(injectExpectations));
+    }
   }
 
   @Nested
@@ -445,6 +522,78 @@ class ExpectationApiTest extends IntegrationTest {
       // -- ASSERT --
       assertEquals(1, ((List<?>) JsonPath.read(response, "$")).size());
       assertEquals(savedAgent1.getId(), JsonPath.read(response, "$.[0].inject_expectation_agent"));
+    }
+
+    /**
+     * Regression test: signatures live in a dedicated table behind a LAZY collection since #5151.
+     * The collector polling endpoint must serialize them as a real array, not null, otherwise
+     * collectors (Defender, Sentinel, Tanium...) can never match any expectation.
+     */
+    @Test
+    @DisplayName("Serialize signatures for collector polling endpoint")
+    void getInjectExpectationsForSourceReturnsSignatures() throws Exception {
+      // -- PREPARE --
+      ExecutableInject executableInject = newExecutableInjectWithTargets(false);
+      List<Expectation> detectionExpectations =
+          createDetectionExpectations(
+              List.of(savedAgent1),
+              savedEndpoint,
+              savedAssetGroup,
+              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.buildAndSaveInjectExpectations(
+          executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
+
+      // Attach a signature to the agent expectation, as SignatureOutputProcessor does after the
+      // implant reports its execution traces.
+      BaseInjectExpectation agentExpectation =
+          injectExpectationRepository
+              .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
+              .getFirst();
+      agentExpectation
+          .getSignatures()
+          .add(
+              new InjectExpectationSignature(
+                  agentExpectation, "process_name", "obfuscated.exe", java.time.Instant.now()));
+      injectExpectationRepository.save(agentExpectation);
+      // Detach everything so the endpoint reloads entities with an UNINITIALIZED lazy signatures
+      // collection, exactly like a real collector poll on a fresh session.
+      em.flush();
+      em.clear();
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  get(INJECTS_EXPECTATIONS_URI + "/assets/" + savedCollector.getId())
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT: the agent expectation carries its signatures, and no expectation in the
+      // payload has null signatures or null results --
+      List<Map<String, Object>> expectations = JsonPath.read(response, "$");
+      assertTrue(expectations.size() >= 1);
+      for (Map<String, Object> expectation : expectations) {
+        Assertions.assertNotNull(
+            expectation.get("inject_expectation_signatures"),
+            "inject_expectation_signatures must never be serialized as null");
+        Assertions.assertNotNull(
+            expectation.get("inject_expectation_results"),
+            "inject_expectation_results must never be serialized as null");
+      }
+      List<Map<String, String>> signatures =
+          JsonPath.read(
+              response,
+              "$.[?(@.inject_expectation_agent == '"
+                  + savedAgent1.getId()
+                  + "')].inject_expectation_signatures[*]");
+      assertEquals(1, signatures.size());
+      assertEquals("process_name", signatures.getFirst().get("type"));
+      assertEquals("obfuscated.exe", signatures.getFirst().get("value"));
     }
 
     /**
@@ -835,6 +984,219 @@ class ExpectationApiTest extends IntegrationTest {
           injectExpectationRepository.findAllByInjectAndAssetGroup(
               savedInject.getId(), savedAssetGroup.getId());
       assertEquals(0.0, getScore(injectExpectations));
+    }
+  }
+
+  @Nested
+  @Transactional
+  @WithMockUser(isAdmin = true)
+  @DisplayName("AI defense feed scoping and parent expectation protection")
+  class AiDefenseFeedAndParentProtection {
+
+    /**
+     * Regression test (parent asset wrongly "Not Detected" while its agent was green): the AI
+     * defense feed must never hand out PARENT asset expectations - rows with agent children whose
+     * score is derived from the agents. An LLM firewall collector receiving such a parent would
+     * later expire it with a direct failed result, clobbering the agents' green verdict.
+     */
+    @Test
+    @DisplayName("AI defense feed excludes endpoint parents with agent children")
+    void aiDefenseFeedExcludesParentsWithAgentChildren() throws Exception {
+      // -- PREPARE --
+      Collector llmCollector = createCollectorWithSecurityPlatform("LLM_FIREWALL");
+      ExecutableInject executableInject = newExecutableInjectWithTargets(true);
+      List<Expectation> detectionExpectations =
+          createDetectionExpectations(
+              List.of(savedAgent1),
+              savedEndpoint,
+              savedAssetGroup,
+              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.buildAndSaveInjectExpectations(
+          executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
+
+      // -- EXECUTE --
+      String response = callGetAiDefenseExpectations(llmCollector);
+
+      // -- ASSERT: the asset-level PARENT (agent child exists) must not be handed out --
+      assertEquals(0, ((List<?>) JsonPath.read(response, "$")).size());
+    }
+
+    /**
+     * Regression test: the AI defense feed must respect the expectation's expected security
+     * platform types - an expectation restricted to EDR must never reach an LLM firewall collector,
+     * even when it is a genuine agentless leaf.
+     */
+    @Test
+    @DisplayName("AI defense feed respects expected security platform types")
+    void aiDefenseFeedRespectsExpectedSecurityPlatforms() throws Exception {
+      // -- PREPARE --
+      Collector llmCollector = createCollectorWithSecurityPlatform("LLM_FIREWALL");
+      Endpoint agentlessEndpoint =
+          endpointRepository.save(EndpointFixture.createEndpoint("agentless-endpoint"));
+      ExecutableInject executableInject = newExecutableInjectWithTargets(false);
+      List<Expectation> detectionExpectations =
+          createDetectionExpectations(
+              emptyList(), agentlessEndpoint, null, DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.buildAndSaveInjectExpectations(
+          executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
+
+      // Empty expected platforms means "any security platform": the leaf is handed out
+      String response = callGetAiDefenseExpectations(llmCollector);
+      assertEquals(1, ((List<?>) JsonPath.read(response, "$")).size());
+
+      // Restrict the expectation to EDR: it must no longer reach an LLM firewall collector
+      TechnicalInjectExpectation leaf =
+          (TechnicalInjectExpectation)
+              injectExpectationRepository
+                  .findAllByInjectAndAsset(savedInject.getId(), agentlessEndpoint.getId())
+                  .getFirst();
+      leaf.setExpectedSecurityPlatforms(List.of(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR));
+      injectExpectationRepository.save(leaf);
+      em.flush();
+      em.clear();
+
+      response = callGetAiDefenseExpectations(llmCollector);
+      assertEquals(0, ((List<?>) JsonPath.read(response, "$")).size());
+
+      // Restrict it to LLM_FIREWALL: the LLM firewall collector receives it again
+      leaf =
+          (TechnicalInjectExpectation)
+              injectExpectationRepository
+                  .findAllByInjectAndAsset(savedInject.getId(), agentlessEndpoint.getId())
+                  .getFirst();
+      leaf.setExpectedSecurityPlatforms(
+          List.of(SecurityPlatform.SECURITY_PLATFORM_TYPE.LLM_FIREWALL));
+      injectExpectationRepository.save(leaf);
+      em.flush();
+      em.clear();
+
+      response = callGetAiDefenseExpectations(llmCollector);
+      assertEquals(1, ((List<?>) JsonPath.read(response, "$")).size());
+    }
+
+    /**
+     * Regression test: a collector writing a failed result DIRECTLY on an asset-level parent
+     * expectation (asset with agent children) must not clobber the score derived from the agents.
+     * The green verdict rolled up from the agents stays, the direct result is only recorded.
+     */
+    @Test
+    @DisplayName("Direct collector failure cannot clobber a parent whose agents are green")
+    void directFailureOnParentKeepsChildrenVerdict() throws Exception {
+      // -- PREPARE --
+      ExecutableInject executableInject = newExecutableInjectWithTargets(true);
+      List<Expectation> detectionExpectations =
+          createDetectionExpectations(
+              List.of(savedAgent1),
+              savedEndpoint,
+              savedAssetGroup,
+              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.buildAndSaveInjectExpectations(
+          executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
+
+      // Agent answered green by the EDR collector: asset and asset group roll up to green
+      List<BaseInjectExpectation> agentExpectations =
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
+      callUpdateInjectExpectation(
+          agentExpectations.getFirst(),
+          getInjectExpectationUpdateInput(savedCollector.getId(), DETECTION.successLabel, true));
+      List<BaseInjectExpectation> assetExpectations =
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
+      assertEquals(100.0, getScore(assetExpectations));
+
+      // -- EXECUTE: another collector writes a failure DIRECTLY on the asset-level parent --
+      callUpdateInjectExpectation(
+          assetExpectations.getFirst(),
+          getInjectExpectationUpdateInput(savedCollector2.getId(), DETECTION.failureLabel, false));
+
+      // -- ASSERT --
+      // The direct result is recorded on the parent row...
+      assetExpectations =
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
+      assertEquals(0.0, getResultScoreForCollector(assetExpectations, savedCollector2).get());
+      // ...but the children-derived verdict is untouched
+      assertEquals(100.0, getScore(assetExpectations));
+      List<BaseInjectExpectation> assetGroupExpectations =
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
+              savedInject.getId(), savedAssetGroup.getId());
+      assertEquals(100.0, getScore(assetGroupExpectations));
+    }
+
+    /**
+     * Regression test: a direct failure on a parent whose agents are still unanswered must keep the
+     * parent PENDING (null score) - the agents' security platform may still answer green.
+     */
+    @Test
+    @DisplayName("Direct collector failure keeps parent pending while agents are unanswered")
+    void directFailureOnParentKeepsPendingChildren() throws Exception {
+      // -- PREPARE --
+      ExecutableInject executableInject = newExecutableInjectWithTargets(true);
+      List<Expectation> detectionExpectations =
+          createDetectionExpectations(
+              List.of(savedAgent1),
+              savedEndpoint,
+              savedAssetGroup,
+              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.buildAndSaveInjectExpectations(
+          executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
+
+      List<BaseInjectExpectation> assetExpectations =
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
+
+      // -- EXECUTE: a collector writes a failure DIRECTLY on the asset-level parent --
+      callUpdateInjectExpectation(
+          assetExpectations.getFirst(),
+          getInjectExpectationUpdateInput(savedCollector2.getId(), DETECTION.failureLabel, false));
+
+      // -- ASSERT: the parent stays pending, waiting for its agents --
+      assetExpectations =
+          injectExpectationRepository.findAllByInjectAndAsset(
+              savedInject.getId(), savedEndpoint.getId());
+      assertEquals(null, getScore(assetExpectations));
+      List<BaseInjectExpectation> assetGroupExpectations =
+          injectExpectationRepository.findAllByInjectAndAssetGroup(
+              savedInject.getId(), savedAssetGroup.getId());
+      assertEquals(null, getScore(assetGroupExpectations));
+    }
+
+    private Collector createCollectorWithSecurityPlatform(String platformType) {
+      SecurityPlatform securityPlatform =
+          securityPlatformRepository.save(
+              SecurityPlatformFixture.createDefault(
+                  platformType + "-platform-" + UUID.randomUUID(), platformType));
+      CollectorType collectorType = new CollectorType(UUID.randomUUID().toString());
+      collectorTypeRepository.save(collectorType);
+      Collector collector = new Collector();
+      collector.setId(UUID.randomUUID().toString());
+      collector.setTenantId(Tenant.DEFAULT_TENANT_UUID);
+      collector.setName(platformType + "-collector");
+      collector.setType(collectorType.getName());
+      collector.setCollectorType(collectorType);
+      collector.setExternal(true);
+      collector.setSecurityPlatform(securityPlatform);
+      return collectorRepository.save(collector);
+    }
+
+    private String callGetAiDefenseExpectations(Collector collector) throws Exception {
+      return mvc.perform(
+              get(INJECTS_EXPECTATIONS_URI + "/ai/" + collector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
     }
   }
 

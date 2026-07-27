@@ -18,36 +18,17 @@ public interface CollectorRepository
 
   Optional<Collector> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
-  @Query(
-      """
-              SELECT DISTINCT c FROM Collector c
-              WHERE c.collectorType IN (
-                  SELECT dr.collectorType FROM DetectionRemediation dr
-                  JOIN dr.payload p
-                  WHERE p.id = :payloadId
-              )
-          """)
-  List<Collector> findByPayloadId(@Param("payloadId") String payloadId);
+  /** Finds a collector by its ID only. Tenant scoping is handled by the v2 SQL inspector. */
+  @Query("SELECT c FROM Collector c WHERE c.id = :id")
+  Optional<Collector> findByCollectorId(@Param("id") @NotNull String id);
 
-  @Query(
-      """
-              SELECT DISTINCT c FROM Collector c
-              WHERE c.collectorType IN (
-                  SELECT dr.collectorType
-                  FROM Inject i
-                  JOIN i.injectorContract ic
-                  JOIN ic.payload p
-                  JOIN p.detectionRemediations dr
-                  WHERE i.id = :injectId
-              )
-          """)
-  List<Collector> findByInjectId(@Param("injectId") String injectId);
-
+  /**
+   * Deletes a collector by its ID only. Tenant scoping is handled by the v2 SQL inspector, which
+   * rewrites this DELETE the same way it rewrites SELECTs on active tables.
+   */
   @Modifying
-  @Query(
-      nativeQuery = true,
-      value = "DELETE FROM collectors WHERE collector_id = :id AND tenant_id = :tenantId")
-  void deleteByIdAndTenantId(@Param("id") String id, @Param("tenantId") String tenantId);
+  @Query("DELETE FROM Collector c WHERE c.id = :id")
+  void deleteByCollectorId(@Param("id") String id);
 
   /**
    * Native query to bypass Hibernate's @Filter("tenantFilter"). This is called from

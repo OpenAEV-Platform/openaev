@@ -64,7 +64,7 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
     );
   };
   if (!objective) {
-    return <Loader />;
+    return <Loader variant="inElement" />;
   }
   return (
     <div>
@@ -174,6 +174,8 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
       }}
       >
         <Button
+          variant="outlined"
+          color="primary"
           onClick={handleClose}
           style={{ marginRight: isUpdatable ? 10 : 0 }}
           disabled={submitting}
@@ -182,7 +184,8 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
         </Button>
         {isUpdatable && (
           <Button
-            color="secondary"
+            variant="contained"
+            color="primary"
             onClick={submitEvaluation}
             disabled={submitting}
           >

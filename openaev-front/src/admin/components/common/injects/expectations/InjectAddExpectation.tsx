@@ -14,15 +14,15 @@ import { type ExpectationInput, type ExpectationInputForm } from './Expectation'
 import ExpectationFormCreate from './ExpectationFormCreate';
 
 const useStyles = makeStyles()(theme => ({
+  icon: { minWidth: 30 },
   text: {
-    fontSize: theme.typography.h2.fontSize,
+    fontSize: 15,
     color: theme.palette.primary.main,
-    fontWeight: theme.typography.h2.fontWeight,
+    fontWeight: 500,
   },
 }));
 
 interface InjectAddExpectationProps {
-  predefinedExpectations: ExpectationInput[];
   availableExpectations: ExpectationInput[];
   handleAddExpectation: (data: ExpectationInput) => void;
   disabled?: boolean;
@@ -30,7 +30,6 @@ interface InjectAddExpectationProps {
 }
 
 const InjectAddExpectation: FunctionComponent<InjectAddExpectationProps> = ({
-  predefinedExpectations,
   availableExpectations,
   handleAddExpectation,
   disabled,
@@ -79,8 +78,8 @@ const InjectAddExpectation: FunctionComponent<InjectAddExpectationProps> = ({
               color="primary"
               disabled={disabled}
             >
-              <ListItemIcon color="primary">
-                <ControlPointOutlined color="primary" />
+              <ListItemIcon color="primary" classes={{ root: classes.icon }}>
+                <ControlPointOutlined color="primary" fontSize="small" />
               </ListItemIcon>
               <ListItemText
                 primary={t('Add expectations')}
@@ -94,7 +93,6 @@ const InjectAddExpectation: FunctionComponent<InjectAddExpectationProps> = ({
         title={t('Add expectation in this inject')}
       >
         <ExpectationFormCreate
-          predefinedExpectations={predefinedExpectations}
           availableExpectations={availableExpectations}
           onSubmit={onSubmit}
           handleClose={handleClose}

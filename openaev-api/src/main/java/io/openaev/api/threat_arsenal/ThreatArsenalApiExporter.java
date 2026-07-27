@@ -59,8 +59,10 @@ public class ThreatArsenalApiExporter {
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
     if (injectorContract.getPayload() == null) {
       throw new ElementNotFoundException(
-          "Only injector contract based on payload can be exported ");
+          "Only threat arsenal items based on a payload can be exported");
     }
-    return zipJsonApi.handleExport(injectorContract, null, includeOptions);
+    // User-facing wording is "threat arsenal item": the technical JSON:API type
+    // (injectors_contracts) must not leak into the downloaded filename.
+    return zipJsonApi.handleExport(injectorContract, null, includeOptions, "threat_arsenal_item");
   }
 }

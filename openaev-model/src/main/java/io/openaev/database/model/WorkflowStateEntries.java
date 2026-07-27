@@ -10,11 +10,14 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @AllArgsConstructor
 @Getter
 @Setter
 public class WorkflowStateEntries {
+
   /*Correlated path are separate by "+" */
   private final String regexPathCorrelated = "^.+\\+.+$";
 
@@ -45,6 +48,9 @@ public class WorkflowStateEntries {
   @AllArgsConstructor
   public static class Correlated {
     public Set<Pair> values;
+
+    /** Business type name = ContractOutputType.name(), e.g. "PortsScan", "Credentials". */
+    public String type;
   }
 
   public boolean isPathCorrelated(String path) {
@@ -89,103 +95,6 @@ public class WorkflowStateEntries {
       index.put(keySet, c);
     }
     return index;
-  }
-
-  public void testAndSaveCombinationsForCorrelated(Correlated newCorrelated) {
-    List<Map<String, String>> combinations = generateCombinations(this.inputs, newCorrelated);
-
-    for (Map<String, String> combo : combinations) {
-      testAndSaveCombo(combo);
-    }
-  }
-
-  private void testAndSaveCombo(Map<String, String> combo) {
-    if (!comboContainAllExecutionKeys(executionKeys, combo)) {
-      System.out.println("No execution, missing input : " + combo);
-      return;
-    }
-
-    String hash = hashCombo(combo);
-    if (!hashExecution.contains(hash)) {
-      hashExecution.add(hash);
-      System.out.println("New execution : " + combo + " -> hash=" + hash);
-      // TODO: lancer l'exécution + persister StepInputBuffer
-    } else {
-      System.out.println("Already executed : " + combo);
-    }
-  }
-
-  public void testAndSaveCombinationsForInput(Input targetInput, List<String> newValues) {
-    // Separate the target input from the other inputs
-    List<Input> otherInputs =
-        this.inputs.stream().filter(in -> !in.getKey().equals(targetInput.getKey())).toList();
-
-    // Prepare the list of pairs for the other inputs
-    List<List<Pair>> otherPairsList = new ArrayList<>();
-    for (Input in : otherInputs) {
-      List<Pair> pairs = in.getValues().stream().map(v -> new Pair(in.getKey(), v)).toList();
-      otherPairsList.add(pairs);
-    }
-
-    // Cartesian product of the other inputs
-    List<List<Pair>> otherCombinations = cartesianProduct(otherPairsList);
-
-    // For each new value of the target input
-    for (String newValue : newValues) {
-      Pair newPair = new Pair(targetInput.getKey(), newValue);
-
-      // Case without Correlated
-      if (correlated.isEmpty()) {
-        for (List<Pair> comboPairs : otherCombinations) {
-          Map<String, String> combo = new TreeMap<>();
-          for (Pair p : comboPairs) combo.put(p.key(), p.value());
-          combo.put(newPair.key(), newPair.value());
-          testAndSaveCombo(combo);
-        }
-      } else {
-        // Case with Correlated: for each existing Computed
-        for (Correlated comp : correlated) {
-          for (List<Pair> comboPairs : otherCombinations) {
-            Map<String, String> combo = new TreeMap<>();
-            for (Pair p : comboPairs) combo.put(p.key(), p.value());
-            combo.put(newPair.key(), newPair.value());
-            for (Pair p : comp.getValues()) combo.put(p.key(), p.value());
-            testAndSaveCombo(combo);
-          }
-        }
-      }
-    }
-  }
-
-  public List<Map<String, String>> generateCombinations(List<Input> inputs, Correlated comp) {
-    List<Map<String, String>> results = new ArrayList<>();
-
-    // Get all sets of simple values
-    List<List<Pair>> simplePairsList = new ArrayList<>();
-    for (Input in : inputs) {
-      List<Pair> pairs = in.getValues().stream().map(v -> new Pair(in.getKey(), v)).toList();
-      simplePairsList.add(pairs);
-    }
-
-    // Cartesian product of the simple inputs
-    List<List<Pair>> simpleCombinations = cartesianProduct(simplePairsList);
-
-    if (comp != null) {
-      for (List<Pair> simpleCombo : simpleCombinations) {
-        // TreeMap for order
-        Map<String, String> map = new TreeMap<>();
-        for (Pair p : simpleCombo) map.put(p.key(), p.value());
-        for (Pair p : comp.getValues()) map.put(p.key(), p.value());
-        results.add(map);
-      }
-    } else {
-      for (List<Pair> simpleCombo : simpleCombinations) {
-        Map<String, String> map = new TreeMap<>();
-        for (Pair p : simpleCombo) map.put(p.key(), p.value());
-        results.add(map);
-      }
-    }
-    return results;
   }
 
   /**
@@ -237,8 +146,30 @@ public class WorkflowStateEntries {
     return Hashing.murmur3_128().hashString(sb.toString(), StandardCharsets.UTF_8).toString();
   }
 
-  public boolean comboContainAllExecutionKeys(
-      Set<String> executionKeys, Map<String, String> combo) {
-    return combo.keySet().containsAll(executionKeys);
+  /**
+   * Returns correlated tuples that share at least one required key.
+   *
+   * @param requiredKeys required dynamic mapper keys
+   * @return tuples whose pair keys intersect with requiredKeys
+   */
+  public List<Correlated> findCandidateCorrelated(Set<String> requiredKeys) {
+    return correlated.stream()
+        .filter(tuple -> tuple.getValues().stream().anyMatch(p -> requiredKeys.contains(p.key())))
+        .toList();
+  }
+
+  /**
+   * Projects a correlated tuple to required keys only.
+   *
+   * @param tuple the correlated tuple to project
+   * @param requiredKeys the keys to keep
+   * @return key-value pairs present in both the tuple and requiredKeys
+   */
+  public Map<String, String> projectTuple(Correlated tuple, Set<String> requiredKeys) {
+    Map<String, String> projection = new HashMap<>();
+    tuple.getValues().stream()
+        .filter(pair -> requiredKeys.contains(pair.key()))
+        .forEach(pair -> projection.put(pair.key(), pair.value()));
+    return projection;
   }
 }

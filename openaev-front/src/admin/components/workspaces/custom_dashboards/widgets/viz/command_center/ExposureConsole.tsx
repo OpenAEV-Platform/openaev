@@ -4,6 +4,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type KeyboardEvent, memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { useFormatter } from '../../../../../../../components/i18n';
+import { SECURITY_PLATFORM_TYPE_COLORS } from '../../../../../../../components/securityPlatformType';
 import useCountUp from '../../../../../../../utils/hooks/useCountUp';
 import useSvgVisibilityPause from '../../../../../../../utils/hooks/useSvgVisibilityPause';
 
@@ -41,17 +42,9 @@ const PILLAR_LABELS: Record<string, string> = {
   ARTICLE: 'Article',
 };
 
-// Distinct accent per security-platform category.
-const PLATFORM_COLORS: Record<string, string> = {
-  EDR: '#0fbcff',
-  XDR: '#00bcd4',
-  SIEM: '#ffb300',
-  SOAR: '#9575cd',
-  NDR: '#26a96c',
-  ISPM: '#ff7043',
-  LLM_FIREWALL: '#00f1bd',
-  AI_GATEWAY: '#7e57c2',
-};
+// Distinct accent per security-platform category (single source of truth in
+// ItemSecurityPlatformType so the orbit, chips and result lists never drift).
+const PLATFORM_COLORS: Record<string, string> = SECURITY_PLATFORM_TYPE_COLORS;
 
 const abbreviate = (type: string): string => {
   if (!type) return '?';
@@ -700,10 +693,11 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
 
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
+          <Button variant="outlined" color="primary" onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
           {onInvestigate && (
             <Button
               variant="contained"
+              color="primary"
               onClick={() => {
                 setExplainOpen(false);
                 onInvestigate();

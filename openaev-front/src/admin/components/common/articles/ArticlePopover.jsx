@@ -1,14 +1,18 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import * as R from 'ramda';
 import { Fragment, useContext, useState } from 'react';
 
 import ButtonPopover from '../../../../components/common/ButtonPopover';
+import CommonDialog from '../../../../components/common/dialog/Dialog';
+import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { ArticleContext, PermissionsContext } from '../Context';
 import ArticleForm from './ArticleForm';
 
-const ArticlePopover = ({ article, onRemoveArticle, disabled = false }) => {
+// `inline`: rendered inside another drawer (inject form) - edit in a dialog
+// instead of the standard edition drawer.
+const ArticlePopover = ({ article, onRemoveArticle, disabled = false, inline = false }) => {
   // Standard hooks
   const { t } = useFormatter();
 
@@ -99,22 +103,18 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false }) => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitDelete}>
+          <Button variant="outlined" color="primary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button variant="contained" color="error" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>
       </Dialog>
-      <Dialog
-        TransitionComponent={Transition}
-        open={openEdit}
-        onClose={handleCloseEdit}
-        fullWidth={true}
-        maxWidth="md"
-        PaperProps={{ elevation: 1 }}
-      >
-        <DialogTitle>{t('Update the media pressure article')}</DialogTitle>
-        <DialogContent style={{ overflowX: 'hidden' }}>
+      {inline ? (
+        <CommonDialog
+          open={openEdit}
+          handleClose={handleCloseEdit}
+          title={t('Update the media pressure article')}
+        >
           <ArticleForm
             editing
             onSubmit={onSubmitEdit}
@@ -122,8 +122,22 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false }) => {
             initialValues={initialValues}
             documentsIds={article.article_documents ?? []}
           />
-        </DialogContent>
-      </Dialog>
+        </CommonDialog>
+      ) : (
+        <Drawer
+          open={openEdit}
+          handleClose={handleCloseEdit}
+          title={t('Update the media pressure article')}
+        >
+          <ArticleForm
+            editing
+            onSubmit={onSubmitEdit}
+            handleClose={handleCloseEdit}
+            initialValues={initialValues}
+            documentsIds={article.article_documents ?? []}
+          />
+        </Drawer>
+      )}
       <Dialog
         open={openRemove}
         TransitionComponent={Transition}
@@ -136,8 +150,8 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false }) => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitRemove}>
+          <Button variant="outlined" color="primary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
+          <Button variant="contained" color="primary" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

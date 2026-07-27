@@ -2,9 +2,8 @@ package io.openaev.api.chaining.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.ConditionKeySubtype;
-import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.MappingType;
+import io.openaev.database.model.PrimitiveType;
 import lombok.*;
 
 /** Nested output DTO for a single condition inside an event. */
@@ -21,10 +20,7 @@ public class ConditionOutput {
   private String key;
 
   @JsonProperty("condition_key_type")
-  private ConditionKeyType keyType;
-
-  @JsonProperty("condition_key_subtype")
-  private ConditionKeySubtype keySubtype;
+  private PrimitiveType keyType;
 
   @JsonProperty("condition_type")
   private String type;

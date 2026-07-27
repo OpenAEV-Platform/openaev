@@ -1,32 +1,17 @@
-import { Add, ControlPointOutlined } from '@mui/icons-material';
-import { Dialog, DialogContent, DialogTitle, Fab, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import * as R from 'ramda';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { makeStyles } from 'tss-react/mui';
 
 import { addChallenge } from '../../../../actions/challenge-action';
+import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ChallengeForm from './ChallengeForm';
 
-const useStyles = makeStyles()(theme => ({
-  createButton: {
-    position: 'fixed',
-    bottom: 30,
-    right: 30,
-  },
-  text: {
-    fontSize: 15,
-    color: theme.palette.primary.main,
-    fontWeight: 500,
-  },
-}));
-
 const CreateChallenge = (props) => {
   const { onCreate, inline } = props;
-  const { classes } = useStyles();
   const dispatch = useDispatch();
   const { t } = useFormatter();
   const [open, setOpen] = useState(false);
@@ -49,24 +34,10 @@ const CreateChallenge = (props) => {
   return (
     <div>
       {inline === true ? (
-        <ListItemButton divider={true} onClick={handleOpen} color="primary">
-          <ListItemIcon color="primary">
-            <ControlPointOutlined color="primary" />
-          </ListItemIcon>
-          <ListItemText
-            primary={t('Create a new challenge')}
-            classes={{ primary: classes.text }}
-          />
-        </ListItemButton>
+        // Header placement (picker top-right): compact creation button.
+        <ButtonCreate onClick={handleOpen} label={t('Create a new challenge')} />
       ) : (
-        <Fab
-          onClick={handleOpen}
-          color="primary"
-          aria-label="Add"
-          className={classes.createButton}
-        >
-          <Add />
-        </Fab>
+        <ButtonCreate onClick={handleOpen} />
       )}
       {inline ? (
         <Dialog

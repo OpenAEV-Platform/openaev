@@ -19,6 +19,11 @@ public class RawPaginationDocument {
   List<String> document_tags;
   boolean document_can_be_deleted = true;
 
+  // False for system-owned documents (currently: report generation outputs) whose update from the
+  // generic documents surface would corrupt the owning module's data.
+  // TODO(documents-management sweep): generalize a proper "system-owned document" contract.
+  boolean document_can_be_updated = true;
+
   public RawPaginationDocument(final Document document) {
     this.document_id = document.getId();
     this.document_name = document.getName();

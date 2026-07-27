@@ -190,6 +190,13 @@ const Documents = () => {
         searchPaginationInput={searchPaginationInput}
         setContent={setDocuments}
         exportProps={exportProps}
+        createButton={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.DOCUMENTS}>
+            <CreateDocument
+              onCreate={handleCreateDocuments}
+            />
+          </Can>
+        )}
       />
       <List>
         <ListItem
@@ -236,6 +243,11 @@ const Documents = () => {
                       onDelete={result => setDocuments(documents.filter(d => (d.document_id !== result)))}
                       scenariosAndExercisesFetched
                       inList
+                      // Report generation outputs are managed by the Reporting module:
+                      // read-only from this generic documents surface (backend-enforced too).
+                      managedMessage={document.document_can_be_updated === false
+                        ? 'Generated report files are managed by the Reporting module and are read-only here.'
+                        : undefined}
                     />
                   )}
                   disablePadding
@@ -365,11 +377,6 @@ const Documents = () => {
             },
             )}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.DOCUMENTS}>
-        <CreateDocument
-          onCreate={handleCreateDocuments}
-        />
-      </Can>
     </>
   );
 };

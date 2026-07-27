@@ -21,9 +21,8 @@ import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Fetch;
-import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
@@ -142,7 +141,11 @@ public class BaseInjectExpectation implements Base, Cloneable {
       cascade = CascadeType.ALL,
       orphanRemoval = true,
       fetch = FetchType.LAZY)
-  @Fetch(FetchMode.SUBSELECT)
+  // Batch fetching instead of @Fetch(SUBSELECT): the collector polling endpoints load up to 10k
+  // expectations with a NATIVE query (subselect fetching does not apply to those owners) and then
+  // initialize this collection for serialization. Batching keeps that to one IN-clause query per
+  // 1000 expectations instead of one query per expectation.
+  @BatchSize(size = 1000)
   @JsonProperty("inject_expectation_signatures")
   private List<InjectExpectationSignature> signatures = new ArrayList<>();
 
@@ -194,6 +197,18 @@ public class BaseInjectExpectation implements Base, Cloneable {
   @JsonProperty("inject_expectation_group")
   private boolean expectationGroup;
 
+  /**
+   * Security platform types expected to fulfil this (technical) expectation. When non-empty, only
+   * collectors of those types are pre-seeded as pending results and considered for scoring. Empty
+   * or null means "any security platform" (legacy behaviour).
+   */
+  @Setter
+  @Type(JsonType.class)
+  @Column(name = "inject_expectation_expected_security_platforms", columnDefinition = "jsonb")
+  @JsonProperty("inject_expectation_expected_security_platforms")
+  private List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedSecurityPlatforms =
+      new ArrayList<>();
+
   @Setter
   @Column(name = "inject_expectation_signatures_initialized")
   @JsonIgnore
@@ -235,6 +250,18 @@ public class BaseInjectExpectation implements Base, Cloneable {
   @Setter(AccessLevel.PROTECTED)
   @Transient
   private String failureLabel = "Failed";
+
+  /**
+   * True when the collection window of this expectation is over: no collector, player or manual
+   * validation can fulfil it anymore. Mirrors the SQL predicate used by the expectations expiration
+   * manager ({@code created_at + expiration_time seconds < now()}).
+   */
+  @JsonIgnore
+  public boolean isExpired() {
+    return expirationTime != null
+        && createdAt != null
+        && createdAt.plusSeconds(expirationTime).isBefore(now());
+  }
 
   @Override
   public boolean equals(Object o) {

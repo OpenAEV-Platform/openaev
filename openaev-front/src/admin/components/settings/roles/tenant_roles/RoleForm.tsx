@@ -125,24 +125,25 @@ const RoleForm: FC<RoleFormProps> = ({
         <div style={{
           marginTop: theme.spacing(2),
           display: 'flex',
-          flexDirection: 'row-reverse',
+          justifyContent: 'flex-end',
           gap: theme.spacing(1),
         }}
         >
           <Button
-            variant="contained"
-            color="secondary"
-            type="submit"
-            disabled={isSubmitting || !isDirty}
-          >
-            {editing ? t('Update') : t('Create')}
-          </Button>
-          <Button
-            variant="contained"
+            variant="outlined"
+            color="primary"
             onClick={handleClose}
             disabled={isSubmitting}
           >
             {t('Cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            type="submit"
+            disabled={isSubmitting || !isDirty}
+          >
+            {editing ? t('Update') : t('Create')}
           </Button>
         </div>
       </form>

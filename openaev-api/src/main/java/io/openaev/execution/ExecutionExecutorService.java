@@ -15,6 +15,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -36,6 +37,7 @@ public class ExecutionExecutorService {
   private final EndpointService endpointService;
   private final ConnectorInstanceService connectorInstanceService;
   private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  private final ActionMetricCollector actionMetricCollector;
 
   public void launchExecutorContext(Inject inject) {
     InjectStatus injectStatus =
@@ -74,6 +76,11 @@ public class ExecutionExecutorService {
     // with its own API client/config)
     Map<io.openaev.database.model.Executor, Set<Agent>> agentsByExecutor =
         agents.stream().collect(Collectors.groupingBy(Agent::getExecutor, Collectors.toSet()));
+
+    // Inject-level (global) trace so the "Execution details" tab is not empty for payload/executor
+    // injects: the detailed command output is recorded per agent, but the global timeline needs a
+    // summary showing the platform distributing the payload to the resolved agents.
+    saveDistributionTrace(agents, injectStatus);
 
     for (Map.Entry<io.openaev.database.model.Executor, Set<Agent>> entry :
         agentsByExecutor.entrySet()) {
@@ -126,6 +133,7 @@ public class ExecutionExecutorService {
           executorContextService.launchExecutorSubprocess(inject, assetEndpoint, agent, token);
         }
         atLeastOneExecution.set(true);
+        actionMetricCollector.addExecutorUsedCount(executor.getType());
       } catch (Exception e) {
         log.error(
             "{} (id={}) launchBatchExecutorSubprocess error: {}",
@@ -135,6 +143,41 @@ public class ExecutionExecutorService {
         saveAgentsErrorTraces(e, agents, injectStatus);
       }
     }
+  }
+
+  /**
+   * Writes a single inject-level (global) INFO trace summarising the distribution of a
+   * payload/executor inject to its resolved agents. Global traces carry no agent and no context
+   * identifiers, so they surface in the "Execution details" tab (which previously showed nothing
+   * for executor injects, whose per-agent traces are only visible on each endpoint).
+   */
+  @VisibleForTesting
+  public void saveDistributionTrace(Set<Agent> agents, InjectStatus injectStatus) {
+    if (agents.isEmpty()) {
+      return;
+    }
+    long endpointCount =
+        agents.stream()
+            .map(Agent::getAsset)
+            .filter(Objects::nonNull)
+            .map(Asset::getId)
+            .distinct()
+            .count();
+    String message =
+        "Distributing inject to "
+            + agents.size()
+            + " agent(s) across "
+            + endpointCount
+            + " endpoint(s)";
+    executionTraceRepository.save(
+        new ExecutionTrace(
+            injectStatus,
+            ExecutionTraceStatus.INFO,
+            List.of(),
+            message,
+            ExecutionTraceAction.START,
+            null,
+            null));
   }
 
   @VisibleForTesting

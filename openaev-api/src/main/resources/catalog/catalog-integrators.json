@@ -1181,7 +1181,7 @@
             "description": "This injector queries the Censys Search API to discover an organization's external attack surface (exposed hosts, open ports and certificates), complementing the Shodan injector.",
             "short_description": "Discover external attack surface with Censys",
             "use_cases": [
-                "Technical"
+                "Reconnaissance"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -1235,6 +1235,12 @@
                             "warn",
                             "error"
                         ],
+                        "type": "string"
+                    },
+                    "INJECTOR_PERIOD": {
+                        "default": "PT1M",
+                        "description": "Duration between two scheduled runs of the injector (ISO 8601 format).",
+                        "format": "duration",
                         "type": "string"
                     },
                     "CENSYS_BASE_URL": {
@@ -1424,6 +1430,66 @@
                         "default": 86400,
                         "description": "With every tick, trigger a maintenance of the external contracts (e.g. based on Nuclei templates)",
                         "type": "integer"
+                    },
+                    "NUCLEI_SCAN_STRATEGY": {
+                        "default": "host-spray",
+                        "description": "Strategy used while scanning (Nuclei -ss / -scan-strategy).",
+                        "enum": [
+                            "auto",
+                            "host-spray",
+                            "template-spray"
+                        ],
+                        "type": "string"
+                    },
+                    "NUCLEI_TEMPLATES_PARALLELISM": {
+                        "default": 5,
+                        "description": "Maximum number of templates executed in parallel (Nuclei -c / -concurrency).",
+                        "type": "integer"
+                    },
+                    "NUCLEI_HOSTS_PARALLELISM_PER_TEMPLATE": {
+                        "default": 5,
+                        "description": "Maximum number of hosts analyzed in parallel per template (Nuclei -bs / -bulk-size).",
+                        "type": "integer"
+                    },
+                    "NUCLEI_MAX_REQUESTS_PER_SECOND": {
+                        "default": 50,
+                        "description": "Maximum number of requests sent per second (Nuclei -rl / -rate-limit).",
+                        "type": "integer"
+                    },
+                    "NUCLEI_TIMEOUT": {
+                        "default": 10,
+                        "description": "Time to wait in seconds before a request times out (Nuclei -timeout).",
+                        "type": "integer"
+                    },
+                    "NUCLEI_RETRIES": {
+                        "default": 1,
+                        "description": "Number of times to retry a failed request (Nuclei -retries).",
+                        "type": "integer"
+                    },
+                    "NUCLEI_MAX_HOST_ERROR": {
+                        "default": 30,
+                        "description": "Maximum number of errors for a host before it is skipped from the scan (Nuclei -mhe / -max-host-error).",
+                        "type": "integer"
+                    },
+                    "NUCLEI_RESPONSE_SIZE_READ": {
+                        "default": 1048576,
+                        "description": "Maximum response size to read, in bytes (Nuclei -rsr / -response-size-read).",
+                        "type": "integer"
+                    },
+                    "NUCLEI_RESPONSE_SIZE_SAVE": {
+                        "default": 1048576,
+                        "description": "Maximum response size to save, in bytes (Nuclei -rss / -response-size-save).",
+                        "type": "integer"
+                    },
+                    "NUCLEI_EXCLUDE_TYPE": {
+                        "default": "headless",
+                        "description": "Comma-separated protocol types to exclude from templates: dns, file, http, headless, tcp, workflow, ssl, websocket, whois, code, javascript (Nuclei -ept / -exclude-type).",
+                        "type": "string"
+                    },
+                    "NUCLEI_EXCLUDE_SEVERITY": {
+                        "default": "",
+                        "description": "Comma-separated severities to exclude from templates: info, low, medium, high, critical, unknown (Nuclei -es / -exclude-severity).",
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -1778,43 +1844,43 @@
                         "format": "duration",
                         "type": "string"
                     },
-                    "SPLUNK_ES_BASE_URL": {
+                    "SPLUNKES_BASE_URL": {
                         "description": "Base URL for the Splunk ES instance (e.g., https://splunk.company.com:8089).",
                         "type": "string"
                     },
-                    "SPLUNK_ES_USERNAME": {
+                    "SPLUNKES_USERNAME": {
                         "description": "Username for Splunk ES authentication.",
                         "type": "string"
                     },
-                    "SPLUNK_ES_PASSWORD": {
+                    "SPLUNKES_PASSWORD": {
                         "description": "Password for Splunk ES authentication.",
                         "format": "password",
                         "type": "string",
                         "writeOnly": true
                     },
-                    "SPLUNK_ES_ALERTS_INDEX": {
-                        "default": "main",
+                    "SPLUNKES_ALERTS_INDEX": {
+                        "default": "_notable",
                         "description": "Index to search for alerts (default: _notable).",
                         "type": "string"
                     },
-                    "SPLUNK_ES_TIME_WINDOW": {
+                    "SPLUNKES_TIME_WINDOW": {
                         "default": "PT1H",
                         "description": "Time window for searches when no dates provided.",
                         "format": "duration",
                         "type": "string"
                     },
-                    "SPLUNK_ES_MAX_RETRY": {
+                    "SPLUNKES_MAX_RETRY": {
                         "default": 3,
                         "description": "Maximum number of retry attempts for API calls.",
                         "type": "integer"
                     },
-                    "SPLUNK_ES_OFFSET": {
+                    "SPLUNKES_OFFSET": {
                         "default": "PT30S",
                         "description": "Time offset between retry attempts.",
                         "format": "duration",
                         "type": "string"
                     },
-                    "SPLUNK_ES_QUERY_TEMPLATE": {
+                    "SPLUNKES_QUERY_TEMPLATE": {
                         "description": "SPL query template for fetching alerts. Placeholders: {alerts_index} (configured index), {source_ips} (source IP values, quoted for IN operator), {target_ips} (target IP values, quoted for IN operator), {implant_urls} (implant callback URL paths, quoted for IN operator; * if none), {implant_names} (implant process names, quoted for IN operator; * if none), {start_date} (inject start date or relative time like -3600s), {end_date} (inject end date or 'now'), {ip_conditions} (legacy: auto-generated IP filters with all CIM field names), {process_conditions} (legacy: auto-generated URL path filters), {time_window} (time window in seconds, legacy). The query MUST include '| table _time' for proper alert parsing. Leave empty to use the default query.",
                         "default": "index={alerts_index} (src_ip IN ({source_ips}) OR src IN ({source_ips}) OR source_ip IN ({source_ips}) OR client_ip IN ({source_ips})) (dst_ip IN ({target_ips}) OR dest IN ({target_ips}) OR dest_ip IN ({target_ips}) OR destination_ip IN ({target_ips}) OR server_ip IN ({target_ips})) (url_path IN ({implant_urls}) OR url IN ({implant_urls}) OR path IN ({implant_urls}) OR query IN ({implant_urls}) OR process_name IN ({implant_names}) OR parent_process_name IN ({implant_names})) earliest={start_date} latest={end_date} | table _time, src_ip, src, source_ip, client_ip, dst_ip, dest, dest_ip, destination_ip, server_ip, signature, rule_name, event_type, severity, url_path, url, path, query, process_name, parent_process_name, _raw | sort -_time",
                         "type": "string"
@@ -1823,9 +1889,9 @@
                 "required": [
                     "OPENAEV_URL",
                     "OPENAEV_TOKEN",
-                    "SPLUNK_ES_BASE_URL",
-                    "SPLUNK_ES_USERNAME",
-                    "SPLUNK_ES_PASSWORD"
+                    "SPLUNKES_BASE_URL",
+                    "SPLUNKES_USERNAME",
+                    "SPLUNKES_PASSWORD"
                 ],
                 "additionalProperties": true
             }
@@ -2635,6 +2701,12 @@
                             "error"
                         ],
                         "type": "string"
+                    },
+                    "INJECTOR_PERIOD": {
+                        "default": "PT1M",
+                        "description": "Duration between two scheduled runs of the injector (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -2681,6 +2753,12 @@
                         "description": "The token for the OpenAEV platform.",
                         "type": "string"
                     },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
                     "COLLECTOR_ID": {
                         "default": "palo-alto-cortex-xsoar--b16138ae-97fe-42a2-8bde-8c41de179312",
                         "description": "A unique UUIDv4 identifier for this collector instance.",
@@ -2711,11 +2789,6 @@
                         "default": "PT2M",
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
-                        "type": "string"
-                    },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "src/img/palo-alto-cortex-xsoar-logo.png",
-                        "description": "Path to the icon file of the collector.",
                         "type": "string"
                     },
                     "PALO_ALTO_CORTEX_XSOAR_API_URL": {
@@ -2821,6 +2894,12 @@
                             "warn",
                             "error"
                         ],
+                        "type": "string"
+                    },
+                    "INJECTOR_PERIOD": {
+                        "default": "PT1M",
+                        "description": "Duration between two scheduled runs of the injector (ISO 8601 format).",
+                        "format": "duration",
                         "type": "string"
                     },
                     "INJECTOR_REQUEST_TIMEOUT_SECONDS": {
@@ -3046,7 +3125,8 @@
             "description": "This injector emulates granular cloud and container adversary techniques using Stratus Red Team, detonating attack TTPs across AWS, Azure, Entra ID, GCP, Kubernetes and Amazon EKS so runtime detection and prevention controls can be validated. Every Stratus technique is exposed as its own injector contract (tagged with its MITRE ATT&CK techniques), plus a custom-technique contract per platform.",
             "short_description": "Detonate cloud and container attack techniques with Stratus Red Team",
             "use_cases": [
-                "Technical"
+                "Attack simulation",
+                "Cloud security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -3100,6 +3180,12 @@
                             "warn",
                             "error"
                         ],
+                        "type": "string"
+                    },
+                    "INJECTOR_PERIOD": {
+                        "default": "PT1M",
+                        "description": "Duration between two scheduled runs of the injector (ISO 8601 format).",
+                        "format": "duration",
                         "type": "string"
                     }
                 },
@@ -3593,6 +3679,32 @@
                         "description": "Index pattern to read detection alerts from.",
                         "type": "string",
                         "default": ".alerts-security.alerts-*"
+                    },
+                    "ELASTIC_KIBANA_URL": {
+                        "description": "Kibana base URL used to build trace links. When unset, it is derived from the base URL.",
+                        "type": "string"
+                    },
+                    "ELASTIC_TIME_WINDOW": {
+                        "default": "PT1H",
+                        "description": "Time window for searches when no dates are provided (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "ELASTIC_MAX_RETRY": {
+                        "default": 3,
+                        "description": "Maximum number of retry attempts for API calls.",
+                        "type": "integer"
+                    },
+                    "ELASTIC_OFFSET": {
+                        "default": "PT30S",
+                        "description": "Time offset between retry attempts (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "ELASTIC_VERIFY_SSL": {
+                        "default": true,
+                        "description": "Whether to verify the Elasticsearch TLS certificate.",
+                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -3699,6 +3811,49 @@
                         "default": true,
                         "description": "Whether to query the LogRhythm Event Manager for matching events.",
                         "type": "boolean"
+                    },
+                    "LOGRHYTHM_MAX_MSGS": {
+                        "default": 100,
+                        "description": "Maximum number of messages to query per search.",
+                        "type": "integer"
+                    },
+                    "LOGRHYTHM_CONSOLE_URL": {
+                        "description": "LogRhythm Web Console URL used to build trace links (defaults to the base URL).",
+                        "type": "string"
+                    },
+                    "LOGRHYTHM_VERIFY_SSL": {
+                        "default": true,
+                        "description": "Whether to verify the LogRhythm TLS certificate.",
+                        "type": "boolean"
+                    },
+                    "LOGRHYTHM_TIME_WINDOW": {
+                        "default": "PT1H",
+                        "description": "Time window for searches when no dates are provided (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "LOGRHYTHM_MAX_RETRY": {
+                        "default": 3,
+                        "description": "Maximum number of retry attempts for API calls.",
+                        "type": "integer"
+                    },
+                    "LOGRHYTHM_OFFSET": {
+                        "default": "PT30S",
+                        "description": "Time offset between retry attempts (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "LOGRHYTHM_SEARCH_TIMEOUT": {
+                        "default": "PT5M",
+                        "description": "Maximum time to wait for a search task to complete (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "LOGRHYTHM_POLL_INTERVAL": {
+                        "default": "PT5S",
+                        "description": "Interval between search result status polls (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -3805,6 +3960,32 @@
                         "default": 100,
                         "description": "Maximum number of results to fetch per query.",
                         "type": "integer"
+                    },
+                    "NETWITNESS_CONSOLE_URL": {
+                        "description": "NetWitness console URL used to build trace links (defaults to the base URL).",
+                        "type": "string"
+                    },
+                    "NETWITNESS_VERIFY_SSL": {
+                        "default": true,
+                        "description": "Whether to verify the NetWitness TLS certificate.",
+                        "type": "boolean"
+                    },
+                    "NETWITNESS_TIME_WINDOW": {
+                        "default": "PT1H",
+                        "description": "Time window for searches when no dates are provided (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "NETWITNESS_MAX_RETRY": {
+                        "default": 3,
+                        "description": "Maximum number of retry attempts for API calls.",
+                        "type": "integer"
+                    },
+                    "NETWITNESS_OFFSET": {
+                        "default": "PT30S",
+                        "description": "Time offset between retry attempts (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -3916,6 +4097,44 @@
                         "description": "QRadar data source to query (e.g. events).",
                         "type": "string",
                         "default": "events"
+                    },
+                    "QRADAR_CONSOLE_URL": {
+                        "description": "QRadar console URL used to build trace links (defaults to the base URL).",
+                        "type": "string"
+                    },
+                    "QRADAR_VERIFY_SSL": {
+                        "default": true,
+                        "description": "Whether to verify the QRadar TLS certificate.",
+                        "type": "boolean"
+                    },
+                    "QRADAR_TIME_WINDOW": {
+                        "default": "PT1H",
+                        "description": "Time window for searches when no dates are provided (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "QRADAR_MAX_RETRY": {
+                        "default": 3,
+                        "description": "Maximum number of retry attempts for API calls.",
+                        "type": "integer"
+                    },
+                    "QRADAR_OFFSET": {
+                        "default": "PT30S",
+                        "description": "Time offset between retry attempts (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "QRADAR_SEARCH_TIMEOUT": {
+                        "default": "PT5M",
+                        "description": "Maximum time to wait for an Ariel search to complete (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "QRADAR_POLL_INTERVAL": {
+                        "default": "PT5S",
+                        "description": "Interval between Ariel search status polls (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -3932,7 +4151,8 @@
             "description": "Import XTM One agents (and optionally bare LLM models) as OpenAEV AI targets so they can be exercised by adversarial AI injects.",
             "short_description": "Import XTM One agents as AI targets",
             "use_cases": [
-                "Asset collection"
+                "Asset collection",
+                "AI security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -3988,8 +4208,19 @@
                         "type": "string"
                     },
                     "COLLECTOR_PERIOD": {
+                        "default": "PT5M",
+                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format). Expectation validation runs on every cycle, so this is effectively the expectation-matching cadence; the agent import is additionally throttled by COLLECTOR_IMPORT_PERIOD.",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "COLLECTOR_PLATFORM": {
+                        "default": "LLM_FIREWALL",
+                        "description": "Security platform type registered for this collector so XTM One appears in the OpenAEV inventory as a security platform (like any EDR/XDR collector) and detection/prevention expectation results are attributed to it. XTM One acts as an AI defense that flags prompt injections, hence LLM_FIREWALL by default. Accepted values: EDR, XDR, SIEM, SOAR, NDR, ISPM, LLM_FIREWALL, AI_GATEWAY.",
+                        "type": "string"
+                    },
+                    "COLLECTOR_IMPORT_PERIOD": {
                         "default": "PT1H",
-                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
+                        "description": "Minimum duration between two imports of the XTM One agents/models catalog (ISO 8601 format). The import runs on the first cycle and then only when this much time has elapsed since the previous import; set it lower than or equal to the collector period to import on every cycle.",
                         "format": "duration",
                         "type": "string"
                     },
@@ -3998,15 +4229,15 @@
                         "type": "string"
                     },
                     "COLLECTOR_XTM_ONE_TOKEN": {
-                        "description": "XTM One API key (fcp-...) used to read the agents and models catalog.",
+                        "description": "XTM One API key (fcp-...) used to read the agents and models catalog and the security audit log, and written onto each seeded AI target so the injector can authenticate to XTM One directly. Reading the audit log to validate detection expectations requires this key to belong to an XTM One administrator.",
                         "format": "password",
                         "type": "string",
                         "writeOnly": true
                     },
-                    "COLLECTOR_XTM_ONE_API_KEY_VARIABLE": {
-                        "default": "XTM_ONE_API_KEY",
-                        "description": "Name of the injector environment variable holding the credential the AI red team injector uses to reach XTM One at execution time. The secret value itself is never stored on the AI target.",
-                        "type": "string"
+                    "COLLECTOR_VALIDATE_EXPECTATIONS": {
+                        "default": true,
+                        "description": "When true, the collector also validates AI detection/prevention expectations by matching XTM One 'Prompt injection detected' security events to the AI red team injects that triggered them. Requires the XTM One token to have administrator access to the audit log.",
+                        "type": "boolean"
                     },
                     "COLLECTOR_INCLUDE_BARE_MODELS": {
                         "default": false,

@@ -1,0 +1,308 @@
+{
+  "data" : {
+    "id" : "io.openaev.database.model.InjectorContractId@c9cc6127",
+    "type" : "injectors_contracts",
+    "attributes" : {
+      "injector_contract_external_id" : null,
+      "injector_contract_labels" : {
+        "en" : "6801 - with vul + prevention predefined",
+        "fr" : "6801 - with vul + prevention predefined"
+      },
+      "injector_contract_manual" : false,
+      "injector_contract_content" : "{\"config\":{\"type\":\"openaev_implant\",\"label\":{\"en\":\"OpenAEV Implant\",\"fr\":\"OpenAEV Implant\"},\"color_dark\":\"#000000\",\"color_light\":\"#000000\"},\"label\":{\"en\":\"6801 - with vul + prevention predefined\",\"fr\":\"6801 - with vul + prevention predefined\"},\"manual\":false,\"fields\":[{\"key\":\"assets\",\"label\":\"Source assets\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"asset_groups\"],\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset\"},{\"key\":\"asset_groups\",\"label\":\"Source asset groups\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"asset_groups\"],\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset-group\"},{\"key\":\"obfuscator\",\"label\":\"Obfuscators\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"1\",\"defaultValue\":[\"plain-text\"],\"choices\":[{\"label\":\"plain-text\",\"value\":\"plain-text\"},{\"label\":\"base64\",\"value\":\"base64\"}],\"type\":\"choice\"},{\"key\":\"expectations\",\"label\":\"Expectations\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"predefinedExpectations\":[{\"multiSelectable\":false,\"expectation_type\":\"PREVENTION\",\"expectation_name\":\"Prevention\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600,\"expectation_is_multi_selectable\":false},{\"multiSelectable\":false,\"expectation_type\":\"VULNERABILITY\",\"expectation_name\":\"Vulnerability\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600,\"expectation_is_multi_selectable\":false}],\"availableExpectations\":[{\"multiSelectable\":false,\"expectation_type\":\"DETECTION\",\"expectation_name\":\"Detection\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600,\"expectation_is_multi_selectable\":false},{\"multiSelectable\":false,\"expectation_type\":\"PREVENTION\",\"expectation_name\":\"Prevention\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600,\"expectation_is_multi_selectable\":false},{\"multiSelectable\":false,\"expectation_type\":\"VULNERABILITY\",\"expectation_name\":\"Vulnerability\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600,\"expectation_is_multi_selectable\":false}],\"type\":\"expectation\"}],\"variables\":[{\"key\":\"user\",\"label\":\"User that will receive the injection\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[{\"key\":\"user.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.email\",\"label\":\"Email of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.firstname\",\"label\":\"First name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lastname\",\"label\":\"Last name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lang\",\"label\":\"Language of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"exercise\",\"label\":\"Exercise of the current injection\",\"type\":\"Object\",\"cardinality\":\"1\",\"children\":[{\"key\":\"exercise.id\",\"label\":\"Id of the exercise in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.name\",\"label\":\"Name of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.description\",\"label\":\"Description of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"teams\",\"label\":\"List of team names for the injection\",\"type\":\"String\",\"cardinality\":\"n\",\"children\":[]},{\"key\":\"player_uri\",\"label\":\"Player interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"challenges_uri\",\"label\":\"Challenges interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"scoreboard_uri\",\"label\":\"Scoreboard interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"lessons_uri\",\"label\":\"Lessons learned interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}],\"context\":{},\"atomicTesting\":true,\"contract_id\":\"d62f8927-715e-450a-a9ab-85ba585fc87c\",\"contract_attack_patterns_external_ids\":[],\"is_atomic_testing\":true,\"needs_executor\":true,\"platforms\":[\"Windows\"],\"domains\":[{\"listened\":true,\"domain_id\":\"f6e30515-5836-46c8-ae8f-3da4a3680574\",\"domain_name\":\"URL Filtering\",\"domain_color\":\"#66CCFF\",\"domain_created_at\":\"2026-06-23T09:04:11.848569Z\",\"domain_updated_at\":\"2026-06-23T09:04:11.848569Z\"}]}",
+      "convertedContent" : {
+        "config" : {
+          "type" : "openaev_implant",
+          "label" : {
+            "en" : "OpenAEV Implant",
+            "fr" : "OpenAEV Implant"
+          },
+          "color_dark" : "#000000",
+          "color_light" : "#000000"
+        },
+        "label" : {
+          "en" : "6801 - with vul + prevention predefined",
+          "fr" : "6801 - with vul + prevention predefined"
+        },
+        "manual" : false,
+        "fields" : [ {
+          "key" : "assets",
+          "label" : "Source assets",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : [ "assets", "asset_groups" ],
+          "mandatoryConditionFields" : null,
+          "mandatoryConditionValues" : null,
+          "visibleConditionFields" : null,
+          "visibleConditionValues" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "type" : "asset"
+        }, {
+          "key" : "asset_groups",
+          "label" : "Source asset groups",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : [ "assets", "asset_groups" ],
+          "mandatoryConditionFields" : null,
+          "mandatoryConditionValues" : null,
+          "visibleConditionFields" : null,
+          "visibleConditionValues" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "type" : "asset-group"
+        }, {
+          "key" : "obfuscator",
+          "label" : "Obfuscators",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionFields" : null,
+          "mandatoryConditionValues" : null,
+          "visibleConditionFields" : null,
+          "visibleConditionValues" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "1",
+          "defaultValue" : [ "plain-text" ],
+          "choices" : [ {
+            "label" : "plain-text",
+            "value" : "plain-text"
+          }, {
+            "label" : "base64",
+            "value" : "base64"
+          } ],
+          "type" : "choice"
+        }, {
+          "key" : "expectations",
+          "label" : "Expectations",
+          "mandatory" : false,
+          "readOnly" : false,
+          "mandatoryGroups" : null,
+          "mandatoryConditionFields" : null,
+          "mandatoryConditionValues" : null,
+          "visibleConditionFields" : null,
+          "visibleConditionValues" : null,
+          "linkedFields" : [ ],
+          "linkedValues" : [ ],
+          "cardinality" : "n",
+          "defaultValue" : [ ],
+          "predefinedExpectations" : [ {
+            "multiSelectable" : false,
+            "expectation_type" : "PREVENTION",
+            "expectation_name" : "Prevention",
+            "expectation_description" : null,
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600,
+            "expectation_is_multi_selectable" : false
+          }, {
+            "multiSelectable" : false,
+            "expectation_type" : "VULNERABILITY",
+            "expectation_name" : "Vulnerability",
+            "expectation_description" : null,
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600,
+            "expectation_is_multi_selectable" : false
+          } ],
+          "availableExpectations" : [ {
+            "multiSelectable" : false,
+            "expectation_type" : "DETECTION",
+            "expectation_name" : "Detection",
+            "expectation_description" : null,
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600,
+            "expectation_is_multi_selectable" : false
+          }, {
+            "multiSelectable" : false,
+            "expectation_type" : "PREVENTION",
+            "expectation_name" : "Prevention",
+            "expectation_description" : null,
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600,
+            "expectation_is_multi_selectable" : false
+          }, {
+            "multiSelectable" : false,
+            "expectation_type" : "VULNERABILITY",
+            "expectation_name" : "Vulnerability",
+            "expectation_description" : null,
+            "expectation_score" : 100.0,
+            "expectation_expectation_group" : false,
+            "expectation_expiration_time" : 21600,
+            "expectation_is_multi_selectable" : false
+          } ],
+          "type" : "expectation"
+        } ],
+        "variables" : [ {
+          "key" : "user",
+          "label" : "User that will receive the injection",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ {
+            "key" : "user.id",
+            "label" : "Id of the user in the platform",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.email",
+            "label" : "Email of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.firstname",
+            "label" : "First name of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.lastname",
+            "label" : "Last name of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "user.lang",
+            "label" : "Language of the user",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          } ]
+        }, {
+          "key" : "exercise",
+          "label" : "Exercise of the current injection",
+          "type" : "Object",
+          "cardinality" : "1",
+          "children" : [ {
+            "key" : "exercise.id",
+            "label" : "Id of the exercise in the platform",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "exercise.name",
+            "label" : "Name of the exercise",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          }, {
+            "key" : "exercise.description",
+            "label" : "Description of the exercise",
+            "type" : "String",
+            "cardinality" : "1",
+            "children" : [ ]
+          } ]
+        }, {
+          "key" : "teams",
+          "label" : "List of team names for the injection",
+          "type" : "String",
+          "cardinality" : "n",
+          "children" : [ ]
+        }, {
+          "key" : "player_uri",
+          "label" : "Player interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "challenges_uri",
+          "label" : "Challenges interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "scoreboard_uri",
+          "label" : "Scoreboard interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        }, {
+          "key" : "lessons_uri",
+          "label" : "Lessons learned interface platform link",
+          "type" : "String",
+          "cardinality" : "1",
+          "children" : [ ]
+        } ],
+        "context" : { },
+        "atomicTesting" : true,
+        "contract_id" : "d62f8927-715e-450a-a9ab-85ba585fc87c",
+        "contract_attack_patterns_external_ids" : [ ],
+        "is_atomic_testing" : true,
+        "needs_executor" : true,
+        "platforms" : [ "Windows" ],
+        "domains" : [ {
+          "listened" : true,
+          "domain_id" : "f6e30515-5836-46c8-ae8f-3da4a3680574",
+          "domain_name" : "URL Filtering",
+          "domain_color" : "#66CCFF",
+          "domain_created_at" : "2026-06-23T09:04:11.848569Z",
+          "domain_updated_at" : "2026-06-23T09:04:11.848569Z"
+        } ]
+      },
+      "injector_contract_custom" : false,
+      "injector_contract_needs_executor" : true,
+      "injector_contract_platforms" : [ "Windows" ],
+      "injector_contract_created_at" : "2026-07-20T12:44:24.157569Z",
+      "injector_contract_updated_at" : "2026-07-20T12:44:24.157569Z",
+      "injector_contract_atomic_testing" : true,
+      "injector_contract_import_available" : false
+    },
+    "relationships" : {
+      "injector_contract_payload" : {
+        "data" : {
+          "id" : "2925145d-5b97-4a86-aba8-e1aed6251e48",
+          "type" : "command"
+        }
+      },
+      "injector_contract_domains" : {
+        "data" : [ {
+          "id" : "f6e30515-5836-46c8-ae8f-3da4a3680574",
+          "type" : "domains"
+        } ]
+      }
+    }
+  },
+  "included" : [ {
+    "id" : "2925145d-5b97-4a86-aba8-e1aed6251e48",
+    "type" : "command",
+    "attributes" : {
+      "payload_type" : "Command",
+      "command_executor" : "psh",
+      "command_content" : "echo \"TOTO\"",
+      "payload_id" : "2925145d-5b97-4a86-aba8-e1aed6251e48",
+      "payload_name" : "6801 - with vul + prevention predefined",
+      "payload_description" : "",
+      "payload_platforms" : [ "Windows" ],
+      "payload_cleanup_executor" : null,
+      "payload_cleanup_command" : null,
+      "payload_elevation_required" : false,
+      "payload_arguments" : [ ],
+      "payload_prerequisites" : [ ],
+      "payload_external_id" : null,
+      "payload_source" : "MANUAL",
+      "payload_expectations" : [ "PREVENTION", "VULNERABILITY" ],
+      "payload_status" : "VERIFIED",
+      "payload_execution_arch" : "ALL_ARCHITECTURES",
+      "payload_created_at" : "2026-07-20T12:44:24.155627Z",
+      "payload_updated_at" : "2026-07-20T12:44:24.155627Z"
+    }
+  }, {
+    "id" : "f6e30515-5836-46c8-ae8f-3da4a3680574",
+    "type" : "domains",
+    "attributes" : {
+      "domain_id" : "f6e30515-5836-46c8-ae8f-3da4a3680574",
+      "domain_name" : "URL Filtering",
+      "domain_color" : "#66CCFF",
+      "domain_created_at" : "2026-06-23T09:04:11.848569Z",
+      "domain_updated_at" : "2026-06-23T09:04:11.848569Z"
+    }
+  } ]
+}

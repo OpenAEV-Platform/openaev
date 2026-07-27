@@ -1,10 +1,8 @@
-import { Add, ControlPointOutlined } from '@mui/icons-material';
-import { Fab, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
 import { type TeamInputForm } from '../../../../actions/teams/Team';
 import { addTeam } from '../../../../actions/teams/team-actions';
+import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Dialog from '../../../../components/common/dialog/Dialog';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
@@ -13,19 +11,6 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import { type Option } from '../../../../utils/Option';
 import { TeamContext } from '../../common/Context';
 import TeamForm from './TeamForm';
-
-const useStyles = makeStyles()(theme => ({
-  createButton: {
-    position: 'fixed',
-    bottom: 30,
-    right: 30,
-  },
-  text: {
-    fontSize: theme.typography.h2.fontSize,
-    color: theme.palette.primary.main,
-    fontWeight: theme.typography.h2.fontWeight,
-  },
-}));
 
 interface CreateTeamProps {
   inline?: boolean;
@@ -37,7 +22,6 @@ const CreateTeam: FunctionComponent<CreateTeamProps> = ({
   onCreate,
 }) => {
   const dispatch = useAppDispatch();
-  const { classes } = useStyles();
   const { t } = useFormatter();
   const [openDialog, setOpenDialog] = useState(false);
   const { onCreateTeam } = useContext(TeamContext);
@@ -68,24 +52,10 @@ const CreateTeam: FunctionComponent<CreateTeamProps> = ({
   return (
     <div>
       {inline ? (
-        <ListItemButton divider onClick={handleOpen} color="primary">
-          <ListItemIcon color="primary">
-            <ControlPointOutlined color="primary" />
-          </ListItemIcon>
-          <ListItemText
-            primary={t('Create a new team')}
-            classes={{ primary: classes.text }}
-          />
-        </ListItemButton>
+        // Header placement (picker top-right): compact creation button.
+        <ButtonCreate onClick={handleOpen} label={t('Create a new team')} />
       ) : (
-        <Fab
-          onClick={handleOpen}
-          color="primary"
-          aria-label="Add"
-          className={classes.createButton}
-        >
-          <Add />
-        </Fab>
+        <ButtonCreate onClick={handleOpen} />
       )}
       {inline ? (
         <Dialog

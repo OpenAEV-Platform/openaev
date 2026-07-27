@@ -16,6 +16,7 @@ import SelectFieldController from '../../../components/fields/SelectFieldControl
 import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
 import type { ScopeVariableInput } from '../../../utils/api-types';
+import { formatPrimitiveTypeLabel } from '../../../utils/String';
 import { zodImplement } from '../../../utils/Zod';
 import useArgumentTypes from '../threat_arsenal/form/useArgumentTypes';
 
@@ -32,17 +33,16 @@ const ScopeVariableCreateDialog = ({ open, onClose, onSubmit }: ScopeVariableCre
   const theme = useTheme();
 
   const { argumentTypes } = useArgumentTypes();
-
   const typeItems = useMemo(
     () => argumentTypes.map(at => ({
-      value: at.argument_type,
-      label: t(at.argument_type.charAt(0).toUpperCase() + at.argument_type.slice(1)),
+      value: at,
+      label: t(formatPrimitiveTypeLabel(at)),
     })),
     [argumentTypes, t],
   );
 
   const scopeVariableTypes = useMemo(
-    () => argumentTypes.map(at => at.argument_type) as [ScopeVariableInput['scope_variable_type'], ...ScopeVariableInput['scope_variable_type'][]],
+    () => argumentTypes as [ScopeVariableInput['scope_variable_type'], ...ScopeVariableInput['scope_variable_type'][]],
     [argumentTypes],
   );
 
@@ -131,12 +131,12 @@ const ScopeVariableCreateDialog = ({ open, onClose, onSubmit }: ScopeVariableCre
             />
           </DialogContent>
           <DialogActions>
-            <Button variant="contained" onClick={handleClose} disabled={isSubmitting}>
+            <Button variant="outlined" color="primary" onClick={handleClose} disabled={isSubmitting}>
               {t('Cancel')}
             </Button>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={!isDirty || isSubmitting}
             >

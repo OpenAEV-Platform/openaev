@@ -3,7 +3,7 @@ import { useRef } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { postDetectionRemediationAIRulesByPayload } from '../../../../actions/detection-remediation/detectionremediation-action';
-import { type Collector, type PayloadInput } from '../../../../utils/api-types';
+import { type PayloadInput, type SecurityPlatform } from '../../../../utils/api-types';
 import { isNotEmptyField } from '../../../../utils/utils';
 import {
   type DetectionRemediationForm,
@@ -17,19 +17,20 @@ import { useSnapshotRemediation } from '../utils/useSnapshotRemediation';
 import DetectionRemediationInfo from './DetectionRemediationInfo';
 import DetectionRemediationUseAriane from './DetectionRemediationUseAriane';
 
-interface RemediationFormTabProps { activeTab: Collector }
+interface RemediationFormTabProps { activeTab: SecurityPlatform }
 
 const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
   const { control, watch, setValue, getValues, formState: { isValid, defaultValues } } = useFormContext();
   const { snapshot, setSnapshot } = useSnapshotRemediation();
   const editorRef = useRef<RichTextEditorAdapter | null>(null);
-  const fieldName = 'remediations.' + activeTab.collector_type;
+  const platformId = activeTab.asset_id;
+  const fieldName = 'remediations.' + platformId;
 
-  const setLoadingSnapshot = (collectorType: string, isLoading: boolean) => {
+  const setLoadingSnapshot = (securityPlatformId: string, isLoading: boolean) => {
     setSnapshot((prev) => {
       const map = new Map(prev || []);
-      map.set(collectorType, {
-        ...map.get(collectorType) || {},
+      map.set(securityPlatformId, {
+        ...map.get(securityPlatformId) || {},
         isLoading,
         AIRules: getValues(fieldName).content,
       } as SnapshotEditionRemediationType);
@@ -47,7 +48,7 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
     setValue(fieldName, updated);
 
     if (!editor) {
-      setLoadingSnapshot(activeTab.collector_type, false);
+      setLoadingSnapshot(platformId, false);
       return;
     }
 
@@ -66,7 +67,7 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
     )
       .catch(() => undefined)
       .finally(() => {
-        setTimeout(() => setLoadingSnapshot(activeTab.collector_type, false), 10);
+        setTimeout(() => setLoadingSnapshot(platformId, false), 10);
       });
   };
 
@@ -76,18 +77,18 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
     setSnapshot((prev) => {
       const next = new Map(prev ?? []);
       const snapshot: SnapshotEditionRemediationType = {
-        ...next.get(activeTab.collector_type) ?? {},
+        ...next.get(platformId) ?? {},
         trackedFields: structuredClone(getValues(trackedFields)),
         isLoading: true,
       };
-      next.set(activeTab.collector_type, snapshot as SnapshotEditionRemediationType);
+      next.set(platformId, snapshot as SnapshotEditionRemediationType);
       return next;
     });
 
-    return postDetectionRemediationAIRulesByPayload(activeTab.collector_type, payloadInput, agentSlug).then((value) => {
+    return postDetectionRemediationAIRulesByPayload(platformId, payloadInput, agentSlug).then((value) => {
       applyRulesToEditor(value.data.rules);
     }).finally(() => {
-      setLoadingSnapshot(activeTab.collector_type, false);
+      setLoadingSnapshot(platformId, false);
     });
   };
 
@@ -98,9 +99,9 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
 
     setSnapshot((prev) => {
       const updatedSnapshot = new Map(prev || []);
-      const currentSnapshot = updatedSnapshot.get(activeTab.collector_type) || {} as SnapshotEditionRemediationType;
+      const currentSnapshot = updatedSnapshot.get(platformId) || {} as SnapshotEditionRemediationType;
 
-      updatedSnapshot.set(activeTab.collector_type, {
+      updatedSnapshot.set(platformId, {
         ...currentSnapshot,
         AIRules: formValues.content.trim(),
       });
@@ -112,14 +113,14 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
   // Author rule update on user keypress (mirrors the CKEditor keyup listener)
   const handleKeyUp = () => {
     const latest = getValues(fieldName);
-    if (snapshot?.get(activeTab.collector_type)?.AIRules === latest.content) {
+    if (snapshot?.get(platformId)?.AIRules === latest.content) {
       const isAiOutdated = hasSpecificDirtyFieldAI(
         defaultValues,
-        snapshot?.get(activeTab.collector_type)?.trackedFields,
+        snapshot?.get(platformId)?.trackedFields,
         getValues(trackedFields),
       );
-      const defaultAuthor = snapshot?.get(activeTab.collector_type)?.trackedFields == undefined
-        ? defaultValues?.['remediations'][activeTab.collector_type].author_rule
+      const defaultAuthor = snapshot?.get(platformId)?.trackedFields == undefined
+        ? defaultValues?.['remediations']?.[platformId]?.author_rule
         : 'AI';
       setValue(fieldName, {
         ...latest,
@@ -137,7 +138,10 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
     <>
       <div style={{
         display: 'flex',
+        alignItems: 'center',
         justifyContent: 'space-between',
+        gap: 8,
+        minHeight: 40,
       }}
       >
         <div>
@@ -146,18 +150,18 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
         </div>
         <DetectionRemediationUseAriane
           payloadType={watch('payload_type')}
-          collectorType={activeTab.collector_type}
+          securityPlatformId={platformId}
+          securityPlatformName={activeTab.asset_name}
           detectionRemediationContent={watch(fieldName)?.content}
           onSubmit={onClickUseAriane}
           isValidForm={isValid}
         />
       </div>
       <div
-        key={activeTab.collector_type}
+        key={platformId}
         style={{
           height: '250px',
           position: 'relative',
-          display: activeTab.collector_type === activeTab.collector_type ? 'block' : 'none',
         }}
         onKeyUp={handleKeyUp}
       >
@@ -172,7 +176,7 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
                 editorRef.current = editor;
                 initSnap();
               }}
-              id={'payload-remediation-editor' + activeTab.collector_type}
+              id={'payload-remediation-editor' + platformId}
               data={value?.content ?? ''}
               onChange={(_, editor) => {
                 const latest = getValues(fieldName);

@@ -17,6 +17,7 @@ import {
 } from '../../../../utils/api-types';
 import { type ContractType, type EnhancedContractElement } from '../../../../utils/api-types-custom';
 import InjectContentFieldComponent from '../../common/injects/form/InjectContentFieldComponent';
+import { CONNECTOR_NAME_KEYS } from './useConnectorInstance';
 
 interface Props {
   catalogConnectorSlug: string;
@@ -49,6 +50,9 @@ const ConnectorInstanceForm = ({
       }
       if (formatFromConf === 'EMAIL') {
         return z.string().email(t('Must be a valid email'));
+      }
+      if (formatFromConf === 'UUID') {
+        return z.string().uuid(t('Must be a valid UUID'));
       }
 
       switch (typeFromConf) {
@@ -219,7 +223,7 @@ const ConnectorInstanceForm = ({
     }> = [];
 
     configurationFields.forEach((field, index) => {
-      if (['COLLECTOR_NAME', 'INJECTOR_NAME', 'EXECUTOR_NAME'].includes(field.configuration_key)) {
+      if (CONNECTOR_NAME_KEYS.includes(field.configuration_key)) {
         nameFieldIndex = index;
         return;
       }
@@ -340,24 +344,25 @@ const ConnectorInstanceForm = ({
         <div style={{
           marginTop: 'auto',
           display: 'flex',
-          flexDirection: 'row-reverse',
+          justifyContent: 'flex-end',
           gap: theme.spacing(1),
         }}
         >
           <Button
-            variant="contained"
-            color="secondary"
-            type="submit"
-            disabled={isSubmitting || disabled}
-          >
-            {t(getActionLabel())}
-          </Button>
-          <Button
-            variant="contained"
+            variant="outlined"
+            color="primary"
             onClick={onClose}
             disabled={isSubmitting}
           >
             {t('Cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            type="submit"
+            disabled={isSubmitting || disabled}
+          >
+            {t(getActionLabel())}
           </Button>
         </div>
       </form>

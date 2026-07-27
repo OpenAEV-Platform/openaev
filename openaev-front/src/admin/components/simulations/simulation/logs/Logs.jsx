@@ -1,38 +1,37 @@
-import { EditOutlined, ExpandMoreOutlined, RateReviewOutlined } from '@mui/icons-material';
-import { Accordion, AccordionDetails, AccordionSummary, Card, CardContent, CardHeader, IconButton, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { ExpandMoreOutlined, NoteAltOutlined, RateReviewOutlined } from '@mui/icons-material';
+import { Box, ButtonBase, Collapse, Paper, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useContext, useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { addLog, fetchLogs } from '../../../../../actions/Log';
 import { fetchExerciseObjectives } from '../../../../../actions/Objective';
+import ButtonCreate from '../../../../../components/common/ButtonCreate';
+import { SECTION_LABEL_SX } from '../../../../../components/common/detail/detailStyles';
+import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
 import { useHelper } from '../../../../../store';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { resolveUserName } from '../../../../../utils/String';
 import { PermissionsContext } from '../../../common/Context';
-import AnimationMenu from '../AnimationMenu';
+import ExecutionMenu from '../ExecutionMenu';
 import LogForm from './LogForm';
 import LogPopover from './LogPopover';
 
-const useStyles = makeStyles()(theme => ({
-  card: {
-    width: '100%',
-    height: '100%',
-    marginBottom: 30,
-    borderRadius: theme.borderRadius,
-    padding: 0,
-    position: 'relative',
-  },
-  heading: { display: 'flex' },
-}));
+// Initials for the author medallion of a log entry ("Alice Turner" -> "AT").
+const initialsOf = (name) => {
+  return name
+    .split(' ')
+    .filter(part => part.length > 0)
+    .slice(0, 2)
+    .map(part => part[0].toUpperCase())
+    .join('');
+};
 
 const Logs = () => {
-  const { classes } = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
   const { t, nsdt } = useFormatter();
@@ -79,106 +78,183 @@ const Logs = () => {
   };
   return (
     <div>
-      <AnimationMenu exerciseId={exerciseId} />
-      <div>
-        <Typography variant="h4" style={{ float: 'left' }}>
-          {t('Simulation logs')}
-        </Typography>
-        {permissions.canManage
-          && (
-            <IconButton
-              color="secondary"
-              onClick={handleToggleWrite}
-              size="large"
-              style={{ margin: '-15px 0 0 5px' }}
-            >
-              <EditOutlined fontSize="small" />
-            </IconButton>
-          )}
-
-        {logs.map(log => (
-          <Card
-            key={log.log_id}
-            classes={{ root: classes.card }}
-            raised={false}
-            variant="outlined"
+      <ExecutionMenu exerciseId={exerciseId} />
+      <Box sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        paddingBottom: 5,
+      }}
+      >
+        {/* Section header: label + write action, same 32px anatomy as the
+            other titled sections of the app. */}
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          minHeight: 32,
+        }}
+        >
+          <Typography sx={{
+            ...SECTION_LABEL_SX,
+            marginBottom: 0,
+          }}
           >
-            <CardHeader
-              style={{
-                padding: '7px 10px 2px 15px',
-                borderBottom: `1px solid ${theme.palette.divider}`,
+            {t('Simulation logs')}
+          </Typography>
+          <div style={{ flex: 1 }} />
+          {permissions.canManage && (
+            <ButtonCreate
+              label={t('Write an entry')}
+              onClick={() => {
+                if (!openCreateLog) {
+                  handleToggleWrite();
+                } else {
+                  scrollToBottom();
+                }
               }}
-              action={permissions.canManage && <LogPopover exerciseId={exerciseId} log={log} />}
-              title={(
-                <div>
-                  <div
-                    style={{
-                      float: 'left',
-                      textDecoration: 'none',
-                      textTransform: 'none',
-                      paddingTop: 7,
-                      fontSize: 15,
-                    }}
-                  >
-                    <strong>
-                      {resolveUserName(usersMap[log.log_user] ?? {})}
-                    </strong>
-                                        &nbsp;
-                    <span style={{ color: theme.palette.text.secondary }}>
-                      {t('added an entry on')}
-                      {nsdt(log.log_created_at)}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      float: 'left',
-                      margin: '4px 0 0 20px',
-                      textDecoration: 'none',
-                      textTransform: 'none',
-                    }}
-                  >
-                    <ItemTags tags={log.log_tags} />
-                  </div>
-                </div>
-              )}
             />
-            <CardContent>
-              <strong>{log.log_title}</strong>
-              <p>{log.log_content}</p>
-            </CardContent>
-          </Card>
-        ))}
-        {permissions.canManage && (
-          <Accordion
-            style={{ margin: `${logs.length > 0 ? '30' : '5'}px 0 30px 0` }}
-            expanded={openCreateLog}
-            onChange={handleToggleWrite}
-            variant="outlined"
-          >
-            <AccordionSummary expandIcon={<ExpandMoreOutlined />}>
-              <Typography className={classes.heading}>
-                <RateReviewOutlined />
-              &nbsp;&nbsp;&nbsp;&nbsp;
-                <span style={{ fontWeight: 500 }}>{t('Write an entry')}</span>
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails style={{
-              width: '100%',
-              paddingBottom: 80,
-            }}
-            >
-              <LogForm
-                initialValues={{ log_tags: [] }}
-                onSubmit={submitCreateLog}
-                handleClose={() => setOpenCreateLog(false)}
-              />
-            </AccordionDetails>
-          </Accordion>
+          )}
+        </Box>
+
+        {logs.length === 0 && (
+          <Paper variant="outlined" sx={{ borderRadius: 1 }}>
+            <Empty
+              icon={NoteAltOutlined}
+              message={t('No log entries yet')}
+              hint={t('Record observations and decisions taken during the simulation')}
+            />
+          </Paper>
         )}
 
-        <div style={{ marginTop: 100 }} />
+        {/* Journal feed */}
+        {logs.map((log) => {
+          const author = resolveUserName(usersMap[log.log_user] ?? {});
+          return (
+            <Paper
+              key={log.log_id}
+              variant="outlined"
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1,
+                padding: 2,
+                borderRadius: 1,
+              }}
+            >
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                flexWrap: 'wrap',
+              }}
+              >
+                {/* Author medallion */}
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  flexShrink: 0,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: theme.palette.primary.main,
+                  backgroundColor: alpha(theme.palette.primary.main, 0.12),
+                }}
+                >
+                  {initialsOf(author) || '?'}
+                </Box>
+                <Typography sx={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                }}
+                >
+                  {author}
+                </Typography>
+                <Typography sx={{
+                  fontSize: 12,
+                  color: 'text.secondary',
+                }}
+                >
+                  {`${t('added an entry on')} ${nsdt(log.log_created_at)}`}
+                </Typography>
+                <ItemTags variant="list" tags={log.log_tags} />
+                <div style={{ flex: 1 }} />
+                {permissions.canManage && <LogPopover exerciseId={exerciseId} log={log} />}
+              </Box>
+              <Box>
+                <Typography sx={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  marginBottom: 0.5,
+                }}
+                >
+                  {log.log_title}
+                </Typography>
+                <Typography sx={{
+                  fontSize: 13,
+                  color: 'text.secondary',
+                  whiteSpace: 'pre-wrap',
+                }}
+                >
+                  {log.log_content}
+                </Typography>
+              </Box>
+            </Paper>
+          );
+        })}
+
+        {/* Composer: collapsed one-line trigger, expands into the entry form. */}
+        {permissions.canManage && (
+          <Paper variant="outlined" sx={{ borderRadius: 1 }}>
+            <ButtonBase
+              onClick={handleToggleWrite}
+              sx={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: 1.5,
+                padding: 2,
+              }}
+            >
+              <RateReviewOutlined fontSize="small" color="primary" />
+              <Typography sx={{
+                fontSize: 14,
+                fontWeight: 500,
+              }}
+              >
+                {t('Write an entry')}
+              </Typography>
+              <div style={{ flex: 1 }} />
+              <ExpandMoreOutlined
+                sx={{
+                  color: 'text.secondary',
+                  transform: openCreateLog ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 200ms',
+                }}
+              />
+            </ButtonBase>
+            <Collapse in={openCreateLog}>
+              <Box sx={{
+                padding: 2,
+                paddingTop: 0,
+              }}
+              >
+                <LogForm
+                  initialValues={{ log_tags: [] }}
+                  onSubmit={submitCreateLog}
+                  handleClose={() => setOpenCreateLog(false)}
+                />
+              </Box>
+            </Collapse>
+          </Paper>
+        )}
+
         <div ref={bottomRef} />
-      </div>
+      </Box>
     </div>
   );
 };

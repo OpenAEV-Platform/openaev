@@ -166,6 +166,18 @@ public class FullTextSearchService<T extends Base> {
 
   private FullTextSearchResult transform(T element) {
     switch (element) {
+      // Security platforms live in the assets table (single-table inheritance) so the
+      // Asset repository returns them too: expose the precise class so the frontend can
+      // route to the security platform overview and show the right icon.
+      case SecurityPlatform securityPlatform -> {
+        FullTextSearchResult result = new FullTextSearchResult();
+        result.setId(securityPlatform.getId());
+        result.setName(securityPlatform.getName());
+        result.setDescription(securityPlatform.getDescription());
+        result.setTags(securityPlatform.getTags());
+        result.setClazz(SecurityPlatform.class.getSimpleName());
+        return result;
+      }
       case Asset asset -> {
         FullTextSearchResult result = new FullTextSearchResult();
         result.setId(asset.getId());

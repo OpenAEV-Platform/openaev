@@ -16,6 +16,7 @@ implemented.
 | [OpenAEV renaming](#openaev-renaming)                         | 1.18.20       | 2.0.0      |
 | [OpenAEV CSRF](#openaev-csrf)                                 | -             | 2.3.4      |
 | [URL access token enforcement](#url-access-token-enforcement) | -             | 2.260622.0 |
+| [Injector contract expectation format](#injector-contract-expectation-format) | -             | \[MigrationVersion\]        |
 
 ## OpenAEV 2.2.0
 
@@ -102,3 +103,15 @@ Starting with **OpenAEV 2.260622.0**, OpenAEV no longer accepts legacy email lin
 OpenAEV now requires token-based links using `/url/access?token=<raw-token>`, followed by a secure cookie and redirect flow.
 
 For more details, see [this migration guide](breaking-changes/2.260622.0-url-access-token-enforcement.md)
+
+## OpenAEV \[MigrationVersion\]
+
+### Introduction
+
+<a id="injector-contract-expectation-format"></a>
+
+#### Injector contract expectation format
+
+Starting with **OpenAEV \[MigrationVersion\]**, the `predefinedExpectations` list in `injector_contract_content` has been removed. All expectations are now under a single `availableExpectations` list, each with an `expectation_is_predefined` flag.
+
+For more details, see [this migration guide](breaking-changes/MigrationVersion-injector-contract-expectation-format.md)

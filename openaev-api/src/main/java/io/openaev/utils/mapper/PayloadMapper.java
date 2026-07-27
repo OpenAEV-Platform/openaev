@@ -304,7 +304,8 @@ public class PayloadMapper {
     return DetectionRemediationOutput.builder()
         .id(detectionRemediation.getId())
         .payloadId(detectionRemediation.getPayload().getId())
-        .collectorType(detectionRemediation.getCollectorType().getName())
+        .securityPlatformId(detectionRemediation.getSecurityPlatform().getId())
+        .securityPlatformName(detectionRemediation.getSecurityPlatform().getName())
         .values(detectionRemediation.getValues())
         .authorRule(detectionRemediation.getAuthorRule())
         .build();
@@ -356,6 +357,7 @@ public class PayloadMapper {
             .externalId(payload.getExternalId())
             .source(payload.getSource())
             .expectations(payload.getExpectations())
+            .expectedSecurityPlatforms(payload.getExpectedSecurityPlatforms())
             .status(payload.getStatus())
             .executionArch(payload.getExecutionArch())
             .collectorType(payload.getCollectorTypeValue())

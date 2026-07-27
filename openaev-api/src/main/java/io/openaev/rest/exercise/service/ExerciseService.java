@@ -10,6 +10,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.JpaUtils.arrayAggOnId;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.constants.Constants.ARTICLES;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilderWithNullHandling;
 import static java.time.Duration.between;
 import static java.time.Instant.now;
@@ -33,14 +34,17 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.LessonsAnswerSpecification;
 import io.openaev.database.specification.LessonsCategorySpecification;
 import io.openaev.database.specification.LessonsQuestionSpecification;
+import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.form.ExerciseBulkProcessingInput;
 import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.exercise.response.ExercisesGlobalScoresOutput;
@@ -51,9 +55,11 @@ import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
@@ -90,6 +96,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
@@ -123,6 +130,7 @@ public class ExerciseService {
   private final InjectExpectationRepository injectExpectationRepository;
   private final ArticleRepository articleRepository;
   private final ExerciseRepository exerciseRepository;
+  private final BulkDeleteExecutor bulkDeleteExecutor;
   private final InjectStatusRepository injectStatusRepository;
   private final PauseRepository pauseRepository;
   private final LessonsQuestionRepository lessonsQuestionRepository;
@@ -150,6 +158,8 @@ public class ExerciseService {
   private final HealthCheckUtils healthCheckUtils;
 
   private final ApplicationEventPublisher eventPublisher;
+
+  private final AttackPathExecutionIngestionService attackPathExecutionService;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -272,6 +282,7 @@ public class ExerciseService {
     exerciseDuplicate.setHeader(exerciseOrigin.getHeader());
     exerciseDuplicate.setMainFocus(exerciseOrigin.getMainFocus());
     exerciseDuplicate.setSeverity(exerciseOrigin.getSeverity());
+    exerciseDuplicate.setDefaultKillChain(exerciseOrigin.getDefaultKillChain());
     exerciseDuplicate.setSubtitle(exerciseOrigin.getSubtitle());
     exerciseDuplicate.setLogoDark(exerciseOrigin.getLogoDark());
     exerciseDuplicate.setLogoLight(exerciseOrigin.getLogoLight());
@@ -557,14 +568,78 @@ public class ExerciseService {
    *
    * @param simulationId ID of the simulation to delete
    */
+  @Transactional(rollbackFor = Exception.class)
   public void deleteById(String simulationId) {
     existsByIdAndTenantId(simulationId);
+    // Attack-path rows have no FK to the simulation, so the native exercise delete does not cascade
+    // them: clear them explicitly under the caller's tenant (same primitive as the reset path),
+    // otherwise a deleted simulation leaves orphan attack-path executions and findings behind.
+    attackPathExecutionService.deleteAllBySimulationId(
+        simulationId, TenantContext.getCurrentTenant());
     exerciseRepository.deleteById(simulationId);
     // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
     // must be notified explicitly or the simulation (and its cascade-deleted injects,
     // expectations, findings...) would remain in the indexes forever.
     eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, simulationId));
     log.info("Simulation {} deleted by user {}", simulationId, currentUser().getId());
+  }
+
+  /**
+   * Bulk delete of simulations, either from an explicit list of ids or from a search input
+   * (select-all with optional exclusions). Only simulations the user is allowed to manage are
+   * deleted.
+   *
+   * <p>Deliberately NOT transactional as a whole: the scope is resolved in a short read
+   * transaction, then simulations are deleted in small independent chunks (with deadlock retry). A
+   * single all-encompassing transaction holds row locks on {@code exercises} for its whole duration
+   * and deadlocks against concurrent inject expectation updates.
+   *
+   * @param input the bulk processing input (ids or search input, plus ids to ignore)
+   * @return the list of deleted simulation ids
+   */
+  public List<String> bulkDelete(@NotNull final ExerciseBulkProcessingInput input) {
+    if ((CollectionUtils.isEmpty(input.getExerciseIdsToProcess())
+            && input.getSearchPaginationInput() == null)
+        || (!CollectionUtils.isEmpty(input.getExerciseIdsToProcess())
+            && input.getSearchPaginationInput() != null)) {
+      throw new BadRequestException(
+          "Either exercise_ids_to_process or search_pagination_input must be provided, and not both at the same time");
+    }
+    User user = userService.currentUser();
+    List<String> exerciseIdsToDelete =
+        bulkDeleteExecutor.resolveInTransaction(
+            () -> {
+              Specification<Exercise> specification;
+              if (input.getSearchPaginationInput() != null) {
+                // Same specification chain as the list search (filter group + text search), so the
+                // deletion scope matches exactly what the user sees in the list.
+                specification =
+                    FilterUtilsJpa.<Exercise>computeFilterGroupJpa(
+                            input.getSearchPaginationInput().getFilterGroup())
+                        .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
+              } else {
+                specification = SpecificationUtils.hasIdIn(input.getExerciseIdsToProcess());
+              }
+              if (!CollectionUtils.isEmpty(input.getExerciseIdsToIgnore())) {
+                List<String> idsToIgnore = input.getExerciseIdsToIgnore();
+                specification =
+                    specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+              }
+              // Restrict to simulations the user is granted to plan on (no-op for admins and users
+              // with the delete capability)
+              specification =
+                  specification.and(
+                      SpecificationUtils.hasGrantAccess(
+                          user.getId(),
+                          user.isAdminOrBypass(),
+                          user.getCapabilities().contains(Capability.DELETE_ASSESSMENT),
+                          Grant.GRANT_TYPE.PLANNER));
+              return exerciseRepository.findAll(specification).stream()
+                  .map(Exercise::getId)
+                  .toList();
+            });
+    return bulkDeleteExecutor.deleteInChunks(
+        "simulations", exerciseIdsToDelete, chunk -> chunk.forEach(this::deleteById));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -625,8 +700,22 @@ public class ExerciseService {
       entityManager.clear();
       // Reload exercise after clearing entity manager to avoid detached entity issues
       exercise = this.exercise(exerciseId);
-      // Delete exercise transient files (communications, ...)
-      fileService.deleteDirectory(exerciseId);
+      // Delete exercise transient files (communications, ...) AFTER commit: this is an external
+      // MinIO/S3 call. Running it inside the transaction pinned the DB connection and every row
+      // lock taken by the deletes above for the whole duration of the object-storage roundtrips,
+      // which starved the Hikari pool platform-wide when storage was slow (simulation reset
+      // outage). Also avoids deleting files if the transaction ends up rolling back.
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              try {
+                fileService.deleteDirectory(exerciseId);
+              } catch (Exception e) {
+                log.error("Failed to delete directory for exercise {}", exerciseId, e);
+              }
+            }
+          });
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
           && workflowService.isSimulationChaining(exercise.getId())) {
         // DELETE workflow states
@@ -634,6 +723,9 @@ public class ExerciseService {
         // DELETE injects
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
+        // Delete attack path execution
+        this.attackPathExecutionService.deleteAllBySimulationId(
+            exercise.getId(), exercise.getTenant().getId());
       }
       urlAccessTokenService.revokeAllForExercise(exercise.getId());
     }
@@ -948,8 +1040,17 @@ public class ExerciseService {
         getTeamsOrAssetsOrAssetGroupsByExerciseIds(
             assetGroupRepository.assetGroupsByExerciseIds(exerciseIds));
 
+    // AI and manual targets are content references (not JPA relations): resolved separately so
+    // the simulation list "Target" column also surfaces AI-target and manual-target injects.
+    ExerciseMapper.ContentTargetsByExerciseIds contentTargets =
+        exerciseMapper.contentTargetsByExerciseIds(exerciseIds);
+
     return new MappingsByExerciseIds(
-        teamsByExerciseIds, assetsByExerciseIds, assetGroupByExerciseIds);
+        teamsByExerciseIds,
+        assetsByExerciseIds,
+        assetGroupByExerciseIds,
+        contentTargets.aiTargets(),
+        contentTargets.manualTargets());
   }
 
   private Map<String, List<Object[]>> getTeamsOrAssetsOrAssetGroupsByExerciseIds(
@@ -966,7 +1067,9 @@ public class ExerciseService {
   private record MappingsByExerciseIds(
       Map<String, List<Object[]>> teamsByExerciseIds,
       Map<String, List<Object[]>> assetsByExerciseIds,
-      Map<String, List<Object[]>> assetGroupsByExerciseIds) {}
+      Map<String, List<Object[]>> assetGroupsByExerciseIds,
+      Map<String, List<Object[]>> aiTargetsByExerciseIds,
+      Map<String, List<Object[]>> manualTargetsByExerciseIds) {}
 
   private Map<String, List<RawInjectExpectationIndexing>> getExpectationsByExerciseId(
       Set<String> exerciseIds) {
@@ -999,6 +1102,12 @@ public class ExerciseService {
                     exercise,
                     mappingsByExerciseIds.assetGroupsByExerciseIds,
                     TargetType.ASSETS_GROUPS)
+                    .stream(),
+                getTargets(
+                    exercise, mappingsByExerciseIds.aiTargetsByExerciseIds, TargetType.AI_TARGETS)
+                    .stream(),
+                getTargets(
+                    exercise, mappingsByExerciseIds.manualTargetsByExerciseIds, TargetType.MANUAL)
                     .stream())
             .flatMap(Function.identity())
             .toList();

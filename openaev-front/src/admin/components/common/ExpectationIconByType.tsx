@@ -35,6 +35,19 @@ export const expectationTypeIcon = (expectationType: string | undefined): Compon
   return EXPECTATION_TYPE_ICON[(expectationType ?? '').toUpperCase()] ?? HelpOutlineOutlined;
 };
 
+// Single, harmonized identity color for EVERY expectation type: the brand blue.
+// Expectation type is a category, not a result, so it must never borrow the
+// result palette (green = success, orange = partial, red = failed). Keeping all
+// expectation chips / icons / series the same blue makes the UI read
+// unambiguously - color always means "result", shape/label always means "type".
+const EXPECTATION_TYPE_IDENTITY_COLOR = '#0fbcff';
+
+// Kept as a function (not a constant) so callers stay stable if per-type shades
+// are ever reintroduced; today every expectation type resolves to the brand blue.
+export const expectationTypeColor = (_expectationType?: string): string => {
+  return EXPECTATION_TYPE_IDENTITY_COLOR;
+};
+
 export default function expectationIconByType(expectationType: string | undefined, style: CSSProperties = {}): ReactElement {
   const IconComponent = expectationTypeIcon(expectationType);
   return <IconComponent fontSize="small" style={style} />;

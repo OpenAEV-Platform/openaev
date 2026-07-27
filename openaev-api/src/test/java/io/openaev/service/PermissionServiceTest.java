@@ -2,10 +2,7 @@ package io.openaev.service;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
@@ -42,7 +39,6 @@ public class PermissionServiceTest extends IntegrationTest {
 
   @Mock private GrantService grantService;
   @Mock private InjectService injectService;
-  @Mock private NotificationRuleService notificationRuleService;
   @Mock private ObjectiveRepository objectiveRepository;
   @Mock private EvaluationRepository evaluationRepository;
   @Mock private WorkflowService workflowService;
@@ -528,66 +524,6 @@ public class PermissionServiceTest extends IntegrationTest {
     assertTrue(
         permissionService.hasPermission(
             user, Optional.empty(), conditionId, ResourceType.CONDITION, Action.WRITE));
-  }
-
-  public void test_hasPermission_create_notificationRule_WHEN_has_read_grant_on_scenario() {
-    // Given: a user with a READ grant on the parent scenario
-    String scenarioId = "scenario-123";
-    User user = getUser(USER_ID, false);
-    when(grantService.hasReadGrant(scenarioId, user)).thenReturn(true);
-
-    // When: creating a notification rule (resourceId is the parent scenario ID)
-    // Then: allowed — READ on the parent scenario is sufficient to subscribe to notifications
-    assertTrue(
-        permissionService.hasPermission(
-            user, Optional.empty(), scenarioId, ResourceType.NOTIFICATION_RULE, Action.CREATE));
-  }
-
-  @Test
-  public void test_hasPermission_create_notificationRule_WHEN_has_no_grant_on_scenario() {
-    // Given: a user with no grant on the parent scenario
-    String scenarioId = "scenario-123";
-    User user = getUser(USER_ID, false);
-    when(grantService.hasReadGrant(scenarioId, user)).thenReturn(false);
-
-    // When/Then: denied — no access to the scenario
-    assertFalse(
-        permissionService.hasPermission(
-            user, Optional.empty(), scenarioId, ResourceType.NOTIFICATION_RULE, Action.CREATE));
-  }
-
-  @Test
-  public void
-      test_hasPermission_create_notificationRule_WHEN_create_should_not_lookup_rule_in_db() {
-    // Given: a user with a READ grant on the scenario
-    String scenarioId = "scenario-123";
-    User user = getUser(USER_ID, false);
-    when(grantService.hasReadGrant(scenarioId, user)).thenReturn(true);
-
-    // When
-    permissionService.hasPermission(
-        user, Optional.empty(), scenarioId, ResourceType.NOTIFICATION_RULE, Action.CREATE);
-
-    // Then: the notification rule repository must NOT be queried — the rule does not exist yet
-    verify(notificationRuleService, never()).findById(any());
-  }
-
-  @Test
-  public void test_hasPermission_read_notificationRule_WHEN_has_read_grant_on_scenario() {
-    // Given: an existing notification rule linked to a scenario
-    String ruleId = "rule-456";
-    String scenarioId = "scenario-123";
-    NotificationRule notificationRule = mock(NotificationRule.class);
-    when(notificationRule.getResourceId()).thenReturn(scenarioId);
-    when(notificationRuleService.findById(ruleId)).thenReturn(Optional.of(notificationRule));
-
-    User user = getUser(USER_ID, false);
-    when(grantService.hasReadGrant(scenarioId, user)).thenReturn(true);
-
-    // When/Then: READ on the notification rule resolves to READ on the parent scenario
-    assertTrue(
-        permissionService.hasPermission(
-            user, Optional.empty(), ruleId, ResourceType.NOTIFICATION_RULE, Action.READ));
   }
 
   private User getUser(final String id, final boolean isAdmin) {

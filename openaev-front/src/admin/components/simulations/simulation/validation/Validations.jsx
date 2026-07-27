@@ -1,12 +1,15 @@
-import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { FactCheckOutlined } from '@mui/icons-material';
+import { Box, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { fetchExerciseInjectExpectations } from '../../../../../actions/Exercise';
 import { fetchExerciseInjects } from '../../../../../actions/Inject';
+import { SectionBlock } from '../../../../../components/common/detail/EntityDetailCommon';
+import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
 import Loader from '../../../../../components/Loader';
@@ -16,24 +19,21 @@ import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import TagsFilter from '../../../common/filters/TagsFilter';
 import InjectIcon from '../../../common/injects/InjectIcon';
-import AnimationMenu from '../AnimationMenu';
+import ExecutionMenu from '../ExecutionMenu';
 import TeamOrAssetLine from './common/TeamOrAssetLine';
 
-const useStyles = makeStyles()(() => ({
-  item: { height: 40 },
-  bodyItem: {
-    height: '100%',
-    float: 'left',
-    fontSize: 13,
-  },
-}));
+const cellStyle = {
+  height: '100%',
+  float: 'left',
+  fontSize: 13,
+};
 
 const Validations = () => {
-  const { classes } = useStyles();
+  const theme = useTheme();
   const dispatch = useDispatch();
   const { exerciseId } = useParams();
   const [tags, setTags] = useState([]);
-  const { fndt } = useFormatter();
+  const { t, fndt } = useFormatter();
   const [keyword, setKeyword] = useState('');
   const handleSearch = value => setKeyword(value);
   const handleAddTag = (value) => {
@@ -122,93 +122,121 @@ const Validations = () => {
 
   // Rendering
   if (exercise && injectExpectations) {
+    const injectEntries = Object.entries(groupedByInject);
     return (
       <div>
-        <AnimationMenu exerciseId={exerciseId} />
-        <div style={{
-          float: 'left',
-          marginRight: 10,
+        <ExecutionMenu exerciseId={exerciseId} />
+        <Box sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          paddingBottom: 5,
         }}
         >
-          <SearchFilter
-            variant="small"
-            onChange={handleSearch}
-            keyword={keyword}
-          />
-        </div>
-        <div style={{
-          float: 'left',
-          marginRight: 10,
-        }}
-        >
-          <TagsFilter
-            onAddTag={handleAddTag}
-            onRemoveTag={handleRemoveTag}
-            currentTags={tags}
-          />
-        </div>
-        <div className="clearfix" />
-        <List>
-          {Object.entries(groupedByInject).map(([injectId, expectationsByInject]) => {
-            const inject = injectsMap[injectId] || {};
-            const injectContract = inject.inject_injector_contract.convertedContent || {};
-            return (
-              <div key={inject.inject_id}>
-                <ListItem divider={true} classes={{ root: classes.item }}>
-                  <ListItemIcon style={{ paddingTop: 5 }}>
-                    <InjectIcon
-                      isPayload={isNotEmptyField(inject.inject_injector_contract.injector_contract_payload)}
-                      type={
-                        inject.inject_injector_contract.injector_contract_payload
-                          ? inject.inject_injector_contract.injector_contract_payload?.payload_collector_type
-                          || inject.inject_injector_contract.injector_contract_payload?.payload_type
-                          : inject.inject_type
-                      }
-                      disabled={!inject.inject_enabled}
-                      size="small"
-                    />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={(
-                      <>
-                        <div className={classes.bodyItem} style={{ width: '55%' }}>
-                          {inject.inject_title}
-                        </div>
-                        <div className={classes.bodyItem} style={{ width: '15%' }}>
-                          {fndt(inject.inject_sent_at)}
-                        </div>
-                        <div className={classes.bodyItem} style={{ width: '30%' }}>
-                          <ItemTags variant="list" tags={inject.inject_tags} />
-                        </div>
-                      </>
-                    )}
-                  />
-                </ListItem>
-                <List component="div" disablePadding>
-                  {Object.entries(groupedByTeamOrAsset(expectationsByInject)).map(([id, expectations]) => {
-                    return (
-                      <TeamOrAssetLine
-                        key={id}
-                        exerciseId={exerciseId}
-                        inject={inject}
-                        injectContract={injectContract}
-                        expectationsByInject={expectationsByInject}
-                        id={id}
-                        expectations={expectations}
-                      />
-                    );
-                  })}
-                </List>
-              </div>
-            );
-          })}
-        </List>
+          {/* Scoping toolbar, same anatomy as the other Execution screens. */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: theme.spacing(1.5),
+          }}
+          >
+            <SearchFilter
+              variant="small"
+              onChange={handleSearch}
+              keyword={keyword}
+            />
+            <TagsFilter
+              onAddTag={handleAddTag}
+              onRemoveTag={handleRemoveTag}
+              currentTags={tags}
+            />
+          </div>
+          <SectionBlock title={t('Manual validations')} disablePadding>
+            {injectEntries.length === 0 ? (
+              <Empty
+                icon={FactCheckOutlined}
+                message={t('No manual validations yet')}
+                hint={t('Manual expectations will appear here when injects require human review')}
+              />
+            ) : (
+              <List sx={{ padding: 0 }}>
+                {injectEntries.map(([injectId, expectationsByInject]) => {
+                  const inject = injectsMap[injectId] || {};
+                  const injectContract = inject.inject_injector_contract.convertedContent || {};
+                  return (
+                    <div key={inject.inject_id}>
+                      <ListItem divider={true} sx={{ height: 40 }}>
+                        <ListItemIcon style={{ paddingTop: 5 }}>
+                          <InjectIcon
+                            isPayload={isNotEmptyField(inject.inject_injector_contract.injector_contract_payload)}
+                            type={
+                              inject.inject_injector_contract.injector_contract_payload
+                                ? inject.inject_injector_contract.injector_contract_payload?.payload_collector_type
+                                || inject.inject_injector_contract.injector_contract_payload?.payload_type
+                                : inject.inject_type
+                            }
+                            disabled={!inject.inject_enabled}
+                            size="small"
+                          />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={(
+                            <>
+                              <div style={{
+                                ...cellStyle,
+                                width: '55%',
+                                fontWeight: 600,
+                              }}
+                              >
+                                {inject.inject_title}
+                              </div>
+                              <div style={{
+                                ...cellStyle,
+                                width: '15%',
+                              }}
+                              >
+                                {fndt(inject.inject_sent_at)}
+                              </div>
+                              <div style={{
+                                ...cellStyle,
+                                width: '30%',
+                              }}
+                              >
+                                <ItemTags variant="list" tags={inject.inject_tags} />
+                              </div>
+                            </>
+                          )}
+                        />
+                      </ListItem>
+                      <List component="div" disablePadding>
+                        {Object.entries(groupedByTeamOrAsset(expectationsByInject)).map(([id, expectations]) => {
+                          return (
+                            <TeamOrAssetLine
+                              key={id}
+                              exerciseId={exerciseId}
+                              inject={inject}
+                              injectContract={injectContract}
+                              expectationsByInject={expectationsByInject}
+                              id={id}
+                              expectations={expectations}
+                            />
+                          );
+                        })}
+                      </List>
+                    </div>
+                  );
+                })}
+              </List>
+            )}
+          </SectionBlock>
+        </Box>
       </div>
     );
   }
   return (
-    <div className={classes.container}>
-      <AnimationMenu exerciseId={exerciseId} />
+    <div>
+      <ExecutionMenu exerciseId={exerciseId} />
       <Loader />
     </div>
   );

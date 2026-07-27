@@ -1,8 +1,9 @@
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Menu, MenuItem } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
 
+import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
 import { LessonContext } from '../../../common/Context';
@@ -66,8 +67,8 @@ const LessonsQuestionPopover = ({
   )(lessonsQuestion);
   return (
     <div>
-      <IconButton onClick={handlePopoverOpen} aria-haspopup="true" size="large">
-        <MoreVert />
+      <IconButton onClick={handlePopoverOpen} aria-haspopup="true" size="small" color="primary" sx={{ borderRadius: 1 }}>
+        <MoreVert fontSize="small" />
       </IconButton>
       <Menu
         anchorEl={anchorEl}
@@ -89,30 +90,24 @@ const LessonsQuestionPopover = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button color="secondary" onClick={submitDelete}>
+          <Button variant="outlined" color="primary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button variant="contained" color="primary" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>
       </Dialog>
-      <Dialog
-        TransitionComponent={Transition}
+      <Drawer
         open={openEdit}
-        onClose={handleCloseEdit}
-        fullWidth
-        maxWidth="md"
-        PaperProps={{ elevation: 1 }}
+        handleClose={handleCloseEdit}
+        title={t('Update the lessons learned question')}
       >
-        <DialogTitle>{t('Update the lessons learned question')}</DialogTitle>
-        <DialogContent>
-          <LessonsQuestionForm
-            editing
-            onSubmit={onSubmitEdit}
-            handleClose={handleCloseEdit}
-            initialValues={initialValues}
-          />
-        </DialogContent>
-      </Dialog>
+        <LessonsQuestionForm
+          editing
+          onSubmit={onSubmitEdit}
+          handleClose={handleCloseEdit}
+          initialValues={initialValues}
+        />
+      </Drawer>
     </div>
   );
 };

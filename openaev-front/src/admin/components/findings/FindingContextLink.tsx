@@ -1,3 +1,4 @@
+import { PlayCircleOutlineOutlined, RouteOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { type FunctionComponent, useContext } from 'react';
 
 import ContextLink from '../../../components/ContextLink';
@@ -32,7 +33,9 @@ const FindingContextLink: FunctionComponent<Props> = ({ finding, type }) => {
         ? (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT) || ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, injectId))
         : ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, finding.finding_simulation?.exercise_id);
 
-      return userRight ? <ContextLink title={title} url={url} /> : title;
+      // TrackChangesOutlined is the platform-wide inject icon (menus, hero
+      // stats, inject results): keep this pivot aligned with it.
+      return userRight ? <ContextLink title={title} url={url} icon={<TrackChangesOutlined />} /> : title;
     }
 
     case SIMULATION: {
@@ -41,7 +44,7 @@ const FindingContextLink: FunctionComponent<Props> = ({ finding, type }) => {
 
       if (!title || !id) return '-';
 
-      return ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, finding.finding_simulation?.exercise_id) ? <ContextLink title={title} url={`${SIMULATION_BASE_URL}/${id}`} /> : title;
+      return ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, finding.finding_simulation?.exercise_id) ? <ContextLink title={title} url={`${SIMULATION_BASE_URL}/${id}`} icon={<PlayCircleOutlineOutlined />} /> : title;
     }
 
     case SCENARIO: {
@@ -50,7 +53,7 @@ const FindingContextLink: FunctionComponent<Props> = ({ finding, type }) => {
 
       if (!title || !id) return '-';
 
-      return ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, finding.finding_scenario?.scenario_id) ? <ContextLink title={title} url={`${SCENARIO_BASE_URL}/${id}`} /> : title;
+      return ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, finding.finding_scenario?.scenario_id) ? <ContextLink title={title} url={`${SCENARIO_BASE_URL}/${id}`} icon={<RouteOutlined />} /> : title;
     }
 
     default:

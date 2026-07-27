@@ -41,7 +41,7 @@ const InjectSelectionBar: FunctionComponent<Props> = ({
           gap: 1.5,
           paddingBlock: 1.25,
           paddingInline: 2,
-          borderRadius: 999,
+          borderRadius: 1,
           backgroundColor: alpha(theme.palette.background.paper, 0.92),
           border: `1px solid ${theme.palette.divider}`,
           boxShadow: `0 24px 64px -24px ${alpha('#000', 0.6)}, 0 0 0 1px ${alpha(theme.palette.primary.main, 0.12)}`,
@@ -101,7 +101,7 @@ const InjectSelectionBar: FunctionComponent<Props> = ({
               startIcon={<AddOutlined fontSize="small" />}
               onClick={onAdd}
               sx={{
-                borderRadius: 999,
+                borderRadius: 1,
                 textTransform: 'none',
                 fontWeight: 600,
                 paddingInline: 2,

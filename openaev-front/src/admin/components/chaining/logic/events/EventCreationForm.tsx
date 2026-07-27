@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
+import ActionFormButtons from '../drawer/ActionFormButtons';
 import ConditionGroupBuilder from './ConditionGroupBuilder';
 import {
   type ConditionGroup,
@@ -235,25 +236,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
           </DragDropContext>
         </Box>
 
-        <Box sx={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: 2,
-          mt: 3,
-        }}
-        >
-          <Button variant="outlined" color="primary" onClick={onCancel}>
-            {t('Cancel')}
-          </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            color="secondary"
-            disabled={!canSubmit}
-          >
-            {submitLabel ?? t('Add Event')}
-          </Button>
-        </Box>
+        <ActionFormButtons disabled={!canSubmit} onCancel={onCancel} submitLabel={submitLabel} />
       </Box>
     </FormProvider>
   );

@@ -160,6 +160,93 @@ class ExpectationSignatureUtilsTest {
     }
   }
 
+  // -- convertToInjectExpectationSignatures --
+
+  @Nested
+  @DisplayName("convertToInjectExpectationSignatures")
+  class ConvertToInjectExpectationSignatures {
+
+    @Test
+    @DisplayName("given duplicate (type, value) signatures should produce a single entity per pair")
+    void given_duplicateSignatures_should_deduplicateByTypeAndValue() {
+      // -- PREPARE --
+      // Regression: duplicate (type, value) pairs on one expectation map to the same composite
+      // primary key and used to make Hibernate throw NonUniqueObjectException on flush,
+      // rolling back the whole expectation save (e.g. an endpoint whose seen IP is also one
+      // of its declared IPs yields two identical source_ipv4_address signatures).
+      BaseInjectExpectation expectation = new BaseInjectExpectation();
+      expectation.setId("expectation-id");
+      ExpectationSignature seenIp =
+          new ExpectationSignature(EXPECTATION_SIGNATURE_TYPE_SOURCE_IPV4_ADDRESS, "10.0.0.1");
+      ExpectationSignature declaredIp =
+          new ExpectationSignature(EXPECTATION_SIGNATURE_TYPE_SOURCE_IPV4_ADDRESS, "10.0.0.1");
+      ExpectationSignature hostname =
+          new ExpectationSignature(EXPECTATION_SIGNATURE_TYPE_TARGET_HOSTNAME_ADDRESS, "host-a");
+
+      // -- EXECUTE --
+      List<InjectExpectationSignature> result =
+          convertToInjectExpectationSignatures(List.of(seenIp, declaredIp, hostname), expectation);
+
+      // -- ASSERT --
+      assertEquals(2, result.size());
+      assertEquals(EXPECTATION_SIGNATURE_TYPE_SOURCE_IPV4_ADDRESS, result.get(0).getType());
+      assertEquals("10.0.0.1", result.get(0).getValue());
+      assertEquals(EXPECTATION_SIGNATURE_TYPE_TARGET_HOSTNAME_ADDRESS, result.get(1).getType());
+      assertEquals("host-a", result.get(1).getValue());
+    }
+
+    @Test
+    @DisplayName("given same value under different types should keep both signatures")
+    void given_sameValueDifferentTypes_should_keepBoth() {
+      // -- PREPARE --
+      BaseInjectExpectation expectation = new BaseInjectExpectation();
+      expectation.setId("expectation-id");
+      ExpectationSignature source =
+          new ExpectationSignature(EXPECTATION_SIGNATURE_TYPE_SOURCE_IPV4_ADDRESS, "10.0.0.1");
+      ExpectationSignature target =
+          new ExpectationSignature(EXPECTATION_SIGNATURE_TYPE_TARGET_IPV4_ADDRESS, "10.0.0.1");
+
+      // -- EXECUTE --
+      List<InjectExpectationSignature> result =
+          convertToInjectExpectationSignatures(List.of(source, target), expectation);
+
+      // -- ASSERT --
+      assertEquals(2, result.size());
+    }
+
+    @Test
+    @DisplayName("given null entries should drop them")
+    void given_nullEntries_should_dropThem() {
+      // -- PREPARE --
+      BaseInjectExpectation expectation = new BaseInjectExpectation();
+      expectation.setId("expectation-id");
+      ArrayList<ExpectationSignature> signatures = new ArrayList<>();
+      signatures.add(null);
+      signatures.add(
+          new ExpectationSignature(EXPECTATION_SIGNATURE_TYPE_SOURCE_IPV4_ADDRESS, "10.0.0.1"));
+
+      // -- EXECUTE --
+      List<InjectExpectationSignature> result =
+          convertToInjectExpectationSignatures(signatures, expectation);
+
+      // -- ASSERT --
+      assertEquals(1, result.size());
+      assertEquals("10.0.0.1", result.get(0).getValue());
+    }
+
+    @Test
+    @DisplayName("given null or empty input should return an empty list")
+    void given_nullOrEmptyInput_should_returnEmptyList() {
+      // -- PREPARE --
+      BaseInjectExpectation expectation = new BaseInjectExpectation();
+      expectation.setId("expectation-id");
+
+      // -- EXECUTE / ASSERT --
+      assertTrue(convertToInjectExpectationSignatures(null, expectation).isEmpty());
+      assertTrue(convertToInjectExpectationSignatures(List.of(), expectation).isEmpty());
+    }
+  }
+
   // -- mergeExpectationSignatures --
 
   @Nested

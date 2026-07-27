@@ -93,7 +93,37 @@ public class Exercise implements GrantableBase, TenantBase {
   @Column(name = "exercise_severity")
   @Enumerated(EnumType.STRING)
   @JsonProperty("exercise_severity")
+  // Filterable for parity with scenario_severity (enum values are exposed automatically)
+  @Queryable(filterable = true, sortable = true)
   private SEVERITY severity;
+
+  /**
+   * Kill chain (by name, e.g. "mitre-attack") displayed first in the overview's kill chain results.
+   * Null means automatic (ATT&CK first); blank input (the UI's "Automatic" option) is normalized to
+   * null on write. A user's own selection, remembered in local storage, still overrides this
+   * default.
+   */
+  @Getter
+  @Setter(NONE)
+  @Column(name = "exercise_default_kill_chain")
+  @JsonProperty("exercise_default_kill_chain")
+  private String defaultKillChain;
+
+  public void setDefaultKillChain(String defaultKillChain) {
+    // The UI sends "" for "Automatic": normalize so null is the only automatic marker in DB.
+    this.defaultKillChain =
+        (defaultKillChain == null || defaultKillChain.isBlank()) ? null : defaultKillChain;
+  }
+
+  /**
+   * Whether the expectation-drift warning was dismissed for this simulation (the drifted
+   * expectations were customized on purpose). Persisted in database so the dismissal is shared
+   * between users. Reset on realignment so a future drift surfaces the full warning again.
+   */
+  @Getter
+  @Column(name = "exercise_expectations_drift_dismissed")
+  @JsonProperty("exercise_expectations_drift_dismissed")
+  private boolean expectationsDriftDismissed;
 
   @Column(name = "exercise_pause_date")
   @JsonIgnore
@@ -171,6 +201,12 @@ public class Exercise implements GrantableBase, TenantBase {
   @Column(name = "exercise_lessons_anonymized")
   @JsonProperty("exercise_lessons_anonymized")
   private boolean lessonsAnonymized = false;
+
+  // Opt-in module flag: the lessons learned tab is only surfaced when enabled.
+  @Getter
+  @Column(name = "exercise_lessons_enabled")
+  @JsonProperty("exercise_lessons_enabled")
+  private boolean lessonsEnabled = false;
 
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)

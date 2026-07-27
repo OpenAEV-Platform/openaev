@@ -39,12 +39,13 @@ public class Organization implements TenantBase {
 
   @Column(name = "organization_name")
   @JsonProperty("organization_name")
-  @Queryable(searchable = true)
+  @Queryable(searchable = true, sortable = true, filterable = true)
   @NotBlank
   private String name;
 
   @Column(name = "organization_description")
   @JsonProperty("organization_description")
+  @Queryable(searchable = true, sortable = true)
   private String description;
 
   @Column(name = "organization_created_at")
@@ -67,6 +68,7 @@ public class Organization implements TenantBase {
   private final ResourceType resourceType = ResourceType.ORGANIZATION;
 
   @Schema(implementation = String[].class)
+  @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "organizations_tags",

@@ -76,13 +76,14 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
       </div>
       <div style={{
         display: 'flex',
-        float: 'right',
-        margin: theme.spacing(2),
+        justifyContent: 'flex-end',
+        marginTop: theme.spacing(2.5),
         gap: theme.spacing(1),
       }}
       >
         <Button
-          variant="contained"
+          variant="outlined"
+          color="primary"
           onClick={handleClose}
           disabled={isSubmitting}
         >
@@ -90,7 +91,7 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
         </Button>
         <Button
           variant="contained"
-          color="secondary"
+          color="primary"
           type="submit"
           disabled={!isDirty || isSubmitting}
         >

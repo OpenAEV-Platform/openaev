@@ -53,6 +53,12 @@ public class InjectExpectationAgentOutput {
   @JsonProperty("inject_expectation_asset")
   private String assetId; // id
 
+  // Required by the frontend store selector (getInjectExpectationsByAssetAndInject), which
+  // filters normalized entities by inject id: without it the endpoint (asset) target-results
+  // view never matches anything and the security-platform breakdown stays empty.
+  @JsonProperty("inject_expectation_inject")
+  private String injectId; // id
+
   @JsonProperty("inject_expectation_agent")
   private String agentId; // id
 

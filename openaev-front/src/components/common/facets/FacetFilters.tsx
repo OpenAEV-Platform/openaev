@@ -1,9 +1,7 @@
 import { CheckOutlined } from '@mui/icons-material';
-import { Box, Button, ButtonBase, Typography } from '@mui/material';
+import { Box, ButtonBase, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ReactElement } from 'react';
-
-import { useFormatter } from '../../i18n';
 
 export interface FacetRow {
   value: string;
@@ -18,6 +16,8 @@ export interface FacetSection {
   id: string;
   label: string;
   rows: FacetRow[];
+  /** Optional control rendered under the section title (e.g. a kill chain switcher). */
+  headerAction?: ReactElement;
 }
 
 // Same anatomy as the integrations marketplace CatalogSidebar row: custom
@@ -126,18 +126,15 @@ export const FacetRowItem = ({ row }: { row: FacetRow }) => {
   );
 };
 
-interface FacetSidebarProps {
-  sections: FacetSection[];
-  anyActive: boolean;
-  onClearAll: () => void;
-}
+interface FacetSidebarProps { sections: FacetSection[] }
 
 // The sticky faceted sidebar shell (mirrors the integrations marketplace
-// CatalogSidebar): a fixed-width sticky <aside> with a "Filters" header, a
-// "Clear all" action and one titled section of FacetRowItems per facet.
-export const FacetSidebar = ({ sections, anyActive, onClearAll }: FacetSidebarProps) => {
+// CatalogSidebar): a fixed-width sticky <aside> with one titled section of
+// FacetRowItems per facet. Clearing is handled by the toolbar's "Clear
+// filters" button (the facets are regular backend filters), so the sidebar
+// carries no clear action of its own.
+export const FacetSidebar = ({ sections }: FacetSidebarProps) => {
   const theme = useTheme();
-  const { t } = useFormatter();
   return (
     <aside
       style={{
@@ -160,27 +157,6 @@ export const FacetSidebar = ({ sections, anyActive, onClearAll }: FacetSidebarPr
         backgroundColor: theme.palette.background.paper,
       }}
       >
-        <header style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-        >
-          <Typography
-            sx={{
-              fontFamily: theme.typography.h1.fontFamily,
-              fontWeight: 600,
-              fontSize: 15,
-            }}
-          >
-            {t('Filters')}
-          </Typography>
-          {anyActive && (
-            <Button size="small" onClick={onClearAll}>
-              {t('Clear all')}
-            </Button>
-          )}
-        </header>
         {sections.map((section, sectionIndex) => (
           <section
             key={section.id}
@@ -211,6 +187,15 @@ export const FacetSidebar = ({ sections, anyActive, onClearAll }: FacetSidebarPr
             >
               {section.label}
             </Typography>
+            {section.headerAction && (
+              <Box sx={{
+                paddingInline: 1,
+                paddingBottom: 0.5,
+              }}
+              >
+                {section.headerAction}
+              </Box>
+            )}
             {section.rows.map(row => (
               <FacetRowItem key={row.value} row={row} />
             ))}

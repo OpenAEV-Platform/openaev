@@ -26,7 +26,6 @@ import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.inject.form.InjectDependencyInput;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
 import io.openaev.rest.payload.form.*;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
@@ -36,7 +35,10 @@ import io.openaev.service.FileService;
 import io.openaev.service.ImportEntry;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.utils.CollectorTypeHumanizer;
 import io.openaev.utils.WorkflowScopeRuleUtils;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
+import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
 import jakarta.activation.MimetypesFileTypeMap;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -83,7 +85,7 @@ public class V1_DataImporter implements Importer {
   private final InjectDependenciesRepository injectDependenciesRepository;
   private final PayloadCreationService payloadCreationService;
   private final PayloadRepository payloadRepository;
-  private final CollectorTypeRepository collectorTypeRepository;
+  private final SecurityPlatformRepository securityPlatformRepository;
   private final DomainService domainService;
   private final io.openaev.service.chaining.WorkflowService workflowService;
   private final io.openaev.service.chaining.StepService chainingStepService;
@@ -148,7 +150,7 @@ public class V1_DataImporter implements Importer {
           }
           List<String> docArgKeys =
               contractOpt.get().getPayload().getArguments().stream()
-                  .filter(arg -> ArgumentType.Document == arg.getType())
+                  .filter(arg -> PrimitiveType.Document == arg.getType())
                   .map(PayloadArgument::getKey)
                   .toList();
           if (docArgKeys.isEmpty()) {
@@ -542,6 +544,9 @@ public class V1_DataImporter implements Importer {
     ofNullable(exerciseNode.get("exercise_severity"))
         .map(JsonNode::textValue)
         .ifPresent(severity -> exercise.setSeverity(SEVERITY.valueOf(severity)));
+    ofNullable(exerciseNode.get("exercise_default_kill_chain"))
+        .map(JsonNode::textValue)
+        .ifPresent(exercise::setDefaultKillChain);
     exercise.setHeader(exerciseNode.get("exercise_message_header").textValue());
     exercise.setFooter(exerciseNode.get("exercise_message_footer").textValue());
     exercise.setFrom(exerciseNode.get("exercise_mail_from").textValue());
@@ -571,6 +576,9 @@ public class V1_DataImporter implements Importer {
     ofNullable(scenarioNode.get("scenario_severity"))
         .map(JsonNode::textValue)
         .ifPresent(severity -> scenario.setSeverity(SEVERITY.valueOf(severity)));
+    ofNullable(scenarioNode.get("scenario_default_kill_chain"))
+        .map(JsonNode::textValue)
+        .ifPresent(scenario::setDefaultKillChain);
     ofNullable(scenarioNode.get("scenario_recurrence"))
         .map(JsonNode::textValue)
         .ifPresent(scenario::setRecurrence);
@@ -663,7 +671,8 @@ public class V1_DataImporter implements Importer {
       Scenario savedScenario,
       Map<String, Base> baseIds) {
     String contentType = new MimetypesFileTypeMap().getContentType(entry.getEntry().getName());
-    Optional<Document> targetDocument = this.documentRepository.findByTarget(target);
+    Optional<Document> targetDocument =
+        this.documentRepository.findFirstByTargetOrderByIdAsc(target);
 
     if (targetDocument.isPresent()) {
       updateExistingDocument(nodeDoc, targetDocument.get(), savedExercise, savedScenario, baseIds);
@@ -1246,11 +1255,13 @@ public class V1_DataImporter implements Importer {
               this.injectorContractRepository.findById(injectorContractIdFromNode);
 
           String injectorContractId;
+          InjectorContract resolvedContract = null;
 
           if (injectorContract.isPresent()) {
             injectorContractId = injectorContract.get().getId();
           } else {
-            injectorContractId = resolveInjectorContract(injectContractNode, baseIds);
+            resolvedContract = resolveInjectorContract(injectContractNode, baseIds);
+            injectorContractId = resolvedContract != null ? resolvedContract.getId() : null;
           }
 
           // Record the mapping so importWorkflowSteps can reuse the resolved contract
@@ -1268,7 +1279,12 @@ public class V1_DataImporter implements Importer {
               // injects are created before the injector registered
               // once the injector register the contract will be overriden and will be the one
               // provided by the injector
-              Payload createdPayload = injectorContract.map(ic -> ic.getPayload()).orElse(null);
+              // resolveInjectorContract already created and persisted the payload; it just could
+              // not build a contract because no payload-supporting injector is registered yet on a
+              // fresh platform. Carry that payload onto the starter-pack contract so it is not
+              // orphaned (otherwise the inject shows a question mark and "no payload attached").
+              Payload createdPayload =
+                  resolvedContract != null ? resolvedContract.getPayload() : null;
               injectorContractId =
                   importInjectorContractFromStarterPack(injectContractNode, createdPayload, baseIds)
                       .getId();
@@ -1496,6 +1512,7 @@ public class V1_DataImporter implements Importer {
         new ObjectMapper()
             .convertValue(importNode.get("injector_contract_labels"), new TypeReference<>() {}));
     injectorContract.setPayload(payload);
+    InjectorContractMigrationUtils.migratePredefinedExpectations(injectorContract);
     return injectorContractRepository.save(injectorContract);
   }
 
@@ -1643,9 +1660,15 @@ public class V1_DataImporter implements Importer {
    *   <li>Create via importPayload (new payload)
    * </ol>
    *
-   * @return the resolved injector contract ID, or null if resolution failed
+   * <p>The returned contract may be a transient, id-less contract that only carries the freshly
+   * created payload: this happens when no payload-supporting injector is registered yet (fresh
+   * platform starter-pack import). Callers must handle a null id and, in the starter-pack path,
+   * propagate {@link InjectorContract#getPayload()} so the created payload is not orphaned.
+   *
+   * @return the resolved injector contract (possibly transient, carrying only the payload), or null
+   *     if resolution failed
    */
-  private String resolveInjectorContract(
+  private InjectorContract resolveInjectorContract(
       @NotNull JsonNode injectContractNode, Map<String, Base> baseIds) {
     JsonNode payloadNode = injectContractNode.get("injector_contract_payload");
     if (payloadNode == null || payloadNode.isNull() || payloadNode.isEmpty()) {
@@ -1662,7 +1685,7 @@ public class V1_DataImporter implements Importer {
       Optional<InjectorContract> contractFromPayload =
           injectorContractRepository.findOne(byPayloadExternalId(externalId));
       if (contractFromPayload.isPresent()) {
-        return contractFromPayload.get().getId();
+        return contractFromPayload.get();
       }
 
       Optional<Payload> existingPayload = payloadRepository.findByExternalId(externalId);
@@ -1670,14 +1693,13 @@ public class V1_DataImporter implements Importer {
         Optional<InjectorContract> contractFromExternalId =
             injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
         if (contractFromExternalId.isPresent()) {
-          return contractFromExternalId.get().getId();
+          return contractFromExternalId.get();
         }
       }
     }
 
     // Not found then create the payload and its contract
-    InjectorContract created = importPayload(payloadNode, injectContractNode, baseIds);
-    return created != null ? created.getId() : null;
+    return importPayload(payloadNode, injectContractNode, baseIds);
   }
 
   private InjectorContract importPayload(
@@ -1722,29 +1744,57 @@ public class V1_DataImporter implements Importer {
 
     for (JsonNode detectionNode : remediationsNode) {
       String valuesText = getTextValue(detectionNode, "detection_remediation_values");
-      String type = getTextValue(detectionNode, "detection_remediation_collector_type");
 
       if (valuesText.isEmpty()) {
         continue;
       }
 
-      Optional<CollectorType> collectorType = collectorTypeRepository.findByName(type);
-      if (collectorType.isPresent()) {
-        detectionRemediationInputs.add(buildDetectionRemediationFromJsonNode(detectionNode));
+      Optional<SecurityPlatform> securityPlatform =
+          resolveDetectionRemediationSecurityPlatform(detectionNode);
+      if (securityPlatform.isPresent()) {
+        DetectionRemediationInput detectionRemediation = new DetectionRemediationInput();
+        detectionRemediation.setValues(valuesText);
+        detectionRemediation.setSecurityPlatformId(securityPlatform.get().getId());
+        detectionRemediationInputs.add(detectionRemediation);
       } else {
-        log.warn("Import Detection Remediations: Missing Collector type: {}", type);
+        log.warn("Import Detection Remediations: unresolvable security platform, skipping entry");
       }
     }
 
     return detectionRemediationInputs;
   }
 
-  private DetectionRemediationInput buildDetectionRemediationFromJsonNode(JsonNode node) {
-    DetectionRemediationInput detectionRemediation = new DetectionRemediationInput();
-    detectionRemediation.setValues((node.get("detection_remediation_values").textValue()));
-    detectionRemediation.setCollectorType(
-        (node.get("detection_remediation_collector_type").textValue()));
-    return detectionRemediation;
+  /**
+   * Resolves the security platform of an imported detection remediation. Recent exports carry the
+   * platform id ({@code detection_remediation_security_platform}); legacy exports carry a collector
+   * type name ({@code detection_remediation_collector_type}, e.g. {@code openaev_crowdstrike})
+   * which is humanized to a platform name, resolved case-insensitively and created as a manual
+   * platform when absent - so old exports keep importing without any collector installed.
+   */
+  private Optional<SecurityPlatform> resolveDetectionRemediationSecurityPlatform(
+      JsonNode detectionNode) {
+    String platformId = getTextValue(detectionNode, "detection_remediation_security_platform");
+    if (!platformId.isEmpty()) {
+      Optional<SecurityPlatform> byId = securityPlatformRepository.findById(platformId);
+      if (byId.isPresent()) {
+        return byId;
+      }
+    }
+    String collectorTypeName = getTextValue(detectionNode, "detection_remediation_collector_type");
+    if (collectorTypeName.isEmpty()) {
+      return Optional.empty();
+    }
+    CollectorTypeHumanizer.HumanizedPlatform humanized =
+        CollectorTypeHumanizer.humanize(collectorTypeName);
+    Optional<SecurityPlatform> byName =
+        securityPlatformRepository.findFirstByNameIgnoreCaseOrderByIdAsc(humanized.name());
+    if (byName.isPresent()) {
+      return byName;
+    }
+    SecurityPlatform created = new SecurityPlatform();
+    created.setName(humanized.name());
+    created.setSecurityPlatformType(humanized.type());
+    return Optional.of(securityPlatformRepository.save(created));
   }
 
   private String getTextValue(JsonNode node, String fieldName) {
@@ -1886,7 +1936,7 @@ public class V1_DataImporter implements Importer {
                   .type(
                       varNode.has("scope_variable_type")
                               && !varNode.get("scope_variable_type").isNull()
-                          ? ArgumentType.fromLabel(varNode.get("scope_variable_type").asText())
+                          ? PrimitiveType.fromLabel(varNode.get("scope_variable_type").asText())
                           : null)
                   .value(
                       varNode.has("scope_variable_value")
@@ -2063,14 +2113,7 @@ public class V1_DataImporter implements Importer {
                     condNode.has("condition_key_type")
                             && !condNode.get("condition_key_type").isNull()
                         ? mapper.convertValue(
-                            condNode.get("condition_key_type").asText(), ConditionKeyType.class)
-                        : null)
-                .keySubtype(
-                    condNode.has("condition_key_subtype")
-                            && !condNode.get("condition_key_subtype").isNull()
-                        ? mapper.convertValue(
-                            condNode.get("condition_key_subtype").asText(),
-                            ConditionKeySubtype.class)
+                            condNode.get("condition_key_type").asText(), PrimitiveType.class)
                         : null)
                 .type(conditionType)
                 .mappingType(
@@ -2193,7 +2236,8 @@ public class V1_DataImporter implements Importer {
       return sanitizateStepData(dataJson, stepDataRaw, workflow);
     }
 
-    String newContractId = resolveInjectorContract(injectContractObject, baseIds);
+    InjectorContract resolvedStepContract = resolveInjectorContract(injectContractObject, baseIds);
+    String newContractId = resolvedStepContract != null ? resolvedStepContract.getId() : null;
 
     // Update step_data and cache the mapping
     if (newContractId != null) {

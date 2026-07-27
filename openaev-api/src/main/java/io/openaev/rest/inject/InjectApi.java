@@ -12,7 +12,9 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.BulkOperationContext;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.ExerciseRepository;
@@ -43,6 +45,7 @@ import io.openaev.service.RabbitmqService;
 import io.openaev.service.UserService;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.targets.TargetService;
+import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.mapper.InjectMapper;
@@ -72,6 +75,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
@@ -100,6 +104,7 @@ public class InjectApi extends RestBehavior {
   private final DocumentService documentService;
   private final BatchExecutionTraceExecutor batchExecutionTraceExecutor;
   private final BatchingInjectStatusService batchingInjectStatusService;
+  private final BulkOperationMonitor bulkOperationMonitor;
 
   private final InjectMapper injectMapper;
 
@@ -486,6 +491,9 @@ public class InjectApi extends RestBehavior {
               mediaType = "application/json",
               schema = @Schema(implementation = ValidationErrorBag.class)))
   public InjectOutput updateInject(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectInput input) {
@@ -542,7 +550,10 @@ public class InjectApi extends RestBehavior {
   @Operation(
       description = "Bulk update of injects",
       tags = {"Injects"})
-  @Transactional(rollbackFor = Exception.class)
+  // SUPPORTS (not REQUIRED) on purpose: the update itself runs in the service's own transaction,
+  // wrapped in a massive-operation scope (header progress indicator + per-entity stream event
+  // suppression) that must cover the commit-time flush.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @PutMapping({INJECT_URI, TENANT_INJECT_URI})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.INJECT)
   @LogExecutionTime
@@ -552,14 +563,29 @@ public class InjectApi extends RestBehavior {
     List<Inject> injectsToUpdate =
         getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.PLANNER);
 
-    // Bulk update
-    return this.injectService.bulkUpdateInject(injectsToUpdate, input.getUpdateOperations());
+    // Bulk update, tracked as a massive operation
+    String operationId = bulkOperationMonitor.start("update", "injects", injectsToUpdate.size());
+    try {
+      List<Inject> updated =
+          BulkOperationContext.runSuppressed(
+              () ->
+                  this.injectService.bulkUpdateInject(
+                      injectsToUpdate, input.getUpdateOperations()));
+      bulkOperationMonitor.complete(operationId);
+      return updated;
+    } catch (RuntimeException e) {
+      bulkOperationMonitor.fail(operationId);
+      throw e;
+    }
   }
 
   @Operation(
       description = "Bulk delete of injects",
       tags = {"injects-api"})
-  @Transactional(rollbackFor = Exception.class)
+  // SUPPORTS (not REQUIRED) on purpose: the deletion itself runs in the service's own
+  // transaction, wrapped in a massive-operation scope (header progress indicator + per-entity
+  // stream event suppression) that must cover the commit-time flush.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @DeleteMapping({INJECT_URI, TENANT_INJECT_URI})
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.INJECT)
   @LogExecutionTime
@@ -569,8 +595,20 @@ public class InjectApi extends RestBehavior {
     List<Inject> injectsToDelete =
         getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.PLANNER);
 
-    // Bulk delete
-    this.injectService.deleteAllByIds(injectsToDelete.stream().map(Inject::getId).toList());
+    // Bulk delete, tracked as a massive operation
+    String operationId = bulkOperationMonitor.start("delete", "injects", injectsToDelete.size());
+    try {
+      List<String> injectIds = injectsToDelete.stream().map(Inject::getId).toList();
+      BulkOperationContext.runSuppressed(
+          () -> {
+            this.injectService.deleteAllByIds(injectIds);
+            return null;
+          });
+      bulkOperationMonitor.complete(operationId);
+    } catch (RuntimeException e) {
+      bulkOperationMonitor.fail(operationId);
+      throw e;
+    }
     return injectsToDelete;
   }
 

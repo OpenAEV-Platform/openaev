@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
@@ -27,6 +28,8 @@ class SignatureOutputProcessorTest {
   private final InjectExpectationRepository injectExpectationRepository =
       mock(InjectExpectationRepository.class);
   private final CollectorService collectorService = mock(CollectorService.class);
+  private final SecurityPlatformRepository securityPlatformRepository =
+      mock(SecurityPlatformRepository.class);
   private final SecurityCoverageSendJobService securityCoverageSendJobService =
       mock(SecurityCoverageSendJobService.class);
   private final AssetGroupService assetGroupService = mock(AssetGroupService.class);
@@ -39,6 +42,7 @@ class SignatureOutputProcessorTest {
       new InjectExpectationService(
           injectExpectationRepository,
           collectorService,
+          securityPlatformRepository,
           securityCoverageSendJobService,
           injectExpectationLockService,
           assetGroupService,

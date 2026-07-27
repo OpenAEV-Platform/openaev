@@ -27,7 +27,7 @@ const Experience: React.FC = () => {
   });
 
   return (
-    <>
+    <div data-testid="experience-page">
       <Breadcrumbs
         style={{ marginBottom: theme.spacing(2.4) }}
         variant="list"
@@ -37,16 +37,20 @@ const Experience: React.FC = () => {
         }]}
       />
 
-      <Grid container spacing={3}>
-        {canAccessPlatformSettings && <EnterpriseEditionSettings />}
+      <Grid container spacing={3} alignItems="stretch">
+        {canAccessPlatformSettings && (
+          <Grid size={6}>
+            <EnterpriseEditionSettings />
+          </Grid>
+        )}
 
         {canAccessTenantSettings && (
-          <Grid container flexDirection="column" gap="0" size={6}>
+          <Grid size={6}>
             <XtmHubSettings />
           </Grid>
         )}
       </Grid>
-    </>
+    </div>
   );
 };
 

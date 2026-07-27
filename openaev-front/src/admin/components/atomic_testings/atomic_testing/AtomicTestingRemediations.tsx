@@ -1,24 +1,24 @@
+import { PolicyOutlined, ShieldOutlined } from '@mui/icons-material';
 import { Box, Paper, Tab, Tabs, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
 import { type SyntheticEvent, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
-import { fetchCollectorsForAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
-import { fetchCollectors } from '../../../../actions/Collector';
-import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
+import type { SecurityPlatformHelper } from '../../../../actions/assets/asset-helper';
+import { fetchSecurityPlatforms } from '../../../../actions/assets/securityPlatform-actions';
+import { fetchSecurityPlatformsForAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { postDetectionRemediationAIRulesByInject } from '../../../../actions/detection-remediation/detectionremediation-action';
 import { fetchPayloadDetectionRemediationsByInject } from '../../../../actions/injects/inject-action';
+import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
-import { COLLECTOR_LIST } from '../../../../constants/Entities';
 import { useHelper } from '../../../../store';
 import {
-  type Collector,
   type DetectionRemediationOutput,
   type InjectResultOverviewOutput,
+  type SecurityPlatform,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -26,36 +26,20 @@ import { AbilityContext } from '../../../../utils/permissions/permissionsContext
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
-import { isNotEmptyField } from '../../../../utils/utils';
 import DetectionRemediationInfo from '../../threat_arsenal/form/DetectionRemediationInfo';
 import DetectionRemediationUseAriane from '../../threat_arsenal/form/DetectionRemediationUseAriane';
 import { type SnapshotEditionRemediationType } from '../../threat_arsenal/utils/SnapshotRemediationContext';
 import { useSnapshotRemediation } from '../../threat_arsenal/utils/useSnapshotRemediation';
 
-const useStyles = makeStyles()(theme => ({
-  paperContainer: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: theme.spacing(3),
-  },
-  headerRemediation: {
-    display: 'flex',
-    marginTop: 20,
-    width: '50%',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-
-}));
-
+// Remediations are keyed by security platform (manual platforms included): the tab
+// list is the security platform inventory, with no dependency on registered collectors.
 const AtomicTestingRemediations = () => {
   const { injectId } = useParams() as { injectId: InjectResultOverviewOutput['inject_id'] };
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
-  const { classes } = useStyles();
   const theme = useTheme();
   const location = useLocation();
-  const [tabs, setTabs] = useState<Collector[]>([]);
+  const [tabs, setTabs] = useState<SecurityPlatform[]>([]);
   const [activeTab, setActiveTab] = useState<number>(0);
   const [detectionRemediations, setDetectionRemediations] = useState<DetectionRemediationOutput[]>([]);
   const [hasFetchedRemediations, setHasFetchedRemediations] = useState(false);
@@ -66,37 +50,38 @@ const AtomicTestingRemediations = () => {
   const hasSecurityPlatformsAccess = ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
   const [loading, setLoading] = useState(false);
 
-  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getExistingCollectors() }));
+  const { securityPlatforms }: { securityPlatforms: SecurityPlatform[] } = useHelper(
+    (helper: SecurityPlatformHelper) => ({ securityPlatforms: helper.getSecurityPlatforms() }),
+  );
 
   const { snapshot, setSnapshot } = useSnapshotRemediation();
   const [activeDetectionRemediation, setActiveDetectionRemediation] = useState<DetectionRemediationOutput>();
 
   const [displayedText, setDisplayedText] = useState<string>('');
-  const [typing, setTyping] = useState<boolean>(!!snapshot?.get(tabs[activeTab]?.collector_type)?.isLoading);
+  const [typing, setTyping] = useState<boolean>(!!snapshot?.get(tabs[activeTab]?.asset_id)?.isLoading);
 
   useDataLoader(() => {
     if (hasSecurityPlatformsAccess) {
       setLoading(true);
-      dispatch(fetchCollectors()).finally(() => {
+      dispatch(fetchSecurityPlatforms()).finally(() => {
         setLoading(false);
       });
     } else if (injectId) {
       setLoading(true);
-      dispatch(fetchCollectorsForAtomicTesting(injectId)).finally(() => {
+      dispatch(fetchSecurityPlatformsForAtomicTesting(injectId)).finally(() => {
         setLoading(false);
       });
     }
   });
 
-  // Filter valid collectors
   useEffect(() => {
-    if (collectors.length > 0) {
-      const filtered = collectors.filter((c: { collector_type: string }) =>
-        COLLECTOR_LIST.includes(c.collector_type),
-      ).sort((a: Collector, b: Collector) => a.collector_name.localeCompare(b.collector_name));
-      setTabs(filtered);
+    if (securityPlatforms.length > 0) {
+      const sorted = [...securityPlatforms].sort(
+        (a: SecurityPlatform, b: SecurityPlatform) => a.asset_name.localeCompare(b.asset_name),
+      );
+      setTabs(sorted);
     }
-  }, [collectors]);
+  }, [securityPlatforms]);
 
   useEffect(() => {
     if (isRemediationTab && injectId && !hasFetchedRemediations) {
@@ -111,34 +96,34 @@ const AtomicTestingRemediations = () => {
     if (activeTab >= tabs.length) {
       setActiveTab(0);
     }
-    setTyping(!!snapshot?.get(tabs[activeTab]?.collector_type)?.isLoading);
+    setTyping(!!snapshot?.get(tabs[activeTab]?.asset_id)?.isLoading);
   }, [tabs, activeTab]);
 
   const handleActiveTabChange = (_: SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
 
-  const activeCollectorRemediations = useMemo(() => {
-    const activeCollector = tabs[activeTab];
-    if (!activeCollector) return [];
+  const activePlatformRemediations = useMemo(() => {
+    const activePlatform = tabs[activeTab];
+    if (!activePlatform) return [];
     return detectionRemediations.filter(
-      rem => rem.detection_remediation_collector === activeCollector.collector_type,
+      rem => rem.detection_remediation_security_platform === activePlatform.asset_id,
     );
   }, [tabs, activeTab, detectionRemediations]);
 
   useEffect(() => {
     setActiveDetectionRemediation(detectionRemediations.find((value) => {
-      return value.detection_remediation_collector === tabs[activeTab]?.collector_type;
+      return value.detection_remediation_security_platform === tabs[activeTab]?.asset_id;
     }));
   }, [tabs, activeTab, detectionRemediations]);
 
-  const updateSnapshot = useCallback((tabsData: Collector[], activeTabIndex: number, isLoading?: boolean) => {
+  const updateSnapshot = useCallback((tabsData: SecurityPlatform[], activeTabIndex: number, isLoading?: boolean) => {
     setSnapshot((prev) => {
       const map = new Map(prev || []);
       if (!tabsData || !tabsData[activeTabIndex]) return map;
 
-      map.set(tabsData[activeTabIndex].collector_type, {
-        ...map.get(tabsData[activeTabIndex].collector_type) || {},
+      map.set(tabsData[activeTabIndex].asset_id, {
+        ...map.get(tabsData[activeTabIndex].asset_id) || {},
         isLoading: isLoading,
       } as SnapshotEditionRemediationType);
 
@@ -146,12 +131,12 @@ const AtomicTestingRemediations = () => {
     });
   }, []);
 
-  const updateSnapshotNewRemediation = useCallback((tabsData: Collector[], collectorType: string, AIRules: string, isLoading: boolean) => {
+  const updateSnapshotNewRemediation = useCallback((tabsData: SecurityPlatform[], securityPlatformId: string, AIRules: string, isLoading: boolean) => {
     setSnapshot((prev) => {
       const map = new Map(prev || []);
       if (!tabsData) return map;
-      map.set(collectorType, {
-        ...map.get(collectorType) || {},
+      map.set(securityPlatformId, {
+        ...map.get(securityPlatformId) || {},
         isLoading: isLoading,
         AIRules: AIRules,
       } as SnapshotEditionRemediationType);
@@ -162,7 +147,7 @@ const AtomicTestingRemediations = () => {
 
   function addOrUpdateRemediation(newRemediation: DetectionRemediationOutput) {
     setDetectionRemediations((prev) => {
-      const index = prev.findIndex(item => item.detection_remediation_collector === newRemediation.detection_remediation_collector);
+      const index = prev.findIndex(item => item.detection_remediation_security_platform === newRemediation.detection_remediation_security_platform);
       if (index === -1) {
         return [...prev, newRemediation];
       } else {
@@ -188,150 +173,233 @@ const AtomicTestingRemediations = () => {
   async function onClickUseAriane(agentSlug?: string) {
     updateSnapshot(tabs, activeTab, true);
     setTyping(true);
-    const collectorType = tabs[activeTab].collector_type;
+    const securityPlatformId = tabs[activeTab].asset_id;
     return postDetectionRemediationAIRulesByInject(
       injectId,
-      tabs[activeTab].collector_type,
+      securityPlatformId,
       agentSlug,
     ).then((value) => {
-      updateSnapshotNewRemediation(tabs, collectorType, value.data.detection_remediation_values, true);
+      updateSnapshotNewRemediation(tabs, securityPlatformId, value.data.detection_remediation_values, true);
       addOrUpdateRemediation(value.data);
     }).finally(() => {
       updateSnapshot(tabs, activeTab, false);
     });
   }
 
+  const activePlatform = tabs[activeTab];
+
+  // Resolves the rule text to display for a remediation, honouring the live
+  // typing animation and any AI snapshot override, falling back to the stored value.
+  const resolveRuleHtml = (rem: DetectionRemediationOutput) => {
+    const platformId = rem?.detection_remediation_security_platform;
+    const entry = platformId ? snapshot?.get?.(platformId) : undefined;
+    const aiRules = entry?.AIRules;
+    let raw: string;
+    if (typing) {
+      raw = displayedText ?? '';
+    } else if (aiRules != null) {
+      raw = String(aiRules);
+    } else {
+      raw = rem?.detection_remediation_values ?? '';
+    }
+    return DOMPurify.sanitize(raw.replace(/\n/g, ''));
+  };
+
+  const renderEmptyRule = () => (
+    <Paper
+      variant="outlined"
+      sx={{
+        borderRadius: 1,
+        padding: 4,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 1.5,
+        textAlign: 'center',
+        flex: 1,
+      }}
+    >
+      <ShieldOutlined sx={{
+        fontSize: 44,
+        color: 'text.disabled',
+      }}
+      />
+      <Typography variant="body2" color="text.secondary">
+        {t('No detection rule available for this security platform yet.')}
+      </Typography>
+    </Paper>
+  );
+
+  const renderRuleBody = () => {
+    if (activePlatformRemediations.length === 0) {
+      return renderEmptyRule();
+    }
+    return activePlatformRemediations.map((rem) => {
+      const content = (snapshot?.get(activePlatform.asset_id)?.AIRules) != null
+        ? (snapshot?.get(activePlatform.asset_id)?.AIRules)
+        : rem.detection_remediation_values?.trim();
+      if (!content) {
+        return <Box key={'empty.' + rem.detection_remediation_id} sx={{ display: 'flex' }}>{renderEmptyRule()}</Box>;
+      }
+      return (
+        <Paper
+          key={'rule.' + rem.detection_remediation_id}
+          variant="outlined"
+          sx={{
+            borderRadius: 1,
+            padding: 2,
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+          }}
+        >
+          <Box
+            sx={{
+              'fontFamily': '"IBM Plex Mono", "Roboto Mono", monospace',
+              'fontSize': 13,
+              'lineHeight': 1.6,
+              'color': 'text.primary',
+              'backgroundColor': alpha(theme.palette.text.primary, 0.03),
+              'borderRadius': 1,
+              'padding': 1.5,
+              'overflowX': 'auto',
+              'whiteSpace': 'pre-wrap',
+              'wordBreak': 'break-word',
+              '& p': { margin: 0 },
+            }}
+            dangerouslySetInnerHTML={{ __html: resolveRuleHtml(rem) }}
+          />
+        </Paper>
+      );
+    });
+  };
+
+  if (!(hasSecurityPlatformsAccess || injectId)) {
+    return <RestrictionAccess restrictedField="security platforms" />;
+  }
+
+  if (loading) {
+    return <Loader variant="inElement" />;
+  }
+
+  if (tabs.length === 0) {
+    return (
+      <Paper
+        variant="outlined"
+        sx={{
+          borderRadius: 1,
+          padding: 3,
+        }}
+      >
+        <Empty message={t('No security platform configured yet. Create one (including manual platforms) to document detection and remediation rules.')} />
+      </Paper>
+    );
+  }
+
   return (
-    <>
-      <Typography variant="h5" gutterBottom>{t('Security platform')}</Typography>
-      {loading && <Loader variant="inElement" />}
-      {(hasSecurityPlatformsAccess || injectId) ? (
-        <>
-          {tabs.length === 0
-            ? (
-                <Paper className={classes.paperContainer} variant="outlined">
-                  <Typography variant="body2" color="textSecondary" sx={{ padding: 2 }}>
-                    {t('No collector configured.')}
-                  </Typography>
-                </Paper>
-              ) : (
-                <>
-                  <Tabs value={activeTab} onChange={handleActiveTabChange} aria-label="collector tabs">
-                    {tabs.map((tab, index) => (
-                      <Tab
-                        key={tab.collector_type}
-                        label={(
-                          <Box display="flex" alignItems="center">
-                            <img
-                              src={buildTenantApiPath(`/api/collectors/${tab.collector_type}/image`)}
-                              alt={tab.collector_type}
-                              style={{
-                                width: 20,
-                                height: 20,
-                                borderRadius: 4,
-                                marginRight: theme.spacing(2),
-                              }}
-                            />
-                            {tab.collector_name}
-                          </Box>
-                        )}
-                        value={index}
-                      />
-                    ))}
-                  </Tabs>
-                  <div className={classes.headerRemediation}>
-                    {isNotEmptyField(activeDetectionRemediation?.detection_remediation_values)
-                      && <DetectionRemediationInfo author_rule={activeDetectionRemediation?.detection_remediation_author_rule} />}
-                  </div>
-                  <Paper className={classes.paperContainer} variant="outlined">
-                    {activeCollectorRemediations.length === 0 ? (
-                      <>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                        }}
-                        >
-                          <Typography sx={{ padding: 2 }} variant="body2" color="textSecondary" gutterBottom>
-                            {t('No detection rule available for this security platform yet.')}
-                          </Typography>
-                          <DetectionRemediationUseAriane
-                            key={tabs[activeTab].collector_type}
-                            collectorType={tabs[activeTab].collector_type}
-                            detectionRemediationContent={activeDetectionRemediation?.detection_remediation_values}
-                            onSubmit={onClickUseAriane}
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      activeCollectorRemediations.map((rem) => {
-                        const content = (snapshot?.get(tabs[activeTab].collector_type)?.AIRules) != null
-                          ? (snapshot?.get(tabs[activeTab].collector_type)?.AIRules)
-                          : rem.detection_remediation_values?.trim();
+    <Box sx={{
+      display: 'flex',
+      gap: 2,
+      alignItems: 'stretch',
+      minHeight: 340,
+    }}
+    >
+      <Tabs
+        orientation="vertical"
+        variant="scrollable"
+        value={activeTab}
+        onChange={handleActiveTabChange}
+        aria-label={t('Security platforms')}
+        sx={{
+          'minWidth': 220,
+          'flexShrink': 0,
+          'borderRight': `1px solid ${theme.palette.divider}`,
+          '& .MuiTabs-indicator': {
+            left: 0,
+            width: 2,
+          },
+          '& .MuiTab-root': {
+            // The theme forces `display: inline-block` + lowercase on MuiTab for
+            // its `::first-letter` trick; restore the flex row so the platform
+            // logo and name align, and keep the platform name capitalised.
+            display: 'flex',
+            flexDirection: 'row',
+            textTransform: 'none',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            textAlign: 'left',
+            minHeight: 48,
+            gap: 1,
+            paddingX: 2,
+          },
+        }}
+      >
+        {tabs.map((tab, index) => (
+          <Tab
+            key={tab.asset_id}
+            value={index}
+            iconPosition="start"
+            icon={(
+              <img
+                src={buildTenantApiPath(`/api/images/security_platforms/id/${tab.asset_id}/${theme.palette.mode}`)}
+                alt={tab.asset_name}
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 4,
+                }}
+              />
+            )}
+            label={<span>{tab.asset_name}</span>}
+          />
+        ))}
+      </Tabs>
 
-                        return (
-                          <div key={'paper.' + rem.detection_remediation_id}>
-                            {content ? (
-                              <>
-                                <Box sx={{ padding: 2 }} key={rem.detection_remediation_id}>
-                                  <Typography
-                                    sx={{ paddingBottom: 2 }}
-                                    variant="body2"
-                                    fontWeight="bold"
-                                    gutterBottom
-                                  >
-                                    {`${t('Detection Rule')}: `}
-                                  </Typography>
-                                  {
-                                    (() => {
-                                      const collector = rem?.detection_remediation_collector;
-                                      const entry = collector ? snapshot?.get?.(collector) : undefined;
-                                      const aiRules = entry?.AIRules;
-                                      let raw: string;
-
-                                      if (typing) {
-                                        raw = displayedText ?? '';
-                                      } else if (aiRules != null) {
-                                        raw = String(aiRules);
-                                      } else {
-                                        raw = rem?.detection_remediation_values ?? '';
-                                      }
-
-                                      const html = DOMPurify.sanitize(raw.replace(/\n/g, ''));
-
-                                      return <div dangerouslySetInnerHTML={{ __html: html }} />;
-                                    })()
-                                  }
-                                </Box>
-                              </>
-                            ) : (
-                              <>
-
-                                <div style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                }}
-                                >
-                                  <Typography sx={{ padding: 2 }} variant="body2" color="textSecondary" gutterBottom>
-                                    {t('No detection rule available for this security platform yet.')}
-                                  </Typography>
-                                  <DetectionRemediationUseAriane
-                                    collectorType={tabs[activeTab].collector_type}
-                                    detectionRemediationContent={activeDetectionRemediation?.detection_remediation_values}
-                                    onSubmit={onClickUseAriane}
-                                  />
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </Paper>
-                </>
-              )}
-        </>
-      ) : (<RestrictionAccess restrictedField="collectors" />)}
-    </>
+      <Box sx={{
+        flex: 1,
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1.5,
+      }}
+      >
+        {/* Toolbar of the active platform pane: the platform itself is already announced by the
+            selected tab on the left, so the title states what the pane contains (the detection
+            rule) and the AI generation action sits top right - no repeated platform name, no
+            dead corner. */}
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          minHeight: 36,
+        }}
+        >
+          <PolicyOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
+          <Typography sx={{
+            fontSize: 15,
+            fontWeight: 600,
+          }}
+          >
+            {t('Detection Rule')}
+          </Typography>
+          {activeDetectionRemediation?.detection_remediation_values && (
+            <DetectionRemediationInfo author_rule={activeDetectionRemediation?.detection_remediation_author_rule} />
+          )}
+          {activePlatform && (
+            <DetectionRemediationUseAriane
+              key={activePlatform.asset_id}
+              securityPlatformId={activePlatform.asset_id}
+              securityPlatformName={activePlatform.asset_name}
+              detectionRemediationContent={activeDetectionRemediation?.detection_remediation_values}
+              onSubmit={onClickUseAriane}
+            />
+          )}
+        </Box>
+        {renderRuleBody()}
+      </Box>
+    </Box>
   );
 };
 

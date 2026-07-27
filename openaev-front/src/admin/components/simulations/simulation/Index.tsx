@@ -1,12 +1,10 @@
-import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
+import { Alert, AlertTitle } from '@mui/material';
 import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
 import { fetchExercise } from '../../../../actions/Exercise';
 import { fetchScenarioFromSimulation } from '../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
-import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { errorWrapper } from '../../../../components/Error';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
@@ -20,16 +18,15 @@ import useSimulationPermissions from '../../../../utils/permissions/useSimulatio
 import { isFeatureEnabled } from '../../../../utils/utils';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import injectContextForExercise from './ExerciseContext';
-import ExerciseDatePopover from './ExerciseDatePopover';
-import ExerciseHeader from './ExerciseHeader';
+import SimulationShell from './SimulationShell';
 
 const Simulation = lazy(() => import('./overview/SimulationComponent'));
+const SimulationStatistics = lazy(() => import('./analysis/SimulationAnalysis'));
 const Lessons = lazy(() => import('./lessons/SimulationLessons'));
 const SimulationFindings = lazy(() => import('./findings/SimulationFindings'));
 const Injects = lazy(() => import('./injects/ExerciseInjects'));
-const InjectCreation = lazy(() => import('./injects/SimulationInjectCreation'));
 const Tests = lazy(() => import('./tests/ExerciseTests'));
-const TimelineOverview = lazy(() => import('./timeline/TimelineOverview'));
+const ExecutionOverview = lazy(() => import('./timeline/ExecutionOverview'));
 const Mails = lazy(() => import('./mails/Mails'));
 const MailsInject = lazy(() => import('./mails/Inject'));
 const Logs = lazy(() => import('./logs/Logs'));
@@ -37,23 +34,23 @@ const Chat = lazy(() => import('./chat/Chat'));
 const Validations = lazy(() => import('./validation/Validations'));
 const SimulationScope = lazy(() => import('./scope/SimulationScope'));
 const SimulationLogic = lazy(() => import('./logic/SimulationLogic'));
+const SimulationAttackPath = lazy(() => import('./attack_path/SimulationAttackPath'));
 
-const useStyles = makeStyles()(() => ({
-  scheduling: {
-    display: 'flex',
-    margin: '-35px 8px 0 0',
-    float: 'right',
-    alignItems: 'center',
-  },
-}));
+// The Animation area was renamed Execution: rewrite any legacy /animation/*
+// deep link to its /execution/* equivalent, preserving the sub-path.
+const AnimationToExecutionRedirect = () => {
+  const location = useLocation();
+  return <Navigate to={location.pathname.replace('/animation', '/execution')} replace />;
+};
 
 const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ exercise }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const { t, fldt } = useFormatter();
   const location = useLocation();
-  const { classes } = useStyles();
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
+  // Attack path only exists for chained simulations (workflow-backed), never
+  // for time-based ones: gate the route like the tab in SimulationShell.
+  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH')
+    && isFeatureEnabled('INJECT_CHAINING')
+    && !!exercise.exercise_workflow_id;
   // Stable context identities: these providers wrap the whole simulation subtree and a
   // new value each render forces every consumer (incl. the injects list) to re-render.
   const permissionsContext: PermissionsContextType = useMemo(() => ({
@@ -73,151 +70,43 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
     }),
   }), [exercise?.exercise_id, exercise?.exercise_name]);
 
-  let tabValue = location.pathname;
-  if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/injects`)) {
-    tabValue = `/admin/simulations/${exercise.exercise_id}/injects`;
-  } else if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/animation`)) {
-    tabValue = `/admin/simulations/${exercise.exercise_id}/animation`;
-  } else if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/results`)) {
-    tabValue = `/admin/simulations/${exercise.exercise_id}/results`;
-  } else if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/tests`)) {
-    tabValue = `/admin/simulations/${exercise.exercise_id}/tests`;
-  }
-
   return (
     <PermissionsContext.Provider value={permissionsContext}>
       <DocumentContext.Provider value={documentContext}>
-
-        <div style={{ paddingRight: ['/results', '/animation'].some(el => location.pathname.includes(el)) ? 200 : 0 }}>
-          <Breadcrumbs
-            variant="object"
-            elements={[
-              {
-                label: t('Simulations'),
-                link: '/admin/simulations',
-              },
-              {
-                label: exercise.exercise_name,
-                current: true,
-              },
-            ]}
-          />
-          <ExerciseHeader onLoading={setIsLoading} isLoading={isLoading} />
-          {isLoading
-            ? <Loader />
-            : (
-                <>
-                  <Box
-                    sx={{
-                      borderBottom: 1,
-                      borderColor: 'divider',
-                      marginBottom: 2,
-                    }}
-                  >
-                    {isChainingFeatureEnabled && exercise.exercise_workflow_id
-                      ? (
-                          <Tabs value={tabValue}>
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}`}
-                              value={`/admin/simulations/${exercise.exercise_id}`}
-                              label={t('Overview')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/scope`}
-                              value={`/admin/simulations/${exercise.exercise_id}/scope`}
-                              label={t('Scope')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/logic`}
-                              value={`/admin/simulations/${exercise.exercise_id}/logic`}
-                              label={t('Logic')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/animation`}
-                              value={`/admin/simulations/${exercise.exercise_id}/animation`}
-                              label={t('Animation')}
-                            />
-                          </Tabs>
-                        )
-                      : (
-                          <Tabs value={tabValue}>
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}`}
-                              value={`/admin/simulations/${exercise.exercise_id}`}
-                              label={t('Overview')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/injects`}
-                              value={`/admin/simulations/${exercise.exercise_id}/injects`}
-                              label={t('Injects')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/tests`}
-                              value={`/admin/simulations/${exercise.exercise_id}/tests`}
-                              label={t('Tests')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/animation`}
-                              value={`/admin/simulations/${exercise.exercise_id}/animation`}
-                              label={t('Animation')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/lessons`}
-                              value={`/admin/simulations/${exercise.exercise_id}/lessons`}
-                              label={t('Lessons learned')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/findings`}
-                              value={`/admin/simulations/${exercise.exercise_id}/findings`}
-                              label={t('Findings')}
-                            />
-                          </Tabs>
-                        )}
-                    {permissionsContext.permissions.canManage && (
-                      <div className={classes.scheduling}>
-                        <ExerciseDatePopover exercise={exercise} />
-                        {exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
-                      </div>
-                    )}
-                  </Box>
-                  <Suspense fallback={<Loader />}>
-                    <Routes>
-                      <Route path="" element={errorWrapper(Simulation)()} />
-                      {/* Definition merged into the Injects authoring tab; redirect old links. */}
-                      <Route path="definition" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/injects`} replace={true} />} />
-                      <Route path="injects" element={errorWrapper(Injects)()} />
-                      <Route path="injects/create" element={errorWrapper(InjectCreation)()} />
-                      <Route path="injects/create/:contractId" element={errorWrapper(InjectCreation)()} />
-                      <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
-                      <Route path="animation" element={<Navigate to="timeline" replace={true} />} />
-                      <Route path="animation/timeline" element={errorWrapper(TimelineOverview)()} />
-                      <Route path="animation/mails" element={errorWrapper(Mails)()} />
-                      <Route path="animation/mails/:injectId" element={errorWrapper(MailsInject)()} />
-                      <Route path="animation/logs" element={errorWrapper(Logs)()} />
-                      <Route path="animation/chat" element={errorWrapper(Chat)()} />
-                      <Route path="animation/validations" element={errorWrapper(Validations)()} />
-                      <Route path="lessons" element={errorWrapper(Lessons)()} />
-                      <Route path="findings" element={errorWrapper(SimulationFindings)()} />
-                      {/* Analysis merged into the Overview dashboard; keep a redirect for old links. */}
-                      <Route path="analysis" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}`} replace />} />
-                      <Route path="scope" element={errorWrapper(SimulationScope)()} />
-                      <Route path="logic" element={errorWrapper(SimulationLogic)()} />
-                      {/* Not found */}
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </Suspense>
-                </>
-              )}
+        <div style={{ paddingRight: location.pathname.includes('/execution') ? 200 : 0 }}>
+          <SimulationShell exercise={exercise}>
+            <Suspense fallback={<Loader />}>
+              <Routes>
+                <Route path="" element={errorWrapper(Simulation)()} />
+                {/* Definition merged into the Injects authoring tab; redirect old links. */}
+                <Route path="definition" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/injects`} replace={true} />} />
+                <Route path="injects" element={errorWrapper(Injects)()} />
+                <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
+                <Route path="execution" element={<Navigate to="timeline" replace={true} />} />
+                <Route path="execution/timeline" element={errorWrapper(ExecutionOverview)()} />
+                <Route path="execution/mails" element={errorWrapper(Mails)()} />
+                <Route path="execution/mails/:injectId" element={errorWrapper(MailsInject)()} />
+                <Route path="execution/logs" element={errorWrapper(Logs)()} />
+                <Route path="execution/chat" element={errorWrapper(Chat)()} />
+                <Route path="execution/validations" element={errorWrapper(Validations)()} />
+                {/* The Animation area was renamed Execution; keep old deep links working. */}
+                <Route path="animation/*" element={<AnimationToExecutionRedirect />} />
+                <Route path="lessons" element={errorWrapper(Lessons)()} />
+                <Route path="findings" element={errorWrapper(SimulationFindings)()} />
+                {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(SimulationAttackPath)()} />}
+                {/* Simulation-scoped custom dashboard, surfaced as the Statistics tab. */}
+                <Route path="statistics" element={errorWrapper(SimulationStatistics)()} />
+                {/* Statistics replaced the hero dashboard quick action and the old
+                    Analysis tab; keep redirects for old links. */}
+                <Route path="dashboard" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
+                <Route path="analysis" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
+                <Route path="scope" element={errorWrapper(SimulationScope)()} />
+                <Route path="logic" element={errorWrapper(SimulationLogic)()} />
+                {/* Not found */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </SimulationShell>
         </div>
       </DocumentContext.Provider>
     </PermissionsContext.Provider>

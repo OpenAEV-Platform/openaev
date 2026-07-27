@@ -18,8 +18,6 @@ import io.openaev.database.model.Capability;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.form.DocumentCreateInput;
 import io.openaev.rest.document.form.DocumentUpdateInput;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -61,7 +59,6 @@ class AuditLoggerDocumentTest extends IntegrationTest {
   @Autowired private AuditLogger auditLogger;
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
-  @MockitoBean private PreviewFeatureService previewFeatureService;
 
   @BeforeAll
   void setupAuditFileAppender() throws Exception {
@@ -76,7 +73,6 @@ class AuditLoggerDocumentTest extends IntegrationTest {
   @BeforeEach
   void setupTest() throws Exception {
     Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(true);
-    Mockito.when(previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)).thenReturn(true);
     assertThat(auditLogger.isAuditLoggingEnabled()).isTrue();
     Files.writeString(
         AUDIT_LOG_FILE,

@@ -77,7 +77,8 @@ const OrganizationForm: FunctionComponent<Props> = ({
           }}
           >
             <Button
-              variant="contained"
+              variant="outlined"
+              color="primary"
               onClick={handleClose}
               disabled={submitting}
             >
@@ -85,7 +86,7 @@ const OrganizationForm: FunctionComponent<Props> = ({
             </Button>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               type="submit"
               disabled={pristine || submitting}
             >

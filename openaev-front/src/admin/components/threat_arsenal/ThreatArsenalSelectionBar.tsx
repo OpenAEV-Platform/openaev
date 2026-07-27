@@ -41,7 +41,7 @@ const ThreatArsenalSelectionBar: FunctionComponent<Props> = ({
           gap: 1.5,
           paddingBlock: 1.25,
           paddingInline: 2,
-          borderRadius: 999,
+          borderRadius: 1,
           backgroundColor: alpha(theme.palette.background.paper, 0.92),
           border: `1px solid ${theme.palette.divider}`,
           boxShadow: `0 24px 64px -24px ${alpha('#000', 0.6)}, 0 0 0 1px ${alpha(theme.palette.primary.main, 0.12)}`,
@@ -49,42 +49,21 @@ const ThreatArsenalSelectionBar: FunctionComponent<Props> = ({
           maxWidth: 'calc(100vw - 48px)',
         }}
       >
+        {/* The counts live in the text only: a separate count bubble would just
+            repeat the "N actions selected out of N" line next to it. */}
         <Box sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
           paddingRight: 1,
           borderRight: `1px solid ${theme.palette.divider}`,
         }}
         >
-          <Box
-            sx={{
-              minWidth: 28,
-              height: 28,
-              borderRadius: '50%',
-              backgroundColor: theme.palette.primary.main,
-              color: theme.palette.primary.contrastText,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: 12,
-              fontVariantNumeric: 'tabular-nums',
-              paddingInline: 0.75,
-            }}
-          >
-            {count}
-          </Box>
-          <Box>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {count === 1 ? t('1 action selected') : t('{count} actions selected', { count })}
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {count === 1 ? t('1 action selected') : t('{count} actions selected', { count })}
+          </Typography>
+          {totalElements > 0 && (
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {t('out of {total}', { total: totalElements })}
             </Typography>
-            {totalElements > 0 && (
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {t('out of {total}', { total: totalElements })}
-              </Typography>
-            )}
-          </Box>
+          )}
         </Box>
 
         <Box sx={{
@@ -100,7 +79,7 @@ const ThreatArsenalSelectionBar: FunctionComponent<Props> = ({
             startIcon={<MovieFilterOutlined fontSize="small" />}
             onClick={onRunTest}
             sx={{
-              borderRadius: 999,
+              borderRadius: 1,
               textTransform: 'none',
               fontWeight: 600,
               paddingInline: 2,
@@ -117,7 +96,7 @@ const ThreatArsenalSelectionBar: FunctionComponent<Props> = ({
               startIcon={<DeleteOutlined fontSize="small" />}
               onClick={onDelete}
               sx={{
-                borderRadius: 999,
+                borderRadius: 1,
                 textTransform: 'none',
                 fontWeight: 600,
                 paddingInline: 2,

@@ -52,6 +52,9 @@ public class SimulationDetails {
   @JsonProperty("exercise_severity")
   private SEVERITY severity;
 
+  @JsonProperty("exercise_default_kill_chain")
+  private String defaultKillChain;
+
   @JsonProperty("exercise_start_date")
   private Instant start;
 
@@ -76,6 +79,9 @@ public class SimulationDetails {
 
   @JsonProperty("exercise_lessons_anonymized")
   private boolean lessonsAnonymized;
+
+  @JsonProperty("exercise_lessons_enabled")
+  private boolean lessonsEnabled;
 
   // -- SCENARIO --
 
@@ -166,6 +172,7 @@ public class SimulationDetails {
             .subtitle(exercise.getExercise_subtitle())
             .category(exercise.getExercise_category())
             .mainFocus(exercise.getExercise_main_focus())
+            .defaultKillChain(exercise.getExercise_default_kill_chain())
             .customDashboard(exercise.getExercise_custom_dashboard());
 
     if (exercise.getExercise_severity() != null) {
@@ -183,6 +190,7 @@ public class SimulationDetails {
     }
     details
         .lessonsAnonymized(exercise.getExercise_lessons_anonymized())
+        .lessonsEnabled(exercise.getExercise_lessons_enabled())
         .scenario(exercise.getScenario_id())
         .createAt(exercise.getExercise_created_at())
         .updatedAt(exercise.getExercise_updated_at());

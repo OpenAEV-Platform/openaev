@@ -1,14 +1,22 @@
 import { EventAvailableOutlined, LabelOutlined, RouteOutlined, ScheduleOutlined, TimerOutlined } from '@mui/icons-material';
-import { Box, Tooltip, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type ReactNode } from 'react';
+import { alpha, Box, Chip, Tooltip, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
+import { getInjectStatusWithGlobalExecutionTraces } from '../../../../actions/injects/inject-action';
+import { DetailHero } from '../../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../../components/i18n';
 import PlatformIcon from '../../../../components/PlatformIcon';
-import type { InjectResultOverviewOutput } from '../../../../utils/api-types';
+import type { InjectResultOverviewOutput, InjectStatus as InjectStatusType, InjectStatusOutput } from '../../../../utils/api-types';
+import handle from '../../../../utils/period/Period';
+import { truncate } from '../../../../utils/String';
 import InjectIcon from '../../common/injects/InjectIcon';
-import AtomicTestingTitle from './AtomicTestingTitle';
+import InjectStatus from '../../common/injects/status/InjectStatus';
 import InjectScoreTiles from './InjectScoreTiles';
+
+// Inject-level statuses whose concrete failure reason is worth surfacing on the
+// status chip tooltip (fetched from the global execution traces).
+const INJECT_ERROR_STATUSES = ['ERROR', 'PARTIAL'];
 
 interface Props {
   injectResultOverview: InjectResultOverviewOutput;
@@ -41,12 +49,55 @@ const MetaItem = ({ icon, children }: {
 );
 
 /**
- * Marketplace-style hero header shared by the atomic testing page and the
- * simulation inject detail page (breadcrumbs and tabs live outside of it).
+ * Hero header shared by the atomic testing page and the simulation inject
+ * detail page (breadcrumbs and tabs live outside of it). Built on the shared
+ * DetailHero so the geometry, icon box and action sizing match every other
+ * entity detail page; the inject-specific metadata row and the score tiles
+ * render in the hero footer.
  */
 const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions }) => {
+  const { t, tPick, nsdt, du, locale, fld } = useFormatter();
   const theme = useTheme();
-  const { t, tPick, nsdt, du } = useFormatter();
+
+  const statusName = injectResultOverview.inject_status?.status_name;
+  const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
+
+  // Recurring scheduling chip (atomic testings only): mirrors the scenario
+  // hero Scheduled chip with the human-readable schedule as tooltip.
+  const isScheduled = !!injectResultOverview.inject_recurrence;
+  const scheduleLabel = useMemo(() => {
+    const cronObject = handle(injectResultOverview.inject_recurrence);
+    if (!cronObject?.isValid()) {
+      return null;
+    }
+    let sentence = cronObject.toTranslatableStringArray(locale).map(element => t(element)).join(' ');
+    // Open-ended schedules are legal (null start fires immediately, null end never expires):
+    // omit the fragment instead of rendering "from None" via fld(undefined).
+    if (injectResultOverview.inject_recurrence_start) {
+      sentence += ` ${t(injectResultOverview.inject_recurrence_end ? 'recurrence_from' : 'recurrence_starting_from')} ${fld(injectResultOverview.inject_recurrence_start)}`;
+    }
+    if (injectResultOverview.inject_recurrence_end) {
+      sentence += ` ${t('recurrence_to')} ${fld(injectResultOverview.inject_recurrence_end)}`;
+    }
+    return sentence;
+  }, [injectResultOverview.inject_recurrence, injectResultOverview.inject_recurrence_start, injectResultOverview.inject_recurrence_end, locale]);
+
+  // Surface the concrete failure reason on the status chip: the global execution
+  // traces hold the real error (e.g. unmet dependencies), while the chip would
+  // otherwise only show a generic "could not be completed" tooltip.
+  useEffect(() => {
+    setErrorMessage(undefined);
+    if (!statusName || !INJECT_ERROR_STATUSES.includes(statusName)) {
+      return;
+    }
+    getInjectStatusWithGlobalExecutionTraces(injectResultOverview.inject_id)
+      .then((response: { data: InjectStatusOutput }) => {
+        const firstError = (response.data?.status_main_traces ?? [])
+          .find(trace => trace.execution_message?.trim());
+        setErrorMessage(firstError?.execution_message);
+      })
+      .catch(() => setErrorMessage(undefined));
+  }, [injectResultOverview.inject_id, statusName]);
 
   const payload = injectResultOverview.inject_injector_contract?.injector_contract_payload;
   const iconType = payload
@@ -58,7 +109,7 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
 
   // Relevant-at-a-glance metadata; each item is rendered only when it has a value
   // so the hero stays light (no empty "-" rows like the old info tooltip).
-  // The execution window (start / end / duration) now lives here since the
+  // The execution window (start / end / duration) lives here since the
   // dedicated "Execution details" tab was dropped.
   const startDate = injectResultOverview.inject_status?.tracking_sent_date;
   const endDate = injectResultOverview.inject_status?.tracking_end_date;
@@ -78,96 +129,42 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
   const hasMeta = !!startDate || !!endDate || platforms.length > 0 || killChainPhases.length > 0;
 
   return (
-    <Box
-      component="section"
-      sx={{
-        position: 'relative',
-        overflow: 'hidden',
-        borderRadius: 1,
-        border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-        backgroundColor: theme.palette.background.paper,
-        padding: 3,
-      }}
-    >
-      {/* Decorative glow, purely visual. */}
-      <Box
-        aria-hidden
-        sx={{
-          pointerEvents: 'none',
-          position: 'absolute',
-          top: -100,
-          right: -60,
-          width: 260,
-          height: 260,
-          borderRadius: '50%',
-          background: alpha(theme.palette.primary.main, 0.08),
-          filter: 'blur(60px)',
-        }}
-      />
-      <div style={{
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        gap: theme.spacing(2),
-        flexWrap: 'wrap',
-      }}
-      >
-        <div style={{
-          flex: 1,
-          minWidth: 0,
-        }}
-        >
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing(1.5),
-            minWidth: 0,
-          }}
-          >
-            <Box
-              sx={{
-                flexShrink: 0,
-                width: 56,
-                height: 56,
-                borderRadius: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: `1px solid ${alpha(theme.palette.text.primary, 0.1)}`,
-                backgroundColor: alpha(theme.palette.text.primary, 0.04),
-              }}
-            >
-              <InjectIcon
-                type={iconType}
-                isPayload={!!payload}
-                variant="list"
+    <DetailHero
+      iconNode={(
+        <InjectIcon
+          type={iconType}
+          isPayload={!!payload}
+          variant="list"
+        />
+      )}
+      overline={contractLabel || undefined}
+      title={truncate(injectResultOverview.inject_title, 80) ?? ''}
+      chips={(
+        <>
+          <InjectStatus status={statusName as InjectStatusType['status_name']} errorMessage={errorMessage} />
+          {isScheduled && (
+            <Tooltip title={scheduleLabel ?? ''}>
+              <Chip
+                size="small"
+                variant="outlined"
+                label={t('Scheduled')}
+                sx={{
+                  borderRadius: 1,
+                  height: 22,
+                  fontSize: 11,
+                  color: theme.palette.success.main,
+                  borderColor: alpha(theme.palette.success.main, 0.4),
+                }}
               />
-            </Box>
-            <div style={{ minWidth: 0 }}>
-              {contractLabel && (
-                <Typography
-                  sx={{
-                    fontSize: 12,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    color: 'primary.main',
-                    fontFamily: theme.typography.h1.fontFamily,
-                    lineHeight: 1.4,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {contractLabel}
-                </Typography>
-              )}
-              <AtomicTestingTitle injectResultOverview={injectResultOverview} />
-            </div>
-          </div>
+            </Tooltip>
+          )}
+        </>
+      )}
+      action={actions}
+      footer={(
+        <>
           {hasMeta && (
             <Box sx={{
-              marginTop: 1.5,
               display: 'flex',
               alignItems: 'center',
               flexWrap: 'wrap',
@@ -231,17 +228,10 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
               )}
             </Box>
           )}
-          <Box sx={{ marginTop: 2 }}>
-            <InjectScoreTiles expectationResultsByTypes={injectResultOverview.inject_expectation_results} />
-          </Box>
-        </div>
-        {actions && (
-          <div style={{ flexShrink: 0 }}>
-            {actions}
-          </div>
-        )}
-      </div>
-    </Box>
+          <InjectScoreTiles expectationResultsByTypes={injectResultOverview.inject_expectation_results} />
+        </>
+      )}
+    />
   );
 };
 

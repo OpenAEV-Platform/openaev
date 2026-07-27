@@ -1,7 +1,6 @@
 import { Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 
-import Section from '../../../../../../components/common/overview/Section';
 import { useFormatter } from '../../../../../../components/i18n';
 import { type InjectStatusOutput } from '../../../../../../utils/api-types';
 import EndpointTraces from './EndpointTraces';
@@ -75,11 +74,9 @@ const GlobalExecutionTraces = ({ injectStatus }: Props) => {
         <StatPill label={t('End date')} value={fldt(endDate)} />
         <StatPill label={t('Duration')} value={duration} />
       </div>
-      <Section title={t('Traces')}>
-        {mainTraces.length > 0
-          ? <EndpointTraces tracesByAgent={mainTraces} />
-          : <Typography variant="body2" sx={{ color: 'text.secondary' }}>{t('No data available')}</Typography>}
-      </Section>
+      {mainTraces.length > 0
+        ? <EndpointTraces tracesByAgent={mainTraces} />
+        : <Typography variant="body2" sx={{ color: 'text.secondary' }}>{t('No data available')}</Typography>}
     </div>
   );
 };

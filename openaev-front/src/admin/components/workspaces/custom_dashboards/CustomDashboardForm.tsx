@@ -5,27 +5,23 @@ import { type FunctionComponent, useMemo } from 'react';
 import { FormProvider, type SubmitErrorHandler, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import type { LoggedHelper } from '../../../../actions/helper';
 import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
-import { type CustomDashboardInput, type TenantSettingsOutput } from '../../../../utils/api-types';
+import { type CustomDashboardInput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
 import GeneralFormTab from './form/GeneralFormTab';
 import ParametersTab from './form/ParametersTab';
 
-export type CustomDashboardFormType = CustomDashboardInput & {
-  is_default_home_dashboard: boolean;
-  is_default_scenario_dashboard: boolean;
-  is_default_simulation_dashboard: boolean;
-};
+// The default-dashboard toggles were removed: the home dashboard is now set from
+// the user profile / platform settings, and scenario / simulation dashboards are
+// wired straight from their respective heroes.
+export type CustomDashboardFormType = CustomDashboardInput;
 
 interface Props {
   onSubmit: SubmitHandler<CustomDashboardFormType>;
   initialValues?: CustomDashboardInput;
   editing?: boolean;
-  customDashboardId?: string;
   handleClose: () => void;
 }
 
@@ -37,14 +33,11 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
     custom_dashboard_parameters: [],
   },
   editing = false,
-  customDashboardId,
   handleClose,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
   const theme = useTheme();
-
-  const { settings }: { settings: TenantSettingsOutput } = useHelper((helper: LoggedHelper) => ({ settings: helper.getTenantSettings() }));
 
   const parametersSchema = z.object({
     custom_dashboards_parameter_id: z.string().optional(),
@@ -58,9 +51,6 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
         custom_dashboard_name: z.string().min(1, { message: t('Should not be empty') }).describe('General'),
         custom_dashboard_description: z.string().optional().describe('General'),
         custom_dashboard_parameters: z.array(parametersSchema).optional().describe('Parameters'),
-        is_default_home_dashboard: z.boolean().describe('General'),
-        is_default_scenario_dashboard: z.boolean().describe('General'),
-        is_default_simulation_dashboard: z.boolean().describe('General'),
       }),
     [],
   );
@@ -68,12 +58,7 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
   const methods = useForm<CustomDashboardFormType>({
     mode: 'onTouched',
     resolver: zodResolver(validationSchema),
-    defaultValues: {
-      ...initialValues,
-      is_default_home_dashboard: editing && settings.platform_home_dashboard === customDashboardId,
-      is_default_scenario_dashboard: editing && settings.platform_scenario_dashboard === customDashboardId,
-      is_default_simulation_dashboard: editing && settings.platform_simulation_dashboard === customDashboardId,
-    },
+    defaultValues: initialValues,
   });
 
   const {
@@ -107,7 +92,8 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
       <form
         id="customDashboardForm"
         style={{
-          display: 'grid',
+          display: 'flex',
+          flexDirection: 'column',
           minHeight: '100%',
           gap: theme.spacing(2),
         }}
@@ -118,17 +104,7 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
           currentTab={currentTab}
           onChange={idx => handleChangeTab(idx)}
         />
-        {currentTab === 'General' && (
-          <GeneralFormTab
-            initialDefaultDashboardIds={
-              {
-                home: settings.platform_home_dashboard,
-                scenario: settings.platform_scenario_dashboard,
-                simulation: settings.platform_simulation_dashboard,
-              }
-            }
-          />
-        )}
+        {currentTab === 'General' && <GeneralFormTab />}
 
         {currentTab === 'Parameters' && <ParametersTab />}
 
@@ -139,7 +115,8 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
         }}
         >
           <Button
-            variant="contained"
+            variant="outlined"
+            color="primary"
             onClick={handleClose}
             sx={{ mr: 1 }}
             disabled={isSubmitting}
@@ -148,9 +125,9 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
           </Button>
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             type="submit"
-            disabled={!isDirty || isSubmitting}
+            disabled={isSubmitting || (editing && !isDirty)}
           >
             {editing ? t('Update') : t('Create')}
           </Button>

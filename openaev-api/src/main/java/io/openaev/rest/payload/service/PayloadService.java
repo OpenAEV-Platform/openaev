@@ -40,11 +40,11 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
-import io.openaev.service.ExpectationService;
 import io.openaev.service.UserService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.mapper.PayloadMapper;
@@ -82,7 +82,7 @@ public class PayloadService {
   private final ResultsMetricCollector resultsMetricCollector;
   private final DomainService domainService;
   private final TagService tagService;
-  private final ExpectationService expectationService;
+  private final InjectIndexCleanupService injectIndexCleanupService;
 
   private final PayloadMapper payloadMapper;
 
@@ -197,7 +197,9 @@ public class PayloadService {
             "/img/icon-" + injector.getType() + ".png");
     ContractAsset assetField = assetField(Multiple);
     ContractAssetGroup assetGroupField = assetGroupField(Multiple);
-    ContractExpectations expectationsField = expectations(payload.getExpectations());
+    ContractExpectations expectationsField =
+        createContractExpectationsBasedOnPayload(
+            payload.getExpectations(), payload.getExpectedSecurityPlatforms());
     ContractDef builder = contractBuilder();
     builder.mandatoryGroup(assetField, assetGroupField);
 
@@ -211,7 +213,7 @@ public class PayloadService {
           .getArguments()
           .forEach(
               payloadArgument -> {
-                if (ArgumentType.TargetedAsset == payloadArgument.getType()) {
+                if (PrimitiveType.TargetedAsset == payloadArgument.getType()) {
                   List<ContractElement> targetedAssetsFields =
                       targetedAssetFields(payloadArgument.getKey(), payloadArgument);
                   targetedAssetsFields.forEach(builder::mandatory);
@@ -234,49 +236,39 @@ public class PayloadService {
         domains);
   }
 
-  private ContractExpectations expectations(
-      BaseInjectExpectation.EXPECTATION_TYPE[] expectationTypes) {
-    List<Expectation> predefined = new ArrayList<>();
+  private ContractExpectations createContractExpectationsBasedOnPayload(
+      BaseInjectExpectation.EXPECTATION_TYPE[] expectationTypes,
+      Map<BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+          expectedSecurityPlatforms) {
+    Expectation preventionExpectation =
+        withExpectedSecurityPlatforms(
+            this.expectationBuilderService.buildPreventionExpectation(),
+            BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+            expectedSecurityPlatforms);
+    Expectation detectionExpectation =
+        withExpectedSecurityPlatforms(
+            this.expectationBuilderService.buildDetectionExpectation(),
+            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+            expectedSecurityPlatforms);
+    Expectation vulnerableExpectation =
+        withExpectedSecurityPlatforms(
+            this.expectationBuilderService.buildVulnerabilityExpectation(),
+            BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
+            expectedSecurityPlatforms);
+
     if (expectationTypes != null) {
       for (BaseInjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
         switch (type) {
-          case ARTICLE ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildArticleExpectation()));
-          case CHALLENGE ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildChallengeExpectation()));
-          case MANUAL ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildManualExpectation()));
-          case PREVENTION ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildPreventionExpectation()));
-          case DETECTION ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildDetectionExpectation()));
-          case VULNERABILITY ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildVulnerabilityExpectation()));
+          case DETECTION -> detectionExpectation.setPredefined(true);
+          case PREVENTION -> preventionExpectation.setPredefined(true);
+          case VULNERABILITY -> vulnerableExpectation.setPredefined(true);
           default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
         }
       }
     }
 
-    // Payload contracts are technical injects: available expectations are always the 3 standard
-    // technical types.
-    List<Expectation> available =
-        expectationService.buildAvailableExpectationsForTechnicalInject().stream()
-            .map(this::withExpectedMultiSelectableFlag)
-            .toList();
-
-    return expectationsField(predefined, available);
+    return expectationsField(
+        List.of(detectionExpectation, preventionExpectation, vulnerableExpectation));
   }
 
   public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
@@ -319,6 +311,25 @@ public class PayloadService {
   private Expectation withExpectedMultiSelectableFlag(Expectation expectation) {
     expectation.setMultiSelectable(
         BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.equals(expectation.getType()));
+    return expectation;
+  }
+
+  /**
+   * Applies the payload's optional expected security platform types to the predefined expectation
+   * of the given type. Absent / empty means "any platform" (legacy behaviour), so the expectation
+   * keeps its empty list.
+   */
+  private Expectation withExpectedSecurityPlatforms(
+      Expectation expectation,
+      BaseInjectExpectation.EXPECTATION_TYPE type,
+      Map<BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+          expectedSecurityPlatforms) {
+    if (expectedSecurityPlatforms != null) {
+      List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expected = expectedSecurityPlatforms.get(type);
+      if (expected != null && !expected.isEmpty()) {
+        expectation.setExpectedSecurityPlatformTypes(new ArrayList<>(expected));
+      }
+    }
     return expectation;
   }
 
@@ -540,7 +551,7 @@ public class PayloadService {
     dynamicDnsResolutionPayload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
 
     PayloadArgument argument = new PayloadArgument();
-    argument.setType(ArgumentType.Text);
+    argument.setType(PrimitiveType.Text);
     argument.setKey(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY);
     argument.setDefaultValue("filigran.io");
     dynamicDnsResolutionPayload.setArguments(new ArrayList<>(List.of(argument)));
@@ -566,9 +577,16 @@ public class PayloadService {
   }
 
   public void delete(String payloadId) {
-    payloadRepository
-        .findById(payloadId)
-        .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
+    Payload payload =
+        payloadRepository
+            .findById(payloadId)
+            .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
+    // Payload deletion cascades at the DB level to its injector contract and then to the injects
+    // (both FKs are ON DELETE CASCADE): de-index the doomed injects explicitly, no JPA lifecycle
+    // event fires for them.
+    List<String> cascadeDeletedInjectIds =
+        injectIndexCleanupService.injectIdsByPayloadId(payloadId, payload.getTenant().getId());
     payloadRepository.deleteById(payloadId);
+    injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
   }
 }

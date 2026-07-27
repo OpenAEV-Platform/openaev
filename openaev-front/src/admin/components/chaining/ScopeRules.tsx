@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import type { AssetGroupsHelper } from '../../../actions/asset_groups/assetgroup-helper';
 import type { EndpointHelper } from '../../../actions/assets/asset-helper';
+import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
@@ -65,7 +66,7 @@ const ScopeColumn = ({ title, rules, resolveLabel, onAdd }: ScopeColumnProps) =>
 
       {rules.length > 0 ? (
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          {rules.map(rule => resolveLabel(rule)).join(', ')}
+          {rules.map(rule => resolveLabel(rule)).filter(Boolean).join(', ')}
         </Typography>
       ) : (
         <Typography variant="body2" sx={{ color: 'text.disabled' }}>
@@ -186,18 +187,19 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
 
   const resolveLabel = (rule: WorkflowScopeRuleOutput): string => {
     const value = rule.workflow_scope_rule_value ?? '';
+    const unresolvedLabel = t('Loading...');
 
     switch (rule.workflow_scope_rule_source) {
       case 'ASSET': {
         const endpoint = endpointsMap[value];
-        return endpoint?.asset_name ?? value;
+        return endpoint?.asset_name ?? unresolvedLabel;
       }
       case 'ASSET_GROUP': {
         const group = assetGroupsMap[value];
-        return group?.asset_group_name ?? value;
+        return group?.asset_group_name ?? unresolvedLabel;
       }
       default:
-        return value;
+        return value || unresolvedLabel;
     }
   };
 
@@ -217,12 +219,15 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
     }}
     >
       <Typography
-        variant="h4"
         sx={{
+          ...SECTION_LABEL_SX,
           display: 'flex',
           alignItems: 'center',
           gap: theme.spacing(1),
           m: 0,
+          // Keep the header row the same height as sibling sections whose header
+          // carries an icon button (Variables), so the paper below lines up.
+          minHeight: 34,
         }}
       >
         {t('Scope')}

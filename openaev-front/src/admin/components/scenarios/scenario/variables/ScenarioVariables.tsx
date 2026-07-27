@@ -1,5 +1,3 @@
-import { Paper, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 import { useParams } from 'react-router';
 
@@ -10,6 +8,7 @@ import { useHelper } from '../../../../../store';
 import { type Scenario, type Variable, type VariableInput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import ConfigurationSection from '../../../common/ConfigurationSection';
 import { PermissionsContext, VariableContext, type VariableContextType } from '../../../common/Context';
 import CreateVariable from '../../../components/variables/CreateVariable';
 import Variables from '../../../components/variables/Variables';
@@ -18,7 +17,6 @@ const ScenarioVariables = () => {
   // Standard hooks
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const theme = useTheme();
 
   // Fetching data
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
@@ -36,20 +34,13 @@ const ScenarioVariables = () => {
 
   return (
     <VariableContext.Provider value={context}>
-      <div style={{
-        display: 'grid',
-        gap: `0 ${theme.spacing(3)}`,
-        gridTemplateRows: 'min-content 1fr',
-      }}
+      <ConfigurationSection
+        title={t('Variables')}
+        count={variables.length}
+        action={permissions.canManage && <CreateVariable />}
       >
-        <Typography variant="h4">
-          {t('Variables')}
-          {permissions.canManage && (<CreateVariable />)}
-        </Typography>
-        <Paper sx={{ padding: theme.spacing(2) }} variant="outlined">
-          <Variables variables={variables} />
-        </Paper>
-      </div>
+        <Variables variables={variables} />
+      </ConfigurationSection>
     </VariableContext.Provider>
   );
 };

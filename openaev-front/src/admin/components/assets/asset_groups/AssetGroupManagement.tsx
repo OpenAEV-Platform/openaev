@@ -1,8 +1,4 @@
-import { CloseRounded } from '@mui/icons-material';
-import { IconButton, Tooltip, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
 import { fetchAssetGroup, searchEndpointsFromAssetGroup } from '../../../../actions/asset_groups/assetgroup-action';
 import { type AssetGroupsHelper } from '../../../../actions/asset_groups/assetgroup-helper';
@@ -21,50 +17,20 @@ import AssetPopover from '../endpoints/AssetPopover';
 import AssetsList from '../endpoints/AssetsList';
 import AssetGroupAddEndpoints from './AssetGroupAddEndpoints';
 
-const useStyles = makeStyles()(theme => ({
-  // Drawer Header
-  header: {
-    backgroundColor: theme.palette.background.nav,
-    padding: '20px 20px 20px 60px',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 12,
-    left: 5,
-    color: 'inherit',
-  },
-  title: {
-    float: 'left',
-    marginRight: 20,
-  },
-  parameters: {
-    float: 'right',
-    marginTop: -8,
-  },
-  tags: { float: 'right' },
-  search: {
-    float: 'right',
-    width: 200,
-    marginRight: 20,
-  },
-}));
-
 interface Props {
   assetGroupId: string;
-  handleClose: () => void;
   onUpdate?: (result: AssetGroup) => void;
   onRemoveEndpointFromAssetGroup?: (assetId: Endpoint['asset_id']) => void;
 }
 
+// Body of the asset group "Manage assets" panel; the design-system Drawer
+// (title + close on the right) is provided by the caller (AssetGroupPopover).
 const AssetGroupManagement: FunctionComponent<Props> = ({
   assetGroupId,
-  handleClose,
   onUpdate,
   onRemoveEndpointFromAssetGroup,
 }) => {
   // Standard hooks
-  const { classes } = useStyles();
-  const theme = useTheme();
   const dispatch = useAppDispatch();
 
   // Fetching data
@@ -108,42 +74,29 @@ const AssetGroupManagement: FunctionComponent<Props> = ({
 
   return (
     <>
-      <div className={classes.header}>
-        <IconButton
-          aria-label="Close"
-          className={classes.closeButton}
-          onClick={handleClose}
-          size="large"
-          color="primary"
-        >
-          <CloseRounded fontSize="small" color="primary" />
-        </IconButton>
-        <Tooltip title={assetGroup?.asset_group_name ?? ''}>
-          <Typography
-            variant="h6"
-            classes={{ root: classes.title }}
-            noWrap
-            sx={{ maxWidth: '100%' }}
-          >
-            {assetGroup?.asset_group_name}
-          </Typography>
-        </Tooltip>
-        <div className="clearfix" />
-      </div>
-      <div style={{ padding: theme.spacing(1) }}>
-        <PaginationComponentV2
-          fetch={((searchPaginationInput: SearchPaginationInput) => load(searchPaginationInput))}
-          searchPaginationInput={searchPaginationInput}
-          setContent={setEndpoints}
-          entityPrefix="endpoint"
-          availableFilterNames={availableFilterNames}
-          queryableHelpers={queryableHelpers}
-        />
-      </div>
+      <PaginationComponentV2
+        fetch={((searchPaginationInput: SearchPaginationInput) => load(searchPaginationInput))}
+        searchPaginationInput={searchPaginationInput}
+        setContent={setEndpoints}
+        entityPrefix="endpoint"
+        availableFilterNames={availableFilterNames}
+        queryableHelpers={queryableHelpers}
+        topBarButtons={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
+            <AssetGroupAddEndpoints
+              assetGroupId={assetGroup?.asset_group_id}
+              assetGroupEndpointIds={assetGroup?.asset_group_assets ?? []}
+              onUpdate={onUpdateList}
+            />
+          </Can>
+        )}
+      />
 
       <AssetsList
         endpoints={endpoints}
         loading={loading}
+        withHeaders
+        sortHelpers={queryableHelpers.sortHelpers}
         renderActions={(asset: AssetOutput) => (
           <AssetPopover
             inline
@@ -154,13 +107,6 @@ const AssetGroupManagement: FunctionComponent<Props> = ({
           />
         )}
       />
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
-        <AssetGroupAddEndpoints
-          assetGroupId={assetGroup?.asset_group_id}
-          assetGroupEndpointIds={assetGroup?.asset_group_assets ?? []}
-          onUpdate={onUpdateList}
-        />
-      </Can>
     </>
   );
 };

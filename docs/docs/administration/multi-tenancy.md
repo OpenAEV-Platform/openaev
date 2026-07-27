@@ -1,10 +1,5 @@
 # Multi-tenancy
 
-!!! tip "Under construction"
-
-    This feature is under development.
-
-{% if "multi-tenancy" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}
 This page explains how to configure and manage multi-tenancy in OpenAEV, enabling multiple isolated workspaces on a single platform instance.
 
 !!! tip "Enterprise Edition"
@@ -55,7 +50,7 @@ A user or group can exist at both levels. For example, a platform administrator 
 
 ## Managing tenants
 
-Manage tenants from **Settings → Tenants**. You need the `Manage platform settings` capability (platform administrator).
+Manage tenants from **Settings → Security → Platform → Tenants**. You need the `Manage platform settings` capability (platform administrator).
 
 From this page you can create, edit, and delete tenants. When you create a tenant, it is immediately active and all built-in integrations (injectors, collectors) are automatically registered for it.
 
@@ -111,4 +106,3 @@ OPENAEV_PROVIDER_AZURE_TENANT_ID=<your-tenant-uuid>
 - [Enterprise Edition](enterprise.md) — Activate your EE license
 - [Authentication](../deployment/authentication.md) — Set up SSO providers for tenant mapping
 - [Hub](hub.md) — Manage platform-wide resources shared across tenants
-{% endif %}

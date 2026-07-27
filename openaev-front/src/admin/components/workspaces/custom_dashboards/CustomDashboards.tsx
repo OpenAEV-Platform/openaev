@@ -1,6 +1,6 @@
-import { AnalyticsOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButtonGroup } from '@mui/material';
-import { type CSSProperties, useCallback, useMemo, useState } from 'react';
+import { AnalyticsOutlined, GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
+import { type CSSProperties, type SyntheticEvent, useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -19,8 +19,15 @@ import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import type { CustomDashboard, SearchPaginationInput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import CustomDashboardCard from './CustomDashboardCard';
 import CustomDashboardCreation from './CustomDashboardCreation';
 import CustomDashboardPopover from './CustomDashboardPopover';
+
+// Cards by default, with a persisted switch to the compact list (same pattern
+// as the security platforms screen).
+type ViewMode = 'cards' | 'list';
+const VIEW_MODE_STORAGE_KEY = 'custom-dashboards:view-mode';
+const readViewMode = (): ViewMode => (typeof window !== 'undefined' && window.localStorage.getItem(VIEW_MODE_STORAGE_KEY) === 'list' ? 'list' : 'cards');
 
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
@@ -81,6 +88,73 @@ const CustomDashboards = () => {
     [],
   );
 
+  const [viewMode, setViewMode] = useState<ViewMode>(readViewMode);
+  const handleViewModeChange = (_: SyntheticEvent, value: ViewMode | null) => {
+    if (!value) return;
+    setViewMode(value);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, value);
+    }
+  };
+
+  const viewSwitcher = (
+    <ToggleButtonGroup
+      value={viewMode}
+      exclusive
+      size="small"
+      onChange={handleViewModeChange}
+      aria-label={t('View mode')}
+      sx={{ '& .MuiToggleButton-root.Mui-selected .MuiSvgIcon-root': { color: 'primary.main' } }}
+    >
+      <ToggleButton value="cards" aria-label={t('Cards view')}>
+        <Tooltip title={t('Cards view')}>
+          <GridViewOutlined fontSize="small" />
+        </Tooltip>
+      </ToggleButton>
+      <ToggleButton value="list" aria-label={t('List view')}>
+        <Tooltip title={t('List view')}>
+          <ViewListOutlined fontSize="small" />
+        </Tooltip>
+      </ToggleButton>
+    </ToggleButtonGroup>
+  );
+
+  const renderCards = () => {
+    if (loading) {
+      return (
+        <Box sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+          gap: 2,
+          mt: 2,
+        }}
+        >
+          {Array.from({ length: 8 }).map((_, idx) => (
+            <Skeleton key={idx} variant="rectangular" height={150} animation="wave" sx={{ borderRadius: 1 }} />
+          ))}
+        </Box>
+      );
+    }
+    return (
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        gap: 2,
+        mt: 2,
+      }}
+      >
+        {customDashboards.map((customDashboard: CustomDashboard) => (
+          <CustomDashboardCard
+            key={customDashboard.custom_dashboard_id}
+            customDashboard={customDashboard}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+          />
+        ))}
+      </Box>
+    );
+  };
+
   return (
     <>
       <Breadcrumbs
@@ -98,88 +172,94 @@ const CustomDashboards = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <ToggleButtonGroup value="fake" exclusive>
+          <Box display="flex" gap={1} alignItems="center">
+            {viewSwitcher}
+            <ToggleButtonGroup value="fake" exclusive>
+              <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
+                <ImportUploaderJsonApiComponent
+                  title={t('Import a custom dashboard')}
+                  uploadFn={importCustomDashboard}
+                />
+              </Can>
+            </ToggleButtonGroup>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
-              <ImportUploaderJsonApiComponent
-                title={t('Import a custom dashboard')}
-                uploadFn={importCustomDashboard}
-              />
+              <CustomDashboardCreation />
             </Can>
-          </ToggleButtonGroup>
+          </Box>
         )}
       />
-      <List>
-        <ListItem
-          classes={{ root: classes.itemHead }}
-          divider={false}
-          sx={{ pt: 0 }}
-          secondaryAction={<>&nbsp;</>}
-        >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponentV2
-                headers={headers}
-                inlineStylesHeaders={inlineStyles}
-                sortHelpers={queryableHelpers.sortHelpers}
-              />
-            )}
-          />
-        </ListItem>
-        {
-          loading
-            ? <PaginatedListLoader Icon={AnalyticsOutlined} headers={headers} headerStyles={inlineStyles} />
-            : customDashboards.map((customDashboard: CustomDashboard) => {
-                return (
-                  (
-                    <ListItem
-                      key={customDashboard.custom_dashboard_id}
-                      divider
-                      secondaryAction={(
-                        <CustomDashboardPopover
-                          customDashboard={customDashboard}
-                          onUpdate={handleUpdate}
-                          onDelete={handleDelete}
-                          inList
-                        />
-                      )}
-                      disablePadding
-                    >
-                      <ListItemButton
-                        component={Link}
-                        to={`/admin/workspaces/custom_dashboards/${customDashboard.custom_dashboard_id}`}
-                        classes={{ root: classes.item }}
+      {viewMode === 'cards' && renderCards()}
+      {viewMode === 'list' && (
+        <List>
+          <ListItem
+            classes={{ root: classes.itemHead }}
+            divider={false}
+            sx={{ pt: 0 }}
+            secondaryAction={<>&nbsp;</>}
+          >
+            <ListItemIcon />
+            <ListItemText
+              primary={(
+                <SortHeadersComponentV2
+                  headers={headers}
+                  inlineStylesHeaders={inlineStyles}
+                  sortHelpers={queryableHelpers.sortHelpers}
+                />
+              )}
+            />
+          </ListItem>
+          {
+            loading
+              ? <PaginatedListLoader Icon={AnalyticsOutlined} headers={headers} headerStyles={inlineStyles} />
+              : customDashboards.map((customDashboard: CustomDashboard) => {
+                  return (
+                    (
+                      <ListItem
+                        key={customDashboard.custom_dashboard_id}
+                        divider
+                        secondaryAction={(
+                          <CustomDashboardPopover
+                            customDashboard={customDashboard}
+                            onUpdate={handleUpdate}
+                            onDelete={handleDelete}
+                            inList
+                          />
+                        )}
+                        disablePadding
                       >
-                        <ListItemIcon>
-                          <AnalyticsOutlined color="primary" />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={(
-                            <div style={bodyItemsStyles.bodyItems}>
-                              {headers.map(header => (
-                                <div
-                                  key={header.field}
-                                  style={{
-                                    ...bodyItemsStyles.bodyItem,
-                                    ...inlineStyles[header.field],
-                                  }}
-                                >
-                                  {header.value?.(customDashboard)}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  )
-                );
-              })
-        }
-      </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
-        <CustomDashboardCreation />
-      </Can>
+                        <ListItemButton
+                          component={Link}
+                          to={`/admin/workspaces/custom_dashboards/${customDashboard.custom_dashboard_id}`}
+                          classes={{ root: classes.item }}
+                        >
+                          <ListItemIcon>
+                            <AnalyticsOutlined color="primary" />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={(
+                              <div style={bodyItemsStyles.bodyItems}>
+                                {headers.map(header => (
+                                  <div
+                                    key={header.field}
+                                    style={{
+                                      ...bodyItemsStyles.bodyItem,
+                                      ...inlineStyles[header.field],
+                                    }}
+                                  >
+                                    {header.value?.(customDashboard)}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    )
+                  );
+                })
+          }
+        </List>
+      )}
     </>
   );
 };

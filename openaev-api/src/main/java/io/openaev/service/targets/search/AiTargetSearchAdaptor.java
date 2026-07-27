@@ -1,7 +1,5 @@
 package io.openaev.service.targets.search;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.AiTargetTarget;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetCategory;
@@ -12,6 +10,7 @@ import io.openaev.database.model.Tag;
 import io.openaev.database.repository.AiTargetRepository;
 import io.openaev.service.AssetGroupService;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,27 +36,14 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AiTargetSearchAdaptor extends SearchAdaptorBase {
 
-  /** Inject content key holding the referenced AI target id (see the ai-redteam injector). */
-  private static final String AI_TARGET_CONTENT_KEY = "ai_target";
-
   private final AiTargetRepository aiTargetRepository;
   private final AssetGroupService assetGroupService;
   private final HelperTargetSearchAdaptor helperTargetSearchAdaptor;
 
   private Optional<Asset> contentAiTarget(Inject scopedInject) {
-    ObjectNode content = scopedInject.getContent();
-    if (content == null) {
-      return Optional.empty();
-    }
-    JsonNode node = content.get(AI_TARGET_CONTENT_KEY);
-    if (node == null || node.isNull()) {
-      return Optional.empty();
-    }
-    String aiTargetId = StringUtils.trimToNull(node.asText());
-    if (aiTargetId == null) {
-      return Optional.empty();
-    }
-    return aiTargetRepository.findAiTargetById(aiTargetId);
+    // Key parsing shared with InjectService.resolveContentAiTarget via InjectContentUtils.
+    return InjectContentUtils.contentAiTargetId(scopedInject.getContent())
+        .flatMap(aiTargetRepository::findAiTargetById);
   }
 
   /**

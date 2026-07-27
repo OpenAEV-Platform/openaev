@@ -108,7 +108,7 @@ public class ThreatArsenalInputFixture {
   }
 
   public static ThreatArsenalActionCreateInput createCommandLineActionWithDetectionRemediation(
-      List<String> domainIds) {
+      List<String> domainIds, List<String> securityPlatformIds) {
     return new ThreatArsenalActionCreateInput(
         Command.COMMAND_TYPE,
         "Command line payload",
@@ -129,7 +129,7 @@ public class ThreatArsenalInputFixture {
         null,
         Collections.emptyList(),
         Collections.emptyList(),
-        PayloadInputFixture.buildDetectionRemediations(),
+        PayloadInputFixture.buildDetectionRemediations(securityPlatformIds),
         null,
         domainIds);
   }
@@ -165,7 +165,7 @@ public class ThreatArsenalInputFixture {
       List<String> domainIds) {
     PayloadArgument targetedAssetArgument = new PayloadArgument();
     targetedAssetArgument.setKey("URL");
-    targetedAssetArgument.setType(ArgumentType.TargetedAsset);
+    targetedAssetArgument.setType(PrimitiveType.TargetedAsset);
     targetedAssetArgument.setDefaultValue("hostname");
     targetedAssetArgument.setSeparator("-u");
 

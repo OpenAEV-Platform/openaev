@@ -203,13 +203,14 @@ const InjectorContractForm = (props) => {
               onClick={handleClose}
               style={{ marginRight: theme.spacing(2) }}
               disabled={submitting}
-              variant="contained"
+              variant="outlined"
+              color="primary"
             >
               {t('Cancel')}
             </Button>
 
             <Button
-              color="secondary"
+              color="primary"
               type="submit"
               variant="contained"
               disabled={submitting}

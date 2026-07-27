@@ -99,7 +99,7 @@ public class ExecutableInjectService {
 
       // If the argument is a targeted asset, we need to fetch the asset details
       if (defaultPayloadArgument != null
-          && ArgumentType.TargetedAsset == defaultPayloadArgument.getType()) {
+          && PrimitiveType.TargetedAsset == defaultPayloadArgument.getType()) {
         value =
             getTargetedAssetArgumentValue(
                 argumentKey, injectContent, defaultPayloadArgument, injectorContractContentFields);
@@ -115,7 +115,7 @@ public class ExecutableInjectService {
         // by the implant
         boolean isDocArg =
             defaultPayloadArgument != null
-                && (ArgumentType.Document == defaultPayloadArgument.getType());
+                && (PrimitiveType.Document == defaultPayloadArgument.getType());
         if (isDocArg && !value.isEmpty()) {
           try {
             Document doc = documentService.document(value);
@@ -334,7 +334,7 @@ public class ExecutableInjectService {
         payload.getArguments().stream()
             .map(
                 arg -> {
-                  if (ArgumentType.Document != arg.getType()) {
+                  if (PrimitiveType.Document != arg.getType()) {
                     return arg;
                   }
                   String actualValue =
@@ -345,7 +345,6 @@ public class ExecutableInjectService {
                   // Create a copy to avoid mutating the shared original PayloadArgument.
                   PayloadArgument copy = new PayloadArgument();
                   copy.setType(arg.getType());
-                  copy.setSubtype(arg.getSubtype());
                   copy.setKey(arg.getKey());
                   copy.setDefaultValue(actualValue);
                   copy.setDescription(arg.getDescription());

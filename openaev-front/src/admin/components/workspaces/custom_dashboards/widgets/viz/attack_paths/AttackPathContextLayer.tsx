@@ -60,7 +60,7 @@ const AttackPathContextLayer = ({ attackPathsData, widgetId, widgetConfig }: Pro
   }
 
   if (loading || !exercise) {
-    return <Loader />;
+    return <Loader variant="inElement" />;
   }
 
   return (

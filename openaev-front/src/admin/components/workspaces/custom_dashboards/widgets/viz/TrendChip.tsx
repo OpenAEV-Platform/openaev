@@ -4,6 +4,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../../../components/i18n';
+import { compactNumber } from '../../../../../../utils/number';
 
 interface Props {
   /** Signed delta over the previous interval. */
@@ -39,7 +40,8 @@ const TrendChip: FunctionComponent<Props> = ({ difference, previous }) => {
     return TrendingFlatOutlined;
   })();
 
-  const label = `${difference > 0 ? '+' : ''}${difference}`;
+  // compactNumber carries the "-" sign itself for negative deltas
+  const label = `${difference > 0 ? '+' : ''}${compactNumber(difference)}`;
 
   const chip = (
     <Box
@@ -69,7 +71,7 @@ const TrendChip: FunctionComponent<Props> = ({ difference, previous }) => {
   }
 
   return (
-    <Tooltip title={t('was previously', { previous_number: previous })}>
+    <Tooltip title={t('was previously', { previous_number: previous.toLocaleString() })}>
       {chip}
     </Tooltip>
   );

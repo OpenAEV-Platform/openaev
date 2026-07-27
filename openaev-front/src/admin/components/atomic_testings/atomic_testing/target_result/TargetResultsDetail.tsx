@@ -4,9 +4,12 @@ import { type ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
 import { fetchTargetResult } from '../../../../../actions/atomic_testings/atomic-testing-actions';
+import { fetchCollectors } from '../../../../../actions/Collector';
 import Paper from '../../../../../components/common/Paper';
 import { useFormatter } from '../../../../../components/i18n';
 import type { InjectResultOverviewOutput, InjectTarget } from '../../../../../utils/api-types';
+import { useAppDispatch } from '../../../../../utils/hooks';
+import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { isAgent, isAssetGroups, isAssets } from '../../../../../utils/target/TargetUtils';
 import { type ExpectationResultType, ExpectationType, type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import ExecutionStatusDetail from '../../../common/injects/status/ExecutionStatusDetail';
@@ -14,12 +17,17 @@ import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewT
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../../InjectResultOverviewOutputContext';
 import InjectExpectationProvider from '../context/InjectExpectationProvider';
 import InjectExpectationCard from './InjectExpectationCard';
+import TargetResultsHeader from './TargetResultsHeader';
 import TargetResultsTimeline from './TargetResultsTimeline';
 
 interface Props {
   inject: InjectResultOverviewOutput;
   target: InjectTarget;
   isAgentless: boolean;
+  position?: number;
+  total?: number;
+  onSelectPrevious?: () => void;
+  onSelectNext?: () => void;
 }
 
 interface SectionConfig {
@@ -28,9 +36,16 @@ interface SectionConfig {
   content: ReactNode;
 }
 
-const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
+const TargetResultsDetail = ({ inject, target, isAgentless, position, total, onSelectPrevious, onSelectNext }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  const dispatch = useAppDispatch();
+
+  // Collectors are needed by the expectation result lists to resolve each
+  // collector-sourced result to its security platform (pivot link).
+  useDataLoader(() => {
+    dispatch(fetchCollectors());
+  });
 
   const [sortedGroupedTargetResults, setSortedGroupedTargetResults] = useState<Record<string, InjectExpectationsStore[]>>({});
 
@@ -98,36 +113,9 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
   }, [openIdParams, sortedGroupedTargetResults]);
 
   const sections: SectionConfig[] = [];
-  if (!isAssetGroups(target)) {
-    sections.push({
-      key: 'execution',
-      label: t('Execution'),
-      content: (
-        <ExecutionStatusDetail
-          target={{
-            id: target.target_id,
-            name: target.target_name,
-            targetType: target.target_type,
-            platformType: target.target_subtype,
-          }}
-          injectId={inject.inject_id}
-        />
-      ),
-    });
-    // Terminal view shows command-execution traces, which only exist for agent-based execution:
-    // endpoints (ASSETS) and their agents (AGENT). Other target kinds - AI targets, cloud / SaaS /
-    // identity assets, teams, players - never produce a terminal transcript, so the section is hidden.
-    if (isAssets(target) || isAgent(target)) {
-      sections.push({
-        key: 'terminal-view',
-        label: t('Terminal view'),
-        content: (
-          <TerminalViewTab injectId={inject.inject_id} target={target} />
-        ),
-      });
-    }
-  }
 
+  // Expectations (prevention, detection, ...) are the outcome users care about
+  // most, so they come first, before the raw execution details.
   Object.entries(sortedGroupedTargetResults).forEach(([type, expectationResults]) => (
     sections.push({
       key: type,
@@ -154,6 +142,37 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
     })
   ));
 
+  if (!isAssetGroups(target)) {
+    sections.push({
+      key: 'execution',
+      label: t('Execution'),
+      content: (
+        <ExecutionStatusDetail
+          target={{
+            id: target.target_id,
+            name: target.target_name,
+            targetType: target.target_type,
+            platformType: target.target_subtype,
+          }}
+          injectId={inject.inject_id}
+          injectStatusName={injectResultOverviewOutput?.inject_status?.status_name}
+        />
+      ),
+    });
+    // Terminal view shows command-execution traces, which only exist for agent-based execution:
+    // endpoints (ASSETS) and their agents (AGENT). Other target kinds - AI targets, cloud / SaaS /
+    // identity assets, teams, players - never produce a terminal transcript, so the section is hidden.
+    if (isAssets(target) || isAgent(target)) {
+      sections.push({
+        key: 'terminal-view',
+        label: t('Terminal view'),
+        content: (
+          <TerminalViewTab injectId={inject.inject_id} target={target} />
+        ),
+      });
+    }
+  }
+
   return (
     <Paper>
       <div
@@ -165,8 +184,17 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
           paddingTop: theme.spacing(1),
         }}
       >
+        <TargetResultsHeader
+          target={target}
+          position={position}
+          total={total}
+          onSelectPrevious={onSelectPrevious}
+          onSelectNext={onSelectNext}
+        />
+
         <TargetResultsTimeline
           injectStatusName={injectResultOverviewOutput?.inject_status?.status_name}
+          targetExecutionStatus={target.target_execution_status}
           targetResultsByType={sortedGroupedTargetResults}
           lastExecutionStartDate={injectResultOverviewOutput?.inject_status?.tracking_sent_date || ''}
           lastExecutionEndDate={injectResultOverviewOutput?.inject_status?.tracking_end_date || ''}

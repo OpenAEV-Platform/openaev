@@ -31,6 +31,7 @@ import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.utils.mockConfig.executors.WithMockTaniumConfig;
 import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
@@ -49,6 +50,19 @@ import org.springframework.transaction.annotation.Transactional;
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+// The legacy properties migration only seeds an instance when the legacy config is enabled;
+// these tests exercise the factory around that migrated instance.
+@WithMockTaniumConfig(
+    enable = true,
+    url = "tanium_url",
+    apiKey = "tanium_api_key",
+    apiRegisterInterval = 1234,
+    computerGroupId = "tanium_cmptr_group_id",
+    cleanImplantInterval = 4321,
+    apiBatchExecutionActionPagination = 5678,
+    actionGroupId = 987,
+    windowsPackageId = 32,
+    unixPackageId = 67)
 public class TaniumExecutorIntegrationTest {
   @Autowired private TaniumExecutorClient client;
   @Autowired private EndpointService endpointService;
@@ -115,6 +129,10 @@ public class TaniumExecutorIntegrationTest {
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
         connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
+    // The migrated instance requests 'starting' (legacy config enabled): request a stop
+    // so the sync exercises the stopped path instead of attempting a real start.
+    instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    connectorInstanceService.save(instances.getFirst());
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);
@@ -138,6 +156,10 @@ public class TaniumExecutorIntegrationTest {
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
         connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
+    // The migrated instance requests 'starting' (legacy config enabled): request a stop
+    // so the sync exercises the stopped path instead of attempting a real start.
+    instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    connectorInstanceService.save(instances.getFirst());
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);

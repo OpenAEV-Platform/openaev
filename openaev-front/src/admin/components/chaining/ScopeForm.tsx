@@ -1,5 +1,4 @@
-import { DevicesOtherOutlined } from '@mui/icons-material';
-import { Box, Button, Tab, Tabs, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Tab, Tabs, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import {
@@ -17,6 +16,7 @@ import { findEndpoints, searchEndpoints } from '../../../actions/assets/endpoint
 import { fetchExecutors } from '../../../actions/executors/executor-action';
 import type { ExecutorHelper } from '../../../actions/executors/executor-helper';
 import ClickableList, { type ClickableListElements } from '../../../components/common/ClickableList';
+import { SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../components/common/queryable/useQueryableWithLocalStorage';
@@ -33,6 +33,7 @@ import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../utils/url-helper';
 import { download } from '../../../utils/utils';
+import AssetCategoryIcon from '../assets/AssetCategoryIcon';
 import AssetStatus from '../assets/AssetStatus';
 import {
   buildScopeRulesCsvTemplate,
@@ -145,7 +146,9 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
     = useQueryable(buildSearchPagination({}));
 
   const endpointElements: ClickableListElements<EndpointOutput> = useMemo(() => ({
-    icon: { value: () => <DevicesOtherOutlined color="primary" /> },
+    // Category-aware glyph (same as the assets inventory page) so non-host assets
+    // (web applications, cloud resources, ...) don't show the generic device icon.
+    icon: { value: (endpoint: EndpointOutput) => <AssetCategoryIcon category={endpoint.asset_category} color="primary" /> },
     headers: [
       {
         field: 'asset_name',
@@ -410,9 +413,7 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
 
       {/* Add section */}
       <Box>
-        <Typography variant="h4">
-          {addLabel}
-        </Typography>
+        <SectionLabel>{addLabel}</SectionLabel>
 
         <Box>
           <Tabs value={currentTab} onChange={handleTabChange}>
@@ -458,14 +459,15 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
       }}
       >
         <Button
-          variant="contained"
+          variant="outlined"
+          color="primary"
           onClick={onCancel}
         >
           {t('Cancel')}
         </Button>
         <Button
           variant="contained"
-          color="secondary"
+          color="primary"
           onClick={onSubmit}
           disabled={!hasChanges}
         >

@@ -1,7 +1,7 @@
 package io.openaev.rest.kill_chain_phase;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.database.specification.KillChainPhaseSpecification.byName;
+import static io.openaev.database.specification.KillChainPhaseSpecification.byNameOrKillChainName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
@@ -15,29 +15,34 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.kill_chain_phase.form.KillChainPhaseCreateInput;
 import io.openaev.rest.kill_chain_phase.form.KillChainPhaseUpdateInput;
 import io.openaev.rest.kill_chain_phase.form.KillChainPhaseUpsertInput;
+import io.openaev.rest.kill_chain_phase.service.KillChainPhaseService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.Valid;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 @RequestMapping({KillChainPhaseApi.KILL_CHAIN_PHASE_URI, TENANT_PREFIX + "/kill_chain_phases"})
 public class KillChainPhaseApi extends RestBehavior {
 
   public static final String KILL_CHAIN_PHASE_URI = "/api/kill_chain_phases";
 
   private final KillChainPhaseRepository killChainPhaseRepository;
+  private final KillChainPhaseService killChainPhaseService;
 
   @GetMapping
   @Transactional
@@ -96,48 +101,42 @@ public class KillChainPhaseApi extends RestBehavior {
     return killChainPhaseRepository.save(killChainPhase);
   }
 
+  /**
+   * Race-safe upsert. Several collectors (MITRE Enterprise / Mobile / ICS, Atlas...) call this
+   * endpoint concurrently right after platform startup; two threads can both miss the lookup for a
+   * brand new phase and both insert it, so the loser fails on the {@code
+   * kill_chain_phases_stix_id_tenant_unique} constraint. The losing transaction is fully rolled
+   * back, therefore a single retry in a fresh transaction sees the winner's committed row and
+   * updates it instead of inserting. {@code NOT_SUPPORTED} keeps this endpoint outside any
+   * transaction: each service call must run in its own transaction for the retry to work.
+   */
   @PostMapping("/upsert")
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.KILL_CHAIN_PHASE)
-  @Transactional(rollbackFor = Exception.class)
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public Iterable<KillChainPhase> upsertKillChainPhases(
       @Valid @RequestBody KillChainPhaseUpsertInput input) {
-    List<KillChainPhase> upserted = new ArrayList<>();
-    List<KillChainPhaseCreateInput> inputKillChainPhases = input.getKillChainPhases();
-    inputKillChainPhases.forEach(
-        killChainPhaseCreateInput -> {
-          String killChainName = killChainPhaseCreateInput.getKillChainName();
-          String shortName = killChainPhaseCreateInput.getShortName();
-          Optional<KillChainPhase> optionalKillChainPhase =
-              killChainPhaseRepository.findByKillChainNameAndShortName(killChainName, shortName);
-          if (optionalKillChainPhase.isEmpty()) {
-            KillChainPhase newKillChainPhase = new KillChainPhase();
-            newKillChainPhase.setKillChainName(killChainName);
-            newKillChainPhase.setStixId(killChainPhaseCreateInput.getStixId());
-            newKillChainPhase.setExternalId(killChainPhaseCreateInput.getExternalId());
-            newKillChainPhase.setShortName(shortName);
-            newKillChainPhase.setName(killChainPhaseCreateInput.getName());
-            newKillChainPhase.setDescription(killChainPhaseCreateInput.getDescription());
-            // Honor an explicit, non-zero order from the input (used by importers that know their
-            // own
-            // matrix ordering, e.g. MITRE ATLAS); otherwise resolve the canonical order from the
-            // kill chain name + short name (mitre-attack or mitre-atlas).
-            Long inputOrder = killChainPhaseCreateInput.getOrder();
-            newKillChainPhase.setOrder(
-                inputOrder != null && inputOrder != 0L
-                    ? inputOrder
-                    : KillChainPhaseUtils.orderFor(killChainName, shortName));
-            upserted.add(newKillChainPhase);
-          } else {
-            KillChainPhase killChainPhase = optionalKillChainPhase.get();
-            killChainPhase.setStixId(killChainPhaseCreateInput.getStixId());
-            killChainPhase.setShortName(killChainPhaseCreateInput.getShortName());
-            killChainPhase.setName(killChainPhaseCreateInput.getName());
-            killChainPhase.setExternalId(killChainPhaseCreateInput.getExternalId());
-            killChainPhase.setDescription(killChainPhaseCreateInput.getDescription());
-            upserted.add(killChainPhase);
-          }
-        });
-    return this.killChainPhaseRepository.saveAll(upserted);
+    try {
+      return killChainPhaseService.upsertKillChainPhases(input.getKillChainPhases());
+    } catch (DataIntegrityViolationException e) {
+      if (!isKillChainPhaseUniqueViolation(e)) {
+        throw e;
+      }
+      log.warn(
+          "Kill chain phase upsert lost a concurrent-insert race, retrying once: {}",
+          e.getMessage());
+      return killChainPhaseService.upsertKillChainPhases(input.getKillChainPhases());
+    }
+  }
+
+  /**
+   * Only a duplicate-key violation on one of the kill_chain_phases unique constraints is a
+   * concurrent-insert race worth retrying; any other integrity failure (not-null, foreign key...)
+   * would fail again identically and must propagate immediately.
+   */
+  private static boolean isKillChainPhaseUniqueViolation(DataIntegrityViolationException e) {
+    return e.getCause() instanceof ConstraintViolationException constraintViolation
+        && constraintViolation.getConstraintName() != null
+        && constraintViolation.getConstraintName().startsWith("kill_chain_phases_");
   }
 
   @DeleteMapping("/{killChainPhaseId}")
@@ -159,9 +158,10 @@ public class KillChainPhaseApi extends RestBehavior {
       @RequestParam(required = false) final String searchText) {
     return fromIterable(
             this.killChainPhaseRepository.findAll(
-                byName(searchText), Sort.by(Sort.Direction.ASC, "order")))
+                byNameOrKillChainName(searchText),
+                Sort.by(Sort.Order.asc("killChainName"), Sort.Order.asc("order"))))
         .stream()
-        .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
+        .map(KillChainPhaseApi::toOption)
         .toList();
   }
 
@@ -170,7 +170,16 @@ public class KillChainPhaseApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.killChainPhaseRepository.findAllById(ids)).stream()
-        .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
+        .map(KillChainPhaseApi::toOption)
         .toList();
+  }
+
+  /**
+   * The platform is multi kill chain: phase names are only unique within their kill chain, so
+   * options are always labelled "[kill chain] phase" to disambiguate.
+   */
+  private static FilterUtilsJpa.Option toOption(KillChainPhase phase) {
+    return new FilterUtilsJpa.Option(
+        phase.getId(), "[" + phase.getKillChainName() + "] " + phase.getName());
   }
 }

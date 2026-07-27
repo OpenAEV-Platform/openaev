@@ -1,4 +1,4 @@
-import { ReportProblemOutlined } from '@mui/icons-material';
+import { InsertDriveFileOutlined, ReportProblemOutlined } from '@mui/icons-material';
 import { Tooltip } from '@mui/material';
 import {
   AccountAlertOutline,
@@ -47,6 +47,8 @@ const renderIcon = (findingType: string) => {
       return <AccountOutline color="primary" />;
     case 'share':
       return <FolderNetworkOutline color="primary" />;
+    case 'file':
+      return <InsertDriveFileOutlined color="primary" />;
     case 'group':
       return <AccountGroupOutline color="primary" />;
     case 'computer':

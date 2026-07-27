@@ -1,8 +1,8 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Condition;
-import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.PrimitiveType;
 import java.util.List;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -30,6 +30,25 @@ public interface ConditionRepository extends JpaRepository<Condition, String> {
   List<Condition> findAllLinkedToStepId(@Param("stepId") String stepId);
 
   /**
+   * Batched variant of {@link #findAllLinkedToStepId}: retrieves the conditions linked to any of
+   * the given step ids, each paired with its step id so the caller can group by step in one read
+   * (issue 5048). Like the single-step query, this returns the conditions linked to a step (the
+   * tree roots); a composite AND/OR filter's leaf keys live in its {@code conditionChildren} and
+   * are reached by walking the tree, not by this query.
+   *
+   * @param stepIds the step ids to retrieve conditions for
+   * @return one row per (step, linked condition)
+   */
+  @Query(
+      """
+          SELECT new io.openaev.database.repository.StepConditionRow(cs.step.id, c)
+          FROM Condition c
+          JOIN c.conditionSteps cs
+          WHERE cs.step.id IN :stepIds
+          """)
+  List<StepConditionRow> findAllLinkedToStepIdIn(@Param("stepIds") Set<String> stepIds);
+
+  /**
    * Retrieves all root conditions (events) for a given workflow. A root condition has no parent.
    *
    * @param workflowId the workflow identifier
@@ -47,7 +66,17 @@ public interface ConditionRepository extends JpaRepository<Condition, String> {
   List<Condition> findAllByWorkflowIdAndConditionParentIsNullAndTypeNot(
       String workflowId, ConditionType excludedType);
 
-  List<Condition> findAllByKeyTypeIn(Set<ConditionKeyType> outputKeyTypes);
+  /**
+   * Retrieves all conditions (roots AND descendants) for a given workflow, excluding those of the
+   * specified type. Used to build complete event trees without relying on lazy-loaded children.
+   *
+   * @param workflowId the workflow identifier
+   * @param excludedType the condition type to exclude (e.g. MAPPER)
+   * @return all non-excluded conditions for the given workflow
+   */
+  List<Condition> findAllByWorkflowIdAndTypeNot(String workflowId, ConditionType excludedType);
+
+  List<Condition> findAllByKeyTypeIn(Set<PrimitiveType> outputKeyTypes);
 
   /**
    * Retrieves root filter conditions for a given workflow that have at least one child condition
@@ -77,6 +106,6 @@ public interface ConditionRepository extends JpaRepository<Condition, String> {
           """)
   List<Condition> findFilterConditionsByWorkflowIdAndKeyTypes(
       @Param("workflowId") String workflowId,
-      @Param("keyTypes") Set<ConditionKeyType> keyTypes,
+      @Param("keyTypes") Set<PrimitiveType> keyTypes,
       @Param("excludedTypes") Set<ConditionType> excludedTypes);
 }

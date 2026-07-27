@@ -86,6 +86,8 @@ export const computeStatusStyle = (status: string | undefined | null) => {
     'PENDING': colorStyles.blue,
     'QUEUING': colorStyles.yellow,
     'DRAFT': colorStyles.blueGrey,
+    // Display-only status for disabled injects (never executed, no status row)
+    'DISABLED': colorStyles.blueGrey,
 
     // Expectation display labels
     'FAILED': colorStyles.red,
@@ -136,6 +138,7 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
     // Not counted statuses
     'asset_agentless': theme.palette.grey['500'],
     'agent_inactive': theme.palette.grey['500'],
+    'info': colorStyles.blue.color,
 
     // -- ExecutionStatus --
     'partial': colorStyles.orange.color,

@@ -24,6 +24,21 @@ public interface SecurityPlatformRepository
   Optional<SecurityPlatform> findByExternalReference(
       @Param("externalReference") String externalReference);
 
+  /**
+   * Case-insensitive (name, type) lookup mirroring the {@code
+   * unique_security_platform_name_type_ci_idx} unique index: used by the upsert endpoint as a
+   * fallback when the external reference does not match (e.g. a collector redeployed through the
+   * Integration Manager registers with a freshly generated collector id).
+   */
+  Optional<SecurityPlatform> findByNameIgnoreCaseAndSecurityPlatformType(
+      String name, SecurityPlatform.SECURITY_PLATFORM_TYPE securityPlatformType);
+
+  /**
+   * Case-insensitive exact-name lookup (smallest id wins for determinism): used by the V1 importer
+   * to re-attach detection remediations to an existing platform by name.
+   */
+  Optional<SecurityPlatform> findFirstByNameIgnoreCaseOrderByIdAsc(String name);
+
   Optional<SecurityPlatform> findByIdAndTenantId(String id, String tenantId);
 
   @Override

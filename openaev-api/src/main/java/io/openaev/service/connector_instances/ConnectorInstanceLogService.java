@@ -3,11 +3,13 @@ package io.openaev.service.connector_instances;
 import io.openaev.database.model.ConnectorInstanceLog;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
-import java.util.List;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -69,12 +71,16 @@ public class ConnectorInstanceLogService {
   }
 
   /**
-   * Retrieves all logs for a specific connector instance.
+   * Searches logs for a specific connector instance with pagination.
    *
    * @param connectorInstanceId the connector instance identifier
-   * @return list of logs for the connector instance, empty if none found
+   * @param input the search pagination input
+   * @return a page of logs for the connector instance
    */
-  public List<ConnectorInstanceLog> findLogsByConnectorInstanceId(String connectorInstanceId) {
-    return connectorInstanceLogRepository.findByConnectorInstanceId(connectorInstanceId);
+  @Transactional(readOnly = true)
+  public Page<ConnectorInstanceLog> searchLogsByConnectorInstanceId(
+      String connectorInstanceId, SearchPaginationInput input) {
+    return connectorInstanceLogRepository.searchByConnectorInstanceId(
+        connectorInstanceId, PageRequest.of(input.getPage(), input.getSize()));
   }
 }

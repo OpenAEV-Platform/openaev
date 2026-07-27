@@ -1,23 +1,13 @@
-import { Add } from '@mui/icons-material';
-import { Fab } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
-import { withStyles } from 'tss-react/mui';
 
 import { addAttackPattern } from '../../../../actions/AttackPattern';
+import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Drawer from '../../../../components/common/Drawer';
 import inject18n from '../../../../components/i18n';
 import AttackPatternForm from './AttackPatternForm';
-
-const styles = () => ({
-  createButton: {
-    position: 'fixed',
-    bottom: 30,
-    right: 230,
-  },
-});
 
 class CreateAttackPatternComponent extends Component {
   constructor(props) {
@@ -49,17 +39,10 @@ class CreateAttackPatternComponent extends Component {
   }
 
   render() {
-    const { classes, t } = this.props;
+    const { t } = this.props;
     return (
       <>
-        <Fab
-          onClick={this.handleOpen.bind(this)}
-          color="primary"
-          aria-label="Add"
-          className={classes.createButton}
-        >
-          <Add />
-        </Fab>
+        <ButtonCreate onClick={this.handleOpen.bind(this)} />
         <Drawer
           open={this.state.open}
           handleClose={this.handleClose.bind(this)}
@@ -87,7 +70,6 @@ CreateAttackPatternComponent.propTypes = {
 const CreateAttackPattern = R.compose(
   connect(null, { addAttackPattern }),
   inject18n,
-  Component => withStyles(Component, styles),
 )(CreateAttackPatternComponent);
 
 export default CreateAttackPattern;

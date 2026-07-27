@@ -9,19 +9,22 @@ import { type FunctionComponent, useContext, useEffect, useMemo, useState } from
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../components/i18n';
+import ItemSecurityPlatformType from '../../../../../components/ItemSecurityPlatformType';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
 import { truncate } from '../../../../../utils/String';
 import { PermissionsContext } from '../../Context';
 import { type ExpectationInput } from './Expectation';
 import ExpectationPopover from './ExpectationPopover';
-import { isAutomatic, typeIcon } from './ExpectationUtils';
+import { isAutomatic, isTechnicalExpectation, typeIcon } from './ExpectationUtils';
 import InjectAddExpectation from './InjectAddExpectation';
 
 const useStyles = makeStyles()(theme => ({
   column: {
     display: 'grid',
-    gridTemplateColumns: '2fr 1fr 1fr 1fr',
+    gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr',
+    alignItems: 'center',
+    gap: theme.spacing(1),
   },
   bodyItem: { fontSize: theme.typography.h3.fontSize },
 }));
@@ -31,7 +34,6 @@ interface InjectExpectationsProps {
   handleExpectations: (expectations: ExpectationInput[]) => void;
   readOnly?: boolean;
   injectId?: string;
-  predefinedExpectations?: ExpectationInput[];
   availableExpectations?: ExpectationInput[];
   inline?: boolean;
 }
@@ -41,7 +43,6 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   handleExpectations,
   readOnly = false,
   injectId,
-  predefinedExpectations = [],
   availableExpectations = [],
   inline = false,
 }) => {
@@ -57,19 +58,15 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   const [sortBy] = useState<keyof ExpectationInput>('expectation_name');
   const [sortAsc] = useState(true);
 
-  const expectationsAvailableInContract = availableExpectations.length > 0
-    ? availableExpectations
-    : predefinedExpectations;
-
   // Filter contract available expectations already included into current inject expectations.
   // expectation_is_multi_selectable=true means the type can be selected multiple times.
   const addableAvailableExpectations = useMemo(() => {
     const selectedTypes = new Set(sortedExpectations.map(e => e.expectation_type));
-    return expectationsAvailableInContract.filter((expectation) => {
+    return availableExpectations.filter((expectation) => {
       const isMultiSelectable = expectation.expectation_is_multi_selectable ?? false;
       return isMultiSelectable || !selectedTypes.has(expectation.expectation_type);
     });
-  }, [sortedExpectations, expectationsAvailableInContract]);
+  }, [sortedExpectations, availableExpectations]);
 
   const sortExpectations = (expectations: ExpectationInput[]): ExpectationInput[] =>
     [...expectations].sort((a, b) => {
@@ -133,7 +130,6 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
             <InjectAddExpectation
               disabled={readOnly}
               handleAddExpectation={handleAddExpectation}
-              predefinedExpectations={predefinedExpectations}
               availableExpectations={addableAvailableExpectations}
               inline
             />
@@ -175,6 +171,29 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
                   <div className={classes.bodyItem}>
                     {typeLabel(expectation.expectation_type)}
                   </div>
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 4,
+                  }}
+                  >
+                    {(() => {
+                      const expectedTypes = expectation.expectation_expected_security_platform_types ?? [];
+                      if (!isTechnicalExpectation(expectation.expectation_type)) {
+                        return null;
+                      }
+                      if (expectedTypes.length === 0) {
+                        return (
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            {t('Any security platform')}
+                          </Typography>
+                        );
+                      }
+                      return expectedTypes.map(type => (
+                        <ItemSecurityPlatformType key={type} type={type} />
+                      ));
+                    })()}
+                  </div>
                 </div>
               )}
             />
@@ -185,7 +204,6 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
         <InjectAddExpectation
           disabled={readOnly}
           handleAddExpectation={handleAddExpectation}
-          predefinedExpectations={predefinedExpectations}
           availableExpectations={addableAvailableExpectations}
         />
       )}

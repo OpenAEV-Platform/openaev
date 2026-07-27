@@ -5,6 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import type { AttackPatternHelper } from '../../../../../../actions/attack_patterns/attackpattern-helper';
 import type { KillChainPhaseHelper } from '../../../../../../actions/kill_chain_phases/killchainphase-helper';
+import EllipsisTooltip from '../../../../../../components/common/EllipsisTooltip';
 import { useHelper } from '../../../../../../store';
 import type { AttackPattern, KillChainPhase, StructuralHistogramWidget } from '../../../../../../utils/api-types';
 import { sortAttackPattern } from '../../../../../../utils/attack_patterns/attack_patterns';
@@ -40,8 +41,13 @@ interface AttackPatternStats {
   success: number;
   failure: number;
   total: number;
-  successKeys: string[];
-  failureKeys: string[];
+  /**
+   * The technique appears in the series at all (exercised by at least one
+   * inject), even if no expectation result has been scored yet. Drives the
+   * covered/gaps scopes so a not-yet-run simulation still lists its techniques
+   * (rendered muted by AttackPatternBox until results flow in).
+   */
+  present: boolean;
 }
 
 const KillChainPhaseColumn: FunctionComponent<{
@@ -55,7 +61,7 @@ const KillChainPhaseColumn: FunctionComponent<{
   // Standard hooks
   const { classes } = useStyles();
   const theme = useTheme();
-  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
+  const { openWidgetResults } = useContext(CustomDashboardContext);
 
   // Fetching data - stable selector
   const { attackPatternMap }: { attackPatternMap: Record<string, AttackPattern> } = useHelper(
@@ -98,26 +104,37 @@ const KillChainPhaseColumn: FunctionComponent<{
         success,
         failure,
         total: success + failure,
-        successKeys: successData.map(d => d.key).filter(Boolean) as string[],
-        failureKeys: failureData.map(d => d.key).filter(Boolean) as string[],
+        present: successData.length > 0 || failureData.length > 0,
       };
     });
   }, [attackPatterns, successIndex, failureIndex]);
 
   // Filter stats based on the coverage scope (all / exercised / gaps).
+  // Covered is presence-based (technique exercised by an inject), NOT
+  // result-based: this matches the header KPI in SecurityCoverageContent and
+  // keeps techniques visible (muted, coverage unknown) before any expectation
+  // result has been scored - e.g. a simulation that has not run yet.
   const filteredStats = useMemo(() => {
-    if (coverageFilter === 'covered') return attackPatternStats.filter(stat => stat.total > 0);
-    if (coverageFilter === 'gaps') return attackPatternStats.filter(stat => stat.total === 0);
+    if (coverageFilter === 'covered') return attackPatternStats.filter(stat => stat.present);
+    if (coverageFilter === 'gaps') return attackPatternStats.filter(stat => !stat.present);
     return attackPatternStats;
   }, [attackPatternStats, coverageFilter]);
 
   const onAttackPatternBoxClick = useCallback((stat: AttackPatternStats) => {
-    openWidgetDataDrawer({
+    // Deterministic drill-down scope: the clicked technique plus ALL of its
+    // sub-techniques from the referential. Using the raw aggregation bucket
+    // keys instead would silently drop any bucket truncated out of the terms
+    // aggregation, making the list disagree with the tile.
+    const clickedId = stat.attackPattern.attack_pattern_id;
+    const subTechniqueIds = Object.values(attackPatternMap)
+      .filter(attackPattern => attackPattern.attack_pattern_parent === clickedId)
+      .map(attackPattern => attackPattern.attack_pattern_id);
+    openWidgetResults({
       widgetId,
-      filter_values_map: { [widgetConfig.field]: [stat.attackPattern.attack_pattern_id, ...stat.successKeys, ...stat.failureKeys] },
+      filter_values_map: { [widgetConfig.field]: [clickedId, ...subTechniqueIds] },
       series_index: 0,
     });
-  }, [openWidgetDataDrawer, widgetId]);
+  }, [openWidgetResults, widgetId, widgetConfig.field, attackPatternMap]);
 
   // Memoize title style
   const titleStyle = useMemo(() => ({ marginBottom: theme.spacing(2) }), [theme]);
@@ -131,7 +148,7 @@ const KillChainPhaseColumn: FunctionComponent<{
   return (
     <div>
       <Typography variant="h5" sx={titleStyle}>
-        {killChainPhase.phase_name}
+        <EllipsisTooltip>{killChainPhase.phase_name}</EllipsisTooltip>
       </Typography>
       <div className={classes.column}>
         {filteredStats.map(stat => (

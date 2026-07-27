@@ -1,9 +1,11 @@
 package io.openaev.service;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
+import static io.openaev.database.specification.TeamSpecification.contextual;
 import static io.openaev.rest.team.TeamQueryHelper.execution;
 import static io.openaev.rest.team.TeamQueryHelper.select;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
 import io.openaev.database.model.Tag;
@@ -11,8 +13,14 @@ import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.specification.SpecificationUtils;
+import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ResourceInUseException;
+import io.openaev.rest.team.form.TeamBulkProcessingInput;
 import io.openaev.rest.team.output.TeamOutput;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.CopyObjectListUtils;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
@@ -23,11 +31,14 @@ import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.function.TriFunction;
+import org.hibernate.TransientObjectException;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +46,62 @@ public class TeamService {
 
   private final EntityManager entityManager;
   private final TeamRepository teamRepository;
+  private final BulkDeleteExecutor bulkDeleteExecutor;
+
+  /**
+   * Bulk delete of teams, either from an explicit list of ids or from a search input (select all).
+   * Contextual teams (owned by a simulation or scenario) are always excluded from the deletion
+   * scope, like in the teams list search.
+   *
+   * <p>Not transactional as a whole: the deletion scope is resolved in a short transaction, then
+   * teams are deleted in small independent chunks (with deadlock retry) tracked as a massive
+   * operation, so per-entity stream events are suppressed in favor of aggregated progress events.
+   *
+   * @param input the bulk processing input
+   * @return the ids of the deleted teams
+   */
+  public List<String> bulkDelete(@NotNull final TeamBulkProcessingInput input)
+      throws ResourceInUseException {
+    if ((CollectionUtils.isEmpty(input.getTeamIdsToProcess())
+            && input.getSearchPaginationInput() == null)
+        || (!CollectionUtils.isEmpty(input.getTeamIdsToProcess())
+            && input.getSearchPaginationInput() != null)) {
+      throw new BadRequestException(
+          "Either team_ids_to_process or search_pagination_input must be provided, and not both at the same time");
+    }
+    List<String> teamIdsToDelete =
+        bulkDeleteExecutor.resolveInTransaction(
+            () -> {
+              Specification<Team> specification;
+              if (input.getSearchPaginationInput() != null) {
+                // Same specification chain as the list search (filter group + text search), so the
+                // deletion scope matches exactly what the user sees in the list.
+                specification =
+                    FilterUtilsJpa.<Team>computeFilterGroupJpa(
+                            input.getSearchPaginationInput().getFilterGroup())
+                        .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
+              } else {
+                specification = SpecificationUtils.hasIdIn(input.getTeamIdsToProcess());
+              }
+              specification = contextual(false).and(specification);
+              if (!CollectionUtils.isEmpty(input.getTeamIdsToIgnore())) {
+                List<String> idsToIgnore = input.getTeamIdsToIgnore();
+                specification =
+                    specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+              }
+              return teamRepository.findAll(specification).stream().map(Team::getId).toList();
+            });
+    try {
+      return bulkDeleteExecutor.deleteInChunks(
+          "teams",
+          teamIdsToDelete,
+          chunk -> teamRepository.deleteAll(teamRepository.findAllById(chunk)));
+    } catch (InvalidDataAccessApiUsageException | TransientObjectException ex) {
+      throw new ResourceInUseException(
+          "Cannot delete these teams because at least one of them is still in use. Please remove their dependencies first.",
+          ex);
+    }
+  }
 
   /**
    * Fetch teams corresponding to given IDs

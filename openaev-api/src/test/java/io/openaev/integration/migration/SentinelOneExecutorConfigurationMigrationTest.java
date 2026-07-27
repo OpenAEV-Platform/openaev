@@ -38,7 +38,6 @@ public class SentinelOneExecutorConfigurationMigrationTest {
       apiKey = "sentinelOne_api_key",
       apiRegisterInterval = 1234,
       accountId = "so_acct_id",
-      cleanImplantInterval = 4321,
       apiBatchExecutionActionPagination = 5678,
       windowsScriptId = "so_windows_script_id",
       unixScriptId = "so_unix_script_id",
@@ -138,7 +137,6 @@ public class SentinelOneExecutorConfigurationMigrationTest {
       apiKey = "sentinelOne_api_key",
       apiRegisterInterval = 1234,
       accountId = "so_acct_id",
-      cleanImplantInterval = 4321,
       apiBatchExecutionActionPagination = 5678,
       windowsScriptId = "so_windows_script_id",
       unixScriptId = "so_unix_script_id",
@@ -155,8 +153,8 @@ public class SentinelOneExecutorConfigurationMigrationTest {
     @Autowired private CatalogConnectorComposer catalogConnectorComposer;
 
     @Test
-    @DisplayName("Resulting instance is stopped")
-    public void whenConfigIsEnabled_resultingInstanceIsStopped() throws Exception {
+    @DisplayName("No instance is seeded")
+    public void whenConfigIsDisabled_noInstanceIsSeeded() throws Exception {
       catalogConnectorComposer
           .forCatalogConnector(
               CatalogConnectorFixture.createCatalogConnectorWithClassName(
@@ -169,13 +167,8 @@ public class SentinelOneExecutorConfigurationMigrationTest {
           catalogConnectorService.findByFactoryClassName(
               SentinelOneExecutorIntegrationFactory.class.getCanonicalName());
       assertThat(connector).isPresent();
-
-      ConnectorInstancePersisted instance =
-          connectorInstanceService.findAllByCatalogConnector(connector.get()).getFirst();
-
-      assertThat(instance).isInstanceOf(ConnectorInstancePersisted.class);
-      assertThat(instance.getRequestedStatus())
-          .isEqualTo(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+      assertThat(connector.get().isPropertiesMigrated()).isTrue();
+      assertThat(connectorInstanceService.findAllByCatalogConnector(connector.get())).isEmpty();
     }
   }
 }
