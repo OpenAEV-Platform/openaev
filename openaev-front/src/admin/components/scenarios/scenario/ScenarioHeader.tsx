@@ -513,7 +513,15 @@ const ScenarioHeader = ({
             onClick={async () => {
               setOpenInstantiateSimulationAndStart(false);
               const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;
-              navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
+              // A chained simulation is best followed live on its attack path
+              // graph; time-based ones land on the overview as before. The
+              // route only exists when ATTACK_PATH is enabled (see
+              // simulation/Index.tsx route gating).
+              if (isScenarioChaining && isFeatureEnabled('ATTACK_PATH')) {
+                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
+              } else {
+                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
+              }
               MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
             }}
           >
