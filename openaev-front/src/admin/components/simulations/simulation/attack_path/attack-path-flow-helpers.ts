@@ -1218,7 +1218,8 @@ const causalKeyLabel = (key: CausalConsumedKey, t: ApTranslate): string =>
 //   - EQ => the finding value equals key.value exactly;
 //   - IN => the finding value is one of key.value's comma-separated members (a small, explicit list
 //     semantics; trimmed). Falls back to substring containment for a single-token key.
-// Only EQ and IN are handled now. SKIPPED operators (no edge emitted, no silent cap): NEQ, GT, GTE,
+//   - IS_NOT_NULL => any produced finding of the reconciled type matches (presence, not value).
+// EQ, IN and IS_NOT_NULL are handled. SKIPPED operators (no edge emitted, no silent cap): NEQ, GT, GTE,
 // LT, LTE, CONTAINS, REGEX, and any other — add them here when the backend needs them.
 const findingMatchesKey = (node: AttackPathFlowNode, key: CausalConsumedKey): boolean => {
   if (node.type !== AP_FLOW_NODE_TYPE.finding) {
@@ -1227,6 +1228,12 @@ const findingMatchesKey = (node: AttackPathFlowNode, key: CausalConsumedKey): bo
   const reconciledType = KEYTYPE_TO_FINDING_TYPE[key.keyType] ?? key.keyType;
   if ((node.data.typeFindings ?? '') !== reconciledType) {
     return false;
+  }
+  // IS_NOT_NULL matches on presence, not value: any produced finding of the reconciled type satisfies it
+  // (e.g. an event "triggered when any share is found"). Its key.value is null, so this must be handled
+  // before the string guard below.
+  if (key.operator === 'IS_NOT_NULL') {
+    return findingNodeValue(node).length > 0;
   }
   // Guard the real DTO field (the mock is always a string, but the backend value may be null/undefined):
   // a non-string key value can never match and must not reach key.value.split() below.
