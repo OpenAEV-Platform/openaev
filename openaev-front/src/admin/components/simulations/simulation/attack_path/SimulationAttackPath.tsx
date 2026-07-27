@@ -73,7 +73,7 @@ const isSeedId = (id?: string) => !!id && id.startsWith('ap-seed-');
 
 // Finding types already surfaced by the curated summary cards (endpoints/files/credentials/users/cves).
 // Every OTHER type present in the data gets an auto-generated card, so a new finding type needs no code.
-const COVERED_FINDING_TYPES = new Set(['share', 'credentials', 'username', 'admin_username', 'cve']);
+const COVERED_FINDING_TYPES = new Set(['file', 'credentials', 'username', 'admin_username', 'cve']);
 
 // Finding categories fetched (with per-finding executionIds) to attribute findings to an injector.
 const INJECTOR_FINDING_CATEGORIES = ['credentials', 'users', 'cves', 'files'];
@@ -139,7 +139,7 @@ const CATEGORY_OF_TYPE: Record<string, string> = {
   username: 'users',
   admin_username: 'users',
   cve: 'cves',
-  share: 'files',
+  file: 'files',
 };
 
 // Match a drawer finding value to a graph finding value. Credentials are masked server-side in the
@@ -1555,19 +1555,11 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     [drawerFilteredItems, drawerSafePage],
   );
 
-  // "Captured Files" has no backend counter: derive an approximate share count from the collapsed
-  // endpoints' per-type finding counts (temporary until a native "file" finding type exists).
-  const filesCount = useMemo(() => {
-    let sum = 0;
-    for (const n of dto?.attackPathNodes ?? []) {
-      if (n.type === 'ASSET') {
-        sum += n.findingCounts?.share ?? 0;
-      }
-    }
-    return sum;
-  }, [dto]);
+  // "Captured Files" reads the real backend files counter. SMB share findings are presented as file
+  // (an interim stand-in), so this is the distinct-share count today, but wired properly.
+  const filesCount = counters?.files ?? 0;
 
-  const focusedFilesCount = focusedEndpoint?.findingCounts?.share ?? 0;
+  const focusedFilesCount = focusedEndpoint?.findingCounts?.file ?? 0;
   const effectiveCounters = pathFinding
     ? {
         endpoints: 1,
@@ -1595,7 +1587,6 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         label: t('Captured Files'),
         icon: <InsertDriveFileOutlined fontSize="small" />,
         count: pathFinding ? focusedFilesCount : filesCount,
-        hint: t('Temporarily mapped to "share" findings'),
       },
       {
         key: 'credentials',
