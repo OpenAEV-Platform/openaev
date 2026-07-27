@@ -790,7 +790,9 @@ public class ExpectationUtils {
    * <p>Resolved primarily from the injector contract's needs-executor flag because {@code
    * inject.getInjector()} is NULL for injects created by the scenario importer (XTM Hub) and for
    * legacy injects - relying on it silently disabled agentless asset-level expectations for those
-   * injects. Falls back to the injector's payloads flag when no contract is resolvable.
+   * injects. Falls back to the injector's payloads flag when no contract is resolvable, and fails
+   * closed (agents-based, no agentless expectation) when neither a contract nor an injector can be
+   * resolved: downstream expectation building needs the contract to locate the targeted assets.
    *
    * @param inject the inject to test
    * @return true when the inject runs through agents (expectations belong at the agent level)
@@ -799,6 +801,6 @@ public class ExpectationUtils {
     return inject
         .getInjectorContract()
         .map(InjectorContract::getNeedsExecutorEffective)
-        .orElseGet(() -> inject.getInjector() != null && inject.getInjector().isPayloads());
+        .orElseGet(() -> inject.getInjector() == null || inject.getInjector().isPayloads());
   }
 }

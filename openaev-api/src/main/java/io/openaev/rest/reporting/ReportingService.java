@@ -203,7 +203,9 @@ public class ReportingService {
       @NotBlank final String reportingId,
       final ReportingFormat format,
       @NotNull final ReportingGenerationTrigger trigger) {
-    return requestGeneration(reportingId, format, trigger, this.userService.currentUserOrNull());
+    // Delegates to the shared non-transactional body (never to the @Transactional sibling:
+    // an intra-class call would bypass the Spring proxy).
+    return doRequestGeneration(reportingId, format, trigger, this.userService.currentUserOrNull());
   }
 
   /**
@@ -222,6 +224,15 @@ public class ReportingService {
       @NotBlank final String reportingId,
       final ReportingFormat format,
       @NotNull final ReportingGenerationTrigger trigger,
+      final User actingUser) {
+    return doRequestGeneration(reportingId, format, trigger, actingUser);
+  }
+
+  /** Shared body of the two transactional entry points above. */
+  private ReportingGeneration doRequestGeneration(
+      final String reportingId,
+      final ReportingFormat format,
+      final ReportingGenerationTrigger trigger,
       final User actingUser) {
     Reporting reporting = resolveReporting(reportingId);
     // The render runs under the acting user's identity (their token authenticates every data
