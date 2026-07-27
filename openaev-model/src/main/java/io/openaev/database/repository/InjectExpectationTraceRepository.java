@@ -35,20 +35,6 @@ public interface InjectExpectationTraceRepository
       @Param("expectationIds") final Collection<String> expectationIds);
 
   @Query(
-      "select count(distinct t) from InjectExpectationTrace t where t.injectExpectation.id = :expectationId and t.securityPlatform.id = :sourceId")
-  long countAlerts(
-      @Param("expectationId") final String expectationId, @Param("sourceId") final String sourceId);
-
-  // Aggregated variant of countAlerts across several expectations (asset row rolling
-  // up its child agent expectations' alerts). Distinct so a trace shared across the
-  // provided ids is never double-counted.
-  @Query(
-      "select count(distinct t) from InjectExpectationTrace t where t.injectExpectation.id in :expectationIds and t.securityPlatform.id = :sourceId")
-  long countAlertsForExpectations(
-      @Param("expectationIds") final Collection<String> expectationIds,
-      @Param("sourceId") final String sourceId);
-
-  @Query(
       "select t from InjectExpectationTrace t where t.injectExpectation.id = :expectationId and t.securityPlatform.id = :sourceId and t.alertName = :alertName and t.alertLink = :alertLink")
   InjectExpectationTrace findByAlertLinkAndAlertNameAndSecurityPlatformAndInjectExpectation(
       @Param("alertLink") final String alertLink,

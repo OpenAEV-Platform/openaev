@@ -13,6 +13,7 @@ import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectExpectationTraceRepository;
+import io.openaev.database.repository.SecurityPlatformRepository;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -29,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class InjectExpectationTraceServiceTest {
 
   @Mock private InjectExpectationTraceRepository injectExpectationTraceRepository;
+  @Mock private SecurityPlatformRepository securityPlatformRepository;
   @Mock private CollectorRepository collectorRepository;
   @Mock private InjectExpectationRepository injectExpectationRepository;
 
@@ -106,10 +108,11 @@ class InjectExpectationTraceServiceTest {
   @Test
   void getAlertLinksNumber_Success() {
     // Arrange
-    long expectedCount = 5L;
     when(injectExpectationRepository.findById(injectExpectationId)).thenReturn(Optional.empty());
-    when(injectExpectationTraceRepository.countAlertsForExpectations(anyCollection(), anyString()))
-        .thenReturn(expectedCount);
+    when(injectExpectationTraceRepository.findByExpectationsAndSecurityPlatform(
+            anyCollection(), anyString()))
+        .thenReturn(
+            List.of(injectExpectationTrace, buildTrace("Other Alert", "http://other-link.com")));
 
     // Act
     long result =
@@ -117,17 +120,18 @@ class InjectExpectationTraceServiceTest {
             injectExpectationId, securityPlatformId, expectationResultSourceType);
 
     // Assert
-    assertEquals(expectedCount, result);
+    assertEquals(2L, result);
     verify(injectExpectationTraceRepository)
-        .countAlertsForExpectations(List.of(injectExpectationId), securityPlatformId);
+        .findByExpectationsAndSecurityPlatform(List.of(injectExpectationId), securityPlatformId);
   }
 
   @Test
   void getAlertLinksNumber_ZeroCount() {
     // Arrange
     when(injectExpectationRepository.findById(injectExpectationId)).thenReturn(Optional.empty());
-    when(injectExpectationTraceRepository.countAlertsForExpectations(anyCollection(), anyString()))
-        .thenReturn(0L);
+    when(injectExpectationTraceRepository.findByExpectationsAndSecurityPlatform(
+            anyCollection(), anyString()))
+        .thenReturn(Collections.emptyList());
 
     // Act
     long result =
@@ -137,13 +141,37 @@ class InjectExpectationTraceServiceTest {
     // Assert
     assertEquals(0L, result);
     verify(injectExpectationTraceRepository)
-        .countAlertsForExpectations(List.of(injectExpectationId), securityPlatformId);
+        .findByExpectationsAndSecurityPlatform(List.of(injectExpectationId), securityPlatformId);
+  }
+
+  @Test
+  void getAlertLinksNumber_CollectorSource_ResolvesSecurityPlatformFromExternalReference() {
+    // Arrange: security-platform results carry the collector id; the service must resolve it
+    // to the backing security platform before querying the traces
+    String collectorId = UUID.randomUUID().toString();
+    when(securityPlatformRepository.findByExternalReference(collectorId))
+        .thenReturn(Optional.of(securityPlatform));
+    when(injectExpectationRepository.findById(injectExpectationId)).thenReturn(Optional.empty());
+    when(injectExpectationTraceRepository.findByExpectationsAndSecurityPlatform(
+            anyCollection(), anyString()))
+        .thenReturn(List.of(injectExpectationTrace));
+
+    // Act
+    long result =
+        injectExpectationTraceService.getAlertLinksNumber(
+            injectExpectationId, collectorId, "collector");
+
+    // Assert: the trace query receives the resolved security platform id, not the collector id
+    assertEquals(1L, result);
+    verify(injectExpectationTraceRepository)
+        .findByExpectationsAndSecurityPlatform(List.of(injectExpectationId), securityPlatformId);
   }
 
   @Test
   void getAlertLinksNumber_AssetLevelExpectation_AggregatesChildAgentExpectations() {
     // Arrange: an asset-level detection expectation (asset set, no agent) whose alerts live on
-    // its two child agent expectations of the same type
+    // its two child agent expectations of the same type; both agents matched the same physical
+    // alert, so the roll-up must count it once
     DetectionInjectExpectation assetExpectation = buildAssetLevelExpectation(injectExpectationId);
     when(injectExpectationRepository.findById(injectExpectationId))
         .thenReturn(Optional.of(assetExpectation));
@@ -155,18 +183,24 @@ class InjectExpectationTraceServiceTest {
             List.of(
                 buildAgentLevelExpectation("agent-expectation-1"),
                 buildAgentLevelExpectation("agent-expectation-2")));
-    when(injectExpectationTraceRepository.countAlertsForExpectations(anyCollection(), anyString()))
-        .thenReturn(3L);
+    when(injectExpectationTraceRepository.findByExpectationsAndSecurityPlatform(
+            anyCollection(), anyString()))
+        .thenReturn(
+            List.of(
+                buildTrace("Shared Alert", "http://shared-link.com"),
+                buildTrace("Shared Alert", "http://shared-link.com"),
+                buildTrace("Other Alert", "http://other-link.com")));
 
     // Act
     long result =
         injectExpectationTraceService.getAlertLinksNumber(
             injectExpectationId, securityPlatformId, expectationResultSourceType);
 
-    // Assert: the count query receives the asset expectation id plus both child agent ids
-    assertEquals(3L, result);
+    // Assert: the trace query receives the asset expectation id plus both child agent ids,
+    // and the per-agent duplicate of the shared alert is counted once
+    assertEquals(2L, result);
     verify(injectExpectationTraceRepository)
-        .countAlertsForExpectations(
+        .findByExpectationsAndSecurityPlatform(
             List.of(injectExpectationId, "agent-expectation-1", "agent-expectation-2"),
             securityPlatformId);
   }
@@ -204,8 +238,9 @@ class InjectExpectationTraceServiceTest {
     DetectionInjectExpectation agentExpectation = buildAgentLevelExpectation(injectExpectationId);
     when(injectExpectationRepository.findById(injectExpectationId))
         .thenReturn(Optional.of(agentExpectation));
-    when(injectExpectationTraceRepository.countAlertsForExpectations(anyCollection(), anyString()))
-        .thenReturn(1L);
+    when(injectExpectationTraceRepository.findByExpectationsAndSecurityPlatform(
+            anyCollection(), anyString()))
+        .thenReturn(List.of(injectExpectationTrace));
 
     // Act
     long result =
@@ -215,7 +250,7 @@ class InjectExpectationTraceServiceTest {
     // Assert
     assertEquals(1L, result);
     verify(injectExpectationTraceRepository)
-        .countAlertsForExpectations(List.of(injectExpectationId), securityPlatformId);
+        .findByExpectationsAndSecurityPlatform(List.of(injectExpectationId), securityPlatformId);
     verify(injectExpectationRepository, never())
         .findAllWithAgentsByInjectAndAsset(anyString(), anyString(), any());
   }
@@ -239,6 +274,16 @@ class InjectExpectationTraceServiceTest {
     agentExpectation.setId(expectationId);
     agentExpectation.setAgent(agent);
     return agentExpectation;
+  }
+
+  private InjectExpectationTrace buildTrace(final String alertName, final String alertLink) {
+    InjectExpectationTrace trace = new InjectExpectationTrace();
+    trace.setId(UUID.randomUUID().toString());
+    trace.setSecurityPlatform(securityPlatform);
+    trace.setAlertDate(Instant.now());
+    trace.setAlertName(alertName);
+    trace.setAlertLink(alertLink);
+    return trace;
   }
 
   @Test

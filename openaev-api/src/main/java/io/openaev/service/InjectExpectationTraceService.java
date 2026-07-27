@@ -35,8 +35,9 @@ public class InjectExpectationTraceService {
 
   public List<InjectExpectationTrace> getInjectExpectationTracesFromCollector(
       @NotNull String injectExpectationId, @NotNull String sourceId) {
-    return this.injectExpectationTraceRepository.findByExpectationsAndSecurityPlatform(
-        resolveAlertExpectationIds(injectExpectationId), sourceId);
+    return deduplicateByAlertIdentity(
+        this.injectExpectationTraceRepository.findByExpectationsAndSecurityPlatform(
+            resolveAlertExpectationIds(injectExpectationId), sourceId));
   }
 
   public long getAlertLinksNumber(
@@ -53,8 +54,33 @@ public class InjectExpectationTraceService {
     } else {
       securityPlatformId = sourceId;
     }
-    return this.injectExpectationTraceRepository.countAlertsForExpectations(
-        resolveAlertExpectationIds(injectExpectationId), securityPlatformId);
+    return deduplicateByAlertIdentity(
+            this.injectExpectationTraceRepository.findByExpectationsAndSecurityPlatform(
+                resolveAlertExpectationIds(injectExpectationId), securityPlatformId))
+        .size();
+  }
+
+  /**
+   * A trace belongs to exactly one expectation, and the collector stores the same physical alert
+   * once per matching agent expectation (unique per expectation + source + name + link). When
+   * several expectations are rolled up onto the endpoint row, that alert would therefore be listed
+   * and counted once per agent; keep only the first occurrence of each (name, link) pair so the
+   * aggregated view reflects distinct alerts. Single-expectation lookups are unaffected (the
+   * uniqueness constraint already forbids duplicates there).
+   *
+   * @param traces the traces returned for the resolved expectation ids
+   * @return the traces with per-agent duplicates of the same alert removed, original order kept
+   */
+  private List<InjectExpectationTrace> deduplicateByAlertIdentity(
+      final List<InjectExpectationTrace> traces) {
+    Set<String> seenAlerts = new HashSet<>();
+    List<InjectExpectationTrace> distinctTraces = new ArrayList<>();
+    for (InjectExpectationTrace trace : traces) {
+      if (seenAlerts.add(trace.getAlertName() + "|" + trace.getAlertLink())) {
+        distinctTraces.add(trace);
+      }
+    }
+    return distinctTraces;
   }
 
   /**
