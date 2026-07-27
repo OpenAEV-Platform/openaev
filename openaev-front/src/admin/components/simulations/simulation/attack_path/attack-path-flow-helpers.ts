@@ -221,7 +221,9 @@ const CLUSTER_ROW_UNIT = 120;
 const CLUSTER_EP_ROW_H = 124;
 const CLUSTER_FINDING_ROW_H = 100;
 const CLUSTER_FINDING_GAP = 52;
-const CLUSTER_FINDING_DETAIL_ROW = 70;
+// Row height for an expanded individual finding: must leave room for the value label rendered ABOVE the
+// finding node (else a stacked finding's label overlaps the node above it, e.g. long UNC share paths).
+const CLUSTER_FINDING_DETAIL_ROW = 96;
 const CLUSTER_INJECTOR_HALF_H = 36;
 const CLUSTER_EP_HALF_H = 42;
 // Vertical spacing between the stacked injectors on the left band of the deduped view.
@@ -487,7 +489,10 @@ export const buildClusteredAttackPathFlow = (
   // the shared hub surfaces the chokepoints (and their badges) up front rather than burying them.
   const endpointFindingTotal = (assetId: string): number =>
     Object.values(assetById.get(assetId)?.findingCounts ?? {}).reduce((s, v) => s + (v ?? 0), 0);
-  reachedOrder.sort((a, b) => endpointFindingTotal(b) - endpointFindingTotal(a));
+  // Deterministic order: by finding total desc, then a stable tie-breaker on the asset id. Without the
+  // tie-breaker, endpoints with equal totals (common — every endpoint is 0 early in a run) keep DTO edge
+  // insertion order, which can differ between live-refresh polls and makes the endpoints visibly swap.
+  reachedOrder.sort((a, b) => endpointFindingTotal(b) - endpointFindingTotal(a) || a.localeCompare(b));
 
   const nodes: AttackPathFlowNode[] = [];
   const edges: AttackPathFlowEdge[] = [];
@@ -706,7 +711,7 @@ export const findingCategoryNoun = (typeFindings?: string): string => {
       return 'open ports';
     case 'hash':
       return 'hashes';
-    case 'share':
+    case 'file':
       return 'files';
     case 'password_policy':
       return 'password policies';
@@ -969,11 +974,11 @@ export const maskFindingValue = (typeFindings?: string, value?: string): string 
   return value;
 };
 
-// Card filter -> the ContractOutputType finding-type values it focuses (issue 6647). "files" maps to
-// `share` as a temporary stand-in until a native file finding type exists; "users" also includes
-// admin usernames per product decision.
+// Card filter -> the finding-type values it focuses (issue 6647). "files" maps to `file` (the backend
+// presents SMB `share` findings as `file`, an interim stand-in until a native file finding type
+// exists); "users" also includes admin usernames per product decision.
 export const FILTER_TO_FINDING_TYPES: Record<Exclude<AttackPathFindingFilter, 'endpoints'>, string[]> = {
-  files: ['share'],
+  files: ['file'],
   credentials: ['credentials'],
   users: ['username', 'admin_username'],
   cves: ['cve'],
@@ -1189,14 +1194,14 @@ const findingNodeValue = (node: AttackPathFlowNode): string => {
 };
 
 // A consumed key uses the raw PrimitiveType vocabulary (e.g. `share_name`, `password`) while finding
-// nodes use the finding-type vocabulary (`share`, `credentials`). Reconcile the known complex sub-field
+// nodes use the finding-type vocabulary (`file`, `credentials`). Reconcile the known complex sub-field
 // keys to their finding type here. Primitives that already match a finding type 1:1 (`port`, `cve`,
 // `ipv4`, `username`, `hostname`, `hash`…) are left untouched (identity). NOTE: reconciling the VALUE of
 // a complex finding (reaching into its sub-field, e.g. a share's `share_name`) is the front-side complex
 // matching still to come — today only the TYPE is reconciled and value comparison stays direct, which is
 // correct for primitives; complex value-matching is a follow-up (see backend requirements topo).
 const KEYTYPE_TO_FINDING_TYPE: Record<string, string> = {
-  share_name: 'share',
+  share_name: 'file',
   password: 'credentials',
 };
 
@@ -1213,7 +1218,8 @@ const causalKeyLabel = (key: CausalConsumedKey, t: ApTranslate): string =>
 //   - EQ => the finding value equals key.value exactly;
 //   - IN => the finding value is one of key.value's comma-separated members (a small, explicit list
 //     semantics; trimmed). Falls back to substring containment for a single-token key.
-// Only EQ and IN are handled now. SKIPPED operators (no edge emitted, no silent cap): NEQ, GT, GTE,
+//   - IS_NOT_NULL => any produced finding of the reconciled type matches (presence, not value).
+// EQ, IN and IS_NOT_NULL are handled. SKIPPED operators (no edge emitted, no silent cap): NEQ, GT, GTE,
 // LT, LTE, CONTAINS, REGEX, and any other — add them here when the backend needs them.
 const findingMatchesKey = (node: AttackPathFlowNode, key: CausalConsumedKey): boolean => {
   if (node.type !== AP_FLOW_NODE_TYPE.finding) {
@@ -1222,6 +1228,12 @@ const findingMatchesKey = (node: AttackPathFlowNode, key: CausalConsumedKey): bo
   const reconciledType = KEYTYPE_TO_FINDING_TYPE[key.keyType] ?? key.keyType;
   if ((node.data.typeFindings ?? '') !== reconciledType) {
     return false;
+  }
+  // IS_NOT_NULL matches on presence, not value: any produced finding of the reconciled type satisfies it
+  // (e.g. an event "triggered when any share is found"). Its key.value is null, so this must be handled
+  // before the string guard below.
+  if (key.operator === 'IS_NOT_NULL') {
+    return findingNodeValue(node).length > 0;
   }
   // Guard the real DTO field (the mock is always a string, but the backend value may be null/undefined):
   // a non-string key value can never match and must not reach key.value.split() below.
@@ -1362,7 +1374,8 @@ export const buildCausalEdges = (
 const CHAIN_COL_W = 620; // horizontal span of one causal depth (inject + endpoint + finding + gap)
 const CHAIN_EP_DX = 210; // inject → endpoint horizontal offset within a step
 const CHAIN_FIND_DX = 400; // inject → produced-finding horizontal offset within a step
-const CHAIN_FIND_ROW = 96; // vertical gap between findings stacked on the SAME endpoint
+const CHAIN_FIND_ROW = 130; // vertical gap between findings stacked on the SAME endpoint (room for the
+// value label rendered above each finding node, so stacked findings never overlap)
 const CHAIN_STEP_GAP = 80; // vertical gap between two asset blocks sharing a depth (same column)
 const CHAIN_INJECTOR_ROW = 110; // vertical slot per injector when several share one endpoint block
 const CHAIN_EP_BLOCK_MIN = 120; // minimum height of one endpoint block (endpoint node + breathing room)
@@ -1716,25 +1729,42 @@ export const buildCausalChainFlow = (
   // step consumes but no produced finding matches (value not surfaced, or a pure ordering dependency), fall
   // back to a dashed dependsOn edge so the sequencing is still shown.
   const findingNodes = nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.finding);
+  const nodeById = new Map(nodes.map(n => [n.id, n]));
+  // One causal edge per (consumer, label): a key like `share_name IS_NOT_NULL` matches EVERY produced
+  // share, but drawing one "Triggered SHARE" edge per matching finding stacks N identical labels over the
+  // consumer node — illegible as soon as an endpoint yields several findings of the type. Collapse them to
+  // a single edge, anchored to the matching finding nearest (vertically) to the consumer so the line stays
+  // short and crosses the least. This keeps a hub endpoint (1 asset, many findings) as readable as a
+  // linear multi-endpoint chain.
+  const drawnCausal = new Set<string>();
   for (const [injId, s] of steps) {
     let matched = false;
+    const injY = nodeById.get(injId)?.position.y ?? 0;
     for (const key of s.consumed) {
-      for (const fn of findingNodes) {
-        if (findingMatchesKey(fn, key)) {
-          matched = true;
-          edges.push({
-            id: `${AP_FLOW_CAUSAL_EDGE_TYPE}-finding-${fn.id}-${injId}`,
-            source: fn.id,
-            target: injId,
-            type: AP_FLOW_CAUSAL_EDGE_TYPE,
-            data: {
-              count: 1,
-              causalKind: 'finding',
-              label: causalKeyLabel(key, t),
-            },
-          });
-        }
+      const matches = findingNodes.filter(fn => findingMatchesKey(fn, key));
+      if (matches.length === 0) {
+        continue;
       }
+      matched = true;
+      const label = causalKeyLabel(key, t);
+      const dedupKey = `${injId}|${label}`;
+      if (drawnCausal.has(dedupKey)) {
+        continue;
+      }
+      drawnCausal.add(dedupKey);
+      const fn = matches.reduce((best, cur) =>
+        Math.abs(cur.position.y - injY) < Math.abs(best.position.y - injY) ? cur : best, matches[0]);
+      edges.push({
+        id: `${AP_FLOW_CAUSAL_EDGE_TYPE}-finding-${fn.id}-${injId}`,
+        source: fn.id,
+        target: injId,
+        type: AP_FLOW_CAUSAL_EDGE_TYPE,
+        data: {
+          count: 1,
+          causalKind: 'finding',
+          label,
+        },
+      });
     }
     if (!matched) {
       for (const dep of s.deps) {

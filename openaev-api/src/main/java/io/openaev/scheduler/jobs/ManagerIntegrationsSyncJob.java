@@ -2,6 +2,8 @@ package io.openaev.scheduler.jobs;
 
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.service.tenants.TenantService;
 import java.util.List;
@@ -25,6 +27,7 @@ import org.springframework.stereotype.Component;
 public class ManagerIntegrationsSyncJob implements Job {
   private final ManagerFactory managerFactory;
   private final TenantService tenantService;
+  private final TenantScopedTransaction tenantTx;
   private static final long EXECUTION_TIME_THRESHOLD = 500;
   private static final long TENANT_EXECUTION_TIME_THRESHOLD = 250;
   private final @Qualifier("managerIntegrationsExecutor") Executor managerIntegrationsExecutor;
@@ -77,8 +80,15 @@ public class ManagerIntegrationsSyncJob implements Job {
   private void monitorTenantIntegrations(String tenantId) {
     long tenantStart = System.currentTimeMillis();
     try {
-      TenantContext.setCurrentTenant(tenantId);
-      managerFactory.getManager(tenantId).monitorIntegrations();
+      tenantTx.execute(
+          TxCtx.forTenant(tenantId),
+          () -> {
+            // Bridge for v1 tables still relying on TenantContext via
+            // HibernateFilterTransactionAspect
+            TenantContext.setCurrentTenant(tenantId);
+            managerFactory.getManager(tenantId).monitorIntegrations();
+            return null;
+          });
     } catch (Exception e) {
       log.error("Failed to sync integrations for tenant '{}': {}", tenantId, e.getMessage(), e);
     } finally {

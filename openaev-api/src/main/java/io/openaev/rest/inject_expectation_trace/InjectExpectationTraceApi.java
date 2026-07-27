@@ -4,9 +4,12 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.ConnectorCompositeId;
 import io.openaev.database.model.InjectExpectationTrace;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.CollectorRepository;
@@ -44,6 +47,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
   private final InjectExpectationTraceService injectExpectationTraceService;
   private final InjectExpectationTraceRepository injectExpectationTraceRepository;
   private final CollectorRepository collectorRepository;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   /**
    * @deprecated since 1.16.0, forRemoval = true
@@ -59,16 +63,19 @@ public class InjectExpectationTraceApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public InjectExpectationTrace createInjectExpectationTraceForCollector(
-      @Valid @RequestBody InjectExpectationTraceInput input) {
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody InjectExpectationTraceInput input) {
 
-    InjectExpectationTraceBulkInsertInput bulkInput = new InjectExpectationTraceBulkInsertInput();
-    bulkInput.setExpectationTraces(List.of(input));
-
-    this.bulkInsertInjectExpectationTraceForCollector(bulkInput);
+    // Call the service directly (not the sibling endpoint below): a self-invocation would bypass
+    // the Spring proxy and its own @Transactional, silently relying on this method's transaction
+    // instead. That happens to be harmless here (this method is itself @Transactional), but the
+    // shape is exactly what TenantBackgroundTransactionArchTest.no_transactional_self_invocation
+    // flags, so keep the transactional boundary honest and call the shared logic directly.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    this.injectExpectationTraceService.bulkInsertInjectExpectationTraces(List.of(input), tenantId);
 
     Collector collector =
         collectorRepository
-            .findByIdAndTenantId(input.getSourceId(), TenantContext.getCurrentTenant())
+            .findById(ConnectorCompositeId.of(input.getSourceId(), tenantId))
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
 
     return this.injectExpectationTraceRepository
@@ -96,12 +103,14 @@ public class InjectExpectationTraceApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public void bulkInsertInjectExpectationTraceForCollector(
+      @RequireTenantSelector TxCtx ctx,
       @Valid @RequestBody @NotNull InjectExpectationTraceBulkInsertInput inputs) {
     if (inputs.getExpectationTraces().isEmpty()) {
       return;
     }
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     this.injectExpectationTraceService.bulkInsertInjectExpectationTraces(
-        inputs.getExpectationTraces());
+        inputs.getExpectationTraces(), tenantId);
   }
 
   @Operation(summary = "Get inject expectation traces from collector")
@@ -109,11 +118,14 @@ public class InjectExpectationTraceApi extends RestBehavior {
   @GetMapping()
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectationTrace> getInjectExpectationTracesFromCollector(
-      @RequestParam String injectExpectationId, @RequestParam String sourceId) {
+      @RequireTenantSelector TxCtx ctx,
+      @RequestParam String injectExpectationId,
+      @RequestParam String sourceId) {
     try {
+      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       Collector collector =
           collectorRepository
-              .findByIdAndTenantId(sourceId, TenantContext.getCurrentTenant())
+              .findById(ConnectorCompositeId.of(sourceId, tenantId))
               .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
       return this.injectExpectationTraceService.getInjectExpectationTracesFromCollector(
           injectExpectationId, collector.getSecurityPlatform().getId());
@@ -126,7 +138,9 @@ public class InjectExpectationTraceApi extends RestBehavior {
   @Transactional
   @GetMapping("/count")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  // TxCtx scopes the query to the caller's tenants.
   public long getAlertLinksNumber(
+      TxCtx ctx,
       @RequestParam String injectExpectationId,
       @RequestParam String sourceId,
       @RequestParam String expectationResultSourceType) {

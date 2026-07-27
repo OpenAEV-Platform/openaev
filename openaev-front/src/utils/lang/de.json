@@ -3456,5 +3456,6 @@
   "your trial license online": "ihre Testlizenz online",
   "YYYY": "JJJJ",
   "Zoom in": "Vergrößern",
-  "Zoom out": "Verkleinern"
+  "Zoom out": "Verkleinern",
+  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all."
 }

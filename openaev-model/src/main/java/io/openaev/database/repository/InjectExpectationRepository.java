@@ -179,11 +179,13 @@ public interface InjectExpectationRepository
   List<BaseInjectExpectation> findExpectationsNotFilled(
       @Param("tenantId") String tenantId, @Param("type") String type, @Param("limit") int limit);
 
-  /** Finds unfilled and expired expectations for the expiration manager. */
+  /** Finds unfilled and expired expectations for the expiration manager, scoped by tenant. */
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
-              + "WHERE e.inject_expectation_score IS NULL "
+              + "JOIN injects i ON i.inject_id = e.inject_id "
+              + "WHERE i.tenant_id = :tenantId "
+              + "AND e.inject_expectation_score IS NULL "
               + "AND (e.agent_id IS NOT NULL OR "
               + RESULTS_HAS_NO_RESULT_AT_ALL
               + ") "
@@ -191,7 +193,8 @@ public interface InjectExpectationRepository
               + "ORDER BY e.inject_expectation_created_at ASC "
               + "LIMIT :limit",
       nativeQuery = true)
-  List<BaseInjectExpectation> findExpectationsNotFilledAndExpired(@Param("limit") int limit);
+  List<BaseInjectExpectation> findExpectationsNotFilledAndExpired(
+      @Param("tenantId") String tenantId, @Param("limit") int limit);
 
   @Query(value = "select i from InjectExpectation i where i.exercise.id = :exerciseId")
   List<BaseInjectExpectation> findAllForExercise(@Param("exerciseId") String exerciseId);

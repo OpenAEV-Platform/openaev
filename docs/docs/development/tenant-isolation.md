@@ -346,6 +346,49 @@ Several architecture tests detect regressions over time:
 | `TenantBackgroundTransactionArchTest` | background classes cannot use `@Transactional` or raw transaction plumbing; existing violations are frozen in a committed baseline, only new ones fail the build |
 | `ScopeChannelSourceTripwireTest` | exactly two classes, the aspect and the primitive, may write the scope channel (`set_config('app.current_tenants', ...)`) |
 
+## The frozen baseline: reading the tech debt, and avoiding new debt
+
+`TenantBackgroundTransactionArchTest` locks its two rules (self-invocation, raw transaction
+plumbing) against a baseline file per rule, committed under
+`openaev-api/src/test/resources/archunit_store/`. The baseline is allowed to shrink, never to grow.
+Every line already in it is real, unfixed architectural debt that predates a given activation;
+the build refuses any line that is not already there.
+
+### Reading an entry: three shapes, three different risks
+
+| Shape | Example | Actual risk today |
+|---|---|---|
+| **A1 - dead inner annotation** | `UserService.changePassword` (already `@Transactional`) calls `this.user(...)`, itself `@Transactional(readOnly = true)` | none at runtime: the outer transaction is already open when the inner call happens, so the inner annotation never gets a chance to do anything on this path. The debt is that the code *looks* like `user()` carries its own transactional guarantee, which stops being true the moment someone calls it from a non-transactional context and copies the assumption |
+| **A2/A3 - self-invocation from a non-transactional caller** | an HTTP handler or a job calls `this.someTransactionalMethod()` directly, with no other transaction open | a live bug: no transaction, no tenant scope, silently. Reads return zero rows, writes run unguarded |
+| **B/C - `@Transactional` or raw plumbing in a job** | a scheduler job opens a raw `TransactionTemplate`, or is itself annotated `@Transactional` | no tenant scope is ever set for that transaction: any isolated-table query inside it reads nothing, silently, and the annotation gives no hint that the primitive was bypassed |
+
+`UserService.changePassword` calling `this.user(...)` is an A1: safe today, still counted as debt
+because nothing prevents a future caller of `user()` from relying on the annotation that does not
+actually apply here.
+
+### Best practices to follow from now on
+
+1. **Never call your own `@Transactional` method through `this.method()` (or an unqualified
+   call).** The Spring proxy that opens the transaction is bypassed for calls from inside the same
+   class. If the method needs a real transactional boundary and is also called internally, either
+   drop the inner annotation (if it never has to run standalone) or extract it into a separate
+   Spring bean and call it through injection, so the proxy is back in the call path.
+2. **Background code never uses `@Transactional` or a hand-built `TransactionTemplate` /
+   `PlatformTransactionManager`.** Every job opens through `TenantScopedTransaction` (`execute`,
+   `executeNew`, `forEachTenant`) — the only mechanism that also sets the tenant scope. See
+   "Activating a background writer" above.
+3. **A new violation fails the build immediately; the frozen store does not absorb it.** If
+   `TenantBackgroundTransactionArchTest` throws `StoreUpdateFailedException` after your change, you
+   introduced a new self-invocation or new raw plumbing. Fix the code — do not re-freeze the store
+   to make the failure disappear.
+4. **A merge from `main` can silently import someone else's new violation into your branch.** If a
+   rebase or merge grows the baseline, check `git log` on the newly flagged method before folding
+   it into your PR. Even if it is unrelated to your change, it is still a regression that landed in
+   your history — report it or fix it, do not just re-freeze past it.
+5. **Shrinking the baseline is opportunistic, not gated.** No CI step forces the list down. Use the
+   `reduce-tx-baseline` skill (`.github/skills/reduce-tx-baseline/SKILL.md`) whenever you happen to
+   touch a class that already has an entry: one class per PR, fix + test + re-freeze together.
+
 ## Troubleshooting
 
 **A query on an isolated table returns nothing, with no error.** This is the fail-closed design

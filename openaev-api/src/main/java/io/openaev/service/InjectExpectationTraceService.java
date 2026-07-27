@@ -2,9 +2,9 @@ package io.openaev.service;
 
 import static io.openaev.service.InjectExpectationService.COLLECTOR;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.ConnectorCompositeId;
 import io.openaev.database.model.InjectExpectationTrace;
 import io.openaev.database.model.TechnicalInjectExpectation;
 import io.openaev.database.raw.impl.SimpleRawExpectationTrace;
@@ -146,7 +146,8 @@ public class InjectExpectationTraceService {
 
   @Transactional(rollbackFor = Exception.class)
   public void bulkInsertInjectExpectationTraces(
-      @NotNull List<InjectExpectationTraceInput> injectExpectationTraces) {
+      @NotNull List<InjectExpectationTraceInput> injectExpectationTraces,
+      @NotNull String tenantId) {
     if (injectExpectationTraces.isEmpty()) {
       return;
     }
@@ -155,8 +156,8 @@ public class InjectExpectationTraceService {
     // Start by getting the collector. We can take the first one since they are all the same
     Collector collector =
         collectorRepository
-            .findByIdAndTenantId(
-                injectExpectationTraces.getFirst().getSourceId(), TenantContext.getCurrentTenant())
+            .findById(
+                ConnectorCompositeId.of(injectExpectationTraces.getFirst().getSourceId(), tenantId))
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
     // Telemetry: expectation validation traces pushed by this collector - the
     // key prevention/detection value signal for EDR/SIEM integrations.

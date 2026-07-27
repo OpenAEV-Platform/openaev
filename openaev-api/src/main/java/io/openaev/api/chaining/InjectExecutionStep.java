@@ -305,6 +305,8 @@ public class InjectExecutionStep implements ActionStep {
     if (injectStatus != null) {
       // FORMAT EXECUTION TRACE TO OUTPUT STEP
       formatExecutionTracesToOutput(injectStatus, output);
+      attackPathIngestion.updateTerminalView(inject);
+
       // FORMAT INJECT STATUS TO OUTPUT STEP
       formatStatusToOutput(inject, output);
     }
@@ -757,70 +759,32 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   private String getCommand(Inject inject) {
-    if (inject.getStatus().isEmpty()) return "";
-
-    InjectStatus status = inject.getStatus().get();
-    StatusPayload statusPayload = status.getPayloadOutput();
-    if (statusPayload == null || statusPayload.getPayloadCommandBlocks() == null) {
+    Optional<InjectorContract> injectorContract = inject.getInjectorContract();
+    if (injectorContract.isEmpty()) {
       return "";
     }
-    StringBuilder command = new StringBuilder();
-    statusPayload
-        .getPayloadCommandBlocks()
-        .forEach(
-            payloadCommandBlock -> {
-              command.append(payloadCommandBlock.getContent());
-              command.append("\n");
-            });
-    return command.toString();
-  }
-
-  private Map<String, StringBuilder> getExecutionTracesByEndpointIndex(Inject inject) {
-    Map<String, StringBuilder> tracesByEndpointSource = new HashMap<>();
-    if (inject.getStatus().isEmpty()) return tracesByEndpointSource;
-
-    InjectStatus status = inject.getStatus().get();
-    List<ExecutionTrace> executionTraces = status.getTraces();
-
-    if (inject.getInjector() == null) {
-      executionTraces.forEach(
-          executionTrace -> {
-            if (executionTrace.getAgent() == null || executionTrace.getAgent().getAsset() == null) {
-              return;
-            }
-            String agentId =
-                executionTrace.getAgent().getId() + executionTrace.getAgent().getAsset().getId();
-            StringBuilder agentTraces =
-                tracesByEndpointSource.computeIfAbsent(agentId, k -> new StringBuilder());
-            // A trace with no timestamp must not render a literal "null" at the start of the line.
-            if (executionTrace.getTime() != null) {
-              agentTraces.append(executionTrace.getTime()).append(" ");
-            }
-            agentTraces
-                .append(executionTrace.getStatus().name())
-                .append(" ")
-                .append(executionTrace.getMessage())
-                .append("\n");
-          });
-    } else {
-      // TODO BUILD INDEX
-      String injectorId = inject.getInjector().getId();
-      executionTraces.forEach(
-          executionTrace -> {
-            StringBuilder injectorTraces =
-                tracesByEndpointSource.computeIfAbsent(injectorId, k -> new StringBuilder());
-            // A trace with no timestamp must not render a literal "null" at the start of the line.
-            if (executionTrace.getTime() != null) {
-              injectorTraces.append(executionTrace.getTime()).append(" ");
-            }
-            injectorTraces
-                .append(executionTrace.getStatus().name())
-                .append(" ")
-                .append(executionTrace.getMessage())
-                .append("\n");
-          });
+    if (!(injectorContract.get().getPayload() instanceof Command command)) {
+      return "";
     }
-    return tracesByEndpointSource;
+
+    String resolvedCommand = command.getContent();
+    if (resolvedCommand == null || resolvedCommand.isBlank()) {
+      return "";
+    }
+
+    List<PayloadArgument> args = command.getArguments();
+    if (args == null || args.isEmpty()) {
+      return resolvedCommand;
+    }
+
+    for (PayloadArgument arg : args) {
+      if (arg == null || arg.getKey() == null || arg.getKey().isBlank()) {
+        continue;
+      }
+      String value = arg.getDefaultValue() != null ? arg.getDefaultValue() : "";
+      resolvedCommand = resolvedCommand.replace("#{" + arg.getKey() + "}", value);
+    }
+    return resolvedCommand;
   }
 
   /**
@@ -1100,7 +1064,18 @@ public class InjectExecutionStep implements ActionStep {
     for (ExecutionTrace trace : traces) {
       Map<String, JsonElement> map = new HashMap<>();
       if (trace.getAgent() == null) {
-        log.info("[Chaining] Trace skipped: agent is null");
+        // Network injectors (nmap, netexec, …) execute without an on-host agent, so their traces
+        // carry no
+        // agent — but they DO carry the structured output the chaining engine decomposes into
+        // primitives
+        // to drive events. Only the agent_id enrichment is agent-specific. Dropping the whole trace
+        // here
+        // meant no port/share/… event could ever fire from a network injector's findings; keep the
+        // structured output so it still feeds the workflow state.
+        if (trace.getStructuredOutput() != null) {
+          map.put("parsed", JsonParser.parseString(trace.getStructuredOutput().toString()));
+          output.add(map);
+        }
         continue;
       }
       map.put("agent_id", gson.toJsonTree(trace.getAgent().getId()));
@@ -1160,14 +1135,19 @@ public class InjectExecutionStep implements ActionStep {
   private void formatExpectationToOutput(String injectId, List<Map<String, JsonElement>> output) {
     List<BaseInjectExpectation> expectations = injectExpectationService.findAllByInjectId(injectId);
     Inject inject = injectService.inject(injectId);
+
     for (BaseInjectExpectation expectation : expectations) {
       for (InjectExpectationResult result : expectation.getResults()) {
         Map<String, JsonElement> map = getExpectationOutput(expectation, result);
         addEndpointContext(inject, expectation, map);
-        // syncAttackPathExecutionStatus(injectId, expectation, result, map);
         output.add(map);
       }
     }
+
+    Map<String, AttackPathExecutionIngestionService.ExecutionExpectationResults>
+        expectationResults =
+            attackPathIngestion.getExpectationByEndpointIndex(inject, expectations);
+    attackPathIngestion.updateExpectationByExecutionIndex(inject, expectationResults);
   }
 
   /**

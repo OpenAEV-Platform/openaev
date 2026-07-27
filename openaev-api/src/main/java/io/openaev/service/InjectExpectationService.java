@@ -881,11 +881,12 @@ public class InjectExpectationService {
    * Retrieves unfilled inject expectations (no score and either no results or bound to an agent)
    * and expired Returns a bounded batch for incremental processing.
    *
+   * @param tenantId the tenant to scope the query to
    * @param limit maximum number of expectations to return
    * @return a list of unfilled inject expectations ordered by creation date (oldest first)
    */
-  public List<BaseInjectExpectation> expectationsNotFillAndExpired(int limit) {
-    return this.injectExpectationRepository.findExpectationsNotFilledAndExpired(limit);
+  public List<BaseInjectExpectation> expectationsNotFillAndExpired(String tenantId, int limit) {
+    return this.injectExpectationRepository.findExpectationsNotFilledAndExpired(tenantId, limit);
   }
 
   // -- EXPECTATIONS BY TYPE --

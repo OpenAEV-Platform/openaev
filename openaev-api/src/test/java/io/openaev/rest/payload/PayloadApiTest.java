@@ -52,6 +52,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 class PayloadApiTest extends IntegrationTest {
@@ -1077,7 +1078,15 @@ class PayloadApiTest extends IntegrationTest {
   @Test
   @DisplayName("Process Deprecated Payloads")
   @WithMockUser(isAdmin = true)
+  @Transactional
   void processDeprecatedPayloads() throws Exception {
+    // Ensure the mock user is a member of the default tenant for the tenant-scoped collector
+    // registration endpoint.
+    tenantRepository.addUserToTenant(
+        testUserHolder.get().getId(), io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID);
+    tenantMembershipCacheManager.evict(
+        testUserHolder.get().getId(), io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID);
+
     String collectorId = "039eee9b-b95d-4b11-95bb-a9ac233f1738";
     CollectorCreateInput collectorCreateInput = new CollectorCreateInput();
     collectorCreateInput.setId(collectorId);
@@ -1091,7 +1100,13 @@ class PayloadApiTest extends IntegrationTest {
             "application/json",
             objectMapper.writeValueAsString(collectorCreateInput).getBytes());
 
-    mvc.perform(multipart("/api/collectors").file(inputMultipart).with(csrf()))
+    mvc.perform(
+            multipart(
+                    "/api/tenants/"
+                        + io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID
+                        + "/collectors")
+                .file(inputMultipart)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();

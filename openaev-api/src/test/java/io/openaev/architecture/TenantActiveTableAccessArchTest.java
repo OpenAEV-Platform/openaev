@@ -9,6 +9,7 @@ import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import io.openaev.database.model.Vulnerability;
+import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CweRepository;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
@@ -16,18 +17,36 @@ import io.openaev.database.repository.MitigationRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
+import io.openaev.rest.atomic_testing.AtomicTestingApi;
+import io.openaev.rest.collector.CollectorApi;
+import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.rest.exercise.ExerciseApi;
 import io.openaev.rest.exercise.ExerciseImportApi;
+import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.inject.InjectApi;
+import io.openaev.rest.inject.ScenarioInjectApi;
+import io.openaev.rest.inject.SimulationInjectApi;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.ScenarioInjectService;
+import io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi;
 import io.openaev.rest.lessons.ExerciseLessonsApi;
 import io.openaev.rest.lessons.ScenarioLessonsApi;
 import io.openaev.rest.lessons_template.LessonsTemplateApi;
 import io.openaev.rest.mapper.MapperApi;
 import io.openaev.rest.mitigation.MitigationApi;
+import io.openaev.rest.payload.PayloadApi;
+import io.openaev.rest.payload.service.PayloadUpsertService;
+import io.openaev.rest.scenario.ScenarioApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.service.InjectExpectationTraceService;
 import io.openaev.service.MapperService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.scenario.ScenarioService;
+import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
 import io.openaev.utils.mapper.CveMapper;
 import io.openaev.utils.mapper.VulnerabilityMapper;
@@ -68,6 +87,7 @@ class TenantActiveTableAccessArchTest {
           "lessons_templates",
           "cwes",
           "mitigations",
+          "collectors",
           "attackpath_execution",
           "attackpath_finding");
 
@@ -168,6 +188,41 @@ class TenantActiveTableAccessArchTest {
           .because(
               "mitigations is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule collectors_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              CollectorApi.class,
+              InjectExpectationTraceApi.class,
+              PayloadApi.class,
+              AtomicTestingApi.class,
+              InjectApi.class,
+              SimulationInjectApi.class,
+              ScenarioInjectApi.class,
+              ScenarioApi.class,
+              ExerciseApi.class,
+              // Intermediate services behind the TxCtx-carrying handlers above:
+              CollectorService.class,
+              InjectExpectationTraceService.class,
+              InjectService.class,
+              ScenarioInjectService.class,
+              ScenarioService.class,
+              ExerciseService.class,
+              PayloadUpsertService.class,
+              // Explicit tenantId param threaded from the caller (native DELETE ... AND
+              // tenant_id = ?), not inspector-scoped: safe regardless of activation:
+              ConnectorInstanceService.class,
+              // Documented degraded background reader (telemetry counts read 0 rows unscoped):
+              InventoryMetricCollector.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(CollectorRepository.class)
+          .because(
+              "collectors is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
   static final ArchRule attackpath_execution_repository_access_is_reviewed =

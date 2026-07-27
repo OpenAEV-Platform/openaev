@@ -3456,5 +3456,6 @@
   "your trial license online": "ваша пробная лицензия онлайн",
   "YYYY": "ГГГГ",
   "Zoom in": "Приблизить",
-  "Zoom out": "Отдалить"
+  "Zoom out": "Отдалить",
+  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all."
 }

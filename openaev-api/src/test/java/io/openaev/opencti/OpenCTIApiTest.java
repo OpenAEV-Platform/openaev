@@ -11,6 +11,7 @@ import io.openaev.rest.inject.ScenarioInjectApi;
 import io.openaev.rest.injector_contract.InjectorContractApi;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseApi;
 import io.openaev.rest.scenario.ScenarioApi;
+import io.openaev.utils.TxCtxTestArgumentResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -72,6 +73,7 @@ class OpenCTIApiTest extends IntegrationTest {
                 scenarioInjectApi,
                 injectApi,
                 openCTIApi)
+            .setCustomArgumentResolvers(TxCtxTestArgumentResolver.missing())
             .build();
   }
 

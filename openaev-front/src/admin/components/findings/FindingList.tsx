@@ -1,4 +1,4 @@
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
 import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
@@ -21,6 +21,11 @@ interface Props {
   searchDistinctFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
   filterLocalStorageKey: string;
   contextId?: string;
+  // Column fields to hide (e.g. ['finding_asset_groups']) — defaults to showing all columns.
+  hiddenFields?: string[];
+  // Compact mode for embedding in a narrow container (e.g. the attack-path drawer): hides the
+  // search/filters/pagination top bar. Defaults to false so the full-page usage is unchanged.
+  compact?: boolean;
 }
 
 const inlineStyles: Record<string, CSSProperties> = ({
@@ -32,7 +37,7 @@ const inlineStyles: Record<string, CSSProperties> = ({
   finding_updated_at: { width: '14%' },
 });
 
-const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId }: Props) => {
+const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false }: Props) => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const [loading, setLoading] = useState<boolean>(true);
@@ -46,15 +51,32 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
   ];
 
   const [findings, setFindings] = useState<AggregatedFindingOutput[]>([]);
+  // Total across all pages, tracked in compact mode (no pager) so we can tell the user when the list is
+  // truncated instead of silently hiding findings beyond the page.
+  const [total, setTotal] = useState<number>(0);
+  // Compact mode drops the pager, so raise the page size well above the default to cover most scans; a
+  // "showing X of N" note still appears if a run produces more than this.
+  const compactPageSize = 100;
   // Default sort on last seen: the most recent activity is what tells whether a finding is still
   // alive or has been solved. The storage key is suffixed (-v2) so browsers that persisted the
   // previous "first seen" default pick up the new one instead of restoring the stale sort.
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(`${filterLocalStorageKey}-v2`, buildSearchPagination({ sorts: initSorting('finding_updated_at', 'DESC') }));
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
+    `${filterLocalStorageKey}-v2`,
+    buildSearchPagination({
+      sorts: initSorting('finding_updated_at', 'DESC'),
+      ...(compact ? { size: compactPageSize } : {}),
+    }),
+  );
   const searchFindingsToload = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchDistinctFindings(input).finally(() => {
-      setLoading(false);
-    });
+    return searchDistinctFindings(input)
+      .then((res) => {
+        setTotal(res.data.totalElements);
+        return res;
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   const headers = [
@@ -151,6 +173,8 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
     },
   ];
 
+  const visibleHeaders = headers.filter(h => !hiddenFields.includes(h.field));
+
   return (
     <>
       <PaginationComponentV2
@@ -161,6 +185,9 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         contextId={contextId}
+        searchEnable={!compact}
+        disableFilters={compact}
+        disablePagination={compact}
       />
       <List>
         <ListItem
@@ -173,7 +200,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
           <ListItemText
             primary={(
               <SortHeadersComponentV2
-                headers={headers}
+                headers={visibleHeaders}
                 inlineStylesHeaders={inlineStyles}
                 sortHelpers={queryableHelpers.sortHelpers}
               />
@@ -181,7 +208,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
           />
         </ListItem>
         {loading
-          ? <PaginatedListLoader Icon={Binoculars} headers={headers} headerStyles={inlineStyles} />
+          ? <PaginatedListLoader Icon={Binoculars} headers={visibleHeaders} headerStyles={inlineStyles} />
           : findings.map(finding => (
               <ListItem
                 key={finding.finding_id}
@@ -201,7 +228,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
                   <ListItemText
                     primary={(
                       <div style={bodyItemsStyles.bodyItems}>
-                        {headers.map(header => (
+                        {visibleHeaders.map(header => (
                           <div
                             key={header.field}
                             style={{
@@ -220,6 +247,24 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId 
             ))}
         {!loading && findings.length === 0 && <Empty message={t('No finding found.')} />}
       </List>
+      {/* Compact mode has no pager: if the run produced more findings than one compact page, say so
+          explicitly (with the total) so the list never reads as "this inject has N findings". */}
+      {compact && !loading && total > findings.length && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{
+            display: 'block',
+            px: 2,
+            py: 1,
+          }}
+        >
+          {t('Showing {shown} of {total} findings — open the inject to see them all.', {
+            shown: findings.length,
+            total,
+          })}
+        </Typography>
+      )}
     </>
   );
 };
