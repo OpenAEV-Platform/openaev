@@ -23,6 +23,7 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connectors.PlatformConnectors;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.AgentUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -168,7 +169,8 @@ public class ExecutorApi extends RestBehavior {
               + " an active executor re-registers on its next heartbeat. The agent executor drives"
               + " every agent and cannot be removed.")
   @Transactional(rollbackFor = Exception.class)
-  public void deleteExecutor(TxCtx ctx, @PathVariable String executorId) {
+  public void deleteExecutor(TxCtx ctx, @PathVariable String executorId)
+      throws ConnectorStatusException {
     executorRepository
         .findByExecutorId(executorId)
         .ifPresent(
