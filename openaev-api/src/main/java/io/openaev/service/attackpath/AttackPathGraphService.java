@@ -353,8 +353,9 @@ public class AttackPathGraphService {
    * Files/Credentials/Users/CVEs; Endpoints is a separate endpoint-group read, not a finding type).
    * {@code port} is a graph finding type but not a product widget, so it has no category here;
    * {@code files} aggregates the SMB {@code share} source type (presented as {@code file}), an
-   * interim stand-in until a native {@code file} finding type exists. An unknown category yields no
-   * types (an empty page).
+   * interim stand-in until a native {@code file} finding type exists. Any other category is treated
+   * as a literal finding type (data-driven, mirroring the front's cards), so a category matching no
+   * finding type yields an empty page.
    */
   private static Set<String> categoryTypes(String category) {
     if (category == null) {
@@ -365,7 +366,9 @@ public class AttackPathGraphService {
       case "users" -> Set.of("username", "admin_username");
       case "cves" -> Set.of("cve");
       case "files" -> FILE_SOURCE_TYPES;
-      default -> Set.of();
+      // Any other category is a literal finding type (data-driven, mirroring the front's cards),
+      // so the "Text fields"/etc. cards open a populated drawer instead of an empty one.
+      default -> Set.of(category.toLowerCase(Locale.ROOT));
     };
   }
 
