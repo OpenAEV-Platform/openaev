@@ -187,7 +187,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
 
     // Assert
     // The deterministic id makes the second write an update, not a new row.
-    assertThat(executionRepository.count()).isEqualTo(1);
+    assertThat(executionRepository.countExecutions("SIM-IDEM")).isEqualTo(1);
     assertThat(
             executionRepository.findById(
                 AttackPathIds.executionNode("exec-idem", endpointId, "agt-1")))
@@ -220,7 +220,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
 
     // Assert
     assertThat(rows).isEmpty();
-    assertThat(executionRepository.count()).isZero();
+    assertThat(executionRepository.countExecutions("SIM-NOCONTRACT")).isZero();
   }
 
   @Test
