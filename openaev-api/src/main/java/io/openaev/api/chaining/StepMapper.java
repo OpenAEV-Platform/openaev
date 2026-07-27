@@ -5,15 +5,32 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.chaining.dto.MapperConditionOutput;
 import io.openaev.api.chaining.dto.StepOutput;
+import io.openaev.database.model.ChainingMappedType;
+import io.openaev.database.model.ChainingTypeRegistry;
 import io.openaev.database.model.ConditionStep;
+import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.Step;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /** Mapper for Step template API DTOs. */
 public final class StepMapper {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+  private static final Map<String, ContractOutputType> CONTRACT_OUTPUT_TYPE_BY_LABEL =
+      Arrays.stream(ContractOutputType.values())
+          .collect(
+              Collectors.toMap(
+                  type -> type.getLabel().toLowerCase(Locale.ROOT),
+                  type -> type,
+                  (left, right) -> left));
 
   private StepMapper() {}
 
@@ -86,7 +103,7 @@ public final class StepMapper {
         String value = type.asText(null);
         if (value != null && !value.isBlank()) result.add(value);
       }
-      return result;
+      return expandToPrimitiveLabels(result);
     }
 
     JsonNode parsers = contract.path("injector_contract_payload").path("payload_output_parsers");
@@ -101,6 +118,28 @@ public final class StepMapper {
         if (type != null && !type.isBlank()) result.add(type);
       }
     }
-    return result;
+    return expandToPrimitiveLabels(result);
+  }
+
+  private static List<String> expandToPrimitiveLabels(List<String> outputTypes) {
+    LinkedHashSet<String> primitiveLabels = new LinkedHashSet<>();
+    for (String outputType : outputTypes) {
+      Optional<PrimitiveType> primitiveType = PrimitiveType.fromLabelOptional(outputType);
+      if (primitiveType.isPresent()) {
+        primitiveLabels.add(primitiveType.get().label);
+        continue;
+      }
+
+      ContractOutputType contractOutputType =
+          CONTRACT_OUTPUT_TYPE_BY_LABEL.get(outputType.toLowerCase(Locale.ROOT));
+      if (contractOutputType == null) {
+        continue;
+      }
+
+      ChainingMappedType mappedType =
+          ChainingTypeRegistry.getMappedTypeForContractOutputType(contractOutputType);
+      mappedType.primitiveTypes().stream().map(type -> type.label).forEach(primitiveLabels::add);
+    }
+    return List.copyOf(primitiveLabels);
   }
 }

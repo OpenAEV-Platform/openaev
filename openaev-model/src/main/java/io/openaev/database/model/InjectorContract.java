@@ -529,7 +529,12 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   }
 
   @JsonProperty("injector_contract_providing")
-  @Queryable(filterable = true, searchable = true, refEnumClazz = ContractOutputType.class)
+  @Queryable(
+      filterable = true,
+      searchable = true,
+      clazz = String.class,
+      refEnumClazz = ContractOutputType.class,
+      paths = {"payload.outputParsers.contractOutputElements.type", "content"})
   public List<ContractOutputType> getProviding() {
     if (getPayload() == null) {
       return getProvidingFromContent();
