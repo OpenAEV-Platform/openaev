@@ -8,30 +8,30 @@ import io.openaev.database.model.HashSecret;
 import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
 import io.openaev.database.model.UsernamePasswordSecret;
-import io.openaev.database.repository.SecretReferenceRepository;
-import io.openaev.database.repository.SecretsRepository;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.SecretsProviderType;
+import io.openaev.secrets.service.SecretReferenceService;
+import io.openaev.secrets.service.SecretService;
 import io.openaev.service.connector_instances.NativeEncryptionService;
 import java.util.Objects;
 
 public class LocalSecretsProvider extends SecretsProvider {
 
   private final NativeEncryptionService nativeEncryptionService;
-  private final SecretsRepository secretsRepository;
-  private final SecretReferenceRepository secretReferenceRepository;
+  private final SecretService secretService;
+  private final SecretReferenceService secretReferenceService;
 
   public LocalSecretsProvider(
       String id,
       String name,
       NativeEncryptionService nativeEncryptionService,
-      SecretsRepository secretsRepository,
-      SecretReferenceRepository secretReferenceRepository) {
+      SecretService secretService,
+      SecretReferenceService secretReferenceService) {
     super(id, name);
     this.nativeEncryptionService = nativeEncryptionService;
-    this.secretsRepository = secretsRepository;
-    this.secretReferenceRepository = secretReferenceRepository;
+    this.secretService = secretService;
+    this.secretReferenceService = secretReferenceService;
   }
 
   @Override
@@ -59,19 +59,15 @@ public class LocalSecretsProvider extends SecretsProvider {
         Objects.requireNonNull(
             reference.getLocation(), "secretReference location must not be null");
 
-    Secret existingSecret =
-        secretsRepository
-            .findById(secretId)
-            .orElseThrow(
-                () -> new IllegalArgumentException("Secret not found for id: " + secretId));
+    Secret existingSecret = secretService.findByIdOrThrow(secretId);
     Secret secret = buildOrUpdateSecret(getAuthMethod(reference), existingSecret, payload);
     return persistSecretAndReference(reference, secret);
   }
 
   private SecretReference persistSecretAndReference(SecretReference reference, Secret secret) {
-    Secret persistedSecret = secretsRepository.save(secret);
+    Secret persistedSecret = secretService.save(secret);
     reference.setLocation(persistedSecret.getId());
-    return secretReferenceRepository.save(reference);
+    return secretReferenceService.save(reference);
   }
 
   private Secret buildOrUpdateSecret(
@@ -139,7 +135,7 @@ public class LocalSecretsProvider extends SecretsProvider {
     String secretId =
         Objects.requireNonNull(
             reference.getLocation(), "secretReference location must not be null");
-    secretsRepository.deleteById(secretId);
-    secretReferenceRepository.delete(reference);
+    secretService.deleteById(secretId);
+    secretReferenceService.delete(reference);
   }
 }

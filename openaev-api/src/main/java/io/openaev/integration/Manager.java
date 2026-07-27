@@ -57,12 +57,22 @@ public class Manager {
     return requestMany(request, requestedType).getFirst();
   }
 
+  /**
+   * Returns all components matching the request and requested type across all spawned integrations,
+   * regardless of their current status.
+   *
+   * @param request a request object with the desired matching criteria
+   * @param requestedType a Java class representing the desired type
+   * @return the list of matching components found in all spawned integrations
+   * @param <T> the desired type of the returned objects
+   * @throws NoSuchElementException if no component matching the request and type is found
+   */
   public <T> List<T> requestManyAllStates(ComponentRequest request, Class<T> requestedType) {
     return requestManyInternal(
         getSpawnedIntegrations().values().stream().toList(), request, requestedType);
   }
 
-  public <T> List<T> requestMany(ComponentRequest request, Class<T> requestedType) {
+  private <T> List<T> requestMany(ComponentRequest request, Class<T> requestedType) {
     return requestManyInternal(
         spawnedIntegrations.values().stream()
             .filter(si -> CURRENT_STATUS_TYPE.started.equals(si.getCurrentStatus()))

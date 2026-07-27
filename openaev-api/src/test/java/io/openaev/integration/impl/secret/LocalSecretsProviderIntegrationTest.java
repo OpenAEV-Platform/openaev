@@ -5,8 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
-import io.openaev.database.repository.SecretReferenceRepository;
-import io.openaev.database.repository.SecretsRepository;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
@@ -15,6 +13,8 @@ import io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration
 import io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegrationFactory;
 import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.impl.LocalSecretsProvider;
+import io.openaev.secrets.service.SecretReferenceService;
+import io.openaev.secrets.service.SecretService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.NativeEncryptionService;
@@ -41,8 +41,8 @@ public class LocalSecretsProviderIntegrationTest {
   @Autowired private CatalogConnectorService catalogConnectorService;
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private NativeEncryptionService nativeEncryptionService;
-  @Autowired private SecretsRepository secretsRepository;
-  @Autowired private SecretReferenceRepository secretReferenceRepository;
+  @Autowired private SecretService secretService;
+  @Autowired private SecretReferenceService secretReferenceService;
 
   private LocalSecretsProviderIntegrationFactory getFactory() {
     return new LocalSecretsProviderIntegrationFactory(
@@ -51,8 +51,8 @@ public class LocalSecretsProviderIntegrationTest {
         componentRequestEngine,
         null,
         nativeEncryptionService,
-        secretsRepository,
-        secretReferenceRepository);
+        secretService,
+        secretReferenceService);
   }
 
   @Nested

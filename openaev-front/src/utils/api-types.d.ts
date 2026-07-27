@@ -6835,6 +6835,7 @@ export interface NotificationTriggerInput {
     | "EVALUATION"
     | "CATALOG"
     | "CONNECTOR_INSTANCE_LOG"
+    | "SECRET_PROVIDER"
     | "TENANT"
     | "TENANT_SETTING"
     | "PLATFORM_ROLE"
@@ -6934,6 +6935,7 @@ export interface NotificationTriggerOutput {
     | "EVALUATION"
     | "CATALOG"
     | "CONNECTOR_INSTANCE_LOG"
+    | "SECRET_PROVIDER"
     | "TENANT"
     | "TENANT_SETTING"
     | "PLATFORM_ROLE"
@@ -9622,6 +9624,15 @@ export interface SearchPaginationInput {
 
 export interface SearchTerm {
   searchTerm?: string;
+}
+
+export interface SecretsProvider {
+  external?: boolean;
+  listened?: boolean;
+  providerType?: "LOCAL" | "VAULT" | "PLACEHOLDER";
+  secrets_provider_id?: string;
+  secrets_provider_name?: string;
+  type?: string;
 }
 
 /** Secrets provider output */

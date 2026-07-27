@@ -11,10 +11,12 @@ import type {
   CollectorOutput, ConnectorIds,
   ConnectorInstanceOutput,
   ExecutorOutput,
-  InjectorOutput, SecretsProviderOutput,
+  InjectorOutput,
+  SecretsProviderOutput,
 } from '../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import {
+  deleteSecretsProvider,
   fetchSecretProvider, fetchSecretsProviderRelatedIds,
   fetchSecretsProviders
 } from "../../../../actions/secrets_providers/secrets-providers-action";
@@ -156,10 +158,10 @@ export const secretsProviderConfig: ConnectorContextType<SecretsProviderOutput> 
     fetchAll: () => fetchSecretsProviders(true),
     fetchSingle: (id: string) => fetchSecretProvider(id),
     getRelatedIds: (id: string) => fetchSecretsProviderRelatedIds(id),
-    deleteSingle: (id: string) => deleteExecutor(id),
+    deleteSingle: (id: string) => deleteSecretsProvider(id),
   },
   routes: {
-    list: '/admin/integrations/secrets-providers',
+    list: '/admin/integrations/deployed',
     detail: (id: string) => `/admin/integrations/secrets-providers/${id}`,
   },
   logoUrl: (type: string) => buildTenantApiPath(`/api/images/secrets_providers/icons/${type}`),

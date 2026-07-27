@@ -10,6 +10,8 @@ import lombok.Setter;
 public abstract class SecretsProvider extends BaseConnectorEntity implements SecretProvider {
   protected SecretsProvider() {}
 
+  public static final String SERVICE_NAME = "secrets-provider";
+
   @JsonProperty("secrets_provider_id")
   @Getter
   @Setter
