@@ -32,6 +32,11 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
    *    rows that are already null".
    *  - "e.tenant.id = :tenantId" is explicit because these run off the request thread, under a
    *    background tenant scope.
+   *
+   * Three key shapes, one per granularity an expectation resolves to: the agent, a set of target
+   * assets, or a discovered target key. The asset variants take a COLLECTION on purpose — an
+   * expectation on an asset group resolves to every member, and one statement per member turned a
+   * single step event into as many UPDATEs as the group has assets.
    */
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -53,12 +58,12 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Query(
       "UPDATE AttackPathExecution e "
           + "SET e.preventionStatus = :status, e.rowVersion = :version "
-          + "WHERE e.stepId = :stepId AND e.targetAssetId = :assetId "
+          + "WHERE e.stepId = :stepId AND e.targetAssetId IN :assetIds "
           + "AND e.tenant.id = :tenantId "
           + "AND (e.preventionStatus IS NULL OR e.preventionStatus <> :status)")
-  int updatePreventionStatusByStepIdAndTargetAssetId(
+  int updatePreventionStatusByStepIdAndTargetAssetIds(
       @Param("stepId") String stepId,
-      @Param("assetId") String assetId,
+      @Param("assetIds") Collection<String> assetIds,
       @Param("status") String status,
       @Param("tenantId") String tenantId,
       @Param("version") long version);
@@ -96,11 +101,11 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Query(
       "UPDATE AttackPathExecution e "
           + "SET e.detectionStatus = :status, e.rowVersion = :version "
-          + "WHERE e.stepId = :stepId AND e.targetAssetId = :assetId AND e.tenant.id = :tenantId "
+          + "WHERE e.stepId = :stepId AND e.targetAssetId IN :assetIds AND e.tenant.id = :tenantId "
           + "AND (e.detectionStatus IS NULL OR e.detectionStatus <> :status)")
-  int updateDetectionStatusByStepIdAndTargetAssetId(
+  int updateDetectionStatusByStepIdAndTargetAssetIds(
       @Param("stepId") String stepId,
-      @Param("assetId") String assetId,
+      @Param("assetIds") Collection<String> assetIds,
       @Param("status") String status,
       @Param("tenantId") String tenantId,
       @Param("version") long version);
@@ -138,11 +143,11 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Query(
       "UPDATE AttackPathExecution e "
           + "SET e.vulnerabilityStatus = :status, e.rowVersion = :version "
-          + "WHERE e.stepId = :stepId AND e.targetAssetId = :assetId AND e.tenant.id = :tenantId "
+          + "WHERE e.stepId = :stepId AND e.targetAssetId IN :assetIds AND e.tenant.id = :tenantId "
           + "AND (e.vulnerabilityStatus IS NULL OR e.vulnerabilityStatus <> :status)")
-  int updateVulnerabilityStatusByStepIdAndTargetAssetId(
+  int updateVulnerabilityStatusByStepIdAndTargetAssetIds(
       @Param("stepId") String stepId,
-      @Param("assetId") String assetId,
+      @Param("assetIds") Collection<String> assetIds,
       @Param("status") String status,
       @Param("tenantId") String tenantId,
       @Param("version") long version);

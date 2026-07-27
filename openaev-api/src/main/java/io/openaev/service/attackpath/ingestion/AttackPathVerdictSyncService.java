@@ -1,5 +1,11 @@
 package io.openaev.service.attackpath.ingestion;
 
+import static io.openaev.utils.InjectContentUtils.MANUAL_TARGETS_CONTENT_KEY;
+import static io.openaev.utils.InjectContentUtils.MANUAL_TARGET_SELECTOR;
+import static io.openaev.utils.InjectContentUtils.TARGET_SELECTOR_CONTENT_KEY;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
@@ -14,7 +20,13 @@ import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.service.AssetGroupService;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -31,6 +43,12 @@ import org.springframework.stereotype.Service;
  * the tenant primitive rather than {@code @Transactional}, so the write carries the inject's tenant
  * and commits independently of the run; the caller recovers around this boundary, so a sync failure
  * can never fail the step.
+ *
+ * <p>Verdicts are grouped by (expectation type, status) before the transaction opens, so an
+ * expectation on an asset group costs ONE update per type instead of one per member asset. The
+ * grouping is also why the resolution work — including the asset-group expansion, memoized per sync
+ * — happens entirely before the bump: the version row's lock is held until commit, and every
+ * concurrent writer on the same simulation waits behind it.
  *
  * <p>The updates are guarded (see {@link AttackPathExecutionRepository}), so replaying an identical
  * result matches zero rows and changes nothing. The version bump happens before them, so a batch
@@ -50,12 +68,16 @@ public class AttackPathVerdictSyncService {
   /** The granularity a verdict lands at, mirroring the output's endpoint-context priority order. */
   private enum Granularity {
     AGENT,
-    ASSET
+    ASSET,
+    TARGET_KEY
   }
 
   /** One resolved verdict to write: an expectation type, its label, and the row key to match on. */
   private record Verdict(
       EXPECTATION_TYPE type, String status, Granularity granularity, String key) {}
+
+  /** The rows one statement updates: a verdict's type and label, and the keys it applies to. */
+  private record VerdictGroup(EXPECTATION_TYPE type, String status, Granularity granularity) {}
 
   /**
    * Syncs the step's expectation verdicts onto the simulation's execution rows. No-op for an inject
@@ -67,8 +89,8 @@ public class AttackPathVerdictSyncService {
     }
     // Resolved outside the transaction: reading the expectation's agent/asset/asset-group can touch
     // lazy associations, and the write transaction must stay DB-only and short.
-    List<Verdict> verdicts = resolveVerdicts(expectations);
-    if (verdicts.isEmpty()) {
+    Map<VerdictGroup, Set<String>> grouped = group(resolveVerdicts(inject, expectations));
+    if (grouped.isEmpty()) {
       return; // nothing to write, so nothing to version
     }
     String simulationId = inject.getExercise().getId();
@@ -78,7 +100,7 @@ public class AttackPathVerdictSyncService {
         TxCtx.forTenant(tenantId),
         () -> {
           long version = versionService.bump(simulationId, tenantId);
-          verdicts.forEach(verdict -> apply(verdict, stepId, tenantId, version));
+          grouped.forEach((group, keys) -> apply(group, keys, stepId, tenantId, version));
         });
   }
 
@@ -91,8 +113,11 @@ public class AttackPathVerdictSyncService {
    * <p>An expectation with no score yet is skipped rather than written as "pending": the projection
    * expresses pending as a null column, which is what the rows already hold.
    */
-  private List<Verdict> resolveVerdicts(List<BaseInjectExpectation> expectations) {
+  private List<Verdict> resolveVerdicts(Inject inject, List<BaseInjectExpectation> expectations) {
     List<Verdict> verdicts = new ArrayList<>();
+    // One expansion per asset group per sync, not per expectation: a step's expectations very often
+    // name the same group, and each expansion is a resolution of its (possibly dynamic) members.
+    Map<String, List<Asset>> membersByGroup = new HashMap<>();
     for (BaseInjectExpectation expectation : expectations) {
       if (!(expectation instanceof TechnicalInjectExpectation technical)) {
         continue;
@@ -108,7 +133,7 @@ public class AttackPathVerdictSyncService {
       }
       String status =
           ExpectationType.label(type, technical.getExpectedScore(), technical.getScore());
-      addTargets(technical, type, status, verdicts);
+      addTargets(inject, technical, type, status, membersByGroup, verdicts);
     }
     return verdicts;
   }
@@ -118,15 +143,20 @@ public class AttackPathVerdictSyncService {
    * context: agent-level when the expectation names an agent, else the asset, else every member
    * asset of the named asset group (static and filter-matched alike).
    *
-   * <p>Scope, stated plainly: an expectation that names none of the three carries no key to match a
-   * row by, so its verdict is dropped rather than sprayed over the step's rows. That is the same
-   * fidelity limit the repository keys were designed around, and the reason a discovered (raw)
-   * target only receives a verdict when the expectation resolves to its asset.
+   * <p>An expectation that names none of the three is inject-level. Its rows are the ones the
+   * ingestion wrote with {@code setTargetDiscoveredInformation}: they carry no asset id and no
+   * agent, only the raw target key. Those keys are not on the expectation — they are the inject's
+   * manual targets — so they are derived from the inject content exactly as {@link
+   * AttackPathExecutionIngestionService} derived them when it wrote the rows. Anything else
+   * inject-level carries no key to match a row by and is dropped rather than sprayed over the
+   * step's rows.
    */
   private void addTargets(
+      Inject inject,
       TechnicalInjectExpectation technical,
       EXPECTATION_TYPE type,
       String status,
+      Map<String, List<Asset>> membersByGroup,
       List<Verdict> verdicts) {
     Agent agent = technical.getAgent();
     if (agent != null) {
@@ -140,44 +170,141 @@ public class AttackPathVerdictSyncService {
     }
     AssetGroup assetGroup = technical.getAssetGroup();
     if (assetGroup != null) {
-      for (Asset member : assetGroupService.assetsFromAssetGroup(assetGroup)) {
+      for (Asset member :
+          membersByGroup.computeIfAbsent(
+              assetGroup.getId(), id -> assetGroupService.assetsFromAssetGroup(assetGroup))) {
         verdicts.add(new Verdict(type, status, Granularity.ASSET, member.getId()));
+      }
+      return;
+    }
+    for (String targetKey : manualTargetKeys(inject)) {
+      verdicts.add(new Verdict(type, status, Granularity.TARGET_KEY, targetKey));
+    }
+  }
+
+  /**
+   * The discovered target keys of an inject with a manual selector, split the same way the
+   * ingestion split them, so a key derived here matches a row written there.
+   */
+  private List<String> manualTargetKeys(Inject inject) {
+    ObjectNode content = inject.getContent();
+    if (content == null) {
+      return List.of();
+    }
+    JsonNode selector = content.get(TARGET_SELECTOR_CONTENT_KEY);
+    JsonNode targets = content.get(MANUAL_TARGETS_CONTENT_KEY);
+    if (selector == null
+        || !MANUAL_TARGET_SELECTOR.equals(selector.asText())
+        || targets == null
+        || targets.isNull()) {
+      return List.of();
+    }
+    // Split raw, without trimming: the ingestion did not trim either, and a key that differs by one
+    // space matches no row.
+    return List.of(targets.asText().split(","));
+  }
+
+  /**
+   * Groups the verdicts into one statement per (type, status, granularity). Deduplicated keys: the
+   * same asset can be reached by several expectations of one type, and updating it twice would be
+   * two statements for one row.
+   */
+  private Map<VerdictGroup, Set<String>> group(List<Verdict> verdicts) {
+    Map<VerdictGroup, Set<String>> grouped = new LinkedHashMap<>();
+    for (Verdict verdict : verdicts) {
+      grouped
+          .computeIfAbsent(
+              new VerdictGroup(verdict.type(), verdict.status(), verdict.granularity()),
+              key -> new LinkedHashSet<>())
+          .add(verdict.key());
+    }
+    return grouped;
+  }
+
+  private void apply(
+      VerdictGroup group, Collection<String> keys, String stepId, String tenantId, long version) {
+    switch (group.type()) {
+      case PREVENTION ->
+          applyPrevention(group.granularity(), keys, stepId, group.status(), tenantId, version);
+      case DETECTION ->
+          applyDetection(group.granularity(), keys, stepId, group.status(), tenantId, version);
+      case VULNERABILITY ->
+          applyVulnerability(group.granularity(), keys, stepId, group.status(), tenantId, version);
+      default -> {
+        // resolveVerdicts only emits the three technical types
       }
     }
   }
 
-  private void apply(Verdict verdict, String stepId, String tenantId, long version) {
-    switch (verdict.type()) {
-      case PREVENTION -> {
-        if (verdict.granularity() == Granularity.AGENT) {
-          executionRepository.updatePreventionStatusByStepIdAndAgentId(
-              stepId, verdict.key(), verdict.status(), tenantId, version);
-        } else {
-          executionRepository.updatePreventionStatusByStepIdAndTargetAssetId(
-              stepId, verdict.key(), verdict.status(), tenantId, version);
-        }
-      }
-      case DETECTION -> {
-        if (verdict.granularity() == Granularity.AGENT) {
-          executionRepository.updateDetectionStatusByStepIdAndAgentId(
-              stepId, verdict.key(), verdict.status(), tenantId, version);
-        } else {
-          executionRepository.updateDetectionStatusByStepIdAndTargetAssetId(
-              stepId, verdict.key(), verdict.status(), tenantId, version);
-        }
-      }
-      case VULNERABILITY -> {
-        if (verdict.granularity() == Granularity.AGENT) {
-          executionRepository.updateVulnerabilityStatusByStepIdAndAgentId(
-              stepId, verdict.key(), verdict.status(), tenantId, version);
-        } else {
-          executionRepository.updateVulnerabilityStatusByStepIdAndTargetAssetId(
-              stepId, verdict.key(), verdict.status(), tenantId, version);
-        }
-      }
-      default -> {
-        // resolveVerdicts only emits the three technical types
-      }
+  private void applyPrevention(
+      Granularity granularity,
+      Collection<String> keys,
+      String stepId,
+      String status,
+      String tenantId,
+      long version) {
+    switch (granularity) {
+      case AGENT ->
+          keys.forEach(
+              key ->
+                  executionRepository.updatePreventionStatusByStepIdAndAgentId(
+                      stepId, key, status, tenantId, version));
+      case ASSET ->
+          executionRepository.updatePreventionStatusByStepIdAndTargetAssetIds(
+              stepId, keys, status, tenantId, version);
+      case TARGET_KEY ->
+          keys.forEach(
+              key ->
+                  executionRepository.updatePreventionStatusByStepIdAndTargetKey(
+                      stepId, key, status, tenantId, version));
+    }
+  }
+
+  private void applyDetection(
+      Granularity granularity,
+      Collection<String> keys,
+      String stepId,
+      String status,
+      String tenantId,
+      long version) {
+    switch (granularity) {
+      case AGENT ->
+          keys.forEach(
+              key ->
+                  executionRepository.updateDetectionStatusByStepIdAndAgentId(
+                      stepId, key, status, tenantId, version));
+      case ASSET ->
+          executionRepository.updateDetectionStatusByStepIdAndTargetAssetIds(
+              stepId, keys, status, tenantId, version);
+      case TARGET_KEY ->
+          keys.forEach(
+              key ->
+                  executionRepository.updateDetectionStatusByStepIdAndTargetKey(
+                      stepId, key, status, tenantId, version));
+    }
+  }
+
+  private void applyVulnerability(
+      Granularity granularity,
+      Collection<String> keys,
+      String stepId,
+      String status,
+      String tenantId,
+      long version) {
+    switch (granularity) {
+      case AGENT ->
+          keys.forEach(
+              key ->
+                  executionRepository.updateVulnerabilityStatusByStepIdAndAgentId(
+                      stepId, key, status, tenantId, version));
+      case ASSET ->
+          executionRepository.updateVulnerabilityStatusByStepIdAndTargetAssetIds(
+              stepId, keys, status, tenantId, version);
+      case TARGET_KEY ->
+          keys.forEach(
+              key ->
+                  executionRepository.updateVulnerabilityStatusByStepIdAndTargetKey(
+                      stepId, key, status, tenantId, version));
     }
   }
 }

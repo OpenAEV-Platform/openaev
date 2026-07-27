@@ -331,7 +331,7 @@ public class InjectExecutionStep implements ActionStep {
     }
 
     // FORMAT EXPECTATION TO OUTPUT STEP
-    List<BaseInjectExpectation> expectations = formatExpectationToOutput(injectId, output);
+    List<BaseInjectExpectation> expectations = formatExpectationToOutput(inject, output);
 
     // SYNC the same verdicts onto the attack-path projection (per event, idempotent, non-fatal)
     syncAttackPathVerdicts(stepRun, inject, expectations);
@@ -1189,15 +1189,15 @@ public class InjectExecutionStep implements ActionStep {
    * entries returned without an agent_id and only with an asset_id. These entries do not correspond
    * to real executions; they are duplicated information.
    *
-   * @param injectId Inject id
+   * @param inject the inject already loaded by the caller
    * @param output the output list to populate
    * @return the inject's expectations, so the caller can sync the same verdicts elsewhere without a
    *     second read
    */
   private List<BaseInjectExpectation> formatExpectationToOutput(
-      String injectId, List<Map<String, JsonElement>> output) {
-    List<BaseInjectExpectation> expectations = injectExpectationService.findAllByInjectId(injectId);
-    Inject inject = injectService.inject(injectId);
+      Inject inject, List<Map<String, JsonElement>> output) {
+    List<BaseInjectExpectation> expectations =
+        injectExpectationService.findAllByInjectId(inject.getId());
     for (BaseInjectExpectation expectation : expectations) {
       for (InjectExpectationResult result : expectation.getResults()) {
         Map<String, JsonElement> map = getExpectationOutput(expectation, result);
