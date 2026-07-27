@@ -378,10 +378,14 @@ describe('SimulationAttackPath live delta updates', () => {
     await mounted();
 
     await tick();
+    // The graph the user is looking at is never unmounted for a resync they did not ask for: no
+    // loader flash, no viewport reset — the reseed happens underneath it.
+    expect(screen.getByTestId('attack-path-flow')).toBeTruthy();
     await mounted();
 
     // Resync is the full snapshot read, re-seeding the store from scratch.
     expect(mocks.fetchAttackPathGraph).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId('attack-path-flow')).toBeTruthy();
   });
 
   it('preserves the open drawer, its search and the selection across a delta', async () => {

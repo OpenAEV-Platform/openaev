@@ -88,6 +88,20 @@ const AP_ENTRANCE_STYLES = {
   },
 };
 
+// Off-screen but readable by assistive tech, for the live region that announces each update batch.
+// Same recipe as MUI's `visuallyHidden`, inlined because @mui/utils is not a declared dependency.
+const VISUALLY_HIDDEN = {
+  border: 0,
+  clip: 'rect(0 0 0 0)',
+  height: '1px',
+  margin: '-1px',
+  overflow: 'hidden',
+  padding: 0,
+  position: 'absolute',
+  whiteSpace: 'nowrap',
+  width: '1px',
+} as const;
+
 // Synthetic seeded simulations (POST /attack-path/seed) carry no real date/name; keep them hidden
 // from metadata resolution and fall back to their raw id in the picker.
 const isSeedId = (id?: string) => !!id && id.startsWith('ap-seed-');
@@ -254,18 +268,37 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     freshness,
     lastUpdatedAt,
     newNodeIds,
+    newNodes,
     changedFindingTypes,
+    structuralNonce,
   } = useAttackPathLiveGraph({
     simulationId,
     fullEligible,
     terminal: runTerminal,
   });
   // Per-injector kill-chain metadata (dependsOn / consumedFindingKeys) for the causal overlay, derived
-  // from the full projection: the store hands back the same object while nothing changed, so this only
-  // recomputes when the causal data actually moved.
+  // from the full projection. It describes the graph's SHAPE, so it is rebuilt only when the shape
+  // moved: `structuralNonce` bumps on a seed and on any delta that introduced an id, never on an
+  // attribute-only tick (a verdict flipping), which would otherwise re-walk every execution — and
+  // through `causalEdges`, relay out the overlay — for data the overlay does not even read.
+  const killChainCache = useRef<{
+    nonce: number;
+    meta: ReturnType<typeof buildKillChainMeta>;
+  }>({
+    nonce: -1,
+    meta: new Map(),
+  });
   const killChainMeta = useMemo<ReturnType<typeof buildKillChainMeta>>(
-    () => (fullDto ? buildKillChainMeta(fullDto) : new Map()),
-    [fullDto],
+    () => {
+      if (killChainCache.current.nonce !== structuralNonce) {
+        killChainCache.current = {
+          nonce: structuralNonce,
+          meta: fullDto ? buildKillChainMeta(fullDto) : new Map(),
+        };
+      }
+      return killChainCache.current.meta;
+    },
+    [fullDto, structuralNonce],
   );
   // Card focus: a summary card mapped to its finding types (dim everything off that path).
   const [activeCard, setActiveCard] = useState<AttackPathFindingFilter | null>(null);
@@ -342,9 +375,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   const [detail, setDetail] = useState<AttackPathExecutionDetailDTO | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  // Monotonic tokens to drop stale async responses when the user switches simulation or endpoint
+  // Monotonic token to drop stale async responses when the user switches simulation or endpoint
   // quickly: only the latest request may write state.
-  const graphSeq = useRef(0);
   const endpointSeq = useRef(0);
 
   // Drawer width, drag-resizable (the graph is flex:1 and reflows as this changes). Dragging the handle
@@ -386,8 +418,6 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     if (!simulationId) {
       return;
     }
-    const seq = graphSeq.current + 1;
-    graphSeq.current = seq;
     // A simulation switch also invalidates any in-flight endpoint read from the previous graph.
     endpointSeq.current += 1;
     setEndpointBatch(new Map());
@@ -1462,11 +1492,13 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // One screen-reader announcement per delta batch — a summary of what arrived, never one message per
   // entity (a burst of executions would otherwise flood the live region).
   const liveSummary = useMemo(() => {
-    if (newNodeIds.length === 0) {
+    if (newNodes.length === 0) {
       return '';
     }
-    const endpoints = newNodeIds.filter(id => id.startsWith('NODE_ENDPOINT|')).length;
-    const findings = newNodeIds.filter(id => id.startsWith('NODE_FINDING|')).length;
+    // Kinds come from the node's own `type`, the same discriminant the layouts read — never from the
+    // shape of its id, which is the backend's key format and not a contract the view may parse.
+    const endpoints = newNodes.filter(n => n.type === 'ASSET').length;
+    const findings = newNodes.filter(n => n.type === 'FINDING').length;
     const parts: string[] = [];
     if (endpoints > 0) {
       parts.push(`${endpoints} ${t('new endpoints')}`);
@@ -1475,7 +1507,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       parts.push(`${findings} ${t('new findings')}`);
     }
     return parts.length > 0 ? parts.join(' · ') : t('Attack path updated');
-  }, [newNodeIds, t]);
+  }, [newNodes, t]);
 
   // Discreet freshness indicator (FR10): whether the view is still updating itself, retrying after a
   // failed tick (with when the last good data landed), or done because the run is over.
@@ -1874,20 +1906,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     >
       <GlobalStyles styles={AP_ENTRANCE_STYLES} />
       {/* Live updates are announced once per batch, off-screen: sighted users see the nodes appear. */}
-      <div
-        aria-live="polite"
-        aria-atomic="true"
-        style={{
-          position: 'absolute',
-          width: 1,
-          height: 1,
-          overflow: 'hidden',
-          clip: 'rect(0 0 0 0)',
-          whiteSpace: 'nowrap',
-        }}
-      >
+      <Box aria-live="polite" aria-atomic="true" sx={VISUALLY_HIDDEN}>
         {liveSummary}
-      </div>
+      </Box>
       <div style={{
         display: 'flex',
         alignItems: 'center',
