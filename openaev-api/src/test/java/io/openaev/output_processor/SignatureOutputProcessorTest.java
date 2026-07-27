@@ -15,6 +15,7 @@ import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.*;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +35,8 @@ class SignatureOutputProcessorTest {
       mock(SecurityCoverageSendJobService.class);
   private final AssetGroupService assetGroupService = mock(AssetGroupService.class);
   private final InjectService injectService = mock(InjectService.class);
+  private final InjectorContractContentUtils injectorContractContentUtils =
+      mock(InjectorContractContentUtils.class);
 
   private final InjectExpectationLockService injectExpectationLockService =
       new InjectExpectationLockService(injectExpectationRepository);
@@ -47,6 +50,7 @@ class SignatureOutputProcessorTest {
           injectExpectationLockService,
           assetGroupService,
           injectService,
+          injectorContractContentUtils,
           new ArrayList<>(List.of()));
   private final PreviewFeatureService previewFeatureService = mock(PreviewFeatureService.class);
   private final SignatureOutputProcessor processor =

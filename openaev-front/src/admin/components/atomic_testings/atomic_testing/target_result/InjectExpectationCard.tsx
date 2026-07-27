@@ -255,7 +255,10 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
             />
           )
         ) : (
-          (!isAssetGroupExpectation(injectExpectation) && ['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(injectExpectation.inject_expectation_type) && (injectExpectation.inject_expectation_results?.length ?? 0) > 0)
+          // Asset-group expectations show their result list too: their verdict carries a real
+          // source attribution (e.g. the Nuclei security platform) that must be visible at the
+          // group level, not only on the child assets.
+          (['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(injectExpectation.inject_expectation_type) && (injectExpectation.inject_expectation_results?.length ?? 0) > 0)
           && (
             <InjectExpectationResultList
               injectExpectation={injectExpectation}
