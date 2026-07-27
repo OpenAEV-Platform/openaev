@@ -781,8 +781,42 @@ public class InjectExpectationService {
     addResult(technicalInjectExpectation, input, collector);
     final Double score =
         computeScore(technicalInjectExpectation.getResults(), technicalInjectExpectation);
-    technicalInjectExpectation.setScore(score);
+    technicalInjectExpectation.setScore(
+        combineWithChildrenVerdict(technicalInjectExpectation, score));
     return technicalInjectExpectation;
+  }
+
+  /**
+   * Guards a direct (collector-written) score against clobbering a PARENT expectation's
+   * children-derived verdict. An asset-level expectation whose asset has agent children carries a
+   * score rolled up from those agents (e.g. Microsoft Defender answered the agents green); a
+   * collector answering the parent row directly (e.g. an LLM firewall expiring its own pending
+   * check with "Not Detected") must never overwrite that rollup with a score computed from the
+   * parent's own results only.
+   *
+   * <p>Combination rule: a direct success is definitive (any security platform succeeding counts);
+   * otherwise the children verdict wins - including staying pending (null) while the agents are
+   * still unanswered, so a direct failure never cements a wrong verdict early.
+   *
+   * @param expectation the expectation whose score was just computed from its own results
+   * @param ownScore the score computed from the expectation's own results
+   * @return the score to persist
+   */
+  private Double combineWithChildrenVerdict(
+      @NotNull final TechnicalInjectExpectation expectation, @Nullable final Double ownScore) {
+    if (expectation.getAgent() != null || expectation.getAsset() == null) {
+      return ownScore; // agent leaf or asset-group level: no children rollup to protect
+    }
+    List<TechnicalInjectExpectation> agentChildren = getAgentsExpectationsForAsset(expectation);
+    if (agentChildren.isEmpty()) {
+      return ownScore; // true agentless leaf (AI target, agentless endpoint)
+    }
+    Double expectedScore = expectation.getExpectedScore();
+    if (expectedScore == null || (ownScore != null && ownScore >= expectedScore)) {
+      return ownScore;
+    }
+    return InjectExpectationUtils.computeChildrenScore(
+        expectation.isExpectationGroup(), expectedScore, agentChildren);
   }
 
   // -- FINAL UPDATE --
@@ -1195,14 +1229,25 @@ public class InjectExpectationService {
               }
               BaseInjectExpectation clone = expectation.clone();
               Map<String, InjectExpectationResult> bySource = new LinkedHashMap<>();
-              platformResults.forEach(
-                  r ->
-                      bySource.merge(
-                          r.getSourceId() == null ? r.getSourceName() : r.getSourceId(),
-                          r,
-                          (existing, candidate) ->
-                              // Prefer an answered result over a pending one for the same source.
-                              existing.getResult() != null ? existing : candidate));
+              // Agents' results first, then the asset expectation's OWN direct results (e.g. a
+              // security platform that answered the asset level directly): a result persisted on
+              // the row must stay visible, silently dropping it would hide what drove the score.
+              Stream.concat(
+                      platformResults.stream(),
+                      expectation.getResults().stream()
+                          .filter(
+                              r ->
+                                  COLLECTOR.equals(r.getSourceType())
+                                      || SECURITY_PLATFORM.equals(r.getSourceType())))
+                  .forEach(
+                      r ->
+                          bySource.merge(
+                              r.getSourceId() == null ? r.getSourceName() : r.getSourceId(),
+                              r,
+                              (existing, candidate) ->
+                                  // Prefer an answered result over a pending one for the same
+                                  // source.
+                                  existing.getResult() != null ? existing : candidate));
               clone.setResults(new ArrayList<>(bySource.values()));
               return clone;
             })
