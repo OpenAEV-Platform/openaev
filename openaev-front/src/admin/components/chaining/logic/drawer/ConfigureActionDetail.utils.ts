@@ -6,7 +6,7 @@ export const EXPECTATION_FIELD_TYPE = 'expectation';
 export const EXPECTATIONS_CONTENT_KEY = 'expectations';
 
 /**
- * Maps contract field types to their auto-link outputType (PrimitiveType label).
+ * Maps contract field types to their auto-link output primitive type (PrimitiveType label).
  * Fields whose type appears here are automatically linked when the action form opens.
  * Extend this map to add new auto-links.
  */
@@ -155,13 +155,9 @@ export const normalizeFieldLinks = (
   }
   const normalized: Record<string, FieldLink> = {};
   for (const [fieldKey, link] of Object.entries(links)) {
-    let outputTypes = link.outputTypes ?? [];
-    if (outputTypes.length === 0 && link.outputType) {
-      outputTypes = [link.outputType];
-    }
     normalized[fieldKey] = {
       ...link,
-      outputTypes,
+      outputTypes: link.outputTypes ?? [],
     };
   }
   return normalized;

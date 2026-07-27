@@ -23,7 +23,6 @@ import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 
 export interface FieldLink {
   outputTypes: string[];
-  outputType?: string;
   localScope: boolean;
 }
 
@@ -69,8 +68,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
 
   const normalizedLinkOutputTypes = useMemo(() => {
     if (!link) return [];
-    if (link.outputTypes && link.outputTypes.length > 0) return link.outputTypes;
-    return link.outputType ? [link.outputType] : [];
+    return link.outputTypes ?? [];
   }, [link]);
 
   const openTypeMenu = (event: MouseEvent<HTMLElement>) => {

@@ -202,9 +202,6 @@ const ChainingFlowConfiguration = ({
 
     const stepConditions: ConditionCreateInput[] = Object.entries(data.inject_field_links).map(([fieldKey, link], i) => {
       let keyTypes = link.outputTypes ?? [];
-      if (keyTypes.length === 0 && link.outputType) {
-        keyTypes = [link.outputType];
-      }
       if (keyTypes.length === 0) {
         keyTypes = ['text'];
       }
