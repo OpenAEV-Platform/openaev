@@ -195,7 +195,6 @@ const Lessons: FunctionComponent<Props> = ({
         <CreateLessonsCategory />
       </Can>
       <Dialog
-        // @ts-expect-error -- MUI v9 migration: TS2322
         TransitionComponent={Transition}
         keepMounted={false}
         open={selectedObjective !== null}
@@ -214,7 +213,6 @@ const Lessons: FunctionComponent<Props> = ({
         </DialogContent>
       </Dialog>
       <Dialog
-        // @ts-expect-error -- MUI v9 migration: TS2322
         TransitionComponent={Transition}
         keepMounted={false}
         open={openApplyTemplate}
@@ -296,7 +294,6 @@ const Lessons: FunctionComponent<Props> = ({
       </Dialog>
       <Dialog
         open={openEmptyLessons}
-        // @ts-expect-error -- MUI v9 migration: TS2322
         TransitionComponent={Transition}
         onClose={() => setOpenEmptyLessons(false)}
         PaperProps={{ elevation: 1 }}
@@ -319,7 +316,6 @@ const Lessons: FunctionComponent<Props> = ({
       </Dialog>
       <Dialog
         open={openAnonymize}
-        // @ts-expect-error -- MUI v9 migration: TS2322
         TransitionComponent={Transition}
         onClose={() => setOpenAnonymize(false)}
         PaperProps={{ elevation: 1 }}

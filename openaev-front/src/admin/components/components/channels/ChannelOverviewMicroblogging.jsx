@@ -1,4 +1,4 @@
-import { Card, CardHeader, GridLegacy, Skeleton, Typography } from '@mui/material';
+import { Card, CardHeader, Grid, Skeleton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Fragment } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -146,29 +146,29 @@ const ChannelOverviewMicroblogging = ({ channel }) => {
             </Fragment>
           )}
         />
-        <GridLegacy container={true} spacing={3}>
-          <GridLegacy item={true} xs={4}>
+        <Grid container spacing={3}>
+          <Grid size={{ xs: 4 }}>
             <Skeleton
               sx={{ height: 180 }}
               animation={false}
               variant="rectangular"
             />
-          </GridLegacy>
-          <GridLegacy item={true} xs={4}>
+          </Grid>
+          <Grid size={{ xs: 4 }}>
             <Skeleton
               sx={{ height: 180 }}
               animation={false}
               variant="rectangular"
             />
-          </GridLegacy>
-          <GridLegacy item={true} xs={4}>
+          </Grid>
+          <Grid size={{ xs: 4 }}>
             <Skeleton
               sx={{ height: 180 }}
               animation={false}
               variant="rectangular"
             />
-          </GridLegacy>
-        </GridLegacy>
+          </Grid>
+        </Grid>
       </Card>
       <Card sx={{ width: '100%' }} style={{ marginBottom: 20 }}>
         <CardHeader

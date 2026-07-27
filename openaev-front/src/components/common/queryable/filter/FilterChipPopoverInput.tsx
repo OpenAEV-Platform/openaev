@@ -127,16 +127,17 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
       )}
       loading
       renderOption={(props, option) => {
+        const { key, ...optionProps } = props as typeof props & { key?: string };
         const checked = filter.values?.includes(option.id);
         return (
           <li
-            {...props}
+            key={key ?? option.id}
+            {...optionProps}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.stopPropagation();
               }
             }}
-            key={option.id}
             onClick={() => onClick(option.id)}
             style={{
               whiteSpace: 'nowrap',

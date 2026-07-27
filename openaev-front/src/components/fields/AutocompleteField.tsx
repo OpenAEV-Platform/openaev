@@ -82,6 +82,7 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
     props: HTMLAttributes<HTMLLIElement>,
     option: AutocompleteOption,
   ) => {
+    const { key, ...optionProps } = props as typeof props & { key?: string };
     const checked = multiple
       ? value?.includes(option.id)
       : value === option.id;
@@ -90,7 +91,8 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
       <Tooltip key={option.id} title={option.label}>
         <Box
           component="li"
-          {...props}
+          key={key ?? option.id}
+          {...optionProps}
           sx={{
             whiteSpace: 'nowrap',
             overflow: 'hidden',

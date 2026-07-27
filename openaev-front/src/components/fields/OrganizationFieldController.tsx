@@ -83,14 +83,17 @@ const OrganizationFieldController: FunctionComponent<Props> = ({ name, label }) 
             onChange={(_, value) => field.onChange(value?.id || '')}
             getOptionLabel={option => option.label}
             isOptionEqualToValue={(option, value) => option.id === value.id}
-            renderOption={(props, option) => (
-              <Box component="li" {...props} key={option.id}>
-                <div className={classes.icon}>
-                  <DomainOutlined />
-                </div>
-                <div className={classes.text}>{option.label}</div>
-              </Box>
-            )}
+            renderOption={(props, option) => {
+              const { key, ...optionProps } = props as typeof props & { key?: string };
+              return (
+                <Box component="li" key={key ?? option.id} {...optionProps}>
+                  <div className={classes.icon}>
+                    <DomainOutlined />
+                  </div>
+                  <div className={classes.text}>{option.label}</div>
+                </Box>
+              );
+            }}
             renderInput={params => (
               <TextField
                 {...params}

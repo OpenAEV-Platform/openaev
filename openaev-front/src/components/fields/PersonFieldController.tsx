@@ -45,11 +45,14 @@ const PersonFieldController: FunctionComponent<Props> = ({ name, label }) => {
           onChange={(_, value) => field.onChange(value?.id ?? null)}
           getOptionLabel={option => option.label}
           isOptionEqualToValue={(option, value) => option.id === value.id}
-          renderOption={(props, option) => (
-            <Box component="li" {...props} key={option.id}>
-              {option.label}
-            </Box>
-          )}
+          renderOption={(props, option) => {
+            const { key, ...optionProps } = props as typeof props & { key?: string };
+            return (
+              <Box component="li" key={key ?? option.id} {...optionProps}>
+                {option.label}
+              </Box>
+            );
+          }}
           renderInput={params => (
             <TextField {...params} label={label} variant="standard" error={!!error} helperText={error?.message} />
           )}

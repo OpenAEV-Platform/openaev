@@ -316,25 +316,28 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             onInputChange={(event, value) => this.handleSearch(i, event, value)}
             inputValue={actionsInputs[i]?.inputValue || ''}
             onChange={(event, value) => this.handleChangeActionInputValues(i, event, value)}
-            renderOption={(props, option: ToolBarSelectOption) => (
-              <li {...props}>
-                <Box sx={{
-                  pt: 0.5,
-                  display: 'inline-block',
-                }}
-                >
-                  <DevicesOtherOutlined />
-                </Box>
-                <Box sx={{
-                  display: 'inline-block',
-                  flexGrow: 1,
-                  ml: 1.25,
-                }}
-                >
-                  {option.label}
-                </Box>
-              </li>
-            )}
+            renderOption={(props, option: ToolBarSelectOption) => {
+              const { key, ...optionProps } = props as typeof props & { key?: string };
+              return (
+                <li key={key ?? option.value} {...optionProps}>
+                  <Box sx={{
+                    pt: 0.5,
+                    display: 'inline-block',
+                  }}
+                  >
+                    <DevicesOtherOutlined />
+                  </Box>
+                  <Box sx={{
+                    display: 'inline-block',
+                    flexGrow: 1,
+                    ml: 1.25,
+                  }}
+                  >
+                    {option.label}
+                  </Box>
+                </li>
+              );
+            }}
           />
         );
       case 'asset_groups':
@@ -362,25 +365,28 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             onInputChange={(event, value) => this.handleSearch(i, event, value)}
             inputValue={actionsInputs[i]?.inputValue || ''}
             onChange={(event, value) => this.handleChangeActionInputValues(i, event, value)}
-            renderOption={(props, option: ToolBarSelectOption) => (
-              <li {...props}>
-                <Box sx={{
-                  pt: 0.5,
-                  display: 'inline-block',
-                }}
-                >
-                  <SelectGroup />
-                </Box>
-                <Box sx={{
-                  display: 'inline-block',
-                  flexGrow: 1,
-                  ml: 1.25,
-                }}
-                >
-                  {option.label}
-                </Box>
-              </li>
-            )}
+            renderOption={(props, option: ToolBarSelectOption) => {
+              const { key, ...optionProps } = props as typeof props & { key?: string };
+              return (
+                <li key={key ?? option.value} {...optionProps}>
+                  <Box sx={{
+                    pt: 0.5,
+                    display: 'inline-block',
+                  }}
+                  >
+                    <SelectGroup />
+                  </Box>
+                  <Box sx={{
+                    display: 'inline-block',
+                    flexGrow: 1,
+                    ml: 1.25,
+                  }}
+                  >
+                    {option.label}
+                  </Box>
+                </li>
+              );
+            }}
           />
         );
       case 'teams':
@@ -408,25 +414,28 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             onInputChange={(event, value) => this.handleSearch(i, event, value)}
             inputValue={actionsInputs[i]?.inputValue || ''}
             onChange={(event, value) => this.handleChangeActionInputValues(i, event, value)}
-            renderOption={(props, option: ToolBarSelectOption) => (
-              <li {...props}>
-                <Box sx={{
-                  pt: 0.5,
-                  display: 'inline-block',
-                }}
-                >
-                  <GroupsOutlined />
-                </Box>
-                <Box sx={{
-                  display: 'inline-block',
-                  flexGrow: 1,
-                  ml: 1.25,
-                }}
-                >
-                  {option.label}
-                </Box>
-              </li>
-            )}
+            renderOption={(props, option: ToolBarSelectOption) => {
+              const { key, ...optionProps } = props as typeof props & { key?: string };
+              return (
+                <li key={key ?? option.value} {...optionProps}>
+                  <Box sx={{
+                    pt: 0.5,
+                    display: 'inline-block',
+                  }}
+                  >
+                    <GroupsOutlined />
+                  </Box>
+                  <Box sx={{
+                    display: 'inline-block',
+                    flexGrow: 1,
+                    ml: 1.25,
+                  }}
+                  >
+                    {option.label}
+                  </Box>
+                </li>
+              );
+            }}
           />
         );
       default:

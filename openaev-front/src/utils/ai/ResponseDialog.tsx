@@ -226,7 +226,6 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
           multiline={true}
           onChange={event => setContent(event.target.value)}
           fullWidth={true}
-          // @ts-expect-error -- MUI v9 migration: TS2322
           InputProps={isLegacyMode ? {
             endAdornment: (
               <TextFieldAskAI
@@ -338,7 +337,6 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
   return (
     <>
       <Dialog
-        // @ts-expect-error -- MUI v9 migration: TS2322
         PaperProps={{ elevation: 1 }}
         open={isOpen}
         onClose={() => {

@@ -47,12 +47,15 @@ const TenantFieldController: FunctionComponent<Props> = ({ name, label, disabled
           onChange={(_, newValue) => onChange(newValue.map(v => v.id))}
           getOptionLabel={option => option.label}
           isOptionEqualToValue={(option, val) => option.id === val.id}
-          renderOption={(props, option) => (
-            <Box component="li" {...props} key={option.id}>
-              <HomeWorkOutlined fontSize="small" sx={{ mr: 1 }} />
-              {option.label}
-            </Box>
-          )}
+          renderOption={(props, option) => {
+            const { key, ...optionProps } = props as typeof props & { key?: string };
+            return (
+              <Box component="li" key={key ?? option.id} {...optionProps}>
+                <HomeWorkOutlined fontSize="small" sx={{ mr: 1 }} />
+                {option.label}
+              </Box>
+            );
+          }}
           renderInput={params => (
             <TextField
               {...params}

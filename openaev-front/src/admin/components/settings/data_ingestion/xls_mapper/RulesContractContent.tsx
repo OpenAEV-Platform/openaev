@@ -204,7 +204,6 @@ const RulesContractContent: FunctionComponent<Props> = ({
               fullWidth
               label={t('Matching type in the xls')}
               style={{ marginTop: 10 }}
-              // @ts-expect-error -- MUI v9 migration: TS2322
               inputProps={methods.register(`import_mapper_inject_importers.${index}.inject_importer_type_value` as const)}
               slotProps={{ inputLabel: { required: true } }}
               error={!!methods.formState.errors.import_mapper_inject_importers?.[index]?.inject_importer_type_value}
@@ -311,9 +310,10 @@ const RulesContractContent: FunctionComponent<Props> = ({
                   && (
                     <Dialog
                       open
-                      // @ts-expect-error -- MUI v9 migration: TS2322
-                      PaperProps={{ elevation: 1 }}
-                      BackdropProps={{ style: { backgroundColor: 'transparent' } }}
+                      slotProps={{
+                        paper: { elevation: 1 },
+                        backdrop: { style: { backgroundColor: 'transparent' } },
+                      }}
                       onClose={handleDefaultValueClose}
                     >
                       <DialogTitle>
@@ -323,7 +323,6 @@ const RulesContractContent: FunctionComponent<Props> = ({
                         <TextField
                           fullWidth
                           label={t('Default value')}
-                          // @ts-expect-error -- MUI v9 migration: TS2322
                           inputProps={methods.register(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${currentRuleIndex}.rule_attribute_default_value`)}
                         />
                         {currentRuleIndex === rulesFields.findIndex(r => r.rule_attribute_name === 'trigger_time')
@@ -338,7 +337,6 @@ const RulesContractContent: FunctionComponent<Props> = ({
                                 label={t('Time pattern')}
                                 fullWidth
                                 style={{ marginTop: 10 }}
-                                // @ts-expect-error -- MUI v9 migration: TS2322
                                 inputProps={methods.register(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${currentRuleIndex}.rule_attribute_additional_config.timePattern`)}
                               />
                               <Tooltip
@@ -366,7 +364,6 @@ const RulesContractContent: FunctionComponent<Props> = ({
                                 label={t('All teams value')}
                                 fullWidth
                                 style={{ marginTop: 10 }}
-                                // @ts-expect-error -- MUI v9 migration: TS2322
                                 inputProps={methods.register(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${currentRuleIndex}.rule_attribute_additional_config.allTeamsValue`)}
                               />
                               <Tooltip

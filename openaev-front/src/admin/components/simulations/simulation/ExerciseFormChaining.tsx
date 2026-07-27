@@ -4,9 +4,7 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
-// @ts-expect-error -- MUI v9 migration: TS2305
-
-  Alert, AlertTitle, Autocomplete, Button, Chip, GridLegacy, MenuItem, TextField as MuiTextField, Typography,
+  Alert, AlertTitle, Autocomplete, Button, Chip, Grid, MenuItem, TextField as MuiTextField, Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { DateTimePicker as MuiDateTimePicker } from '@mui/x-date-pickers';
@@ -125,8 +123,8 @@ const ExerciseForm: FunctionComponent<Props> = ({
         askAi={true}
         maxLength={255}
       />
-      <GridLegacy container spacing={2}>
-        <GridLegacy item xs={7}>
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 7 }}>
           <SelectField
             variant="standard"
             fullWidth={true}
@@ -142,8 +140,8 @@ const ExerciseForm: FunctionComponent<Props> = ({
               </MenuItem>
             ))}
           </SelectField>
-        </GridLegacy>
-        <GridLegacy item xs={5}>
+        </Grid>
+        <Grid size={{ xs: 5 }}>
           <SelectField
             variant="standard"
             fullWidth={true}
@@ -172,8 +170,8 @@ const ExerciseForm: FunctionComponent<Props> = ({
               {t('Strategic Reaction')}
             </MenuItem>
           </SelectField>
-        </GridLegacy>
-      </GridLegacy>
+        </Grid>
+      </Grid>
 
       <SelectField
         variant="standard"
@@ -309,7 +307,6 @@ const ExerciseForm: FunctionComponent<Props> = ({
                       setInputValue(newInputValue);
                     }}
                     disableClearable={true}
-                    // @ts-expect-error -- MUI v9 migration: TS2322
                     renderTags={(tags: string[], getTagProps) => tags.map((email: string, index: number) => {
                       return (
                         <Chip

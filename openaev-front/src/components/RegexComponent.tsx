@@ -26,7 +26,7 @@ const RegexComponent: FunctionComponent<Props> = ({
   const regexOptions = alphabet(26);
   const [value, setValue] = useState<string | null | undefined>(fieldValue ?? '');
 
-  const inputLabelProps = required ? { required: true } : {};
+  const inputLabelProps = required ? { required: true } : undefined;
 
   return (
     <Autocomplete
@@ -41,8 +41,7 @@ const RegexComponent: FunctionComponent<Props> = ({
             label={t(label)}
             variant="outlined"
             size="small"
-            // @ts-expect-error -- MUI v9 migration: TS2322
-            InputLabelProps={inputLabelProps}
+            slotProps={{ inputLabel: inputLabelProps }}
             error={!!error}
             helperText={error?.message}
           />

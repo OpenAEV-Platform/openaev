@@ -109,23 +109,26 @@ const InjectContractComponent: FunctionComponent<Props> = ({
         onChange(injectorContract?.injector_contract_id);
       }}
       onInputChange={(_, inputValue) => searchContract(inputValue)}
-      renderOption={(props, option) => (
-        <li {...props}>
-          <div className={classes.icon}>
-            <InjectIcon
-              type={
-                option.injector_contract_payload
-                  ? (option.injector_contract_payload?.payload_collector_type ?? option.injector_contract_payload?.payload_type)
-                  : option.injector_contract_injector_type
-              }
-              isPayload={isNotEmptyField(option.injector_contract_payload)}
-            />
-          </div>
-          <div className={classes.text}>
-            {tPick(option.injector_contract_labels)}
-          </div>
-        </li>
-      )}
+      renderOption={(props, option) => {
+        const { key, ...optionProps } = props as typeof props & { key?: string };
+        return (
+          <li key={key ?? option.injector_contract_id} {...optionProps}>
+            <div className={classes.icon}>
+              <InjectIcon
+                type={
+                  option.injector_contract_payload
+                    ? (option.injector_contract_payload?.payload_collector_type ?? option.injector_contract_payload?.payload_type)
+                    : option.injector_contract_injector_type
+                }
+                isPayload={isNotEmptyField(option.injector_contract_payload)}
+              />
+            </div>
+            <div className={classes.text}>
+              {tPick(option.injector_contract_labels)}
+            </div>
+          </li>
+        );
+      }}
     />
   );
 };

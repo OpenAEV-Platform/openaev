@@ -119,14 +119,17 @@ const ScenarioField: FunctionComponent<Props> = ({
         options={scenarioOptions}
         style={style}
         onKeyDown={onKeyDown}
-        renderOption={(renderProps: HTMLAttributes<HTMLLIElement>, option: Option) => (
-          <Box component="li" {...renderProps} key={option.id}>
-            <div className={classes.icon}>
-              <Kayaking />
-            </div>
-            <div className={classes.text}>{option.label}</div>
-          </Box>
-        )}
+        renderOption={(renderProps: HTMLAttributes<HTMLLIElement>, option: Option) => {
+          const { key, ...optionProps } = renderProps as typeof renderProps & { key?: string };
+          return (
+            <Box component="li" key={key ?? option.id} {...optionProps}>
+              <div className={classes.icon}>
+                <Kayaking />
+              </div>
+              <div className={classes.text}>{option.label}</div>
+            </Box>
+          );
+        }}
         classes={{ clearIndicator: classes.autoCompleteIndicator }}
       />
     );
@@ -148,9 +151,7 @@ const ScenarioField: FunctionComponent<Props> = ({
         onChange={(_, newValue) => onValuesChange?.(newValue)}
         getOptionLabel={option => option.label}
         isOptionEqualToValue={(option, val) => option.id === val.id}
-        // @ts-expect-error -- MUI v9 migration: TS2322
         renderTags={(tagValue, getTagProps) =>
-          // @ts-expect-error -- MUI v9 migration: TS7006
           tagValue.map((option, index) => (
             <Chip
               label={option.label}

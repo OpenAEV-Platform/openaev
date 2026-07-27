@@ -1,4 +1,4 @@
-import { Button, GridLegacy, MenuItem } from '@mui/material';
+import { Button, Grid, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
@@ -24,8 +24,8 @@ class ChannelParametersFormComponent extends Component {
       >
         {({ handleSubmit, submitting, pristine }) => (
           <form id="channelParametersForm" onSubmit={handleSubmit}>
-            <GridLegacy container={true} spacing={3}>
-              <GridLegacy item={true} xs={6}>
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 6 }}>
                 <OldSelectField
                   variant="standard"
                   label={t('Type')}
@@ -67,8 +67,8 @@ class ChannelParametersFormComponent extends Component {
                   label={t('Secondary color (dark)')}
                   style={{ marginTop: 20 }}
                 />
-              </GridLegacy>
-              <GridLegacy item={true} xs={6}>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
                 <OldTextField
                   variant="standard"
                   name="channel_description"
@@ -110,8 +110,8 @@ class ChannelParametersFormComponent extends Component {
                   label={t('Secondary color (light)')}
                   style={{ marginTop: 20 }}
                 />
-              </GridLegacy>
-            </GridLegacy>
+              </Grid>
+            </Grid>
             {!disabled && (
               <div style={{ marginTop: 20 }}>
                 <Button

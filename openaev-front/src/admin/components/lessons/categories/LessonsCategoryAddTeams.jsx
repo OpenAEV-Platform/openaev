@@ -7,7 +7,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  GridLegacy,
+  Grid,
   IconButton,
   List,
   ListItemButton,
@@ -188,24 +188,24 @@ class LessonsCategoryAddTeamsComponent extends Component {
             </div>
           </DialogTitle>
           <DialogContent>
-            <GridLegacy container spacing={3} style={{ marginTop: -15 }}>
-              <GridLegacy item xs={8}>
-                <GridLegacy container spacing={3}>
-                  <GridLegacy item xs={6}>
+            <Grid container spacing={3} style={{ marginTop: -15 }}>
+              <Grid size={{ xs: 8 }}>
+                <Grid container spacing={3}>
+                  <Grid size={{ xs: 6 }}>
                     <SearchFilter
                       onChange={this.handleSearchTeams.bind(this)}
                       fullWidth
                     />
-                  </GridLegacy>
-                  <GridLegacy item xs={6}>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
                     <TagsFilter
                       onAddTag={this.handleAddTag.bind(this)}
                       onClearTag={this.handleClearTag.bind(this)}
                       currentTags={tags}
                       fullWidth
                     />
-                  </GridLegacy>
-                </GridLegacy>
+                  </Grid>
+                </Grid>
                 <List>
                   {filteredTeams.map((team) => {
                     const disabled = teamsIds.includes(team.team_id)
@@ -244,8 +244,8 @@ class LessonsCategoryAddTeamsComponent extends Component {
                     />
                   </Can>
                 </List>
-              </GridLegacy>
-              <GridLegacy item xs={4}>
+              </Grid>
+              <Grid size={{ xs: 4 }}>
                 <Box className={classes.box}>
                   {this.state.teamsIds.map((teamId) => {
                     const team = teamsMap[teamId];
@@ -260,8 +260,8 @@ class LessonsCategoryAddTeamsComponent extends Component {
                     );
                   })}
                 </Box>
-              </GridLegacy>
-            </GridLegacy>
+              </Grid>
+            </Grid>
           </DialogContent>
           <DialogActions>
             <Button onClick={this.handleClose.bind(this)}>{t('Cancel')}</Button>

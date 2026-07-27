@@ -60,11 +60,12 @@ const DomainFieldController = ({
             onChange={onChange}
             renderOption={(props, option) => {
               if (option.label === TO_CLASSIFY) return null;
+              const { key, ...optionProps } = props as typeof props & { key?: string };
               return (
                 <Box
                   component="li"
-                  {...props}
-                  key={option.id}
+                  key={key ?? option.id}
+                  {...optionProps}
                   sx={{
                     px: 2,
                     py: 1,

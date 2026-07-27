@@ -186,7 +186,6 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
       {dangerousButton()}
       <Dialog
         open={Boolean(openChangeStatus)}
-        // @ts-expect-error -- MUI v9 migration: TS2322
         TransitionComponent={Transition}
         onClose={() => setOpenChangeStatus(null)}
         PaperProps={{ elevation: 1 }}
