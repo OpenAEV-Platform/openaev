@@ -7,6 +7,7 @@ import {
   SmartButtonOutlined,
   TerminalOutlined,
   VerifiedOutlined,
+  Key,
 } from '@mui/icons-material';
 import { Box, Button, ButtonBase, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -185,6 +186,12 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
             label: t('Executor'),
             icon: TerminalOutlined,
             count: countByPredicate(typesBase, c => c.type === 'EXECUTOR'),
+          },
+          {
+            value: 'SECRETS_PROVIDER',
+            label: t('Secrets Provider'),
+            icon: Key,
+            count: countByPredicate(typesBase, c => c.type === 'SECRETS_PROVIDER'),
           },
         ],
       },

@@ -1,4 +1,4 @@
-package io.openaev.integration.impl;
+package io.openaev.integration.impl.executor;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME;

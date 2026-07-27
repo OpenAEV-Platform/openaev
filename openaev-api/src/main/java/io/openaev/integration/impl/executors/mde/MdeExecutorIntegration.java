@@ -20,7 +20,6 @@ import io.openaev.executors.mde.service.MdeExecutorContextService;
 import io.openaev.executors.mde.service.MdeExecutorService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.QualifiedComponent;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
@@ -44,7 +43,7 @@ public class MdeExecutorIntegration extends Integration {
       "https://docs.openaev.io/latest/deployment/ecosystem/executors/#microsoft-defender-for-endpoint";
   private static final String MDE_EXECUTOR_BACKGROUND_COLOR = "#0078D4";
 
-  @QualifiedComponent(identifier = MdeExecutorContextService.SERVICE_NAME)
+  //  @QualifiedComponent(identifier = MdeExecutorContextService.SERVICE_NAME)
   private MdeExecutorContextService mdeExecutorContextService;
 
   private MdeExecutorService mdeExecutorService;

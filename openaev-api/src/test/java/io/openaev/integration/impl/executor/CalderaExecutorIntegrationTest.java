@@ -1,12 +1,11 @@
-package io.openaev.integration.impl;
+package io.openaev.integration.impl.executor;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_NAME;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
-import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
@@ -14,22 +13,23 @@ import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.caldera.client.CalderaExecutorClient;
+import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.executors.exception.ExecutorException;
-import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
-import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
-import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration;
-import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegrationFactory;
-import io.openaev.integration.migration.SentinelOneExecutorConfigurationMigration;
+import io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration;
+import io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegrationFactory;
+import io.openaev.integration.migration.CalderaExecutorConfigurationMigration;
 import io.openaev.service.*;
+import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
-import io.openaev.utils.mockConfig.executors.WithMockSentinelOneConfig;
+import io.openaev.utils.mockConfig.executors.WithMockCalderaConfig;
 import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
@@ -50,19 +50,13 @@ import org.springframework.transaction.annotation.Transactional;
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 // The legacy properties migration only seeds an instance when the legacy config is enabled;
 // these tests exercise the factory around that migrated instance.
-@WithMockSentinelOneConfig(
+@WithMockCalderaConfig(
     enable = true,
-    url = "sentinelOne_url",
-    apiKey = "sentinelOne_api_key",
-    apiRegisterInterval = 1234,
-    accountId = "so_acct_id",
-    apiBatchExecutionActionPagination = 5678,
-    windowsScriptId = "so_windows_script_id",
-    unixScriptId = "so_unix_script_id",
-    groupId = "so_group_id",
-    siteId = "so_site_id")
-public class SentinelOneExecutorIntegrationTest {
-  @Autowired private SentinelOneExecutorClient client;
+    url = "caldera_url",
+    publicUrl = "caldera_public_url",
+    apiKey = "caldera_api_key")
+public class CalderaExecutorIntegrationTest {
+  @Autowired private CalderaExecutorClient client;
   @Autowired private EndpointService endpointService;
   @Autowired private AgentService agentService;
   @Autowired private AssetGroupService assetGroupService;
@@ -74,36 +68,33 @@ public class SentinelOneExecutorIntegrationTest {
   @Autowired private CatalogConnectorService catalogConnectorService;
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
-  @Autowired private SentinelOneExecutorConfig sentinelOneExecutorConfig;
+  @Autowired private CalderaExecutorConfig calderaExecutorConfig;
   @Autowired private EncryptionFactory encryptionFactory;
-  @Autowired private HttpClientFactory httpClientFactory;
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
-  @Autowired private PreviewFeatureService previewFeatureService;
-  @Autowired private OpenAEVConfig openAEVConfig;
+  @Autowired private HttpClientFactory httpClientFactory;
 
-  @Autowired
-  private SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration;
+  @Autowired private CalderaExecutorConfigurationMigration calderaExecutorConfigurationMigration;
 
   @Autowired private FileService fileService;
+  @Autowired private InjectorService injectorService;
+  @Autowired private PlatformSettingsService platformSettingsService;
   @Autowired private TenantScopedTransaction tenantTx;
 
-  private SentinelOneExecutorIntegrationFactory getFactory() {
-    return new SentinelOneExecutorIntegrationFactory(
+  private CalderaExecutorIntegrationFactory getFactory() {
+    return new CalderaExecutorIntegrationFactory(
         connectorInstanceService,
         catalogConnectorService,
         executorService,
         componentRequestEngine,
-        sentinelOneExecutorConfigurationMigration,
+        calderaExecutorConfigurationMigration,
         agentService,
         endpointService,
-        assetGroupService,
-        enterpriseEditionService,
-        licenseCacheManager,
+        injectorService,
+        platformSettingsService,
         taskScheduler,
         fileService,
         baseIntegrationConfigurationBuilder,
         httpClientFactory,
-        openAEVConfig,
         tenantTx);
   }
 
@@ -118,7 +109,7 @@ public class SentinelOneExecutorIntegrationTest {
 
     assertThat(connectors).hasSize(1);
     AssertionsForClassTypes.assertThat(connectors.getFirst().getClassName())
-        .isEqualTo(SentinelOneExecutorIntegrationFactory.class.getCanonicalName());
+        .isEqualTo(CalderaExecutorIntegrationFactory.class.getCanonicalName());
   }
 
   @Test
@@ -138,7 +129,7 @@ public class SentinelOneExecutorIntegrationTest {
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);
-    assertThat(syncedIntegrations).first().isInstanceOf(SentinelOneExecutorIntegration.class);
+    assertThat(syncedIntegrations).first().isInstanceOf(CalderaExecutorIntegration.class);
     assertThat(syncedIntegrations)
         .first()
         .satisfies(
@@ -165,14 +156,14 @@ public class SentinelOneExecutorIntegrationTest {
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);
-    assertThat(syncedIntegrations).first().isInstanceOf(SentinelOneExecutorIntegration.class);
+    assertThat(syncedIntegrations).first().isInstanceOf(CalderaExecutorIntegration.class);
     assertThat(syncedIntegrations)
         .first()
         .satisfies(
             integration ->
                 assertThat(
                         integration.requestComponent(
-                            new ComponentRequest(SENTINELONE_EXECUTOR_NAME),
+                            new ComponentRequest(CALDERA_EXECUTOR_NAME),
                             ExecutorContextService.class))
                     .isEmpty());
   }
@@ -200,7 +191,7 @@ public class SentinelOneExecutorIntegrationTest {
                                 & left.getValue().toString().compareTo(right.getValue().toString()),
                         ConnectorInstanceConfiguration.class)
                     .hasSameElementsAs(
-                        sentinelOneExecutorConfig.toInstanceConfigurationSet(
+                        calderaExecutorConfig.toInstanceConfigurationSet(
                             instance,
                             encryptionFactory.getEncryptionService(
                                 instance.getCatalogConnector()))));
@@ -215,9 +206,7 @@ public class SentinelOneExecutorIntegrationTest {
     integrationFactory.initialise();
 
     Integration integration = integrationFactory.spawn(new ConnectorInstanceInMemory());
-    AssertionsForClassTypes.assertThat(
-            FieldUtils.computeAllFieldValues(integration).get("encryptionService"))
-        .isNull();
+    assertThat(FieldUtils.computeAllFieldValues(integration).get("encryptionService")).isNull();
   }
 
   @Test
@@ -235,20 +224,18 @@ public class SentinelOneExecutorIntegrationTest {
     // Act & Assert — passing null baseIntegrationConfigurationBuilder causes refresh() to fail
     assertThatThrownBy(
             () ->
-                new SentinelOneExecutorIntegration(
+                new CalderaExecutorIntegration(
                     instance,
                     connectorInstanceService,
                     endpointService,
                     agentService,
-                    assetGroupService,
-                    enterpriseEditionService,
-                    licenseCacheManager,
-                    componentRequestEngine,
                     executorService,
+                    componentRequestEngine,
+                    platformSettingsService,
+                    injectorService,
                     taskScheduler,
                     null,
                     httpClientFactory,
-                    openAEVConfig,
                     tenantTx))
         .isInstanceOf(ExecutorException.class)
         .hasMessageContaining("Error during initialization of the Executor");
@@ -256,8 +243,8 @@ public class SentinelOneExecutorIntegrationTest {
 
   @Test
   @DisplayName(
-      "When integration is stopped and requested status is starting, initialise should start it")
-  public void whenStoppedAndStartingRequested_initialise_should_startIntegration()
+      "When integration is stopped and requested status is starting but innerStart fails, initialise should throw and status should remain stopped")
+  public void whenStoppedAndStartingRequested_innerStartFails_should_remainStopped()
       throws Exception {
     // Arrange
     IntegrationFactory integrationFactory = getFactory();
@@ -274,19 +261,20 @@ public class SentinelOneExecutorIntegrationTest {
     assertThat(integration.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
 
-    // Act
-    integration.initialise();
+    // Act & Assert — innerStart() fails because Caldera server is not available
+    assertThatThrownBy(integration::initialise).isInstanceOf(RuntimeException.class);
 
-    // Assert
+    // Status should remain stopped since start() did not complete
     assertThat(integration.getCurrentStatus())
-        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
   }
 
   @Test
   @DisplayName(
-      "When integration is started and requested status is stopping, initialise should stop it")
-  public void whenStartedAndStoppingRequested_initialise_should_stopIntegration() throws Exception {
-    // Arrange — start the integration first
+      "When integration failed to start and stopping is requested, initialise should be a no-op (already stopped)")
+  public void whenFailedStartAndStoppingRequested_initialise_should_remainStopped()
+      throws Exception {
+    // Arrange — attempt to start but it fails
     IntegrationFactory integrationFactory = getFactory();
     integrationFactory.initialise();
 
@@ -298,15 +286,19 @@ public class SentinelOneExecutorIntegrationTest {
     connectorInstanceService.save(instance);
 
     Integration integration = integrationFactory.spawn(instance);
-    integration.initialise();
+    try {
+      integration.initialise();
+    } catch (Exception ignored) {
+      // Expected: innerStart fails because no Caldera server
+    }
     assertThat(integration.getCurrentStatus())
-        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
 
-    // Arrange — now request stopping
+    // Arrange — now request stopping (already stopped)
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstanceService.save(instance);
 
-    // Act
+    // Act — should not throw, the stop on already-stopped is a no-op
     integration.initialise();
 
     // Assert

@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -37,6 +38,7 @@ public class SecretsProviderApi extends RestBehavior {
   private final SecretsProviderService secretsProviderService;
 
   @GetMapping
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   @Operation(
       summary = "Retrieve secrets providers",
@@ -59,6 +61,7 @@ public class SecretsProviderApi extends RestBehavior {
   }
 
   @GetMapping({"/{secretsProviderId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#secretsProviderId",
       actionPerformed = Action.READ,
@@ -76,6 +79,7 @@ public class SecretsProviderApi extends RestBehavior {
   }
 
   @GetMapping("/{secretsProviderId}/related-ids")
+  @Transactional
   @AccessControl(
       resourceId = "#secretsProviderId",
       actionPerformed = Action.READ,

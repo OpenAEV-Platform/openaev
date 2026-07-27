@@ -1,11 +1,12 @@
-package io.openaev.integration.impl;
+package io.openaev.integration.impl.executor;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
@@ -13,23 +14,25 @@ import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorService;
-import io.openaev.executors.caldera.client.CalderaExecutorClient;
-import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.executors.exception.ExecutorException;
+import io.openaev.executors.tanium.client.TaniumExecutorClient;
+import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
-import io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration;
-import io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegrationFactory;
-import io.openaev.integration.migration.CalderaExecutorConfigurationMigration;
-import io.openaev.service.*;
-import io.openaev.service.InjectorService;
+import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration;
+import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegrationFactory;
+import io.openaev.integration.migration.TaniumExecutorConfigurationMigration;
+import io.openaev.service.AgentService;
+import io.openaev.service.AssetGroupService;
+import io.openaev.service.EndpointService;
+import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
-import io.openaev.utils.mockConfig.executors.WithMockCalderaConfig;
+import io.openaev.utils.mockConfig.executors.WithMockTaniumConfig;
 import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
@@ -50,13 +53,19 @@ import org.springframework.transaction.annotation.Transactional;
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 // The legacy properties migration only seeds an instance when the legacy config is enabled;
 // these tests exercise the factory around that migrated instance.
-@WithMockCalderaConfig(
+@WithMockTaniumConfig(
     enable = true,
-    url = "caldera_url",
-    publicUrl = "caldera_public_url",
-    apiKey = "caldera_api_key")
-public class CalderaExecutorIntegrationTest {
-  @Autowired private CalderaExecutorClient client;
+    url = "tanium_url",
+    apiKey = "tanium_api_key",
+    apiRegisterInterval = 1234,
+    computerGroupId = "tanium_cmptr_group_id",
+    cleanImplantInterval = 4321,
+    apiBatchExecutionActionPagination = 5678,
+    actionGroupId = 987,
+    windowsPackageId = 32,
+    unixPackageId = 67)
+public class TaniumExecutorIntegrationTest {
+  @Autowired private TaniumExecutorClient client;
   @Autowired private EndpointService endpointService;
   @Autowired private AgentService agentService;
   @Autowired private AssetGroupService assetGroupService;
@@ -68,33 +77,34 @@ public class CalderaExecutorIntegrationTest {
   @Autowired private CatalogConnectorService catalogConnectorService;
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
-  @Autowired private CalderaExecutorConfig calderaExecutorConfig;
+  @Autowired private TaniumExecutorConfig taniumExecutorConfig;
   @Autowired private EncryptionFactory encryptionFactory;
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   @Autowired private HttpClientFactory httpClientFactory;
+  @Autowired private OpenAEVConfig openAEVConfig;
 
-  @Autowired private CalderaExecutorConfigurationMigration calderaExecutorConfigurationMigration;
+  @Autowired private TaniumExecutorConfigurationMigration taniumExecutorConfigurationMigration;
 
   @Autowired private FileService fileService;
-  @Autowired private InjectorService injectorService;
-  @Autowired private PlatformSettingsService platformSettingsService;
   @Autowired private TenantScopedTransaction tenantTx;
 
-  private CalderaExecutorIntegrationFactory getFactory() {
-    return new CalderaExecutorIntegrationFactory(
+  private TaniumExecutorIntegrationFactory getFactory() {
+    return new TaniumExecutorIntegrationFactory(
         connectorInstanceService,
         catalogConnectorService,
         executorService,
         componentRequestEngine,
-        calderaExecutorConfigurationMigration,
+        taniumExecutorConfigurationMigration,
         agentService,
         endpointService,
-        injectorService,
-        platformSettingsService,
+        assetGroupService,
+        enterpriseEditionService,
+        licenseCacheManager,
         taskScheduler,
         fileService,
         baseIntegrationConfigurationBuilder,
         httpClientFactory,
+        openAEVConfig,
         tenantTx);
   }
 
@@ -109,7 +119,7 @@ public class CalderaExecutorIntegrationTest {
 
     assertThat(connectors).hasSize(1);
     AssertionsForClassTypes.assertThat(connectors.getFirst().getClassName())
-        .isEqualTo(CalderaExecutorIntegrationFactory.class.getCanonicalName());
+        .isEqualTo(TaniumExecutorIntegrationFactory.class.getCanonicalName());
   }
 
   @Test
@@ -129,7 +139,7 @@ public class CalderaExecutorIntegrationTest {
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);
-    assertThat(syncedIntegrations).first().isInstanceOf(CalderaExecutorIntegration.class);
+    assertThat(syncedIntegrations).first().isInstanceOf(TaniumExecutorIntegration.class);
     assertThat(syncedIntegrations)
         .first()
         .satisfies(
@@ -156,14 +166,14 @@ public class CalderaExecutorIntegrationTest {
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);
-    assertThat(syncedIntegrations).first().isInstanceOf(CalderaExecutorIntegration.class);
+    assertThat(syncedIntegrations).first().isInstanceOf(TaniumExecutorIntegration.class);
     assertThat(syncedIntegrations)
         .first()
         .satisfies(
             integration ->
                 assertThat(
                         integration.requestComponent(
-                            new ComponentRequest(CALDERA_EXECUTOR_NAME),
+                            new ComponentRequest(TANIUM_EXECUTOR_NAME),
                             ExecutorContextService.class))
                     .isEmpty());
   }
@@ -191,7 +201,7 @@ public class CalderaExecutorIntegrationTest {
                                 & left.getValue().toString().compareTo(right.getValue().toString()),
                         ConnectorInstanceConfiguration.class)
                     .hasSameElementsAs(
-                        calderaExecutorConfig.toInstanceConfigurationSet(
+                        taniumExecutorConfig.toInstanceConfigurationSet(
                             instance,
                             encryptionFactory.getEncryptionService(
                                 instance.getCatalogConnector()))));
@@ -206,7 +216,9 @@ public class CalderaExecutorIntegrationTest {
     integrationFactory.initialise();
 
     Integration integration = integrationFactory.spawn(new ConnectorInstanceInMemory());
-    assertThat(FieldUtils.computeAllFieldValues(integration).get("encryptionService")).isNull();
+    AssertionsForClassTypes.assertThat(
+            FieldUtils.computeAllFieldValues(integration).get("encryptionService"))
+        .isNull();
   }
 
   @Test
@@ -224,18 +236,20 @@ public class CalderaExecutorIntegrationTest {
     // Act & Assert — passing null baseIntegrationConfigurationBuilder causes refresh() to fail
     assertThatThrownBy(
             () ->
-                new CalderaExecutorIntegration(
+                new TaniumExecutorIntegration(
                     instance,
                     connectorInstanceService,
                     endpointService,
                     agentService,
-                    executorService,
+                    assetGroupService,
+                    enterpriseEditionService,
+                    licenseCacheManager,
                     componentRequestEngine,
-                    platformSettingsService,
-                    injectorService,
+                    executorService,
                     taskScheduler,
                     null,
                     httpClientFactory,
+                    openAEVConfig,
                     tenantTx))
         .isInstanceOf(ExecutorException.class)
         .hasMessageContaining("Error during initialization of the Executor");
@@ -243,8 +257,8 @@ public class CalderaExecutorIntegrationTest {
 
   @Test
   @DisplayName(
-      "When integration is stopped and requested status is starting but innerStart fails, initialise should throw and status should remain stopped")
-  public void whenStoppedAndStartingRequested_innerStartFails_should_remainStopped()
+      "When integration is stopped and requested status is starting, initialise should start it")
+  public void whenStoppedAndStartingRequested_initialise_should_startIntegration()
       throws Exception {
     // Arrange
     IntegrationFactory integrationFactory = getFactory();
@@ -261,20 +275,19 @@ public class CalderaExecutorIntegrationTest {
     assertThat(integration.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
 
-    // Act & Assert — innerStart() fails because Caldera server is not available
-    assertThatThrownBy(integration::initialise).isInstanceOf(RuntimeException.class);
+    // Act
+    integration.initialise();
 
-    // Status should remain stopped since start() did not complete
+    // Assert
     assertThat(integration.getCurrentStatus())
-        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
   }
 
   @Test
   @DisplayName(
-      "When integration failed to start and stopping is requested, initialise should be a no-op (already stopped)")
-  public void whenFailedStartAndStoppingRequested_initialise_should_remainStopped()
-      throws Exception {
-    // Arrange — attempt to start but it fails
+      "When integration is started and requested status is stopping, initialise should stop it")
+  public void whenStartedAndStoppingRequested_initialise_should_stopIntegration() throws Exception {
+    // Arrange — start the integration first
     IntegrationFactory integrationFactory = getFactory();
     integrationFactory.initialise();
 
@@ -286,19 +299,15 @@ public class CalderaExecutorIntegrationTest {
     connectorInstanceService.save(instance);
 
     Integration integration = integrationFactory.spawn(instance);
-    try {
-      integration.initialise();
-    } catch (Exception ignored) {
-      // Expected: innerStart fails because no Caldera server
-    }
+    integration.initialise();
     assertThat(integration.getCurrentStatus())
-        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
 
-    // Arrange — now request stopping (already stopped)
+    // Arrange — now request stopping
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstanceService.save(instance);
 
-    // Act — should not throw, the stop on already-stopped is a no-op
+    // Act
     integration.initialise();
 
     // Assert
