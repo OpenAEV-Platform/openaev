@@ -1,18 +1,15 @@
 package io.openaev.service;
 
-import static io.openaev.config.security.SecurityService.OPENAEV_PROVIDER_PATH_PREFIX;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.service.utils.ReadPropertiesHelper;
 import io.openaev.sso.GroupMapping;
 import jakarta.validation.constraints.NotBlank;
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -21,7 +18,6 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.NotImplementedException;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.core.env.Environment;
 import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
@@ -34,53 +30,72 @@ public class UserMappingService {
 
   private final GroupRepository groupRepository;
   private final TenantRepository tenantRepository;
-  private final Environment env;
+  private final ReadPropertiesHelper readPropertiesHelper;
   public static final String ROLES_PATH_SUFFIX = "roles_path";
   public static final String GROUPS_PATH_SUFFIX = "groups_path";
 
-  public void mapCurrentUserWithGroup(String property, User user, List<String> groupsFromToken) {
-    List<GroupMapping> groupMappings = safeParseMappings(property);
+  /**
+   * Maps a user to OpenAEV groups based on SSO group mapping configuration. Resolves the tenant
+   * from the provider's {@code tenant_id} property (e.g. {@code
+   * openaev.provider.microsoft.tenant_id}). If a mapping entry has a {@code tenantId} field, it
+   * takes precedence over the provider-level tenant. The optional provider {@code user_scope}
+   * controls where groups are looked up/created ({@code tenant}, {@code platform}, or both).
+   */
+  public void mapCurrentUserWithGroup(
+      String property, String registrationId, User user, List<String> groupsFromToken) {
+    log.info(
+        "SSO group mapping — user: {}, groupsFromToken: {}, mappingConfig: {} registrationId: {}",
+        user.getEmail(),
+        groupsFromToken,
+        property,
+        registrationId);
+
+    String providerTenantId = readPropertiesHelper.resolveProviderTenantId(registrationId);
+    Set<GroupScope> providerScopes = resolveProviderGroupScopes(registrationId);
+    List<GroupMapping> groupMappings = readPropertiesHelper.safeParseMappings(property);
 
     for (GroupMapping mapping : groupMappings) {
       String idpGroup = mapping.getIdpGroup();
       String userGroup = mapping.getUserGroup();
       boolean autoCreate = mapping.isAutoCreate();
+      String tenantId = providerTenantId;
+      List<String> tenantScopes = resolveGroupTenantScopes(tenantId, providerScopes);
+
       if (groupsFromToken.contains(idpGroup)) {
-        Optional<Group> groupOptional = groupRepository.findByName(userGroup);
-        if (groupOptional.isPresent()) {
-          List<Group> userGroups = user.getUnscopedGroups();
-          boolean alreadyAssigned =
-              userGroups.stream()
-                  .anyMatch(userG -> userG.getName().equals(groupOptional.get().getName()));
-          if (!alreadyAssigned) {
-            userGroups.add(groupOptional.get());
-            user.setGroups(userGroups);
-          }
-        } else {
-          if (autoCreate) {
-            Group newGroup = new Group();
-            newGroup.setName(userGroup);
-            groupRepository.save(newGroup);
-            List<Group> userGroups = user.getUnscopedGroups();
-            userGroups.add(newGroup);
-            user.setGroups(userGroups);
-          } else {
-            log.error(
-                "Group '{}' not found in database and autoCreate is disabled for mapping '{}'",
-                userGroup,
-                idpGroup);
-          }
+        for (String groupTenantId : tenantScopes) {
+          applyGroupMappingToUser(user, idpGroup, userGroup, autoCreate, groupTenantId);
+          attachTenantToUser(groupTenantId, user);
         }
-        attachTenantFromGroupMapping(mapping, user);
       }
 
-      // If the user no longer has this group in the token but still has it assigned,
-      // remove it — the user was removed from the group in the identity provider
-      if (!groupsFromToken.contains(idpGroup)
+      // If the user has not this group in the groups from the token but he has the group in his
+      // current groups, it means the user was removed from the group in the identity provider.
+      // Only remove if NONE of the mappings targeting this userGroup have a matching idpGroup
+      // in the token — otherwise a different mapping entry may have just added it.
+      boolean anyMappingMatchesForSameGroup =
+          groupMappings.stream()
+              .filter(
+                  m ->
+                      m.getUserGroup()
+                          .equals(
+                              mapping.getUserGroup())) // do we have several mapping with same group
+              .anyMatch(m -> groupsFromToken.contains(m.getIdpGroup()));
+      if (!anyMappingMatchesForSameGroup
           && user.getUnscopedGroups().stream()
-              .anyMatch(groupOfUser -> groupOfUser.getName().equals(mapping.getUserGroup()))) {
+              .anyMatch(
+                  groupOfUser ->
+                      tenantScopes.stream()
+                          .anyMatch(
+                              scopeTenantId ->
+                                  isSameScopedGroup(
+                                      groupOfUser, mapping.getUserGroup(), scopeTenantId)))) {
         List<Group> userGroups = user.getUnscopedGroups();
-        userGroups.removeIf(group -> group.getName().equals(mapping.getUserGroup()));
+        userGroups.removeIf(
+            group ->
+                tenantScopes.stream()
+                    .anyMatch(
+                        scopeTenantId ->
+                            isSameScopedGroup(group, mapping.getUserGroup(), scopeTenantId)));
         user.setGroups(userGroups);
       }
     }
@@ -96,26 +111,115 @@ public class UserMappingService {
     }
   }
 
-  private static List<GroupMapping> safeParseMappings(String json) {
-    if (json == null || json.isBlank()) {
-      return List.of();
+  // Read openaev.provider.<registrationID>>.user_scope=platform,tenant to know where to create
+  // groups.
+  // If not configured, default to tenant scope. If configured with an unknown value, log a warning
+  // and default to tenant scope.
+  private Set<GroupScope> resolveProviderGroupScopes(String registrationId) {
+    String configuredScopes = readPropertiesHelper.resolveProviderUserScope(registrationId);
+    if (configuredScopes == null || configuredScopes.isBlank()) {
+      return Set.of(GroupScope.TENANT);
     }
-    ObjectMapper mapper = new ObjectMapper();
-    try {
-      return mapper.readValue(json, new TypeReference<>() {});
-    } catch (IOException e) {
-      // Log and return empty list instead of throwing
-      log.error("Failed to parse group mappings: {}", e.getMessage(), e);
-      return List.of();
+    String normalized = configuredScopes.trim();
+    if (normalized.startsWith("{") && normalized.endsWith("}") && normalized.length() > 2) {
+      normalized = normalized.substring(1, normalized.length() - 1);
+    }
+    Set<GroupScope> scopes = new LinkedHashSet<>();
+    for (String token : normalized.split(",")) {
+      String scope = token.trim().toLowerCase();
+      if ("tenant".equals(scope)) {
+        scopes.add(GroupScope.TENANT);
+      } else if ("platform".equals(scope)) {
+        scopes.add(GroupScope.PLATFORM);
+      } else if (!scope.isBlank()) {
+        log.warn(
+            "Unknown SSO user scope '{}' for registration '{}' — supported values are tenant, platform",
+            token.trim(),
+            registrationId);
+      }
+    }
+
+    if (scopes.isEmpty()) {
+      return Set.of(GroupScope.TENANT);
+    }
+    return scopes;
+  }
+
+  private List<String> resolveGroupTenantScopes(String tenantId, Set<GroupScope> providerScopes) {
+    LinkedHashSet<String> scopes = new LinkedHashSet<>();
+    for (GroupScope scope : providerScopes) {
+      if (scope == GroupScope.PLATFORM) {
+        scopes.add(null); // For platform group, tenantId is null
+      } else {
+        scopes.add(
+            (tenantId != null && !tenantId.isBlank()) ? tenantId : Tenant.DEFAULT_TENANT_UUID);
+      }
+    }
+    return new ArrayList<>(scopes);
+  }
+
+  private void applyGroupMappingToUser(
+      User user, String idpGroup, String userGroup, boolean autoCreate, String tenantId) {
+    Optional<Group> groupOptional = findGroupByNameScoped(userGroup, tenantId);
+    if (groupOptional.isPresent()) {
+      List<Group> userGroups = user.getUnscopedGroups();
+      boolean alreadyAssigned =
+          userGroups.stream().anyMatch(userG -> userG.getId().equals(groupOptional.get().getId()));
+      if (!alreadyAssigned) {
+        userGroups.add(groupOptional.get());
+        user.setGroups(userGroups);
+      }
+      return;
+    }
+
+    if (autoCreate) {
+      Group newGroup = new Group();
+      newGroup.setName(userGroup);
+      if (tenantId != null && !tenantId.isBlank()) {
+        if (tenantRepository.existsById(tenantId)) {
+          newGroup.setTenant(tenantRepository.getReferenceById(tenantId));
+        } else {
+          log.warn(
+              "Auto-create: tenant ID '{}' not found in database — creating group without tenant",
+              tenantId);
+        }
+      }
+      groupRepository.save(newGroup);
+      List<Group> userGroups = user.getUnscopedGroups();
+      userGroups.add(newGroup);
+      user.setGroups(userGroups);
+      log.info("Auto-created group '{}' in tenant '{}'", userGroup, tenantId);
+    } else {
+      log.error(
+          "Group '{}' not found in database and autoCreate is disabled for mapping '{}'",
+          userGroup,
+          idpGroup);
     }
   }
 
+  /** Finds a group by name, scoped to a tenant if tenantId is provided. */
+  private Optional<Group> findGroupByNameScoped(String groupName, String tenantId) {
+    if (tenantId != null && !tenantId.isBlank()) {
+      return groupRepository.findByNameAndTenantId(groupName, tenantId);
+    }
+    return groupRepository.findByNameAndTenantIsNull(groupName);
+  }
+
+  private boolean isSameScopedGroup(Group group, String groupName, String tenantId) {
+    if (!groupName.equals(group.getName())) {
+      return false;
+    }
+    if (tenantId == null || tenantId.isBlank()) {
+      return group.getTenant() == null;
+    }
+    return group.getTenant() != null && tenantId.equals(group.getTenant().getId());
+  }
+
   /**
-   * Attaches the user to the tenant configured in the group mapping, if any. Skips if tenantId is
-   * not set, the user is already attached, or the tenant is not found.
+   * Attaches the user to the given tenant, if not already attached. Skips if tenantId is null/blank
+   * or the tenant is not found.
    */
-  private void attachTenantFromGroupMapping(GroupMapping mapping, User user) {
-    String tenantId = mapping.getTenantId();
+  private void attachTenantToUser(String tenantId, User user) {
     if (tenantId == null || tenantId.isBlank()) {
       return;
     }
@@ -210,8 +314,11 @@ public class UserMappingService {
    */
   private List<String> getProviderProperty(
       @NotBlank final String registrationId, final String property) {
-    String rolesPathConfig = OPENAEV_PROVIDER_PATH_PREFIX + registrationId + "." + property;
-    //noinspection unchecked
-    return env.getProperty(rolesPathConfig, List.class, new ArrayList<String>());
+    return readPropertiesHelper.getProviderPropertyAsList(registrationId, property);
+  }
+
+  private enum GroupScope {
+    PLATFORM,
+    TENANT
   }
 }

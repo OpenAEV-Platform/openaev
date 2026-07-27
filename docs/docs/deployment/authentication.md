@@ -92,11 +92,21 @@ However, if you intend to manage administrative roles within the OpenAEV platfor
 
 ### Map users to groups automatically (OpenID and SAML2)
 
-When using OpenID Connect or SAML2, you can automatically assign users to OpenAEV groups at login based on the groups they belong to in your identity provider (IdP). This is controlled by the `groups_management` parameter.
+When using OpenID Connect or SAML2, you can automatically assign users to OpenAEV groups at login based on the groups they belong to in your identity provider (IdP).
 
 | Parameter | Environment variable | Description |
 |:---|:---|:---|
 | `openaev.provider.{registrationId}.groups_management` | `OPENAEV_PROVIDER_{registrationId}_GROUPS__MANAGEMENT` | JSON array of group mapping rules (see format below) |
+| `openaev.provider.{registrationId}.tenant_id` | `OPENAEV_PROVIDER_{registrationId}_TENANT__ID` | Tenant used for tenant-scoped group mapping. If missing/blank, OpenAEV uses the default tenant. |
+| `openaev.provider.{registrationId}.user_scope` | `OPENAEV_PROVIDER_{registrationId}_USER__SCOPE` | Group scope strategy: `tenant`, `platform`, or both (for example `{tenant,platform}`). Default: `tenant`. |
+
+#### Scope behavior (`user_scope`)
+
+- `tenant` (default): map/create groups in tenant scope.
+- `platform`: map/create groups in platform scope (`tenant = null`).
+- `tenant` + `platform`: apply mapping in both scopes; with `autoCreate: true`, two groups may be created (one per scope).
+
+If tenant scope is used and `tenant_id` is not configured, OpenAEV falls back to the platform default tenant.
 
 #### Group mapping format
 
@@ -118,17 +128,25 @@ The value must be a **JSON array** of mapping rules. Each rule maps an IdP group
 | `userGroup` | string | ✅ | The OpenAEV group to assign the user to |
 | `autoCreate` | boolean | ✅ | If `true`, the OpenAEV group is created automatically if it does not exist. If `false`, the mapping is silently skipped when the group does not exist. |
 
+!!! note "Per-mapping tenant override"
+
+    Group mapping entries should only use `idpGroup`, `userGroup`, and `autoCreate`.
+    Tenant selection is controlled at provider level with `openaev.provider.{registrationId}.tenant_id`.
+
 #### Example — Azure AD with SAML2
 
-Map two Azure AD groups to OpenAEV groups:
+Map two Azure AD groups to OpenAEV groups in tenant scope:
 
 ```properties
+OPENAEV_PROVIDER_AZURE_USER__SCOPE={tenant}
+OPENAEV_PROVIDER_AZURE_TENANT__ID=2cffad3a-0001-4078-b0e2-ef74274022c3
 OPENAEV_PROVIDER_AZURE_GROUPS__MANAGEMENT=[{"idpGroup":"AzureAD-SOC-Team","userGroup":"OpenAEV-SOC","autoCreate":false},{"idpGroup":"AzureAD-Admins","userGroup":"OpenAEV-Administrators","autoCreate":false}]
 ```
 
-Or in expanded YAML form:
+Or in expanded YAML form (both scopes):
 
 ```yaml
+OPENAEV_PROVIDER_AZURE_USER__SCOPE: "{tenant,platform}"
 OPENAEV_PROVIDER_AZURE_GROUPS__MANAGEMENT: |
   [
     {

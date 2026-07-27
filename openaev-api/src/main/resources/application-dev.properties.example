@@ -99,6 +99,7 @@ openaev.provider.microsoft.lastname_attribute_key=http://schemas.xmlsoap.org/ws/
 #openaev.provider.microsoft.roles_path=http://schemas.microsoft.com/ws/2008/06/identity/claims/groups
 #openaev.provider.{registrationId}.roles_admin=
 #openaev.provider.microsoft.groups_management=
+#openaev.provider.microsoft.user_scope={tenant,platform}
 
 openaev.logout-success-url=/
 ## Kerberos
@@ -317,4 +318,3 @@ collector.sentinel.subscription.workspace.name=<name>
 
 # Use "*" to enable all dev features, or a comma-separated list
 openaev.enabled-dev-features=*
-

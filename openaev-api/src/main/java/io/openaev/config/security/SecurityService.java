@@ -68,7 +68,8 @@ public class SecurityService {
                 OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
                 String.class,
                 "");
-        userMappingService.mapCurrentUserWithGroup(groupsManagementObject, user, groups);
+        userMappingService.mapCurrentUserWithGroup(
+            groupsManagementObject, registrationId, user, groups);
         attachTenant(registrationId, user);
         return this.userService.saveUser(user);
       } else {
@@ -85,7 +86,8 @@ public class SecurityService {
                 OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
                 String.class,
                 "");
-        userMappingService.mapCurrentUserWithGroup(groupsManagementObject, currentUser, groups);
+        userMappingService.mapCurrentUserWithGroup(
+            groupsManagementObject, registrationId, currentUser, groups);
         attachTenant(registrationId, currentUser);
         return this.userService.saveUser(currentUser);
       }
