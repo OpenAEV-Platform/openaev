@@ -384,10 +384,10 @@ describe('buildKillChainMeta', () => {
 });
 
 describe('buildCausalEdges', () => {
-  it('draws a solid finding edge, reconciling the primitive key type (share_name -> share)', () => {
+  it('draws a solid finding edge, reconciling the primitive key type (share_name -> file)', () => {
     // Arrange
     const meta = buildKillChainMeta(killChainDto);
-    const nodes = [injectorNode('inj-smb'), findingNode('find-share', 'share', 'ADMIN$')];
+    const nodes = [injectorNode('inj-smb'), findingNode('find-share', 'file', 'ADMIN$')];
     // Act
     const edges = buildCausalEdges(nodes, id => (id ? meta.get(id) : undefined), tt);
     // Assert

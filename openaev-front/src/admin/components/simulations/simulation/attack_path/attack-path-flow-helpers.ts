@@ -706,7 +706,7 @@ export const findingCategoryNoun = (typeFindings?: string): string => {
       return 'open ports';
     case 'hash':
       return 'hashes';
-    case 'share':
+    case 'file':
       return 'files';
     case 'password_policy':
       return 'password policies';
@@ -969,11 +969,11 @@ export const maskFindingValue = (typeFindings?: string, value?: string): string 
   return value;
 };
 
-// Card filter -> the ContractOutputType finding-type values it focuses (issue 6647). "files" maps to
-// `share` as a temporary stand-in until a native file finding type exists; "users" also includes
-// admin usernames per product decision.
+// Card filter -> the finding-type values it focuses (issue 6647). "files" maps to `file` (the backend
+// presents SMB `share` findings as `file`, an interim stand-in until a native file finding type
+// exists); "users" also includes admin usernames per product decision.
 export const FILTER_TO_FINDING_TYPES: Record<Exclude<AttackPathFindingFilter, 'endpoints'>, string[]> = {
-  files: ['share'],
+  files: ['file'],
   credentials: ['credentials'],
   users: ['username', 'admin_username'],
   cves: ['cve'],
@@ -1189,14 +1189,14 @@ const findingNodeValue = (node: AttackPathFlowNode): string => {
 };
 
 // A consumed key uses the raw PrimitiveType vocabulary (e.g. `share_name`, `password`) while finding
-// nodes use the finding-type vocabulary (`share`, `credentials`). Reconcile the known complex sub-field
+// nodes use the finding-type vocabulary (`file`, `credentials`). Reconcile the known complex sub-field
 // keys to their finding type here. Primitives that already match a finding type 1:1 (`port`, `cve`,
 // `ipv4`, `username`, `hostname`, `hash`…) are left untouched (identity). NOTE: reconciling the VALUE of
 // a complex finding (reaching into its sub-field, e.g. a share's `share_name`) is the front-side complex
 // matching still to come — today only the TYPE is reconciled and value comparison stays direct, which is
 // correct for primitives; complex value-matching is a follow-up (see backend requirements topo).
 const KEYTYPE_TO_FINDING_TYPE: Record<string, string> = {
-  share_name: 'share',
+  share_name: 'file',
   password: 'credentials',
 };
 
