@@ -7,10 +7,12 @@ import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.InjectExpectationTrace;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.CollectorRepository;
+import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectExpectationTraceRepository;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +26,7 @@ class InjectExpectationTraceServiceTest {
 
   @Mock private InjectExpectationTraceRepository injectExpectationTraceRepository;
   @Mock private CollectorRepository collectorRepository;
+  @Mock private InjectExpectationRepository injectExpectationRepository;
 
   @InjectMocks private InjectExpectationTraceService injectExpectationTraceService;
 
@@ -58,8 +61,9 @@ class InjectExpectationTraceServiceTest {
   void getInjectExpectationTracesFromCollector_Success() {
     // Arrange
     List<InjectExpectationTrace> expectedTraces = Collections.singletonList(injectExpectationTrace);
-    when(injectExpectationTraceRepository.findByExpectationAndSecurityPlatform(
-            anyString(), anyString()))
+    when(injectExpectationRepository.findById(injectExpectationId)).thenReturn(Optional.empty());
+    when(injectExpectationTraceRepository.findByExpectationsAndSecurityPlatform(
+            anyCollection(), anyString()))
         .thenReturn(expectedTraces);
 
     // Act
@@ -72,14 +76,15 @@ class InjectExpectationTraceServiceTest {
     assertEquals(1, result.size());
     assertEquals(injectExpectationTrace, result.get(0));
     verify(injectExpectationTraceRepository)
-        .findByExpectationAndSecurityPlatform(injectExpectationId, securityPlatformId);
+        .findByExpectationsAndSecurityPlatform(List.of(injectExpectationId), securityPlatformId);
   }
 
   @Test
   void getInjectExpectationTracesFromCollector_EmptyResult() {
     // Arrange
-    when(injectExpectationTraceRepository.findByExpectationAndSecurityPlatform(
-            anyString(), anyString()))
+    when(injectExpectationRepository.findById(injectExpectationId)).thenReturn(Optional.empty());
+    when(injectExpectationTraceRepository.findByExpectationsAndSecurityPlatform(
+            anyCollection(), anyString()))
         .thenReturn(Collections.emptyList());
 
     // Act
@@ -91,14 +96,15 @@ class InjectExpectationTraceServiceTest {
     assertNotNull(result);
     assertTrue(result.isEmpty());
     verify(injectExpectationTraceRepository)
-        .findByExpectationAndSecurityPlatform(injectExpectationId, securityPlatformId);
+        .findByExpectationsAndSecurityPlatform(List.of(injectExpectationId), securityPlatformId);
   }
 
   @Test
   void getAlertLinksNumber_Success() {
     // Arrange
     long expectedCount = 5L;
-    when(injectExpectationTraceRepository.countAlerts(anyString(), anyString()))
+    when(injectExpectationRepository.findById(injectExpectationId)).thenReturn(Optional.empty());
+    when(injectExpectationTraceRepository.countAlertsForExpectations(anyCollection(), anyString()))
         .thenReturn(expectedCount);
 
     // Act
@@ -108,13 +114,16 @@ class InjectExpectationTraceServiceTest {
 
     // Assert
     assertEquals(expectedCount, result);
-    verify(injectExpectationTraceRepository).countAlerts(injectExpectationId, securityPlatformId);
+    verify(injectExpectationTraceRepository)
+        .countAlertsForExpectations(List.of(injectExpectationId), securityPlatformId);
   }
 
   @Test
   void getAlertLinksNumber_ZeroCount() {
     // Arrange
-    when(injectExpectationTraceRepository.countAlerts(anyString(), anyString())).thenReturn(0L);
+    when(injectExpectationRepository.findById(injectExpectationId)).thenReturn(Optional.empty());
+    when(injectExpectationTraceRepository.countAlertsForExpectations(anyCollection(), anyString()))
+        .thenReturn(0L);
 
     // Act
     long result =
@@ -123,7 +132,8 @@ class InjectExpectationTraceServiceTest {
 
     // Assert
     assertEquals(0L, result);
-    verify(injectExpectationTraceRepository).countAlerts(injectExpectationId, securityPlatformId);
+    verify(injectExpectationTraceRepository)
+        .countAlertsForExpectations(List.of(injectExpectationId), securityPlatformId);
   }
 
   @Test

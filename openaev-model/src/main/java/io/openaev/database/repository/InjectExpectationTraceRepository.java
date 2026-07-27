@@ -21,6 +21,15 @@ public interface InjectExpectationTraceRepository
   List<InjectExpectationTrace> findByExpectationAndSecurityPlatform(
       @Param("expectationId") final String expectationId, @Param("sourceId") final String sourceId);
 
+  // Same as above but across several expectations: used to roll an asset (endpoint)
+  // expectation's alerts up from its child agent expectations, which is where the
+  // collector actually attaches the traces (the asset row carries none of its own).
+  @Query(
+      "select t from InjectExpectationTrace t where t.injectExpectation.id in :expectationIds and t.securityPlatform.id = :sourceId")
+  List<InjectExpectationTrace> findByExpectationsAndSecurityPlatform(
+      @Param("expectationIds") final Collection<String> expectationIds,
+      @Param("sourceId") final String sourceId);
+
   @Query("select t from InjectExpectationTrace t where t.injectExpectation.id in :expectationIds")
   List<InjectExpectationTrace> findByInjectExpectationIdIn(
       @Param("expectationIds") final Collection<String> expectationIds);
@@ -29,6 +38,15 @@ public interface InjectExpectationTraceRepository
       "select count(distinct t) from InjectExpectationTrace t where t.injectExpectation.id = :expectationId and t.securityPlatform.id = :sourceId")
   long countAlerts(
       @Param("expectationId") final String expectationId, @Param("sourceId") final String sourceId);
+
+  // Aggregated variant of countAlerts across several expectations (asset row rolling
+  // up its child agent expectations' alerts). Distinct so a trace shared across the
+  // provided ids is never double-counted.
+  @Query(
+      "select count(distinct t) from InjectExpectationTrace t where t.injectExpectation.id in :expectationIds and t.securityPlatform.id = :sourceId")
+  long countAlertsForExpectations(
+      @Param("expectationIds") final Collection<String> expectationIds,
+      @Param("sourceId") final String sourceId);
 
   @Query(
       "select t from InjectExpectationTrace t where t.injectExpectation.id = :expectationId and t.securityPlatform.id = :sourceId and t.alertName = :alertName and t.alertLink = :alertLink")
