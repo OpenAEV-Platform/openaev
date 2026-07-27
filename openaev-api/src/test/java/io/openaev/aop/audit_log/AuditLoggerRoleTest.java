@@ -66,7 +66,7 @@ class AuditLoggerRoleTest extends IntegrationTest {
   }
 
   @BeforeEach
-  void enableAuditFeatureFlags() {
+  void enableAuditLogger() {
     Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(true);
   }
 

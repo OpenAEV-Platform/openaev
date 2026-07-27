@@ -44,8 +44,6 @@ public class LogService {
 
   private final AuditLogProperties auditLogProperties;
 
-  private final PreviewFeatureService previewFeatureService;
-
   private final AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
 
   private final ObjectNormalizationUtils objectNormalizationUtils;

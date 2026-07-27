@@ -75,7 +75,7 @@ class AuditLoggerTest extends IntegrationTest {
   }
 
   @BeforeEach
-  void enableAuditFeatureFlags() {
+  void enableAuditLogger() {
     Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(true);
     assertThat(auditLogger.isAuditLoggingEnabled()).isTrue();
   }
