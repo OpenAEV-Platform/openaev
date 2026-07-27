@@ -533,6 +533,105 @@ describe('buildCausalChainFlow', () => {
     expect(causal[0].data?.causalKind).toBe('depend');
   });
 
+  it('draws a solid causal edge for an IS_NOT_NULL event (any produced finding of the type matches)', () => {
+    // NetExec's event consumes `port IS_NOT_NULL` (fires on any port found); nmap produced port 445. The
+    // value is null for IS_NOT_NULL, so presence of a matching-type finding must still emit the edge.
+    const isNotNull: AttackPathDTO = {
+      ...chainDto,
+      attackPathExecutions: [
+        {
+          id: 'x1',
+          type: 'EXECUTION',
+          ref: 'exec-1',
+          stepTemplateId: 'step-A',
+          findingsNodeIds: ['NODE_FINDING|port|445'],
+          dependsOn: [],
+        },
+        {
+          id: 'x2',
+          type: 'EXECUTION',
+          ref: 'exec-2',
+          stepTemplateId: 'step-B',
+          consumedFindingKeys: [{
+            keyType: 'port',
+            operator: 'IS_NOT_NULL',
+            value: null as unknown as string,
+            eventName: 'PORT FOUND',
+          }],
+          dependsOn: [],
+        },
+      ],
+    };
+    const { edges } = buildCausalChainFlow(isNotNull, tt);
+    const causal = edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE);
+    expect(causal).toHaveLength(1);
+    expect(causal[0].source).toBe('NODE_FINDING|port|445');
+    expect(causal[0].target).toBe('inj-smb');
+    expect(causal[0].data?.causalKind).toBe('finding');
+  });
+
+  it('collapses N findings matching one consumed key into a single causal edge (legibility on hub endpoints)', () => {
+    // A hub endpoint yields THREE shares (native "file" type since #6972); NetExec's event consumes
+    // `share_name IS_NOT_NULL`, which reconciles to `file` and matches every one of them. Without dedup that
+    // stacks three identical "Triggered …" labels over the consumer. We must draw exactly ONE causal edge.
+    const hub: AttackPathDTO = {
+      ...chainDto,
+      attackPathNodes: [
+        ...(chainDto.attackPathNodes ?? []),
+        {
+          id: 'NODE_FINDING|file|NETLOGON',
+          type: 'FINDING',
+          typeFindings: 'file',
+          value: 'NETLOGON',
+          label: 'NETLOGON',
+        },
+        {
+          id: 'NODE_FINDING|file|SYSVOL',
+          type: 'FINDING',
+          typeFindings: 'file',
+          value: 'SYSVOL',
+          label: 'SYSVOL',
+        },
+        {
+          id: 'NODE_FINDING|file|CertEnroll',
+          type: 'FINDING',
+          typeFindings: 'file',
+          value: 'CertEnroll',
+          label: 'CertEnroll',
+        },
+      ],
+      attackPathExecutions: [
+        {
+          id: 'x1',
+          type: 'EXECUTION',
+          ref: 'exec-1',
+          stepTemplateId: 'step-A',
+          findingsNodeIds: ['NODE_FINDING|file|NETLOGON', 'NODE_FINDING|file|SYSVOL', 'NODE_FINDING|file|CertEnroll'],
+          dependsOn: [],
+        },
+        {
+          id: 'x2',
+          type: 'EXECUTION',
+          ref: 'exec-2',
+          stepTemplateId: 'step-B',
+          consumedFindingKeys: [{
+            keyType: 'share_name',
+            operator: 'IS_NOT_NULL',
+            value: null as unknown as string,
+            eventName: 'SHARE',
+          }],
+          dependsOn: [],
+        },
+      ],
+    };
+    const { edges } = buildCausalChainFlow(hub, tt);
+    const causal = edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE);
+    expect(causal).toHaveLength(1);
+    expect(causal[0].target).toBe('inj-smb');
+    expect(causal[0].source).toMatch(/^NODE_FINDING\|file\|/);
+    expect(causal[0].data?.causalKind).toBe('finding');
+  });
+
   it('merges same-depth injectors hitting the same asset onto one shared endpoint node', () => {
     // Arrange: two INDEPENDENT injectors (no dependsOn → both at depth 0) target the SAME asset ep-1.
     const parallel: AttackPathDTO = {
