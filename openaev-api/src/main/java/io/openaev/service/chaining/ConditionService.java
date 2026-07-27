@@ -1053,6 +1053,10 @@ public class ConditionService {
         // Stored in defaultValues so it is included in every batch's inputString.
         // If blank, skip — the injector contract default for that field is preserved.
         String key = mapper.getKey();
+        if (key == null || key.isBlank()) {
+          List<String> sourceKeys = resolveMapperSourceKeys(mapper);
+          key = sourceKeys.isEmpty() ? null : sourceKeys.getFirst();
+        }
         String value = mapper.getValue();
         if (key != null && !key.isBlank() && value != null && !value.isBlank()) {
           defaultValues.put(key, value);
@@ -1066,17 +1070,14 @@ public class ConditionService {
         return new MapperInputPreparation(List.of(), List.of(), Map.of(), true);
       }
 
+      DynamicMapperContext mapperContext =
+          new DynamicMapperContext(mapper, sourceKeys, mapper.getMappingType());
       List<WorkflowStateEntries.Pair> pairs =
-          resolveMapperPairs(
-              new DynamicMapperContext(mapper, sourceKeys, mapper.getMappingType()),
-              localEntries,
-              globalEntries);
-      if (pairs.isEmpty()) {
-        return new MapperInputPreparation(List.of(), List.of(), Map.of(), true);
+          resolveMapperPairs(mapperContext, localEntries, globalEntries);
+      if (!pairs.isEmpty()) {
+        allPairsList.add(pairs);
       }
-
-      allPairsList.add(pairs);
-      dynamicMappers.add(new DynamicMapperContext(mapper, sourceKeys, mapper.getMappingType()));
+      dynamicMappers.add(mapperContext);
     }
 
     return new MapperInputPreparation(allPairsList, dynamicMappers, defaultValues, false);
@@ -1211,6 +1212,10 @@ public class ConditionService {
       Set<String> pendingHashes,
       List<ExecutionBatch> batches) {
 
+    if (!coversAllDynamicMappers(comboMap, preparation.dynamicMappers())) {
+      return;
+    }
+
     String hash = localEntries.hashCombo(comboMap);
     if (localEntries.getHashExecution().contains(hash) || pendingHashes.contains(hash)) {
       return;
@@ -1226,6 +1231,17 @@ public class ConditionService {
 
     batches.add(new ConditionService.ExecutionBatch(gson.toJson(fullInput), resolvedMappers, hash));
     pendingHashes.add(hash);
+  }
+
+  private boolean coversAllDynamicMappers(
+      Map<String, String> comboMap, List<DynamicMapperContext> dynamicMappers) {
+    for (DynamicMapperContext mapperContext : dynamicMappers) {
+      boolean covered = mapperContext.sourceKeys().stream().anyMatch(comboMap::containsKey);
+      if (!covered) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /** Creates a resolved copy of a mapper condition with its value filled from the input map. */
