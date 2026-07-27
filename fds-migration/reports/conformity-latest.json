@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-16T22:58:38.782Z",
+  "generatedAt": "2026-07-27T22:02:18.550Z",
   "results": [
     {
       "check": "bridge-integrity",
@@ -9,7 +9,8 @@
     {
       "check": "bridge-freshness",
       "file": "src/components/fds-tokens.generated.ts",
-      "status": "OK"
+      "status": "STALE",
+      "detail": "theme.css changed since this bridge was generated — run pnpm generate:mui-bridge --product openaev --write-to-product again"
     },
     {
       "check": "wiring",
