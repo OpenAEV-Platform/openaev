@@ -1,4 +1,3 @@
-import { DevicesOtherOutlined } from '@mui/icons-material';
 import { Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { normalize } from 'normalizr';
@@ -25,6 +24,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
+import AssetCategoryIcon from '../AssetCategoryIcon';
 import AssetStatus from '../AssetStatus';
 
 interface Props {
@@ -97,7 +97,9 @@ const EndpointsPicker: FunctionComponent<Props> = ({
 
   // Headers
   const elements: SelectListPickerElements<EndpointOutput> = useMemo(() => ({
-    icon: { value: () => <DevicesOtherOutlined color="primary" /> },
+    // Category-aware glyph (same as the assets inventory page) so non-host assets
+    // (web applications, cloud resources, ...) don't show the generic device icon.
+    icon: { value: (endpoint: EndpointOutput) => <AssetCategoryIcon category={endpoint.asset_category} color="primary" /> },
     headers: [
       // Widths must total 100: each cell renders as `width: N%` in a flex row,
       // so any excess pushes the last column (tags) out of the row.

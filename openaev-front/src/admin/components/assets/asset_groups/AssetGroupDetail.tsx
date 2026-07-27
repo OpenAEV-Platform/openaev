@@ -5,9 +5,8 @@ import { Binoculars, SelectGroup } from 'mdi-material-ui';
 import { type CSSProperties, useCallback, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
-import { fetchAssetGroup, searchEndpointsFromAssetGroup } from '../../../../actions/asset_groups/assetgroup-action';
+import { fetchAssetGroup, searchEndpointsFromAssetGroup, searchInjectsForAssetGroup } from '../../../../actions/asset_groups/assetgroup-action';
 import { type AssetGroupsHelper } from '../../../../actions/asset_groups/assetgroup-helper';
-import { searchAtomicTestings } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { searchDistinctFindings } from '../../../../actions/findings/finding-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
@@ -35,6 +34,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import InjectResultList from '../../atomic_testings/InjectResultList';
+import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import PostureScore from '../PostureScore';
@@ -77,10 +77,12 @@ const AssetGroupDetail = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { assetGroupId } = useParams() as { assetGroupId: string };
 
-  // Headline hero counts: size-1 probes of the platform-wide searches scoped to
-  // this asset group, plus the expectation posture from the dashboard engine.
+  // Headline hero counts: size-1 probes of the group-scoped searches feeding the
+  // lists below, plus the expectation posture from the dashboard engine. The
+  // inject search covers atomic testings AND simulation injects (direct targeting
+  // or execution evidence), so it stays consistent with the posture score.
   const injectsTotal = useSearchTotal(useCallback(
-    (input: SearchPaginationInput) => searchAtomicTestings(withFilter(input, 'inject_asset_groups', [assetGroupId])),
+    (input: SearchPaginationInput) => searchInjectsForAssetGroup(assetGroupId, input),
     [assetGroupId],
   ));
   const findingsTotal = useSearchTotal(useCallback(
@@ -101,7 +103,7 @@ const AssetGroupDetail = () => {
   );
   const fetchInjectsPlayed = useCallback(
     (input: SearchPaginationInput): Promise<{ data: Page<InjectResultOutput> }> =>
-      searchAtomicTestings(withFilter(input, 'inject_asset_groups', [assetGroupId])) as Promise<{ data: Page<InjectResultOutput> }>,
+      searchInjectsForAssetGroup(assetGroupId, input) as Promise<{ data: Page<InjectResultOutput> }>,
     [assetGroupId],
   );
 
@@ -336,7 +338,7 @@ const AssetGroupDetail = () => {
           <SectionBlock title={t('Injects played')}>
             <InjectResultList
               fetchInjects={fetchInjectsPlayed}
-              goTo={injectId => `/admin/atomic_testings/${injectId}`}
+              goTo={injectResultDetailPath}
               queryableHelpers={injectsHelpers}
               searchPaginationInput={injectsInput}
               contextId={assetGroupId}

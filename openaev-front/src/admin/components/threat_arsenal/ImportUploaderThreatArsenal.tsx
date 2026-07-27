@@ -28,11 +28,11 @@ const ImportUploaderThreatArsenal: FunctionComponent<Props> = ({ onImport }) => 
     <>
       <ToggleButton
         value="import"
-        aria-label={t('Import threat arsenal items')}
+        aria-label={t('Import actions')}
         size="small"
         onClick={handleOpen}
       >
-        <Tooltip title={t('Import threat arsenal items')}>
+        <Tooltip title={t('Import actions')}>
           <CloudUploadOutlined color="primary" fontSize="small" />
         </Tooltip>
       </ToggleButton>

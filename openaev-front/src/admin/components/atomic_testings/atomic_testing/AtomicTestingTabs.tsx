@@ -71,7 +71,7 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
           component={Link}
           to={`/admin/atomic_testings/${injectResultOverview.inject_id}/payload_info`}
           value={`/admin/atomic_testings/${injectResultOverview.inject_id}/payload_info`}
-          label={t('Payload details')}
+          label={t('Action details')}
           className={classes.item}
         />
       )}

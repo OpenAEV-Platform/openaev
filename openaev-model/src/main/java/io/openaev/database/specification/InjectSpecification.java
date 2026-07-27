@@ -2,14 +2,20 @@ package io.openaev.database.specification;
 
 import static io.openaev.database.model.ExerciseStatus.RUNNING;
 
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.CollectExecutionStatus;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.TableTopInjectExpectation;
+import io.openaev.database.model.TechnicalInjectExpectation;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStatus;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.validation.constraints.NotBlank;
@@ -20,6 +26,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -177,6 +184,143 @@ public class InjectSpecification {
   public static Specification<Inject> isAtomicTesting() {
     return (root, query, cb) ->
         cb.and(cb.isNull(root.get("scenario")), cb.isNull(root.get("exercise")));
+  }
+
+  // -- TARGET SCOPES ("Injects played" sections of the detail pages) --
+  //
+  // Each targetsXxx specification matches injects that concern a given entity through BOTH the
+  // configured targeting (join tables, resolvable before any execution) AND the execution
+  // evidence (the expectations persisted when the inject was played - which also covers targeting
+  // modes that cannot be resolved with a SQL join, e.g. dynamic asset-group membership). This is
+  // the same population the posture/expectation KPIs are computed from on those pages, so the
+  // inject lists and the expectation counters stay consistent.
+
+  /** EXISTS (SELECT 1 FROM injects i WHERE i.id = root.id AND targetIdPath(i) = targetId). */
+  private static Predicate existsInjectTargeting(
+      Root<Inject> root,
+      CriteriaQuery<?> query,
+      CriteriaBuilder cb,
+      Function<Root<Inject>, Expression<?>> targetIdPath,
+      String targetId) {
+    Subquery<Integer> sub = query.subquery(Integer.class);
+    Root<Inject> inject = sub.from(Inject.class);
+    sub.select(cb.literal(1))
+        .where(
+            cb.equal(inject.get("id"), root.get("id")),
+            cb.equal(targetIdPath.apply(inject), targetId));
+    return cb.exists(sub);
+  }
+
+  /** EXISTS an expectation of the given type linked to the root inject and the target entity. */
+  private static <E extends BaseInjectExpectation> Predicate existsExpectationTargeting(
+      Class<E> expectationType,
+      Root<Inject> root,
+      CriteriaQuery<?> query,
+      CriteriaBuilder cb,
+      Function<Root<E>, Expression<?>> targetIdPath,
+      String targetId) {
+    Subquery<Integer> sub = query.subquery(Integer.class);
+    Root<E> expectation = sub.from(expectationType);
+    sub.select(cb.literal(1))
+        .where(
+            cb.equal(expectation.get("inject").get("id"), root.get("id")),
+            cb.equal(targetIdPath.apply(expectation), targetId));
+    return cb.exists(sub);
+  }
+
+  /**
+   * Injects that concern a given asset: direct target ({@code injects_assets}), static member of a
+   * targeted asset group, or evidenced by a technical expectation persisted for this asset at
+   * execution time (covers dynamic asset-group membership).
+   */
+  public static Specification<Inject> targetsAsset(@NotBlank final String assetId) {
+    return (root, query, cb) ->
+        cb.or(
+            existsInjectTargeting(root, query, cb, i -> i.join("assets").get("id"), assetId),
+            existsInjectTargeting(
+                root, query, cb, i -> i.join("assetGroups").join("assets").get("id"), assetId),
+            existsExpectationTargeting(
+                TechnicalInjectExpectation.class,
+                root,
+                query,
+                cb,
+                e -> e.get("asset").get("id"),
+                assetId));
+  }
+
+  /**
+   * Injects that concern a given asset group: direct target ({@code injects_asset_groups}) or
+   * evidenced by a technical expectation persisted for this group at execution time.
+   */
+  public static Specification<Inject> targetsAssetGroup(@NotBlank final String assetGroupId) {
+    return (root, query, cb) ->
+        cb.or(
+            existsInjectTargeting(
+                root, query, cb, i -> i.join("assetGroups").get("id"), assetGroupId),
+            existsExpectationTargeting(
+                TechnicalInjectExpectation.class,
+                root,
+                query,
+                cb,
+                e -> e.get("assetGroup").get("id"),
+                assetGroupId));
+  }
+
+  /**
+   * Injects that concern a given team: direct target ({@code injects_teams}) or evidenced by a
+   * table-top expectation (manual / article / challenge) persisted for this team.
+   */
+  public static Specification<Inject> targetsTeam(@NotBlank final String teamId) {
+    return (root, query, cb) ->
+        cb.or(
+            existsInjectTargeting(root, query, cb, i -> i.join("teams").get("id"), teamId),
+            existsExpectationTargeting(
+                TableTopInjectExpectation.class,
+                root,
+                query,
+                cb,
+                e -> e.get("team").get("id"),
+                teamId));
+  }
+
+  /**
+   * Injects that concern a given player: targeted through one of the player's teams ({@code
+   * injects_teams} x {@code users_teams}) or evidenced by a player-level table-top expectation.
+   */
+  public static Specification<Inject> targetsPlayer(@NotBlank final String userId) {
+    return (root, query, cb) ->
+        cb.or(
+            existsInjectTargeting(
+                root, query, cb, i -> i.join("teams").join("users").get("id"), userId),
+            existsExpectationTargeting(
+                TableTopInjectExpectation.class,
+                root,
+                query,
+                cb,
+                e -> e.get("user").get("id"),
+                userId));
+  }
+
+  /**
+   * Injects that concern a given organization: targeted through one of the organization's teams or
+   * evidenced by a table-top expectation persisted for such a team.
+   */
+  public static Specification<Inject> targetsOrganization(@NotBlank final String organizationId) {
+    return (root, query, cb) ->
+        cb.or(
+            existsInjectTargeting(
+                root,
+                query,
+                cb,
+                i -> i.join("teams").get("organization").get("id"),
+                organizationId),
+            existsExpectationTargeting(
+                TableTopInjectExpectation.class,
+                root,
+                query,
+                cb,
+                e -> e.get("team").get("organization").get("id"),
+                organizationId));
   }
 
   // -- RECURRENCE (atomic testing scheduling) --

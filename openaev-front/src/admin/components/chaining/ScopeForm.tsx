@@ -1,4 +1,3 @@
-import { DevicesOtherOutlined } from '@mui/icons-material';
 import { Box, Button, Tab, Tabs, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
@@ -34,6 +33,7 @@ import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../utils/url-helper';
 import { download } from '../../../utils/utils';
+import AssetCategoryIcon from '../assets/AssetCategoryIcon';
 import AssetStatus from '../assets/AssetStatus';
 import {
   buildScopeRulesCsvTemplate,
@@ -146,7 +146,9 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
     = useQueryable(buildSearchPagination({}));
 
   const endpointElements: ClickableListElements<EndpointOutput> = useMemo(() => ({
-    icon: { value: () => <DevicesOtherOutlined color="primary" /> },
+    // Category-aware glyph (same as the assets inventory page) so non-host assets
+    // (web applications, cloud resources, ...) don't show the generic device icon.
+    icon: { value: (endpoint: EndpointOutput) => <AssetCategoryIcon category={endpoint.asset_category} color="primary" /> },
     headers: [
       {
         field: 'asset_name',

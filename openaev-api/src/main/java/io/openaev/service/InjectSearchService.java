@@ -16,6 +16,8 @@ import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.specification.InjectSpecification;
+import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.atomic_testing.form.InjectStatusSimple;
@@ -35,6 +37,7 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -52,6 +55,7 @@ public class InjectSearchService {
 
   private final InjectExpectationRepository injectExpectationRepository;
   private final TeamRepository teamRepository;
+  private final UserService userService;
   private final AssetRepository assetRepository;
   private final AssetGroupRepository assetGroupRepository;
   private final AiTargetRepository aiTargetRepository;
@@ -304,6 +308,76 @@ public class InjectSearchService {
                       cb.and(predicate, cb.equal(root.get("exercise").get("id"), exerciseId));
                   return predicate;
                 });
+
+    return buildPaginationCriteriaBuilder(
+        (Specification<Inject> specification,
+            Specification<Inject> specificationCount,
+            Pageable pageable) ->
+            injectResults(
+                customSpec.and(specification),
+                customSpec.and(specificationCount),
+                pageable,
+                joinMap),
+        searchPaginationInput,
+        Inject.class,
+        joinMap);
+  }
+
+  // -- "INJECTS PLAYED" SEARCHES (entity detail pages) --
+  //
+  // Search every inject that concerns a given entity, whatever the inject scope (atomic testing
+  // or simulation inject) and targeting mode (configured targeting or the execution evidence left
+  // by the expectations persisted when the inject was played). Scenario template injects are
+  // excluded: they are never played themselves. Each targetsXxx specification covers the same
+  // population the posture/expectation KPIs of the page are computed from, keeping the "Injects
+  // played" list consistent with the expectation counters. Results are restricted by the caller's
+  // grants (OBSERVER or higher).
+
+  public Page<InjectResultOutput> getPageOfInjectResultsForAsset(
+      @NotBlank final String assetId, @Valid SearchPaginationInput searchPaginationInput) {
+    return getPageOfInjectResultsForTarget(
+        InjectSpecification.targetsAsset(assetId), searchPaginationInput);
+  }
+
+  public Page<InjectResultOutput> getPageOfInjectResultsForAssetGroup(
+      @NotBlank final String assetGroupId, @Valid SearchPaginationInput searchPaginationInput) {
+    return getPageOfInjectResultsForTarget(
+        InjectSpecification.targetsAssetGroup(assetGroupId), searchPaginationInput);
+  }
+
+  public Page<InjectResultOutput> getPageOfInjectResultsForTeam(
+      @NotBlank final String teamId, @Valid SearchPaginationInput searchPaginationInput) {
+    return getPageOfInjectResultsForTarget(
+        InjectSpecification.targetsTeam(teamId), searchPaginationInput);
+  }
+
+  public Page<InjectResultOutput> getPageOfInjectResultsForPlayer(
+      @NotBlank final String userId, @Valid SearchPaginationInput searchPaginationInput) {
+    return getPageOfInjectResultsForTarget(
+        InjectSpecification.targetsPlayer(userId), searchPaginationInput);
+  }
+
+  public Page<InjectResultOutput> getPageOfInjectResultsForOrganization(
+      @NotBlank final String organizationId, @Valid SearchPaginationInput searchPaginationInput) {
+    return getPageOfInjectResultsForTarget(
+        InjectSpecification.targetsOrganization(organizationId), searchPaginationInput);
+  }
+
+  private Page<InjectResultOutput> getPageOfInjectResultsForTarget(
+      Specification<Inject> targetScope, SearchPaginationInput searchPaginationInput) {
+    Map<String, Join<Base, Base>> joinMap = new HashMap<>();
+
+    User currentUser = userService.currentUser();
+    Specification<Inject> customSpec =
+        Specification.<Inject>unrestricted()
+            .and((root, query, cb) -> cb.isNull(root.get("scenario")))
+            .and(targetScope)
+            .and(
+                SpecificationUtils.hasGrantAccess(
+                    currentUser.getId(),
+                    currentUser.isAdminOrBypass(),
+                    currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
+                    Grant.GRANT_TYPE.OBSERVER));
 
     return buildPaginationCriteriaBuilder(
         (Specification<Inject> specification,
@@ -574,6 +648,9 @@ public class InjectSearchService {
     Join<Base, Base> statusJoin = injectRoot.join("status", JoinType.LEFT);
     joinMap.put("status", statusJoin);
 
+    Join<Base, Base> exerciseJoin = injectRoot.join("exercise", JoinType.LEFT);
+    joinMap.put("exercise", exerciseJoin);
+
     // Array aggregations
     Expression<String[]> teamIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "teams");
     Expression<String[]> assetIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "assets");
@@ -601,6 +678,7 @@ public class InjectSearchService {
         statusJoin.get("id").alias("status_id"),
         statusJoin.get("name").alias("status_name"),
         statusJoin.get("trackingSentDate").alias("status_tracking_sent_date"),
+        exerciseJoin.get("id").alias("inject_exercise_id"),
         teamIdsExpression.alias("inject_teams"),
         assetIdsExpression.alias("inject_assets"),
         domainsContractIdExpression.alias("injector_contract_domains"),
@@ -615,7 +693,8 @@ public class InjectSearchService {
             injectorJoin.get("type"),
             payloadJoin.get("id"),
             collectorTypeJoin.get("name"),
-            statusJoin.get("id")));
+            statusJoin.get("id"),
+            exerciseJoin.get("id")));
   }
 
   private List<InjectResultOutput> execInjects(TypedQuery<Tuple> query) {
@@ -675,6 +754,7 @@ public class InjectSearchService {
               injectResultOutput.setTeamIds(tuple.get("inject_teams", String[].class));
               injectResultOutput.setAssetIds(tuple.get("inject_assets", String[].class));
               injectResultOutput.setAssetGroupIds(tuple.get("inject_asset_groups", String[].class));
+              injectResultOutput.setExerciseId(tuple.get("inject_exercise_id", String.class));
 
               return injectResultOutput;
             })

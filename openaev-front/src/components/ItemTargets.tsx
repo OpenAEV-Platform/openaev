@@ -13,10 +13,13 @@ import { useFormatter } from './i18n';
 import PlatformIcon from './PlatformIcon';
 
 const useStyles = makeStyles()(theme => ({
-  inline: { display: 'flex' },
+  inline: {
+    display: 'flex',
+    alignItems: 'center',
+  },
   target: {
     fontSize: 12,
-    height: 20,
+    height: 24,
     float: 'left',
     marginRight: 4,
     borderRadius: 4,

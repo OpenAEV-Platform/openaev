@@ -26,6 +26,7 @@ import io.openaev.aop.WorkflowUpdateEvent;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.database.specification.InjectExpectationSpecification;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.DetectionExpectation;
@@ -83,6 +84,7 @@ public class InjectExpectationService {
 
   private final InjectExpectationRepository injectExpectationRepository;
   private final CollectorService collectorService;
+  private final SecurityPlatformRepository securityPlatformRepository;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
   private final InjectExpectationLockService injectExpectationLockService;
@@ -598,6 +600,37 @@ public class InjectExpectationService {
     }
     Collector collector = this.collectorService.collector(input.getCollectorId());
     computeTechnicalExpectation(technicalExpectation, collector, input, false);
+    return technicalExpectation;
+  }
+
+  /**
+   * Variant of {@link #updateInjectExpectation} for verdicts attributed to a security platform
+   * entry instead of a collector (e.g. assessment injectors like Nuclei fulfilling VULNERABILITY
+   * expectations themselves). Mirrors the collector path: write the source result, recompute the
+   * score, then propagate up the asset / asset group chain.
+   *
+   * @param expectationId the ID of the expectation to update
+   * @param input the update input (result and success flag)
+   * @param securityPlatform the platform the verdict is attributed to
+   * @return the updated inject expectation
+   */
+  @WorkflowUpdateEvent(expectationIds = "#expectationId")
+  public BaseInjectExpectation updateInjectExpectationFromSecurityPlatform(
+      @NotBlank String expectationId,
+      @Valid @NotNull InjectExpectationUpdateInput input,
+      @NotNull SecurityPlatform securityPlatform) {
+    BaseInjectExpectation baseInjectExpectation = this.findInjectExpectation(expectationId);
+    if (!(baseInjectExpectation instanceof TechnicalInjectExpectation technicalExpectation)) {
+      throw new IllegalArgumentException("Updates are only supported for technical expectations");
+    }
+    addResult(technicalExpectation, input, securityPlatform);
+    technicalExpectation.setScore(
+        computeScore(technicalExpectation.getResults(), technicalExpectation));
+    TechnicalInjectExpectation updated =
+        this.injectExpectationRepository.save(technicalExpectation);
+    // Same propagation contract as computeTechnicalExpectation: agentless expectations only
+    // propagate asset -> group, agent expectations roll up the full chain.
+    propagateTechnicalExpectation(updated, updated.getAgent() == null, null);
     return technicalExpectation;
   }
 
@@ -1818,14 +1851,41 @@ public class InjectExpectationService {
       return;
     }
 
-    InjectExpectationResult result = buildForVulnerabilityManagerInFailed();
+    // Assessment injectors (e.g. Nuclei) run the vulnerability assessment themselves and declare
+    // a security platform entry: attribute the verdict to that platform so it renders as a real
+    // per-platform row, like detection/prevention. Injectors without a platform keep the legacy
+    // attribution to the generic Expectations Vulnerability Manager.
+    Optional<SecurityPlatform> securityPlatform = resolveInjectorSecurityPlatform(inject);
+    InjectExpectationResult result =
+        securityPlatform
+            .map(sp -> buildForSecurityPlatformInFailed(sp))
+            .orElseGet(() -> buildForVulnerabilityManagerInFailed());
 
     String label = vulnerable ? VULNERABILITY.failureLabel : VULNERABILITY.successLabel;
 
     setResultExpectationVulnerable(expectations, result, label);
 
-    validateResultForAsset(expectations, result);
+    if (securityPlatform.isPresent()) {
+      validateResultForAssetFromSecurityPlatform(expectations, result, securityPlatform.get());
+    } else {
+      validateResultForAsset(expectations, result);
+    }
     injectExpectationRepository.saveAll(expectations);
+  }
+
+  /**
+   * Resolves the security platform declared by the injector executing the given inject.
+   *
+   * <p>Assessment injectors (e.g. Nuclei) register a security platform whose {@code
+   * asset_external_reference} is their injector type; when such a platform exists, vulnerability
+   * verdicts are attributed to it instead of the generic Expectations Vulnerability Manager.
+   *
+   * @param inject the inject being processed
+   * @return the injector's security platform, when one is declared
+   */
+  private Optional<SecurityPlatform> resolveInjectorSecurityPlatform(@NotNull final Inject inject) {
+    return Optional.ofNullable(inject.getType())
+        .flatMap(securityPlatformRepository::findByExternalReference);
   }
 
   /**
@@ -1873,6 +1933,29 @@ public class InjectExpectationService {
                     .result(injectExpectationResult.getResult())
                     .isSuccess(injectExpectationResult.getScore() != 0.0)
                     .build()));
+  }
+
+  /**
+   * Same as {@link #validateResultForAsset} but attributes the verdict to a security platform entry
+   * (assessment injectors such as Nuclei) instead of a collector.
+   *
+   * @param injectExpectations the list of inject expectations to update
+   * @param injectExpectationResult the result to set for the inject expectations
+   * @param securityPlatform the platform the verdict is attributed to
+   */
+  public void validateResultForAssetFromSecurityPlatform(
+      List<? extends TechnicalInjectExpectation> injectExpectations,
+      InjectExpectationResult injectExpectationResult,
+      SecurityPlatform securityPlatform) {
+    injectExpectations.forEach(
+        baseInjectExpectation ->
+            updateInjectExpectationFromSecurityPlatform(
+                baseInjectExpectation.getId(),
+                InjectExpectationUpdateInput.builder()
+                    .result(injectExpectationResult.getResult())
+                    .isSuccess(injectExpectationResult.getScore() != 0.0)
+                    .build(),
+                securityPlatform));
   }
 
   /**
