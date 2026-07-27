@@ -641,7 +641,10 @@ class InjectExpectationServiceTest {
       expectationGroup.setAssetGroup(assetGroup);
 
       inject.setExpectations(List.of(expectationAssetOne, expectationAssetTwo, expectationGroup));
-      doReturn(expectationAssetOne)
+      // Lenient: the security-platform attribution test routes the verdicts through
+      // updateInjectExpectationFromSecurityPlatform instead and never hits this stub.
+      lenient()
+          .doReturn(expectationAssetOne)
           .when(injectExpectationService)
           .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
     }
@@ -733,6 +736,57 @@ class InjectExpectationServiceTest {
       assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-1").getIsSuccess());
       assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-2").getIsSuccess());
       assertEquals(Boolean.FALSE, capturedVerdict("exp-group").getIsSuccess());
+    }
+
+    @Test
+    @DisplayName(
+        "Verdicts are attributed to the injector's security platform for assets AND their group")
+    void shouldAttributeVerdictsToInjectorSecurityPlatform() {
+      Injector injector = new Injector();
+      injector.setType("openaev_nuclei");
+      inject.setInjector(injector);
+      SecurityPlatform securityPlatform =
+          SecurityPlatformFixture.createDefault("Nuclei", "VULNERABILITY_SCANNER");
+      securityPlatform.setId("nuclei-platform");
+      when(securityPlatformRepository.findByExternalReference("openaev_nuclei"))
+          .thenReturn(Optional.of(securityPlatform));
+      doReturn(expectationAssetOne)
+          .when(injectExpectationService)
+          .updateInjectExpectationFromSecurityPlatform(
+              any(), any(InjectExpectationUpdateInput.class), any(SecurityPlatform.class));
+
+      ArrayNode structuredOutput = mapper.createArrayNode();
+      ObjectNode cve = structuredOutput.addObject();
+      cve.put("id", "CVE-2025-0008").put("host", "https://vulnerable-host").put("severity", "7.5");
+      cve.putArray("asset_id").add("asset-1");
+
+      injectExpectationService.matchesVulnerabilityExpectations(
+          injectorContext(structuredOutput), structuredOutput);
+
+      // The vulnerable asset AND its group are both concluded through the security platform
+      // path, so the group row is immediately attributed to the Nuclei platform.
+      ArgumentCaptor<InjectExpectationUpdateInput> assetInput =
+          ArgumentCaptor.forClass(InjectExpectationUpdateInput.class);
+      verify(injectExpectationService)
+          .updateInjectExpectationFromSecurityPlatform(
+              eq("exp-asset-1"), assetInput.capture(), eq(securityPlatform));
+      assertEquals(Boolean.FALSE, assetInput.getValue().getIsSuccess());
+      assertNull(assetInput.getValue().getCollectorId());
+
+      ArgumentCaptor<InjectExpectationUpdateInput> groupInput =
+          ArgumentCaptor.forClass(InjectExpectationUpdateInput.class);
+      verify(injectExpectationService)
+          .updateInjectExpectationFromSecurityPlatform(
+              eq("exp-group"), groupInput.capture(), eq(securityPlatform));
+      assertEquals(Boolean.FALSE, groupInput.getValue().getIsSuccess());
+      assertNull(groupInput.getValue().getCollectorId());
+
+      verify(injectExpectationService)
+          .updateInjectExpectationFromSecurityPlatform(
+              eq("exp-asset-2"), any(InjectExpectationUpdateInput.class), eq(securityPlatform));
+      // No verdict falls back to the generic Expectations Vulnerability Manager collector.
+      verify(injectExpectationService, never())
+          .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
     }
 
     @Test
