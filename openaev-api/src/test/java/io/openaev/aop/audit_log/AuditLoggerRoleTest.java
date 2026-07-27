@@ -14,8 +14,6 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.role.form.RoleInput;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -56,7 +54,6 @@ class AuditLoggerRoleTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
-  @MockitoBean private PreviewFeatureService previewFeatureService;
 
   @BeforeAll
   void setupAuditFileAppender() throws Exception {
@@ -69,9 +66,8 @@ class AuditLoggerRoleTest extends IntegrationTest {
   }
 
   @BeforeEach
-  void enableAuditFeatureFlags() {
+  void enableAuditLogger() {
     Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(true);
-    Mockito.when(previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)).thenReturn(true);
   }
 
   @Nested
