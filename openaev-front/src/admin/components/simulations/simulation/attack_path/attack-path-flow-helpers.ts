@@ -221,7 +221,9 @@ const CLUSTER_ROW_UNIT = 120;
 const CLUSTER_EP_ROW_H = 124;
 const CLUSTER_FINDING_ROW_H = 100;
 const CLUSTER_FINDING_GAP = 52;
-const CLUSTER_FINDING_DETAIL_ROW = 70;
+// Row height for an expanded individual finding: must leave room for the value label rendered ABOVE the
+// finding node (else a stacked finding's label overlaps the node above it, e.g. long UNC share paths).
+const CLUSTER_FINDING_DETAIL_ROW = 96;
 const CLUSTER_INJECTOR_HALF_H = 36;
 const CLUSTER_EP_HALF_H = 42;
 // Vertical spacing between the stacked injectors on the left band of the deduped view.
