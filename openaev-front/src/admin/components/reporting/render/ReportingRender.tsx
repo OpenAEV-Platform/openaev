@@ -10,6 +10,7 @@ import { type Reporting } from '../../../../utils/api-types';
 import { useQueryParameter } from '../../../../utils/Environment';
 import ReportingRenderPage from './ReportingRenderPage';
 import ReportingRenderTheme from './ReportingRenderTheme';
+import { retryWithBackoff } from './useReportingRenderData';
 
 /**
  * Standalone (chrome-less) report render route:
@@ -33,23 +34,35 @@ const ReportingRender = () => {
   useEffect(() => {
     if (!reportingId) {
       setError(true);
-      return;
+      return undefined;
     }
+    let cancelled = false;
     // With a generation token, bypass the standard action so the token reaches
     // the backend; the session-cookie preview path keeps the shared action.
-    const request = token
+    // Retried with backoff like every module query: the report definition
+    // fetch must be just as resilient to transient failures as the data layer.
+    const request = () => (token
       ? simpleCall(`${REPORTING_URI}/${reportingId}`, { params: { token } }, false)
-      : fetchReporting(reportingId);
-    request
-      .then(result => setReporting(result.data))
-      .catch(() => setError(true));
+      : fetchReporting(reportingId));
+    retryWithBackoff(request, () => cancelled)
+      .then((result) => {
+        if (!cancelled) setReporting(result.data);
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [reportingId, token]);
 
   // The report itself could not load: still flip the readiness flag so the
-  // headless capture terminates (with a visible error page) instead of
-  // waiting forever.
+  // headless capture terminates instead of waiting forever, and report the
+  // failure through the section-error counter so the capture retries the
+  // page instead of printing the error state.
   useEffect(() => {
     if (error) {
+      window.OPENAEV_REPORT_SECTION_ERRORS = 1;
       window.OPENAEV_REPORT_READY = true;
     }
   }, [error]);
