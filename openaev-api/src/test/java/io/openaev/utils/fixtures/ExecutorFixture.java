@@ -44,8 +44,19 @@ public class ExecutorFixture {
   }
 
   public Executor getDefaultExecutor() {
+    return getDefaultExecutor(Tenant.DEFAULT_TENANT_UUID);
+  }
+
+  /**
+   * Same as {@link #getDefaultExecutor()} but for a caller operating under a non-default tenant
+   * (e.g. a test that created its own tenant): {@code Executor} carries no ambient tenant default
+   * (the v1 {@code @Filter}/listener was removed at v2 go-live, see {@link Executor}'s javadoc), so
+   * the fallback creation must be told explicitly which tenant to attach to, matching whichever
+   * tenant the rest of the fixture data (e.g. an {@code Agent}) is being persisted under.
+   */
+  public Executor getDefaultExecutor(String tenantId) {
     Optional<Executor> executorOptional = executorRepository.findByType(OPENAEV_EXECUTOR_TYPE);
-    return executorOptional.orElseGet(() -> executorRepository.save(createOAEVExecutor()));
+    return executorOptional.orElseGet(() -> executorRepository.save(createOAEVExecutor(tenantId)));
   }
 
   public Executor createCrowdstrikeExecutor() {
