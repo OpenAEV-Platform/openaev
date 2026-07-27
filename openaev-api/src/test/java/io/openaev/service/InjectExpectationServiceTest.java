@@ -22,6 +22,7 @@ import io.openaev.expectation.ManualExpectation;
 import io.openaev.expectation.PreventionExpectation;
 import io.openaev.expectation.VulnerabilityExpectation;
 import io.openaev.injectors.common.model.BaseInjectContent;
+import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
@@ -29,6 +30,8 @@ import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Stream;
@@ -42,6 +45,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class InjectExpectationServiceTest {
@@ -52,6 +56,8 @@ class InjectExpectationServiceTest {
   @Mock private AssetGroupService assetGroupService;
   @Mock private InjectService injectService;
   @Mock private InjectExpectationLockService injectExpectationLockService;
+  @Mock private CollectorService collectorService;
+  @Mock private InjectorContractContentUtils injectorContractContentUtils;
 
   // Unstubbed: findByExternalReference defaults to Optional.empty(), so vulnerability verdicts
   // keep the legacy Expectations Vulnerability Manager attribution in these tests.
@@ -377,6 +383,63 @@ class InjectExpectationServiceTest {
     // Assert
     assertNotNull(expectations);
     verify(injectService).getValueTargetedAssetMap(inject);
+  }
+
+  @Test
+  @DisplayName(
+      "Reset/relaunch fallback: contract expectations are used when the inject content has none")
+  void given_contentWithoutExpectations_should_fallBackToContractExpectations() throws Exception {
+    // Inject created before its contract declared predefined expectations: stored content has no
+    // "expectations" field, so resetting + relaunching the simulation used to create none.
+    ObjectNode storedContent = mapper.createObjectNode();
+    inject.setContent(storedContent);
+    InjectorContract contract = mock(InjectorContract.class);
+    // Agentless injector (Nuclei-like): asset-level expectations are created without agents.
+    when(contract.getNeedsExecutorEffective()).thenReturn(false);
+    inject.setInjectorContract(contract);
+    ReflectionTestUtils.setField(inject, "tenant", TenantFixture.getTenant());
+    // @Resource field, not constructor-injected: provide the default expiration configuration.
+    ReflectionTestUtils.setField(
+        injectExpectationService,
+        "expectationPropertiesConfig",
+        new io.openaev.expectation.ExpectationPropertiesConfig());
+
+    BaseInjectContent contractContent = new BaseInjectContent();
+    contractContent.setExpectations(
+        List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY)));
+    ObjectNode enrichedContent = mapper.valueToTree(contractContent);
+    when(injectorContractContentUtils.setExpectations(eq(contract), any(ObjectNode.class)))
+        .thenReturn(enrichedContent);
+
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    endpoint.setId("asset-id");
+    endpoint.setAgents(List.of());
+    when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
+
+    ExecutableInject executableInject = mock(ExecutableInject.class);
+    Injection injection = mock(Injection.class);
+    when(executableInject.getInjection()).thenReturn(injection);
+    when(injection.getInject()).thenReturn(inject);
+    when(executableInject.isDirect()).thenReturn(false);
+    when(executableInject.getTeams()).thenReturn(List.of());
+    when(executableInject.getAssets()).thenReturn(List.of(endpoint));
+    when(executableInject.getAssetGroups()).thenReturn(List.of());
+
+    injectExpectationService.computeAndSaveExpectations(
+        executableInject, inject, "implant", List.of(new AssetToExecute(endpoint)));
+
+    // The contract's predefined expectations were resolved and materialized as a persisted
+    // asset-level vulnerability expectation.
+    verify(injectorContractContentUtils).setExpectations(eq(contract), any(ObjectNode.class));
+    ArgumentCaptor<List<BaseInjectExpectation>> savedCaptor = ArgumentCaptor.captor();
+    verify(injectExpectationRepository).saveAll(savedCaptor.capture());
+    List<BaseInjectExpectation> saved = savedCaptor.getValue();
+    assertEquals(1, saved.size());
+    VulnerabilityInjectExpectation savedExpectation =
+        assertInstanceOf(VulnerabilityInjectExpectation.class, saved.get(0));
+    assertEquals("asset-id", savedExpectation.getAsset().getId());
+    assertNull(savedExpectation.getAgent());
   }
 
   @Test
