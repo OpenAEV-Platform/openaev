@@ -139,11 +139,11 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow("
-          + "e.sourceKind, e.sourceInjector, e.sourceAssetId, "
+          + "e.sourceKind, e.sourceInjector, e.sourceAssetId, e.contractExternalId, "
           + "max(e.sourceHostname), max(e.sourceIp), max(e.sourcePlatform), "
           + "e.targetKey, count(e)) "
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId "
-          + "GROUP BY e.sourceKind, e.sourceInjector, e.sourceAssetId, e.targetKey")
+          + "GROUP BY e.sourceKind, e.sourceInjector, e.sourceAssetId, e.contractExternalId, e.targetKey")
   List<AttackPathEdgeGroupRow> findEdgeGroups(@Param("simulationId") String simulationId);
 
   /**

@@ -110,6 +110,14 @@ public interface InjectorContractRepository
       @Param("id") String id, @Param("externalId") String externalId);
 
   /**
+   * Batched form of {@link #findByIdOrExternalId}: every contract whose id OR external id is in the
+   * set.
+   */
+  @Query(
+      "SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id IN :ids OR ic.externalId IN :ids")
+  List<InjectorContract> findAllByIdOrExternalIdIn(@Param("ids") Collection<String> ids);
+
+  /**
    * Batched ATT&CK techniques for the attack-path injector nodes: one flat query returning the
    * (contract external id, pattern) pairs for a set of contracts. A flat projection, not the
    * entity, so it never pulls the contract's other eager collections into secondary selects.

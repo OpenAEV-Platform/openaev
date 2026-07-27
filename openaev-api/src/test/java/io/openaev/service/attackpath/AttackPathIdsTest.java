@@ -110,6 +110,25 @@ class AttackPathIdsTest {
   }
 
   @Test
+  @DisplayName(
+      "An injector node id is per (injector, contract); a null contract falls back to the per-injector"
+          + " id")
+  void injector_node_per_contract() {
+    // A contract-bearing injector node is a distinct, 3-segment id.
+    assertThat(AttackPathIds.injectorNode("NMAP", "C-1")).isEqualTo("NODE_INJECTOR|NMAP|C-1");
+    // A null contract falls back to the per-injector id (byte-identical to the 1-arg form), so
+    // contractless/seed/legacy injectors keep their current id.
+    assertThat(AttackPathIds.injectorNode("NMAP", null))
+        .isEqualTo(AttackPathIds.injectorNode("NMAP"))
+        .isEqualTo("NODE_INJECTOR|NMAP");
+    // Two contracts of the same injector never collide, and neither collides with the per-injector
+    // id.
+    assertThat(AttackPathIds.injectorNode("NMAP", "C-1"))
+        .isNotEqualTo(AttackPathIds.injectorNode("NMAP", "C-2"))
+        .isNotEqualTo(AttackPathIds.injectorNode("NMAP"));
+  }
+
+  @Test
   @DisplayName("isSeedId recognises synthetic seed simulation ids, and only those")
   void is_seed_id() {
     // A synthetic seed simulation id (the shape AttackPathSeedService builds) is a seed.
