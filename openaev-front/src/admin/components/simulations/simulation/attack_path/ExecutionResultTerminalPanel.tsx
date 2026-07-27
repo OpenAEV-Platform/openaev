@@ -570,7 +570,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 // Compact in the narrow drawer: no search/filter/pagination top bar, and drop the
                 // asset-groups column (attack-path targets are direct assets, so it's always empty).
                 compact
-                hiddenFields={['finding_asset_groups']}
+                hiddenFields={['finding_asset_groups', 'finding_created_at', 'finding_updated_at']}
               />
             )}
 
