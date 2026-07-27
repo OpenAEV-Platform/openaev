@@ -200,16 +200,20 @@ const InjectExpectationResultList = ({
         </Box>
 
         {injectExpectationResults.map((expectationResult, index) => {
-          const showDetectionTime = expectationResult.result === 'Prevented' || expectationResult.result === 'Detected' || expectationResult.result === 'SUCCESS'
+          // Result labels are written with inconsistent casing across producers (backend
+          // ExpectationType says "Partially vulnerable", the frontend status map "Partially
+          // Vulnerable"), so match them case-insensitively.
+          const resultLabel = expectationResult.result?.toLowerCase();
+          const showDetectionTime = resultLabel === 'prevented' || resultLabel === 'detected' || resultLabel === 'success'
             // Vulnerability verdicts (e.g. written by a scanner platform like Nuclei) carry the scan time.
-            || expectationResult.result === 'Not vulnerable' || expectationResult.result === 'Vulnerable' || expectationResult.result === 'Partially vulnerable';
+            || resultLabel === 'not vulnerable' || resultLabel === 'vulnerable' || resultLabel === 'partially vulnerable';
           // Alerts apply to a collector result that detected/prevented. They render either
           // for a per-agent row (injectExpectationAgent set) or for the aggregated endpoint
           // row, where the backend rolls the child agents' traces up onto the asset
           // expectation id. Anything else (no collector match, non-collector source) shows a dash.
           const alertsApplicable = !!expectationResult.sourceId
             && expectationResult.sourceType === 'collector'
-            && (expectationResult.result === 'Prevented' || expectationResult.result === 'Detected');
+            && (resultLabel === 'prevented' || resultLabel === 'detected');
           const alertsInScope = !!injectExpectationAgent || aggregateAgentAlerts;
           const showAlerts = alertsApplicable && alertsInScope;
           const showAlertsDash = !showAlerts;
