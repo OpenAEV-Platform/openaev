@@ -14,13 +14,13 @@ import { SIMULATION_BASE_URL } from '../../../../../constants/BaseUrls';
 import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 import attackPathStatusColor, { attackPathChokepointColor } from './attack-path-colors';
-import { AP_ALL_ENDPOINTS, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
 import AttackPathTableView, { type AttackPathEndpointRow } from './AttackPathTableView';
 import EndpointDetailPanel from './EndpointDetailPanel';
 import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
-import FindingDetailPanel, { type FindingExpectations, type ProducingAction } from './FindingDetailPanel';
+import FindingDetailPanel, { type ExpectationVerdict, type FindingExpectations, type ProducingAction } from './FindingDetailPanel';
 
 // A hot endpoint can have many executions; the read is bounded to the one endpoint, but the side
 // panel still renders a list, so cap it (the backend /relations read would be paginated in prod).
@@ -73,7 +73,7 @@ const isSeedId = (id?: string) => !!id && id.startsWith('ap-seed-');
 
 // Finding types already surfaced by the curated summary cards (endpoints/files/credentials/users/cves).
 // Every OTHER type present in the data gets an auto-generated card, so a new finding type needs no code.
-const COVERED_FINDING_TYPES = new Set(['share', 'credentials', 'username', 'admin_username', 'cve']);
+const COVERED_FINDING_TYPES = new Set(['file', 'credentials', 'username', 'admin_username', 'cve']);
 
 // Finding categories fetched (with per-finding executionIds) to attribute findings to an injector.
 const INJECTOR_FINDING_CATEGORIES = ['credentials', 'users', 'cves', 'files'];
@@ -139,7 +139,7 @@ const CATEGORY_OF_TYPE: Record<string, string> = {
   username: 'users',
   admin_username: 'users',
   cve: 'cves',
-  share: 'files',
+  file: 'files',
 };
 
 // Match a drawer finding value to a graph finding value. Credentials are masked server-side in the
@@ -242,6 +242,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   const [findingDetail, setFindingDetail] = useState<{
     type: string;
     value: string;
+    // The endpoint node this finding was discovered on. In chain mode there is no `pathFinding`/
+    // `focusedEndpoint` to fall back on, so we carry the origin endpoint here to resolve the panel's
+    // "Discovered on" label (else it degraded to the literal word "Endpoint").
+    endpointNodeId?: string;
   } | null>(null);
   const [executions, setExecutions] = useState<AttackPathNodeDTO[]>([]);
   // The clicked injector's own executions (its contracts across every endpoint it reached), listed in
@@ -301,7 +305,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
 
   // Drawer width, drag-resizable (the graph is flex:1 and reflows as this changes). Dragging the handle
   // on the drawer's left edge leftwards widens it — useful when execution traces overflow.
-  const [panelWidth, setPanelWidth] = useState(460);
+  const [panelWidth, setPanelWidth] = useState(560);
   const resizeRef = useRef<{
     startX: number;
     startW: number;
@@ -1040,6 +1044,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     setFindingDetail({
       type,
       value,
+      endpointNodeId: pathFinding.endpointNodeId,
     });
     setSelectedNodeId(null);
     // A new finding invalidates the previous execution's Result & Terminal panel — close it so only
@@ -1064,12 +1069,17 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     }
     // Authoritative for EVERY finding type: the full graph's execution→findings links. This covers types
     // the drawer categories don't (port, hash…), which otherwise resolved to no producer — leaving every
-    // injector on the endpoint highlighted instead of just the one that produced the finding.
-    const findingNodeId = `NODE_FINDING|${type}|${value}`;
-    const fromFull = (fullDto?.attackPathExecutions ?? [])
-      .filter(e => (e.findingsNodeIds ?? []).includes(findingNodeId))
-      .map(e => e.ref)
-      .filter((r): r is string => !!r);
+    // injector on the endpoint highlighted instead of just the one that produced the finding. Resolve the
+    // finding's CANONICAL node id from the graph (the backend escapes `\`/`|`, so a share value never
+    // matches a rebuilt `NODE_FINDING|type|value`) and match executions on that.
+    const canonicalId = (fullDto?.attackPathNodes ?? [])
+      .find(n => n.type === 'FINDING' && (n.typeFindings ?? '') === type && (n.value ?? n.label) === value)?.id;
+    const fromFull = canonicalId
+      ? (fullDto?.attackPathExecutions ?? [])
+          .filter(e => (e.findingsNodeIds ?? []).includes(canonicalId))
+          .map(e => e.ref)
+          .filter((r): r is string => !!r)
+      : [];
     if (fromFull.length > 0) {
       applyExec(fromFull);
       return;
@@ -1113,13 +1123,17 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // opens the same endpoint / verdicts / producing-actions panel a drawer pick does, without an extra
   // click. The origin endpoint is resolved from the finding's assetNodeId; returns false (so the
   // caller falls back to a plain in-place highlight) when it can't be resolved.
-  const openFindingFromGraph = useCallback((type: string, value: string, assetNodeId: string): boolean => {
-    const node = (dto?.attackPathNodes ?? []).find(n => n.id === assetNodeId);
-    if (!node) {
+  const openFindingFromGraph = useCallback((nodeId: string, type: string, value: string, assetNodeId: string): boolean => {
+    // Resolve the origin endpoint from EITHER graph: the chain view is built from the full graph, whose
+    // endpoint nodes may not all exist in the collapsed one. Bailing when the collapsed lookup missed left
+    // the previous finding's panel on screen (clicking a share still showed the last portscan).
+    const node = (dto?.attackPathNodes ?? []).find(n => n.id === assetNodeId)
+      ?? (fullDto?.attackPathNodes ?? []).find(n => n.id === assetNodeId);
+    if (!node && !chainMode) {
       return false;
     }
-    const endpointKey = node.ref ?? assetNodeId;
-    const label = node.hostname || node.label || endpointKey;
+    const endpointKey = node?.ref ?? assetNodeId;
+    const label = node?.hostname || node?.label || endpointKey;
     setDrawerCategory(null);
     setActiveCard(null);
     setSelectedInjectorId(null);
@@ -1140,18 +1154,22 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     setFindingDetail({
       type,
       value,
+      endpointNodeId: assetNodeId,
     });
     if (chainMode) {
       // In the causal-chain layout the graph already reads inject → endpoint → finding → next inject, so
       // clicking a finding must NOT collapse into the old focused-path layout. Keep the chain and select
       // the finding by its node id (its producer branch lights up via the upstream selection walk). Set
       // AFTER onEndpointClick, which resets selectedFindingId.
-      setSelectedFindingId(`NODE_FINDING|${type}|${value}`);
+      // Use the node's ACTUAL id, not a rebuilt `NODE_FINDING|type|value`: the backend escapes `\` and `|`
+      // in the id, so a share value like `\\host\NETLOGON` encodes with doubled backslashes. Rebuilding it
+      // raw never matched the executions' findingsNodeIds → shares showed "no producing action".
+      setSelectedFindingId(nodeId);
       // Producing executions come from the full graph's execution→findings links (available for EVERY
       // finding type, unlike the drawer categories which only cover credentials/users/files/cves), so the
       // panel lists only the injector(s) that actually produced this finding — not every injector that
       // merely reached the endpoint.
-      const findingNodeId = `NODE_FINDING|${type}|${value}`;
+      const findingNodeId = nodeId;
       const producerRefs = (fullDto?.attackPathExecutions ?? [])
         .filter(e => (e.findingsNodeIds ?? []).includes(findingNodeId))
         .map(e => e.ref)
@@ -1184,7 +1202,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       highlightGraphFinding(nodeId, type ?? '', value ?? '');
       return;
     }
-    if (assetNodeId && openFindingFromGraph(type ?? '', value ?? '', assetNodeId)) {
+    if (assetNodeId && openFindingFromGraph(nodeId, type ?? '', value ?? '', assetNodeId)) {
       return;
     }
     setSelectedNodeId(null);
@@ -1200,6 +1218,39 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     if (ownedRefs.size === 0) {
       return;
     }
+    // Prefer the full graph: each execution lists EVERY finding type it produced (findingsNodeIds), so
+    // shares surface here — the drawer category endpoint only covers credentials/users/cves/files and maps
+    // "files"→"file", so an injector that only produced shares wrongly read "No findings on this endpoint".
+    const findingById = new Map((fullDto?.attackPathNodes ?? [])
+      .filter(n => n.type === 'FINDING' && n.id)
+      .map(n => [n.id as string, n]));
+    if (findingById.size > 0) {
+      const byType = new Map<string, string[]>();
+      for (const e of fullDto?.attackPathExecutions ?? []) {
+        if (!e.ref || !ownedRefs.has(e.ref)) {
+          continue;
+        }
+        for (const fid of e.findingsNodeIds ?? []) {
+          const f = findingById.get(fid);
+          const type = f?.typeFindings ?? '';
+          const value = maskFindingValue(type, f?.value);
+          if (!type || !value) {
+            continue;
+          }
+          const arr = byType.get(type) ?? [];
+          if (!arr.includes(value)) {
+            arr.push(value);
+          }
+          byType.set(type, arr);
+        }
+      }
+      setInjectorFindingGroups([...byType.entries()].map(([type, values]) => ({
+        type,
+        values,
+      })));
+      return;
+    }
+    // Fallback (collapsed-only graph, no full data loaded): resolve from the drawer category endpoint.
     setInjectorFindingsLoading(true);
     Promise.all(
       INJECTOR_FINDING_CATEGORIES.map(cat => fetchFindingsByCategory(simulationId, cat, 0, DRAWER_FETCH_SIZE)
@@ -1226,7 +1277,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         })));
       })
       .finally(() => setInjectorFindingsLoading(false));
-  }, [simulationId]);
+  }, [simulationId, fullDto?.attackPathNodes, fullDto?.attackPathExecutions]);
 
   // Load an injector's own executions (its contracts) across every endpoint it reached, for the injector
   // panel — the action-side mirror of the endpoint panel. Executions are gathered from the injector's
@@ -1413,19 +1464,53 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     // injector (action) to its reach. Same visual, mirrored direction, so both feel consistent.
     const pathSet = new Set<string>();
     if (selectedInjectorId) {
+      // An injector's downstream highlight shows its REACH — the endpoints it targeted — not the findings.
+      // In the clustered view findings hang off the SHARED endpoint hub and aggregate every injector, so
+      // walking into them would wrongly credit one injector with another's findings (e.g. NetExec lighting
+      // Nmap's portscans). Stop the walk at endpoint/hub nodes: never propagate into finding-type nodes.
+      const findingNodeIds = new Set(
+        baseFlow.nodes
+          .filter(n => n.type === AP_FLOW_NODE_TYPE.finding
+            || n.type === AP_FLOW_NODE_TYPE.findingType
+            || n.type === AP_FLOW_NODE_TYPE.findingCluster)
+          .map(n => n.id),
+      );
       pathSet.add(selectedInjectorId);
       for (let pass = 0; pass < 6; pass += 1) {
         for (const e of baseFlow.edges) {
-          if (e.source && e.target && pathSet.has(e.source) && !pathSet.has(e.target)) {
+          if (e.source && e.target && pathSet.has(e.source) && !pathSet.has(e.target) && !findingNodeIds.has(e.target)) {
             pathSet.add(e.target);
           }
         }
       }
     } else if (selectedFindingId) {
+      // Walk UP a finding's PRODUCTION path only: endpoint(s) it was found on, then the injector(s) that
+      // actually produced it. Two guards keep it scoped on a shared/hub endpoint (chain mode): never follow
+      // a causal ("Triggered …") edge — those point forward to the NEXT action, so following them lit the
+      // whole downstream kill-chain (NetExec + shares) off a mere portscan click; and when we know the
+      // producing injector(s) from the finding's executions, don't light the other injectors that merely
+      // also reached the endpoint.
+      const injectorNodeIds = new Set(
+        baseFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector).map(n => n.id),
+      );
+      const producingInjectors = new Set<string>();
+      for (const e of fullDto?.attackPathEdges ?? []) {
+        if (e.type === 'EDGE_EXECUTIONS' && e.edgeSourceId
+          && (e.executionIds ?? []).some(id => highlightedExecutionIds.has(id))) {
+          producingInjectors.add(e.edgeSourceId);
+        }
+      }
+      const restrictInjectors = producingInjectors.size > 0;
       pathSet.add(selectedFindingId);
       for (let pass = 0; pass < 6; pass += 1) {
         for (const e of baseFlow.edges) {
+          if (e.type === AP_FLOW_CAUSAL_EDGE_TYPE) {
+            continue;
+          }
           if (e.target && e.source && pathSet.has(e.target) && !pathSet.has(e.source)) {
+            if (restrictInjectors && injectorNodeIds.has(e.source) && !producingInjectors.has(e.source)) {
+              continue;
+            }
             pathSet.add(e.source);
           }
         }
@@ -1454,7 +1539,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       })),
     };
     return applyFindingFilter(withSelection.nodes, withSelection.edges, focus);
-  }, [baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, selectedInjectorId, focus, dto?.attackPathEdges]);
+  }, [
+    baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, selectedInjectorId,
+    focus, dto?.attackPathEdges, fullDto?.attackPathEdges, highlightedExecutionIds,
+  ]);
 
   // Additive kill-chain causal edges (issue 6647) for the AGGREGATED view, merged on top of the status
   // graph. Drawn only when a consumed key matches a produced finding (or a dependsOn resolves). In chain
@@ -1474,6 +1562,24 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     [dto?.attackPathNodes, pathFinding],
   );
 
+  // The endpoint the finding-detail panel was discovered on, resolved from the finding's own origin node
+  // (works in chain mode where there is no focusedEndpoint), against either graph. Drives the panel's
+  // "Discovered on" line so it shows the real host/IP instead of the literal word "Endpoint".
+  const findingEndpoint = useMemo(
+    () => {
+      const id = findingDetail?.endpointNodeId;
+      if (id) {
+        const resolved = (fullDto?.attackPathNodes ?? []).find(n => n.id === id)
+          ?? (dto?.attackPathNodes ?? []).find(n => n.id === id);
+        if (resolved) {
+          return resolved;
+        }
+      }
+      return focusedEndpoint;
+    },
+    [findingDetail?.endpointNodeId, fullDto?.attackPathNodes, dto?.attackPathNodes, focusedEndpoint],
+  );
+
   // The action(s) that produced the finding shown in the details panel, mapped to a display row that
   // opens the Result & Terminal view. Uses the active finding's executions (a child sub-selection
   // overrides the main focused finding), resolved against the focused endpoint's execution feed.
@@ -1481,7 +1587,11 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     if (!findingDetail) {
       return [];
     }
-    return executions
+    // The endpoint feed loads asynchronously on click, so filtering it alone flashed "no producing action"
+    // until the fetch resolved. The full graph already carries the same executions in memory, so use it as
+    // the source when the feed has not loaded yet — the producing actions appear immediately.
+    const source = executions.length > 0 ? executions : (fullDto?.attackPathExecutions ?? []);
+    return source
       .filter(e => !!e.ref && highlightedExecutionIds.has(e.ref))
       .map(e => ({
         ref: e.ref as string,
@@ -1490,21 +1600,38 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         statusLabel: t(statusLabelKey(e.status)),
         subtitle: [e.agentName, e.privilege].filter(Boolean).join(' · '),
       }));
-  }, [findingDetail, highlightedExecutionIds, executions, theme, t]);
+  }, [findingDetail, highlightedExecutionIds, executions, fullDto?.attackPathExecutions, theme, t]);
 
-  // Prevention / detection / vulnerability verdicts shown at the top of the finding panel.
-  // TODO(#6647): replace this placeholder with the real per-finding expectation verdicts once the
-  // backend exposes them; for now a CVE finding is flagged vulnerable and the rest is a placeholder.
+  // Prevention / detection / vulnerability verdicts shown at the top of the finding panel, read from the
+  // finding node's real verdicts (#6912 now persists per-execution expectation statuses; the backend
+  // aggregates them worst-of across producers). The DTO already serialises the exact 'success'|'failed'|
+  // 'unknown' labels the panel expects, so this is a direct map (anything unrecognised → 'unknown').
   const findingExpectations = useMemo((): FindingExpectations | undefined => {
     if (!findingDetail) {
       return undefined;
     }
+    const matchByTypeValue = (n: AttackPathNodeDTO) => n.type === 'FINDING'
+      && n.typeFindings === findingDetail.type
+      && (n.value ?? n.label) === findingDetail.value;
+    let node: AttackPathNodeDTO | undefined;
+    for (const pool of [fullDto?.attackPathNodes, dto?.staticAttackPathFindings, dto?.attackPathNodes]) {
+      if (!pool) {
+        continue;
+      }
+      node = (selectedFindingId ? pool.find(n => n.id === selectedFindingId) : undefined)
+        ?? pool.find(matchByTypeValue);
+      if (node?.verdicts) {
+        break;
+      }
+    }
+    const norm = (s?: string): ExpectationVerdict => (s === 'success' || s === 'failed' ? s : 'unknown');
+    const v = node?.verdicts;
     return {
-      prevention: 'success',
-      detection: 'success',
-      vulnerability: findingDetail.type === 'cve' ? 'failed' : 'unknown',
+      prevention: norm(v?.prevention),
+      detection: norm(v?.detection),
+      vulnerability: norm(v?.vulnerability),
     };
-  }, [findingDetail]);
+  }, [findingDetail, selectedFindingId, fullDto?.attackPathNodes, dto?.staticAttackPathFindings, dto?.attackPathNodes]);
 
   // The clicked endpoint's findings grouped by type for the side panel; secrets (credentials) masked.
   const endpointFindingGroups = useMemo(() => {
@@ -1555,19 +1682,11 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     [drawerFilteredItems, drawerSafePage],
   );
 
-  // "Captured Files" has no backend counter: derive an approximate share count from the collapsed
-  // endpoints' per-type finding counts (temporary until a native "file" finding type exists).
-  const filesCount = useMemo(() => {
-    let sum = 0;
-    for (const n of dto?.attackPathNodes ?? []) {
-      if (n.type === 'ASSET') {
-        sum += n.findingCounts?.share ?? 0;
-      }
-    }
-    return sum;
-  }, [dto]);
+  // "Captured Files" reads the real backend files counter. SMB share findings are presented as file
+  // (an interim stand-in), so this is the distinct-share count today, but wired properly.
+  const filesCount = counters?.files ?? 0;
 
-  const focusedFilesCount = focusedEndpoint?.findingCounts?.share ?? 0;
+  const focusedFilesCount = focusedEndpoint?.findingCounts?.file ?? 0;
   const effectiveCounters = pathFinding
     ? {
         endpoints: 1,
@@ -1595,7 +1714,6 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         label: t('Captured Files'),
         icon: <InsertDriveFileOutlined fontSize="small" />,
         count: pathFinding ? focusedFilesCount : filesCount,
-        hint: t('Temporarily mapped to "share" findings'),
       },
       {
         key: 'credentials',
@@ -2266,22 +2384,31 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               )}
               {!loading && !forbidden && !error && !graphHasContent && (
                 <Box sx={{
-                  m: 'auto',
+                  // Fill the (relative) graph Paper and centre both ways so the empty-state is the focal point.
+                  position: 'absolute',
+                  inset: 0,
                   p: 4,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: theme.spacing(1.5),
+                  justifyContent: 'center',
+                  gap: theme.spacing(2),
                   textAlign: 'center',
                   color: 'text.secondary',
                 }}
                 >
                   <AccountTreeOutlined sx={{
-                    fontSize: 48,
-                    opacity: 0.35,
+                    fontSize: 88,
+                    opacity: 0.4,
                   }}
                   />
-                  <Typography variant="body1" sx={{ maxWidth: 440 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      maxWidth: 520,
+                      fontWeight: 500,
+                    }}
+                  >
                     {emptyStateMessage}
                   </Typography>
                   {scenarioHasNoSims && scenarioId && (
@@ -2352,8 +2479,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                     <FindingDetailPanel
                       value={maskFindingValue(findingDetail.type, findingDetail.value)}
                       type={findingDetail.type}
-                      endpointLabel={focusedEndpoint?.hostname || focusedEndpoint?.label || pathFinding?.endpointKey || t('Endpoint')}
-                      endpointSub={[focusedEndpoint?.ip, focusedEndpoint?.platform].filter(Boolean).join(' · ')}
+                      endpointLabel={findingEndpoint?.hostname || findingEndpoint?.label || findingEndpoint?.ref || pathFinding?.endpointKey || t('Endpoint')}
+                      endpointSub={[findingEndpoint?.ip, findingEndpoint?.platform].filter(Boolean).join(' · ')}
                       expectations={findingExpectations}
                       actions={producingActions}
                       activeRef={detailExecutionId}
@@ -2490,38 +2617,46 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           {!findingsLoading && drawerFilteredItems.length === 0 && (
             <Alert severity="info">{t('No findings')}</Alert>
           )}
-          {!findingsLoading && drawerPageItems.map((item, index) => (
-            <Box
-              key={`${item.endpointKey}-${item.value}-${index}`}
-              role="button"
-              tabIndex={0}
-              onClick={() => onFindingItemClick(item)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onFindingItemClick(item);
-                }
-              }}
-              sx={{
-                'py': 0.75,
-                'px': 0.5,
-                'borderRadius': 1,
-                'borderBottom': `1px solid ${theme.palette.divider}`,
-                'cursor': 'pointer',
-                '&:hover': { backgroundColor: 'action.hover' },
-                '&:focus-visible': {
-                  backgroundColor: 'action.hover',
-                  outline: `2px solid ${theme.palette.primary.main}`,
-                  outlineOffset: -2,
-                },
-              }}
-            >
-              <Typography variant="body2" title={maskFindingValue(item.type, item.value)} sx={{ wordBreak: 'break-all' }}>{maskFindingValue(item.type, item.value)}</Typography>
-              <Typography variant="caption" color="text.secondary" noWrap title={item.endpointKey}>
-                {item.endpointKey}
-              </Typography>
-            </Box>
-          ))}
+          {!findingsLoading && drawerPageItems.map((item, index) => {
+            // Friendly endpoint hostname (never the raw asset id/uuid); undefined when unresolved.
+            const endpointName = item.endpointKey ? endpointLabelByRef.get(item.endpointKey) : undefined;
+            return (
+              <Box
+                key={`${item.endpointKey}-${item.value}-${index}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => onFindingItemClick(item)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onFindingItemClick(item);
+                  }
+                }}
+                sx={{
+                  'py': 0.75,
+                  'px': 0.5,
+                  'borderRadius': 1,
+                  'borderBottom': `1px solid ${theme.palette.divider}`,
+                  'cursor': 'pointer',
+                  '&:hover': { backgroundColor: 'action.hover' },
+                  '&:focus-visible': {
+                    backgroundColor: 'action.hover',
+                    outline: `2px solid ${theme.palette.primary.main}`,
+                    outlineOffset: -2,
+                  },
+                }}
+              >
+                <Typography variant="body2" title={maskFindingValue(item.type, item.value)} sx={{ wordBreak: 'break-all' }}>{maskFindingValue(item.type, item.value)}</Typography>
+                {/* Show the endpoint's friendly hostname, never the raw asset id/uuid. Hidden when it can't
+                  be resolved to a name so no bare id ever surfaces under the value. */}
+                {endpointName && (
+                  <Typography variant="caption" color="text.secondary" noWrap title={endpointName}>
+                    {endpointName}
+                  </Typography>
+                )}
+              </Box>
+            );
+          })}
           {!findingsLoading && drawerFilteredItems.length > DRAWER_PAGE_SIZE && (
             <Box sx={{
               display: 'flex',

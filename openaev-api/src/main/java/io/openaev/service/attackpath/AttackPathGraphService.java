@@ -1,5 +1,6 @@
 package io.openaev.service.attackpath;
 
+import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow;
@@ -94,6 +95,14 @@ public class AttackPathGraphService {
   private static final String CATEGORY_CREDENTIALS = "credentials";
   private static final String CREDENTIAL_MASK = "••••";
 
+  // Interim stand-in: SMB `share` findings are presented as captured files until a native `file`
+  // finding type exists. presentType is applied once at each finding-read boundary, so every
+  // downstream node id / counter / DTO presents `file`. To drop the stand-in later, remove the
+  // `share` source from FILE_SOURCE_TYPES and presentType.
+  private static final String SHARE_TYPE = "share";
+  private static final String FILE_TYPE = "file";
+  private static final Set<String> FILE_SOURCE_TYPES = Set.of(SHARE_TYPE, FILE_TYPE);
+
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathFindingRepository findingRepository;
   private final InjectorContractRepository injectorContractRepository;
@@ -165,7 +174,7 @@ public class AttackPathGraphService {
     }
     Page<AttackPathFindingListRow> page =
         findingRepository.findPageByTypes(simulationId, types, pageable);
-    List<AttackPathFindingListRow> rows = page.getContent();
+    List<AttackPathFindingListRow> rows = presentListRows(page.getContent());
     FindingLinkData links = findingLinks(rows);
     boolean maskValue = CATEGORY_CREDENTIALS.equalsIgnoreCase(category);
     List<AttackPathFindingItemDTO> items =
@@ -205,7 +214,8 @@ public class AttackPathGraphService {
             AttackPathFindingVerdicts.ofExecution(
                 e.getPreventionStatus(), e.getDetectionStatus(), e.getVulnerabilityStatus()));
     List<AttackPathExecutionFindingItemDTO> findings = new ArrayList<>();
-    for (AttackPathEndpointFindingRow f : findingRepository.findByExecutionId(executionId)) {
+    for (AttackPathEndpointFindingRow f :
+        presentEndpointFindingRows(findingRepository.findByExecutionId(executionId))) {
       boolean credential = CATEGORY_CREDENTIALS.equals(f.type());
       findings.add(
           new AttackPathExecutionFindingItemDTO(
@@ -216,7 +226,7 @@ public class AttackPathGraphService {
     // links to, so endpoint-scoped masking never leaves a known secret in the clear.
     Set<String> secrets = new HashSet<>();
     for (AttackPathEndpointFindingVerdictRow f :
-        findingRepository.findByEndpoint(simulationId, e.getTargetKey())) {
+        presentVerdictRows(findingRepository.findByEndpoint(simulationId, e.getTargetKey()))) {
       if (CATEGORY_CREDENTIALS.equals(f.type())) {
         String secret = credentialSecret(f.value());
         if (secret != null && !secret.isEmpty()) {
@@ -343,8 +353,10 @@ public class AttackPathGraphService {
    * The finding types each product widget aggregates (spec 5048 section 2:
    * Files/Credentials/Users/CVEs; Endpoints is a separate endpoint-group read, not a finding type).
    * {@code port} is a graph finding type but not a product widget, so it has no category here;
-   * {@code file} has no seed finding type yet (an open question), so the files drawer is empty
-   * until ingestion produces one. An unknown category yields no types (an empty page).
+   * {@code files} aggregates the SMB {@code share} source type (presented as {@code file}), an
+   * interim stand-in until a native {@code file} finding type exists. Any other category is treated
+   * as a literal finding type (data-driven, mirroring the front's cards), so a category matching no
+   * finding type yields an empty page.
    */
   private static Set<String> categoryTypes(String category) {
     if (category == null) {
@@ -354,9 +366,83 @@ public class AttackPathGraphService {
       case CATEGORY_CREDENTIALS -> Set.of("credentials");
       case "users" -> Set.of("username", "admin_username");
       case "cves" -> Set.of("cve");
-      case "files" -> Set.of("file");
-      default -> Set.of();
+      case "files" -> FILE_SOURCE_TYPES;
+      // Any other category is a literal finding type (data-driven, mirroring the front's cards),
+      // so the "Text fields"/etc. cards open a populated drawer instead of an empty one.
+      default -> Set.of(category.toLowerCase(Locale.ROOT));
     };
+  }
+
+  /**
+   * Interim stand-in: present a stored SMB {@code share} finding as the native {@code file} type.
+   */
+  private static String presentType(String rawType) {
+    return SHARE_TYPE.equals(rawType) ? FILE_TYPE : rawType;
+  }
+
+  // Relabel the finding type once at each repository-read boundary, so every downstream id / node /
+  // counter / DTO derives from the presented type (single choke point). Records are immutable and
+  // List overloads would clash on erasure, so each read has a distinctly-named mapper.
+  private static List<AttackPathFindingRow> presentGraphRows(List<AttackPathFindingRow> rows) {
+    return rows.stream()
+        .map(
+            r ->
+                new AttackPathFindingRow(
+                    r.id(),
+                    presentType(r.type()),
+                    r.value(),
+                    r.endpointId(),
+                    r.endpointRaw(),
+                    r.endpointKey(),
+                    r.executionId()))
+        .toList();
+  }
+
+  private static List<AttackPathEndpointFindingVerdictRow> presentVerdictRows(
+      List<AttackPathEndpointFindingVerdictRow> rows) {
+    return rows.stream()
+        .map(
+            r ->
+                new AttackPathEndpointFindingVerdictRow(
+                    presentType(r.type()),
+                    r.value(),
+                    r.preventionStatus(),
+                    r.detectionStatus(),
+                    r.vulnerabilityStatus()))
+        .toList();
+  }
+
+  private static List<AttackPathEndpointFindingRow> presentEndpointFindingRows(
+      List<AttackPathEndpointFindingRow> rows) {
+    return rows.stream()
+        .map(r -> new AttackPathEndpointFindingRow(presentType(r.type()), r.value()))
+        .toList();
+  }
+
+  private static List<AttackPathFindingListRow> presentListRows(
+      List<AttackPathFindingListRow> rows) {
+    return rows.stream()
+        .map(
+            r ->
+                new AttackPathFindingListRow(
+                    r.id(), presentType(r.type()), r.value(), r.endpointKey()))
+        .toList();
+  }
+
+  private static List<AttackPathTypeCountRow> presentTypeCounts(List<AttackPathTypeCountRow> rows) {
+    return rows.stream()
+        .map(r -> new AttackPathTypeCountRow(presentType(r.type()), r.distinctValues()))
+        .toList();
+  }
+
+  private static List<AttackPathEndpointTypeCountRow> presentEndpointTypeCounts(
+      List<AttackPathEndpointTypeCountRow> rows) {
+    return rows.stream()
+        .map(
+            r ->
+                new AttackPathEndpointTypeCountRow(
+                    r.endpointKey(), presentType(r.type()), r.distinctValues()))
+        .toList();
   }
 
   /**
@@ -382,7 +468,8 @@ public class AttackPathGraphService {
 
   private AttackPathDTO fullGraph(String simulationId) {
     List<AttackPathExecutionRow> executions = executionRepository.findGraphRows(simulationId);
-    List<AttackPathFindingRow> findings = findingRepository.findGraphRows(simulationId);
+    List<AttackPathFindingRow> findings =
+        presentGraphRows(findingRepository.findGraphRows(simulationId));
     return assemble(executions, findings);
   }
 
@@ -393,7 +480,7 @@ public class AttackPathGraphService {
   @Transactional(readOnly = true)
   public AttackPathExpandDTO expandEndpoint(String simulationId, String endpointKey) {
     List<AttackPathEndpointFindingVerdictRow> findings =
-        findingRepository.findByEndpoint(simulationId, endpointKey);
+        presentVerdictRows(findingRepository.findByEndpoint(simulationId, endpointKey));
     String assetNodeId = AttackPathIds.endpointNode(endpointKey);
     Map<String, AttackPathNodeDTO> typeNodes = new LinkedHashMap<>();
     Map<String, AttackPathNodeDTO> findingNodes = new LinkedHashMap<>();
@@ -474,7 +561,8 @@ public class AttackPathGraphService {
       feedByExecutionId.put(e.id(), executionFeedNode(e));
     }
     applyKillChain(executions, feedByExecutionId);
-    applyContractNames(executions, feedByExecutionId);
+    Map<String, String> contractNames = applyContractNames(executions, feedByExecutionId);
+    applyInjectorNodeLabels(nodes, contractsByInjectorNode, contractNames);
 
     // Endpoint (ASSET) nodes, with attributes and colour from the executions targeting them.
     for (Map.Entry<String, List<AttackPathExecutionRow>> entry : byTarget.entrySet()) {
@@ -497,6 +585,7 @@ public class AttackPathGraphService {
     Set<String> userKeys = new HashSet<>();
     Set<String> cveKeys = new HashSet<>();
     Set<String> portKeys = new HashSet<>();
+    Set<String> fileKeys = new HashSet<>();
     for (AttackPathFindingRow f : findings) {
       String assetNodeId = AttackPathIds.endpointNode(f.endpointKey());
       String typeNodeId = AttackPathIds.findingTypeNode(f.type(), f.endpointKey());
@@ -544,6 +633,7 @@ public class AttackPathGraphService {
         case "username", "admin_username" -> userKeys.add(counterKey);
         case "cve" -> cveKeys.add(counterKey);
         case "port" -> portKeys.add(counterKey);
+        case "file" -> fileKeys.add(counterKey);
         default -> {
           // other finding types do not feed a top-bar counter
         }
@@ -576,7 +666,8 @@ public class AttackPathGraphService {
             credentialKeys.size(),
             userKeys.size(),
             cveKeys.size(),
-            portKeys.size());
+            portKeys.size(),
+            fileKeys.size());
     return new AttackPathDTO(
         staticFindings,
         new ArrayList<>(feedByExecutionId.values()),
@@ -593,8 +684,9 @@ public class AttackPathGraphService {
    */
   private void enrichCollapsedInjectors(String simulationId, Map<String, AttackPathNodeDTO> nodes) {
     Map<String, Set<String>> contractsByInjectorNode = new LinkedHashMap<>();
+    Set<String> externalIds = new HashSet<>();
     for (AttackPathInjectorMetaRow meta : executionRepository.findInjectorMetadata(simulationId)) {
-      String nodeId = AttackPathIds.injectorNode(meta.sourceInjector());
+      String nodeId = AttackPathIds.injectorNode(meta.sourceInjector(), meta.contractExternalId());
       AttackPathNodeDTO injectorNode = nodes.get(nodeId);
       if (injectorNode == null) {
         continue;
@@ -606,8 +698,10 @@ public class AttackPathGraphService {
         contractsByInjectorNode
             .computeIfAbsent(nodeId, k -> new LinkedHashSet<>())
             .add(meta.contractExternalId());
+        externalIds.add(meta.contractExternalId());
       }
     }
+    applyInjectorNodeLabels(nodes, contractsByInjectorNode, resolveContractNames(externalIds));
     resolveInjectorAttackPatterns(nodes, contractsByInjectorNode);
   }
 
@@ -665,9 +759,10 @@ public class AttackPathGraphService {
     List<AttackPathEndpointGroupRow> endpoints =
         executionRepository.findEndpointGroups(simulationId);
     List<AttackPathEdgeGroupRow> edges = executionRepository.findEdgeGroups(simulationId);
-    List<AttackPathTypeCountRow> typeCounts = findingRepository.findTypeCounts(simulationId);
+    List<AttackPathTypeCountRow> typeCounts =
+        presentTypeCounts(findingRepository.findTypeCounts(simulationId));
     List<AttackPathEndpointTypeCountRow> endpointTypeCounts =
-        findingRepository.findEndpointTypeCounts(simulationId);
+        presentEndpointTypeCounts(findingRepository.findEndpointTypeCounts(simulationId));
 
     Map<String, Map<String, Long>> findingCountsByEndpoint = new LinkedHashMap<>();
     for (AttackPathEndpointTypeCountRow row : endpointTypeCounts) {
@@ -728,18 +823,20 @@ public class AttackPathGraphService {
     long users = 0;
     long cves = 0;
     long ports = 0;
+    long files = 0;
     for (AttackPathTypeCountRow t : typeCounts) {
       switch (t.type()) {
         case "credentials" -> credentials += t.distinctValues();
         case "username", "admin_username" -> users += t.distinctValues();
         case "cve" -> cves += t.distinctValues();
         case "port" -> ports += t.distinctValues();
+        case "file" -> files += t.distinctValues();
         default -> {
           // other finding types do not feed a top-bar counter
         }
       }
     }
-    return new AttackPathCounters(endpoints, credentials, users, cves, ports);
+    return new AttackPathCounters(endpoints, credentials, users, cves, ports, files);
   }
 
   /** Worst-case severity of an endpoint's executions from the aggregated red/orange counts. */
@@ -755,7 +852,7 @@ public class AttackPathGraphService {
 
   private String collapsedSourceNodeId(AttackPathEdgeGroupRow g) {
     return SOURCE_INJECTOR.equals(g.sourceKind())
-        ? AttackPathIds.injectorNode(g.sourceInjector())
+        ? AttackPathIds.injectorNode(g.sourceInjector(), g.contractExternalId())
         : AttackPathIds.endpointNode(g.sourceAssetId());
   }
 
@@ -779,7 +876,7 @@ public class AttackPathGraphService {
 
   private String sourceNodeId(AttackPathExecutionRow e) {
     return SOURCE_INJECTOR.equals(e.sourceKind())
-        ? AttackPathIds.injectorNode(e.sourceInjector())
+        ? AttackPathIds.injectorNode(e.sourceInjector(), e.contractExternalId())
         : AttackPathIds.endpointNode(e.sourceAssetId());
   }
 
@@ -933,9 +1030,10 @@ public class AttackPathGraphService {
    * external id and sets it on the execution feed node, so the front can name WHAT was launched on
    * the inject→endpoint edge. Batched over the DISTINCT external ids (a run uses a handful of
    * contracts, not one per execution), so this is a few reads regardless of the execution count.
-   * No-op when no execution carries a contract.
+   * No-op when no execution carries a contract. Returns the resolved {@code externalId → name} map
+   * so the injector node labels can reuse it without a second read.
    */
-  private void applyContractNames(
+  private Map<String, String> applyContractNames(
       List<AttackPathExecutionRow> executions, Map<String, AttackPathNodeDTO> feedByExecutionId) {
     Set<String> externalIds =
         executions.stream()
@@ -943,22 +1041,11 @@ public class AttackPathGraphService {
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
     if (externalIds.isEmpty()) {
-      return;
+      return Map.of();
     }
-    Map<String, String> nameByExternalId = new HashMap<>();
-    for (String externalId : externalIds) {
-      injectorContractRepository
-          .findByIdOrExternalId(externalId, externalId)
-          .ifPresent(
-              contract -> {
-                String name = contractLabel(contract.getLabels());
-                if (name != null) {
-                  nameByExternalId.put(externalId, name);
-                }
-              });
-    }
+    Map<String, String> nameByExternalId = resolveContractNames(externalIds);
     if (nameByExternalId.isEmpty()) {
-      return;
+      return nameByExternalId;
     }
     for (AttackPathExecutionRow e : executions) {
       String externalId = e.contractExternalId();
@@ -970,6 +1057,54 @@ public class AttackPathGraphService {
         node.setContractName(nameByExternalId.get(externalId));
       }
     }
+    return nameByExternalId;
+  }
+
+  /**
+   * Labels each per-contract injector node with its contract's name, so two nodes of the same
+   * injector are distinguishable on the map. Reuses the names already resolved for the feed nodes,
+   * so no extra query; a node whose contract name did not resolve keeps its injector-name label.
+   */
+  private void applyInjectorNodeLabels(
+      Map<String, AttackPathNodeDTO> nodes,
+      Map<String, Set<String>> contractsByInjectorNode,
+      Map<String, String> nameByExternalId) {
+    contractsByInjectorNode.forEach(
+        (nodeId, contractIds) -> {
+          AttackPathNodeDTO node = nodes.get(nodeId);
+          if (node == null) {
+            return;
+          }
+          // A per-contract injector node maps to exactly one contract.
+          contractIds.stream()
+              .map(nameByExternalId::get)
+              .filter(Objects::nonNull)
+              .findFirst()
+              .ifPresent(node::setLabel);
+        });
+  }
+
+  /**
+   * Resolves the {@code externalId → contract name} map for a set of injector-contract external ids
+   * in a single batched read. Shared by the feed-node contract names and the injector node labels
+   * so neither pays for a second read, and constant in the number of contracts.
+   */
+  private Map<String, String> resolveContractNames(Set<String> externalIds) {
+    if (externalIds.isEmpty()) {
+      return Map.of();
+    }
+    List<InjectorContract> contracts =
+        injectorContractRepository.findAllByIdOrExternalIdIn(externalIds);
+    Map<String, String> nameByExternalId = new HashMap<>();
+    for (String externalId : externalIds) {
+      contracts.stream()
+          .filter(c -> externalId.equals(c.getExternalId()) || externalId.equals(c.getId()))
+          .findFirst()
+          .map(c -> contractLabel(c.getLabels()))
+          .filter(Objects::nonNull)
+          .ifPresent(name -> nameByExternalId.put(externalId, name));
+    }
+    return nameByExternalId;
   }
 
   /**
