@@ -89,12 +89,23 @@ const TeamDetail = () => {
     [team, usersMap],
   );
 
+  // Persons: server-paginated players search scoped to this team (same logic
+  // as the injects played and findings sections below).
+  const [persons, setPersons] = useState<PlayerOutput[]>([]);
+  const [personsLoading, setPersonsLoading] = useState(true);
+  // Bumped whenever the team membership or a player actually changes (add,
+  // remove, update, delete) so the list refreshes reactively - never on a mere
+  // open/close of the manage-players drawer.
+  const [personsReload, setPersonsReload] = useState(0);
+
   const teamContext: TeamContextType = useMemo(() => ({
-    onAddUsersTeam(id: Team['team_id'], userIds: string[]): Promise<void> {
-      return dispatch(updateTeamPlayers(id, { team_users: [...(team?.team_users ?? []), ...userIds] }));
+    async onAddUsersTeam(id: Team['team_id'], userIds: string[]): Promise<void> {
+      await dispatch(updateTeamPlayers(id, { team_users: [...(team?.team_users ?? []), ...userIds] }));
+      setPersonsReload(count => count + 1);
     },
-    onRemoveUsersTeam(id: Team['team_id'], userIds: string[]): Promise<void> {
-      return dispatch(updateTeamPlayers(id, { team_users: (team?.team_users ?? []).filter((u: string) => !userIds.includes(u)) }));
+    async onRemoveUsersTeam(id: Team['team_id'], userIds: string[]): Promise<void> {
+      await dispatch(updateTeamPlayers(id, { team_users: (team?.team_users ?? []).filter((u: string) => !userIds.includes(u)) }));
+      setPersonsReload(count => count + 1);
     },
     searchTeams(input: SearchPaginationInput): Promise<{ data: Page<TeamOutput> }> {
       return searchTeams(input) as Promise<{ data: Page<TeamOutput> }>;
@@ -115,12 +126,6 @@ const TeamDetail = () => {
     [teamId],
   );
 
-  // Persons: server-paginated players search scoped to this team (same logic
-  // as the injects played and findings sections below).
-  const [persons, setPersons] = useState<PlayerOutput[]>([]);
-  const [personsLoading, setPersonsLoading] = useState(true);
-  // Bumped when the manage-players drawer closes so the list reflects the changes.
-  const [personsReload, setPersonsReload] = useState(0);
   const { queryableHelpers: personsHelpers, searchPaginationInput: personsInput } = useQueryableWithLocalStorage(
     'team-persons',
     buildSearchPagination({ sorts: initSorting('user_email') }),
@@ -342,12 +347,11 @@ const TeamDetail = () => {
         {managing && (
           <TeamPlayers
             teamId={teamId}
-            handleClose={() => {
-              setManaging(false);
-              dispatch(fetchTeam(teamId));
-              dispatch(fetchTeamPlayers(teamId));
-              setPersonsReload(count => count + 1);
-            }}
+            // Closing without touching anything must not reload the page lists:
+            // every mutation already refreshes reactively (context handlers +
+            // onPlayersChange below).
+            handleClose={() => setManaging(false)}
+            onPlayersChange={() => setPersonsReload(count => count + 1)}
             canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS)}
           />
         )}

@@ -127,11 +127,13 @@ interface Props {
   teamId: Team['team_id'];
   handleClose: () => void;
   canManage: boolean;
+  /** Notified when a player is updated or deleted from the drawer, so the host page can refresh its own lists. */
+  onPlayersChange?: () => void;
 }
 
 type UserStoreExtended = UserStore & { user_enabled: boolean };
 
-const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage }) => {
+const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage, onPlayersChange }) => {
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
@@ -300,7 +302,14 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage 
               classes={{ root: classes.item }}
               divider
               secondaryAction={canManage
-                ? (<PlayerPopover user={user} teamId={teamId} />)
+                ? (
+                    <PlayerPopover
+                      user={user}
+                      teamId={teamId}
+                      onUpdate={() => onPlayersChange?.()}
+                      onDelete={() => onPlayersChange?.()}
+                    />
+                  )
                 : <span> &nbsp; </span>}
             >
               <ListItemIcon>
