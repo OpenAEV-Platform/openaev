@@ -25,9 +25,11 @@ import io.openaev.rest.mitigation.MitigationApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.MapperService;
+import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
+import io.openaev.service.attackpath.ingestion.AttackPathVerdictSyncService;
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
 import io.openaev.utils.mapper.CveMapper;
 import io.openaev.utils.mapper.VulnerabilityMapper;
@@ -177,6 +179,9 @@ class TenantActiveTableAccessArchTest {
               // Read path, driven by the TxCtx-carrying AttackPathApi (pinned by
               // TenantScopedEntrypointsTxCtxArchTest):
               AttackPathGraphService.class,
+              // Same read path, same TxCtx-carrying controller: the delta endpoint's cursor reads
+              // (pinned by AttackPathDeltaApiTest and AttackPathHttpIsolationTest):
+              AttackPathDeltaService.class,
               // Background writer, scoped: opens its own transaction through the tenant primitive
               // with the inject's tenant, and stamps the row through TenantWriteScopeResolver.
               // Pinned by AttackPathIngestionTenantAttributionTest:
@@ -184,7 +189,11 @@ class TenantActiveTableAccessArchTest {
               // Scoped reader: reads the step's execution rows inside its own executeNew (the
               // inject's tenant) with an explicit tenantId predicate, to attribute copied findings.
               // Pinned by AttackPathFindingIngestionServiceTest:
-              AttackPathFindingIngestionService.class)
+              AttackPathFindingIngestionService.class,
+              // Scoped writer: pushes expectation verdicts onto the projection inside its own
+              // executeNew (the inject's tenant), with an explicit tenantId predicate on every
+              // guarded update. Pinned by AttackPathVerdictSyncTest:
+              AttackPathVerdictSyncService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(AttackPathExecutionRepository.class)
@@ -200,6 +209,9 @@ class TenantActiveTableAccessArchTest {
               // Read path, driven by the TxCtx-carrying AttackPathApi (pinned by
               // TenantScopedEntrypointsTxCtxArchTest):
               AttackPathGraphService.class,
+              // Same read path, same TxCtx-carrying controller: the delta endpoint's cursor reads
+              // (pinned by AttackPathDeltaApiTest and AttackPathHttpIsolationTest):
+              AttackPathDeltaService.class,
               // Scoped writer: deletes a simulation's findings on reset/delete through the tenant
               // primitive (executeNew with the exercise's tenant). Pinned by
               // AttackPathIngestionTenantAttributionTest#deleteClearsTheSimulationScopedToItsTenant.

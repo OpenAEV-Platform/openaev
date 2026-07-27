@@ -59,4 +59,15 @@ public class AttackPathFinding implements TenantBase {
 
   @Column(name = "attackpath_finding_endpoint_key", nullable = false)
   private String endpointKey;
+
+  /**
+   * The simulation's {@link AttackPathGraphVersion} value at the write that created this row,
+   * stamped in the same transaction as the bump so the delta read is a cursor over {@code
+   * (simulation_id, row_version)}. The copy is insert-only ({@code ON CONFLICT DO NOTHING}), so a
+   * re-copied identical finding keeps its original version: nothing changed, nothing to ship. A
+   * future writer that UPDATES a finding row must re-stamp this column, or its change will never
+   * reach a client.
+   */
+  @Column(name = "attackpath_finding_row_version", nullable = false)
+  private long rowVersion;
 }
