@@ -255,7 +255,8 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     // Act
     new TransactionTemplate(transactionManager)
         .executeWithoutResult(
-            status -> ingestionService.updateExpectationByExecutionIndex(inject, expectationResults));
+            status ->
+                ingestionService.updateExpectationByExecutionIndex(inject, expectationResults));
 
     // Assert
     AttackPathExecution updated = executionRepository.findById(executionId).orElseThrow();
