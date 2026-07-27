@@ -198,6 +198,48 @@ class V1_DataImporterTest extends IntegrationTest {
 
   @Test
   @Transactional
+  void
+      testScenario_given_payloadInject_without_payloadInjector_registered_when_starterpack_then_should_attach_payload_to_contract()
+          throws IOException {
+    // -- PREPARE --
+    // Fresh platform: no payload-supporting injector is registered. The starter-pack import
+    // creates the payload and must carry it onto the injector-less contract (regression: the
+    // contract was persisted without its payload, showing a question mark / "no payload
+    // attached").
+    ObjectMapper mapper = new ObjectMapper();
+    String jsonContent =
+        new String(
+            Files.readAllBytes(
+                Paths.get(
+                    "src/test/resources/importer-v1/import-starterpack-scenario-with-payload.json")));
+    this.importNode = mapper.readTree(jsonContent);
+
+    // -- EXECUTE --
+    this.importer.importData(
+        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- ASSERT --
+    InjectorContract importedContract =
+        this.injectorContractRepository
+            .findById("6356f1c3-4152-4cfe-a595-cddcd1d9d233")
+            .orElseThrow();
+    // The created payload is attached to the starter-pack contract, not orphaned
+    assertNotNull(
+        importedContract.getPayload(),
+        "The starter-pack contract must carry the payload created during import");
+    assertEquals("Cleanup artifacts", importedContract.getPayload().getName());
+    // No injector link yet: the payload injector adopts the contract when it registers
+    assertTrue(importedContract.getInjectors().isEmpty());
+    // No payload is left orphaned by the import
+    for (Payload payload : payloadRepository.findAll()) {
+      assertTrue(
+          injectorContractRepository.findInjectorContractByPayload(payload).isPresent(),
+          "Payload '" + payload.getName() + "' must be referenced by an injector contract");
+    }
+  }
+
+  @Test
+  @Transactional
   void testImportXTMHubScenarios() throws IOException {
     MockitoAnnotations.openMocks(this);
 

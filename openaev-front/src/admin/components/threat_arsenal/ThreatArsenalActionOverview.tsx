@@ -42,6 +42,7 @@ import {
   type AttackPattern,
   type Command,
   type DnsResolution,
+  type Document as ApiDocument,
   type Domain,
   type Executable,
   type FileDrop,
@@ -80,6 +81,10 @@ interface Props {
   // Security platform types expected to fulfil each technical expectation
   // (empty/absent = any security platform).
   expectedSecurityPlatforms?: Record<string, string[]>;
+  // Optional override for the Redux documents map, for hosts (e.g. the inject
+  // update drawer) that fetch the payload documents ad hoc instead of loading
+  // the whole store.
+  documentsMap?: Record<string, ApiDocument>;
   loading: boolean;
 }
 
@@ -88,18 +93,20 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
   payload,
   expectations,
   expectedSecurityPlatforms,
+  documentsMap: documentsMapOverride,
   loading,
 }) => {
   const { t, tPick, nsdt } = useFormatter();
   const theme = useTheme();
 
-  const { attackPatternsMap, documentsMap, allDomains } = useHelper(
+  const { attackPatternsMap, documentsMap: storeDocumentsMap, allDomains } = useHelper(
     (helper: AttackPatternHelper & DocumentHelper & DomainHelper) => ({
       attackPatternsMap: helper.getAttackPatternsMap(),
       documentsMap: helper.getDocumentsMap(),
       allDomains: helper.getDomains(),
     }),
   );
+  const documentsMap = documentsMapOverride ?? storeDocumentsMap;
 
   const attackPatternIds = action.action_attack_patterns_ids ?? [];
   const attackPatterns = useMemo(

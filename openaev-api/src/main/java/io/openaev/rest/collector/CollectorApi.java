@@ -215,8 +215,9 @@ public class CollectorApi extends RestBehavior {
               + " an active collector re-registers on its next heartbeat.")
   @Transactional(rollbackFor = Exception.class)
   public void deleteCollector(@RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) {
-    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    collectorRepository.deleteByIdAndTenantId(collectorId, tenantId);
+    // Enforce a single-tenant write scope (400 on ambiguous selector) before issuing the delete.
+    writeScopeResolver.tenantForWrite(ctx, null);
+    collectorRepository.deleteByCollectorId(collectorId);
   }
 
   @PostMapping(
@@ -243,7 +244,8 @@ public class CollectorApi extends RestBehavior {
           true,
           input.getPeriod(),
           input.getSecurityPlatform(),
-          iconStream);
+          iconStream,
+          input.getAuthor());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

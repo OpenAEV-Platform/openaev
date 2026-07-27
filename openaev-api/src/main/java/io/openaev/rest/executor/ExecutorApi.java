@@ -13,6 +13,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.executors.ExecutorService;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.executor.form.ExecutorCreateInput;
 import io.openaev.rest.executor.form.ExecutorOutput;
@@ -21,6 +22,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.connectors.PlatformConnectors;
 import io.openaev.utils.AgentUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -163,9 +165,19 @@ public class ExecutorApi extends RestBehavior {
       summary = "Delete an executor",
       description =
           "Removes a registered executor. Intended for stopped executors that no longer ping;"
-              + " an active executor re-registers on its next heartbeat.")
+              + " an active executor re-registers on its next heartbeat. The agent executor drives"
+              + " every agent and cannot be removed.")
   @Transactional(rollbackFor = Exception.class)
   public void deleteExecutor(TxCtx ctx, @PathVariable String executorId) {
+    executorRepository
+        .findByExecutorId(executorId)
+        .ifPresent(
+            executor -> {
+              if (PlatformConnectors.isPlatformExecutor(executor.getType())) {
+                throw new BadRequestException(
+                    "The agent executor is required by the platform and cannot be deleted");
+              }
+            });
     executorService.remove(executorId);
   }
 

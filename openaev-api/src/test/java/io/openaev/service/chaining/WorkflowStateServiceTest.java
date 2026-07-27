@@ -242,7 +242,7 @@ class WorkflowStateServiceTest {
 
       Map<Set<WorkflowStateEntries.Pair>, WorkflowStateEntries.Correlated> existingIndex =
           new HashMap<>();
-      existingIndex.put(existingPairs, new WorkflowStateEntries.Correlated(existingPairs));
+      existingIndex.put(existingPairs, new WorkflowStateEntries.Correlated(existingPairs, null));
 
       WorkflowStateEntries stateEntries = mock(WorkflowStateEntries.class);
       when(stateEntries.isPathCorrelated(path)).thenReturn(true);
@@ -432,5 +432,351 @@ class WorkflowStateServiceTest {
       assertEquals(
           Set.of(validAssetGroupId), persistedEntries.getInputByKey("AssetGroupId").getValues());
     }
+
+    @Test
+    @DisplayName("should map complex subfields to contextual primitive keys")
+    void givenComplexTypeSubfields_shouldStoreUnderContextualPrimitiveTypes() {
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = Workflow.builder().id(workflowId).build();
+
+      WorkflowStateEntries initialEntries =
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      WorkflowState globalState =
+          WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
+
+      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
+          .thenReturn(globalState);
+      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflow)))
+          .thenReturn(
+              new PrimitiveValidationContext(
+                  Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
+                  Set.of(), Set.of()));
+
+      JsonObject dataToSync =
+          JsonParser.parseString(
+                  """
+                  {
+                    "vulnerabilities": [
+                      {
+                        "name": "vuln-name",
+                        "status": "open",
+                        "host": "dc1.local",
+                        "asset_id": "asset-1"
+                      }
+                    ],
+                    "delegations": [
+                      {
+                        "account": "svc-app",
+                        "host": "dc2.local",
+                        "asset_id": "asset-2"
+                      }
+                    ]
+                  }
+                  """)
+              .getAsJsonObject();
+
+      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+      typeMappings.put(
+          "vulnerabilities",
+          ChainingMappedType.complex(List.of(), ContractOutputType.Vulnerability));
+      typeMappings.put(
+          "delegations", ChainingMappedType.complex(List.of(), ContractOutputType.Delegation));
+
+      workflowStateService.syncState(dataToSync, typeMappings, workflow);
+
+      WorkflowStateEntries persistedEntries =
+          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+
+      assertTrue(inputValuesByKey(persistedEntries, "VulnerabilityName").contains("vuln-name"));
+      assertTrue(inputValuesByKey(persistedEntries, "VulnerabilityStatus").contains("open"));
+      assertTrue(inputValuesByKey(persistedEntries, "DelegationAccount").contains("svc-app"));
+      assertFalse(inputValuesByKey(persistedEntries, "Account").contains("svc-app"));
+    }
+  }
+
+  // ========================================================================
+  // syncState — correlated tuple propagation to local step states
+  // ========================================================================
+  @Nested
+  @DisplayName("syncState - correlated tuple propagation")
+  class CorrelatedTuplePropagationTests {
+
+    @Test
+    @DisplayName(
+        "when a correlated tuple field matches step event, full tuple should be in local correlated")
+    void givenComplexOutput_whenFieldMatchesStepEvent_shouldPropagateFullTupleToLocal() {
+      // Arrange
+      String workflowId = UUID.randomUUID().toString();
+      String stepTemplateId = "step-template-1";
+      String workflowTemplateId = "wf-template-1";
+
+      Step stepTemplate = Step.builder().id(stepTemplateId).build();
+      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
+      Workflow workflowRun =
+          Workflow.builder().id(workflowId).workflowTemplate(workflowTemplate).build();
+
+      // Global state — empty
+      WorkflowStateEntries globalEntries =
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      WorkflowState globalState =
+          WorkflowState.builder().entries(gson.toJson(globalEntries)).build();
+
+      // Local state for step — empty
+      WorkflowStateEntries localEntries =
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      WorkflowState localState =
+          WorkflowState.builder()
+              .stepTemplate(stepTemplate)
+              .workflowExecution(workflowRun)
+              .entries(gson.toJson(localEntries))
+              .build();
+
+      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
+          .thenReturn(globalState);
+      when(workflowStateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflowRun)))
+          .thenReturn(emptyValidationContext());
+
+      // Event condition on Host key type: matches "10.0.0.1"
+      Condition leafCondition =
+          Condition.builder()
+              .keyType(PrimitiveType.Host)
+              .value("10.0.0.1")
+              .type(ConditionType.EQ)
+              .build();
+      ConditionStep cs1 = new ConditionStep();
+      cs1.setStep(stepTemplate);
+      Condition rootCondition =
+          Condition.builder()
+              .conditionChildren(List.of(leafCondition))
+              .conditionSteps(List.of(cs1))
+              .build();
+
+      when(conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
+              eq(workflowTemplateId), anySet(), anySet()))
+          .thenReturn(List.of(rootCondition));
+
+      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
+              stepTemplateId, workflowId))
+          .thenReturn(localState);
+
+      // conditionUtils.matchesAnyLeafCondition: return true when val == "10.0.0.1"
+      when(conditionUtils.matchesAnyLeafCondition(eq("10.0.0.1"), any())).thenReturn(true);
+      when(conditionUtils.matchesAnyLeafCondition(eq("22"), any())).thenReturn(false);
+
+      // Complex output: PortScan {host, port}
+      JsonObject dataToSync =
+          JsonParser.parseString(
+                  """
+                  {
+                    "portscan": [
+                      {"host": "10.0.0.1", "port": "22"}
+                    ]
+                  }
+                  """)
+              .getAsJsonObject();
+
+      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+      typeMappings.put(
+          "portscan",
+          ChainingMappedType.complex(
+              List.of(PrimitiveType.Host, PrimitiveType.Port), ContractOutputType.PortsScan));
+
+      // Act
+      workflowStateService.syncState(dataToSync, typeMappings, workflowRun);
+
+      // Assert — local state must contain the full tuple {Host, Port}
+      WorkflowStateEntries persisted =
+          gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
+      assertEquals(1, persisted.getCorrelated().size(), "full tuple should be propagated");
+      Set<WorkflowStateEntries.Pair> pairs = persisted.getCorrelated().getFirst().getValues();
+      assertTrue(
+          pairs.stream().anyMatch(p -> p.key().equals("Host") && p.value().equals("10.0.0.1")));
+      assertTrue(pairs.stream().anyMatch(p -> p.key().equals("Port") && p.value().equals("22")));
+    }
+
+    @Test
+    @DisplayName(
+        "when no correlated tuple field matches step event, no tuple should be in local correlated")
+    void givenComplexOutput_whenNoFieldMatchesStepEvent_shouldNotPropagateToLocal() {
+      // Arrange
+      String workflowId = UUID.randomUUID().toString();
+      String stepTemplateId = "step-template-2";
+      String workflowTemplateId = "wf-template-2";
+
+      Step stepTemplate = Step.builder().id(stepTemplateId).build();
+      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
+      Workflow workflowRun =
+          Workflow.builder().id(workflowId).workflowTemplate(workflowTemplate).build();
+
+      WorkflowStateEntries globalEntries =
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      WorkflowState globalState =
+          WorkflowState.builder().entries(gson.toJson(globalEntries)).build();
+
+      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
+          .thenReturn(globalState);
+      when(workflowStateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflowRun)))
+          .thenReturn(emptyValidationContext());
+
+      // Event condition on Host: expects "192.168.1.1" — no field in the tuple matches
+      Condition leafCondition =
+          Condition.builder()
+              .keyType(PrimitiveType.Host)
+              .value("192.168.1.1")
+              .type(ConditionType.EQ)
+              .build();
+      ConditionStep cs2 = new ConditionStep();
+      cs2.setStep(stepTemplate);
+      Condition rootCondition =
+          Condition.builder()
+              .conditionChildren(List.of(leafCondition))
+              .conditionSteps(List.of(cs2))
+              .build();
+
+      when(conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
+              eq(workflowTemplateId), anySet(), anySet()))
+          .thenReturn(List.of(rootCondition));
+
+      // no matchesAnyLeafCondition returns true
+      when(conditionUtils.matchesAnyLeafCondition(anyString(), any())).thenReturn(false);
+
+      JsonObject dataToSync =
+          JsonParser.parseString(
+                  """
+                  {
+                    "portscan": [
+                      {"host": "10.0.0.1", "port": "22"}
+                    ]
+                  }
+                  """)
+              .getAsJsonObject();
+
+      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+      typeMappings.put(
+          "portscan",
+          ChainingMappedType.complex(
+              List.of(PrimitiveType.Host, PrimitiveType.Port), ContractOutputType.PortsScan));
+
+      // Act
+      workflowStateService.syncState(dataToSync, typeMappings, workflowRun);
+
+      // Assert — local state repository should never be queried
+      verify(workflowStateRepository, never())
+          .findByStepTemplate_IdAndWorkflowExecution_Id(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("when same tuple already present in local state, should not add duplicate")
+    void givenTupleAlreadyInLocalState_shouldNotAddDuplicate() {
+      // Arrange
+      String workflowId = UUID.randomUUID().toString();
+      String stepTemplateId = "step-template-3";
+      String workflowTemplateId = "wf-template-3";
+
+      Step stepTemplate = Step.builder().id(stepTemplateId).build();
+      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
+      Workflow workflowRun =
+          Workflow.builder().id(workflowId).workflowTemplate(workflowTemplate).build();
+
+      // Pre-existing correlated tuple in local state (same pair-set that will be produced)
+      Set<WorkflowStateEntries.Pair> existingPairs = new HashSet<>();
+      existingPairs.add(new WorkflowStateEntries.Pair("Host", "10.0.0.1"));
+      existingPairs.add(new WorkflowStateEntries.Pair("Port", "22"));
+      WorkflowStateEntries.Correlated existingTuple =
+          new WorkflowStateEntries.Correlated(existingPairs, "PortsScan");
+
+      List<WorkflowStateEntries.Correlated> preExistingCorrelated = new ArrayList<>();
+      preExistingCorrelated.add(existingTuple);
+
+      WorkflowStateEntries localEntries =
+          new WorkflowStateEntries(
+              new ArrayList<>(), preExistingCorrelated, new HashSet<>(), new HashSet<>());
+      WorkflowState localState =
+          WorkflowState.builder()
+              .stepTemplate(stepTemplate)
+              .workflowExecution(workflowRun)
+              .entries(gson.toJson(localEntries))
+              .build();
+
+      WorkflowStateEntries globalEntries =
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      WorkflowState globalState =
+          WorkflowState.builder().entries(gson.toJson(globalEntries)).build();
+
+      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
+          .thenReturn(globalState);
+      when(workflowStateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflowRun)))
+          .thenReturn(emptyValidationContext());
+
+      Condition leafCondition =
+          Condition.builder()
+              .keyType(PrimitiveType.Host)
+              .value("10.0.0.1")
+              .type(ConditionType.EQ)
+              .build();
+      ConditionStep cs3 = new ConditionStep();
+      cs3.setStep(stepTemplate);
+      Condition rootCondition =
+          Condition.builder()
+              .conditionChildren(List.of(leafCondition))
+              .conditionSteps(List.of(cs3))
+              .build();
+
+      when(conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
+              eq(workflowTemplateId), anySet(), anySet()))
+          .thenReturn(List.of(rootCondition));
+      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
+              stepTemplateId, workflowId))
+          .thenReturn(localState);
+      when(conditionUtils.matchesAnyLeafCondition(eq("10.0.0.1"), any())).thenReturn(true);
+      when(conditionUtils.matchesAnyLeafCondition(eq("22"), any())).thenReturn(false);
+
+      JsonObject dataToSync =
+          JsonParser.parseString(
+                  """
+                  {
+                    "portscan": [
+                      {"host": "10.0.0.1", "port": "22"}
+                    ]
+                  }
+                  """)
+              .getAsJsonObject();
+
+      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+      typeMappings.put(
+          "portscan",
+          ChainingMappedType.complex(
+              List.of(PrimitiveType.Host, PrimitiveType.Port), ContractOutputType.PortsScan));
+
+      // Act
+      workflowStateService.syncState(dataToSync, typeMappings, workflowRun);
+
+      // Assert — still only 1 correlated entry (no duplicate)
+      WorkflowStateEntries persisted =
+          gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
+      assertEquals(1, persisted.getCorrelated().size(), "should not duplicate existing tuple");
+    }
+
+    private PrimitiveValidationContext emptyValidationContext() {
+      return new PrimitiveValidationContext(
+          Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
+          Set.of());
+    }
+  }
+
+  private static Set<String> inputValuesByKey(WorkflowStateEntries entries, String key) {
+    return entries.getInputs().stream()
+        .filter(input -> key.equals(input.getKey()))
+        .findFirst()
+        .map(WorkflowStateEntries.Input::getValues)
+        .orElse(Set.of());
   }
 }

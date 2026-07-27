@@ -34,15 +34,17 @@ public class OperationUtilsRuntime {
   // -- NOT CONTAINS --
 
   /**
-   * Checks if the value does not contain any of the specified texts.
+   * Checks if the value does not contain any of the specified texts. Negative operators combine
+   * values with AND ("none of these"): anyMatch would be a tautology as soon as two distinct values
+   * are provided.
    *
    * @param value the value to check
    * @param texts the texts to search for
-   * @return true if the value does not contain any text
+   * @return true if the value contains none of the texts
    */
   public static boolean notContainsTexts(
       @NotNull final Object value, @NotNull final List<String> texts) {
-    return texts.stream().anyMatch(text -> notContainsText(value, text));
+    return texts.stream().allMatch(text -> notContainsText(value, text));
   }
 
   /**
@@ -87,15 +89,16 @@ public class OperationUtilsRuntime {
   // -- NOT EQUALS --
 
   /**
-   * Checks if the value does not equal any of the specified texts.
+   * Checks if the value does not equal any of the specified texts (NOT IN semantics — see {@link
+   * #notContainsTexts}).
    *
    * @param value the value to check
    * @param texts the texts to compare against
-   * @return true if the value does not equal any text
+   * @return true if the value equals none of the texts
    */
   public static boolean notEqualsTexts(
       @NotNull final Object value, @NotNull final List<String> texts) {
-    return texts.stream().anyMatch(text -> notEqualsText(value, text));
+    return texts.stream().allMatch(text -> notEqualsText(value, text));
   }
 
   /**
@@ -143,15 +146,16 @@ public class OperationUtilsRuntime {
   // -- NOT START WITH --
 
   /**
-   * Checks if the value does not start with any of the specified texts.
+   * Checks if the value does not start with any of the specified texts (see {@link
+   * #notContainsTexts} for the AND rationale).
    *
    * @param value the value to check
    * @param texts the prefixes to test
-   * @return true if the value does not start with any text
+   * @return true if the value starts with none of the texts
    */
   public static boolean notStartWithTexts(
       @NotNull final Object value, @NotNull final List<String> texts) {
-    return texts.stream().anyMatch(text -> notStartWithText(value, text));
+    return texts.stream().allMatch(text -> notStartWithText(value, text));
   }
 
   /**

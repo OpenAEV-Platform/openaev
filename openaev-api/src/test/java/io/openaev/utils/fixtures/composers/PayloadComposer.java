@@ -56,7 +56,7 @@ public class PayloadComposer extends ComposerBase<Payload> {
     public Composer persist() {
       documentComposer.ifPresent(DocumentComposer.Composer::persist);
       detectionRemediationComposers.forEach(
-          DetectionRemediationComposer.Composer::persistCollectorTypeDependency);
+          DetectionRemediationComposer.Composer::persistSecurityPlatformDependency);
       payload.setId(null);
       payloadRepository.save(payload);
       return this;

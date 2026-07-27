@@ -51,4 +51,18 @@ public interface PayloadRepository
 
   @Query("select fd from FileDrop fd where fd.fileDropFile.id = :documentId")
   Optional<FileDrop> findByDocumentId(@Param("documentId") final String documentId);
+
+  /**
+   * Returns the payloads with the given name that are not referenced by any injector contract,
+   * scoped to a tenant. A (now fixed) regression in the starter-pack import left such payloads
+   * orphaned on fresh platforms (their contract was persisted without the payload reference); the
+   * {@code V20260725_Fix_starter_pack_payload_contracts} runtime migration re-attaches them by name
+   * (payload contracts are labeled with their payload name).
+   */
+  @Query(
+      "SELECT p FROM Payload p "
+          + "WHERE p.name = :name AND p.tenant.id = :tenantId "
+          + "AND NOT EXISTS (SELECT ic FROM InjectorContract ic WHERE ic.payload = p)")
+  List<Payload> findOrphansByNameAndTenantId(
+      @Param("name") String name, @Param("tenantId") String tenantId);
 }

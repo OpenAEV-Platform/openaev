@@ -26,6 +26,20 @@ public interface FindingRepository
   // For testing purposes only
   List<Finding> findAllByInjectId(@NotNull final String injectId);
 
+  /**
+   * An inject's findings, scoped explicitly to a tenant, with their assets fetch-joined. Used off
+   * the request thread (the attack-path findings copy): the scope is a query predicate rather than
+   * the incidental uniqueness of the inject id (the ambient {@code @Filter tenantFilter} is not
+   * enabled there), and the fetch-join preloads {@code assets} so the copy's per-finding {@code
+   * getAssets()} does not trigger an N+1 read on a large run. {@code DISTINCT} collapses the join
+   * fan-out.
+   */
+  @Query(
+      "SELECT DISTINCT f FROM Finding f LEFT JOIN FETCH f.assets"
+          + " WHERE f.inject.id = :injectId AND f.tenant.id = :tenantId")
+  List<Finding> findAllByInjectIdAndTenantId(
+      @NotBlank @Param("injectId") String injectId, @NotBlank @Param("tenantId") String tenantId);
+
   // For testing purposes only
   @Query(
       value =
@@ -62,6 +76,11 @@ public interface FindingRepository
   // fail-close on it. They are split into three parseable statements run together in one
   // transaction by FindingWriter (REQUIRES_NEW). The transaction boundary lives in the API layer,
   // not here.
+  //
+  // The conflict branch MUST bump finding_updated_at: search indexing is driven by an updated_at
+  // cursor (findForIndexing), so a re-detected finding (same natural key, possibly a new asset
+  // link added right after by insertFindingAsset) would otherwise never be re-indexed and its
+  // ES document would keep a stale asset list forever.
 
   @Query(
       value =
@@ -73,7 +92,7 @@ public interface FindingRepository
           (gen_random_uuid(), :findingField, :findingType, :findingValue,
            :findingLabels, :findingInjectId, :findingName, :tenantId)
         ON CONFLICT (finding_inject_id, finding_field, finding_type, finding_value)
-        DO UPDATE SET finding_name = EXCLUDED.finding_name
+        DO UPDATE SET finding_name = EXCLUDED.finding_name, finding_updated_at = now()
         RETURNING finding_id
         """,
       nativeQuery = true)

@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
-import io.openaev.engine.model.endpoint.EndpointHandler;
-import io.openaev.engine.model.endpoint.EsEndpoint;
+import io.openaev.engine.model.asset.AssetHandler;
+import io.openaev.engine.model.asset.EsAsset;
 import io.openaev.engine.model.finding.EsFinding;
 import io.openaev.engine.model.finding.FindingHandler;
 import io.openaev.engine.model.inject.EsInject;
@@ -53,7 +53,7 @@ import org.springframework.transaction.annotation.Transactional;
 class IndexingRegressionTest extends IntegrationTest {
 
   @Autowired private InjectHandler injectHandler;
-  @Autowired private EndpointHandler endpointHandler;
+  @Autowired private AssetHandler assetHandler;
   @Autowired private SimulationHandler simulationHandler;
   @Autowired private ScenarioHandler scenarioHandler;
   @Autowired private InjectExpectationHandler injectExpectationHandler;
@@ -526,7 +526,7 @@ class IndexingRegressionTest extends IntegrationTest {
   // ---------------------------------------------------------------------------
 
   @Nested
-  @DisplayName("EndpointHandler.findForIndexing")
+  @DisplayName("AssetHandler.findForIndexing")
   class EndpointIndexing {
 
     @Test
@@ -556,7 +556,7 @@ class IndexingRegressionTest extends IntegrationTest {
       entityManager.clear();
 
       // Act
-      List<EsEndpoint> results = endpointHandler.fetch(FROM, 5000);
+      List<EsAsset> results = assetHandler.fetch(FROM, 5000);
 
       // Assert — endpoint must appear because its linked inject is recent
       assertThat(results).anyMatch(es -> es.getBase_id().equals(endpoint.getId()));
@@ -606,9 +606,9 @@ class IndexingRegressionTest extends IntegrationTest {
       Instant cursor = FROM;
       int iterations = 0;
       while (iterations < total + 2) {
-        List<EsEndpoint> batch = endpointHandler.fetch(cursor, batchSize);
+        List<EsAsset> batch = assetHandler.fetch(cursor, batchSize);
         if (batch.isEmpty()) break;
-        for (EsEndpoint es : batch) {
+        for (EsAsset es : batch) {
           assertThat(collectedIds.add(es.getBase_id()))
               .as("Duplicate: %s", es.getBase_id())
               .isTrue();

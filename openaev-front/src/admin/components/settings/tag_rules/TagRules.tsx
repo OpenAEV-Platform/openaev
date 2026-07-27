@@ -17,6 +17,7 @@ import { type TagRuleOutput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
+import CustomizationMenu from '../CustomizationMenu';
 import TagRuleCreate from './TagRuleCreate';
 import TagRulePopover from './TagRulePopover';
 
@@ -66,84 +67,87 @@ const TagRules = () => {
   ], []);
 
   return (
-    <>
-      <Breadcrumbs
-        variant="list"
-        elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Customization') }, {
-          label: t('Default asset rules'),
-          current: true,
-        }]}
-      />
-      <PaginationComponentV2
-        fetch={searchTagRules}
-        searchPaginationInput={searchPaginationInput}
-        setContent={setTagRules}
-        availableFilterNames={availableFilterNames}
-        queryableHelpers={queryableHelpers}
-        entityPrefix="tag_rule"
-        topBarButtons={(
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-            <TagRuleCreate
-              onCreate={result => setTagRules([...tagRules, result])}
-            />
-          </Can>
-        )}
-      />
-      <List>
-        <ListItem
-          classes={{ root: classes.itemHead }}
-          divider={false}
-          style={{ paddingTop: 0 }}
-          secondaryAction={<>&nbsp;</>}
-        >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponentV2
-                headers={headers}
-                inlineStylesHeaders={inlineStyles}
-                sortHelpers={queryableHelpers.sortHelpers}
+    <div style={{ display: 'flex' }}>
+      <div style={{ flexGrow: 1 }}>
+        <Breadcrumbs
+          variant="list"
+          elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Customization') }, {
+            label: t('Default asset rules'),
+            current: true,
+          }]}
+        />
+        <PaginationComponentV2
+          fetch={searchTagRules}
+          searchPaginationInput={searchPaginationInput}
+          setContent={setTagRules}
+          availableFilterNames={availableFilterNames}
+          queryableHelpers={queryableHelpers}
+          entityPrefix="tag_rule"
+          topBarButtons={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+              <TagRuleCreate
+                onCreate={result => setTagRules([...tagRules, result])}
               />
-            )}
-          />
-        </ListItem>
-        {tagRules.map((tagRule: TagRuleOutput) => (
-
+            </Can>
+          )}
+        />
+        <List>
           <ListItem
-            key={tagRule.tag_rule_id}
-            secondaryAction={(
-              <TagRulePopover
-                tagRule={tagRule}
-                onDelete={result => setTagRules(tagRules.filter(ag => (ag.tag_rule_id !== result)))}
-                onUpdate={result => setTagRules(tagRules.map(existing => (existing.tag_rule_id !== result.tag_rule_id ? existing : result)))}
-              />
-            )}
-            divider
+            classes={{ root: classes.itemHead }}
+            divider={false}
+            style={{ paddingTop: 0 }}
+            secondaryAction={<>&nbsp;</>}
           >
-            <ListItemIcon>
-              <SelectGroup color="primary" />
-            </ListItemIcon>
+            <ListItemIcon />
             <ListItemText
               primary={(
-                <div style={bodyItemsStyles.bodyItems}>
-                  {headers.map(header => (
-                    <div
-                      key={header.field}
-                      style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles[header.field],
-                      }}
-                    >
-                      {header.value?.(tagRule)}
-                    </div>
-                  ))}
-                </div>
+                <SortHeadersComponentV2
+                  headers={headers}
+                  inlineStylesHeaders={inlineStyles}
+                  sortHelpers={queryableHelpers.sortHelpers}
+                />
               )}
             />
           </ListItem>
-        ))}
-      </List>
-    </>
+          {tagRules.map((tagRule: TagRuleOutput) => (
+
+            <ListItem
+              key={tagRule.tag_rule_id}
+              secondaryAction={(
+                <TagRulePopover
+                  tagRule={tagRule}
+                  onDelete={result => setTagRules(tagRules.filter(ag => (ag.tag_rule_id !== result)))}
+                  onUpdate={result => setTagRules(tagRules.map(existing => (existing.tag_rule_id !== result.tag_rule_id ? existing : result)))}
+                />
+              )}
+              divider
+            >
+              <ListItemIcon>
+                <SelectGroup color="primary" />
+              </ListItemIcon>
+              <ListItemText
+                primary={(
+                  <div style={bodyItemsStyles.bodyItems}>
+                    {headers.map(header => (
+                      <div
+                        key={header.field}
+                        style={{
+                          ...bodyItemsStyles.bodyItem,
+                          ...inlineStyles[header.field],
+                        }}
+                      >
+                        {header.value?.(tagRule)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              />
+            </ListItem>
+          ))}
+        </List>
+      </div>
+      <CustomizationMenu />
+    </div>
   );
 };
 

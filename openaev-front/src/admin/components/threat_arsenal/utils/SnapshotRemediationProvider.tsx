@@ -1,9 +1,9 @@
 import { type ReactNode, useState } from 'react';
 
-import { type SnapshotCollectorRemediationEditionType, SnapshotRemediationContext } from './SnapshotRemediationContext';
+import { SnapshotRemediationContext, type SnapshotRemediationEditionType } from './SnapshotRemediationContext';
 
 const SnapshotRemediationProvider = ({ children }: { children: ReactNode }) => {
-  const [snapshot, setSnapshot] = useState<SnapshotCollectorRemediationEditionType>();
+  const [snapshot, setSnapshot] = useState<SnapshotRemediationEditionType>();
 
   return (
     <SnapshotRemediationContext.Provider

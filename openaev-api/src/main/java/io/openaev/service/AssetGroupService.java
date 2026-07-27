@@ -3,15 +3,20 @@ package io.openaev.service;
 import static io.openaev.database.model.Filters.isEmptyFilterGroup;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static java.time.Instant.now;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.specification.EndpointSpecification;
+import io.openaev.database.specification.SpecificationUtils;
+import io.openaev.rest.asset_group.form.AssetGroupBulkProcessingInput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.schema.PropertySchema;
 import io.openaev.schema.SchemaUtils;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.AssetGroupMapper;
 import jakarta.validation.constraints.NotBlank;
@@ -26,6 +31,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 @RequiredArgsConstructor
 @Service
@@ -36,6 +42,7 @@ public class AssetGroupService {
   private final EndpointService endpointService;
   private final TagRuleService tagRuleService;
   private final AssetGroupMapper assetGroupMapper;
+  private final BulkDeleteExecutor bulkDeleteExecutor;
 
   // -- ASSET GROUP --
 
@@ -118,6 +125,54 @@ public class AssetGroupService {
 
   public void deleteAssetGroup(@NotBlank final String assetGroupId) {
     this.assetGroupRepository.deleteById(assetGroupId);
+  }
+
+  /**
+   * Bulk delete of asset groups, either from an explicit list of ids or from a search input
+   * (select-all with optional exclusions).
+   *
+   * <p>Deliberately NOT transactional as a whole: the scope is resolved in a short read
+   * transaction, then asset groups are deleted in small independent chunks (with deadlock retry) so
+   * the request never holds row locks against concurrent writers for its whole duration.
+   *
+   * @param input the bulk processing input (ids or search input, plus ids to ignore)
+   * @return the ids of the deleted asset groups
+   */
+  public List<String> bulkDeleteAssetGroups(@NotNull final AssetGroupBulkProcessingInput input) {
+    if ((CollectionUtils.isEmpty(input.getAssetGroupIdsToProcess())
+            && input.getSearchPaginationInput() == null)
+        || (!CollectionUtils.isEmpty(input.getAssetGroupIdsToProcess())
+            && input.getSearchPaginationInput() != null)) {
+      throw new BadRequestException(
+          "Either asset_group_ids_to_process or search_pagination_input must be provided, and not both at the same time");
+    }
+    List<String> assetGroupIdsToDelete =
+        bulkDeleteExecutor.resolveInTransaction(
+            () -> {
+              Specification<AssetGroup> specification;
+              if (input.getSearchPaginationInput() != null) {
+                // Same specification chain as the list search (filter group + text search), so the
+                // deletion scope matches exactly what the user sees in the list.
+                specification =
+                    FilterUtilsJpa.<AssetGroup>computeFilterGroupJpa(
+                            input.getSearchPaginationInput().getFilterGroup())
+                        .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
+              } else {
+                specification = SpecificationUtils.hasIdIn(input.getAssetGroupIdsToProcess());
+              }
+              if (!CollectionUtils.isEmpty(input.getAssetGroupIdsToIgnore())) {
+                List<String> idsToIgnore = input.getAssetGroupIdsToIgnore();
+                specification =
+                    specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+              }
+              return this.assetGroupRepository.findAll(specification).stream()
+                  .map(AssetGroup::getId)
+                  .toList();
+            });
+    return bulkDeleteExecutor.deleteInChunks(
+        "asset groups",
+        assetGroupIdsToDelete,
+        chunk -> this.assetGroupRepository.deleteAll(this.assetGroupRepository.findAllById(chunk)));
   }
 
   public AssetGroup createOrUpdateAssetGroupWithoutDynamicAssets(AssetGroup assetGroup) {

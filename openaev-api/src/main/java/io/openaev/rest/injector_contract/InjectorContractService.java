@@ -37,6 +37,7 @@ import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.injector_contract.form.*;
 import io.openaev.rest.injector_contract.output.InjectorContractAuthorCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
@@ -74,6 +75,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 /**
  * Service for managing injector contracts.
@@ -103,6 +105,7 @@ public class InjectorContractService implements DependenciesManager {
   private final TagRepository tagRepository;
   private final InjectorService injectorService;
   private final OrganizationService organizationService;
+  private final InjectIndexCleanupService injectIndexCleanupService;
 
   private final List<String> listDefaultInjectorContract =
       List.of(
@@ -135,7 +138,8 @@ public class InjectorContractService implements DependenciesManager {
   public InjectorContract injectorContract(@NotBlank final String id) {
     return injectorContractRepository
         .findByIdOrExternalId(id, id)
-        .orElseThrow(() -> new ElementNotFoundException("Injector contract not found"));
+        // User-facing wording: the entity is exposed as "threat arsenal item" everywhere.
+        .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
   }
 
   // -- OTHERS --
@@ -243,7 +247,13 @@ public class InjectorContractService implements DependenciesManager {
     // during registration (InjectorService.registerBuiltinInjector).
     injectorContract.addInjector(injector);
 
-    applyCustomContractAuthor(injectorContract, injector);
+    // Authorship is a function of the creation's provenance (machine sync vs interactive),
+    // never of which credentials happened to authenticate the HTTP call.
+    if (isMachineProvenance(injectorContract, injector)) {
+      attributeToPublisher(injectorContract, injector);
+    } else {
+      attributeToCreatingUser(injectorContract);
+    }
 
     injectorContract.setDomains(
         injector != null && !injector.isPayloads()
@@ -351,54 +361,84 @@ public class InjectorContractService implements DependenciesManager {
     injectorContract.setDomains(
         this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant()));
 
-    healExternalInjectorAuthor(injectorContract);
+    reconcileExternalInjectorAuthorship(injectorContract);
 
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
   }
 
+  // -- CONTRACT AUTHORSHIP --
+  //
+  // Authorship is derived from the provenance of the data, never from the HTTP session:
+  //
+  //   machine provenance  -> the injector's publisher organization (e.g. "Nuclei")
+  //   interactive         -> the human creating the contract through the UI / ad-hoc API
+  //
+  // The session user MUST NOT be used as the discriminator: external injector sync loops
+  // (Nuclei per-CVE contracts, nmap...) authenticate their background API calls with the
+  // registering user's token, so a real session user is present during machine syncs. The
+  // reliable provenance marker is the external contract id: sync loops always send
+  // `external_contract_id`, interactive creations never do.
+
   /**
-   * Attributes a freshly created custom contract to its author.
-   *
-   * <p>Interactive creations (a real session user) are authored by that user. System-driven
-   * creations by an external injector — e.g. the Nuclei per-CVE contract scheduler hitting {@code
-   * POST /injector_contracts} with the injector's token, where there is no session user — are
-   * attributed to the injector's publisher organization (its name, e.g. "Nuclei") so the Threat
-   * Arsenal shows the source instead of "No author". Payload-based contracts resolve their author
-   * from the payload and are left untouched.
+   * A creation has machine provenance when it targets an external injector with a payload-less
+   * contract and either carries an injector-generated external id (all sync loops send one) or
+   * arrives anonymously (fallback for machine callers that predate external ids).
    */
-  private void applyCustomContractAuthor(InjectorContract contract, Injector injector) {
+  private boolean isMachineProvenance(InjectorContract contract, Injector injector) {
+    boolean externalPayloadless =
+        injector != null && injector.isExternal() && contract.getPayload() == null;
+    return externalPayloadless
+        && (StringUtils.hasText(contract.getExternalId())
+            || SessionHelper.currentUser() instanceof OpenAEVAnonymous);
+  }
+
+  /**
+   * Attributes a machine-synced contract to its publisher organization. Deliberately never reads
+   * the session: whichever token authenticated the background call is irrelevant to authorship.
+   */
+  private void attributeToPublisher(InjectorContract contract, Injector injector) {
+    contract.setAuthorUser(null);
+    contract.setAuthorOrganization(organizationService.findOrCreateByName(injector.getName()));
+  }
+
+  /** Attributes an interactively created contract to the authenticated human creating it. */
+  private void attributeToCreatingUser(InjectorContract contract) {
     if (!(SessionHelper.currentUser() instanceof OpenAEVAnonymous)) {
       contract.setAuthorUser(userService.currentUser());
-      return;
-    }
-    if (injector != null && injector.isExternal() && contract.getPayload() == null) {
-      contract.setAuthorOrganization(organizationService.findOrCreateByName(injector.getName()));
     }
   }
 
   /**
-   * Heals authorless external-injector contracts on update. The Nuclei/nmap maintenance loops call
-   * {@code updateInjectorContract} on every existing contract each sync cycle, so legacy per-CVE
-   * contracts created before authorship (all author FKs null) get attributed to their injector's
-   * publisher organization here. Only payload-less contracts already carrying no author are
-   * touched, so user-authored and payload-based contracts are never overwritten.
+   * Reconciles authorship of external-injector contracts on update. The Nuclei/nmap maintenance
+   * loops call {@code updateInjectorContract} on every existing contract each sync cycle, so two
+   * legacy cases self-repair to the publisher organization without any migration:
+   *
+   * <ul>
+   *   <li>contracts created before authorship existed (all author FKs null);
+   *   <li>machine-synced contracts wrongly stamped with a human author-user by the old
+   *       session-based logic (recognizable by their injector-generated external id - interactively
+   *       created contracts never carry one).
+   * </ul>
+   *
+   * <p>Payload-based contracts and contracts with a deliberate team/organization author are never
+   * touched.
    */
-  private void healExternalInjectorAuthor(InjectorContract contract) {
+  private void reconcileExternalInjectorAuthorship(InjectorContract contract) {
+    if (contract.getPayload() != null || contract.getAuthorTeam() != null) {
+      return;
+    }
     boolean authorless =
-        contract.getAuthorUser() == null
-            && contract.getAuthorTeam() == null
-            && contract.getAuthorOrganization() == null;
-    if (!authorless || contract.getPayload() != null) {
+        contract.getAuthorUser() == null && contract.getAuthorOrganization() == null;
+    boolean misattributedSync =
+        contract.getAuthorUser() != null && StringUtils.hasText(contract.getExternalId());
+    if (!authorless && !misattributedSync) {
       return;
     }
     contract.getInjectors().stream()
         .filter(Injector::isExternal)
         .findFirst()
-        .ifPresent(
-            injector ->
-                contract.setAuthorOrganization(
-                    organizationService.findOrCreateByName(injector.getName())));
+        .ifPresent(injector -> attributeToPublisher(contract, injector));
   }
 
   private void setVulnerabilitiesFromExternalOrInternalIds(
@@ -460,17 +500,31 @@ public class InjectorContractService implements DependenciesManager {
             .orElseThrow(
                 () ->
                     new ElementNotFoundException(
-                        "Injector contract not found: " + injectorContractId));
+                        "Threat arsenal item not found: " + injectorContractId));
     if (!injectorContract.getCustom()) {
       throw new IllegalArgumentException(
-          "This injector contract can't be removed because is not a custom one: "
+          "This threat arsenal item can't be removed because it is not a custom one: "
               + injectorContractId);
     }
     deleteInjectorContract(injectorContract);
   }
 
   public void deleteInjectorContract(InjectorContract injectorContract) {
+    // Same compensation as deleteInjectorContractById: the injects FK on injectors_contracts is ON
+    // DELETE CASCADE, so the injects (and, one hop further, their expectations and findings) vanish
+    // at the database level without a single JPA lifecycle event. The engine cascade is single-hop:
+    // the contract delete event alone would never reach the expectation and finding documents,
+    // which reference the INJECT id in their dependencies - they would keep feeding every
+    // engine-backed statistic (dashboards, KPIs) after the contract is gone.
+    String tenantId =
+        injectorContract.getTenant() != null
+            ? injectorContract.getTenant().getId()
+            : TenantContext.getCurrentTenant();
+    List<String> cascadeDeletedInjectIds =
+        injectIndexCleanupService.injectIdsByContractIds(
+            List.of(injectorContract.getId()), tenantId);
     this.injectorContractRepository.delete(injectorContract);
+    injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
   }
 
   /**
@@ -489,8 +543,14 @@ public class InjectorContractService implements DependenciesManager {
    * @param injectorContractId the contract ID to delete
    */
   public void deleteInjectorContractById(String injectorContractId) {
+    // The injects FK on injectors_contracts is ON DELETE CASCADE: collect the doomed inject ids
+    // before the delete and de-index them explicitly (no JPA lifecycle fires for DB cascades).
+    List<String> cascadeDeletedInjectIds =
+        injectIndexCleanupService.injectIdsByContractIds(
+            List.of(injectorContractId), TenantContext.getCurrentTenant());
     this.injectorContractRepository.deleteById(
         new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant()));
+    injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
   }
 
   /**
@@ -723,6 +783,27 @@ public class InjectorContractService implements DependenciesManager {
         ctx.injectorJoin().get("id"));
   }
 
+  /**
+   * Display label for a user author, mirroring {@link User#getNameOrEmail()}: "Firstname Lastname"
+   * when both are set and non-blank, the email otherwise. Evaluates to NULL when the (left-joined)
+   * user is absent, so outer coalesces fall through to the next author kind.
+   */
+  private Expression<String> userAuthorDisplayName(
+      @NotNull final CriteriaBuilder cb, @NotNull final Join<?, User> userJoin) {
+    Expression<String> firstname = userJoin.get("firstname");
+    Expression<String> lastname = userJoin.get("lastname");
+    Predicate hasFullName =
+        cb.and(
+            cb.isNotNull(firstname),
+            cb.notEqual(cb.trim(firstname), ""),
+            cb.isNotNull(lastname),
+            cb.notEqual(cb.trim(lastname), ""));
+    Expression<String> fullName = cb.concat(cb.concat(firstname, " "), lastname);
+    return cb.<String>selectCase()
+        .when(hasFullName, fullName)
+        .otherwise(userJoin.<String>get("email"));
+  }
+
   private void selectForInjectorContractThreatArsenal(
       @NotNull final CriteriaBuilder cb,
       @NotNull final CriteriaQuery<Tuple> cq,
@@ -755,10 +836,10 @@ public class InjectorContractService implements DependenciesManager {
             .value(authorOrgJoin.get("id"));
     Expression<String> authorName =
         cb.<String>coalesce()
-            .value(cAuthorUserJoin.get("email"))
+            .value(userAuthorDisplayName(cb, cAuthorUserJoin))
             .value(cAuthorTeamJoin.get("name"))
             .value(cAuthorOrgJoin.get("name"))
-            .value(authorUserJoin.get("email"))
+            .value(userAuthorDisplayName(cb, authorUserJoin))
             .value(authorTeamJoin.get("name"))
             .value(authorOrgJoin.get("name"));
     Expression<String> authorType =
@@ -792,12 +873,16 @@ public class InjectorContractService implements DependenciesManager {
     List<Expression<?>> groupBy = new ArrayList<>(getCommonGroupBy(injectorContractRoot, ctx));
     groupBy.add(cAuthorUserJoin.get("id"));
     groupBy.add(cAuthorUserJoin.get("email"));
+    groupBy.add(cAuthorUserJoin.get("firstname"));
+    groupBy.add(cAuthorUserJoin.get("lastname"));
     groupBy.add(cAuthorTeamJoin.get("id"));
     groupBy.add(cAuthorTeamJoin.get("name"));
     groupBy.add(cAuthorOrgJoin.get("id"));
     groupBy.add(cAuthorOrgJoin.get("name"));
     groupBy.add(authorUserJoin.get("id"));
     groupBy.add(authorUserJoin.get("email"));
+    groupBy.add(authorUserJoin.get("firstname"));
+    groupBy.add(authorUserJoin.get("lastname"));
     groupBy.add(authorTeamJoin.get("id"));
     groupBy.add(authorTeamJoin.get("name"));
     groupBy.add(authorOrgJoin.get("id"));
@@ -923,6 +1008,21 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
+   * Shared base specification for the facet-count aggregations: current filters + text search +
+   * access control, exactly like the search route.
+   */
+  private Specification<InjectorContract> facetBaseSpec(SearchPaginationInput input) {
+    Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
+    Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
+    Specification<InjectorContract> accessSpec =
+        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
+    return Specification.<InjectorContract>unrestricted()
+        .and(filterSpec)
+        .and(searchSpec)
+        .and(accessSpec);
+  }
+
+  /**
    * Computes the count of injector contracts grouped by domain.
    *
    * @param input the search and filtering criteria
@@ -930,17 +1030,7 @@ public class InjectorContractService implements DependenciesManager {
    */
   public List<InjectorContractDomainCountOutput> getDomainCounts(SearchPaginationInput input) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-
-    Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
-    Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
-    Specification<InjectorContract> accessSpec =
-        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
-
-    Specification<InjectorContract> baseSpec =
-        Specification.<InjectorContract>unrestricted()
-            .and(filterSpec)
-            .and(searchSpec)
-            .and(accessSpec);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
 
     CriteriaQuery<InjectorContractDomainCountOutput> qDirect =
         cb.createQuery(InjectorContractDomainCountOutput.class);
@@ -966,16 +1056,7 @@ public class InjectorContractService implements DependenciesManager {
    */
   public List<InjectorContractAuthorCountOutput> getAuthorCounts(SearchPaginationInput input) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-
-    Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
-    Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
-    Specification<InjectorContract> accessSpec =
-        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
-    Specification<InjectorContract> baseSpec =
-        Specification.<InjectorContract>unrestricted()
-            .and(filterSpec)
-            .and(searchSpec)
-            .and(accessSpec);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
 
     CriteriaQuery<InjectorContractAuthorCountOutput> q =
         cb.createQuery(InjectorContractAuthorCountOutput.class);
@@ -1000,10 +1081,10 @@ public class InjectorContractService implements DependenciesManager {
             .value(pAuthorOrgJoin.get("id"));
     Expression<String> authorName =
         cb.<String>coalesce()
-            .value(cAuthorUserJoin.get("email"))
+            .value(userAuthorDisplayName(cb, cAuthorUserJoin))
             .value(cAuthorTeamJoin.get("name"))
             .value(cAuthorOrgJoin.get("name"))
-            .value(pAuthorUserJoin.get("email"))
+            .value(userAuthorDisplayName(cb, pAuthorUserJoin))
             .value(pAuthorTeamJoin.get("name"))
             .value(pAuthorOrgJoin.get("name"));
     Expression<String> authorType =
@@ -1023,6 +1104,91 @@ public class InjectorContractService implements DependenciesManager {
     q.groupBy(authorId, authorName, authorType);
 
     return entityManager.createQuery(q).getResultList();
+  }
+
+  /**
+   * Number of contracts per platform under the given filters. The platforms column is a Postgres
+   * {@code text[]} array, which JPA criteria cannot group by, so a bounded count query runs per
+   * known platform value using the same {@code array_position_wrapper} membership test as the
+   * filter engine ({@link io.openaev.utils.OperationUtilsJpa}).
+   */
+  public Map<String, Long> getPlatformCounts(SearchPaginationInput input) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+
+    Map<String, Long> counts = new LinkedHashMap<>();
+    for (Endpoint.PLATFORM_TYPE platform : Endpoint.PLATFORM_TYPE.values()) {
+      CriteriaQuery<Long> q = cb.createQuery(Long.class);
+      Root<InjectorContract> root = q.from(InjectorContract.class);
+      Predicate predicate = baseSpec.toPredicate(root, q, cb);
+      Predicate containsPlatform =
+          cb.isNotNull(
+              cb.function(
+                  "array_position_wrapper",
+                  Integer.class,
+                  root.get("platforms"),
+                  cb.literal(platform.name())));
+      q.where(predicate != null ? cb.and(predicate, containsPlatform) : containsPlatform);
+      q.select(cb.countDistinct(root));
+      counts.put(platform.name(), entityManager.createQuery(q).getSingleResult());
+    }
+    return counts;
+  }
+
+  /**
+   * Number of contracts per payload status under the given filters. Contracts without a payload
+   * carry no status and are excluded (like the author facet excludes authorless contracts).
+   */
+  public Map<String, Long> getStatusCounts(SearchPaginationInput input) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+
+    CriteriaQuery<Tuple> q = cb.createTupleQuery();
+    Root<InjectorContract> root = q.from(InjectorContract.class);
+    Join<InjectorContract, Payload> payloadJoin = root.join("payload", JoinType.LEFT);
+    Path<Payload.PAYLOAD_STATUS> status = payloadJoin.get("status");
+
+    Predicate predicate = baseSpec.toPredicate(root, q, cb);
+    Predicate hasStatus = cb.isNotNull(status);
+    q.where(predicate != null ? cb.and(predicate, hasStatus) : hasStatus);
+    q.multiselect(status, cb.countDistinct(root));
+    q.groupBy(status);
+
+    Map<String, Long> counts = new LinkedHashMap<>();
+    for (Tuple tuple : entityManager.createQuery(q).getResultList()) {
+      counts.put(String.valueOf(tuple.get(0)), (Long) tuple.get(1));
+    }
+    return counts;
+  }
+
+  /**
+   * Number of contracts per kill chain phase under the given filters (through the attack pattern
+   * relation), so the inject-contract picker sidebar can display live counts on its kill chain
+   * facets like the domain and platform ones.
+   */
+  public Map<String, Long> getKillChainPhaseCounts(SearchPaginationInput input) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input);
+
+    CriteriaQuery<Tuple> q = cb.createTupleQuery();
+    Root<InjectorContract> root = q.from(InjectorContract.class);
+    Join<InjectorContract, AttackPattern> attackPatternJoin =
+        root.join("attackPatterns", JoinType.INNER);
+    Join<AttackPattern, KillChainPhase> phaseJoin =
+        attackPatternJoin.join("killChainPhases", JoinType.INNER);
+
+    Predicate predicate = baseSpec.toPredicate(root, q, cb);
+    if (predicate != null) {
+      q.where(predicate);
+    }
+    q.multiselect(phaseJoin.get("id"), cb.countDistinct(root));
+    q.groupBy(phaseJoin.get("id"));
+
+    Map<String, Long> counts = new LinkedHashMap<>();
+    for (Tuple tuple : entityManager.createQuery(q).getResultList()) {
+      counts.put(String.valueOf(tuple.get(0)), (Long) tuple.get(1));
+    }
+    return counts;
   }
 
   @Override

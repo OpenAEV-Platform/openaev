@@ -2,28 +2,39 @@ package io.openaev.utils.mapper;
 
 import static java.util.Collections.emptyList;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.Article;
+import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
+import io.openaev.database.repository.AiTargetRepository;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.document.form.RelatedEntityOutput;
 import io.openaev.rest.exercise.form.ExerciseSimple;
+import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.TargetType;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
@@ -37,16 +48,20 @@ import org.springframework.stereotype.Component;
  */
 @RequiredArgsConstructor
 @Component
+@Slf4j
 public class ExerciseMapper {
 
   private final AssetRepository assetRepository;
   private final AssetGroupRepository assetGroupRepository;
   private final TeamRepository teamRepository;
+  private final InjectRepository injectRepository;
+  private final AiTargetRepository aiTargetRepository;
   private final InjectExpectationRepository injectExpectationRepository;
 
   private final ResultUtils resultUtils;
   private final InjectMapper injectMapper;
   private final InjectExpectationMapper injectExpectationMapper;
+  private final ObjectMapper objectMapper;
 
   // -- EXERCISE SIMPLE --
 
@@ -75,18 +90,129 @@ public class ExerciseMapper {
           assetRepository.assetsByExerciseIds(Set.of(rawExercise.getExercise_id()));
       List<Object[]> assetGroups =
           assetGroupRepository.assetGroupsByExerciseIds(Set.of(rawExercise.getExercise_id()));
+      ContentTargetsByExerciseIds contentTargets =
+          contentTargetsByExerciseIds(Set.of(rawExercise.getExercise_id()));
 
       List<TargetSimple> allTargets =
-          Stream.concat(
-                  injectMapper.toTargetSimple(teams, TargetType.TEAMS).stream(),
-                  Stream.concat(
-                      injectMapper.toTargetSimple(assets, TargetType.ASSETS).stream(),
-                      injectMapper.toTargetSimple(assetGroups, TargetType.ASSETS_GROUPS).stream()))
+          Stream.of(
+                  injectMapper.toTargetSimple(teams, TargetType.TEAMS),
+                  injectMapper.toTargetSimple(assets, TargetType.ASSETS),
+                  injectMapper.toTargetSimple(assetGroups, TargetType.ASSETS_GROUPS),
+                  injectMapper.toTargetSimple(
+                      contentTargets
+                          .aiTargets()
+                          .getOrDefault(rawExercise.getExercise_id(), emptyList()),
+                      TargetType.AI_TARGETS),
+                  injectMapper.toTargetSimple(
+                      contentTargets
+                          .manualTargets()
+                          .getOrDefault(rawExercise.getExercise_id(), emptyList()),
+                      TargetType.MANUAL))
+              .flatMap(List::stream)
               .toList();
 
       simple.getTargets().addAll(allTargets);
     }
     return simple;
+  }
+
+  /**
+   * Content-based targets keyed by exercise id, as rows consumable by {@link
+   * InjectMapper#toTargetSimple}: {@code aiTargets} rows are {@code [exerciseId, assetId,
+   * assetName, category]}, {@code manualTargets} rows are {@code [exerciseId, value, value]}.
+   */
+  public record ContentTargetsByExerciseIds(
+      Map<String, List<Object[]>> aiTargets, Map<String, List<Object[]>> manualTargets) {
+
+    public static ContentTargetsByExerciseIds empty() {
+      return new ContentTargetsByExerciseIds(new HashMap<>(), new HashMap<>());
+    }
+  }
+
+  /**
+   * Resolve the content-based targets of each exercise inject: the AI target referenced from the
+   * content ({@code ai_target} key) and the raw manual target ({@code target_selector = "manual"}).
+   * These targets are content references (not JPA relations), so the injects_assets join powering
+   * the asset chips never surfaces them and the simulation list "Target" column would otherwise
+   * stay empty for such injects. Mirrors InjectSearchService#buildAiTargetMap /
+   * #buildManualTargetMap which fixed the same gap on the atomic-testing list.
+   */
+  public ContentTargetsByExerciseIds contentTargetsByExerciseIds(Set<String> exerciseIds) {
+    if (exerciseIds == null || exerciseIds.isEmpty()) {
+      return ContentTargetsByExerciseIds.empty();
+    }
+
+    // exerciseId -> referenced AI target ids / manual target values (from injects content)
+    Map<String, Set<String>> exerciseToAiTargetIds = new HashMap<>();
+    Map<String, Set<String>> exerciseToManualTargets = new HashMap<>();
+    for (Object[] row : injectRepository.findContentTargetContentsByExerciseIds(exerciseIds)) {
+      String exerciseId = (String) row[0];
+      String rawContent = (String) row[1];
+      if (exerciseId == null || rawContent == null) {
+        continue;
+      }
+      try {
+        JsonNode content = objectMapper.readTree(rawContent);
+        if (content instanceof ObjectNode objectContent) {
+          InjectContentUtils.contentAiTargetId(objectContent)
+              .ifPresent(
+                  aiTargetId ->
+                      exerciseToAiTargetIds
+                          .computeIfAbsent(exerciseId, key -> new HashSet<>())
+                          .add(aiTargetId));
+          InjectContentUtils.contentManualTarget(objectContent)
+              .ifPresent(
+                  manualTarget ->
+                      exerciseToManualTargets
+                          .computeIfAbsent(exerciseId, key -> new HashSet<>())
+                          .add(manualTarget));
+        }
+      } catch (Exception e) {
+        // A single unreadable content must never break the whole simulation list.
+        log.warn("Unparseable inject content while resolving content-based targets", e);
+      }
+    }
+
+    // Manual targets: the raw value is both the id and the display name.
+    Map<String, List<Object[]>> manualTargets = new HashMap<>();
+    exerciseToManualTargets.forEach(
+        (exerciseId, values) ->
+            manualTargets.put(
+                exerciseId,
+                values.stream()
+                    .map(value -> new Object[] {exerciseId, value, value})
+                    .collect(Collectors.toList())));
+
+    if (exerciseToAiTargetIds.isEmpty()) {
+      return new ContentTargetsByExerciseIds(new HashMap<>(), manualTargets);
+    }
+
+    // Single category-scoped lookup for every referenced AI target, then map id -> name.
+    Map<String, String> aiTargetNameById =
+        aiTargetRepository
+            .findAiTargetsByIds(
+                List.copyOf(
+                    exerciseToAiTargetIds.values().stream()
+                        .flatMap(Set::stream)
+                        .collect(Collectors.toSet())))
+            .stream()
+            .collect(Collectors.toMap(Asset::getId, Asset::getName));
+
+    Map<String, List<Object[]>> aiTargets = new HashMap<>();
+    exerciseToAiTargetIds.forEach(
+        (exerciseId, aiTargetIds) -> {
+          List<Object[]> rows = new ArrayList<>();
+          for (String aiTargetId : aiTargetIds) {
+            String name = aiTargetNameById.get(aiTargetId);
+            if (name != null) {
+              rows.add(new Object[] {exerciseId, aiTargetId, name, AssetCategory.AI_TARGET.name()});
+            }
+          }
+          if (!rows.isEmpty()) {
+            aiTargets.put(exerciseId, rows);
+          }
+        });
+    return new ContentTargetsByExerciseIds(aiTargets, manualTargets);
   }
 
   // -- LIST OF EXERCISE SIMPLE --
@@ -117,6 +243,8 @@ public class ExerciseMapper {
         assetGroupRepository.assetGroupsByExerciseIds(exerciseIds).stream()
             .collect(Collectors.groupingBy(row -> (String) row[0]));
 
+    ContentTargetsByExerciseIds contentTargets = contentTargetsByExerciseIds(exerciseIds);
+
     Map<String, List<RawInjectExpectationIndexing>> expectationMap =
         injectExpectationRepository.rawForComputeGlobalByExerciseIds(exerciseIds).stream()
             .collect(Collectors.groupingBy(RawInjectExpectationIndexing::getExercise_id));
@@ -130,6 +258,8 @@ public class ExerciseMapper {
               teamMap.getOrDefault(exercise.getExercise_id(), emptyList()),
               assetMap.getOrDefault(exercise.getExercise_id(), emptyList()),
               assetGroupMap.getOrDefault(exercise.getExercise_id(), emptyList()),
+              contentTargets.aiTargets().getOrDefault(exercise.getExercise_id(), emptyList()),
+              contentTargets.manualTargets().getOrDefault(exercise.getExercise_id(), emptyList()),
               expectationMap.getOrDefault(exercise.getExercise_id(), emptyList()));
       exerciseSimples.add(simple);
     }
@@ -142,6 +272,8 @@ public class ExerciseMapper {
       List<Object[]> teams,
       List<Object[]> assets,
       List<Object[]> assetGroups,
+      List<Object[]> aiTargets,
+      List<Object[]> manualTargets,
       List<RawInjectExpectationIndexing> expectations) {
 
     ExerciseSimple simple = fromRawExerciseSimple(rawExercise);
@@ -153,11 +285,13 @@ public class ExerciseMapper {
               rawExercise.getInject_ids(), expectations));
       // -- TARGETS --
       List<TargetSimple> allTargets =
-          Stream.concat(
-                  injectMapper.toTargetSimple(teams, TargetType.TEAMS).stream(),
-                  Stream.concat(
-                      injectMapper.toTargetSimple(assets, TargetType.ASSETS).stream(),
-                      injectMapper.toTargetSimple(assetGroups, TargetType.ASSETS_GROUPS).stream()))
+          Stream.of(
+                  injectMapper.toTargetSimple(teams, TargetType.TEAMS),
+                  injectMapper.toTargetSimple(assets, TargetType.ASSETS),
+                  injectMapper.toTargetSimple(assetGroups, TargetType.ASSETS_GROUPS),
+                  injectMapper.toTargetSimple(aiTargets, TargetType.AI_TARGETS),
+                  injectMapper.toTargetSimple(manualTargets, TargetType.MANUAL))
+              .flatMap(List::stream)
               .toList();
 
       simple.getTargets().addAll(allTargets);

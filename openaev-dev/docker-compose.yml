@@ -253,8 +253,8 @@ services:
       # Workaround: pending https://github.com/FiligranHQ/xtm-composer/issues/64,
       # use OPENCTI__ keys to customise the docker daemon
       - OPENCTI__DAEMON__DOCKER__NETWORK_MODE=host
-      # Provision the equivalent OPENAEV__ key for when this is fixed
       - OPENAEV__DAEMON__DOCKER__NETWORK_MODE=host
+      - OPENAEV__DAEMON__DOCKER__PRIVILEGED=${OPENAEV_DAEMON_DOCKER_PRIVILEGED:-false}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - rsakeys:/keys:ro  # RSA key mounted as read-only

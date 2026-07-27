@@ -3,8 +3,9 @@ package io.openaev.database.helper;
 import io.openaev.annotation.AllowRawJdbc;
 import io.openaev.database.model.ExecutionTrace;
 import java.sql.PreparedStatement;
-import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -87,12 +88,14 @@ public class ExecutionTraceRepositoryHelper {
           ps.setString(6, structuredOutputAsText);
           ps.setString(7, executionTrace.getAction().name());
           ps.setString(8, executionTrace.getStatus().name());
-          ps.setTimestamp(9, Timestamp.from(executionTrace.getTime()));
+          ps.setObject(9, OffsetDateTime.ofInstant(executionTrace.getTime(), ZoneOffset.UTC));
           ps.setArray(
               10,
               ps.getConnection().createArrayOf("text", executionTrace.getIdentifiers().toArray()));
-          ps.setTimestamp(11, Timestamp.from(executionTrace.getCreationDate()));
-          ps.setTimestamp(12, Timestamp.from(executionTrace.getUpdateDate()));
+          ps.setObject(
+              11, OffsetDateTime.ofInstant(executionTrace.getCreationDate(), ZoneOffset.UTC));
+          ps.setObject(
+              12, OffsetDateTime.ofInstant(executionTrace.getUpdateDate(), ZoneOffset.UTC));
           return ps.executeUpdate();
         });
 
@@ -115,6 +118,9 @@ public class ExecutionTraceRepositoryHelper {
         "UPDATE injects_statuses SET status_name = ?, tracking_end_date = ? WHERE status_id = ?";
 
     jdbcTemplate.update(
-        sql, name, endDate != null ? Timestamp.from(endDate) : null, injectStatusId);
+        sql,
+        name,
+        endDate != null ? OffsetDateTime.ofInstant(endDate, ZoneOffset.UTC) : null,
+        injectStatusId);
   }
 }

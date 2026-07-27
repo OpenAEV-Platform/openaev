@@ -41,6 +41,11 @@ public class ExerciseInput {
   @JsonProperty("exercise_severity")
   private String severity;
 
+  /** Kill chain name shown first in the overview's kill chain results (null = automatic). */
+  @Nullable
+  @JsonProperty("exercise_default_kill_chain")
+  private String defaultKillChain;
+
   @Nullable
   @JsonProperty("exercise_description")
   private String description;

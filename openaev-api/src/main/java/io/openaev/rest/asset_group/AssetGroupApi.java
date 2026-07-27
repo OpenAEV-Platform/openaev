@@ -14,13 +14,16 @@ import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.rest.asset_group.form.AssetGroupBulkProcessingInput;
 import io.openaev.rest.asset_group.form.AssetGroupInput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.asset_group.form.UpdateAssetsOnAssetGroupInput;
+import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.AssetGroupService;
+import io.openaev.service.InjectSearchService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InputFilterOptions;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -37,6 +40,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -52,6 +56,7 @@ public class AssetGroupApi extends RestBehavior {
   private final AssetGroupCriteriaBuilderService assetGroupCriteriaBuilderService;
   private final TagRepository tagRepository;
   private final AssetGroupRepository assetGroupRepository;
+  private final InjectSearchService injectSearchService;
 
   @PostMapping({ASSET_GROUP_URI, TENANT_ASSET_GROUP_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET_GROUP)
@@ -123,6 +128,30 @@ public class AssetGroupApi extends RestBehavior {
     return new PageImpl<>(pageContent, PageRequest.of(page, size), all.size());
   }
 
+  /**
+   * "Injects played" for the asset group detail page: every inject (atomic testing or simulation
+   * inject) that concerns this group, whether it was targeted directly or evidenced by the
+   * technical expectations persisted at execution time. This matches the scope of the asset group
+   * posture score, unlike the plain atomic-testing search which only sees direct targeting of
+   * standalone injects.
+   */
+  @LogExecutionTime
+  @PostMapping({
+    ASSET_GROUP_URI + "/{assetGroupId}/injects/search",
+    TENANT_ASSET_GROUP_URI + "/{assetGroupId}/injects/search"
+  })
+  @AccessControl(
+      resourceId = "#assetGroupId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.ASSET_GROUP)
+  @Transactional(readOnly = true)
+  public Page<InjectResultOutput> searchInjectsForAssetGroup(
+      @PathVariable @NotBlank final String assetGroupId,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return injectSearchService.getPageOfInjectResultsForAssetGroup(
+        assetGroupId, searchPaginationInput);
+  }
+
   @PostMapping({ASSET_GROUP_URI + "/find", TENANT_ASSET_GROUP_URI + "/find"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   @Transactional(readOnly = true)
@@ -185,6 +214,21 @@ public class AssetGroupApi extends RestBehavior {
       throw new ElementNotFoundException(ex.getMessage());
     }
     this.assetGroupService.deleteAssetGroup(assetGroupId);
+  }
+
+  /**
+   * Bulk deletion of asset groups from an explicit id list or from a search input (select-all with
+   * optional exclusions).
+   */
+  @LogExecutionTime
+  @DeleteMapping({ASSET_GROUP_URI, TENANT_ASSET_GROUP_URI})
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ASSET_GROUP)
+  // SUPPORTS (not REQUIRED) on purpose: the service deletes in small independent transactions
+  // (chunked, with deadlock retry) - a request-wide transaction would defeat that.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  public List<String> bulkDeleteAssetGroups(
+      @RequestBody @Valid final AssetGroupBulkProcessingInput input) {
+    return this.assetGroupService.bulkDeleteAssetGroups(input);
   }
 
   // -- OPTION --

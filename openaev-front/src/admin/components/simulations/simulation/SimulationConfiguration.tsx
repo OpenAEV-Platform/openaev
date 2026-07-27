@@ -7,13 +7,14 @@ import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type Exercise } from '../../../../utils/api-types';
 import ExerciseArticles from './articles/ExerciseArticles';
-import ExerciseChallenges from './challenges/ExerciseChallenges';
 import SimulationTeams from './teams/SimulationTeams';
 import SimulationVariables from './variables/SimulationVariables';
 
-// The simulation authoring context (teams, variables, media pressure, challenges)
-// surfaced from the hero "Configuration" action, one section per tab, so the
-// Injects tab stays focused on the inject list alone (mirrors the scenario).
+// The simulation authoring context (teams, variables, media pressure) surfaced
+// from the hero "Configuration" action, one section per tab, so the Injects
+// tab stays focused on the inject list alone (mirrors the scenario).
+// Challenges are authored inside injects, so they are not configured here -
+// the hero exposes a "Preview challenges page" action instead.
 const SimulationConfiguration: FunctionComponent = () => {
   const { t } = useFormatter();
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
@@ -32,13 +33,11 @@ const SimulationConfiguration: FunctionComponent = () => {
           <Tab label={t('Teams')} />
           <Tab label={t('Variables')} />
           <Tab label={t('Media pressure')} />
-          <Tab label={t('Challenges')} />
         </Tabs>
       </Box>
       {tab === 0 && <SimulationTeams exerciseTeamsUsers={exercise.exercise_teams_users ?? []} />}
       {tab === 1 && <SimulationVariables />}
       {tab === 2 && <ExerciseArticles />}
-      {tab === 3 && <ExerciseChallenges />}
     </Box>
   );
 };

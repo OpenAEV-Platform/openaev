@@ -6,6 +6,7 @@ import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.InjectorRepository;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.jsonapi.ZipJsonApi;
@@ -33,6 +34,7 @@ public class ThreatArsenalImportService {
   private final PayloadImportService payloadImportService;
   private final ThreatArsenalMapper threatArsenalMapper;
   private final ObjectMapper objectMapper;
+  private final InjectorRepository injectorRepository;
 
   public ThreatArsenalAction importThreatArsenalAction(@NotNull MultipartFile file)
       throws Exception {
@@ -58,6 +60,16 @@ public class ThreatArsenalImportService {
               }
               if (contract.getPayload() != null && contract.getPayload().getName() != null) {
                 contract.getPayload().setName(contract.getPayload().getName() + " (Import)");
+              }
+              // Injector links are not part of the export (the owning-side join rows are
+              // @JsonIgnore), so an imported contract would otherwise have no injector and
+              // show up as an unregistered/orphaned action (update, duplicate and export
+              // disabled). Re-link payload-based contracts to the payload-supporting
+              // injectors, as synchroniseInjectorContractBasedOnPayload does on creation.
+              if (contract.getPayload() != null) {
+                contract.addInjectors(
+                    injectorRepository.findAllByPayloadsAndTenantId(
+                        true, TenantContext.getCurrentTenant()));
               }
               InjectorContractMigrationUtils.migratePredefinedExpectations(contract);
               return contract;

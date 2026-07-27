@@ -402,7 +402,7 @@ public class ConnectorInstanceService {
           executorRepository.deleteByExecutorId(connectorId);
         }
         case INJECTOR -> injectorRepository.deleteByIdAndTenantId(connectorId, tenantId);
-        case COLLECTOR -> collectorRepository.deleteByIdAndTenantId(connectorId, tenantId);
+        case COLLECTOR -> collectorRepository.deleteByCollectorId(connectorId);
       }
     }
 

@@ -1,6 +1,9 @@
 package io.openaev.database.model;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Central registry that translates injector contract output types into chaining-engine semantics.
@@ -14,6 +17,108 @@ import java.util.List;
  * must be registered in {@link ChainingOutputType} for the chaining engine to handle it.
  */
 public final class ChainingTypeRegistry {
+  private static final Map<ContractOutputType, Map<String, PrimitiveType>>
+      CONTEXTUAL_COMPLEX_FIELD_PRIMITIVES =
+          Map.ofEntries(
+              Map.entry(
+                  ContractOutputType.Credentials,
+                  Map.ofEntries(
+                      Map.entry("username", PrimitiveType.Username),
+                      Map.entry("password", PrimitiveType.Password),
+                      Map.entry("hash", PrimitiveType.Hash),
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("asset_id", PrimitiveType.AssetId))),
+              Map.entry(
+                  ContractOutputType.Username,
+                  Map.ofEntries(
+                      Map.entry("username", PrimitiveType.Username),
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("asset_id", PrimitiveType.AssetId))),
+              Map.entry(
+                  ContractOutputType.AdminUsername,
+                  Map.ofEntries(
+                      Map.entry("username", PrimitiveType.AdminUsername),
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("asset_id", PrimitiveType.AssetId))),
+              Map.entry(
+                  ContractOutputType.Share,
+                  Map.ofEntries(
+                      Map.entry("share_name", PrimitiveType.ShareName),
+                      Map.entry("permissions", PrimitiveType.Permissions),
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("asset_id", PrimitiveType.AssetId))),
+              Map.entry(
+                  ContractOutputType.Group,
+                  Map.ofEntries(
+                      Map.entry("group_name", PrimitiveType.GroupName),
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("asset_id", PrimitiveType.AssetId))),
+              Map.entry(
+                  ContractOutputType.Computer,
+                  Map.ofEntries(
+                      Map.entry("computer_name", PrimitiveType.ComputerName),
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("asset_id", PrimitiveType.AssetId))),
+              Map.entry(
+                  ContractOutputType.PasswordPolicy,
+                  Map.ofEntries(
+                      Map.entry("key", PrimitiveType.Key),
+                      Map.entry("value", PrimitiveType.Value),
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("asset_id", PrimitiveType.AssetId))),
+              Map.entry(
+                  ContractOutputType.Delegation,
+                  Map.ofEntries(
+                      Map.entry("account", PrimitiveType.DelegationAccount),
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("asset_id", PrimitiveType.AssetId))),
+              Map.entry(
+                  ContractOutputType.Sid,
+                  Map.ofEntries(
+                      Map.entry("sid", PrimitiveType.SID),
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("asset_id", PrimitiveType.AssetId))),
+              Map.entry(
+                  ContractOutputType.Vulnerability,
+                  Map.ofEntries(
+                      Map.entry("name", PrimitiveType.VulnerabilityName),
+                      Map.entry("status", PrimitiveType.VulnerabilityStatus),
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("asset_id", PrimitiveType.AssetId))),
+              Map.entry(
+                  ContractOutputType.AccountWithPasswordNotRequired,
+                  Map.ofEntries(
+                      Map.entry("account", PrimitiveType.AccountWithPasswordNotRequired),
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("asset_id", PrimitiveType.AssetId))),
+              Map.entry(
+                  ContractOutputType.AsreproastableAccount,
+                  Map.ofEntries(
+                      Map.entry("username", PrimitiveType.AsreproastableAccount),
+                      Map.entry("hash", PrimitiveType.Hash),
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("asset_id", PrimitiveType.AssetId))),
+              Map.entry(
+                  ContractOutputType.KerberoastableAccount,
+                  Map.ofEntries(
+                      Map.entry("username", PrimitiveType.KerberoastableAccount),
+                      Map.entry("hash", PrimitiveType.Hash),
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("asset_id", PrimitiveType.AssetId))),
+              Map.entry(
+                  ContractOutputType.PortsScan,
+                  Map.ofEntries(
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("port", PrimitiveType.Port),
+                      Map.entry("service", PrimitiveType.Service),
+                      Map.entry("asset_id", PrimitiveType.AssetId))),
+              Map.entry(
+                  ContractOutputType.CVE,
+                  Map.ofEntries(
+                      Map.entry("id", PrimitiveType.CVE),
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("severity", PrimitiveType.Severity),
+                      Map.entry("asset_id", PrimitiveType.AssetId))));
 
   private ChainingTypeRegistry() {}
 
@@ -34,7 +139,7 @@ public final class ChainingTypeRegistry {
     ChainingOutputType outputType = ChainingOutputType.fromContractOutputType(type);
     return switch (outputType.kind()) {
       case PRIMITIVE -> ChainingMappedType.primitive(outputType.primitiveType());
-      case COMPLEX -> ChainingMappedType.complex();
+      case COMPLEX -> ChainingMappedType.complex(outputType.primitiveRecipe(), type);
       case NOT_CHAINABLE -> ChainingMappedType.nonChainable();
     };
   }
@@ -49,5 +154,35 @@ public final class ChainingTypeRegistry {
           case ASSET_ID -> List.of(PrimitiveType.AssetId);
           case ASSET_GROUP_ID -> List.of(PrimitiveType.AssetGroupId);
         });
+  }
+
+  public static Optional<PrimitiveType> resolveComplexFieldPrimitive(
+      String outputTypeName, String jsonFieldName) {
+    if (outputTypeName == null || jsonFieldName == null) {
+      return Optional.empty();
+    }
+
+    ContractOutputType outputType;
+    try {
+      outputType = ContractOutputType.valueOf(outputTypeName);
+    } catch (IllegalArgumentException e) {
+      return Optional.empty();
+    }
+
+    return resolveComplexFieldPrimitive(outputType, jsonFieldName);
+  }
+
+  public static Optional<PrimitiveType> resolveComplexFieldPrimitive(
+      ContractOutputType outputType, String jsonFieldName) {
+    if (outputType == null || jsonFieldName == null) {
+      return Optional.empty();
+    }
+
+    Map<String, PrimitiveType> fieldMap = CONTEXTUAL_COMPLEX_FIELD_PRIMITIVES.get(outputType);
+    if (fieldMap == null) {
+      return Optional.empty();
+    }
+
+    return Optional.ofNullable(fieldMap.get(jsonFieldName.toLowerCase(Locale.ROOT)));
   }
 }

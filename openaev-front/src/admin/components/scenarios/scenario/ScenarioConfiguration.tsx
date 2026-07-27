@@ -7,13 +7,14 @@ import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type Scenario } from '../../../../utils/api-types';
 import ScenarioArticles from './articles/ScenarioArticles';
-import ScenarioChallenges from './challenges/ScenarioChallenges';
 import ScenarioTeams from './teams/ScenarioTeams';
 import ScenarioVariables from './variables/ScenarioVariables';
 
-// The scenario authoring context (teams, variables, media pressure, challenges)
-// surfaced from the hero "Configuration" action, one section per tab, so the
-// Injects tab stays focused on the inject list alone.
+// The scenario authoring context (teams, variables, media pressure) surfaced
+// from the hero "Configuration" action, one section per tab, so the Injects
+// tab stays focused on the inject list alone.
+// Challenges are authored inside injects, so they are not configured here -
+// the hero exposes a "Preview challenges page" action instead.
 const ScenarioConfiguration: FunctionComponent = () => {
   const { t } = useFormatter();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
@@ -32,13 +33,11 @@ const ScenarioConfiguration: FunctionComponent = () => {
           <Tab label={t('Teams')} />
           <Tab label={t('Variables')} />
           <Tab label={t('Media pressure')} />
-          <Tab label={t('Challenges')} />
         </Tabs>
       </Box>
       {tab === 0 && <ScenarioTeams scenarioTeamsUsers={scenario.scenario_teams_users} />}
       {tab === 1 && <ScenarioVariables />}
       {tab === 2 && <ScenarioArticles />}
-      {tab === 3 && <ScenarioChallenges />}
     </Box>
   );
 };

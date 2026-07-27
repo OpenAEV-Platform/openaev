@@ -107,8 +107,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private DetectionRemediationComposer detectionRemediationComposer;
-  @Autowired private CollectorComposer collectorComposer;
-  @Autowired private CollectorTypeComposer collectorTypeComposer;
+  @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private DocumentComposer documentComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private ExecutionTraceComposer executionTraceComposer;
@@ -3824,16 +3823,10 @@ class InjectApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Should return List of Collector related to detection remediations from a payload when an Inject Id is given")
-    void shouldReturnListCollectorRelatedToDetectionRemediationsWhenInjectIdIsGiven()
+        "Should return List of Security platforms related to detection remediations from a payload when an Inject Id is given")
+    void shouldReturnListSecurityPlatformRelatedToDetectionRemediationsWhenInjectIdIsGiven()
         throws Exception {
       // PREPARE
-      Collector collector =
-          collectorComposer
-              .forCollector(CollectorFixture.createDefaultCollector("SENTINEL"))
-              .persist()
-              .get();
-
       entityManager.flush();
       entityManager.clear();
 
@@ -3852,16 +3845,16 @@ class InjectApiTest extends IntegrationTest {
                                       .forDetectionRemediation(
                                           DetectionRemediationFixture
                                               .createDefaultDetectionRemediation())
-                                      .withCollectorType(
-                                          collectorTypeComposer.forCollectorType(
-                                              CollectorTypeFixture.createCollectorType(
-                                                  collector.getType()))))))
+                                      .withSecurityPlatform(
+                                          securityPlatformComposer.forSecurityPlatform(
+                                              SecurityPlatformFixture.createDefault(
+                                                  "Microsoft Sentinel", "SIEM"))))))
               .persist()
               .get();
 
       // EXECUTE
       MockHttpServletRequestBuilder requestBuilder =
-          get(ATOMIC_TESTING_URI + "/" + inject.getId() + "/collectors")
+          get(ATOMIC_TESTING_URI + "/" + inject.getId() + "/security-platforms")
               .accept(MediaType.APPLICATION_JSON)
               .with(csrf());
 
@@ -3876,10 +3869,10 @@ class InjectApiTest extends IntegrationTest {
 
       // ASSERTIONS
       assertTrue(rootNode.isArray(), "Response should be a JSON array");
-      assertEquals(1, rootNode.size(), "There should be exactly 1 collector");
+      assertEquals(1, rootNode.size(), "There should be exactly 1 security platform");
 
-      JsonNode collectorNode = rootNode.get(0);
-      assertEquals("SENTINEL", collectorNode.get("collector_name").asText());
+      JsonNode securityPlatformNode = rootNode.get(0);
+      assertEquals("Microsoft Sentinel", securityPlatformNode.get("asset_name").asText());
     }
   }
 

@@ -90,6 +90,8 @@ public class WidgetService {
   private List<EngineSortField> createDefaultSort(String dateAttribute) {
     EngineSortField sort = new EngineSortField();
     sort.setFieldName(dateAttribute);
+    // Drill-down lists sort on a date attribute: most recent first.
+    sort.setDirection(SortDirection.DESC);
     return List.of(sort);
   }
 

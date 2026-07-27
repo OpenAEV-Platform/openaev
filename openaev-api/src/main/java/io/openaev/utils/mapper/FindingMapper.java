@@ -30,9 +30,11 @@ public class FindingMapper {
         .value(finding.getValue())
         .type(finding.getType())
         .creationDate(finding.getCreationDate())
-        .endpoints(
+        .updateDate(finding.getUpdateDate())
+        // Findings can attach to ANY asset type (agentless websites, AI targets, cloud/network
+        // assets), so no instanceof Endpoint filtering here.
+        .assets(
             relatedAssets.stream()
-                .filter(asset -> asset instanceof Endpoint)
                 .map(endpointMapper::toEndpointSimple)
                 .collect(Collectors.toSet()))
         .build();
@@ -43,9 +45,9 @@ public class FindingMapper {
         .id(finding.getId())
         .value(finding.getValue())
         .type(finding.getType())
-        .endpoints(
+        .updateDate(finding.getUpdateDate())
+        .assets(
             finding.getAssets().stream()
-                .filter(asset -> asset instanceof Endpoint)
                 .map(asset -> endpointMapper.toEndpointSimple(asset))
                 .collect(Collectors.toSet()))
         .assetGroups(

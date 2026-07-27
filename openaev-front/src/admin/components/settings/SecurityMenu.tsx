@@ -36,7 +36,9 @@ const SecurityMenuComponent: FunctionComponent = () => {
   const ability = useContext(AbilityContext);
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
 
-  const showScopeSwitch = canAccessTenant && canAccessPlatform;
+  // The platform scope is an EE feature: in Community Edition the switcher is
+  // not displayed at all and the section stays on the tenant scope.
+  const showScopeSwitch = isEnterpriseEdition && canAccessTenant && canAccessPlatform;
   const isPlatform = scope === 'platform';
 
   // Carry the current scope on the shared entity links so navigating within

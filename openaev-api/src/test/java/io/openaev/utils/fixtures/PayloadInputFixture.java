@@ -15,6 +15,7 @@ import io.openaev.rest.payload.form.*;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
 import io.openaev.rest.payload.regex_group.RegexGroupInput;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -58,26 +59,24 @@ public class PayloadInputFixture {
   }
 
   public static PayloadCreateInput createDefaultPayloadCreateInputWithDetectionRemediation(
-      List<String> domains) {
+      List<String> domains, List<String> securityPlatformIds) {
     PayloadCreateInput input = createDefaultPayloadCreateInputForCommandLine(domains);
-    input.setDetectionRemediations(buildDetectionRemediations());
+    input.setDetectionRemediations(buildDetectionRemediations(securityPlatformIds));
     return input;
   }
 
   @NotNull
-  public static List<DetectionRemediationInput> buildDetectionRemediations() {
-    DetectionRemediationInput drInputCS = new DetectionRemediationInput();
-    drInputCS.setCollectorType("CS");
-    drInputCS.setValues("Detection Remediation Gap for Crowdstrike");
-
-    DetectionRemediationInput drInputSentinel = new DetectionRemediationInput();
-    drInputSentinel.setCollectorType("SENTINEL");
-    drInputSentinel.setValues("Detection Remediation Gap for Sentinel");
-
-    DetectionRemediationInput srInputDefender = new DetectionRemediationInput();
-    srInputDefender.setCollectorType("DEFENDER");
-    srInputDefender.setValues("Detection Remediation Gap for Defender");
-    return List.of(drInputCS, drInputSentinel, srInputDefender);
+  public static List<DetectionRemediationInput> buildDetectionRemediations(
+      List<String> securityPlatformIds) {
+    List<DetectionRemediationInput> detectionRemediations = new ArrayList<>();
+    for (String securityPlatformId : securityPlatformIds) {
+      DetectionRemediationInput detectionRemediation = new DetectionRemediationInput();
+      detectionRemediation.setSecurityPlatformId(securityPlatformId);
+      detectionRemediation.setValues(
+          "Detection Remediation Gap for platform " + securityPlatformId);
+      detectionRemediations.add(detectionRemediation);
+    }
+    return detectionRemediations;
   }
 
   public static PayloadCreateInput createDefaultPayloadCreateInputForExecutable(
@@ -133,9 +132,9 @@ public class PayloadInputFixture {
   }
 
   public static PayloadUpdateInput getDefaultPayloadUpdateInputWithDetectionRemediation(
-      List<String> domains) {
+      List<String> domains, List<String> securityPlatformIds) {
     PayloadUpdateInput input = getDefaultCommandPayloadUpdateInput(domains);
-    input.setDetectionRemediations(buildDetectionRemediations());
+    input.setDetectionRemediations(buildDetectionRemediations(securityPlatformIds));
     return input;
   }
 
@@ -176,9 +175,9 @@ public class PayloadInputFixture {
   }
 
   public static PayloadUpsertInput getDefaultCommandPayloadUpsertInputWithDetectionRemediations(
-      Set<Domain> domains) {
+      Set<Domain> domains, List<String> securityPlatformIds) {
     PayloadUpsertInput input = getDefaultCommandPayloadUpsertInput(domains);
-    input.setDetectionRemediations(buildDetectionRemediations());
+    input.setDetectionRemediations(buildDetectionRemediations(securityPlatformIds));
     return input;
   }
 

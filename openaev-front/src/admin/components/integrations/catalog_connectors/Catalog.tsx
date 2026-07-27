@@ -50,6 +50,7 @@ const Catalog = ({ catalogConnectors, isXtmComposerUp }: Props) => {
         open={openCreateConnectorInstanceDrawer}
         catalogConnectorId={selectedConnector ? selectedConnector.catalog_connector_id : ''}
         catalogConnectorSlug={selectedConnector ? selectedConnector.catalog_connector_slug : ''}
+        connectorTitle={selectedConnector?.catalog_connector_title}
         onClose={() => setOpenCreateConnectorInstanceDrawer(false)}
         connectorType={selectedConnector?.catalog_connector_type}
         disabled={!isXtmComposerUp && selectedConnector?.catalog_connector_manager_supported}

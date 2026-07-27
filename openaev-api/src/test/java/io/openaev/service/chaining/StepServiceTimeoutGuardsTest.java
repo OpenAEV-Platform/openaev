@@ -3,11 +3,12 @@ package io.openaev.service.chaining;
 import static org.mockito.Mockito.*;
 
 import io.openaev.api.chaining.ActionStep;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -17,8 +18,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("StepService Timeout Guards Tests")
@@ -29,23 +28,22 @@ class StepServiceTimeoutGuardsTest {
   @Mock private StepService stepService;
   @Mock private WorkflowService workflowService;
   @Mock private QueueChainingService queueChainingService;
-  @Mock private TransactionTemplate transactionTemplate;
+  @Mock private TenantScopedTransaction tenantTx;
   @Mock private ActionStep actionStep;
 
   @Spy @InjectMocks private StepEventService stepEventService;
 
-  @SuppressWarnings("unchecked")
   @BeforeEach
   void setUp() {
     lenient()
         .doAnswer(
             invocation -> {
-              Consumer<TransactionStatus> action = invocation.getArgument(0);
-              action.accept(null);
+              Runnable work = invocation.getArgument(1);
+              work.run();
               return null;
             })
-        .when(transactionTemplate)
-        .executeWithoutResult(any());
+        .when(tenantTx)
+        .execute(any(TxCtx.class), any(Runnable.class));
   }
 
   // ========================================================================

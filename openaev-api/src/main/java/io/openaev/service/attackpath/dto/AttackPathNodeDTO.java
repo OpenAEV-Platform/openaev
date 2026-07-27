@@ -1,0 +1,80 @@
+package io.openaev.service.attackpath.dto;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import java.util.List;
+import java.util.Map;
+import lombok.Getter;
+import lombok.Setter;
+
+/**
+ * A node of the attack-path graph (issue 6647), named after the design's {@code AttackPathNodeDTO}.
+ * One flat shape projected by {@code type}: an {@code INJECTOR}/{@code ASSET}/{@code FINDING_TYPE}/
+ * {@code FINDING} fills its own fields, and an {@code EXECUTION} is used for the left feed. Null
+ * fields are omitted from the JSON. The rich execution fields (expectations, arguments, traces)
+ * stay null in the POC and are loaded on drawer open (D3).
+ */
+@Getter
+@Setter
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class AttackPathNodeDTO {
+
+  private String id;
+  private String type;
+  private String label;
+  private String status;
+
+  // INJECTOR, from the run snapshot: the injector's real type and the contract's ATT&CK techniques,
+  // resolved once per graph, batched, rather than per node.
+  private String injectorType;
+  private List<AttackPathAttackPatternDTO> attackPatterns;
+
+  // ASSET (endpoint), from the run snapshot
+  private String hostname;
+  private String ip;
+  private String platform;
+  // ASSET: the endpoint's business criticality (VERY_HIGH..LOW / UNKNOWN), resolved from the asset,
+  // so
+  // the chokepoint score can weight "most findings" by "most critical". Null for discovered
+  // endpoints
+  // (no backing asset).
+  private String criticality;
+  private List<String> agents;
+  // The raw endpoint key (asset id or discovered raw value); the ref the front passes to the
+  // expand/relations reads to load an endpoint's detail on click.
+  private String ref;
+  // Collapsed mode only: distinct finding values per type on this endpoint (finding_type -> count).
+  private Map<String, Long> findingCounts;
+
+  // EXECUTION (left feed)
+  private String payloadName;
+  // EXECUTION: the human-readable name of the injector contract that was run (e.g. "NMAP SYN
+  // Scan"),
+  // resolved from the contract's labels, so the graph can name WHAT was launched on the
+  // inject→endpoint
+  // edge. Null when the execution carries no resolvable contract.
+  private String contractName;
+  private String executedAt;
+  private String agentName;
+  private String privilege;
+  private String stepTemplateId;
+  // Kill-chain, resolved per step template (keyed by stepTemplateId): the step templates this one
+  // depends on, and the finding keys it consumes. Full mode only; the front correlates by
+  // stepTemplateId to draw the causal edges.
+  private List<String> dependsOn;
+  private List<ConsumedFindingKeyDTO> consumedFindingKeys;
+  private String command;
+  // Kept for the production drawer's shape; stay null in the POC (D3).
+  private List<Object> expectations;
+  private List<Object> arguments;
+  private List<Object> executionsTraces;
+  private List<String> findingsNodeIds;
+
+  // FINDING / FINDING_TYPE
+  private String value;
+  private String typeFindings;
+  private String findingsTypeNodeId;
+  private String assetNodeId;
+  // FINDING only: the per-finding verdict triple, worst-of aggregated across the producing
+  // executions. Null on every other node type (omitted from the JSON).
+  private AttackPathFindingVerdictsDTO verdicts;
+}

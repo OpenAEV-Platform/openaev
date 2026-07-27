@@ -94,7 +94,26 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.executor.ExecutorApi#deleteExecutor",
           "io.openaev.rest.executor.ExecutorApi#registerExecutor",
           "io.openaev.rest.asset.endpoint.EndpointApi#upsertEndpoint",
-          "io.openaev.rest.connector_instance.ConnectorInstanceApi#deleteConnectorInstance");
+          "io.openaev.rest.connector_instance.ConnectorInstanceApi#deleteConnectorInstance",
+          // payload: upsert reads collectors via PayloadUpsertService; collectorsFromPayload reads
+          // directly
+          "io.openaev.rest.payload.PayloadApi#upsertPayload",
+          "io.openaev.rest.payload.PayloadApi#collectorsFromPayload",
+          // atomic-testing: collectorsFromAtomicTesting reads collectors via CollectorService
+          "io.openaev.rest.atomic_testing.AtomicTestingApi#collectorsFromAtomicTesting",
+          // inject: updateInject calls injectService.runChecks -> securityPlatformCollectors
+          "io.openaev.rest.inject.InjectApi#updateInject",
+          // simulation injects: runChecks path
+          "io.openaev.rest.inject.SimulationInjectApi#exerciseInject",
+          "io.openaev.rest.inject.SimulationInjectApi#createInjectForExercise",
+          "io.openaev.rest.inject.SimulationInjectApi#duplicateInjectForExercise",
+          // scenario injects: runChecks path
+          "io.openaev.rest.inject.ScenarioInjectApi#createInjectForScenario",
+          "io.openaev.rest.inject.ScenarioInjectApi#duplicateInjectForScenario",
+          "io.openaev.rest.inject.ScenarioInjectApi#updateInjectForScenario",
+          // health-check streams: runChecks -> securityPlatformCollectors
+          "io.openaev.rest.scenario.ScenarioApi#streamHealthChecks",
+          "io.openaev.rest.exercise.ExerciseApi#streamHealthChecks");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =

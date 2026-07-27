@@ -73,11 +73,11 @@ export const isPlayerExpectation = (injectExpectation: InjectExpectationOutput) 
 export const useIsManuallyUpdatable = (injectExpectation: InjectExpectationOutput) => {
   const expectationType = injectExpectation.inject_expectation_type;
 
-  // Technical
+  // Technical: manually updatable at agent level (result on that agent only, then
+  // propagated up) and at asset level (result written on each agent of the endpoint).
+  // Asset groups are always computed from their assets, never updated directly.
   if (['DETECTION', 'PREVENTION'].includes(expectationType)) {
-    if (isAssetGroupExpectation(injectExpectation) || isAgentExpectation(injectExpectation)) return false;
-
-    return true;
+    return !isAssetGroupExpectation(injectExpectation);
   }
   // Human
   if (isManualExpectation(expectationType)) {

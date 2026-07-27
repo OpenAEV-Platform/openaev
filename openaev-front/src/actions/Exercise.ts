@@ -1,9 +1,10 @@
 import { type Dispatch } from 'redux';
 
-import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../utils/Action';
+import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../utils/Action';
 import type {
   CreateExerciseInput,
   Exercise,
+  ExerciseBulkProcessingInput,
   ExerciseTeamPlayersEnableInput,
   ExerciseUpdateStartDateInput,
   ExerciseUpdateStatusInput,
@@ -22,6 +23,8 @@ export const fetchExercises = () => (dispatch: AppDispatch) => getReferential(sc
 export const fetchExercisesById = (exerciseIds: string[]) => (dispatch: AppDispatch) => postReferential(schema.arrayOfExercises, '/api/exercises/search-by-id', exerciseIds, undefined, false)(dispatch);
 
 export const searchExercises = (paginationInput: SearchPaginationInput) => simplePostCall('/api/exercises/search', paginationInput);
+
+export const bulkDeleteExercises = (input: ExerciseBulkProcessingInput) => simpleDelCall('/api/exercises', { data: input });
 
 export const fetchExercise = (exerciseId: string) => (dispatch: AppDispatch) => getReferential(schema.exercise, `/api/exercises/${exerciseId}`)(dispatch);
 
@@ -126,4 +129,24 @@ export const fetchPlayerExercise = (exerciseId: string, userId: string | null) =
 export const searchExerciseHealthchecks = (exerciseId: Exercise['exercise_id']) => {
   const uri = `/api/exercises/${exerciseId}/healthchecks`;
   return simpleCall(uri);
+};
+
+// -- EXPECTATIONS DRIFT --
+
+export const fetchExerciseExpectationsDrift = (exerciseId: Exercise['exercise_id']) => {
+  const uri = `/api/exercises/${exerciseId}/expectations-drift`;
+  return simpleCall(uri);
+};
+
+export const realignExerciseExpectations = (exerciseId: Exercise['exercise_id']) => {
+  const uri = `/api/exercises/${exerciseId}/expectations-drift/realign`;
+  return simplePostCall(uri);
+};
+
+// Dismissal is stored in database (not local storage) so it is shared between
+// users. The generic success toast is disabled: the caller notifies with a
+// dismissal-specific message.
+export const dismissExerciseExpectationsDrift = (exerciseId: Exercise['exercise_id'], dismissed: boolean) => {
+  const uri = `/api/exercises/${exerciseId}/expectations-drift/dismiss`;
+  return simplePutCall(uri, { dismissed }, undefined, true, false);
 };

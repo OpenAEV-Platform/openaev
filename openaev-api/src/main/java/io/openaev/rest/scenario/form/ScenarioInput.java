@@ -38,6 +38,11 @@ public class ScenarioInput {
   @JsonProperty("scenario_severity")
   private SEVERITY severity;
 
+  /** Kill chain name shown first in the overview's kill chain results (null = automatic). */
+  @Nullable
+  @JsonProperty("scenario_default_kill_chain")
+  private String defaultKillChain;
+
   @Nullable
   @JsonProperty("scenario_external_reference")
   private String externalReference;

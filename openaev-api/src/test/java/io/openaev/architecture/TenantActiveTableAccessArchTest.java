@@ -16,23 +16,40 @@ import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
 import io.openaev.database.repository.MitigationRepository;
 import io.openaev.executors.ExecutorService;
+import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
+import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
+import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.collector.CollectorApi;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.executor.ExecutorApi;
+import io.openaev.rest.exercise.ExerciseApi;
 import io.openaev.rest.exercise.ExerciseImportApi;
+import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.inject.InjectApi;
+import io.openaev.rest.inject.ScenarioInjectApi;
+import io.openaev.rest.inject.SimulationInjectApi;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.ScenarioInjectService;
 import io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi;
 import io.openaev.rest.lessons.ExerciseLessonsApi;
 import io.openaev.rest.lessons.ScenarioLessonsApi;
 import io.openaev.rest.lessons_template.LessonsTemplateApi;
 import io.openaev.rest.mapper.MapperApi;
 import io.openaev.rest.mitigation.MitigationApi;
+import io.openaev.rest.payload.PayloadApi;
+import io.openaev.rest.payload.service.PayloadUpsertService;
+import io.openaev.rest.scenario.ScenarioApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.InjectExpectationTraceService;
 import io.openaev.service.MapperService;
+import io.openaev.service.attackpath.AttackPathGraphService;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
+import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
 import io.openaev.utils.mapper.CveMapper;
@@ -70,7 +87,14 @@ class TenantActiveTableAccessArchTest {
   /** Tables guarded by this test. Must cover every entry of the production allowlist. */
   private static final Set<String> GUARDED_TABLES =
       Set.of(
-          "import_mappers", "lessons_templates", "cwes", "collectors", "mitigations", "executors");
+          "import_mappers",
+          "lessons_templates",
+          "cwes",
+          "mitigations",
+          "collectors",
+          "executors",
+          "attackpath_execution",
+          "attackpath_finding");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -178,9 +202,21 @@ class TenantActiveTableAccessArchTest {
               // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
               CollectorApi.class,
               InjectExpectationTraceApi.class,
-              // Services behind those handlers; every caller is a wired handler:
+              PayloadApi.class,
+              AtomicTestingApi.class,
+              InjectApi.class,
+              SimulationInjectApi.class,
+              ScenarioInjectApi.class,
+              ScenarioApi.class,
+              ExerciseApi.class,
+              // Intermediate services behind the TxCtx-carrying handlers above:
               CollectorService.class,
               InjectExpectationTraceService.class,
+              InjectService.class,
+              ScenarioInjectService.class,
+              ScenarioService.class,
+              ExerciseService.class,
+              PayloadUpsertService.class,
               // Explicit tenantId param threaded from the caller (native DELETE ... AND
               // tenant_id = ?), not inspector-scoped: safe regardless of activation:
               ConnectorInstanceService.class,
@@ -216,4 +252,46 @@ class TenantActiveTableAccessArchTest {
           .because(
               "executors is tenant-active: an accessor without a tenant scope silently reads zero"
                   + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule attackpath_execution_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Read path, driven by the TxCtx-carrying AttackPathApi (pinned by
+              // TenantScopedEntrypointsTxCtxArchTest):
+              AttackPathGraphService.class,
+              // Background writer, scoped: opens its own transaction through the tenant primitive
+              // with the inject's tenant, and stamps the row through TenantWriteScopeResolver.
+              // Pinned by AttackPathIngestionTenantAttributionTest:
+              AttackPathExecutionIngestionService.class,
+              // Scoped reader: reads the step's execution rows inside its own executeNew (the
+              // inject's tenant) with an explicit tenantId predicate, to attribute copied findings.
+              // Pinned by AttackPathFindingIngestionServiceTest:
+              AttackPathFindingIngestionService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(AttackPathExecutionRepository.class)
+          .because(
+              "attackpath_execution is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule attackpath_finding_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Read path, driven by the TxCtx-carrying AttackPathApi (pinned by
+              // TenantScopedEntrypointsTxCtxArchTest):
+              AttackPathGraphService.class,
+              // Scoped writer: deletes a simulation's findings on reset/delete through the tenant
+              // primitive (executeNew with the exercise's tenant). Pinned by
+              // AttackPathIngestionTenantAttributionTest#deleteClearsTheSimulationScopedToItsTenant.
+              AttackPathExecutionIngestionService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(AttackPathFindingRepository.class)
+          .because(
+              "attackpath_finding is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 }

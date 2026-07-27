@@ -231,5 +231,6 @@ nav:
     - Tenant isolation: development/tenant-isolation.md
     - Collectors: development/collectors.md
     - Injectors: development/injectors.md
+    - Attack path: development/attack-path.md
     - REST API: development/api-usage.md
     - Best Practices: development/translations.md

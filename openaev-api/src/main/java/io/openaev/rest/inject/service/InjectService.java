@@ -56,6 +56,7 @@ import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
+import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.InjectUtils;
@@ -131,6 +132,7 @@ public class InjectService {
   private final InjectUtils injectUtils;
   private final ThreatArsenalService threatArsenalService;
   private final ApplicationEventPublisher eventPublisher;
+  private final BulkOperationMonitor bulkOperationMonitor;
 
   private InjectStatusService injectStatusService;
 
@@ -511,8 +513,27 @@ public class InjectService {
 
   @Transactional
   public InjectResultOverviewOutput relaunch(String id) {
+    return doRelaunch(id, true);
+  }
+
+  /**
+   * Relaunch an inject (duplicate + queue new + delete old). Scheduled relaunches pass {@code
+   * checkLaunchable = false} to skip the Enterprise executor gate, matching scenario scheduled
+   * execution which never re-gates at run time.
+   */
+  @Transactional
+  public InjectResultOverviewOutput relaunch(String id, boolean checkLaunchable) {
+    return doRelaunch(id, checkLaunchable);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points: an intra-class call to a
+  // @Transactional method bypasses the Spring proxy (self-invocation), so the overloads never call
+  // each other directly.
+  private InjectResultOverviewOutput doRelaunch(String id, boolean checkLaunchable) {
     Inject duplicatedInject = findAndDuplicateInject(id);
-    this.throwIfInjectNotLaunchable(duplicatedInject);
+    if (checkLaunchable) {
+      this.throwIfInjectNotLaunchable(duplicatedInject);
+    }
     Inject savedInject = saveInjectAndStatusAsQueuing(duplicatedInject);
     deleteForRelaunch(id, savedInject.getId());
     return injectMapper.toInjectResultOverviewOutput(savedInject);
@@ -523,8 +544,9 @@ public class InjectService {
     injectRepository.deleteById(id);
   }
 
-  @Transactional
-  public void deleteForRelaunch(String oldId, String newId) {
+  // Only ever runs inside the relaunch transaction: private and non-transactional by design (a
+  // public @Transactional variant would only be reachable through self-invocation).
+  private void deleteForRelaunch(String oldId, String newId) {
     injectDocumentRepository.updateInjectId(newId, oldId);
     injectRepository.deleteByIdNative(oldId);
     // Native delete: notify the search engine so the old inject and its expectation/finding docs
@@ -659,6 +681,7 @@ public class InjectService {
    * @param operations the operations to perform with fields and values to add, remove or replace
    * @return the list of updated injects
    */
+  @Transactional(rollbackFor = Exception.class)
   public List<Inject> bulkUpdateInject(
       final List<Inject> injectsToUpdate, final List<InjectBulkUpdateOperation> operations) {
     // We aggregate the different field values in distinct sets in order to avoid retrieving the
@@ -1485,7 +1508,9 @@ public class InjectService {
   }
 
   /**
-   * Create all injects from a contract research
+   * Create all injects from a contract research (threat arsenal "add to scenario(s)" mass action).
+   * Tracked as a massive operation (header progress indicator): the operation is registered lazily
+   * once the first contract page reveals the total, and progresses page by page.
    *
    * @param exercise to link injects on
    * @param scenarios to link injects on
@@ -1505,15 +1530,32 @@ public class InjectService {
     input.setSize(INJECTOR_CONTRACT_PAGE_SIZE);
     int pageNumber = 0;
     Page<? extends InjectorContractBaseOutput> page;
+    String operationId = null;
 
-    do {
-      page = fetchInjectorContractsPage(input, pageNumber);
-      List<InjectInput> injectInputs = toInjectInputs(page.getContent(), locale);
-      if (!injectInputs.isEmpty()) {
-        scenarios.forEach(scenario -> createAndSaveInjectList(exercise, scenario, injectInputs));
+    try {
+      do {
+        page = fetchInjectorContractsPage(input, pageNumber);
+        if (operationId == null && page.getTotalElements() > 0) {
+          operationId =
+              bulkOperationMonitor.start(
+                  "create", "injects", (int) page.getTotalElements() * scenarios.size());
+        }
+        List<InjectInput> injectInputs = toInjectInputs(page.getContent(), locale);
+        if (!injectInputs.isEmpty()) {
+          scenarios.forEach(scenario -> createAndSaveInjectList(exercise, scenario, injectInputs));
+          bulkOperationMonitor.progress(operationId, injectInputs.size() * scenarios.size());
+        }
+        pageNumber++;
+      } while (page.hasNext());
+      if (operationId != null) {
+        bulkOperationMonitor.complete(operationId);
       }
-      pageNumber++;
-    } while (page.hasNext());
+    } catch (RuntimeException e) {
+      if (operationId != null) {
+        bulkOperationMonitor.fail(operationId);
+      }
+      throw e;
+    }
   }
 
   private Page<? extends InjectorContractBaseOutput> fetchInjectorContractsPage(

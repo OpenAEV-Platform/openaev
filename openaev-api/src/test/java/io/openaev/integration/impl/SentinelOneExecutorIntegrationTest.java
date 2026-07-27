@@ -29,6 +29,7 @@ import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.utils.mockConfig.executors.WithMockSentinelOneConfig;
 import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
@@ -47,6 +48,19 @@ import org.springframework.transaction.annotation.Transactional;
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+// The legacy properties migration only seeds an instance when the legacy config is enabled;
+// these tests exercise the factory around that migrated instance.
+@WithMockSentinelOneConfig(
+    enable = true,
+    url = "sentinelOne_url",
+    apiKey = "sentinelOne_api_key",
+    apiRegisterInterval = 1234,
+    accountId = "so_acct_id",
+    apiBatchExecutionActionPagination = 5678,
+    windowsScriptId = "so_windows_script_id",
+    unixScriptId = "so_unix_script_id",
+    groupId = "so_group_id",
+    siteId = "so_site_id")
 public class SentinelOneExecutorIntegrationTest {
   @Autowired private SentinelOneExecutorClient client;
   @Autowired private EndpointService endpointService;
@@ -117,6 +131,10 @@ public class SentinelOneExecutorIntegrationTest {
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
         connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
+    // The migrated instance requests 'starting' (legacy config enabled): request a stop
+    // so the sync exercises the stopped path instead of attempting a real start.
+    instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    connectorInstanceService.save(instances.getFirst());
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);
@@ -140,6 +158,10 @@ public class SentinelOneExecutorIntegrationTest {
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
         connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
+    // The migrated instance requests 'starting' (legacy config enabled): request a stop
+    // so the sync exercises the stopped path instead of attempting a real start.
+    instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    connectorInstanceService.save(instances.getFirst());
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);

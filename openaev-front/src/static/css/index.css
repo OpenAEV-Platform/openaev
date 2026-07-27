@@ -154,7 +154,7 @@ input[type="file"] {
 }
 
 .chainedTimeline .react-flow__pane.draggable:not(.react-flow__pane.draggable.dragging, :has(.react-flow__connection)) {
-  cursor: none !important;
+  cursor: crosshair !important;
 }
 
 .react-flow__handle {

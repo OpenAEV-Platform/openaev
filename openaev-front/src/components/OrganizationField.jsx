@@ -21,7 +21,6 @@ const styles = () => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { display: 'none' },
 });
 
 class OrganizationFieldComponent extends Component {
@@ -84,6 +83,9 @@ class OrganizationFieldComponent extends Component {
           label={t('Organization')}
           options={organizationsOptions}
           style={{ marginTop: 20 }}
+          // Organization is optional: the clear icon is the only way to detach a
+          // player/team from its organization once one has been selected.
+          disableClearable={false}
           openCreate={this.props.userRight && this.handleOpenOrganizationCreation.bind(this)}
           renderOption={(props, option) => (
             <Box component="li" {...props} key={option.id}>
@@ -93,7 +95,6 @@ class OrganizationFieldComponent extends Component {
               <div className={classes.text}>{option.label}</div>
             </Box>
           )}
-          classes={{ clearIndicator: classes.autoCompleteIndicator }}
         />
         <Dialog
           open={this.state.organizationCreation}

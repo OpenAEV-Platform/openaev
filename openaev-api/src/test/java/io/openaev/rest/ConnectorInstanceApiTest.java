@@ -40,6 +40,7 @@ import io.openaev.service.connector_instances.XtmComposerEncryptionService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
@@ -1071,33 +1072,35 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
 
     String responseInstance1 =
         mvc.perform(
-                get(CONNECTOR_INSTANCE_URI + "/" + connectorInstance1.getId() + "/logs")
+                post(CONNECTOR_INSTANCE_URI + "/" + connectorInstance1.getId() + "/logs/search")
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(PaginationFixture.getDefault().build()))
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
             .getContentAsString();
-    assertThatJson(responseInstance1).isArray().size().isEqualTo(2);
+    assertThatJson(responseInstance1).node("totalElements").isEqualTo(2);
     assertThatJson(responseInstance1)
-        .inPath("[*].connector_instance_log")
+        .inPath("content[*].connector_instance_log")
         .isArray()
         .containsExactlyInAnyOrderElementsOf(List.of("log 1", "log 2"));
 
     String responseInstance2 =
         mvc.perform(
-                get(CONNECTOR_INSTANCE_URI + "/" + connectorInstance2.getId() + "/logs")
+                post(CONNECTOR_INSTANCE_URI + "/" + connectorInstance2.getId() + "/logs/search")
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(PaginationFixture.getDefault().build()))
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
             .getContentAsString();
-    assertThatJson(responseInstance2).isArray().size().isEqualTo(1);
+    assertThatJson(responseInstance2).node("totalElements").isEqualTo(1);
     assertThatJson(responseInstance2)
-        .inPath("[*].connector_instance_log")
+        .inPath("content[*].connector_instance_log")
         .isArray()
         .containsExactlyInAnyOrderElementsOf(List.of("log 3"));
   }

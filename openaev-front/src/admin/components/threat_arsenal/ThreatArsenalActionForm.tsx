@@ -192,7 +192,10 @@ const ThreatArsenalActionForm = ({
   }, {
     key: 'Remediation',
     label: (
-      <Box display="flex" alignItems="center">
+      // The theme lowercases MuiTab labels and re-capitalises via ::first-letter,
+      // which only works on block containers: this flex label silently rendered
+      // as "remediation". Neutralise the transform, the i18n key is capitalised.
+      <Box display="flex" alignItems="center" sx={{ textTransform: 'none' }}>
         {t('Remediation')}
         {!isValidatedEnterpriseEdition && (
           <EEChip
@@ -270,7 +273,6 @@ const ThreatArsenalActionForm = ({
           style={{
             display: 'flex',
             flexDirection: 'column',
-            minHeight: '100%',
             gap: theme.spacing(2),
           }}
           id="actionForm"
@@ -299,21 +301,16 @@ const ThreatArsenalActionForm = ({
             <RemediationFormTabs actionId={initialValues?.action_id} />
           )}
 
+          {/* In-flow action buttons right after the form content, like every
+              other drawer form in the app (no bottom-pinned footer). */}
           <div style={{
-            marginTop: 'auto',
             display: 'flex',
-            flexDirection: 'row-reverse',
+            justifyContent: 'flex-end',
             gap: theme.spacing(1),
+            marginTop: theme.spacing(1),
+            marginBottom: theme.spacing(2),
           }}
           >
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={isSubmitting || !isDirty}
-            >
-              {editing ? t('Update') : t('Create')}
-            </Button>
             <Button
               variant="outlined"
               color="primary"
@@ -321,6 +318,14 @@ const ThreatArsenalActionForm = ({
               disabled={isSubmitting}
             >
               {t('Cancel')}
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              type="submit"
+              disabled={isSubmitting || !isDirty}
+            >
+              {editing ? t('Update') : t('Create')}
             </Button>
           </div>
         </form>

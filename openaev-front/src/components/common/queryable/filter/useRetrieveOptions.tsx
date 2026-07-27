@@ -2,7 +2,7 @@ import type { AxiosResponse } from 'axios';
 import { useContext, useState } from 'react';
 
 import { searchAssetGroupByIdAsOption } from '../../../../actions/asset_groups/assetgroup-action';
-import { searchEndpointByIdAsOption } from '../../../../actions/assets/endpoint-actions';
+import { searchAssetsByIdAsOption, searchEndpointByIdAsOption } from '../../../../actions/assets/endpoint-actions';
 import { searchSecurityPlatformByIdAsOption } from '../../../../actions/assets/securityPlatform-actions';
 import { searchAttackPatternsByIdAsOption } from '../../../../actions/AttackPattern';
 import { searchCustomDashboardByIdAsOptions } from '../../../../actions/custom_dashboards/customdashboard-action';
@@ -18,9 +18,11 @@ import { searchTagByIdAsOption } from '../../../../actions/tags/tag-action';
 import { searchTeamByIdAsOption } from '../../../../actions/teams/team-actions';
 import { searchPlayerByIdAsOption } from '../../../../actions/users/User';
 import ContractOutputElementType from '../../../../admin/components/findings/ContractOutputElementType';
+import { scenarioCategories } from '../../../../admin/components/scenarios/constants';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { useFormatter } from '../../../i18n';
 import { CUSTOM_DASHBOARD, SCENARIOS, SIMULATIONS } from './constants';
 
 interface RetrieveOptionsConfig {
@@ -30,6 +32,7 @@ interface RetrieveOptionsConfig {
 }
 
 const useRetrieveOptions = () => {
+  const { t } = useFormatter();
   const [options, setOptions] = useState<Option[]>([]);
   const ability = useContext(AbilityContext);
 
@@ -121,6 +124,8 @@ const useRetrieveOptions = () => {
       case 'team_tags':
       case 'finding_tags':
       case 'user_tags':
+      case 'document_tags':
+      case 'challenge_tags':
       case 'base_tags_side':
         searchTagByIdAsOption(ids).then((response) => {
           setOptions(response.data);
@@ -138,6 +143,16 @@ const useRetrieveOptions = () => {
         }
         break;
       case 'finding_assets':
+        // Findings can attach to any asset category (agentless web applications included), so
+        // labels must resolve through the whole asset inventory, not the endpoint-only options.
+        if (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
+          searchAssetsByIdAsOption(ids).then((response) => {
+            setOptions(response.data);
+          });
+        } else {
+          setOptions([]);
+        }
+        break;
       case 'inject_assets':
       case 'base_assets_side':
         if (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
@@ -150,13 +165,26 @@ const useRetrieveOptions = () => {
         break;
       case 'inject_teams':
       case 'finding_teams':
+      case 'user_teams':
       case 'base_teams_side':
         searchTeamByIdAsOption(ids).then((response) => {
           setOptions(response.data);
         });
         break;
       case 'finding_users':
+      case 'payload_author_user':
+      case 'asset_linked_person':
         searchPlayerByIdAsOption(ids).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'payload_author_team':
+        searchTeamByIdAsOption(ids).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'payload_author_organization':
+        searchOrganizationByIdAsOptions(ids).then((response) => {
           setOptions(response.data);
         });
         break;
@@ -187,6 +215,26 @@ const useRetrieveOptions = () => {
       case 'user_organization':
         searchOrganizationByIdAsOptions(ids).then((response) => {
           setOptions(response.data);
+        });
+        break;
+      case 'scenario_category':
+        // Predefined categories have a display label; custom ones show as-is.
+        setOptions(ids.map(id => ({
+          id,
+          label: scenarioCategories.has(id) ? t(scenarioCategories.get(id) as string) : id,
+        })));
+        break;
+      // Hero-stat drill-downs scope entities without ES side fields (teams,
+      // asset groups) by their explicit ids: resolve the labels across both
+      // types and merge (each id only matches its own type).
+      case 'base_id':
+        Promise.all([
+          searchTeamByIdAsOption(ids),
+          ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)
+            ? searchAssetGroupByIdAsOption(ids)
+            : Promise.resolve({ data: [] as Option[] }),
+        ]).then(([teams, assetGroups]) => {
+          setOptions([...teams.data, ...assetGroups.data]);
         });
         break;
       // Author filter: an id may belong to a person, a team or an organization -

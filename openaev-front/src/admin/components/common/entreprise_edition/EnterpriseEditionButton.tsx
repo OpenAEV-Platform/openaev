@@ -15,27 +15,26 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
 import { RocketLaunchOutlined } from '@mui/icons-material';
 import { Button } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 
-interface Props {
-  style?: React.CSSProperties;
-  classes?: { [key: string]: string };
-}
-
-const EnterpriseEditionButton = ({ style = {}, classes }: Props) => {
+const EnterpriseEditionButton = () => {
   const { t } = useFormatter();
+  const theme = useTheme();
   const { openDialog } = useEnterpriseEdition();
   return (
     <Button
       size="small"
-      variant="outlined"
+      variant="text"
       color="ee"
       onClick={() => openDialog()}
       startIcon={<RocketLaunchOutlined />}
-      style={style}
-      classes={classes}
+      sx={{
+        textTransform: 'none',
+        fontWeight: theme.typography.fontWeightBold,
+      }}
     >
       {t('Manage your enterprise edition license')}
     </Button>

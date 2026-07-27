@@ -530,7 +530,7 @@ public class MapperServiceTest extends IntegrationTest {
     assertTrue(
         response
             .getHeader("Content-Disposition")
-            .startsWith("attachment; filename=InjectorContracts"));
+            .startsWith("attachment; filename=ThreatArsenalItems"));
 
     List<String[]> csvRows =
         new CSVReaderBuilder(new StringReader(response.getContentAsString())).build().readAll();

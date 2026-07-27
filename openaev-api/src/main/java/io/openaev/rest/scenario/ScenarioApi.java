@@ -11,7 +11,13 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.expectations.ExpectationsDriftService;
+import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
+import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
+import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
+import io.openaev.context.BulkOperationContext;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.raw.RawPaginationScenario;
@@ -53,6 +59,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -82,6 +89,7 @@ public class ScenarioApi extends RestBehavior {
   private final WorkflowService workflowService;
   private final StepService stepService;
   private final PreviewFeatureService previewFeatureService;
+  private final ExpectationsDriftService expectationsDriftService;
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @Transactional
@@ -123,29 +131,39 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/with-injector-contracts",
     TENANT_SCENARIO_URI + "/with-injector-contracts"
   })
-  @Transactional
+  // SUPPORTS (not REQUIRED) on purpose: the creation runs in the service's own transaction,
+  // wrapped in a massive-operation scope (per-entity stream event suppression) that must cover the
+  // commit-time flush - the arsenal selection can create thousands of injects.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public Scenario createScenarioWithInjectorContracts(
       @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
-    return this.scenarioService.createScenarioWithInjectorContracts(
-        TenantContext.getCurrentTenant(),
-        inputs.getScenarioInput(),
-        inputs.getInjectorContractSearchPaginationInput(),
-        inputs.getLocale());
+    return BulkOperationContext.runSuppressed(
+        () ->
+            this.scenarioService.createScenarioWithInjectorContracts(
+                TenantContext.getCurrentTenant(),
+                inputs.getScenarioInput(),
+                inputs.getInjectorContractSearchPaginationInput(),
+                inputs.getLocale()));
   }
 
   @PutMapping({
     SCENARIO_URI + "/with-injector-contracts",
     TENANT_SCENARIO_URI + "/with-injector-contracts"
   })
-  @Transactional
+  // SUPPORTS (not REQUIRED) on purpose: the update runs in the service's own transaction, wrapped
+  // in a massive-operation scope (per-entity stream event suppression) that must cover the
+  // commit-time flush - the arsenal selection can create thousands of injects.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
   public List<Scenario> updateScenariosWithInjectorContracts(
       @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
-    return this.scenarioService.updateScenariosWithInjectorContracts(
-        inputs.getScenarioIds(),
-        inputs.getInjectorContractSearchPaginationInput(),
-        inputs.getLocale());
+    return BulkOperationContext.runSuppressed(
+        () ->
+            this.scenarioService.updateScenariosWithInjectorContracts(
+                inputs.getScenarioIds(),
+                inputs.getInjectorContractSearchPaginationInput(),
+                inputs.getLocale()));
   }
 
   @PostMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
@@ -205,8 +223,73 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public List<HealthCheck> streamHealthChecks(@PathVariable @NotBlank final String scenarioId) {
+  public List<HealthCheck> streamHealthChecks(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     return scenarioService.runChecks(scenarioId);
+  }
+
+  @Operation(
+      summary = "Get the expectation drift report of a scenario",
+      description =
+          "Compares the predefined expectations of the injector contracts with the expectations"
+              + " stored inside the scenario injects")
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/expectations-drift",
+    TENANT_SCENARIO_URI + "/{scenarioId}/expectations-drift"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SCENARIO)
+  public ExpectationsDriftOutput scenarioExpectationsDrift(
+      @PathVariable @NotBlank final String scenarioId) {
+    return expectationsDriftService.scenarioDrift(scenarioId);
+  }
+
+  @Operation(
+      summary = "Realign the expectations of the scenario injects onto their contracts",
+      description =
+          "Overwrites the expectations of every drifted inject with the predefined expectations"
+              + " currently exposed by its injector contract, as a tracked massive operation")
+  // SUPPORTS (not REQUIRED) on purpose: the realignment runs chunk by chunk in the service's own
+  // short transactions, wrapped in a massive-operation scope (header progress indicator +
+  // per-entity stream event suppression) that must cover each commit-time flush.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/expectations-drift/realign",
+    TENANT_SCENARIO_URI + "/{scenarioId}/expectations-drift/realign"
+  })
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SCENARIO)
+  public ExpectationsRealignOutput realignScenarioExpectations(
+      @PathVariable @NotBlank final String scenarioId) {
+    return expectationsDriftService.realignScenario(scenarioId);
+  }
+
+  @Operation(
+      summary = "Dismiss or restore the expectation drift warning of a scenario",
+      description =
+          "Acknowledges that the drifted expectations were customized on purpose: the warning is"
+              + " downgraded to a discreet indicator. Persisted in database so the dismissal is"
+              + " shared between users, and reset on realignment")
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/expectations-drift/dismiss",
+    TENANT_SCENARIO_URI + "/{scenarioId}/expectations-drift/dismiss"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SCENARIO)
+  public ExpectationsDriftOutput dismissScenarioExpectationsDrift(
+      @PathVariable @NotBlank final String scenarioId,
+      @Valid @RequestBody final ExpectationsDriftDismissInput input) {
+    return expectationsDriftService.dismissScenarioDrift(scenarioId, input.dismissed());
   }
 
   @PutMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
@@ -239,6 +322,21 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public void deleteScenario(@PathVariable @NotBlank final String scenarioId) {
     this.scenarioService.deleteScenario(scenarioId);
+  }
+
+  @Operation(
+      description = "Bulk delete of scenarios",
+      tags = {"Scenarios"})
+  @LogExecutionTime
+  @DeleteMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
+  // SUPPORTS (not REQUIRED) on purpose: the service deletes in small independent transactions
+  // (chunked, with deadlock retry) - a request-wide transaction would defeat that and used to
+  // deadlock in production against concurrent inject expectation updates.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.SCENARIO)
+  public List<String> bulkDeleteScenarios(
+      @RequestBody @Valid final ScenarioBulkProcessingInput input) {
+    return this.scenarioService.bulkDeleteScenarios(input);
   }
 
   // -- TAGS --
@@ -434,7 +532,14 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioRecurrenceInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    if (input.getRecurrenceStart() != null) {
+    // Scheduling itself is a Community Edition feature, but the Enterprise executor gate still
+    // applies: without it, scheduling would bypass the licence check enforced on manual launches
+    // (scheduled executions deliberately skip the gate at run time). Gate on both fields: a
+    // recurrence expression with a null start date still triggers scheduled execution.
+    boolean schedules =
+        input.getRecurrenceStart() != null
+            || (input.getRecurrence() != null && !input.getRecurrence().isBlank());
+    if (schedules) {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
     }
     scenario.setUpdateAttributes(input);

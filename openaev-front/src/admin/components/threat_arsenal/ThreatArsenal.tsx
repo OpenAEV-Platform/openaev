@@ -25,15 +25,17 @@ import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import {
   bulkDeleteThreatArsenalActions,
   exportThreatArsenalCsvMapper,
+  fetchThreatArsenalAuthorCounts,
   searchThreatArsenalActions,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import DialogDelete from '../../../components/common/DialogDelete';
 import ExportButton from '../../../components/common/ExportButton';
+import { useAuthorFacetOptions } from '../../../components/common/facets/ContractFacets';
 import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
-import useBodyItemsStyles from '../../../components/common/queryable/style/style';
+import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
@@ -41,6 +43,7 @@ import {
   type SearchPaginationInput,
   type ThreatArsenalAction,
 } from '../../../utils/api-types';
+import { useBulkOperationsFinishedCount } from '../../../utils/bulkOperations';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
@@ -56,7 +59,8 @@ import { THREAT_ARSENAL_LIST_HEADERS, THREAT_ARSENAL_LIST_INLINE_STYLES } from '
 import ThreatArsenalListRow from './ThreatArsenalListRow';
 import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
 import ThreatArsenalSidebar from './ThreatArsenalSidebar';
-import useThreatArsenalAuthorFacet from './useThreatArsenalAuthorFacet';
+import ThreatArsenalSortSelect from './ThreatArsenalSortSelect';
+import useThreatArsenalFacetCounts from './useThreatArsenalFacetCounts';
 
 type ViewMode = 'grid' | 'list';
 
@@ -71,7 +75,6 @@ const readViewMode = (): ViewMode => {
 const ThreatArsenal = () => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const bodyItemsStyles = useBodyItemsStyles();
   const ability = useContext(AbilityContext);
   const canDeleteThreatArsenal = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS);
 
@@ -91,7 +94,12 @@ const ThreatArsenal = () => {
 
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
     'threat-arsenal',
-    buildSearchPagination({}),
+    buildSearchPagination({
+      sorts: [{
+        property: 'action_updated_at',
+        direction: 'DESC',
+      }],
+    }),
   );
 
   const [loading, setLoading] = useState<boolean>(false);
@@ -99,6 +107,12 @@ const ThreatArsenal = () => {
     setLoading(true);
     return searchThreatArsenalActions({ ...input }).finally(() => setLoading(false));
   };
+
+  // Massive operations (bulk delete) run detached from this screen: reload the page
+  // of actions every time one finishes, so the list and the total stop showing the
+  // rows that were deleted in the background. Only live transitions bump this count
+  // (the history replayed at startup does not), so mounting never triggers a reload.
+  const finishedBulkOperations = useBulkOperationsFinishedCount();
 
   const totalElements = queryableHelpers.paginationHelpers.getTotalElements();
 
@@ -127,12 +141,10 @@ const ThreatArsenal = () => {
     domainFilterKey: 'action_domains',
   });
 
-  // Per-status counts are intentionally NOT computed from `threatArsenalActions`
-  // here: that array only holds the currently loaded page, while `totalElements`
-  // covers the full filtered dataset, so page-bound counts would be misleading
-  // (e.g. "Verified: 23" on page 1, "Verified: 8" on page 2). Users can drill
-  // by status via the Status quick filter underneath the hero. If a global
-  // aggregation endpoint is ever added, status chips can be wired here.
+  // Platform + status counts come from a global aggregation endpoint (never
+  // from `threatArsenalActions`, which only holds the currently loaded page and
+  // would yield misleading page-bound counts).
+  const facetCounts = useThreatArsenalFacetCounts(searchPaginationInput);
 
   const availableFilterNames = [
     'action_injectors',
@@ -215,22 +227,24 @@ const ThreatArsenal = () => {
     }
   };
 
+  // Fire and forget, like every other massive operation in the platform: the dialog
+  // closes and the selection clears immediately, progress is reported by the
+  // massive-operations indicator in the top bar, and the list reloads once the
+  // operation reaches a terminal state (see `reloadContentCount` below). Returning
+  // the promise instead would keep the confirmation dialog in its loading state for
+  // the whole deletion - minutes on a large scope, where the request may even
+  // outlive the proxy timeout while the backend keeps committing chunk by chunk.
   const handleBulkDelete = () => {
     const input = {
       ...searchPaginationInput,
       injector_contract_ids_to_process: selectAll ? [] : Object.keys(selectedElements),
       injector_contract_ids_to_ignore: selectAll ? Object.keys(deSelectedElements) : [],
     };
-    return bulkDeleteThreatArsenalActions(input).then((response) => {
-      const deletedIds: string[] = response?.data?.deleted_ids ?? [];
-      const deletedSet = new Set(deletedIds);
-      setThreatArsenalActions(prev => prev.filter(a => !deletedSet.has(a.injector_contract_id)));
-      queryableHelpers.paginationHelpers.handleChangeTotalElements(
-        Math.max(0, totalElements - deletedIds.length),
-      );
-      handleClearSelectedElements();
-      setBulkDeleteDialogOpened(false);
-    });
+    setBulkDeleteDialogOpened(false);
+    handleClearSelectedElements();
+    // Failures are already surfaced by the shared error notifier, so the rethrow is
+    // swallowed here to avoid an unhandled rejection on this detached call.
+    bulkDeleteThreatArsenalActions(input).catch(() => {});
   };
 
   const hasActiveFilters = !!(
@@ -240,7 +254,7 @@ const ThreatArsenal = () => {
 
   // Full author universe + per-filter counts (backend aggregation), so the
   // sidebar keeps every author visible and greys out the zero-count ones.
-  const authorOptions = useThreatArsenalAuthorFacet(searchPaginationInput);
+  const authorOptions = useAuthorFacetOptions(fetchThreatArsenalAuthorCounts, searchPaginationInput);
 
   const renderGridView = () => {
     if (loading) {
@@ -321,28 +335,7 @@ const ThreatArsenal = () => {
   };
 
   const renderListView = () => {
-    if (loading) {
-      return (
-        <Box>
-          {Array.from({ length: 10 }).map((_, idx) => (
-            <Box
-              key={idx}
-              sx={{
-                height: 50,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.5,
-                borderBottom: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <Skeleton variant="circular" width={20} height={20} animation="wave" />
-              <Skeleton variant="text" width="50%" height={20} animation="wave" />
-            </Box>
-          ))}
-        </Box>
-      );
-    }
-    if (threatArsenalActions.length === 0) {
+    if (!loading && threatArsenalActions.length === 0) {
       return <ThreatArsenalEmptyState hasFilters={hasActiveFilters} onResetFilters={handleResetFilters} />;
     }
     return (
@@ -357,25 +350,54 @@ const ThreatArsenal = () => {
           <ListItemIcon style={{ minWidth: 40 }} />
           <ListItemText
             primary={(
-              <div style={bodyItemsStyles.bodyItems}>
-                {THREAT_ARSENAL_LIST_HEADERS.map(header => (
-                  <Typography
-                    key={header.field}
-                    variant="h4"
-                    sx={{
-                      ...bodyItemsStyles.bodyItem,
-                      ...THREAT_ARSENAL_LIST_INLINE_STYLES[header.field],
-                      margin: 0,
-                    }}
-                  >
-                    {t(header.label)}
-                  </Typography>
-                ))}
-              </div>
+              <SortHeadersComponentV2
+                headers={THREAT_ARSENAL_LIST_HEADERS}
+                inlineStylesHeaders={THREAT_ARSENAL_LIST_INLINE_STYLES}
+                sortHelpers={queryableHelpers.sortHelpers}
+              />
             )}
           />
         </ListItem>
-        {threatArsenalActions.map((action) => {
+        {/* Skeleton rows mirror the exact real row anatomy (checkbox column,
+            inject icon column, then the shared column widths) so the layout
+            does not shift when the data lands. */}
+        {loading && Array.from({ length: 10 }).map((_, idx) => (
+          <Box
+            key={idx}
+            sx={{
+              height: 50,
+              display: 'flex',
+              alignItems: 'center',
+              paddingLeft: 2,
+              paddingRight: 7,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <Box sx={{ minWidth: 38 }}>
+              <Skeleton variant="rounded" width={18} height={18} animation="wave" />
+            </Box>
+            <Box sx={{ minWidth: 40 }}>
+              <Skeleton variant="circular" width={26} height={26} animation="wave" />
+            </Box>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              flex: 1,
+            }}
+            >
+              {THREAT_ARSENAL_LIST_HEADERS.map(header => (
+                <Box
+                  key={header.field}
+                  style={THREAT_ARSENAL_LIST_INLINE_STYLES[header.field]}
+                  sx={{ paddingRight: '10px' }}
+                >
+                  <Skeleton variant="text" width="70%" height={20} animation="wave" />
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        ))}
+        {!loading && threatArsenalActions.map((action) => {
           const flags = computeRowFlags(action);
           return (
             <ThreatArsenalListRow
@@ -472,6 +494,7 @@ const ThreatArsenal = () => {
           <ThreatArsenalSidebar
             domainElements={iconBarOrderedDomains}
             authorOptions={authorOptions}
+            facetCounts={facetCounts}
             searchPaginationInput={searchPaginationInput}
             filterHelpers={queryableHelpers.filterHelpers}
           />
@@ -492,6 +515,15 @@ const ThreatArsenal = () => {
                 entityPrefix="threat_arsenal"
                 availableFilterNames={availableFilterNames}
                 queryableHelpers={queryableHelpers}
+                reloadContentCount={finishedBulkOperations}
+                filtersEndSlot={viewMode === 'grid'
+                  ? (
+                      // List view sorts via its column headers; the select is grid-only.
+                      // Sits at the end of the filter row (after the clear-filters icon),
+                      // matching the OpenCTI card-view sort placement.
+                      <ThreatArsenalSortSelect sortHelpers={queryableHelpers.sortHelpers} />
+                    )
+                  : null}
                 topBarButtons={(
                   <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
                     <CreateThreatArsenalAction

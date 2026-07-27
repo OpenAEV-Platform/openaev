@@ -58,6 +58,7 @@ public class ScenarioToExerciseService {
     exercise.setCategory(scenario.getCategory());
     exercise.setMainFocus(scenario.getMainFocus());
     exercise.setSeverity(scenario.getSeverity());
+    exercise.setDefaultKillChain(scenario.getDefaultKillChain());
     exercise.setHeader(scenario.getHeader());
     exercise.setFooter(scenario.getFooter());
     exercise.setFrom(scenario.getFrom());

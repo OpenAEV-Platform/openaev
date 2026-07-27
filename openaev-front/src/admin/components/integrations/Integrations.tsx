@@ -1,6 +1,6 @@
 import { Alert, Tab, Tabs } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 
 import { fetchCatalogConnectors, isXtmComposerIsReachable } from '../../../actions/catalog/catalog-actions';
@@ -13,7 +13,6 @@ import { type CatalogConnectorOutput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
-import { fromCatalogConnector } from './catalog_connectors/catalog-facets';
 import CatalogHero from './catalog_connectors/CatalogHero';
 
 const Catalog = lazy(() => import('./catalog_connectors/Catalog'));
@@ -63,8 +62,6 @@ const Integrations = () => {
       .catch(() => setIsXtmComposerUp(false));
   }, []);
 
-  const heroItems = useMemo(() => catalogConnectors.map(fromCatalogConnector), [catalogConnectors]);
-
   if (!tab || !TABS.includes(tab as IntegrationsTab)) {
     return <Navigate to="../deployed" replace />;
   }
@@ -99,7 +96,6 @@ const Integrations = () => {
           </Alert>
         )}
       <CatalogHero
-        connectors={heroItems}
         title={t('Integrations')}
         subtitle={t('Browse, filter and deploy collectors, injectors and executors from the XTM ecosystem.')}
       />

@@ -18,11 +18,14 @@ import io.openaev.database.specification.AssetAgentJobSpecification;
 import io.openaev.database.specification.EndpointSpecification;
 import io.openaev.rest.asset.endpoint.form.*;
 import io.openaev.rest.asset.endpoint.output.EndpointTargetOutput;
+import io.openaev.rest.asset.form.AssetBulkProcessingInput;
+import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.AssetService;
 import io.openaev.service.EndpointService;
+import io.openaev.service.InjectSearchService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.InputFilterOptions;
@@ -55,6 +58,7 @@ public class EndpointApi extends RestBehavior {
 
   private final EndpointService endpointService;
   private final AssetService assetService;
+  private final InjectSearchService injectSearchService;
   private final InjectStatusService injectStatusService;
   private final EndpointRepository endpointRepository;
   private final AssetAgentJobRepository assetAgentJobRepository;
@@ -249,6 +253,29 @@ public class EndpointApi extends RestBehavior {
   }
 
   /**
+   * "Injects played" for the asset detail page: every inject (atomic testing or simulation inject)
+   * that concerns this asset, whether it was targeted directly, through an asset group (static or
+   * dynamic) or evidenced by the expectations persisted at execution time. This matches the scope
+   * of the asset posture score, unlike the plain atomic-testing search which only sees direct
+   * targeting of standalone injects.
+   */
+  @LogExecutionTime
+  @PostMapping({
+    ASSET_URI + "/{assetId}/injects/search",
+    TENANT_ASSET_URI + "/{assetId}/injects/search"
+  })
+  @AccessControl(
+      resourceId = "#assetId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.ASSET)
+  @Transactional(readOnly = true)
+  public Page<InjectResultOutput> searchInjectsForAsset(
+      @PathVariable @NotBlank final String assetId,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return injectSearchService.getPageOfInjectResultsForAsset(assetId, searchPaginationInput);
+  }
+
+  /**
    * Generic asset deletion for the unified inventory: deletes any asset type (endpoint, AI target
    * or any other category) by id. Security platforms are rejected (managed in their own area).
    */
@@ -260,6 +287,21 @@ public class EndpointApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public void deleteAsset(@PathVariable @NotBlank final String assetId) {
     this.assetService.deleteAsset(assetId);
+  }
+
+  /**
+   * Bulk deletion for the unified asset inventory: deletes assets of any category from an explicit
+   * id list or from a search input (select-all with optional exclusions). Security platforms are
+   * always excluded from the scope.
+   */
+  @LogExecutionTime
+  @DeleteMapping({ASSET_URI, TENANT_ASSET_URI})
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ASSET)
+  // SUPPORTS (not REQUIRED) on purpose: the service deletes in small independent transactions
+  // (chunked, with deadlock retry) - a request-wide transaction would defeat that.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  public List<String> bulkDeleteAssets(@RequestBody @Valid final AssetBulkProcessingInput input) {
+    return this.assetService.bulkDeleteAssets(input);
   }
 
   @GetMapping({ENDPOINT_URI + "/resolve", TENANT_ENDPOINT_URI + "/resolve"})

@@ -65,6 +65,14 @@ public interface RawSimulationIndexing extends RawTenant {
   String getExercise_main_focus();
 
   /**
+   * Returns the kill chain displayed first in the overview kill chain results.
+   *
+   * @return the default kill chain name (e.g., "mitre-attack"), or null for automatic (blank input
+   *     is normalized to null on write, so null is the only automatic marker)
+   */
+  String getExercise_default_kill_chain();
+
+  /**
    * Returns the severity level of the exercise.
    *
    * @return the severity level

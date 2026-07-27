@@ -1,5 +1,6 @@
 import { Alert } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
 
 import { createConnectorInstance } from '../../../../actions/connector_instances/connector-instance-actions';
@@ -13,20 +14,32 @@ import type {
 import { MESSAGING$ } from '../../../../utils/Environment';
 import { notifyErrorHandler } from '../../../../utils/error/errorHandlerUtil';
 import ConnectorInstanceForm from './ConnectorInstanceForm';
-import useConnectorInstanceForm from './useConnectorInstance';
+import useConnectorInstanceForm, { CONNECTOR_NAME_KEYS } from './useConnectorInstance';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   catalogConnectorId: string;
   catalogConnectorSlug: string;
+  /** Catalog connector title, used to pre-fill the instance display name. */
+  connectorTitle?: string;
   connectorType: CatalogConnector['catalog_connector_type'];
   disabled?: boolean;
   migrationSource?: string;
   disabledMessage?: string;
 }
 
-const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, catalogConnectorSlug, connectorType, disabled = false, disabledMessage, migrationSource }: Props) => {
+const CreateConnectorInstanceDrawer = ({
+  open,
+  onClose,
+  catalogConnectorId,
+  catalogConnectorSlug,
+  connectorTitle,
+  connectorType,
+  disabled = false,
+  disabledMessage,
+  migrationSource,
+}: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const navigate = useNavigate();
@@ -37,6 +50,22 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
     undefined,
     open,
   );
+
+  // Pre-fill the display name with the catalog connector's title (the user can
+  // still change it). Only when the name field has no default of its own.
+  const prefilledValues = useMemo(() => {
+    if (!connectorTitle) {
+      return initialValues;
+    }
+    return initialValues.map(value => (
+      CONNECTOR_NAME_KEYS.includes(value.configuration_key) && !value.configuration_value
+        ? {
+            ...value,
+            configuration_value: connectorTitle as unknown as JsonNode,
+          }
+        : value
+    ));
+  }, [initialValues, connectorTitle]);
 
   const onCreateConnectorInstance = (data: Omit<CreateConnectorInstanceInput, 'catalog_connector_id'>) => {
     if (migrationSource) {
@@ -80,7 +109,7 @@ const CreateConnectorInstanceDrawer = ({ open, onClose, catalogConnectorId, cata
           <ConnectorInstanceForm
             key={catalogConnectorId}
             catalogConnectorSlug={catalogConnectorSlug}
-            initialConfigurationValues={initialValues}
+            initialConfigurationValues={prefilledValues}
             configurationsDefinitionMap={configurationsDefinitionMap}
             onSubmit={onCreateConnectorInstance}
             onClose={onClose}

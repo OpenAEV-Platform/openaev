@@ -37,7 +37,6 @@ const useStyles = makeStyles()(theme => ({
     gap: theme.spacing(1),
     marginTop: theme.spacing(1),
     marginBottom: theme.spacing(2),
-    marginRight: theme.spacing(2),
   },
   durationGrid: {
     display: 'grid',
@@ -277,6 +276,9 @@ const InjectForm = ({
         inject_documents: data.inject_documents,
         inject_depends_duration,
         inject_depends_on: data.inject_depends_on ? data.inject_depends_on : [],
+        // Preserve the activation state: the backend input defaults inject_enabled to true, so
+        // omitting it would silently re-enable a disabled inject on every update.
+        inject_enabled: defaultInject.inject_enabled ?? true,
         ...(data.inject_injector ? { inject_injector: data.inject_injector } : {}),
       } as InjectInput;
       cleanInvisibleFields(values);
@@ -470,7 +472,7 @@ const InjectForm = ({
   }, [injectorContractContent, isCreation]);
 
   if (Object.keys(defaultValues).length === 0) {
-    return <Loader />;
+    return <Loader variant="inElement" />;
   }
 
   return (

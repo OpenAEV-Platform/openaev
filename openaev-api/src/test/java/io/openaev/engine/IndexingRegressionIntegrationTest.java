@@ -9,7 +9,7 @@ import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.ListRuntime;
-import io.openaev.engine.model.endpoint.EsEndpoint;
+import io.openaev.engine.model.asset.EsAsset;
 import io.openaev.engine.model.inject.EsInject;
 import io.openaev.engine.model.injectexpectation.EsInjectExpectation;
 import io.openaev.engine.model.scenario.EsScenario;
@@ -115,7 +115,7 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
   // ---------------------------------------------------------------------------
 
   private EsEntities queryEndpoints() {
-    return queryModel("endpoint");
+    return queryModel("asset");
   }
 
   private EsEntities queryModel(String model) {
@@ -254,11 +254,11 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
   }
 
   /**
-   * Sets the {@code IndexingStatus} cursor for the "endpoint" model to {@code FROM} so that only
+   * Sets the {@code IndexingStatus} cursor for the "asset" model to {@code FROM} so that only
    * records updated after 1 hour ago are considered for re-indexing.
    */
   private void setEndpointIndexingStatusToFrom() {
-    setIndexingStatusToFrom("endpoint");
+    setIndexingStatusToFrom("asset");
   }
 
   private void setIndexingStatusToFrom(String type) {
@@ -274,7 +274,7 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
   // ---------------------------------------------------------------------------
 
   @Nested
-  @DisplayName("EndpointHandler.findForIndexing - full pipeline")
+  @DisplayName("AssetHandler.findForIndexing - full pipeline")
   class EndpointFindForIndexing {
 
     @Test
@@ -309,8 +309,8 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
             EsEntities result = queryEndpoints();
             assertThat(result.getTotal()).isEqualTo(1);
 
-            EsEndpoint esEndpoint =
-                (EsEndpoint)
+            EsAsset esEndpoint =
+                (EsAsset)
                     result.getEsDatas().stream()
                         .filter(e -> e.getBase_id().equals(endpointWrapper.get().getId()))
                         .findFirst()

@@ -121,6 +121,8 @@ public enum Capability {
   ACCESS_PAYLOADS(
       null,
       CapabilityGroup.THREAT_ARSENALS,
+      true,
+      true,
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.PAYLOAD, Action.READ),
       pair(ResourceType.PAYLOAD, Action.SEARCH)),
@@ -128,12 +130,13 @@ public enum Capability {
       since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
   MANAGE_PAYLOADS(
       ACCESS_PAYLOADS,
+      true,
       pair(ResourceType.PAYLOAD, Action.WRITE),
       pair(ResourceType.PAYLOAD, Action.CREATE),
       pair(ResourceType.PAYLOAD, Action.DUPLICATE)),
   @Deprecated(
       since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
-  DELETE_PAYLOADS(MANAGE_PAYLOADS, pair(ResourceType.PAYLOAD, Action.DELETE)),
+  DELETE_PAYLOADS(MANAGE_PAYLOADS, true, pair(ResourceType.PAYLOAD, Action.DELETE)),
 
   // Threat Arsenal —
   ACCESS_THREAT_ARSENALS(
@@ -292,8 +295,6 @@ public enum Capability {
       pair(ResourceType.USER_GROUP, Action.SEARCH),
       pair(ResourceType.USER, Action.READ),
       pair(ResourceType.USER, Action.SEARCH),
-      pair(ResourceType.MAPPER, Action.READ),
-      pair(ResourceType.MAPPER, Action.SEARCH),
       pair(ResourceType.COLLECTOR, Action.READ),
       pair(ResourceType.COLLECTOR, Action.SEARCH),
       pair(ResourceType.INJECTOR, Action.READ),
@@ -301,7 +302,9 @@ public enum Capability {
       pair(ResourceType.CATALOG, Action.READ),
       pair(ResourceType.CATALOG, Action.SEARCH),
       pair(ResourceType.XTM_HUB_REGISTRATION, Action.READ),
-      pair(ResourceType.XTM_HUB_REGISTRATION, Action.SEARCH)),
+      pair(ResourceType.XTM_HUB_REGISTRATION, Action.SEARCH),
+      pair(ResourceType.NOTIFIER, Action.READ),
+      pair(ResourceType.NOTIFIER, Action.SEARCH)),
   MANAGE_TENANT_SETTINGS(
       ACCESS_TENANT_SETTINGS,
       pair(ResourceType.TENANT_SETTING, Action.WRITE),
@@ -337,7 +340,9 @@ public enum Capability {
       pair(ResourceType.CATALOG, Action.CREATE),
       pair(ResourceType.XTM_HUB_REGISTRATION, Action.WRITE),
       pair(ResourceType.XTM_HUB_REGISTRATION, Action.CREATE),
-      pair(ResourceType.XTM_HUB_REGISTRATION, Action.DELETE)),
+      pair(ResourceType.XTM_HUB_REGISTRATION, Action.DELETE),
+      pair(ResourceType.NOTIFIER, Action.WRITE),
+      pair(ResourceType.NOTIFIER, Action.CREATE)),
   DELETE_TENANT_SETTINGS(
       MANAGE_TENANT_SETTINGS,
       pair(ResourceType.TENANT_SETTING, Action.DELETE),
@@ -353,7 +358,8 @@ public enum Capability {
       pair(ResourceType.MAPPER, Action.DELETE),
       pair(ResourceType.COLLECTOR, Action.DELETE),
       pair(ResourceType.INJECTOR, Action.DELETE),
-      pair(ResourceType.INJECTOR_CONTRACT, Action.DELETE)),
+      pair(ResourceType.INJECTOR_CONTRACT, Action.DELETE),
+      pair(ResourceType.NOTIFIER, Action.DELETE)),
 
   // Platform Users, Groups & Roles
   ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES(

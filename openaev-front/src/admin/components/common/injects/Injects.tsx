@@ -54,7 +54,6 @@ const useStyles = makeStyles()(theme => ({
   },
   duration: {
     fontSize: 12,
-    lineHeight: '12px',
     height: theme.spacing(2.5),
     float: 'left',
     marginRight: theme.spacing(1),
@@ -238,10 +237,7 @@ const Injects: FunctionComponent<Props> = ({
   const {
     queryableHelpers,
     searchPaginationInput,
-  } = useQueryableWithLocalStorage(`${contextId}-injects`, buildSearchPagination({
-    sorts: initSorting('inject_depends_duration', 'ASC'),
-    size: 20,
-  }));
+  } = useQueryableWithLocalStorage(`${contextId}-injects`, buildSearchPagination({ sorts: initSorting('inject_depends_duration', 'ASC') }));
 
   const [loading, setLoading] = useState<boolean>(true);
   const searchInjectsToLoad = (input: SearchPaginationInput) => {
@@ -532,32 +528,36 @@ const Injects: FunctionComponent<Props> = ({
         contextId={contextId}
       />
       {viewModeContext === 'chain' && (
-        <div style={{ marginBottom: 10 }}>
-          <Suspense fallback={<Loader />}>
-            <ChainedTimeline
-              injects={injects}
-              onUpdateInject={massUpdateInject}
-              onTimelineClick={openCreateInjectPage}
-              onSelectedInject={(inject) => {
-                const injectContract = inject?.inject_injector_contract.convertedContent;
-                if (injectContract) {
-                  setSelectedInjectId(inject?.inject_id);
-                }
-              }}
-              onCreate={onCreate}
-              onUpdate={onUpdate}
-              onDelete={onDelete}
-            />
-          </Suspense>
-          <div className="clearfix" />
-        </div>
+        <Suspense fallback={<Loader />}>
+          <ChainedTimeline
+            injects={injects}
+            onUpdateInject={massUpdateInject}
+            onTimelineClick={openCreateInjectPage}
+            onSelectedInject={(inject) => {
+              const injectContract = inject?.inject_injector_contract.convertedContent;
+              if (injectContract) {
+                setSelectedInjectId(inject?.inject_id);
+              }
+            }}
+            onCreate={onCreate}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+          />
+        </Suspense>
       )}
       {viewModeContext === 'list' && (
         <List data-testid="injects-list-section" sx={{ paddingTop: 0 }}>
           <ListItem
             classes={{ root: classes.itemHead }}
             divider={false}
-            style={{ ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)' } : {}) }}
+            sx={numberOfSelectedElements > 0
+              ? {
+                  // Massive-operations toolbar: symmetric vertical padding keeps the
+                  // checkbox and actions vertically centered in the accent band.
+                  backgroundColor: 'background.accent',
+                  paddingBlock: 0.5,
+                }
+              : {}}
             {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
           >
             <ListItemIcon style={{ minWidth: 40 }}>
@@ -603,13 +603,13 @@ const Injects: FunctionComponent<Props> = ({
 
           </ListItem>
           {loading
-            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
+            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox />
             : injects.map((inject: InjectOutputType, index) => {
                 const injectContract = inject.inject_injector_contract?.convertedContent;
                 return (
                   <CustomTooltip
                     key={inject.inject_id}
-                    title={!injectContract || !inject.inject_enabled ? t('No match found in OpenAEV') : ''}
+                    title={!injectContract ? t('No match found in OpenAEV') : ''}
                   >
                     <ListItem
                       divider
@@ -619,7 +619,6 @@ const Injects: FunctionComponent<Props> = ({
                           canBeTested
                           setSelectedInjectId={setSelectedInjectId}
                           isDisabled={!injectContract}
-                          isUpdateDisabled={!inject.inject_enabled}
                           onCreate={onCreate}
                           onUpdate={onUpdate}
                           onDelete={onDelete}
