@@ -1504,7 +1504,10 @@ public class InjectService {
    * @return the list of matching injects in Raw format
    */
   public List<RawInject> findRawByIds(List<String> ids) {
-    if (ids == null || ids.isEmpty()) {
+    if (ids == null) {
+      return Collections.emptyList();
+    }
+    if (ids.isEmpty()) {
       return injectRepository.findRawByIds(ids);
     }
     // Deduplicate to avoid duplicates across batches (SQL IN de-dupes within a

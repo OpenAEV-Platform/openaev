@@ -1216,5 +1216,16 @@ class InjectServiceTest {
       assertEquals(expectedSize, result.size());
       assertEquals(expected, result);
     }
+
+    @Test
+    void shouldReturnEmptyListWhenIdsIsNull() {
+      // Act
+      List<RawInject> result = injectService.findRawByIds(null);
+
+      // Assert
+      assertNotNull(result);
+      assertTrue(result.isEmpty());
+      verifyNoInteractions(injectRepository);
+    }
   }
 }
