@@ -32,10 +32,10 @@ const FindingNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) => {
       }}
     >
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
-      {/* Value centred above the icon, in the verdict (expectation-result) colour, so the causal edge
-          leaving the icon on the right never crushes it. A finding value can be long (an NTLM hash, a UNC
-          share path…): cap the width and ellipsise (full value on hover) so it never sprawls sideways over
-          the neighbouring edge labels or adjacent finding rows. */}
+      {/* Value shown above the icon in the verdict colour. It is anchored at the icon's horizontal centre
+          and flows RIGHTWARD (findings are the right-most column, so there is empty canvas there): this
+          shows the full value untruncated while never sprawling LEFT over the incoming "<type> found" edge
+          label or the neighbouring rows. */}
       <Typography
         variant="caption"
         title={value}
@@ -43,13 +43,8 @@ const FindingNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) => {
           position: 'absolute',
           bottom: '100%',
           left: '50%',
-          transform: 'translateX(-50%)',
           mb: 0.5,
-          maxWidth: 200,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
-          textAlign: 'center',
           fontWeight: 700,
           color,
         }}
