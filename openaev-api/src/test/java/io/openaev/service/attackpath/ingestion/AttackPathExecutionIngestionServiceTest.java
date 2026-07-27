@@ -3,7 +3,9 @@ package io.openaev.service.attackpath.ingestion;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Command;
 import io.openaev.database.model.Endpoint;
@@ -33,10 +35,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Phase A create (issue 5048, #203): at RUN, one EXECUTION row per resolved edge, tenant-attributed
@@ -53,7 +53,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AgentComposer agentComposer;
   @Autowired private ExecutorFixture executorFixture;
-  @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   @AfterEach
   void clearTenant() {
@@ -253,10 +253,9 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
                     List.of(expectationResult("Vulnerable"), expectationResult("Pending"))));
 
     // Act
-    new TransactionTemplate(transactionManager)
-        .executeWithoutResult(
-            status ->
-                ingestionService.updateExpectationByExecutionIndex(inject, expectationResults));
+    tenantTx.execute(
+        TxCtx.forTenant(tenant.getId()),
+        () -> ingestionService.updateExpectationByExecutionIndex(inject, expectationResults));
 
     // Assert
     AttackPathExecution updated = executionRepository.findById(executionId).orElseThrow();
