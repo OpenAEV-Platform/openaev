@@ -233,7 +233,9 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
     const timeRange = reporting.reporting_time_range;
 
     const neededKinds = new Set<DataKind>(
-      reporting.reporting_modules.flatMap(module => MODULE_DATA_KINDS[module.module_type] ?? []),
+      (reporting.reporting_modules ?? []).flatMap(
+        module => (module.module_type ? MODULE_DATA_KINDS[module.module_type] : undefined) ?? [],
+      ),
     );
     // The cover and the page header always display the subject name.
     neededKinds.add('subject');
@@ -333,7 +335,7 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
       // chains, the historical behavior). Expectation documents only carry
       // attack pattern ids - kill chain membership is resolved through the
       // referential and applied client-side.
-      const coverageModule = reporting.reporting_modules.find(module => module.module_type === 'MITRE_COVERAGE');
+      const coverageModule = (reporting.reporting_modules ?? []).find(module => module.module_type === 'MITRE_COVERAGE');
       const rawKillChains = coverageModule?.module_config?.kill_chains;
       const selectedKillChains: string[] = Array.isArray(rawKillChains)
         ? (rawKillChains as unknown[]).filter((name): name is string => typeof name === 'string')

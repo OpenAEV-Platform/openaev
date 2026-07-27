@@ -6796,6 +6796,7 @@ export interface NotificationTriggerInput {
     | "CHANNEL"
     | "FINDING"
     | "DASHBOARD"
+    | "REPORT"
     | "PLATFORM_SETTING"
     | "LESSON_LEARNED"
     | "CHALLENGE"
@@ -6894,6 +6895,7 @@ export interface NotificationTriggerOutput {
     | "CHANNEL"
     | "FINDING"
     | "DASHBOARD"
+    | "REPORT"
     | "PLATFORM_SETTING"
     | "LESSON_LEARNED"
     | "CHALLENGE"
@@ -7685,6 +7687,25 @@ export interface PageRawPaginationScenario {
 
 export interface PageRelatedFindingOutput {
   content?: RelatedFindingOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageReporting {
+  content?: Reporting[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -8941,16 +8962,17 @@ export interface Reporting {
     | "PLAYER"
     | "TEAM";
   /** @format date-time */
-  reporting_created_at: string;
-  reporting_default_format: "PDF" | "HTML";
+  reporting_created_at?: string;
+  reporting_default_format?: "PDF" | "HTML";
   reporting_description?: string;
   reporting_generations?: ReportingGeneration[];
+  /** @minLength 1 */
   reporting_id: string;
-  reporting_modules: ReportingModule[];
+  reporting_modules?: ReportingModule[];
   /** @minLength 1 */
   reporting_name: string;
   reporting_schedules?: ReportingSchedule[];
-  reporting_time_range:
+  reporting_time_range?:
     | "LAST_7_DAYS"
     | "LAST_30_DAYS"
     | "LAST_90_DAYS"
@@ -8958,7 +8980,7 @@ export interface Reporting {
     | "LAST_365_DAYS"
     | "ALL_TIME";
   /** @format date-time */
-  reporting_updated_at: string;
+  reporting_updated_at?: string;
 }
 
 export interface ReportingBranding {
@@ -8981,14 +9003,15 @@ export interface ReportingGeneration {
   /** @format date-time */
   reporting_generation_completed_at?: string;
   /** @format date-time */
-  reporting_generation_created_at: string;
+  reporting_generation_created_at?: string;
   reporting_generation_document?: string;
   reporting_generation_error?: string;
-  reporting_generation_format: "PDF" | "HTML";
+  reporting_generation_format?: "PDF" | "HTML";
+  /** @minLength 1 */
   reporting_generation_id: string;
   reporting_generation_reporting?: string;
-  reporting_generation_status: "PENDING" | "RUNNING" | "SUCCESS" | "ERROR";
-  reporting_generation_trigger: "MANUAL" | "SCHEDULED";
+  reporting_generation_status?: "PENDING" | "RUNNING" | "SUCCESS" | "ERROR";
+  reporting_generation_trigger?: "MANUAL" | "SCHEDULED";
 }
 
 export interface ReportingInput {
@@ -9020,7 +9043,7 @@ export interface ReportingInput {
 export interface ReportingModule {
   module_config?: Record<string, any>;
   module_title?: string;
-  module_type:
+  module_type?:
     | "COVER"
     | "EXECUTIVE_SUMMARY"
     | "SUBJECT_DETAILS"
@@ -9037,21 +9060,22 @@ export interface ReportingModule {
 export interface ReportingSchedule {
   listened?: boolean;
   /** @format date-time */
-  reporting_schedule_created_at: string;
-  reporting_schedule_enabled: boolean;
-  reporting_schedule_format: "PDF" | "HTML";
+  reporting_schedule_created_at?: string;
+  reporting_schedule_enabled?: boolean;
+  reporting_schedule_format?: "PDF" | "HTML";
+  /** @minLength 1 */
   reporting_schedule_id: string;
   /** @format date-time */
   reporting_schedule_last_run_at?: string;
   reporting_schedule_name?: string;
-  reporting_schedule_owner?: string;
+  reporting_schedule_owner: string;
   reporting_schedule_period: "HOUR" | "DAY" | "WEEK" | "MONTH";
   reporting_schedule_recipient_emails?: string[];
   reporting_schedule_recipient_users?: string[];
   reporting_schedule_reporting?: string;
   reporting_schedule_time?: string;
   /** @format date-time */
-  reporting_schedule_updated_at: string;
+  reporting_schedule_updated_at?: string;
 }
 
 export interface ReportingScheduleInput {

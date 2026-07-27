@@ -61,8 +61,10 @@ import {
   REPORTING_MODULE_TYPES,
   REPORTING_TIME_RANGES,
   type ReportingContextType,
+  type ReportingFormat,
   type ReportingModuleType,
   type ReportingThemeMode,
+  type ReportingTimeRange,
   resolveSubjectOptions,
   searchSubjectOptions,
 } from '../ReportingFormUtils';
@@ -85,8 +87,8 @@ export interface ReportingFormValues extends ReportingScheduleFieldsValues {
   reporting_description: string;
   reporting_context_type: ReportingContextType;
   reporting_context_id: string;
-  reporting_time_range: Reporting['reporting_time_range'];
-  reporting_default_format: Reporting['reporting_default_format'];
+  reporting_time_range: ReportingTimeRange;
+  reporting_default_format: ReportingFormat;
   modules: ReportingModuleFormEntry[];
   branding_theme_mode: ReportingThemeMode;
   branding_primary_color: string;
@@ -115,7 +117,9 @@ const buildDefaultValues = (
     reporting_default_format: reporting?.reporting_default_format ?? 'PDF',
     modules: reporting
       ? (reporting.reporting_modules ?? []).map(module => ({
-          module_type: module.module_type,
+          // Persisted modules always carry a type; the spec only marks it
+          // optional because the entity field has no @NotNull.
+          module_type: module.module_type ?? 'COVER',
           module_title: module.module_title ?? '',
           content: typeof module.module_config?.content === 'string' ? module.module_config.content : '',
           kill_chains: Array.isArray(module.module_config?.kill_chains)

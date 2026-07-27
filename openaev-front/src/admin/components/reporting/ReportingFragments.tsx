@@ -53,11 +53,14 @@ interface StatusChipProps {
  */
 export const ReportingStatusChip: FunctionComponent<StatusChipProps> = ({ status, tooltip }) => {
   const { t } = useFormatter();
+  // The generated spec marks the status optional; a generation row always has
+  // one, PENDING is the neutral fallback.
+  const effectiveStatus = status ?? 'PENDING';
   return (
-    <Tooltip title={tooltip ?? t(status)}>
+    <Tooltip title={tooltip ?? t(effectiveStatus)}>
       <Chip
-        label={t(status)}
-        style={computeStatusStyle(status)}
+        label={t(effectiveStatus)}
+        style={computeStatusStyle(effectiveStatus)}
         sx={{
           height: 20,
           fontSize: 11,

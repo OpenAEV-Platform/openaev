@@ -231,7 +231,7 @@ const CoverModule: FunctionComponent<Props> = ({ reporting, subject, logoUrl }) 
             fontWeight: 600,
           }}
           >
-            {t(TIME_RANGE_LABELS[reporting.reporting_time_range])}
+            {t(TIME_RANGE_LABELS[reporting.reporting_time_range ?? 'LAST_30_DAYS'])}
           </Typography>
         </Box>
       </Box>

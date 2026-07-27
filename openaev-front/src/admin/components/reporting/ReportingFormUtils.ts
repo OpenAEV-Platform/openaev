@@ -10,10 +10,13 @@ import { initSorting, type Page } from '../../../components/common/queryable/Pag
 import { type InjectResultOutput, type Reporting, type ReportingModule, type ThemeInput } from '../../../utils/api-types';
 import { type Option } from '../../../utils/Option';
 
-export type ReportingContextType = Reporting['reporting_context_type'];
-export type ReportingModuleType = ReportingModule['module_type'];
-export type ReportingTimeRange = Reporting['reporting_time_range'];
-export type ReportingFormat = Reporting['reporting_default_format'];
+// NonNullable: the generated spec marks these fields optional (no @NotNull on
+// the entity), but every persisted reporting carries them; the form and label
+// maps work with the defined value.
+export type ReportingContextType = NonNullable<Reporting['reporting_context_type']>;
+export type ReportingModuleType = NonNullable<ReportingModule['module_type']>;
+export type ReportingTimeRange = NonNullable<Reporting['reporting_time_range']>;
+export type ReportingFormat = NonNullable<Reporting['reporting_default_format']>;
 export type ReportingThemeMode = 'LIGHT' | 'DARK';
 
 // -- ENUM VALUE LISTS (zod schemas + selects) --------------------------------

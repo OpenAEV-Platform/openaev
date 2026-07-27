@@ -59,7 +59,7 @@ const ReportingRenderPage: FunctionComponent<Props> = ({ reporting, token }) => 
   const [ready, setReady] = useState(false);
 
   const logoUrl = resolveReportingLogo(theme, reporting.reporting_branding);
-  const timeRangeLabel = t(TIME_RANGE_LABELS[reporting.reporting_time_range]);
+  const timeRangeLabel = t(TIME_RANGE_LABELS[reporting.reporting_time_range ?? 'LAST_30_DAYS']);
 
   // Readiness contract for the headless PDF service: once every module query
   // settled (success OR error - an error block is a rendered state) let the
@@ -79,8 +79,9 @@ const ReportingRenderPage: FunctionComponent<Props> = ({ reporting, token }) => 
     };
   }, [data.allSettled, ready]);
 
-  const coverModule = reporting.reporting_modules.find(module => module.module_type === 'COVER');
-  const bodyModules = reporting.reporting_modules.filter(module => module.module_type !== 'COVER');
+  const modules = reporting.reporting_modules ?? [];
+  const coverModule = modules.find(module => module.module_type === 'COVER');
+  const bodyModules = modules.filter(module => module.module_type !== 'COVER');
 
   const renderModuleContent = (module: ReportingModule): ReactNode => {
     switch (module.module_type) {

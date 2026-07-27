@@ -124,7 +124,7 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
   const sortValues: Record<string, (schedule: ReportingSchedule) => string | number> = {
     reporting_schedule_name: schedule => schedule.reporting_schedule_name || t('Schedule'),
     reporting_schedule_period: schedule => periodSummary(schedule),
-    reporting_schedule_format: schedule => schedule.reporting_schedule_format,
+    reporting_schedule_format: schedule => schedule.reporting_schedule_format ?? '',
     reporting_schedule_recipients: schedule => (schedule.reporting_schedule_recipient_users?.length ?? 0)
       + (schedule.reporting_schedule_recipient_emails?.length ?? 0),
   };

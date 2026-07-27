@@ -19,7 +19,7 @@ import { ReportingFormatFragment } from './ReportingFragments';
 const LIST_POLL_INTERVAL_MS = 5000;
 
 // i18n keys - translated through useFormatter's t()
-const TRIGGER_LABELS: Record<ReportingGeneration['reporting_generation_trigger'], string> = {
+const TRIGGER_LABELS: Record<NonNullable<ReportingGeneration['reporting_generation_trigger']>, string> = {
   MANUAL: 'Manual',
   SCHEDULED: 'Scheduled',
 };
@@ -114,7 +114,7 @@ const ReportingGenerationsTab: FunctionComponent<Props> = ({ generations, onRelo
       // details surface through the tag's tooltip.
       value: (generation: ReportingGeneration) => (
         <ItemStatus
-          label={t(generation.reporting_generation_status)}
+          label={t(generation.reporting_generation_status ?? 'PENDING')}
           status={generation.reporting_generation_status}
           variant="inList"
           tooltipLabel={generation.reporting_generation_status === 'ERROR' && generation.reporting_generation_error
@@ -137,7 +137,7 @@ const ReportingGenerationsTab: FunctionComponent<Props> = ({ generations, onRelo
       isSortable: true,
       value: (generation: ReportingGeneration) => (
         <Chip
-          label={t(TRIGGER_LABELS[generation.reporting_generation_trigger])}
+          label={t(TRIGGER_LABELS[generation.reporting_generation_trigger ?? 'MANUAL'])}
           variant="outlined"
           sx={{
             height: 20,

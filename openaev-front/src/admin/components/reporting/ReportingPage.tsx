@@ -144,7 +144,7 @@ const ReportingPage = () => {
     setFormatMenuAnchor(null);
     setGenerating(true);
     try {
-      const generation: ReportingGeneration = (await generateReporting(reportingId, { reporting_generation_format: format })).data;
+      const generation: ReportingGeneration = (await generateReporting(reportingId, { reporting_generation_format: format ?? 'PDF' })).data;
       loadGenerations();
       pollGeneration(generation.reporting_generation_id);
     } catch {
@@ -226,7 +226,7 @@ const ReportingPage = () => {
               variant="outlined"
             />
             <ReportingFormatFragment format={defaultFormat} />
-            <Chip label={t(TIME_RANGE_LABELS[reporting.reporting_time_range])} size="small" variant="outlined" />
+            <Chip label={t(TIME_RANGE_LABELS[reporting.reporting_time_range ?? 'LAST_30_DAYS'])} size="small" variant="outlined" />
           </Box>
           {reporting.reporting_description && (
             <Typography

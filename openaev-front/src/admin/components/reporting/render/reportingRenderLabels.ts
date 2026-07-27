@@ -6,7 +6,7 @@ import { type Reporting, type ReportingModule } from '../../../../utils/api-type
  * locale batching phase.
  */
 
-export const TIME_RANGE_LABELS: Record<Reporting['reporting_time_range'], string> = {
+export const TIME_RANGE_LABELS: Record<NonNullable<Reporting['reporting_time_range']>, string> = {
   LAST_7_DAYS: 'Last 7 days',
   LAST_30_DAYS: 'Last 30 days',
   LAST_90_DAYS: 'Last 90 days',
@@ -15,7 +15,7 @@ export const TIME_RANGE_LABELS: Record<Reporting['reporting_time_range'], string
   ALL_TIME: 'All time',
 };
 
-export const MODULE_TYPE_LABELS: Record<ReportingModule['module_type'], string> = {
+export const MODULE_TYPE_LABELS: Record<NonNullable<ReportingModule['module_type']>, string> = {
   COVER: 'Cover',
   EXECUTIVE_SUMMARY: 'Executive summary',
   SUBJECT_DETAILS: 'Subject details',
@@ -36,4 +36,5 @@ export const MODULE_TYPE_LABELS: Record<ReportingModule['module_type'], string> 
 export const moduleTitle = (
   module: ReportingModule,
   t: (key: string) => string,
-): string => module.module_title || t(MODULE_TYPE_LABELS[module.module_type]);
+): string => module.module_title
+  || (module.module_type ? t(MODULE_TYPE_LABELS[module.module_type]) : '');
