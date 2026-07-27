@@ -1,6 +1,6 @@
 import { simpleCall, simplePostCall } from '../../utils/Action';
-import type { AttackPathDTO, AttackPathEndpointRelationsDTO, AttackPathExecutionDetailDTO, AttackPathExpandDTO, AttackPathFindingPageDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../utils/api-types';
-import type { AttackPathDeltaDTO } from '../../utils/api-types-custom';
+import type { AttackPathEndpointRelationsDTO, AttackPathExecutionDetailDTO, AttackPathExpandDTO, AttackPathFindingPageDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../utils/api-types';
+import type { AttackPathDeltaDTO, AttackPathSnapshotDTO } from '../../utils/api-types-custom';
 
 // Attack-path execution-store POC (issue 6647), gated by the ATTACK_PATH preview feature.
 // The tenant prefix is added centrally by Action.buildUri, so these use the plain /api paths.
@@ -22,11 +22,12 @@ export const fetchSimulationsMetaById = (simulationIds: string[]): Promise<{ dat
   simplePostCall('/api/exercises/search-by-id', { exercise_ids: simulationIds }, undefined, false);
 
 // Rebuild the whole graph. Without a mode the backend auto-selects full or collapsed on size;
-// passing 'full' or 'collapsed' forces it.
+// passing 'full' or 'collapsed' forces it. The response carries the graph version it reflects, which
+// seeds the delta poll's cursor.
 export const fetchAttackPathGraph = (
   simulationId: string,
   mode?: 'full' | 'collapsed',
-): Promise<{ data: AttackPathDTO }> =>
+): Promise<{ data: AttackPathSnapshotDTO }> =>
   simpleCall(`${simulationUri(simulationId)}/graph${mode ? `?mode=${mode}` : ''}`, undefined, false);
 
 // Everything that changed in the graph since a given version: upserted nodes/edges/executions, the

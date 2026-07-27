@@ -2,7 +2,18 @@ import { describe, expect, it } from 'vitest';
 
 import { applyDelta, fromSnapshot, toCollapsedDto, toFullDto, withFullSnapshot } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-delta-store';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
-import type { AttackPathDeltaDTO } from '../../../../../../utils/api-types-custom';
+import type { AttackPathDeltaDTO, AttackPathSnapshotDTO } from '../../../../../../utils/api-types-custom';
+
+// The backend record ships every entity list (empty, never null), so a fixture only states the fields
+// the case is about and this fills in the rest — exactly what the wire carries.
+const aDelta = (partial: Partial<AttackPathDeltaDTO> & Pick<AttackPathDeltaDTO, 'sinceVersion' | 'newVersion'>): AttackPathDeltaDTO => ({
+  resyncRequired: false,
+  staticAttackPathFindings: [],
+  attackPathExecutions: [],
+  attackPathNodes: [],
+  attackPathEdges: [],
+  ...partial,
+});
 
 const INJECTOR = 'NODE_INJECTOR|nmap';
 const HOST_X = 'NODE_ENDPOINT|host-x';
@@ -47,10 +58,9 @@ const snapshotV1: AttackPathDTO = {
 };
 
 // What changed since v1: host-x got a credential and turned orange, host-y was just reached.
-const delta: AttackPathDeltaDTO = {
+const delta: AttackPathDeltaDTO = aDelta({
   sinceVersion: 1,
   newVersion: 2,
-  resyncRequired: false,
   attackPathNodes: [{
     id: HOST_X,
     type: 'ASSET',
@@ -121,7 +131,7 @@ const delta: AttackPathDeltaDTO = {
     cves: 0,
     ports: 0,
   },
-};
+});
 
 // The collapsed snapshot a fresh read would return once the delta above has been committed backend-side.
 const snapshotV2: AttackPathDTO = {
@@ -147,6 +157,30 @@ const normalise = (dto: AttackPathDTO) => ({
 });
 
 describe('attack-path delta store', () => {
+  describe('fromSnapshot', () => {
+    it('given_aSnapshotCarryingItsGraphVersion_should_seedTheCursorFromIt', () => {
+      // Arrange: the snapshot read reports the version it reflects.
+      const snapshot: AttackPathSnapshotDTO = {
+        ...snapshotV1,
+        graphVersion: 41,
+      };
+
+      // Act
+      const store = fromSnapshot(snapshot);
+
+      // Assert: the first delta poll asks for what changed after 41, instead of replaying the graph.
+      expect(store.version).toBe(41);
+    });
+
+    it('given_aSnapshotWithoutAVersion_should_startFromZero', () => {
+      // Arrange & Act: an older backend (or a simulation with no attack-path version yet).
+      const store = fromSnapshot(snapshotV1);
+
+      // Assert: cursor 0, so the first delta replays everything — idempotently.
+      expect(store.version).toBe(0);
+    });
+  });
+
   describe('applyDelta', () => {
     it('given_aDelta_should_upsertNodesEdgesAndCounters', () => {
       // Arrange
@@ -195,14 +229,14 @@ describe('attack-path delta store', () => {
     it('given_aVerdictOnlyDelta_should_notReportAStructuralChange', () => {
       // Arrange
       const store = fromSnapshot(snapshotV1, 1);
-      const verdictDelta: AttackPathDeltaDTO = {
+      const verdictDelta = aDelta({
         sinceVersion: 1,
         newVersion: 2,
         attackPathNodes: [{
           ...snapshotV1.attackPathNodes![1],
           status: 'GREEN',
         }],
-      };
+      });
 
       // Act
       const { changed, structuralChange, newNodeIds } = applyDelta(store, verdictDelta);
@@ -218,10 +252,10 @@ describe('attack-path delta store', () => {
       const store = fromSnapshot(snapshotV1, 1);
 
       // Act
-      const { store: next, changed } = applyDelta(store, {
+      const { store: next, changed } = applyDelta(store, aDelta({
         sinceVersion: 1,
         newVersion: 1,
-      });
+      }));
 
       // Assert
       expect(changed).toBe(false);
@@ -233,11 +267,11 @@ describe('attack-path delta store', () => {
       const store = applyDelta(fromSnapshot(snapshotV1, 1), delta).store;
 
       // Act
-      const { store: next, changed } = applyDelta(store, {
+      const { store: next, changed } = applyDelta(store, aDelta({
         sinceVersion: 2,
         newVersion: 9,
         resyncRequired: true,
-      });
+      }));
 
       // Assert: the caller re-seeds from a snapshot; the cursor must not jump to a version we never read.
       expect(changed).toBe(false);

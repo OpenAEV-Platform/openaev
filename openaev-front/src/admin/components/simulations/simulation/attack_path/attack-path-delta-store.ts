@@ -1,5 +1,5 @@
 import type { AttackPathCounters, AttackPathDTO, AttackPathEdges, AttackPathNodeDTO } from '../../../../../utils/api-types';
-import type { AttackPathDeltaDTO } from '../../../../../utils/api-types-custom';
+import type { AttackPathDeltaDTO, AttackPathSnapshotDTO } from '../../../../../utils/api-types-custom';
 
 // Accumulated attack-path graph (issue 6647). A run keeps discovering endpoints, executions and
 // findings, so the view is fed by ONE initial snapshot plus versioned deltas instead of re-reading the
@@ -141,7 +141,10 @@ const mergeEdge = (existing: AttackPathEdges, incoming: AttackPathEdges): Attack
   if (!known || known.length === 0) {
     return merged;
   }
-  const added = (incoming.executionIds ?? []).filter(id => !known.includes(id));
+  // A hot edge accumulates thousands of refs and is merged on every tick, so membership goes through a
+  // Set: the naive `known.includes` per incoming ref made this quadratic in the edge's history.
+  const knownSet = new Set(known);
+  const added = (incoming.executionIds ?? []).filter(id => !knownSet.has(id));
   merged.executionIds = added.length > 0 ? [...known, ...added] : known;
   return merged;
 };
@@ -205,12 +208,15 @@ const unchangedResult = (store: AttackPathGraphStore, version: number): AttackPa
 };
 
 /**
- * Seed the store from a collapsed snapshot (the resync / initial read). `version` is the backend graph
- * version the snapshot reflects; the snapshot endpoint does not expose it yet, so callers seed 0 and
- * the first delta replays the whole graph once — idempotently (TODO(#6647): return the version from
- * the snapshot read and drop that first replay).
+ * Seed the store from a collapsed snapshot (the resync / initial read). The cursor comes from the
+ * snapshot's own `graphVersion`, so the very first delta only carries what changed after the read
+ * instead of replaying the whole graph; `version` overrides it when a caller knows better (tests). A
+ * snapshot without a version (0) still works — the first delta simply replays everything, idempotently.
  */
-export const fromSnapshot = (dto: AttackPathDTO | null | undefined, version = 0): AttackPathGraphStore => {
+export const fromSnapshot = (
+  dto: AttackPathSnapshotDTO | null | undefined,
+  version = dto?.graphVersion ?? 0,
+): AttackPathGraphStore => {
   const store = emptyStore();
   if (!dto) {
     return {
@@ -231,6 +237,10 @@ export const fromSnapshot = (dto: AttackPathDTO | null | undefined, version = 0)
  * Merge a full-mode snapshot into the store: the causal chain needs the per-execution kill-chain
  * fields, the finding nodes and the finding edges, which the collapsed read omits. Only seeded for
  * runs under the size gate; large runs keep serving the collapsed projection alone.
+ *
+ * The cursor is left where the collapsed seed put it, on purpose: a full read that landed a few
+ * versions later would otherwise skip the deltas in between. Re-receiving them is free (upserts are
+ * idempotent), losing them is not.
  */
 export const withFullSnapshot = (
   store: AttackPathGraphStore,
@@ -263,10 +273,14 @@ export const applyDelta = (
   store: AttackPathGraphStore,
   delta: AttackPathDeltaDTO,
 ): AttackPathDeltaResult => {
-  const version = delta.newVersion ?? store.version;
   if (delta.resyncRequired) {
+    // The delta's `newVersion` is deliberately ignored here: it is the version a snapshot read would
+    // land on, and only that read may move the cursor. Adopting it without re-reading would leave the
+    // store claiming a version it never applied — and the next tick would return an empty delta,
+    // silently pinning the view to a stale graph.
     return unchangedResult(store, store.version);
   }
+  const version = delta.newVersion ?? store.version;
 
   const nodes = new Map(store.nodes);
   const edges = new Map(store.edges);

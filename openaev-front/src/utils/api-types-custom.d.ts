@@ -53,21 +53,34 @@ export type ThreatArsenalActionCreateCustomInput = Omit<ApiTypes.ThreatArsenalAc
 // Versioned attack-path graph delta (issue 6647): the incremental payload of
 // GET /api/attack-path/simulations/{id}/graph/delta?since=<version>. Field set is a strict subset of
 // the snapshot's (same DTOs, same masking), plus the version cursor and the resync signal.
+// Nullability mirrors the backend record `AttackPathDeltaDTO`: the cursor, the resync flag and every
+// entity list are always present (empty lists, never null), so only `counters` is optional — its
+// absence is the explicit "unchanged, keep the ones you have" signal.
 // TODO(#6647): drop this hand-written mirror once the delta endpoint ships in the swagger and
 // `AttackPathDeltaDTO` is emitted into api-types.d.ts, then import it from there.
 export interface AttackPathDeltaDTO {
   /** @format int64 */
-  sinceVersion?: number;
+  sinceVersion: number;
   /** @format int64 */
-  newVersion?: number;
+  newVersion: number;
   /** The cursor cannot be answered (run reset / too far behind): re-read the full snapshot. */
-  resyncRequired?: boolean;
-  staticAttackPathFindings?: ApiTypes.AttackPathNodeDTO[];
-  attackPathExecutions?: ApiTypes.AttackPathNodeDTO[];
-  attackPathNodes?: ApiTypes.AttackPathNodeDTO[];
-  attackPathEdges?: ApiTypes.AttackPathEdges[];
+  resyncRequired: boolean;
+  staticAttackPathFindings: ApiTypes.AttackPathNodeDTO[];
+  attackPathExecutions: ApiTypes.AttackPathNodeDTO[];
+  attackPathNodes: ApiTypes.AttackPathNodeDTO[];
+  attackPathEdges: ApiTypes.AttackPathEdges[];
   /** Absent means "unchanged, keep the ones you have". */
   counters?: ApiTypes.AttackPathCounters;
+}
+
+// A graph snapshot as the read endpoints actually return it (issue 6647): the generated
+// `AttackPathDTO` plus the graph version the snapshot reflects, which seeds the delta poll's cursor so
+// the first tick does not have to replay the whole graph. Present on both the collapsed and the full
+// response; 0 when the simulation has no attack-path version yet.
+// TODO(#6647): drop this mirror once api-types.d.ts is regenerated with `graphVersion`.
+export interface AttackPathSnapshotDTO extends ApiTypes.AttackPathDTO {
+  /** @format int64 */
+  graphVersion?: number;
 }
 
 export type ContractType

@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { fetchAttackPathGraph, fetchAttackPathGraphDelta } from '../../../../../actions/attack-path/attack-path-actions';
-import type { AttackPathDTO } from '../../../../../utils/api-types';
+import type { AttackPathDTO, AttackPathNodeDTO } from '../../../../../utils/api-types';
 import { applyDelta, type AttackPathGraphStore, emptyStore, fromSnapshot, toCollapsedDto, toFullDto, withFullSnapshot } from './attack-path-delta-store';
 
 // Delta cadence (issue 6647). Product commits to a committed backend change being visible within 3 s
 // p95 during a run; each tick is one indexed point read when nothing changed, so the cost of polling
 // this fast is a version comparison, not a graph rebuild.
 export const DELTA_POLL_MS = 3000;
+
+// How long a delta batch stays "new" for the caller: slightly above the 420 ms entrance animation, so
+// the affordance completes and is then dropped. Without this the last batch would linger forever — a
+// remount would replay its animation, and the live region would keep announcing a stale summary.
+export const BATCH_TTL_MS = 500;
 
 /** What the freshness indicator shows: updating, degraded but retrying, or done. */
 export type AttackPathFreshness = 'live' | 'reconnecting' | 'finished';
@@ -23,21 +28,46 @@ interface UseAttackPathLiveGraphParams {
   terminal: boolean;
 }
 
+interface Batch {
+  /** Node ids introduced by the batch — the entrance affordance's input. */
+  newNodeIds: readonly string[];
+  /** The same nodes, resolved against the store, so callers read their kind from `type`. */
+  newNodes: readonly AttackPathNodeDTO[];
+  /** Finding types touched by the batch, for a silent drawer refresh. */
+  changedFindingTypes: readonly string[];
+}
+
+const EMPTY_BATCH: Batch = {
+  newNodeIds: [],
+  newNodes: [],
+  changedFindingTypes: [],
+};
+
 interface UseAttackPathLiveGraphResult {
   /** Collapsed clustered graph (today's `dto`), stable by reference while nothing changes. */
   dto: AttackPathDTO | null;
   /** Full causal graph (today's `fullDto`), null for runs above the size gate. */
   fullDto: AttackPathDTO | null;
+  /**
+   * The FIRST load of a simulation is still pending. A resync deliberately does not raise it: the
+   * current graph stays mounted while it re-reads, so the user never sees a loader flash or a reset
+   * viewport for something they did not ask for.
+   */
   loading: boolean;
   error: boolean;
   forbidden: boolean;
   freshness: AttackPathFreshness;
   /** When the last successful read landed (ms epoch), for the "reconnecting" hint. */
   lastUpdatedAt: number | null;
-  /** Node ids introduced by the most recent delta batch — the entrance affordance's input. */
   newNodeIds: readonly string[];
-  /** Finding types touched by the most recent delta batch, for a silent drawer refresh. */
+  newNodes: readonly AttackPathNodeDTO[];
   changedFindingTypes: readonly string[];
+  /**
+   * Bumped by every seed and by every delta that introduced an id — never by an attribute-only tick.
+   * Callers gate shape-derived work (kill-chain metadata, layout) on it so a verdict flip does not
+   * re-walk the whole graph.
+   */
+  structuralNonce: number;
 }
 
 /**
@@ -62,19 +92,16 @@ const useAttackPathLiveGraph = ({
   const storeRef = useRef(store);
   // Null until a snapshot landed, so the view can tell "not loaded yet" from "loaded and empty".
   const [seeded, setSeeded] = useState(false);
-  const [loading, setLoading] = useState(false);
+  // A (re)seed is in flight. The delta poll is suspended for its duration: a tick fired against the
+  // pre-seed cursor could answer `resyncRequired` again and start a resync→reseed storm.
+  const [seeding, setSeeding] = useState(false);
   const [error, setError] = useState(false);
   const [forbidden, setForbidden] = useState(false);
   const [degraded, setDegraded] = useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
-  const [batch, setBatch] = useState<{
-    newNodeIds: readonly string[];
-    changedFindingTypes: readonly string[];
-  }>({
-    newNodeIds: [],
-    changedFindingTypes: [],
-  });
-  // Bumped on every (re)seed so the poll effect restarts on a fresh cursor; also the monotonic token
+  const [batch, setBatch] = useState<Batch>(EMPTY_BATCH);
+  const [structuralNonce, setStructuralNonce] = useState(0);
+  // Bumped on every resync so the seed effect re-runs on a fresh cursor; also the monotonic token
   // that drops responses from a superseded simulation or an in-flight resync.
   const [seedNonce, setSeedNonce] = useState(0);
   const seq = useRef(0);
@@ -86,44 +113,44 @@ const useAttackPathLiveGraph = ({
 
   const reseed = useCallback(() => setSeedNonce(n => n + 1), []);
 
-  // Initial read (and every resync): the collapsed snapshot, plus the full one when the run is small
-  // enough. Both seed the same store, so the delta poll is the only recurring traffic afterwards.
+  // A genuine simulation switch is the only thing that unseeds the view: the loader belongs to a run
+  // the user picked, never to a resync of the run they are already looking at.
+  useEffect(() => {
+    setSeeded(false);
+  }, [simulationId]);
+
+  // Initial read (and every resync): the collapsed snapshot, which seeds the store and the cursor from
+  // its own `graphVersion`. The full graph is merged in separately (below) so its availability can flip
+  // without re-reading — or resetting — anything.
   useEffect(() => {
     if (!simulationId) {
+      // Bump the token BEFORE clearing: a snapshot still in flight for the previous simulation would
+      // otherwise land after the reset and repopulate a view that has nothing selected.
+      seq.current += 1;
       storeRef.current = emptyStore();
       setStore(storeRef.current);
-      setSeeded(false);
+      setSeeding(false);
       versionRef.current = 0;
       return;
     }
     seq.current += 1;
     const current = seq.current;
     const isCurrent = () => current === seq.current;
-    setLoading(true);
+    setSeeding(true);
     setError(false);
     setForbidden(false);
     finalReadDone.current = false;
     fetchAttackPathGraph(simulationId, 'collapsed')
-      .then(async (collapsed) => {
+      .then((collapsed) => {
         if (!isCurrent()) {
           return;
         }
-        let next = fromSnapshot(collapsed.data);
-        if (fullEligible) {
-          // A failed full read is not fatal: the collapsed graph still renders, just without the
-          // causal chain overlay (same fallback as before).
-          const full = await fetchAttackPathGraph(simulationId, 'full').catch(() => null);
-          if (!isCurrent()) {
-            return;
-          }
-          if (full) {
-            next = withFullSnapshot(next, full.data);
-          }
-        }
+        const next = fromSnapshot(collapsed.data);
         versionRef.current = next.version;
         storeRef.current = next;
         setStore(next);
         setSeeded(true);
+        setStructuralNonce(n => n + 1);
         setDegraded(false);
         setLastUpdatedAt(Date.now());
       })
@@ -144,15 +171,38 @@ const useAttackPathLiveGraph = ({
       })
       .finally(() => {
         if (isCurrent()) {
-          setLoading(false);
+          setSeeding(false);
         }
       });
-  }, [simulationId, fullEligible, seedNonce]);
+  }, [simulationId, seedNonce]);
 
-  // The delta tick: patch the store, or resync when the backend cannot answer our cursor. Kept in a ref
-  // so the interval effect does not restart on each commit.
-  const pollRef = useRef<() => Promise<void>>(async () => {});
-  pollRef.current = async () => {
+  // The full graph, merged into the already-seeded store. Kept in its own effect so `fullEligible`
+  // flipping (it resolves from the picker list, which lands after the first read) MERGES the causal
+  // fields in rather than re-seeding: no second collapsed read, no cursor reset, and no delta applied
+  // in between is discarded. A failed read is not fatal — the collapsed graph still renders, just
+  // without the causal overlay.
+  useEffect(() => {
+    if (!simulationId || !fullEligible || !seeded || store.hasFull) {
+      return;
+    }
+    const current = seq.current;
+    fetchAttackPathGraph(simulationId, 'full')
+      .then((full) => {
+        if (current !== seq.current) {
+          return;
+        }
+        const next = withFullSnapshot(storeRef.current, full.data);
+        storeRef.current = next;
+        setStore(next);
+        setStructuralNonce(n => n + 1);
+      })
+      .catch(() => {
+        // No overlay for this run; the collapsed projection is unaffected.
+      });
+  }, [simulationId, fullEligible, seeded, store.hasFull]);
+
+  // The delta tick: patch the store, or resync when the backend cannot answer our cursor.
+  const poll = useCallback(async () => {
     if (!simulationId) {
       return;
     }
@@ -175,8 +225,16 @@ const useAttackPathLiveGraph = ({
       if (result.changed) {
         storeRef.current = result.store;
         setStore(result.store);
+        if (result.structuralChange) {
+          setStructuralNonce(n => n + 1);
+        }
         setBatch({
           newNodeIds: result.newNodeIds,
+          // Resolved from the store the batch produced, so callers read a node's kind from its `type`
+          // instead of pattern-matching its id.
+          newNodes: result.newNodeIds
+            .map(id => result.store.nodes.get(id) ?? result.store.executions.get(id))
+            .filter((n): n is AttackPathNodeDTO => !!n),
           changedFindingTypes: result.changedFindingTypes,
         });
       }
@@ -192,12 +250,18 @@ const useAttackPathLiveGraph = ({
       // Keep the last good graph and say so; the next tick retries.
       setDegraded(true);
     }
-  };
+  }, [simulationId, reseed]);
+  // The interval calls through a ref so the timer is not torn down and rebuilt whenever `poll` is
+  // rebuilt; the ref is synced in an effect rather than during render.
+  const pollRef = useRef(poll);
+  useEffect(() => {
+    pollRef.current = poll;
+  }, [poll]);
 
   // Poll while the run is live and the tab is visible. A terminal run gets one final read; a tab coming
   // back to the foreground gets an immediate catch-up read before the cadence resumes.
   useEffect(() => {
-    if (!simulationId || forbidden) {
+    if (!simulationId || forbidden || seeding) {
       return undefined;
     }
     if (terminal) {
@@ -235,7 +299,17 @@ const useAttackPathLiveGraph = ({
       stop();
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [simulationId, terminal, forbidden, seedNonce]);
+  }, [simulationId, terminal, forbidden, seeding]);
+
+  // A batch is transient: it drives a one-shot entrance animation and a one-shot announcement, so it is
+  // dropped once both have had time to play. Cancelled by the next batch and on unmount.
+  useEffect(() => {
+    if (batch === EMPTY_BATCH) {
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setBatch(EMPTY_BATCH), BATCH_TTL_MS);
+    return () => window.clearTimeout(timer);
+  }, [batch]);
 
   const dto = useMemo(() => (seeded ? toCollapsedDto(store) : null), [store, seeded]);
   const fullDto = useMemo(() => toFullDto(store), [store]);
@@ -249,13 +323,15 @@ const useAttackPathLiveGraph = ({
   return {
     dto,
     fullDto,
-    loading,
+    loading: seeding && !seeded,
     error,
     forbidden,
     freshness,
     lastUpdatedAt,
     newNodeIds: batch.newNodeIds,
+    newNodes: batch.newNodes,
     changedFindingTypes: batch.changedFindingTypes,
+    structuralNonce,
   };
 };
 
