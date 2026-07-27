@@ -268,25 +268,24 @@ public class InjectExpectationService {
   /**
    * Deletes a specific result from an inject expectation.
    *
+   * <p>For a detection/prevention expectation at asset level whose asset has agents, the rows
+   * displayed in the UI are the aggregation of the agents' security platform results: the deletion
+   * cascades to every agent expectation of the asset (removing that source's result on each), then
+   * the asset and asset group scores are recomputed from the remaining agent results.
+   *
    * @param expectationId the ID of the expectation
    * @param sourceId the ID of the source result to delete
    * @return the updated inject expectation
-   * @throws IllegalArgumentException if trying to delete from an Asset Group or Asset with Agent
+   * @throws IllegalArgumentException if trying to delete from an Asset Group
    */
   public BaseInjectExpectation deleteInjectExpectationResult(
       @NotBlank final String expectationId, @NotBlank final String sourceId) {
     BaseInjectExpectation baseInjectExpectation =
         this.injectExpectationRepository.findById(expectationId).orElseThrow();
-    deleteResult(baseInjectExpectation, sourceId);
-    BaseInjectExpectation updated = this.injectExpectationRepository.save(baseInjectExpectation);
 
-    if (updated instanceof TableTopInjectExpectation tableTopInjectExpectation) {
-      propagateHumanResponseExpectation(tableTopInjectExpectation, null);
-
-    } else if (updated instanceof TechnicalInjectExpectation technicalInjectExpectation
+    if (baseInjectExpectation instanceof TechnicalInjectExpectation technicalInjectExpectation
         && List.of(DETECTION, PREVENTION).contains(baseInjectExpectation.getType())) {
-      // Block down computation
-      // Not asset group
+      // Block down computation on asset group
       if (isAssetGroupExpectation(technicalInjectExpectation)) {
         throw new IllegalArgumentException("Not possible to update Asset Group directly");
       }
@@ -295,13 +294,29 @@ public class InjectExpectationService {
       List<Agent> agents =
           (unproxied instanceof Endpoint endpoint) ? getPrimaryAgents(endpoint) : List.of();
       boolean isAgentless = agents.isEmpty();
+
+      deleteResult(technicalInjectExpectation, sourceId);
+      BaseInjectExpectation updated =
+          this.injectExpectationRepository.save(technicalInjectExpectation);
+
       if (isAssetExpectation(technicalInjectExpectation) && !isAgentless) {
-        throw new IllegalArgumentException(
-            "Not possible to update Asset directly on Asset with Agent");
+        // Asset-level delete on an asset with agents: remove the source's result from every
+        // agent expectation of the asset (same down computation as updateInjectExpectation),
+        // the propagation below then recomputes the asset score from its agents.
+        List<TechnicalInjectExpectation> expectationsForAgents =
+            getAgentsExpectationsForAsset(technicalInjectExpectation);
+        expectationsForAgents.forEach(e -> deleteResult(e, sourceId));
+        this.injectExpectationRepository.saveAll(expectationsForAgents);
       }
       propagateTechnicalExpectation(technicalInjectExpectation, isAgentless, null);
+      return updated;
     }
 
+    deleteResult(baseInjectExpectation, sourceId);
+    BaseInjectExpectation updated = this.injectExpectationRepository.save(baseInjectExpectation);
+    if (updated instanceof TableTopInjectExpectation tableTopInjectExpectation) {
+      propagateHumanResponseExpectation(tableTopInjectExpectation, null);
+    }
     return updated;
   }
 
@@ -511,6 +526,60 @@ public class InjectExpectationService {
     return new ArrayList<>();
   }
 
+  // -- PARENT EXPECTATIONS (SCORE DERIVED FROM CHILDREN) --
+
+  /**
+   * Whether the expectation is a PARENT whose score is derived from its children (an asset-level
+   * expectation whose asset has agent expectations, or an asset-group-level expectation) rather
+   * than answered directly by a collector or a user.
+   *
+   * @param expectation the technical expectation to check
+   * @return {@code true} if the expectation score must be rolled up from children
+   */
+  public boolean isParentTechnicalExpectation(
+      @NotNull final TechnicalInjectExpectation expectation) {
+    return isAssetGroupExpectation(expectation)
+        || (isAssetExpectation(expectation)
+            && !getAgentsExpectationsForAsset(expectation).isEmpty());
+  }
+
+  /**
+   * Recomputes the score of a PARENT technical expectation (asset level with agent children, or
+   * asset group level) from its current children, without writing any direct result on it.
+   *
+   * <p>Used by the expectations expiration manager: a parent expectation must ALWAYS reflect its
+   * children. When the parent score is still null at expiration time but its agents were already
+   * answered by a security platform (e.g. Microsoft Defender answered PREVENTED/DETECTED), the
+   * parent must roll up to that green verdict instead of being independently forced to a failed
+   * score - otherwise the asset shows "Not prevented" while its only agent shows "Prevented",
+   * corrupting the asset/asset-group verdicts and every statistic built on them.
+   *
+   * <p>If the children are still unanswered, the parent score stays null (pending): it will be
+   * resolved by a later propagation or a later expiration run, never wrongly failed.
+   *
+   * @param parent the parent expectation to recompute
+   * @return the recomputed parent expectations (already saved), empty when the expectation is not a
+   *     recomputable parent
+   */
+  public List<BaseInjectExpectation> recomputeParentTechnicalExpectation(
+      @NotNull final TechnicalInjectExpectation parent) {
+    List<BaseInjectExpectation> recomputed = new ArrayList<>();
+    if (isAssetGroupExpectation(parent)) {
+      recomputed.addAll(propagateToAssetGroup(parent, null));
+    } else if (isAssetExpectation(parent) && !getAgentsExpectationsForAsset(parent).isEmpty()) {
+      recomputed.addAll(propagateToAsset(parent, null));
+    }
+    if (!recomputed.isEmpty()) {
+      this.injectExpectationRepository.saveAll(recomputed);
+      Exercise exercise = parent.getInject().getExercise();
+      if (exercise != null) {
+        securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
+            List.of(exercise));
+      }
+    }
+    return recomputed;
+  }
+
   // -- UPDATE FROM EXTERNAL SOURCE : COLLECTORS --
 
   /**
@@ -712,8 +781,42 @@ public class InjectExpectationService {
     addResult(technicalInjectExpectation, input, collector);
     final Double score =
         computeScore(technicalInjectExpectation.getResults(), technicalInjectExpectation);
-    technicalInjectExpectation.setScore(score);
+    technicalInjectExpectation.setScore(
+        combineWithChildrenVerdict(technicalInjectExpectation, score));
     return technicalInjectExpectation;
+  }
+
+  /**
+   * Guards a direct (collector-written) score against clobbering a PARENT expectation's
+   * children-derived verdict. An asset-level expectation whose asset has agent children carries a
+   * score rolled up from those agents (e.g. Microsoft Defender answered the agents green); a
+   * collector answering the parent row directly (e.g. an LLM firewall expiring its own pending
+   * check with "Not Detected") must never overwrite that rollup with a score computed from the
+   * parent's own results only.
+   *
+   * <p>Combination rule: a direct success is definitive (any security platform succeeding counts);
+   * otherwise the children verdict wins - including staying pending (null) while the agents are
+   * still unanswered, so a direct failure never cements a wrong verdict early.
+   *
+   * @param expectation the expectation whose score was just computed from its own results
+   * @param ownScore the score computed from the expectation's own results
+   * @return the score to persist
+   */
+  private Double combineWithChildrenVerdict(
+      @NotNull final TechnicalInjectExpectation expectation, @Nullable final Double ownScore) {
+    if (expectation.getAgent() != null || expectation.getAsset() == null) {
+      return ownScore; // agent leaf or asset-group level: no children rollup to protect
+    }
+    List<TechnicalInjectExpectation> agentChildren = getAgentsExpectationsForAsset(expectation);
+    if (agentChildren.isEmpty()) {
+      return ownScore; // true agentless leaf (AI target, agentless endpoint)
+    }
+    Double expectedScore = expectation.getExpectedScore();
+    if (expectedScore == null || (ownScore != null && ownScore >= expectedScore)) {
+      return ownScore;
+    }
+    return InjectExpectationUtils.computeChildrenScore(
+        expectation.isExpectationGroup(), expectedScore, agentChildren);
   }
 
   // -- FINAL UPDATE --
@@ -1126,14 +1229,25 @@ public class InjectExpectationService {
               }
               BaseInjectExpectation clone = expectation.clone();
               Map<String, InjectExpectationResult> bySource = new LinkedHashMap<>();
-              platformResults.forEach(
-                  r ->
-                      bySource.merge(
-                          r.getSourceId() == null ? r.getSourceName() : r.getSourceId(),
-                          r,
-                          (existing, candidate) ->
-                              // Prefer an answered result over a pending one for the same source.
-                              existing.getResult() != null ? existing : candidate));
+              // Agents' results first, then the asset expectation's OWN direct results (e.g. a
+              // security platform that answered the asset level directly): a result persisted on
+              // the row must stay visible, silently dropping it would hide what drove the score.
+              Stream.concat(
+                      platformResults.stream(),
+                      expectation.getResults().stream()
+                          .filter(
+                              r ->
+                                  COLLECTOR.equals(r.getSourceType())
+                                      || SECURITY_PLATFORM.equals(r.getSourceType())))
+                  .forEach(
+                      r ->
+                          bySource.merge(
+                              r.getSourceId() == null ? r.getSourceName() : r.getSourceId(),
+                              r,
+                              (existing, candidate) ->
+                                  // Prefer an answered result over a pending one for the same
+                                  // source.
+                                  existing.getResult() != null ? existing : candidate));
               clone.setResults(new ArrayList<>(bySource.values()));
               return clone;
             })

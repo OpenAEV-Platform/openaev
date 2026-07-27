@@ -83,7 +83,33 @@ public class ExpectationsExpirationManagerService {
       @NotNull final List<BaseInjectExpectation> updated) {
     List<BaseInjectExpectation> remainingExpectations =
         expectations.stream().filter(exp -> exp.getScore() == null).toList();
-    remainingExpectations.forEach(
+
+    // PARENT technical expectations (asset level with agent children, asset group level) must
+    // ALWAYS be derived from their children, never force-failed with a direct "Expired" result:
+    // when a security platform already answered the agents (e.g. Microsoft Defender green
+    // PREVENTED/DETECTED) but the parent score is still null at expiration time, force-failing the
+    // parent permanently cements a wrong "Not prevented"/"Not detected" verdict on the asset while
+    // its agents show green, corrupting every statistic built on the parent rows. Recompute them
+    // from children instead; asset parents first so asset group parents read fresh asset scores.
+    List<TechnicalInjectExpectation> assetParents = new ArrayList<>();
+    List<TechnicalInjectExpectation> assetGroupParents = new ArrayList<>();
+    List<BaseInjectExpectation> directlyAnswerable = new ArrayList<>();
+    for (BaseInjectExpectation expectation : remainingExpectations) {
+      if (expectation instanceof TechnicalInjectExpectation technicalExpectation
+          && injectExpectationService.isParentTechnicalExpectation(technicalExpectation)) {
+        if (ExpectationUtils.isAssetGroupExpectation(technicalExpectation)) {
+          assetGroupParents.add(technicalExpectation);
+        } else {
+          assetParents.add(technicalExpectation);
+        }
+      } else {
+        directlyAnswerable.add(expectation);
+      }
+    }
+    // Genuine leaves (human expectations, agentless assets / AI targets) are answered directly:
+    // unanswered and expired means failed. Processed FIRST so parent recomputation below reads
+    // the final leaf scores (an asset group may aggregate agentless asset leaves).
+    directlyAnswerable.forEach(
         expectation -> {
           InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
           input.setIsSuccess(false);
@@ -99,5 +125,12 @@ public class ExpectationsExpirationManagerService {
                     technicalExpectation, input, collector));
           }
         });
+
+    assetParents.forEach(
+        parent ->
+            updated.addAll(injectExpectationService.recomputeParentTechnicalExpectation(parent)));
+    assetGroupParents.forEach(
+        parent ->
+            updated.addAll(injectExpectationService.recomputeParentTechnicalExpectation(parent)));
   }
 }

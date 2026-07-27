@@ -282,6 +282,7 @@ public class ExerciseService {
     exerciseDuplicate.setHeader(exerciseOrigin.getHeader());
     exerciseDuplicate.setMainFocus(exerciseOrigin.getMainFocus());
     exerciseDuplicate.setSeverity(exerciseOrigin.getSeverity());
+    exerciseDuplicate.setDefaultKillChain(exerciseOrigin.getDefaultKillChain());
     exerciseDuplicate.setSubtitle(exerciseOrigin.getSubtitle());
     exerciseDuplicate.setLogoDark(exerciseOrigin.getLogoDark());
     exerciseDuplicate.setLogoLight(exerciseOrigin.getLogoLight());
@@ -1039,8 +1040,17 @@ public class ExerciseService {
         getTeamsOrAssetsOrAssetGroupsByExerciseIds(
             assetGroupRepository.assetGroupsByExerciseIds(exerciseIds));
 
+    // AI and manual targets are content references (not JPA relations): resolved separately so
+    // the simulation list "Target" column also surfaces AI-target and manual-target injects.
+    ExerciseMapper.ContentTargetsByExerciseIds contentTargets =
+        exerciseMapper.contentTargetsByExerciseIds(exerciseIds);
+
     return new MappingsByExerciseIds(
-        teamsByExerciseIds, assetsByExerciseIds, assetGroupByExerciseIds);
+        teamsByExerciseIds,
+        assetsByExerciseIds,
+        assetGroupByExerciseIds,
+        contentTargets.aiTargets(),
+        contentTargets.manualTargets());
   }
 
   private Map<String, List<Object[]>> getTeamsOrAssetsOrAssetGroupsByExerciseIds(
@@ -1057,7 +1067,9 @@ public class ExerciseService {
   private record MappingsByExerciseIds(
       Map<String, List<Object[]>> teamsByExerciseIds,
       Map<String, List<Object[]>> assetsByExerciseIds,
-      Map<String, List<Object[]>> assetGroupsByExerciseIds) {}
+      Map<String, List<Object[]>> assetGroupsByExerciseIds,
+      Map<String, List<Object[]>> aiTargetsByExerciseIds,
+      Map<String, List<Object[]>> manualTargetsByExerciseIds) {}
 
   private Map<String, List<RawInjectExpectationIndexing>> getExpectationsByExerciseId(
       Set<String> exerciseIds) {
@@ -1090,6 +1102,12 @@ public class ExerciseService {
                     exercise,
                     mappingsByExerciseIds.assetGroupsByExerciseIds,
                     TargetType.ASSETS_GROUPS)
+                    .stream(),
+                getTargets(
+                    exercise, mappingsByExerciseIds.aiTargetsByExerciseIds, TargetType.AI_TARGETS)
+                    .stream(),
+                getTargets(
+                    exercise, mappingsByExerciseIds.manualTargetsByExerciseIds, TargetType.MANUAL)
                     .stream())
             .flatMap(Function.identity())
             .toList();

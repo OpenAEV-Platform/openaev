@@ -7,7 +7,7 @@ import static org.mockito.Mockito.when;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.Handler;
-import io.openaev.engine.model.endpoint.EsEndpoint;
+import io.openaev.engine.model.asset.EsAsset;
 import io.openaev.engine.model.inject.EsInject;
 import java.util.List;
 import java.util.Set;
@@ -35,7 +35,7 @@ class CommonSearchServiceTest {
             (List)
                 List.of(
                     new EsModel<>(EsInject.class, mock(Handler.class)),
-                    new EsModel<>(EsEndpoint.class, mock(Handler.class))));
+                    new EsModel<>(EsAsset.class, mock(Handler.class))));
 
     Set<String> names = commonSearchService.getSideFieldNames();
 

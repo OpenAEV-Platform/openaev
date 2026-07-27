@@ -9,10 +9,10 @@ export const SIMULATION_BASE_URL = '/admin/simulations';
 export const ATOMIC_BASE_URL = '/admin/atomic_testings';
 
 // Assets
-export const ENDPOINT_BASE_URL = '/admin/assets/endpoints';
-export const ASSET_BASE_URL = '/admin/assets/details';
-export const ASSET_GROUP_BASE_URL = '/admin/assets/asset_groups';
-export const SECURITY_PLATFORM_BASE_URL = '/admin/assets/security_platforms';
+export const ENDPOINT_BASE_URL = '/admin/assets';
+export const ASSET_BASE_URL = '/admin/assets';
+export const ASSET_GROUP_BASE_URL = '/admin/asset_groups';
+export const SECURITY_PLATFORM_BASE_URL = '/admin/security_platforms';
 
 // Peoples - top-level sections (no shared "teams" parent segment).
 export const PLAYER_BASE_URL = '/admin/persons';

@@ -636,6 +636,8 @@ const ThemeDark = (
     MuiChip: {
       styleOverrides: {
         root: {
+          // Design system: chips are square-ish (4px), never pill-shaped
+          'borderRadius': 4,
           'color': text_color,
           'textTransform': 'lowercase',
           '&::first-letter': { textTransform: 'uppercase' },
@@ -643,6 +645,10 @@ const ThemeDark = (
         label: {
           'textTransform': 'lowercase',
           '&::first-letter': { textTransform: 'uppercase' },
+          // The label has overflow hidden: a line-height smaller than the font's
+          // ascent + descent clips glyphs at the bottom ("g", "p", ...). Chips
+          // vertically center their label, so 'normal' is always safe here.
+          'lineHeight': 'normal',
         },
       },
     },

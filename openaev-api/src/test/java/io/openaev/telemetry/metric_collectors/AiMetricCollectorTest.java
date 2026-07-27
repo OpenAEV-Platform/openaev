@@ -138,9 +138,9 @@ class AiMetricCollectorTest {
     }
 
     @Test
-    @DisplayName("detection remediation counts carry the collector type dimension")
-    void given_collectorTypes_should_dimensionDetectionRemediationCounts() {
-      collector.recordDetectionRemediation("crowdstrike");
+    @DisplayName("detection remediation counts carry the security platform dimension")
+    void given_securityPlatforms_should_dimensionDetectionRemediationCounts() {
+      collector.recordDetectionRemediation("CrowdStrike Falcon");
       collector.recordDetectionRemediation(null);
 
       collector.init();
@@ -150,8 +150,8 @@ class AiMetricCollectorTest {
               eq("detection_remediation_ai_count"), any(), multiGaugeCaptor.capture());
       Map<Attributes, Long> snapshot = multiGaugeCaptor.getValue().get();
       assertThat(snapshot)
-          .containsEntry(Attributes.of(stringKey("collector_type"), "crowdstrike"), 1L)
-          .containsEntry(Attributes.of(stringKey("collector_type"), "unknown"), 1L);
+          .containsEntry(Attributes.of(stringKey("security_platform"), "CrowdStrike Falcon"), 1L)
+          .containsEntry(Attributes.of(stringKey("security_platform"), "unknown"), 1L);
     }
   }
 

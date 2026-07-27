@@ -37,7 +37,7 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas: r
       }))
     : realDatas), [isSample, realDatas]);
 
-  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
+  const { openWidgetResults } = useContext(CustomDashboardContext);
 
   // Memoize click handler
   const onClick = useCallback((_: Event, config: {
@@ -45,12 +45,12 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas: r
     dataPointIndex: number;
   }) => {
     const dataPoint = datas[config.dataPointIndex];
-    openWidgetDataDrawer({
+    openWidgetResults({
       widgetId,
       filter_values_map: { [widgetConfig.field]: [dataPoint?.meta ?? ''] },
       series_index: config.seriesIndex,
     });
-  }, [datas, openWidgetDataDrawer, widgetId]);
+  }, [datas, openWidgetResults, widgetId]);
 
   // Memoize labels
   const labels = useMemo(

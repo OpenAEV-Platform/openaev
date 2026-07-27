@@ -17,8 +17,6 @@ import {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import handle from '../../../../utils/period/Period';
-import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExpressionHandler';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { isFeatureEnabled } from '../../../../utils/utils';
@@ -38,8 +36,6 @@ const ScenarioScope = lazy(() => import('./scope/ScenarioScope'));
 const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
 const ScenarioStatistics = lazy(() => import('./analysis/ScenarioAnalysis'));
 const ScenarioAttackPath = lazy(() => import('./attack_path/ScenarioAttackPath'));
-
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = ({ scenario }) => {
   const { t } = useFormatter();
@@ -78,13 +74,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
   } else if (location.pathname.includes(`/admin/scenarios/${scenario.scenario_id}/tests`)) {
     tabValue = `/admin/scenarios/${scenario.scenario_id}/tests`;
   }
-  const [openScenarioRecurringFormDialog, setOpenScenarioRecurringFormDialog] = useState<boolean>(false);
   const [openInstantiateSimulationAndStart, setOpenInstantiateSimulationAndStart] = useState<boolean>(false);
-  const [selectRecurring, setSelectRecurring] = useState('noRepeat');
-  const [cronObject, setCronObject] = useState<PeriodExpressionHandler | null>(handle(scenario.scenario_recurrence));
-  const noRepeat = !!scenario.scenario_recurrence_end && !!scenario.scenario_recurrence_start
-    && new Date(scenario.scenario_recurrence_end).getTime() - new Date(scenario.scenario_recurrence_start).getTime() <= MS_PER_DAY
-    && ['noRepeat', 'daily'].includes(selectRecurring);
   return (
     <PermissionsContext.Provider value={permissionsContext}>
       <DocumentContext.Provider value={documentContext}>
@@ -103,15 +93,8 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
             ]}
           />
           <ScenarioHeader
-            cronObject={cronObject}
-            setCronObject={setCronObject}
-            setSelectRecurring={setSelectRecurring}
-            selectRecurring={selectRecurring}
-            setOpenScenarioRecurringFormDialog={setOpenScenarioRecurringFormDialog}
-            openScenarioRecurringFormDialog={openScenarioRecurringFormDialog}
             setOpenInstantiateSimulationAndStart={setOpenInstantiateSimulationAndStart}
             openInstantiateSimulationAndStart={openInstantiateSimulationAndStart}
-            noRepeat={noRepeat}
           />
           <Box
             sx={{

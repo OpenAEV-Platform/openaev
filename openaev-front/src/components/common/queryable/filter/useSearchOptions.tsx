@@ -2,7 +2,7 @@ import { type AxiosResponse } from 'axios';
 import { useState } from 'react';
 
 import { searchAssetGroupAsOption, searchAssetGroupLinkedToFindingsAsOption } from '../../../../actions/asset_groups/assetgroup-action';
-import { searchEndpointAsOption, searchEndpointLinkedToFindingsAsOption } from '../../../../actions/assets/endpoint-actions';
+import { searchAssetsAsOption, searchEndpointAsOption, searchEndpointLinkedToFindingsAsOption } from '../../../../actions/assets/endpoint-actions';
 import { searchSecurityPlatformAsOption } from '../../../../actions/assets/securityPlatform-actions';
 import { searchAttackPatternsByNameAsOption } from '../../../../actions/AttackPattern';
 import { searchCustomDashboardAsOptions } from '../../../../actions/custom_dashboards/customdashboard-action';
@@ -19,9 +19,10 @@ import { searchSimulationAsOptions } from '../../../../actions/simulations/simul
 import { searchTagAsOption } from '../../../../actions/tags/tag-action';
 import { searchTeamsAsOption } from '../../../../actions/teams/team-actions';
 import { searchPlayersAsOption } from '../../../../actions/users/User';
+import { humanizeEnum } from '../../../../admin/components/assets/asset-categories';
 import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../../../../admin/components/findings/ContractOutputElementType';
 import { scenarioCategories } from '../../../../admin/components/scenarios/constants';
-import { type InjectorContract } from '../../../../utils/api-types';
+import { type AssetOptionOutput, type InjectorContract } from '../../../../utils/api-types';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { useFormatter } from '../../../i18n';
 import { initSorting, type Page } from '../Page';
@@ -177,9 +178,31 @@ const useSearchOptions = () => {
         });
         break;
       case 'finding_assets':
-        searchEndpointLinkedToFindingsAsOption(search, contextId).then((response) => {
-          setOptions(response.data);
-        });
+        // Contextual findings tabs (inject / simulation / scenario / asset) narrow the options to
+        // assets already linked to findings in that context. Without a context (global findings
+        // page, notification trigger criteria) the whole asset inventory must be proposed:
+        // findings can attach to any asset - including ones with no finding yet when the filter
+        // targets future events (triggers).
+        if (contextId) {
+          searchEndpointLinkedToFindingsAsOption(search, contextId).then((response) => {
+            setOptions(response.data);
+          }).catch(() => setOptions([]));
+        } else {
+          // The inventory can hold thousands of assets: group the returned page by asset
+          // category (Host, Web application, AI target...) so the picker stays readable.
+          // On failure (e.g. 403 without ASSETS access) resolve to an empty list so the
+          // autocomplete never shows an endless "Loading...".
+          searchAssetsAsOption(search).then((response: AxiosResponse<AssetOptionOutput[]>) => {
+            const grouped: GroupOption[] = response.data
+              .map(option => ({
+                id: option.id ?? '',
+                label: option.label ?? '',
+                group: option.category ? t(humanizeEnum(option.category)) : t('Other'),
+              }))
+              .sort((a, b) => a.group.localeCompare(b.group) || a.label.localeCompare(b.label));
+            setOptions(grouped);
+          }).catch(() => setOptions([]));
+        }
         break;
       case 'finding_teams':
       case 'user_teams':

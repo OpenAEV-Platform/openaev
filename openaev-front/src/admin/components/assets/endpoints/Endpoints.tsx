@@ -19,8 +19,6 @@ import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ExportButton from '../../../../components/common/ExportButton';
 import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
 import EndpointActiveFragment from '../../../../components/common/list/fragments/EndpointActiveFragment';
-import EndpointAgentsPrivilegeFragment from '../../../../components/common/list/fragments/EndpointAgentsPrivilegeFragment';
-import EndpointArchFragment from '../../../../components/common/list/fragments/EndpointArchFragment';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -43,6 +41,8 @@ import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/En
 import ToolBar from '../../common/ToolBar';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
+import PostureScoreCell from '../PostureScoreCell';
+import usePostureScores from '../usePostureScores';
 import AssetPopover from './AssetPopover';
 import EndpointCreation from './EndpointCreation';
 import ImportUploaderEndpoints from './ImportUploaderEndpoints';
@@ -53,15 +53,14 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
-  asset_name: { width: '16%' },
+  asset_name: { width: '20%' },
   asset_category: { width: '12%' },
   endpoint_active: { width: '9%' },
-  endpoint_agents_privilege: { width: '11%' },
   endpoint_platform: { width: '9%' },
-  endpoint_arch: { width: '8%' },
   endpoint_agents_executor: { width: '12%' },
   asset_criticality: { width: '9%' },
-  asset_tags: { width: '14%' },
+  asset_posture: { width: '10%' },
+  asset_tags: { width: '19%' },
 };
 
 const Endpoints = () => {
@@ -129,6 +128,12 @@ const Endpoints = () => {
     numberOfSelectedElements,
   } = useEntityToggle<EndpointOutput>('asset', endpoints, queryableHelpers.paginationHelpers.getTotalElements());
 
+  // Per-row posture score, batched in a single dashboard-engine query per page.
+  const { loading: postureLoading, scores: postureScores } = usePostureScores(
+    'base_asset_side',
+    endpoints.map(endpoint => endpoint.asset_id),
+  );
+
   const bulkDelete = () => {
     bulkDeleteAssets({
       search_pagination_input: selectAll ? searchPaginationInput : undefined,
@@ -174,22 +179,10 @@ const Endpoints = () => {
       value: (endpoint: EndpointOutput) => <EndpointActiveFragment activity_map={(endpoint.asset_agents ?? []).map(a => a.agent_active ?? false)} />,
     },
     {
-      field: EndpointListItemFragments.ENDPOINT_AGENTS_PRIVILEGE,
-      label: 'Agents Privileges',
-      isSortable: false,
-      value: (endpoint: EndpointOutput) => <EndpointAgentsPrivilegeFragment privileges={(endpoint.asset_agents ?? []).map(a => a.agent_privilege)} />,
-    },
-    {
       field: EndpointListItemFragments.ENDPOINT_PLATFORM,
       label: 'Platform',
       isSortable: false,
       value: (endpoint: EndpointOutput) => <AssetPlatformFragment platform={endpoint.endpoint_platform} />,
-    },
-    {
-      field: EndpointListItemFragments.ENDPOINT_ARCH,
-      label: 'Architecture',
-      isSortable: false,
-      value: (endpoint: EndpointOutput) => <EndpointArchFragment arch={endpoint.endpoint_arch} />,
     },
     {
       field: 'endpoint_agents_executor',
@@ -202,6 +195,18 @@ const Endpoints = () => {
       label: 'Criticality',
       isSortable: true,
       value: (endpoint: EndpointOutput) => <ItemCriticality criticality={endpoint.asset_criticality} />,
+    },
+    {
+      field: 'asset_posture',
+      label: 'Posture score',
+      isSortable: false,
+      value: (endpoint: EndpointOutput) => (
+        <PostureScoreCell
+          success={postureScores[endpoint.asset_id]?.success ?? 0}
+          failed={postureScores[endpoint.asset_id]?.failed ?? 0}
+          loading={postureLoading}
+        />
+      ),
     },
     {
       field: EndpointListItemFragments.ASSET_TAGS,

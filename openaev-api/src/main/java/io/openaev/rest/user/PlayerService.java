@@ -123,7 +123,14 @@ public class PlayerService {
   }
 
   public Page<PlayerOutput> playerPagination(@NotNull SearchPaginationInput searchPaginationInput) {
-    Specification<User> tenantSpec = inTenant(TenantContext.getCurrentTenant());
+    // Reserved service/connector accounts (service-*@openaev.invalid,
+    // connector-*@openaev.invalid - see ReservedKeyValidator) are system users:
+    // they are not players and can never be added to a team, so they must not
+    // be listed in player search results (Players page, team players picker...).
+    Specification<User> excludeReservedAccounts =
+        (root, query, cb) -> cb.notLike(cb.lower(root.get("email")), "%@openaev.invalid");
+    Specification<User> tenantSpec =
+        inTenant(TenantContext.getCurrentTenant()).and(excludeReservedAccounts);
     TriFunction<Specification<User>, Specification<User>, Pageable, Page<PlayerOutput>>
         playersFunction;
     playersFunction =

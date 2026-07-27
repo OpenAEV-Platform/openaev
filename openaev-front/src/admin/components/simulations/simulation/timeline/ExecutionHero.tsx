@@ -17,6 +17,13 @@ interface Props {
   errorCount: number;
   pendingValidations: number;
   now: number;
+  /**
+   * Next planned inject (epoch ms), computed by the parent from the injects
+   * list. Not read from exercise_next_inject_date: that field only exists on
+   * the raw Exercise entity returned by mutations, not on the SimulationDetails
+   * DTO of GET /exercises/{id}, so it vanishes after a page reload.
+   */
+  nextInjectTime?: number | null;
 }
 
 // The live header of the Execution screen: a pulsing status beacon, the T+
@@ -32,6 +39,7 @@ const ExecutionHero: FunctionComponent<Props> = ({
   errorCount,
   pendingValidations,
   now,
+  nextInjectTime = null,
 }) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -75,7 +83,6 @@ const ExecutionHero: FunctionComponent<Props> = ({
   const elapsedSeconds = startTime !== null && clockEnd >= startTime ? (clockEnd - startTime) / 1000 : null;
 
   // Next inject countdown, only meaningful while the simulation runs.
-  const nextInjectTime = exercise?.exercise_next_inject_date ? new Date(exercise.exercise_next_inject_date).getTime() : null;
   const nextInjectSeconds = running && nextInjectTime !== null && nextInjectTime >= now ? (nextInjectTime - now) / 1000 : null;
 
   const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;

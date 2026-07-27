@@ -74,4 +74,7 @@ public class AttackPathNodeDTO {
   private String typeFindings;
   private String findingsTypeNodeId;
   private String assetNodeId;
+  // FINDING only: the per-finding verdict triple, worst-of aggregated across the producing
+  // executions. Null on every other node type (omitted from the JSON).
+  private AttackPathFindingVerdictsDTO verdicts;
 }

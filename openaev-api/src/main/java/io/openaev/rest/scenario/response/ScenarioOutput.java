@@ -47,6 +47,10 @@ public class ScenarioOutput {
   @Schema(description = "Severity of the scenario")
   private String severity;
 
+  @JsonProperty("scenario_default_kill_chain")
+  @Schema(description = "Kill chain displayed first in the overview kill chain results")
+  private String defaultKillChain;
+
   @JsonProperty("scenario_type_affinity")
   @Schema(description = "Type affinity of the scenario")
   private String typeAffinity;

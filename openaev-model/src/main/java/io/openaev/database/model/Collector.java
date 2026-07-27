@@ -85,7 +85,9 @@ public class Collector extends BaseConnectorEntity implements TenantIdBase {
   @JsonProperty("collector_last_execution")
   private Instant lastExecution;
 
-  @OneToOne(fetch = FetchType.LAZY)
+  // ManyToOne (not OneToOne): the collector_security_platform column carries no unique
+  // constraint, several collectors may legitimately point to the same security platform.
+  @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "collector_security_platform")
   @JsonProperty("collector_security_platform")
   private SecurityPlatform securityPlatform;

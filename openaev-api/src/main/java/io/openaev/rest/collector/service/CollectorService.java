@@ -18,9 +18,11 @@ import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.AbstractConnectorService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.time.Instant;
@@ -259,11 +261,18 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
             });
   }
 
-  public List<Collector> collectorsForPayload(String payloadId) {
-    return collectorRepository.findByPayloadId(payloadId);
-  }
-
-  public List<Collector> collectorsForAtomicTesting(String injectId) {
-    return collectorRepository.findByInjectId(injectId);
+  /**
+   * Deletes a collector and, when it was deployed through the Integration Manager, the connector
+   * instance that owns it - otherwise the deployment keeps running against a collector that no
+   * longer exists and recreates it on its next registration heartbeat (see {@link
+   * io.openaev.service.connectors.AbstractConnectorService#deleteOwningConnectorInstance}).
+   *
+   * @param collectorId collector identifier
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteCollector(@NotBlank final String collectorId) throws ConnectorStatusException {
+    if (!deleteOwningConnectorInstance(collectorId)) {
+      collectorRepository.deleteByIdAndTenantId(collectorId, TenantContext.getCurrentTenant());
+    }
   }
 }

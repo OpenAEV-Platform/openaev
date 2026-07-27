@@ -12,7 +12,6 @@ import useTabs from '../../../../../components/common/tabs/useTabs';
 import Terminal, { type TerminalLine } from '../../../../../components/common/terminal/Terminal';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import { CROWDSTRIKE, SPLUNK } from '../../../../../constants/Entities';
 import type { AttackPathExecutionDetailDTO, InjectStatusOutput, InjectTarget } from '../../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import expectationIconByType from '../../../common/ExpectationIconByType';
@@ -37,6 +36,11 @@ interface Props {
 const RESULT_TAB = 'result';
 const TERMINAL_TAB = 'terminal';
 const REMEDIATION_TAB = 'remediation';
+
+// Collector logo types for the illustrative prevented-by / detected-by chips below (the execution
+// detail does not yet carry the actual platform list, so these are display placeholders).
+const CROWDSTRIKE_LOGO_TYPE = 'openaev_crowdstrike';
+const SPLUNK_LOGO_TYPE = 'openaev_splunk_es';
 
 interface PlatformAlert {
   id: string;
@@ -66,6 +70,27 @@ const PlatformLogo = ({ type, label }: {
   return (
     <ImageWithFallback
       src={buildTenantApiPath(`/api/collectors/${type}/image`)}
+      alt={label}
+      fallback={<ShieldOutlined style={size} />}
+      style={size}
+    />
+  );
+};
+
+// A security platform asset logo (by asset id + theme mode) with the same graceful fallback.
+const SecurityPlatformAssetLogo = ({ platformId, label, mode }: {
+  platformId: string;
+  label: string;
+  mode: string;
+}) => {
+  const size = {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+  };
+  return (
+    <ImageWithFallback
+      src={buildTenantApiPath(`/api/images/security_platforms/id/${platformId}/${mode}`)}
       alt={label}
       fallback={<ShieldOutlined style={size} />}
       style={size}
@@ -305,7 +330,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
   ];
   const preventedBy: SecurityPlatform[] = statusSucceeded(detail?.preventionStatus)
     ? [{
-        type: CROWDSTRIKE,
+        type: CROWDSTRIKE_LOGO_TYPE,
         label: 'CrowdStrike',
       }]
     : [];
@@ -314,10 +339,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
   const isDetected = statusSucceeded(detail?.detectionStatus) || statusSucceeded(detail?.preventionStatus);
   const detectedBy: SecurityPlatform[] = isDetected
     ? [{
-        type: CROWDSTRIKE,
+        type: CROWDSTRIKE_LOGO_TYPE,
         label: 'CrowdStrike',
       }, {
-        type: SPLUNK,
+        type: SPLUNK_LOGO_TYPE,
         label: 'Splunk',
       }]
     : [];
@@ -508,7 +533,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                     onClick={onOpenInject}
                     sx={{ alignSelf: 'flex-start' }}
                   >
-                    {t('Action details')}
+                    {t('Inject details')}
                   </Button>
                 )}
               </div>
@@ -542,7 +567,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                   </Typography>
                 )}
                 {detectionRemediations.map((rem, index) => (
-                  <div key={rem.detection_remediation_id ?? rem.detection_remediation_collector ?? index}>
+                  <div key={rem.detection_remediation_id ?? rem.detection_remediation_security_platform ?? index}>
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -550,8 +575,14 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                       marginBottom: 6,
                     }}
                     >
-                      {rem.detection_remediation_collector && <PlatformLogo type={rem.detection_remediation_collector} label={rem.detection_remediation_collector} />}
-                      <Typography variant="subtitle2">{rem.detection_remediation_collector}</Typography>
+                      {rem.detection_remediation_security_platform && (
+                        <SecurityPlatformAssetLogo
+                          platformId={rem.detection_remediation_security_platform}
+                          label={rem.detection_remediation_security_platform_name ?? rem.detection_remediation_security_platform}
+                          mode={theme.palette.mode}
+                        />
+                      )}
+                      <Typography variant="subtitle2">{rem.detection_remediation_security_platform_name ?? rem.detection_remediation_security_platform}</Typography>
                     </div>
                     {/* Detection rule text is sanitized before rendering — never injected raw. */}
                     <div

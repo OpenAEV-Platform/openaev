@@ -1,4 +1,5 @@
 import { Chip } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -18,19 +19,6 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const inlineStyles = {
-  green: {
-    backgroundColor: 'rgba(15, 255, 187, 0.1)',
-    borderColor: 'rgba(15, 255, 187,1)',
-    color: '#ffffff',
-  },
-  yellow: {
-    backgroundColor: 'rgba(255, 207, 15, 0.1)',
-    borderColor: 'rgba(255, 207, 15, 0.51)',
-    color: '#ffffff',
-  },
-};
-
 interface Props {
   variant: string;
   privilege: string;
@@ -38,8 +26,22 @@ interface Props {
 
 const AgentPrivilege: FunctionComponent<Props> = ({ variant, privilege }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
   const { classes } = useStyles();
   const style = variant === 'list' ? classes.chipInList : classes.chip;
+
+  const inlineStyles = {
+    green: {
+      backgroundColor: 'rgba(15, 255, 187, 0.1)',
+      borderColor: 'rgba(15, 255, 187,1)',
+      color: theme.palette.text.primary,
+    },
+    yellow: {
+      backgroundColor: 'rgba(255, 207, 15, 0.1)',
+      borderColor: 'rgba(255, 207, 15, 0.51)',
+      color: theme.palette.text.primary,
+    },
+  };
 
   switch (privilege) {
     case 'admin':

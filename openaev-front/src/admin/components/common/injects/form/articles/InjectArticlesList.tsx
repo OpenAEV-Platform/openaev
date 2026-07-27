@@ -11,7 +11,7 @@ import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import ChannelIcon from '../../../../components/channels/ChannelIcon';
 import ArticlePopover from '../../../articles/ArticlePopover';
 import { ArticleContext } from '../../../Context';
-import InjectAddArticlesDialog from './InjectAddArticlesDialog';
+import InjectAddArticles from './InjectAddArticles';
 
 const useStyles = makeStyles()(theme => ({
   columns: {
@@ -24,6 +24,7 @@ const useStyles = makeStyles()(theme => ({
     overflow: 'hidden',
     fontSize: theme.typography.h3.fontSize,
   },
+  icon: { minWidth: 30 },
   text: {
     fontSize: 15,
     color: theme.palette.primary.main,
@@ -94,6 +95,7 @@ const InjectArticlesList = ({ allArticles = [], readOnly = false }: Props) => {
               divider
               secondaryAction={(
                 <ArticlePopover
+                  inline
                   article={article}
                   onRemoveArticle={removeArticle}
                   disabled={readOnly}
@@ -135,8 +137,8 @@ const InjectArticlesList = ({ allArticles = [], readOnly = false }: Props) => {
           color="primary"
           disabled={readOnly}
         >
-          <ListItemIcon color="primary">
-            <ControlPointOutlined color="primary" />
+          <ListItemIcon color="primary" classes={{ root: classes.icon }}>
+            <ControlPointOutlined color="primary" fontSize="small" />
           </ListItemIcon>
           <ListItemText
             primary={t('Add media pressure')}
@@ -144,7 +146,7 @@ const InjectArticlesList = ({ allArticles = [], readOnly = false }: Props) => {
           />
         </ListItemButton>
         {openAddArticles && (
-          <InjectAddArticlesDialog
+          <InjectAddArticles
             open={openAddArticles}
             onHandleClose={() => setOpenAddArticles(false)}
             articles={allArticles || []}

@@ -14,6 +14,7 @@ import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.Contractor;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.injector.form.InjectorCreateInput;
@@ -24,6 +25,8 @@ import io.openaev.rest.injector_contract.form.InjectorContractInput;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.AbstractConnectorService;
+import io.openaev.service.connectors.PlatformConnectors;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.service.exception.InjectorRegistrationException;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
@@ -128,6 +131,48 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   @Override
   protected Injector createNewConnector() {
     return new Injector();
+  }
+
+  /**
+   * Deletes an injector together with the contracts it would leave behind.
+   *
+   * <p>The join rows cascade with the injector at database level, so deleting the row alone strands
+   * its contracts with no injector at all: no type in the arsenal, nothing able to run them, and
+   * invisible to the maintenance loop of the injector that owned them. Contracts still linked to
+   * another injector are kept - built-in contracts are shared across injectors of the same type.
+   *
+   * <p>Contract deletion cascades to injects at database level with no JPA lifecycle event, so the
+   * doomed injects are collected first and de-indexed explicitly afterwards.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteInjector(@NotBlank final String injectorId) throws ConnectorStatusException {
+    String tenantId = TenantContext.getCurrentTenant();
+    Injector injector =
+        injectorRepository
+            .findByIdAndTenantId(injectorId, tenantId)
+            .orElseThrow(ElementNotFoundException::new);
+    if (PlatformConnectors.isPlatformInjector(injector.getType())) {
+      throw new BadRequestException(
+          "The implant injector is required by the platform and cannot be deleted");
+    }
+    List<String> orphanedContractIds =
+        injectorContractRepository.findByInjectorsContaining(injector).stream()
+            .filter(
+                contract ->
+                    contract.getInjectors().stream()
+                        .allMatch(linked -> injectorId.equals(linked.getId())))
+            .map(InjectorContract::getId)
+            .toList();
+    List<String> cascadeDeletedInjectIds =
+        injectIndexCleanupService.injectIdsByContractIds(orphanedContractIds, tenantId);
+    injectorContractRepository.deleteAllByIdAndTenantId(
+        orphanedContractIds.toArray(new String[0]), tenantId);
+    // Tear the deployment down with the injector, and only delete the row ourselves when the
+    // injector was not deployed through the Integration Manager.
+    if (!deleteOwningConnectorInstance(injectorId)) {
+      injectorRepository.deleteByIdAndTenantId(injectorId, tenantId);
+    }
+    injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
   }
 
   public Injector injector(String id) {
@@ -429,7 +474,36 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
           staticContracts);
     }
 
+    // A payload injector (e.g. the OpenAEV implant) has no static contracts to merge by id: its
+    // contracts are payload-driven and created on the fly. Starter-pack imports on a fresh platform
+    // run before this injector exists, so their payload contracts are persisted with a payload but
+    // no injector link. Adopt those orphans here so they stop showing a question mark / "no payload
+    // attached" and become executable.
+    if (Boolean.TRUE.equals(isPayloads)) {
+      adoptOrphanPayloadContracts(id, tenantId);
+    }
+
     log.info("Successfully registered injector '{}' (type: {})", name, contractor.getType());
+  }
+
+  /**
+   * Links payload-bearing contracts that are not attached to any injector to this payload injector.
+   * Idempotent: contracts already linked to an injector are skipped by the query, and the link
+   * insert is {@code ON CONFLICT DO NOTHING}.
+   */
+  private void adoptOrphanPayloadContracts(String injectorId, String tenantId) {
+    List<String> orphanContractIds =
+        injectorContractRepository.findContractIdsWithPayloadAndNoInjector(tenantId);
+    if (orphanContractIds.isEmpty()) {
+      return;
+    }
+    for (String contractId : orphanContractIds) {
+      injectorRepository.linkContract(injectorId, contractId, tenantId);
+    }
+    log.info(
+        "Adopted {} orphan payload contract(s) into injector '{}'",
+        orphanContractIds.size(),
+        injectorId);
   }
 
   private void uploadInjectorIcon(Contractor contractor) {

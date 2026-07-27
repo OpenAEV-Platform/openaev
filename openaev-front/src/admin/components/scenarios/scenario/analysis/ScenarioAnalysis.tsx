@@ -117,6 +117,10 @@ const ScenarioAnalysis = () => {
   const configuration = useMemo(() => ({
     customDashboardId: effectiveDashboardId,
     paramLocalStorageKey: 'custom-dashboard-scenario-' + scenarioId,
+    resultsSource: {
+      source: 'scenario' as const,
+      contextId: scenarioId,
+    },
     paramsBuilder,
     parentContextId: scenarioId,
     canChooseDashboard: ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, scenarioId),

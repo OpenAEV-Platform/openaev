@@ -30,6 +30,7 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
+import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
@@ -83,6 +84,7 @@ public class InjectExecutionStep implements ActionStep {
   private final ScopeService scopeService;
   private final PreviewFeatureService previewFeatureService;
   private final AttackPathExecutionIngestionService attackPathIngestion;
+  private final AttackPathFindingIngestionService attackPathFindingIngestion;
   private final InjectExpectationService injectExpectationService;
 
   private final InjectorContractRepository injectorContractRepository;
@@ -236,6 +238,22 @@ public class InjectExecutionStep implements ActionStep {
     }
   }
 
+  /**
+   * Copies the inject's findings onto the attack-path snapshot: flag-gated and non-fatal. The copy
+   * opens its own tenant-scoped REQUIRES_NEW transaction, so a failure here is caught and logged
+   * and can never roll the step update back. Runs on every execution event; the copy is idempotent.
+   */
+  private void recordAttackPathFindings(Step stepRun, Inject inject) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
+      return;
+    }
+    try {
+      attackPathFindingIngestion.copyFindings(inject, stepRun);
+    } catch (Exception e) {
+      log.warn("Attack-path findings copy skipped for inject {} (non-fatal)", inject.getId(), e);
+    }
+  }
+
   /** Loads the concrete payload subtype (Command, Executable, etc.) into the injector contract. */
   private void prepareGetStatusPayloadFromInject(InjectorContract injectorContract) {
     if (injectorContract.getPayload() == null) {
@@ -276,6 +294,9 @@ public class InjectExecutionStep implements ActionStep {
     }
 
     Inject inject = injectService.inject(injectId);
+
+    // COPY FINDINGS onto the attack-path snapshot (per event, idempotent, non-fatal)
+    recordAttackPathFindings(stepRun, inject);
 
     // GET INJECT STATUS
     InjectStatus injectStatus = inject.getStatus().orElse(null);
@@ -558,7 +579,7 @@ public class InjectExecutionStep implements ActionStep {
 
     String workflowId = workflowRun.getId();
     List<Asset> validAssets = scopeService.getValidAssets(workflowId);
-    List<String> validManualTargets = scopeService.getValidIpsFromScope(workflowId);
+    List<String> validManualTargets = scopeService.getValidManualTargetsFromScope(workflowId);
 
     if (validAssets.isEmpty() && validManualTargets.isEmpty()) {
       return batches;

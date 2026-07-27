@@ -5,6 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import type { AttackPatternHelper } from '../../../../../../actions/attack_patterns/attackpattern-helper';
 import type { KillChainPhaseHelper } from '../../../../../../actions/kill_chain_phases/killchainphase-helper';
+import EllipsisTooltip from '../../../../../../components/common/EllipsisTooltip';
 import { useHelper } from '../../../../../../store';
 import type { AttackPattern, KillChainPhase, StructuralHistogramWidget } from '../../../../../../utils/api-types';
 import { sortAttackPattern } from '../../../../../../utils/attack_patterns/attack_patterns';
@@ -60,7 +61,7 @@ const KillChainPhaseColumn: FunctionComponent<{
   // Standard hooks
   const { classes } = useStyles();
   const theme = useTheme();
-  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
+  const { openWidgetResults } = useContext(CustomDashboardContext);
 
   // Fetching data - stable selector
   const { attackPatternMap }: { attackPatternMap: Record<string, AttackPattern> } = useHelper(
@@ -128,12 +129,12 @@ const KillChainPhaseColumn: FunctionComponent<{
     const subTechniqueIds = Object.values(attackPatternMap)
       .filter(attackPattern => attackPattern.attack_pattern_parent === clickedId)
       .map(attackPattern => attackPattern.attack_pattern_id);
-    openWidgetDataDrawer({
+    openWidgetResults({
       widgetId,
       filter_values_map: { [widgetConfig.field]: [clickedId, ...subTechniqueIds] },
       series_index: 0,
     });
-  }, [openWidgetDataDrawer, widgetId, widgetConfig.field, attackPatternMap]);
+  }, [openWidgetResults, widgetId, widgetConfig.field, attackPatternMap]);
 
   // Memoize title style
   const titleStyle = useMemo(() => ({ marginBottom: theme.spacing(2) }), [theme]);
@@ -147,7 +148,7 @@ const KillChainPhaseColumn: FunctionComponent<{
   return (
     <div>
       <Typography variant="h5" sx={titleStyle}>
-        {killChainPhase.phase_name}
+        <EllipsisTooltip>{killChainPhase.phase_name}</EllipsisTooltip>
       </Typography>
       <div className={classes.column}>
         {filteredStats.map(stat => (

@@ -2,7 +2,7 @@ import type { AxiosResponse } from 'axios';
 import { useContext, useState } from 'react';
 
 import { searchAssetGroupByIdAsOption } from '../../../../actions/asset_groups/assetgroup-action';
-import { searchEndpointByIdAsOption } from '../../../../actions/assets/endpoint-actions';
+import { searchAssetsByIdAsOption, searchEndpointByIdAsOption } from '../../../../actions/assets/endpoint-actions';
 import { searchSecurityPlatformByIdAsOption } from '../../../../actions/assets/securityPlatform-actions';
 import { searchAttackPatternsByIdAsOption } from '../../../../actions/AttackPattern';
 import { searchCustomDashboardByIdAsOptions } from '../../../../actions/custom_dashboards/customdashboard-action';
@@ -143,6 +143,16 @@ const useRetrieveOptions = () => {
         }
         break;
       case 'finding_assets':
+        // Findings can attach to any asset category (agentless web applications included), so
+        // labels must resolve through the whole asset inventory, not the endpoint-only options.
+        if (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
+          searchAssetsByIdAsOption(ids).then((response) => {
+            setOptions(response.data);
+          });
+        } else {
+          setOptions([]);
+        }
+        break;
       case 'inject_assets':
       case 'base_assets_side':
         if (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
@@ -213,6 +223,19 @@ const useRetrieveOptions = () => {
           id,
           label: scenarioCategories.has(id) ? t(scenarioCategories.get(id) as string) : id,
         })));
+        break;
+      // Hero-stat drill-downs scope entities without ES side fields (teams,
+      // asset groups) by their explicit ids: resolve the labels across both
+      // types and merge (each id only matches its own type).
+      case 'base_id':
+        Promise.all([
+          searchTeamByIdAsOption(ids),
+          ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)
+            ? searchAssetGroupByIdAsOption(ids)
+            : Promise.resolve({ data: [] as Option[] }),
+        ]).then(([teams, assetGroups]) => {
+          setOptions([...teams.data, ...assetGroups.data]);
+        });
         break;
       // Author filter: an id may belong to a person, a team or an organization -
       // resolve across all three and merge (each id only matches its own type).

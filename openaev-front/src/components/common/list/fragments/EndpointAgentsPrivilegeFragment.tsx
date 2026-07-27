@@ -50,7 +50,7 @@ const EndpointAgentsPrivilegeFragment = (props: Props) => {
       </Tooltip>
       {
         props.privileges && props.privileges.length === 0 && (
-          <span>{t('N/A')}</span>
+          <span>-</span>
         )
       }
     </>

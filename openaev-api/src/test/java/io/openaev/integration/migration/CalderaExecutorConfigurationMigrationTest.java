@@ -167,8 +167,8 @@ public class CalderaExecutorConfigurationMigrationTest {
     @Autowired private CatalogConnectorComposer catalogConnectorComposer;
 
     @Test
-    @DisplayName("Resulting instance is stopped")
-    public void whenConfigIsEnabled_resultingInstanceIsStopped() throws Exception {
+    @DisplayName("No instance is seeded")
+    public void whenConfigIsDisabled_noInstanceIsSeeded() throws Exception {
       catalogConnectorComposer
           .forCatalogConnector(
               CatalogConnectorFixture.createCatalogConnectorWithClassName(
@@ -181,13 +181,8 @@ public class CalderaExecutorConfigurationMigrationTest {
           catalogConnectorService.findByFactoryClassName(
               CalderaExecutorIntegrationFactory.class.getCanonicalName());
       assertThat(connector).isPresent();
-
-      ConnectorInstancePersisted instance =
-          connectorInstanceService.findAllByCatalogConnector(connector.get()).getFirst();
-
-      assertThat(instance).isInstanceOf(ConnectorInstancePersisted.class);
-      assertThat(instance.getRequestedStatus())
-          .isEqualTo(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+      assertThat(connector.get().isPropertiesMigrated()).isTrue();
+      assertThat(connectorInstanceService.findAllByCatalogConnector(connector.get())).isEmpty();
     }
   }
 }

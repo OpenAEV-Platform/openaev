@@ -35,6 +35,31 @@ the assorted expectations.
 
 The "available variables" button helps you to use already defined variables into compatible fields.
 
+## Schedule a recurring atomic testing
+
+Atomic testings can be launched once, or scheduled to run on a recurring basis. Recurring
+executions are the easiest way to continuously validate that a prevention or detection capability
+keeps working over time: the same technique is replayed automatically and every run produces fresh
+results and expectations.
+
+To schedule an atomic testing:
+
+1. Open the atomic testing and click the scheduling action in the header.
+2. Choose a frequency: **once**, **hourly**, **daily**, **weekly** or **monthly**, with the
+   execution time and, for weekly and monthly frequencies, the day it should run.
+3. Define the start date and, optionally, an end date after which the recurrence stops.
+4. Save. The next planned execution is displayed on the atomic testing.
+
+The platform checks for due recurring atomic testings every minute and launches them
+automatically. Each execution behaves exactly like a manual relaunch: previous results are
+archived and new expectations are created for all targets.
+
+!!! note
+
+    Scheduling an atomic testing requires the permission to launch it. The recurrence is stored
+    as a cron expression together with the start and end dates, and can be updated or removed at
+    any time from the same dialog.
+
 ## Atomic testing screens
 
 Details of an Atomic testing is composed of three parts:

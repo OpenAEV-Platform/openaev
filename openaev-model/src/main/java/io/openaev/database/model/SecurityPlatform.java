@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.stix.objects.DomainObject;
 import io.openaev.stix.objects.constants.CommonProperties;
 import io.openaev.stix.objects.constants.ObjectTypes;
@@ -13,15 +14,19 @@ import io.openaev.stix.parsing.StixDomainObjectConvertible;
 import io.openaev.stix.types.Identifier;
 import io.openaev.stix.types.StixString;
 import io.openaev.stix.types.Timestamp;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.ToString;
+import org.hibernate.annotations.BatchSize;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -83,6 +88,25 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
       fetch = FetchType.LAZY)
   @JsonProperty("security_platform_traces")
   private List<InjectExpectationTrace> traces;
+
+  /**
+   * Collectors currently declaring this security platform as theirs (the FK is {@code ON DELETE SET
+   * NULL}, so this list empties when the collector is removed). This is the authoritative "managed
+   * by a collector" signal: {@code asset_external_reference} is set at creation and never cleared,
+   * so it must not be used to decide whether the platform is still read-only.
+   */
+  @ArraySchema(
+      schema =
+          @Schema(
+              description = "IDs of the collectors currently managing this security platform",
+              implementation = String.class))
+  @OneToMany(mappedBy = "securityPlatform", fetch = FetchType.LAZY)
+  @BatchSize(size = 1000)
+  @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonProperty("security_platform_collectors")
+  @EqualsAndHashCode.Exclude
+  @ToString.Exclude
+  private List<Collector> collectors = new ArrayList<>();
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "security_platform_logo_light")

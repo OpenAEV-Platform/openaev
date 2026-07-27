@@ -15,6 +15,7 @@ interface Props {
   targetResultsByType: Record<string, InjectExpectationsStore[]>;
   lastExecutionStartDate: string;
   injectStatusName?: string;
+  targetExecutionStatus?: string;
   lastExecutionEndDate: string;
 }
 
@@ -35,6 +36,7 @@ const TargetResultsTimeline: FunctionComponent<Props> = ({
   targetResultsByType,
   lastExecutionStartDate,
   injectStatusName,
+  targetExecutionStatus,
   lastExecutionEndDate,
 }) => {
   const theme = useTheme();
@@ -61,11 +63,13 @@ const TargetResultsTimeline: FunctionComponent<Props> = ({
   const steps = useMemo(() => computeTimelineSteps({
     targetResultsByType,
     injectStatusName,
+    targetExecutionStatus,
     lastExecutionStartDate,
     lastExecutionEndDate,
     startLabel: t('Attack started'),
     endLabel: t('Attack ended'),
-  }), [targetResultsByType, injectStatusName, lastExecutionStartDate, lastExecutionEndDate, t]);
+    endFailedLabel: t('Attack failed'),
+  }), [targetResultsByType, injectStatusName, targetExecutionStatus, lastExecutionStartDate, lastExecutionEndDate, t]);
 
   if (steps.length === 0) return null;
 

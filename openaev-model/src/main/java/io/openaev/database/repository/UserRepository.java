@@ -123,13 +123,15 @@ public interface UserRepository
       value =
           "select us.user_id, us.user_email, "
               + "us.user_firstname, us.user_lastname, "
-              + "us.user_country, us.user_organization,"
+              + "us.user_country, us.user_phone, us.user_admin, us.user_organization,"
               + "array_remove(array_agg(tg.tag_id), null) as user_tags "
               + "from users us "
               + "left join users_tags usr_tg on us.user_id = usr_tg.user_id "
               + "left join tags tg on usr_tg.tag_id = tg.tag_id "
               + "left join users_tenants ut on us.user_id = ut.user_id "
               + "where ut.tenant_id = :#{#tenantContext.currentTenant} "
+              // Reserved service/connector accounts are system users, never players.
+              + "and us.user_email not ilike '%@openaev.invalid' "
               + "group by us.user_id;",
       nativeQuery = true)
   List<RawPlayer> rawAllPlayers();

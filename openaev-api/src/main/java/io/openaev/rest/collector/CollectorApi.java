@@ -16,6 +16,7 @@ import io.openaev.rest.collector.form.CollectorUpdateInput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.FileService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -194,8 +195,8 @@ public class CollectorApi extends RestBehavior {
           "Removes a registered collector. Intended for stopped collectors that no longer ping;"
               + " an active collector re-registers on its next heartbeat.")
   @Transactional(rollbackFor = Exception.class)
-  public void deleteCollector(@PathVariable String collectorId) {
-    collectorRepository.deleteByIdAndTenantId(collectorId, TenantContext.getCurrentTenant());
+  public void deleteCollector(@PathVariable String collectorId) throws ConnectorStatusException {
+    collectorService.deleteCollector(collectorId);
   }
 
   @PostMapping(

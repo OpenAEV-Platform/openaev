@@ -10,7 +10,6 @@ import { hexToRGB, stringToColour } from '../../../../utils/Colors';
 const styles = () => ({
   chip: {
     fontSize: 12,
-    lineHeight: '12px',
     height: 25,
     marginRight: 7,
     textTransform: 'uppercase',
@@ -19,7 +18,6 @@ const styles = () => ({
   },
   chipInList: {
     fontSize: 12,
-    lineHeight: '12px',
     height: 20,
     float: 'left',
     textTransform: 'uppercase',

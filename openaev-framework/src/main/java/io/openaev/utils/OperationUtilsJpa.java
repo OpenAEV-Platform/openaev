@@ -199,6 +199,12 @@ public final class OperationUtilsJpa {
 
   // -- NOT EQUALS --
 
+  /**
+   * Negative operators always combine values with AND: {@code value != A OR value != B} is a
+   * tautology whenever A != B, while the user intent behind a multi-value {@code not_eq} is always
+   * NOT IN ("different from all of these"). This mirrors the runtime engine ({@code
+   * OperationUtilsRuntime}) and the ES engine which builds a {@code mustNot} clause per value.
+   */
   public static Predicate notEqualsTexts(
       Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
     if (isEmpty(texts)) {
@@ -208,7 +214,7 @@ public final class OperationUtilsJpa {
     Predicate[] predicates =
         texts.stream().map(text -> notEqualsText(paths, cb, text, type)).toArray(Predicate[]::new);
 
-    return cb.or(predicates);
+    return cb.and(predicates);
   }
 
   private static Predicate notEqualsText(
@@ -268,6 +274,7 @@ public final class OperationUtilsJpa {
 
   // -- NOT START WITH --
 
+  /** See {@link #notEqualsTexts(Expression, CriteriaBuilder, List, Class)}. */
   public static Predicate notStartWithTexts(
       Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
     if (isEmpty(texts)) {
@@ -279,7 +286,7 @@ public final class OperationUtilsJpa {
             .map(text -> notStartWithText(paths, cb, text, type))
             .toArray(Predicate[]::new);
 
-    return cb.or(predicates);
+    return cb.and(predicates);
   }
 
   public static Predicate notStartWithText(

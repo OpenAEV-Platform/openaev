@@ -98,6 +98,7 @@ const SimulationInjectCreation: FunctionComponent = () => {
               title={t('Create a new inject')}
               onSelectContract={contract => setSelectedContractId(contract.injector_contract_id)}
               onQuickAdd={onQuickAdd}
+              onBack={() => navigate(listUrl)}
             />
             <Drawer
               open={!!selectedContractId}

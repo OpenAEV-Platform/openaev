@@ -1,7 +1,7 @@
 import { GroupsOutlined, HelpOutlineOutlined } from '@mui/icons-material';
-import { Box, Checkbox, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useContext, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { bulkDeleteTeams, searchTeams } from '../../../../actions/teams/team-actions';
@@ -32,11 +32,6 @@ import TeamPopover from './TeamPopover';
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
-  drawerPaper: {
-    minHeight: '100vh',
-    width: '50%',
-    padding: 0,
-  },
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
@@ -56,7 +51,6 @@ const inlineStyles: Record<string, CSSProperties> = {
 const Teams = () => {
   // Standard hooks
   const { classes } = useStyles();
-  const navigate = useNavigate();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const ability = useContext(AbilityContext);
@@ -266,7 +260,7 @@ const Teams = () => {
                   />
                 )}
               >
-                <ListItemButton classes={{ root: classes.item }} onClick={() => navigate(`${TEAM_BASE_URL}/${team.team_id}`)}>
+                <ListItemButton classes={{ root: classes.item }} component={Link} to={`${TEAM_BASE_URL}/${team.team_id}`}>
                   {canManage && (
                     <ListItemIcon
                       style={{ minWidth: 40 }}
@@ -306,23 +300,13 @@ const Teams = () => {
               </ListItem>
             ))}
       </List>
-      <Drawer
-        open={selectedTeam !== null}
-        keepMounted={false}
-        anchor="right"
-        sx={{ zIndex: 1202 }}
-        classes={{ paper: classes.drawerPaper }}
-        onClose={() => onPlayersChanged(selectedTeam)}
-        elevation={1}
-      >
-        {selectedTeam !== null && (
-          <TeamPlayers
-            teamId={selectedTeam}
-            handleClose={() => onPlayersChanged(selectedTeam)}
-            canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS)}
-          />
-        )}
-      </Drawer>
+      {selectedTeam !== null && (
+        <TeamPlayers
+          teamId={selectedTeam}
+          handleClose={() => onPlayersChanged(selectedTeam)}
+          canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS)}
+        />
+      )}
     </>
   );
 };

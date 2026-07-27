@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -100,6 +101,43 @@ public class NotificationApi {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Notifications updated")})
   public void markAllNotificationsRead() {
     notificationService.markAllRead();
+  }
+
+  @LogExecutionTime
+  @PostMapping({NOTIFICATION_URI + "/me/bulk-delete", TENANT_NOTIFICATION_URI + "/me/bulk-delete"})
+  // Self-service resource: the bulk scope is constrained to the current user in the service
+  @AccessControl(skipRBAC = true)
+  @Operation(
+      summary = "Bulk delete notifications",
+      description =
+          "Delete the current user's notifications from an explicit id list or a search input (select-all with exclusions)")
+  @Transactional(rollbackFor = Exception.class)
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "The ids of the deleted notifications")
+      })
+  public List<String> bulkDeleteNotifications(
+      @RequestBody @Valid final NotificationBulkProcessingInput input) {
+    return notificationService.bulkDelete(input);
+  }
+
+  @LogExecutionTime
+  @PutMapping({NOTIFICATION_URI + "/me/bulk-read", TENANT_NOTIFICATION_URI + "/me/bulk-read"})
+  // Self-service resource: the bulk scope is constrained to the current user in the service
+  @AccessControl(skipRBAC = true)
+  @Operation(
+      summary = "Bulk mark notifications read/unread",
+      description =
+          "Set the read flag on the current user's notifications from an explicit id list or a search input (select-all with exclusions)")
+  @Transactional(rollbackFor = Exception.class)
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "The ids of the updated notifications")
+      })
+  public List<String> bulkMarkNotificationsRead(
+      @RequestBody @Valid final NotificationBulkProcessingInput input,
+      @RequestParam(name = "read", defaultValue = "true") final boolean read) {
+    return notificationService.bulkMarkRead(input, read);
   }
 
   @LogExecutionTime

@@ -356,6 +356,11 @@ public class InjectUtils {
 
     duplicatedInject.setExercise(injectOrigin.getExercise());
     duplicatedInject.setScenario(injectOrigin.getScenario());
+    // Carry the recurrence schedule forward so a scheduled atomic testing keeps relaunching after
+    // each occurrence (relaunch = duplicate + delete old).
+    duplicatedInject.setRecurrence(injectOrigin.getRecurrence());
+    duplicatedInject.setRecurrenceStart(injectOrigin.getRecurrenceStart());
+    duplicatedInject.setRecurrenceEnd(injectOrigin.getRecurrenceEnd());
     return duplicatedInject;
   }
 

@@ -5,6 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { searchNotifiers } from '../../../../actions/notifications/notifier-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
+import colorStyles from '../../../../components/Color';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -20,13 +21,34 @@ import CustomizationMenu from '../CustomizationMenu';
 import NotifierCreate from './NotifierCreate';
 import NotifierPopover from './NotifierPopover';
 
-const useStyles = makeStyles()(() => ({ itemHead: { textTransform: 'uppercase' } }));
+const useStyles = makeStyles()(() => ({
+  itemHead: { textTransform: 'uppercase' },
+  // Design system list chip (same pattern as ItemSeverity / the triggers list)
+  chipInList: {
+    fontSize: 12,
+    height: 20,
+    borderRadius: 4,
+    textTransform: 'uppercase',
+    width: 120,
+  },
+}));
 
 const inlineStyles: Record<string, CSSProperties> = {
   notifier_name: { width: '30%' },
   notifier_type: { width: '15%' },
   notifier_description: { width: '40%' },
   notifier_built_in: { width: '15%' },
+};
+
+const typeChipStyle = (type?: string): CSSProperties => {
+  switch (type) {
+    case 'EMAIL':
+      return colorStyles.green;
+    case 'WEBHOOK':
+      return colorStyles.orange;
+    default:
+      return colorStyles.blue;
+  }
 };
 
 const typeIcon = (type?: string) => {
@@ -69,10 +91,9 @@ const Notifiers = () => {
         };
         return (
           <Chip
+            classes={{ root: classes.chipInList }}
+            style={typeChipStyle(notifier.notifier_type)}
             label={t(labels[notifier.notifier_type ?? 'UI'])}
-            size="small"
-            variant="outlined"
-            color="primary"
           />
         );
       },
@@ -90,10 +111,9 @@ const Notifiers = () => {
       value: (notifier: NotifierOutput) => (notifier.notifier_built_in
         ? (
             <Chip
+              classes={{ root: classes.chipInList }}
+              style={colorStyles.grey}
               label={t('Built-in')}
-              size="small"
-              variant="outlined"
-              color="secondary"
             />
           )
         : undefined),

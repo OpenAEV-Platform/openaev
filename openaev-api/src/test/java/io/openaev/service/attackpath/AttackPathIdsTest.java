@@ -58,6 +58,26 @@ class AttackPathIdsTest {
   }
 
   @Test
+  @DisplayName("A finding row id is deterministic and changes with each component")
+  void finding_row_identity() {
+    String base = AttackPathIds.findingRow("sim-1", "cve", "text_field", "CVE-1", "asset-1");
+    assertThat(base)
+        .isEqualTo(AttackPathIds.findingRow("sim-1", "cve", "text_field", "CVE-1", "asset-1"));
+    // Changing any one component yields a different id.
+    assertThat(base)
+        .isNotEqualTo(AttackPathIds.findingRow("sim-2", "cve", "text_field", "CVE-1", "asset-1"))
+        .isNotEqualTo(
+            AttackPathIds.findingRow("sim-1", "credentials", "text_field", "CVE-1", "asset-1"))
+        .isNotEqualTo(AttackPathIds.findingRow("sim-1", "cve", "other_field", "CVE-1", "asset-1"))
+        .isNotEqualTo(AttackPathIds.findingRow("sim-1", "cve", "text_field", "CVE-2", "asset-1"))
+        .isNotEqualTo(AttackPathIds.findingRow("sim-1", "cve", "text_field", "CVE-1", "asset-2"));
+    // A null field (seed rows) is deterministic and stays distinct from a blank field.
+    assertThat(AttackPathIds.findingRow("sim-1", "cve", null, "CVE-1", "asset-1"))
+        .isEqualTo(AttackPathIds.findingRow("sim-1", "cve", null, "CVE-1", "asset-1"))
+        .isNotEqualTo(AttackPathIds.findingRow("sim-1", "cve", "", "CVE-1", "asset-1"));
+  }
+
+  @Test
   @DisplayName("The delimiter inside a component cannot cause a collision (injective encoding)")
   void delimiter_in_component_is_safe() {
     // Without escaping, both would encode to "NODE_FINDING|a|b|c".

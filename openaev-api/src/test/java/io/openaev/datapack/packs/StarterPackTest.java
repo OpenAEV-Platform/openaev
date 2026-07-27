@@ -15,6 +15,7 @@ import io.openaev.database.repository.*;
 import io.openaev.injector_contract.ContractCardinality;
 import io.openaev.injector_contract.fields.ContractAsset;
 import io.openaev.injector_contract.fields.ContractAssetGroup;
+import io.openaev.processor.core.V20260725_Fix_starter_pack_payload_contracts;
 import io.openaev.processor.datapack.V20260101_Starter_pack;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
@@ -29,6 +30,8 @@ import io.openaev.utilstest.RabbitMQTestListener;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.*;
 import org.mockito.Mock;
@@ -73,6 +76,9 @@ public class StarterPackTest extends IntegrationTest {
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private InjectRepository injectRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private PayloadRepository payloadRepository;
+
+  @Autowired private V20260725_Fix_starter_pack_payload_contracts fixPayloadContractsMigration;
 
   @Autowired private DataPackService dataPackService;
 
@@ -451,6 +457,63 @@ public class StarterPackTest extends IntegrationTest {
                     inject.getAssetGroups() != null
                         && !inject.getAssetGroups().isEmpty()
                         && "All endpoints".equals(inject.getAssetGroups().getFirst().getName())));
+  }
+
+  @Test
+  @DisplayName("Should attach payloads to all starter pack payload contracts on fresh import")
+  public void shouldAttachPayloadsToAllStarterPackPayloadContracts() {
+    // PREPARE — fresh platform: no payload-supporting injector is registered
+    V20260101_Starter_pack datapack =
+        new V20260101_Starter_pack(
+            dataPackService,
+            settingRepository,
+            tagService,
+            endpointService,
+            assetGroupService,
+            tagRuleService,
+            importService,
+            zipJsonService,
+            resolver);
+    ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
+
+    // EXECUTE
+    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+
+    // VERIFY — the regression is fixed: every non-custom contract that was built from an
+    // injector_contract_payload (its label matches an imported payload name) carries its payload.
+    // Before the fix these were persisted with a null payload, so the inject showed a question-mark
+    // icon and "no payload attached". Static contracts awaiting their injector (e.g. nuclei) keep a
+    // null payload legitimately and are excluded because their label matches no imported payload.
+    List<Payload> payloads = Lists.newArrayList(payloadRepository.findAll());
+    assertFalse(payloads.isEmpty());
+    Set<String> payloadNames = payloads.stream().map(Payload::getName).collect(Collectors.toSet());
+
+    List<InjectorContract> payloadContracts =
+        StreamSupport.stream(injectorContractRepository.findAll().spliterator(), false)
+            .filter(c -> Boolean.FALSE.equals(c.getCustom()) || c.getCustom() == null)
+            .filter(c -> c.getLabels() != null && payloadNames.contains(c.getLabels().get("en")))
+            .toList();
+    assertFalse(
+        payloadContracts.isEmpty(),
+        "Expected the starter pack to create payload-bearing contracts");
+    for (InjectorContract contract : payloadContracts) {
+      assertNotNull(
+          contract.getPayload(),
+          "Payload contract '"
+              + contract.getLabels().get("en")
+              + "' must carry its payload (regression: it was persisted without one)");
+      // Fresh platform: no payload injector registered yet, so the contract awaits adoption.
+      assertTrue(contract.getInjectors().isEmpty());
+    }
+
+    // The repair migration must be a no-op on a healthy platform: contracts still carry their
+    // payloads and no static contract is touched.
+    fixPayloadContractsMigration.process(new Tenant(TenantContext.getCurrentTenant()));
+    for (InjectorContract contract : payloadContracts) {
+      InjectorContract reloaded =
+          injectorContractRepository.findById(contract.getId()).orElseThrow();
+      assertNotNull(reloaded.getPayload());
+    }
   }
 
   private void verifyInjectorContracts() {

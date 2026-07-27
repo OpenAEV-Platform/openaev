@@ -31,7 +31,20 @@ const FilterChips: FunctionComponent<Props> = ({
 
   const handleSwitchMode = () => helpers.handleSwitchMode();
 
-  if (filters.length === 0) {
+  // Only filters whose property schema resolved can produce a chip. Rendering
+  // the padded container for schema-less filters would leave an invisible
+  // 56px spacer between the toolbar and the list.
+  const renderableFilters = filters
+    .map(f => ({
+      filter: f,
+      property: propertySchema(f),
+    }))
+    .filter((entry): entry is {
+      filter: Filter;
+      property: PropertySchemaDTO;
+    } => !!entry.property);
+
+  if (renderableFilters.length === 0) {
     return <></>;
   }
 
@@ -45,24 +58,18 @@ const FilterChips: FunctionComponent<Props> = ({
         minHeight: 56,
       }}
     >
-      {filters.map((filter, idx) => {
-        const property = propertySchema(filter);
-        if (!property) {
-          return <Fragment key={filter.id}></Fragment>;
-        }
-        return (
-          <Fragment key={filter.id}>
-            {idx !== 0 && <ClickableModeChip onClick={handleSwitchMode} mode={filterGroup?.mode} />}
-            <FilterChip
-              filter={filter}
-              helpers={helpers}
-              propertySchema={property}
-              pristine={pristine}
-              contextId={contextId}
-            />
-          </Fragment>
-        );
-      })}
+      {renderableFilters.map(({ filter, property }, idx) => (
+        <Fragment key={filter.id}>
+          {idx !== 0 && <ClickableModeChip onClick={handleSwitchMode} mode={filterGroup?.mode} />}
+          <FilterChip
+            filter={filter}
+            helpers={helpers}
+            propertySchema={property}
+            pristine={pristine}
+            contextId={contextId}
+          />
+        </Fragment>
+      ))}
     </Box>
   );
 };

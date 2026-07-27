@@ -3,7 +3,10 @@ import { Box, Button, Chip } from '@mui/material';
 import { cloneElement, type ReactElement, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import { engineSchemas } from '../../../../actions/schema/schema-action';
+import KillChainSelect from '../../../../admin/components/common/filters/KillChainSelect';
 import MitreFilter, { MITRE_FILTER_KEY } from '../../../../admin/components/common/filters/MitreFilter';
+import useKillChains from '../../../../admin/components/common/filters/useKillChains';
 import { type AttackPattern, type Filter, type PropertySchemaDTO, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useFormatter } from '../../../i18n';
 import ClickableModeChip from '../../chips/ClickableModeChip';
@@ -50,6 +53,10 @@ interface Props<T> {
   disablePagination?: boolean;
   disableFilters?: boolean;
   entityPrefix?: string;
+  // For Elasticsearch-backed lists: the engine model name (e.g.
+  // 'expectation-inject') whose schema drives the filter options, instead of
+  // the JPA class resolved from entityPrefix.
+  engineEntityName?: string;
   availableFilterNames?: string[];
   queryableHelpers: QueryableHelpers;
   topBarButtons?: ReactElement | null;
@@ -73,6 +80,7 @@ const PaginationComponentV2 = <T extends object>({
   disablePagination,
   disableFilters,
   entityPrefix,
+  engineEntityName,
   availableFilterNames = [],
   queryableHelpers,
   attackPatterns,
@@ -90,23 +98,38 @@ const PaginationComponentV2 = <T extends object>({
   const [properties, setProperties] = useState<PropertySchemaDTO[]>([]);
   const [options, setOptions] = useState<OptionPropertySchema[]>([]);
 
+  // Stable key for the names array (callers pass literals, so identity changes
+  // every render): refetch the schemas when the actual content changes.
+  const availableFilterNamesKey = availableFilterNames.join(',');
+
   useEffect(() => {
-    if (entityPrefix) {
-      useFilterableProperties(entityPrefix, availableFilterNames).then((propertySchemas: PropertySchemaDTO[]) => {
-        const newOptions = propertySchemas.filter(property => property.schema_property_name !== MITRE_FILTER_KEY)
-          .map(property => (
-            {
-              id: property.schema_property_name,
-              label: t(property.schema_property_name),
-              operator: availableOperators(property)[0],
-            } as OptionPropertySchema
-          ))
-          .sort((a, b) => a.label.localeCompare(b.label));
-        setOptions(newOptions);
-        setProperties(propertySchemas);
-      });
-    }
-  }, [entityPrefix]);
+    // ES-backed lists resolve their filterable properties from the engine
+    // schema (the JPA schema may not expose ES-only computed fields such as
+    // inject_expectation_status); JPA-backed lists keep using entityPrefix.
+    const fetchProperties: Promise<PropertySchemaDTO[]> | null = (() => {
+      if (engineEntityName) {
+        return engineSchemas([engineEntityName]).then((result: { data: PropertySchemaDTO[] }) =>
+          result.data.filter(p => availableFilterNames.length === 0 || availableFilterNames.includes(p.schema_property_name)));
+      }
+      if (entityPrefix) {
+        return useFilterableProperties(entityPrefix, availableFilterNames);
+      }
+      return null;
+    })();
+    fetchProperties?.then((propertySchemas: PropertySchemaDTO[]) => {
+      const newOptions = propertySchemas.filter(property => property.schema_property_name !== MITRE_FILTER_KEY)
+        .map(property => (
+          {
+            id: property.schema_property_name,
+            label: t(property.schema_property_name),
+            operator: availableOperators(property)[0],
+          } as OptionPropertySchema
+        ))
+        .sort((a, b) => a.label.localeCompare(b.label));
+      setOptions(newOptions);
+      setProperties(propertySchemas);
+    });
+  }, [entityPrefix, engineEntityName, availableFilterNamesKey]);
 
   useEffect(() => {
     // Modify URI
@@ -114,22 +137,57 @@ const PaginationComponentV2 = <T extends object>({
       queryableHelpers.uriHelpers.updateUri();
     }
 
-    // Fetch datas
+    // Fetch data. The stale flag (set by the effect cleanup when the search
+    // input changes or the component unmounts) ensures a superseded request
+    // can no longer overwrite the newer results or reset the page from old
+    // totals. Loading is cleared in finally so a rejected search (network or
+    // API error) never leaves callers stuck in a perpetual loading state.
+    let stale = false;
     setLoading?.(true);
-    fetch(searchPaginationInput).then((result: { data: Page<T> }) => {
-      const { data } = result;
-      setContent(data.content);
-      queryableHelpers.paginationHelpers.handleChangeTotalElements(data.totalElements);
-      if (data.totalPages <= data.pageable.pageNumber) {
-        queryableHelpers.paginationHelpers.handleChangePage(0);
-      }
-      setLoading?.(false);
-    });
-  }, [searchPaginationInput, reloadContentCount]);
+    fetch(searchPaginationInput)
+      .then((result: { data: Page<T> }) => {
+        if (stale) {
+          return;
+        }
+        const { data } = result;
+        setContent(data.content);
+        queryableHelpers.paginationHelpers.handleChangeTotalElements(data.totalElements);
+        // The current page fell past the end (dataset shrank, narrower filter,
+        // state restored from another screen): restart from the first page.
+        // Guarded on pageNumber > 0 so an empty dataset (totalPages = 0,
+        // page 0) does not trigger an endless reset/refetch loop.
+        if (data.pageable.pageNumber > 0 && data.totalPages <= data.pageable.pageNumber) {
+          queryableHelpers.paginationHelpers.handleChangePage(0);
+        }
+      })
+      .catch(() => {
+        // The API layer (simpleCall/simplePostCall) already notified the user
+        // and rethrows; swallow the rejection so it does not surface as an
+        // unhandled promise rejection.
+      })
+      .finally(() => {
+        if (!stale) {
+          setLoading?.(false);
+        }
+      });
+    return () => {
+      stale = true;
+    };
+    // `fetch` is intentionally not a dependency: many callers pass inline
+    // closures (new identity on every render), so depending on it would
+    // refetch in a loop. When the effect runs it always uses the latest
+    // render's `fetch`. `contextId` IS a dependency so a scope switch that
+    // leaves the search input untouched (e.g. navigating from one simulation
+    // to another with a shared storage key) still refetches with the latest
+    // closure instead of keeping the previous scope's rows.
+  }, [searchPaginationInput, reloadContentCount, contextId]);
 
   // Filters
   const [pristine, setPristine] = useState(true);
   const [openMitreFilter, setOpenMitreFilter] = useState(false);
+  // Kill chain switcher lives in the attack matrix drawer header, so the matrix
+  // body stays free of chrome.
+  const { killChains, activeKillChain, selectKillChain } = useKillChains();
 
   // A matrix click filters by a top-level technique AND its sub-techniques (so the
   // result matches the technique's count). Collapse those external ids back to the
@@ -190,6 +248,8 @@ const PaginationComponentV2 = <T extends object>({
               options={options}
               setPristine={setPristine}
               style={{ marginLeft: (searchEnable || leftSlot) ? 10 : 0 }}
+              // "Clear filters" also resets the associated text search input.
+              onClear={() => queryableHelpers.textSearchHelpers.handleTextSearch('')}
             />
           ) }
 
@@ -213,16 +273,24 @@ const PaginationComponentV2 = <T extends object>({
               <Drawer
                 open={openMitreFilter}
                 handleClose={() => setOpenMitreFilter(false)}
-                title={t('ATT&CK Matrix')}
+                title={t('Attack matrix')}
                 variant="full"
                 containerStyle={{
                   padding: 0,
                   maxHeight: '100%',
                 }}
+                headerActions={(
+                  <KillChainSelect
+                    killChains={killChains}
+                    value={activeKillChain}
+                    onChange={selectKillChain}
+                  />
+                )}
               >
                 <MitreFilter
                   className={classes.TTPMitreContainer}
                   helpers={queryableHelpers.filterHelpers}
+                  killChain={activeKillChain}
                   onClick={() => setOpenMitreFilter(false)}
                 />
               </Drawer>

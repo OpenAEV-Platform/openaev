@@ -50,6 +50,12 @@ public abstract class InjectTarget {
   @JsonProperty("target_subtype")
   protected abstract String getTargetSubtype();
 
+  // Product-facing asset category (level-1 taxonomy). Used client-side to pick the correct icon for
+  // non-host assets whose OS platform is not meaningful (web application, cloud, network, identity,
+  // ...). Null for target types that are not assets.
+  @JsonProperty("target_category")
+  private String targetCategory;
+
   @JsonProperty("target_detection_status")
   private BaseInjectExpectation.EXPECTATION_STATUS targetDetectionStatus;
 

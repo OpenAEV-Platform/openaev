@@ -2,7 +2,7 @@ import { TablePagination } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import usePaginationState, { ROWS_PER_PAGE_OPTIONS } from '../../../../../components/common/queryable/pagination/usePaginationState';
+import { ROWS_PER_PAGE_OPTIONS, useLocalPaginationState } from '../../../../../components/common/queryable/pagination/usePaginationState';
 import ErrorBoundary from '../../../../../components/ErrorBoundary';
 import Loader from '../../../../../components/Loader';
 import {
@@ -63,9 +63,8 @@ const WidgetWrapper = ({
   // fit and hid the pagination whenever the total was below 100). The hook is
   // called unconditionally (Rules of Hooks); only list widgets use its state.
   const isListWidget = widget.widget_type === 'list';
-  const { elementsPerPage, page, handleChangePagination } = usePaginationState(
+  const { elementsPerPage, page, handleChangePagination } = useLocalPaginationState(
     ROWS_PER_PAGE_OPTIONS[0],
-    undefined,
     isListWidget ? `widget-list-${widget.widget_id}` : undefined,
   );
 

@@ -483,6 +483,24 @@ public interface InjectRepository
   List<String> findContentsByInjectIds(@NotBlank Set<String> injectIds);
 
   /**
+   * Exercise id + raw inject content for every exercise inject whose content references a
+   * content-based target: an AI target ({@code "ai_target"} key) or a raw manual target ({@code
+   * "target_selector" = "manual"}). Feeds the simulation list "Target" column: these targets are
+   * content references (not JPA relations like injects_assets), so the plain asset join never
+   * surfaces them. The LIKE guards keep the scan to relevant rows; the keys are parsed Java-side
+   * (via InjectContentUtils) to stay in lockstep with the execution path.
+   */
+  @Query(
+      value =
+          "SELECT i.inject_exercise, i.inject_content FROM injects i "
+              + "WHERE i.inject_exercise IN :exerciseIds "
+              + "AND (i.inject_content LIKE '%\"ai_target\"%' "
+              + "OR i.inject_content LIKE '%\"target_selector\"%') "
+              + "AND i.tenant_id = :#{#tenantContext.currentTenant}",
+      nativeQuery = true)
+  List<Object[]> findContentTargetContentsByExerciseIds(Set<String> exerciseIds);
+
+  /**
    * Check if an Inject exists by its ID without loading the entity. This is useful for because of
    * the cascade configuration
    *

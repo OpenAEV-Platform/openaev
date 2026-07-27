@@ -1,10 +1,12 @@
 package io.openaev.config;
 
+import jakarta.servlet.DispatcherType;
 import java.time.Duration;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.ConversionService;
@@ -13,6 +15,7 @@ import org.springframework.core.serializer.support.DeserializingConverter;
 import org.springframework.core.serializer.support.SerializingConverter;
 import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.session.web.http.DefaultCookieSerializer;
+import org.springframework.session.web.http.SessionRepositoryFilter;
 
 /**
  * Spring Session (JDBC) configuration: sessions are persisted in PostgreSQL so users stay logged in
@@ -70,12 +73,34 @@ public class SpringSessionConfig {
     serializer.setUseSecureCookie(secure);
 
     if (!openAEVConfig.isSessionCookie()) {
-      // Persistent cookie: users stay logged in across browser restarts, capped at the session
-      // timeout (the cookie is only written at session creation, so this is an absolute cap).
+      // Persistent cookie: users stay logged in across browser restarts. The Max-Age is NOT an
+      // absolute cap: the RollingSessionCookieFilter re-issues the cookie on every request, so
+      // browser-side expiration slides with activity exactly like the server-side idle timeout
+      // (OpenCTI's express-session `rolling: true` semantics).
       serializer.setCookieMaxAge((int) sessionTimeout.toSeconds());
     }
     // Default max-age (-1) = browser-session cookie: dies when the browser closes.
     return serializer;
+  }
+
+  /**
+   * Slides the session cookie's {@code Max-Age} on every request carrying a valid session, so an
+   * active user is never logged out by the browser dropping the cookie while the server-side
+   * session (rolling idle timeout) is still alive.
+   *
+   * <p>Ordered right after Spring Session's {@link SessionRepositoryFilter} so the filter sees the
+   * wrapped request (Spring Session ids, store-backed {@code getSession}).
+   */
+  @Bean
+  public FilterRegistrationBean<RollingSessionCookieFilter> rollingSessionCookieFilter(
+      CookieSerializer cookieSerializer) {
+    FilterRegistrationBean<RollingSessionCookieFilter> registration =
+        new FilterRegistrationBean<>(
+            new RollingSessionCookieFilter(cookieSerializer, !openAEVConfig.isSessionCookie()));
+    registration.addUrlPatterns("/*");
+    registration.setDispatcherTypes(DispatcherType.REQUEST);
+    registration.setOrder(SessionRepositoryFilter.DEFAULT_ORDER + 1);
+    return registration;
   }
 
   /**

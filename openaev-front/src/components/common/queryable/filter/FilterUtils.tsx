@@ -151,6 +151,13 @@ export const availableOperators = (propertySchema: PropertySchemaDTO) => {
   if (propertySchema.schema_property_type.includes('instant')) {
     return ['gt', 'gte', 'lt', 'lte', 'empty', 'not_empty'];
   }
+  // Number (Java simple names, lowercased by the schema DTO): comparison
+  // operators. Only ES-backed properties are numeric today - the ES engine
+  // supports range queries on any field, while no JPA schema exposes a
+  // filterable numeric property (its gt/lt path only parses dates).
+  if (['double', 'float', 'integer', 'long', 'short', 'bigdecimal'].includes(propertySchema.schema_property_type)) {
+    return ['gte', 'lte', 'gt', 'lt', 'eq', 'not_eq', 'empty', 'not_empty'];
+  }
   // Enum & not array
   if (propertySchema.schema_property_values && !propertySchema.schema_property_type_array) {
     return ['eq', 'not_eq', 'empty', 'not_empty'];

@@ -63,6 +63,16 @@ public class PlatformTriggers {
 
   @Bean
   @Profile("!test")
+  public Trigger atomicTestingExecutionTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.getAtomicTestingExecution())
+        .withIdentity("AtomicTestingExecutionTrigger")
+        .withSchedule(repeatMinutelyForever())
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
   public Trigger managerIntegrationsSyncTrigger() {
     SimpleScheduleBuilder _15_seconds = simpleSchedule().withIntervalInSeconds(15).repeatForever();
     return newTrigger()

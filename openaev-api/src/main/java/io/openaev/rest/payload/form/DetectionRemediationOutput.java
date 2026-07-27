@@ -14,10 +14,14 @@ public class DetectionRemediationOutput {
   @JsonProperty("detection_remediation_id")
   private String id;
 
-  @JsonProperty("detection_remediation_collector")
-  @Schema(description = "Collector type")
+  @JsonProperty("detection_remediation_security_platform")
+  @Schema(description = "Security platform id")
   @NotNull
-  private String collectorType;
+  private String securityPlatformId;
+
+  @JsonProperty("detection_remediation_security_platform_name")
+  @Schema(description = "Security platform name")
+  private String securityPlatformName;
 
   @JsonProperty("detection_remediation_payload")
   @Schema(description = "Payload id")

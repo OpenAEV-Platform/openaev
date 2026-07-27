@@ -19,20 +19,20 @@ import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.dto.AttackPathExecutionDetailDTO;
-import io.openaev.utils.fixtures.CollectorTypeFixture;
 import io.openaev.utils.fixtures.DetectionRemediationFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
+import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
-import io.openaev.utils.fixtures.composers.CollectorTypeComposer;
 import io.openaev.utils.fixtures.composers.DetectionRemediationComposer;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
+import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
@@ -67,7 +67,7 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private DetectionRemediationComposer detectionRemediationComposer;
-  @Autowired private CollectorTypeComposer collectorTypeComposer;
+  @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private WorkflowComposer workflowComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private StepComposer stepComposer;
@@ -112,9 +112,9 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
                 detectionRemediationComposer
                     .forDetectionRemediation(
                         DetectionRemediationFixture.createDefaultDetectionRemediation())
-                    .withCollectorType(
-                        collectorTypeComposer.forCollectorType(
-                            CollectorTypeFixture.createDefaultCollectorType())))
+                    .withSecurityPlatform(
+                        securityPlatformComposer.forSecurityPlatform(
+                            SecurityPlatformFixture.createDefault("CrowdStrike Falcon", "EDR"))))
             .persist()
             .get();
     payloadId = payload.getId();

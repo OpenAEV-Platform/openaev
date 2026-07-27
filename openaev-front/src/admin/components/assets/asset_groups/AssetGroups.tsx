@@ -2,7 +2,7 @@ import { HelpOutlineOutlined } from '@mui/icons-material';
 import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { type CSSProperties, useContext, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { bulkDeleteAssetGroups, searchAssetGroups } from '../../../../actions/asset_groups/assetgroup-action';
@@ -24,6 +24,8 @@ import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ToolBar from '../../common/ToolBar';
+import PostureScoreCell from '../PostureScoreCell';
+import usePostureScores from '../usePostureScores';
 import AssetGroupCreation from './AssetGroupCreation';
 import AssetGroupPopover from './AssetGroupPopover';
 import computeRuleValues from './assetGroupRules';
@@ -34,10 +36,11 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
-  asset_group_name: { width: '20%' },
-  asset_group_description: { width: '20%' },
-  asset_group_assets: { width: '35%' },
-  asset_group_tags: { width: '25%' },
+  asset_group_name: { width: '18%' },
+  asset_group_description: { width: '18%' },
+  asset_group_assets: { width: '30%' },
+  asset_group_posture: { width: '10%' },
+  asset_group_tags: { width: '24%' },
 };
 
 const AssetGroups = () => {
@@ -45,12 +48,28 @@ const AssetGroups = () => {
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
-  const navigate = useNavigate();
-
   // Query param
   const [searchParams] = useSearchParams();
   const [search] = searchParams.getAll('search');
   const [searchId] = searchParams.getAll('id');
+
+  const availableFilterNames = [
+    'asset_group_name',
+    'asset_group_description',
+    'asset_group_tags',
+  ];
+
+  const [assetGroups, setAssetGroups] = useState<AssetGroup[]>([]);
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('asset-groups', buildSearchPagination({
+    sorts: initSorting('asset_group_name'),
+    textSearch: search,
+  }));
+
+  // Per-row posture score, batched in a single dashboard-engine query per page.
+  const { loading: postureLoading, scores: postureScores } = usePostureScores(
+    'base_asset_group_side',
+    assetGroups.map(assetGroup => assetGroup.asset_group_id),
+  );
 
   // Headers
   const headers: Header[] = useMemo(() => [
@@ -74,24 +93,24 @@ const AssetGroups = () => {
         computeRuleValues(assetGroup, t),
     },
     {
+      field: 'asset_group_posture',
+      label: 'Posture score',
+      isSortable: false,
+      value: (assetGroup: AssetGroupOutput) => (
+        <PostureScoreCell
+          success={postureScores[assetGroup.asset_group_id]?.success ?? 0}
+          failed={postureScores[assetGroup.asset_group_id]?.failed ?? 0}
+          loading={postureLoading}
+        />
+      ),
+    },
+    {
       field: 'asset_group_tags',
       label: 'Tags',
       isSortable: false,
       value: (assetGroup: AssetGroupOutput) => <ItemTags variant="list" tags={assetGroup.asset_group_tags} />,
     },
-  ], []);
-
-  const availableFilterNames = [
-    'asset_group_name',
-    'asset_group_description',
-    'asset_group_tags',
-  ];
-
-  const [assetGroups, setAssetGroups] = useState<AssetGroup[]>([]);
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('asset-groups', buildSearchPagination({
-    sorts: initSorting('asset_group_name'),
-    textSearch: search,
-  }));
+  ], [postureScores, postureLoading, t]);
 
   // Export
   const exportProps = {
@@ -247,7 +266,8 @@ const AssetGroups = () => {
                 >
                   <ListItemButton
                     classes={{ root: classes.item }}
-                    onClick={() => navigate(`${ASSET_GROUP_BASE_URL}/${assetGroup.asset_group_id}`)}
+                    component={Link}
+                    to={`${ASSET_GROUP_BASE_URL}/${assetGroup.asset_group_id}`}
                   >
                     {canManage && (
                       <ListItemIcon

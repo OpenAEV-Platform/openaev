@@ -1,5 +1,5 @@
 import { simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import type { SearchPaginationInput } from '../../utils/api-types';
+import type { NotificationBulkProcessingInput, SearchPaginationInput } from '../../utils/api-types';
 
 const NOTIFICATION_URI = '/api/notifications';
 
@@ -21,4 +21,12 @@ export const markAllNotificationsRead = () => {
 
 export const deleteNotification = (notificationId: string) => {
   return simpleDelCall(`${NOTIFICATION_URI}/${notificationId}`);
+};
+
+export const bulkDeleteNotifications = (input: NotificationBulkProcessingInput) => {
+  return simplePostCall(`${NOTIFICATION_URI}/me/bulk-delete`, input);
+};
+
+export const bulkMarkNotificationsRead = (input: NotificationBulkProcessingInput, read: boolean) => {
+  return simplePutCall(`${NOTIFICATION_URI}/me/bulk-read?read=${read}`, input);
 };

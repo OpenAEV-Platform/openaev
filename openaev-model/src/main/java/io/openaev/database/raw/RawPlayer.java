@@ -59,6 +59,30 @@ public interface RawPlayer {
   String getUser_organization();
 
   /**
+   * Returns the player's phone number. Only populated by queries that select the column (e.g. the
+   * all-players listing); other projections serialize it as null.
+   *
+   * @return the phone number
+   */
+  String getUser_phone();
+
+  /**
+   * Returns the player's country. Only populated by queries that select the column (e.g. the
+   * all-players listing); other projections serialize it as null.
+   *
+   * @return the country
+   */
+  String getUser_country();
+
+  /**
+   * Returns whether the player is a platform administrator. Only populated by queries that select
+   * the column (e.g. the all-players listing); other projections serialize it as null.
+   *
+   * @return the admin flag
+   */
+  Boolean getUser_admin();
+
+  /**
    * Returns the list of tag IDs associated with this player.
    *
    * @return list of tag IDs
