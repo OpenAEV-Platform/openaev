@@ -23,9 +23,6 @@ const resolveDefaultOutputType = (
   if (argumentWithDefaultValueTypes.has(field.type)) {
     return field.type;
   }
-  if (argumentWithDefaultValueTypes.has(field.key)) {
-    return field.key;
-  }
   return undefined;
 };
 
