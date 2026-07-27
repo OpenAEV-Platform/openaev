@@ -225,7 +225,7 @@ public class AttackPathGraphService {
     // links to, so endpoint-scoped masking never leaves a known secret in the clear.
     Set<String> secrets = new HashSet<>();
     for (AttackPathEndpointFindingVerdictRow f :
-        findingRepository.findByEndpoint(simulationId, e.getTargetKey())) {
+        presentVerdictRows(findingRepository.findByEndpoint(simulationId, e.getTargetKey()))) {
       if (CATEGORY_CREDENTIALS.equals(f.type())) {
         String secret = credentialSecret(f.value());
         if (secret != null && !secret.isEmpty()) {
