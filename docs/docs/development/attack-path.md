@@ -95,6 +95,10 @@ erDiagram
 - **`attackpath_execution_finding`** — the many-to-many link that records **which execution produced
   which finding** (used to cross-reference the feed with the finding nodes).
 
+A fourth, bookkeeping table sits beside them: **`attackpath_graph_version`**, one monotonic counter per
+`(simulation, tenant)`, with a matching `row_version` column on the two projection tables. It is what
+makes the incremental read possible (see §7) and is not part of the graph rebuild.
+
 Why no foreign keys to `exercises` / `assets` / `agents`? So the POC is **self-contained and
 droppable**: you can add and remove these tables without touching product tables, and the ids are a
 frozen snapshot (an endpoint renamed after the run keeps the name it had at execution time).
@@ -181,8 +185,9 @@ mode.
   click (the expand / relations reads).
 
 The mode is chosen automatically: a cheap indexed `COUNT` compares the execution count to a **configurable
-threshold** (`openaev.attackpath.collapse-threshold`, default 20000); above it the simulation is served
-collapsed. The front can also force a mode (`?mode=full` / `?mode=collapsed`).
+threshold** (`openaev.attackpath.collapse-threshold`, declared in `application.properties`, default
+20000); above it the simulation is served collapsed. The front can also force a mode (`?mode=full` /
+`?mode=collapsed`).
 
 Collapsed is the answer to scale: it removes the JVM materialization cost and bounds the number of nodes
 the front renders (one per endpoint, not one per execution). It is measured in §9.
@@ -232,7 +237,8 @@ All endpoints live under `/api/attack-path` (and the tenant-prefixed
 | Method & path | Returns |
 | --- | --- |
 | `GET /simulations` | the tenant's simulations with endpoint + execution counts (the picker) |
-| `GET /simulations/{id}/graph?mode=` | the `AttackPathDTO` (full or collapsed) |
+| `GET /simulations/{id}/graph?mode=` | the `AttackPathDTO` (full or collapsed), carrying the graph's current `graphVersion` |
+| `GET /simulations/{id}/graph/delta?since=` | what changed since a version — the incremental read (below) |
 | `GET /simulations/{id}/endpoint/findings?ref=` | one endpoint's finding-type and finding nodes |
 | `GET /simulations/{id}/endpoint/relations?ref=` | one endpoint's executions (feed) and grouped edges |
 | `GET /simulations/{id}/findings?category=&page=&size=` | a page of a widget category's findings for the drawer (credentials masked) |
@@ -241,6 +247,52 @@ All endpoints live under `/api/attack-path` (and the tenant-prefixed
 
 `ref` is an endpoint's `target_key` (asset id or raw value); the front reads it off the asset node's
 `ref` field, since the node id is a non-reversible hash.
+
+### Live updates during a run (versioned deltas)
+
+While a simulation is running, the view **keeps itself up to date incrementally** instead of
+re-downloading the graph. Each simulation's attack-path state carries a **monotonic version**
+(`attackpath_graph_version`, bumped in the same transaction as every projection write, so version
+order equals commit order); each projection row carries the version it was last written at.
+
+```mermaid
+flowchart LR
+    S["GET /graph → snapshot + graphVersion v"]
+    D["GET /graph/delta?since=v →<br/>changed executions / findings / nodes / edges<br/>+ recomputed aggregates + new version w"]
+    A["Client applies upserts by id (idempotent),<br/>keeps its place, then polls with since=w"]
+    S --> D --> A --> D
+```
+
+- The front loads one snapshot, then polls the delta every **3 s** (`DELTA_POLL_MS`), applying
+  upserts keyed by stable id. Aggregates (endpoint `findingCounts`, edge `count`) are shipped whole,
+  never as increments, so a replayed delta converges: `snapshot(v) + delta(v→w)` equals `snapshot(w)`.
+  A single accumulated graph feeds both render modes — the old duplicated 10 s full refresh of the
+  collapsed and full DTOs is gone.
+- Applying a delta preserves everything the user owns: pan/zoom, selection, highlights, expanded
+  clusters, table sort, drawer search/page/scroll. Layout is recomputed only when the graph's shape
+  moves.
+- **Execution verdicts update live**: when prevention / detection / vulnerability expectation results
+  land, they are written to the projection and bump the version, so a node's colour *and* status
+  label change on the graph without a reload.
+- A discreet **freshness chip** shows *Live*, *Reconnecting…* (tooltip carries the last update time,
+  and the last good graph stays on screen) or *Run finished*. Polling **pauses while the browser tab
+  is hidden** (one resync on return) and **stops for good** once the run reaches a terminal status.
+- A cursor the server cannot answer — unknown, too old, or from another simulation — comes back as
+  `resyncRequired`, and the client silently reloads the snapshot; never a partial graph. The same
+  happens when a delta would exceed `openaev.attackpath.delta-max-rows` (default 5000): past that
+  size, assembling the delta costs more than the reload the client would do anyway.
+- Authorization is **per request** (same `assertCanReadSimulation` and `TxCtx` tenant scoping as the
+  snapshot read), so there is no long-lived channel holding a stale permission decision: a permission
+  lost between two polls takes effect on the next one.
+
+!!! note "Upgrading an environment that already has attack-path data"
+
+    The migration that adds the versioning (`V6_20260727120000000__Add_attackpath_graph_version`)
+    creates two cursor indexes, on `attackpath_execution` and `attackpath_finding`. The build is not
+    `CONCURRENTLY`, so on very large projection tables it takes the table's write lock for the
+    duration and attack-path ingestion is briefly blocked. Upgrade **outside an active simulation
+    window**. The row-version columns themselves are `NOT NULL DEFAULT 0` and need no backfill:
+    existing rows read as version 0, which any `since = 0` delta includes.
 
 ## 8. Enable, seed, explore
 
