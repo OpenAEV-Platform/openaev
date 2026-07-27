@@ -25,6 +25,8 @@
         <opentelemetry-semconv.version>1.43.0</opentelemetry-semconv.version>
         <!-- Not managed by the Spring Boot BOM; pinned here. Apache-2.0. -->
         <datasource-proxy.version>1.11.0</datasource-proxy.version>
+        <!-- Server-side report rendering (headless Chromium). Apache-2.0. -->
+        <playwright.version>1.61.0</playwright.version>
     </properties>
 
     <profiles>
@@ -205,6 +207,14 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>33.6.0-jre</version>
+        </dependency>
+        <!-- Playwright drives an in-container headless Chromium to render reports (PDF/HTML).
+             On dev machines the browser bundle is downloaded automatically on first use; the
+             production images pre-install it at PLAYWRIGHT_BROWSERS_PATH (see Dockerfiles). -->
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>${playwright.version}</version>
         </dependency>
         <!-- OpenTelemetry -->
         <dependency>

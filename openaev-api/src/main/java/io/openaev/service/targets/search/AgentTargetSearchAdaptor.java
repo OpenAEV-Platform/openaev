@@ -12,6 +12,7 @@ import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
@@ -41,6 +42,20 @@ public class AgentTargetSearchAdaptor extends SearchAdaptorBase {
 
   @Override
   public Page<InjectTarget> search(SearchPaginationInput input, Inject scopedInject) {
+
+    // Agents only take part in injects whose contract runs through an executor (payloads).
+    // For executor-less contracts (Nuclei, Nmap, HTTP...) no agent is ever involved in the
+    // execution, so listing the targeted assets' agents would only show empty targets - hide
+    // the Agents tab entirely by returning an empty page.
+    boolean needsExecutor =
+        scopedInject
+            .getInjectorContract()
+            .map(InjectorContract::getNeedsExecutorEffective)
+            // No resolvable contract (uninstalled connector): keep the legacy behavior.
+            .orElse(true);
+    if (!needsExecutor) {
+      return Page.empty(PageRequest.of(input.getPage(), input.getSize()));
+    }
 
     Specification<Agent> memberOfAssetGroupSpec =
         specificationUtils.compileSpecificationForAssetGroupMembership(

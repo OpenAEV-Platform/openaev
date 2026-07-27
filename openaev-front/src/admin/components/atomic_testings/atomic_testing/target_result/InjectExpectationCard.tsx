@@ -201,7 +201,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
               size="small"
               onClick={() => onOpenEditInjectExpectationResultResult(null, injectExpectation)}
             >
-              {['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type)
+              {['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(injectExpectation.inject_expectation_type)
                 ? <AddModeratorOutlined color="primary" fontSize="medium" />
                 : <InventoryOutlined color="primary" fontSize="medium" />}
             </IconButton>
@@ -245,7 +245,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
         // surfaced in a per-line "i" tooltip rather than a heavy expandable table. Else show the
         // injects expectations for the selected target (agents, endpoints agentless,...)
         (isAssets(target) && !isAgentless) ? (
-          ['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type)
+          ['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(injectExpectation.inject_expectation_type)
           && (injectExpectation.inject_expectation_results?.length ?? 0) > 0 && (
             <InjectExpectationAggregatedAgentsView
               inject={inject}
@@ -255,7 +255,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
             />
           )
         ) : (
-          (!isAssetGroupExpectation(injectExpectation) && ['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type) && (injectExpectation.inject_expectation_results?.length ?? 0) > 0)
+          (!isAssetGroupExpectation(injectExpectation) && ['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(injectExpectation.inject_expectation_type) && (injectExpectation.inject_expectation_results?.length ?? 0) > 0)
           && (
             <InjectExpectationResultList
               injectExpectation={injectExpectation}

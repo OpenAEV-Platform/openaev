@@ -234,7 +234,13 @@ public class InjectExpectationService {
       return updated;
 
     } else if (baseInjectExpectation instanceof TechnicalInjectExpectation technicalExpectation
-        && List.of(DETECTION, PREVENTION).contains(baseInjectExpectation.getType())) {
+        && List.of(
+                DETECTION,
+                PREVENTION,
+                // NB: the explicit ExpectationType.VULNERABILITY static import shadows the
+                // EXPECTATION_TYPE.* wildcard one, hence the qualified reference.
+                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY)
+            .contains(baseInjectExpectation.getType())) {
       // Block down computation on asset group
       if (isAssetGroupExpectation(technicalExpectation)) {
         throw new IllegalArgumentException("Not possible to update Asset Group directly");
@@ -286,7 +292,13 @@ public class InjectExpectationService {
         this.injectExpectationRepository.findById(expectationId).orElseThrow();
 
     if (baseInjectExpectation instanceof TechnicalInjectExpectation technicalInjectExpectation
-        && List.of(DETECTION, PREVENTION).contains(baseInjectExpectation.getType())) {
+        && List.of(
+                DETECTION,
+                PREVENTION,
+                // NB: the explicit ExpectationType.VULNERABILITY static import shadows the
+                // EXPECTATION_TYPE.* wildcard one, hence the qualified reference.
+                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY)
+            .contains(baseInjectExpectation.getType())) {
       // Block down computation on asset group
       if (isAssetGroupExpectation(technicalInjectExpectation)) {
         throw new IllegalArgumentException("Not possible to update Asset Group directly");

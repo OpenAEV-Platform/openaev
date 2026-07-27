@@ -43,6 +43,10 @@ interface Props {
   // When set (endpoint aggregation), each source id/name maps to the per-agent
   // results that rolled up into the aggregated row, shown in an "i" tooltip.
   agentBreakdownBySource?: Record<string, AgentResultBreakdownEntry[]>;
+  // Endpoint (asset) aggregated view: alerts live on the child agent expectations,
+  // so there is no per-line agent, but the count/dialog endpoints roll them up from
+  // the asset expectation id. Let the Alerts column render without an agent scope.
+  aggregateAgentAlerts?: boolean;
 }
 
 const GRID_TEMPLATE_COLUMNS = 'minmax(180px, 2fr) 150px 140px 160px 80px 40px';
@@ -58,6 +62,7 @@ const InjectExpectationResultList = ({
   injectorContractPayload,
   injectType,
   agentBreakdownBySource,
+  aggregateAgentAlerts = false,
 }: Props) => {
   const { nsdt, t } = useFormatter();
   const theme = useTheme();
@@ -195,15 +200,23 @@ const InjectExpectationResultList = ({
         </Box>
 
         {injectExpectationResults.map((expectationResult, index) => {
-          const showDetectionTime = expectationResult.result === 'Prevented' || expectationResult.result === 'Detected' || expectationResult.result === 'SUCCESS';
-          const showAlerts = !!(expectationResult.sourceId
-            && injectExpectationAgent
+          // Result labels are written with inconsistent casing across producers (backend
+          // ExpectationType says "Partially vulnerable", the frontend status map "Partially
+          // Vulnerable"), so match them case-insensitively.
+          const resultLabel = expectationResult.result?.toLowerCase();
+          const showDetectionTime = resultLabel === 'prevented' || resultLabel === 'detected' || resultLabel === 'success'
+            // Vulnerability verdicts (e.g. written by a scanner platform like Nuclei) carry the scan time.
+            || resultLabel === 'not vulnerable' || resultLabel === 'vulnerable' || resultLabel === 'partially vulnerable';
+          // Alerts apply to a collector result that detected/prevented. They render either
+          // for a per-agent row (injectExpectationAgent set) or for the aggregated endpoint
+          // row, where the backend rolls the child agents' traces up onto the asset
+          // expectation id. Anything else (no collector match, non-collector source) shows a dash.
+          const alertsApplicable = !!expectationResult.sourceId
             && expectationResult.sourceType === 'collector'
-            && (expectationResult.result === 'Prevented' || expectationResult.result === 'Detected'));
-          const showAlertsDash = (!injectExpectationAgent
-            || (injectExpectationAgent && (expectationResult.result === 'Not Detected' || expectationResult.result === 'Not Prevented'))
-            || (injectExpectationAgent && expectationResult.sourceType !== 'collector' && (expectationResult.result === 'Prevented' || expectationResult.result === 'Detected'))
-          );
+            && (resultLabel === 'prevented' || resultLabel === 'detected');
+          const alertsInScope = !!injectExpectationAgent || aggregateAgentAlerts;
+          const showAlerts = alertsApplicable && alertsInScope;
+          const showAlertsDash = !showAlerts;
 
           const sourceName = expectationResult.sourceName?.trim() || '-';
           const breakdownKey = expectationResult.sourceId ?? expectationResult.sourceName ?? '';

@@ -16,6 +16,7 @@ import {
 } from '@mui/icons-material';
 import {
   Binoculars,
+  FileChartOutline,
   NewspaperVariantMultipleOutline,
   PostOutline,
   SecurityNetwork,
@@ -56,6 +57,12 @@ const LeftBar = () => {
           icon: () => (<InsertChartOutlined />),
           label: 'Dashboards',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DASHBOARDS),
+        },
+        {
+          path: `/admin/reporting`,
+          icon: () => (<FileChartOutline />),
+          label: 'Reporting',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.REPORTINGS),
         },
         {
           path: '/admin/findings',
