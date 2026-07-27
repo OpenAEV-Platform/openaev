@@ -42,6 +42,18 @@ public final class AttackPathIds {
     return encode("NODE_INJECTOR", injector);
   }
 
+  /**
+   * {@code NODE_INJECTOR} per contract: the injector name plus the frozen contract external id, so
+   * an injector that ran several contracts renders one node per contract. A {@code null} contract
+   * falls back to the per-injector id, byte-identical, so contractless sources (seed, legacy,
+   * agents) keep the same id.
+   */
+  public static String injectorNode(String injector, String contractExternalId) {
+    return contractExternalId == null
+        ? injectorNode(injector)
+        : encode("NODE_INJECTOR", injector, contractExternalId);
+  }
+
   /** {@code NODE_ENDPOINT}: the unified endpoint key (asset id or raw value). DTO type = ASSET. */
   public static String endpointNode(String endpointKey) {
     return encode("NODE_ENDPOINT", endpointKey);

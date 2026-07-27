@@ -10,6 +10,9 @@ public record AttackPathEdgeGroupRow(
     String sourceKind,
     String sourceInjector,
     String sourceAssetId,
+    // The injector's frozen contract external id (null for agent/asset sources), so the collapsed
+    // injector node is per contract, matching the full graph.
+    String contractExternalId,
     // Frozen source endpoint attributes, constant per source asset within a simulation, so a
     // source-only endpoint renders them in collapsed mode too rather than a bare id.
     String sourceHostname,

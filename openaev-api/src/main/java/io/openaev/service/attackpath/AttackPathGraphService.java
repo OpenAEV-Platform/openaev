@@ -560,7 +560,8 @@ public class AttackPathGraphService {
       feedByExecutionId.put(e.id(), executionFeedNode(e));
     }
     applyKillChain(executions, feedByExecutionId);
-    applyContractNames(executions, feedByExecutionId);
+    Map<String, String> contractNames = applyContractNames(executions, feedByExecutionId);
+    applyInjectorNodeLabels(nodes, contractsByInjectorNode, contractNames);
 
     // Endpoint (ASSET) nodes, with attributes and colour from the executions targeting them.
     for (Map.Entry<String, List<AttackPathExecutionRow>> entry : byTarget.entrySet()) {
@@ -682,8 +683,9 @@ public class AttackPathGraphService {
    */
   private void enrichCollapsedInjectors(String simulationId, Map<String, AttackPathNodeDTO> nodes) {
     Map<String, Set<String>> contractsByInjectorNode = new LinkedHashMap<>();
+    Set<String> externalIds = new HashSet<>();
     for (AttackPathInjectorMetaRow meta : executionRepository.findInjectorMetadata(simulationId)) {
-      String nodeId = AttackPathIds.injectorNode(meta.sourceInjector());
+      String nodeId = AttackPathIds.injectorNode(meta.sourceInjector(), meta.contractExternalId());
       AttackPathNodeDTO injectorNode = nodes.get(nodeId);
       if (injectorNode == null) {
         continue;
@@ -695,8 +697,10 @@ public class AttackPathGraphService {
         contractsByInjectorNode
             .computeIfAbsent(nodeId, k -> new LinkedHashSet<>())
             .add(meta.contractExternalId());
+        externalIds.add(meta.contractExternalId());
       }
     }
+    applyInjectorNodeLabels(nodes, contractsByInjectorNode, resolveContractNames(externalIds));
     resolveInjectorAttackPatterns(nodes, contractsByInjectorNode);
   }
 
@@ -847,7 +851,7 @@ public class AttackPathGraphService {
 
   private String collapsedSourceNodeId(AttackPathEdgeGroupRow g) {
     return SOURCE_INJECTOR.equals(g.sourceKind())
-        ? AttackPathIds.injectorNode(g.sourceInjector())
+        ? AttackPathIds.injectorNode(g.sourceInjector(), g.contractExternalId())
         : AttackPathIds.endpointNode(g.sourceAssetId());
   }
 
@@ -871,7 +875,7 @@ public class AttackPathGraphService {
 
   private String sourceNodeId(AttackPathExecutionRow e) {
     return SOURCE_INJECTOR.equals(e.sourceKind())
-        ? AttackPathIds.injectorNode(e.sourceInjector())
+        ? AttackPathIds.injectorNode(e.sourceInjector(), e.contractExternalId())
         : AttackPathIds.endpointNode(e.sourceAssetId());
   }
 
@@ -1025,9 +1029,10 @@ public class AttackPathGraphService {
    * external id and sets it on the execution feed node, so the front can name WHAT was launched on
    * the inject→endpoint edge. Batched over the DISTINCT external ids (a run uses a handful of
    * contracts, not one per execution), so this is a few reads regardless of the execution count.
-   * No-op when no execution carries a contract.
+   * No-op when no execution carries a contract. Returns the resolved {@code externalId → name} map
+   * so the injector node labels can reuse it without a second read.
    */
-  private void applyContractNames(
+  private Map<String, String> applyContractNames(
       List<AttackPathExecutionRow> executions, Map<String, AttackPathNodeDTO> feedByExecutionId) {
     Set<String> externalIds =
         executions.stream()
@@ -1035,8 +1040,55 @@ public class AttackPathGraphService {
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
     if (externalIds.isEmpty()) {
-      return;
+      return Map.of();
     }
+    Map<String, String> nameByExternalId = resolveContractNames(externalIds);
+    if (nameByExternalId.isEmpty()) {
+      return nameByExternalId;
+    }
+    for (AttackPathExecutionRow e : executions) {
+      String externalId = e.contractExternalId();
+      if (externalId == null) {
+        continue;
+      }
+      AttackPathNodeDTO node = feedByExecutionId.get(e.id());
+      if (node != null) {
+        node.setContractName(nameByExternalId.get(externalId));
+      }
+    }
+    return nameByExternalId;
+  }
+
+  /**
+   * Labels each per-contract injector node with its contract's name, so two nodes of the same
+   * injector are distinguishable on the map. Reuses the names already resolved for the feed nodes,
+   * so no extra query; a node whose contract name did not resolve keeps its injector-name label.
+   */
+  private void applyInjectorNodeLabels(
+      Map<String, AttackPathNodeDTO> nodes,
+      Map<String, Set<String>> contractsByInjectorNode,
+      Map<String, String> nameByExternalId) {
+    contractsByInjectorNode.forEach(
+        (nodeId, contractIds) -> {
+          AttackPathNodeDTO node = nodes.get(nodeId);
+          if (node == null) {
+            return;
+          }
+          // A per-contract injector node maps to exactly one contract.
+          contractIds.stream()
+              .map(nameByExternalId::get)
+              .filter(Objects::nonNull)
+              .findFirst()
+              .ifPresent(node::setLabel);
+        });
+  }
+
+  /**
+   * Resolves the {@code externalId → contract name} map for a set of injector-contract external
+   * ids, one read per distinct id (a run uses a handful of contracts). Shared by the feed-node
+   * contract names and the injector node labels so neither pays for a second read.
+   */
+  private Map<String, String> resolveContractNames(Set<String> externalIds) {
     Map<String, String> nameByExternalId = new HashMap<>();
     for (String externalId : externalIds) {
       injectorContractRepository
@@ -1049,19 +1101,7 @@ public class AttackPathGraphService {
                 }
               });
     }
-    if (nameByExternalId.isEmpty()) {
-      return;
-    }
-    for (AttackPathExecutionRow e : executions) {
-      String externalId = e.contractExternalId();
-      if (externalId == null) {
-        continue;
-      }
-      AttackPathNodeDTO node = feedByExecutionId.get(e.id());
-      if (node != null) {
-        node.setContractName(nameByExternalId.get(externalId));
-      }
-    }
+    return nameByExternalId;
   }
 
   /**
