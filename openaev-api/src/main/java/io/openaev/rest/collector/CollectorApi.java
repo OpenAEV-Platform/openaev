@@ -19,7 +19,6 @@ import io.openaev.rest.collector.form.CollectorUpdateInput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.FileService;
-import io.openaev.service.exception.ConnectorStatusException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;

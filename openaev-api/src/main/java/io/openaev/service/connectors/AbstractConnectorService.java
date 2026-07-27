@@ -11,7 +11,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public abstract class AbstractConnectorService<T extends BaseConnectorEntity & TenantIdBase, Output> {
+public abstract class AbstractConnectorService<
+    T extends BaseConnectorEntity & TenantIdBase, Output> {
   protected final ConnectorType connectorType;
   protected final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   protected final CatalogConnectorService catalogConnectorService;

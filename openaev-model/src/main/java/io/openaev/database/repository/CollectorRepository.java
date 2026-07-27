@@ -46,6 +46,7 @@ public interface CollectorRepository
               )
           """)
   List<Collector> findByInjectId(@Param("injectId") String injectId);
+
   /**
    * Deletes a collector by its ID only. Tenant scoping is handled by the v2 SQL inspector, which
    * rewrites this DELETE the same way it rewrites SELECTs on active tables.
