@@ -571,31 +571,31 @@ describe('buildCausalChainFlow', () => {
   });
 
   it('collapses N findings matching one consumed key into a single causal edge (legibility on hub endpoints)', () => {
-    // A hub endpoint yields THREE shares; NetExec's event consumes `share_name IS_NOT_NULL`, which matches
-    // every one of them. Without dedup that stacks three identical "Triggered …" labels over the consumer.
-    // We must draw exactly ONE causal edge (anchored to a single matching finding).
+    // A hub endpoint yields THREE shares (native "file" type since #6972); NetExec's event consumes
+    // `share_name IS_NOT_NULL`, which reconciles to `file` and matches every one of them. Without dedup that
+    // stacks three identical "Triggered …" labels over the consumer. We must draw exactly ONE causal edge.
     const hub: AttackPathDTO = {
       ...chainDto,
       attackPathNodes: [
         ...(chainDto.attackPathNodes ?? []),
         {
-          id: 'NODE_FINDING|share|NETLOGON',
+          id: 'NODE_FINDING|file|NETLOGON',
           type: 'FINDING',
-          typeFindings: 'share',
+          typeFindings: 'file',
           value: 'NETLOGON',
           label: 'NETLOGON',
         },
         {
-          id: 'NODE_FINDING|share|SYSVOL',
+          id: 'NODE_FINDING|file|SYSVOL',
           type: 'FINDING',
-          typeFindings: 'share',
+          typeFindings: 'file',
           value: 'SYSVOL',
           label: 'SYSVOL',
         },
         {
-          id: 'NODE_FINDING|share|CertEnroll',
+          id: 'NODE_FINDING|file|CertEnroll',
           type: 'FINDING',
-          typeFindings: 'share',
+          typeFindings: 'file',
           value: 'CertEnroll',
           label: 'CertEnroll',
         },
@@ -606,7 +606,7 @@ describe('buildCausalChainFlow', () => {
           type: 'EXECUTION',
           ref: 'exec-1',
           stepTemplateId: 'step-A',
-          findingsNodeIds: ['NODE_FINDING|share|NETLOGON', 'NODE_FINDING|share|SYSVOL', 'NODE_FINDING|share|CertEnroll'],
+          findingsNodeIds: ['NODE_FINDING|file|NETLOGON', 'NODE_FINDING|file|SYSVOL', 'NODE_FINDING|file|CertEnroll'],
           dependsOn: [],
         },
         {
@@ -628,7 +628,7 @@ describe('buildCausalChainFlow', () => {
     const causal = edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE);
     expect(causal).toHaveLength(1);
     expect(causal[0].target).toBe('inj-smb');
-    expect(causal[0].source).toMatch(/^NODE_FINDING\|share\|/);
+    expect(causal[0].source).toMatch(/^NODE_FINDING\|file\|/);
     expect(causal[0].data?.causalKind).toBe('finding');
   });
 

@@ -20,7 +20,7 @@ import AttackPathLegend from './AttackPathLegend';
 import AttackPathTableView, { type AttackPathEndpointRow } from './AttackPathTableView';
 import EndpointDetailPanel from './EndpointDetailPanel';
 import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
-import FindingDetailPanel, { type FindingExpectations, type ProducingAction } from './FindingDetailPanel';
+import FindingDetailPanel, { type ExpectationVerdict, type FindingExpectations, type ProducingAction } from './FindingDetailPanel';
 
 // A hot endpoint can have many executions; the read is bounded to the one endpoint, but the side
 // panel still renders a list, so cap it (the backend /relations read would be paginated in prod).
@@ -1597,19 +1597,36 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       }));
   }, [findingDetail, highlightedExecutionIds, executions, fullDto?.attackPathExecutions, theme, t]);
 
-  // Prevention / detection / vulnerability verdicts shown at the top of the finding panel.
-  // TODO(#6647): replace this placeholder with the real per-finding expectation verdicts once the
-  // backend exposes them; for now a CVE finding is flagged vulnerable and the rest is a placeholder.
+  // Prevention / detection / vulnerability verdicts shown at the top of the finding panel, read from the
+  // finding node's real verdicts (#6912 now persists per-execution expectation statuses; the backend
+  // aggregates them worst-of across producers). The DTO already serialises the exact 'success'|'failed'|
+  // 'unknown' labels the panel expects, so this is a direct map (anything unrecognised → 'unknown').
   const findingExpectations = useMemo((): FindingExpectations | undefined => {
     if (!findingDetail) {
       return undefined;
     }
+    const matchByTypeValue = (n: AttackPathNodeDTO) => n.type === 'FINDING'
+      && n.typeFindings === findingDetail.type
+      && (n.value ?? n.label) === findingDetail.value;
+    let node: AttackPathNodeDTO | undefined;
+    for (const pool of [fullDto?.attackPathNodes, dto?.staticAttackPathFindings, dto?.attackPathNodes]) {
+      if (!pool) {
+        continue;
+      }
+      node = (selectedFindingId ? pool.find(n => n.id === selectedFindingId) : undefined)
+        ?? pool.find(matchByTypeValue);
+      if (node?.verdicts) {
+        break;
+      }
+    }
+    const norm = (s?: string): ExpectationVerdict => (s === 'success' || s === 'failed' ? s : 'unknown');
+    const v = node?.verdicts;
     return {
-      prevention: 'success',
-      detection: 'success',
-      vulnerability: findingDetail.type === 'cve' ? 'failed' : 'unknown',
+      prevention: norm(v?.prevention),
+      detection: norm(v?.detection),
+      vulnerability: norm(v?.vulnerability),
     };
-  }, [findingDetail]);
+  }, [findingDetail, selectedFindingId, fullDto?.attackPathNodes, dto?.staticAttackPathFindings, dto?.attackPathNodes]);
 
   // The clicked endpoint's findings grouped by type for the side panel; secrets (credentials) masked.
   const endpointFindingGroups = useMemo(() => {
