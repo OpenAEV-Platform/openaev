@@ -21,11 +21,18 @@ import lombok.Setter;
  * that write touches, so "changes since v" is answerable from the projection tables alone.
  *
  * <p>Deliberately NOT in {@code openaev.tenant.active-tables}, unlike {@code attackpath_execution}
- * and {@code attackpath_finding}: the row holds a counter and nothing else, every read of it sits
- * behind {@code AttackPathAccessControl#assertCanReadSimulation}, and the rows a delta actually
- * returns stay inspector-scoped. Activating it would force the bump upsert (which the inspector
- * cannot rewrite) onto raw JDBC, which is forbidden on an active table. {@code tenant_id} is still
- * NOT NULL with an indexed cascading FK, so a deleted tenant takes its counters with it.
+ * and {@code attackpath_finding}: the bump is an {@code INSERT ... ON CONFLICT DO UPDATE}, a shape
+ * the statement inspector cannot rewrite, so activating the table would fail-close every write.
+ * Isolation is structural instead of rewritten: the table's primary key is {@code (simulation_id,
+ * tenant_id)} and every statement in {@link
+ * io.openaev.database.repository.attackpath.AttackPathGraphVersionRepository} carries an explicit
+ * tenant predicate, so no tenant can read, bump or delete another tenant's counter. {@code
+ * tenant_id} is NOT NULL with an indexed cascading FK, so a deleted tenant takes its counters with
+ * it.
+ *
+ * <p>No code ever loads this entity: the counter is read as a scalar projection and written by the
+ * repository's native upsert. The mapping exists for those JPQL statements, which is why the single
+ * {@code @Id} below does not have to express the table's composite key.
  */
 @Getter
 @Setter

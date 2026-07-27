@@ -1,6 +1,7 @@
 package io.openaev.service.attackpath.ingestion;
 
 import io.openaev.database.repository.attackpath.AttackPathGraphVersionRepository;
+import java.util.Collection;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,27 +27,44 @@ public class AttackPathVersionService {
   private final AttackPathGraphVersionRepository versionRepository;
 
   /**
-   * Takes the simulation's next version and returns it, to stamp on the rows of the same write.
-   * Must be called inside the writer's transaction: the upsert's row lock is released at commit,
-   * and that is what keeps version order equal to commit order for concurrent writers on one
-   * simulation.
+   * Takes the simulation's next version and returns it, to stamp on the rows of the same write. One
+   * atomic statement: the increment and the value the caller stamps come from the same upsert, so
+   * no concurrent writer can slip between them and leave this writer stamping a version it did not
+   * take. Must be called inside the writer's transaction — the upsert's row lock is released at
+   * commit, and that is what keeps version order equal to commit order.
+   *
+   * @throws IllegalStateException when the upsert returns no value. There is no fallback to 0:
+   *     stamping 0 would mark the rows as pre-versioning, hence invisible to every {@code since >
+   *     0} cursor.
    */
   public long bump(String simulationId, String tenantId) {
-    versionRepository.bump(simulationId, tenantId);
-    return versionRepository.findValue(simulationId).orElse(0L);
-  }
-
-  /** The simulation's current version, or empty when it has no attack-path data (or was reset). */
-  public Optional<Long> current(String simulationId) {
-    return versionRepository.findValue(simulationId);
+    Long version = versionRepository.bump(simulationId, tenantId);
+    if (version == null) {
+      throw new IllegalStateException(
+          "Attack-path version bump returned no value for simulation "
+              + simulationId
+              + "; refusing to stamp rows with an unknown version");
+    }
+    return version;
   }
 
   /**
-   * Drops the simulation's counter, on attack-path reset and delete. A client still polling with an
-   * old {@code since} then finds no counter, which the delta read answers with a resync — the only
-   * shape in which the contract expresses a deletion.
+   * The simulation's current version within the caller's tenant scope, or empty when it has no
+   * attack-path data there (never ingested, reset, or another tenant's simulation). An empty scope
+   * reads as absent, so a scope-less read fails closed like the inspector-filtered ones.
    */
-  public void deleteBySimulationId(String simulationId) {
-    versionRepository.deleteBySimulationId(simulationId);
+  public Optional<Long> current(String simulationId, Collection<String> tenantIds) {
+    return tenantIds.isEmpty()
+        ? Optional.empty()
+        : versionRepository.findValue(simulationId, tenantIds);
+  }
+
+  /**
+   * Drops the simulation's counter in its tenant, on attack-path reset and delete. A client still
+   * polling with an old {@code since} then finds no counter, which the delta read answers with a
+   * resync — the only shape in which the contract expresses a deletion.
+   */
+  public void deleteBySimulationId(String simulationId, String tenantId) {
+    versionRepository.deleteBySimulationId(simulationId, tenantId);
   }
 }

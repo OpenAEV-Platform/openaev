@@ -117,14 +117,28 @@ public class AttackPathGraphService {
    * Graph for a simulation, choosing the mode: {@code full} or {@code collapsed} forces it,
    * otherwise a large simulation (more executions than the collapse threshold) is served collapsed.
    * A cheap indexed {@code COUNT} decides; it costs a fraction of the collapsed rebuild.
+   *
+   * <p>{@code graphVersion} is the cursor the snapshot is labelled with, read by the caller BEFORE
+   * this call so it can only ever lag the rows, never lead them (see {@link AttackPathDTO}).
    */
   @Transactional(readOnly = true)
-  public AttackPathDTO buildGraph(String simulationId, String requestedMode) {
+  public AttackPathDTO buildGraph(String simulationId, String requestedMode, long graphVersion) {
     // Both branches call the private bodies, never the public transactional twins: an intra-class
     // call bypasses the Spring proxy, so the inner annotation would be silently inert.
     return resolveCollapsed(simulationId, requestedMode)
-        ? collapsedGraph(simulationId)
-        : fullGraph(simulationId);
+        ? collapsedGraph(simulationId, graphVersion)
+        : fullGraph(simulationId, graphVersion);
+  }
+
+  /**
+   * The same graph for callers that do not follow a cursor (unit tests, the benchmark): the DTO's
+   * {@code graphVersion} is 0, which a client reads as "no cursor, poll from the start".
+   */
+  @Transactional(readOnly = true)
+  public AttackPathDTO buildGraph(String simulationId, String requestedMode) {
+    return resolveCollapsed(simulationId, requestedMode)
+        ? collapsedGraph(simulationId, 0)
+        : fullGraph(simulationId, 0);
   }
 
   private boolean resolveCollapsed(String simulationId, String requestedMode) {
@@ -377,13 +391,13 @@ public class AttackPathGraphService {
 
   @Transactional(readOnly = true)
   public AttackPathDTO buildGraph(String simulationId) {
-    return fullGraph(simulationId);
+    return fullGraph(simulationId, 0);
   }
 
-  private AttackPathDTO fullGraph(String simulationId) {
+  private AttackPathDTO fullGraph(String simulationId, long graphVersion) {
     List<AttackPathExecutionRow> executions = executionRepository.findGraphRows(simulationId);
     List<AttackPathFindingRow> findings = findingRepository.findGraphRows(simulationId);
-    return assemble(executions, findings);
+    return assemble(executions, findings, graphVersion);
   }
 
   /**
@@ -451,9 +465,14 @@ public class AttackPathGraphService {
    * drift from the snapshot's node shapes, ids or field set, because it is the same code. The
    * aggregates a subset of rows cannot compute (endpoint colour, edge counts, counters) are the
    * delta service's job to recompute over the whole affected endpoints.
+   *
+   * <p>{@code graphVersion} labels a snapshot; a delta passes 0, because it carries its own cursor
+   * in {@code AttackPathDeltaDTO#newVersion} and never ships this record to a client.
    */
   AttackPathDTO assemble(
-      List<AttackPathExecutionRow> executions, List<AttackPathFindingRow> findings) {
+      List<AttackPathExecutionRow> executions,
+      List<AttackPathFindingRow> findings,
+      long graphVersion) {
     Map<String, AttackPathNodeDTO> nodes = new LinkedHashMap<>();
     Map<String, AttackPathEdges> edges = new LinkedHashMap<>();
     Map<String, AttackPathNodeDTO> feedByExecutionId = new LinkedHashMap<>();
@@ -591,7 +610,8 @@ public class AttackPathGraphService {
         new ArrayList<>(nodes.values()),
         new ArrayList<>(edges.values()),
         counters,
-        "full");
+        "full",
+        graphVersion);
   }
 
   /**
@@ -666,10 +686,10 @@ public class AttackPathGraphService {
    */
   @Transactional(readOnly = true)
   public AttackPathDTO buildCollapsedGraph(String simulationId) {
-    return collapsedGraph(simulationId);
+    return collapsedGraph(simulationId, 0);
   }
 
-  private AttackPathDTO collapsedGraph(String simulationId) {
+  private AttackPathDTO collapsedGraph(String simulationId, long graphVersion) {
     List<AttackPathEndpointGroupRow> endpoints =
         executionRepository.findEndpointGroups(simulationId);
     List<AttackPathEdgeGroupRow> edges = executionRepository.findEdgeGroups(simulationId);
@@ -727,7 +747,8 @@ public class AttackPathGraphService {
         new ArrayList<>(nodes.values()),
         collapsedEdges,
         collapsedCounters(endpoints.size(), typeCounts),
-        "collapsed");
+        "collapsed",
+        graphVersion);
   }
 
   AttackPathCounters collapsedCounters(long endpoints, List<AttackPathTypeCountRow> typeCounts) {

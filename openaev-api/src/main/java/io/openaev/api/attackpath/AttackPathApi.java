@@ -13,6 +13,7 @@ import io.openaev.service.attackpath.AttackPathAccessControl;
 import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.AttackPathSeedService;
+import io.openaev.service.attackpath.AttackPathTenantScope;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathDeltaDTO;
 import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
@@ -21,6 +22,8 @@ import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
 import io.openaev.service.attackpath.dto.AttackPathSeedInput;
 import io.openaev.service.attackpath.dto.AttackPathSeedResultDTO;
+import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
+import jakarta.validation.constraints.Min;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -59,6 +62,7 @@ public class AttackPathApi extends RestBehavior {
 
   private final AttackPathGraphService graphService;
   private final AttackPathDeltaService deltaService;
+  private final AttackPathVersionService versionService;
   private final AttackPathSeedService seedService;
   private final PreviewFeatureService previewFeatureService;
   private final AttackPathAccessControl attackPathAccessControl;
@@ -78,6 +82,11 @@ public class AttackPathApi extends RestBehavior {
    * AttackPathAccessControl#assertCanReadSimulation}, which lets synthetic seed ids through (they
    * are not real {@code exercises}). Every per-simulation read below does the same. Tenant
    * isolation is still enforced by the statement inspector.
+   *
+   * <p>The snapshot is labelled with the simulation's current attack-path version, which the client
+   * then polls {@link #graphDelta} with. The version is read here, before the rows and in the same
+   * read-only transaction: reading it after them would let a write commit in the gap and never
+   * reach the client, whereas a version that lags the rows only costs one redundant first delta.
    */
   @GetMapping("/simulations/{simulationId}/graph")
   @Transactional(readOnly = true)
@@ -86,7 +95,9 @@ public class AttackPathApi extends RestBehavior {
       TxCtx ctx, @PathVariable String simulationId, @RequestParam(required = false) String mode) {
     requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
-    return graphService.buildGraph(simulationId, mode);
+    long graphVersion =
+        versionService.current(simulationId, AttackPathTenantScope.tenantIds(ctx)).orElse(0L);
+    return graphService.buildGraph(simulationId, mode, graphVersion);
   }
 
   /**
@@ -98,20 +109,19 @@ public class AttackPathApi extends RestBehavior {
    * Because authorization is per request, a permission lost between two polls takes effect on the
    * next one — there is no long-lived channel to carry a stale decision.
    *
-   * <p>{@code since} is the version the client already holds; 0 means "I have just loaded a
-   * snapshot with no version". A cursor the server cannot answer comes back as {@code
-   * resyncRequired}, never as a partial graph.
+   * <p>{@code since} is the version the client already holds ({@code graphVersion} of the snapshot
+   * it loaded); 0 means "I have just loaded a snapshot with no version". A negative cursor is
+   * rejected as a bad request rather than silently reinterpreted. A cursor the server cannot answer
+   * comes back as {@code resyncRequired}, never as a partial graph.
    */
   @GetMapping("/simulations/{simulationId}/graph/delta")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
   public AttackPathDeltaDTO graphDelta(
-      TxCtx ctx, @PathVariable String simulationId, @RequestParam long since) {
+      TxCtx ctx, @PathVariable String simulationId, @RequestParam @Min(0) long since) {
     requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
-    // Clamped rather than rejected, in the style of the findings page bounds above: a negative
-    // cursor is meaningless, and treating it as "I have nothing" is the safe reading.
-    return deltaService.buildDelta(simulationId, Math.max(since, 0));
+    return deltaService.buildDelta(simulationId, since, AttackPathTenantScope.tenantIds(ctx));
   }
 
   /**

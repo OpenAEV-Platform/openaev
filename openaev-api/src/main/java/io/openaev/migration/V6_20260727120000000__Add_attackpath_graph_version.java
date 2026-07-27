@@ -16,11 +16,17 @@ import org.springframework.stereotype.Component;
  * they took their versions. A client is therefore never handed a version whose rows are still
  * uncommitted.
  *
- * <p>Both new columns are {@code NOT NULL DEFAULT 0}, so already-populated rows stay valid and need
- * no backfill: they read as version 0, which any {@code since = 0} delta includes and every later
- * {@code since} excludes — exactly the intended semantics. The cursor indexes back the only delta
- * query shape ({@code WHERE simulation_id = ? AND row_version > ?}). Additive and idempotent; no
- * Elasticsearch-indexed entity is touched, so no {@code indexing_status} reset.
+ * <p>The counter's primary key is {@code (simulation_id, tenant_id)}, not the simulation alone: the
+ * table is deliberately not tenant-active (the bump is an {@code INSERT ... ON CONFLICT}, which the
+ * statement inspector cannot rewrite), so its isolation is structural. One counter per tenant means
+ * a tenant can never read, bump or delete another tenant's version even though nothing rewrites its
+ * statements, and simulation ids are only unique within a tenant anyway.
+ *
+ * <p>Both row-version columns are {@code NOT NULL DEFAULT 0}, so already-populated rows stay valid
+ * and need no backfill: they read as version 0, which any {@code since = 0} delta includes and
+ * every later {@code since} excludes — exactly the intended semantics. The cursor indexes back the
+ * only delta query shape ({@code WHERE simulation_id = ? AND row_version > ?}). Additive and
+ * idempotent; no Elasticsearch-indexed entity is touched, so no {@code indexing_status} reset.
  */
 @Component
 public class V6_20260727120000000__Add_attackpath_graph_version extends BaseJavaMigration {
@@ -32,9 +38,9 @@ public class V6_20260727120000000__Add_attackpath_graph_version extends BaseJava
           "CREATE TABLE IF NOT EXISTS attackpath_graph_version ("
               + "attackpath_graph_version_simulation_id VARCHAR(255) NOT NULL, "
               + "tenant_id VARCHAR(255) NOT NULL, "
-              + "attackpath_graph_version_value BIGINT NOT NULL DEFAULT 0, "
+              + "attackpath_graph_version_value BIGINT NOT NULL, "
               + "CONSTRAINT pk_attackpath_graph_version "
-              + "PRIMARY KEY (attackpath_graph_version_simulation_id), "
+              + "PRIMARY KEY (attackpath_graph_version_simulation_id, tenant_id), "
               + "CONSTRAINT fk_attackpath_graph_version_tenant FOREIGN KEY (tenant_id) "
               + "REFERENCES tenants(tenant_id) ON DELETE CASCADE);");
       statement.execute(

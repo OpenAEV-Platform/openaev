@@ -57,7 +57,7 @@ public class AttackPathExecutionIngestionService {
         () -> {
           executionRepository.deleteAllBySimulationId(simulationId);
           findingRepository.deleteAllBySimulationId(simulationId);
-          versionService.deleteBySimulationId(simulationId);
+          versionService.deleteBySimulationId(simulationId, tenantId);
         });
   }
 
