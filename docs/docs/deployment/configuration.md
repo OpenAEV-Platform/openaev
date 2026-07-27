@@ -89,7 +89,6 @@ Audit logging will allow you to have a trace of the actions performed using API 
 | logging.level.io.openaev.utils.log | LOGGING_LEVEL_IO_OPENAEV_UTILS_LOG |                  | Audit logging is using the global OpenAEV log level but to lower the log level of the audit logging, this parameter can be used                          |
 |                                    | AUDIT_LOG_DIR                      | ./logs           | If file transport is used, this parameter is used to set the path of the log file.                                                                       |
 |                                    | AUDIT_LOG_FILE                     | ./logs/audit.log | If file transport is used, this parameter is used to set the file path.                                                                                  |
-{% endif %}
 
 ### Dependencies
 
