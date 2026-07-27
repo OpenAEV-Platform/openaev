@@ -1179,6 +1179,7 @@ class ExpectationApiTest extends IntegrationTest {
       collectorTypeRepository.save(collectorType);
       Collector collector = new Collector();
       collector.setId(UUID.randomUUID().toString());
+      collector.setTenantId(Tenant.DEFAULT_TENANT_UUID);
       collector.setName(platformType + "-collector");
       collector.setType(collectorType.getName());
       collector.setCollectorType(collectorType);
