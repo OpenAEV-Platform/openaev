@@ -2644,9 +2644,13 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               }}
             >
               <Typography variant="body2" title={maskFindingValue(item.type, item.value)} sx={{ wordBreak: 'break-all' }}>{maskFindingValue(item.type, item.value)}</Typography>
-              <Typography variant="caption" color="text.secondary" noWrap title={item.endpointKey}>
-                {item.endpointKey}
-              </Typography>
+              {/* Show the endpoint's friendly hostname, never the raw asset id/uuid. Hidden when it can't
+                  be resolved to a name so no bare id ever surfaces under the value. */}
+              {endpointLabelByRef.get(item.endpointKey) && (
+                <Typography variant="caption" color="text.secondary" noWrap title={endpointLabelByRef.get(item.endpointKey)}>
+                  {endpointLabelByRef.get(item.endpointKey)}
+                </Typography>
+              )}
             </Box>
           ))}
           {!findingsLoading && drawerFilteredItems.length > DRAWER_PAGE_SIZE && (
