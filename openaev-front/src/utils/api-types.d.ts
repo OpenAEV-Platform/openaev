@@ -5597,6 +5597,8 @@ export interface InjectResultOutput {
   inject_contract_domains?: string[];
   /** Whether the inject is enabled (disabled injects are never executed) */
   inject_enabled?: boolean;
+  /** Id of the simulation (exercise) this inject belongs to, if any */
+  inject_exercise?: string;
   /** Result of expectations */
   inject_expectation_results: ExpectationResultsByType[];
   /**
