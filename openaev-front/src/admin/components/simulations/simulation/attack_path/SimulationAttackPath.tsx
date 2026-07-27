@@ -242,6 +242,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   const [findingDetail, setFindingDetail] = useState<{
     type: string;
     value: string;
+    // The endpoint node this finding was discovered on. In chain mode there is no `pathFinding`/
+    // `focusedEndpoint` to fall back on, so we carry the origin endpoint here to resolve the panel's
+    // "Discovered on" label (else it degraded to the literal word "Endpoint").
+    endpointNodeId?: string;
   } | null>(null);
   const [executions, setExecutions] = useState<AttackPathNodeDTO[]>([]);
   // The clicked injector's own executions (its contracts across every endpoint it reached), listed in
@@ -1040,6 +1044,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     setFindingDetail({
       type,
       value,
+      endpointNodeId: pathFinding.endpointNodeId,
     });
     setSelectedNodeId(null);
     // A new finding invalidates the previous execution's Result & Terminal panel — close it so only
@@ -1113,13 +1118,17 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // opens the same endpoint / verdicts / producing-actions panel a drawer pick does, without an extra
   // click. The origin endpoint is resolved from the finding's assetNodeId; returns false (so the
   // caller falls back to a plain in-place highlight) when it can't be resolved.
-  const openFindingFromGraph = useCallback((type: string, value: string, assetNodeId: string): boolean => {
-    const node = (dto?.attackPathNodes ?? []).find(n => n.id === assetNodeId);
-    if (!node) {
+  const openFindingFromGraph = useCallback((nodeId: string, type: string, value: string, assetNodeId: string): boolean => {
+    // Resolve the origin endpoint from EITHER graph: the chain view is built from the full graph, whose
+    // endpoint nodes may not all exist in the collapsed one. Bailing when the collapsed lookup missed left
+    // the previous finding's panel on screen (clicking a share still showed the last portscan).
+    const node = (dto?.attackPathNodes ?? []).find(n => n.id === assetNodeId)
+      ?? (fullDto?.attackPathNodes ?? []).find(n => n.id === assetNodeId);
+    if (!node && !chainMode) {
       return false;
     }
-    const endpointKey = node.ref ?? assetNodeId;
-    const label = node.hostname || node.label || endpointKey;
+    const endpointKey = node?.ref ?? assetNodeId;
+    const label = node?.hostname || node?.label || endpointKey;
     setDrawerCategory(null);
     setActiveCard(null);
     setSelectedInjectorId(null);
@@ -1140,18 +1149,22 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     setFindingDetail({
       type,
       value,
+      endpointNodeId: assetNodeId,
     });
     if (chainMode) {
       // In the causal-chain layout the graph already reads inject → endpoint → finding → next inject, so
       // clicking a finding must NOT collapse into the old focused-path layout. Keep the chain and select
       // the finding by its node id (its producer branch lights up via the upstream selection walk). Set
       // AFTER onEndpointClick, which resets selectedFindingId.
-      setSelectedFindingId(`NODE_FINDING|${type}|${value}`);
+      // Use the node's ACTUAL id, not a rebuilt `NODE_FINDING|type|value`: the backend escapes `\` and `|`
+      // in the id, so a share value like `\\host\NETLOGON` encodes with doubled backslashes. Rebuilding it
+      // raw never matched the executions' findingsNodeIds → shares showed "no producing action".
+      setSelectedFindingId(nodeId);
       // Producing executions come from the full graph's execution→findings links (available for EVERY
       // finding type, unlike the drawer categories which only cover credentials/users/files/cves), so the
       // panel lists only the injector(s) that actually produced this finding — not every injector that
       // merely reached the endpoint.
-      const findingNodeId = `NODE_FINDING|${type}|${value}`;
+      const findingNodeId = nodeId;
       const producerRefs = (fullDto?.attackPathExecutions ?? [])
         .filter(e => (e.findingsNodeIds ?? []).includes(findingNodeId))
         .map(e => e.ref)
@@ -1184,7 +1197,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       highlightGraphFinding(nodeId, type ?? '', value ?? '');
       return;
     }
-    if (assetNodeId && openFindingFromGraph(type ?? '', value ?? '', assetNodeId)) {
+    if (assetNodeId && openFindingFromGraph(nodeId, type ?? '', value ?? '', assetNodeId)) {
       return;
     }
     setSelectedNodeId(null);
@@ -1483,6 +1496,24 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       ? (dto?.attackPathNodes ?? []).find(n => n.id === pathFinding.endpointNodeId)
       : undefined),
     [dto?.attackPathNodes, pathFinding],
+  );
+
+  // The endpoint the finding-detail panel was discovered on, resolved from the finding's own origin node
+  // (works in chain mode where there is no focusedEndpoint), against either graph. Drives the panel's
+  // "Discovered on" line so it shows the real host/IP instead of the literal word "Endpoint".
+  const findingEndpoint = useMemo(
+    () => {
+      const id = findingDetail?.endpointNodeId;
+      if (id) {
+        const resolved = (fullDto?.attackPathNodes ?? []).find(n => n.id === id)
+          ?? (dto?.attackPathNodes ?? []).find(n => n.id === id);
+        if (resolved) {
+          return resolved;
+        }
+      }
+      return focusedEndpoint;
+    },
+    [findingDetail?.endpointNodeId, fullDto?.attackPathNodes, dto?.attackPathNodes, focusedEndpoint],
   );
 
   // The action(s) that produced the finding shown in the details panel, mapped to a display row that
@@ -2363,8 +2394,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                     <FindingDetailPanel
                       value={maskFindingValue(findingDetail.type, findingDetail.value)}
                       type={findingDetail.type}
-                      endpointLabel={focusedEndpoint?.hostname || focusedEndpoint?.label || pathFinding?.endpointKey || t('Endpoint')}
-                      endpointSub={[focusedEndpoint?.ip, focusedEndpoint?.platform].filter(Boolean).join(' · ')}
+                      endpointLabel={findingEndpoint?.hostname || findingEndpoint?.label || findingEndpoint?.ref || pathFinding?.endpointKey || t('Endpoint')}
+                      endpointSub={[findingEndpoint?.ip, findingEndpoint?.platform].filter(Boolean).join(' · ')}
                       expectations={findingExpectations}
                       actions={producingActions}
                       activeRef={detailExecutionId}
