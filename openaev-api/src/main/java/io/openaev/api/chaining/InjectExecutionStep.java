@@ -1100,9 +1100,12 @@ public class InjectExecutionStep implements ActionStep {
     for (ExecutionTrace trace : traces) {
       Map<String, JsonElement> map = new HashMap<>();
       if (trace.getAgent() == null) {
-        // Network injectors (nmap, netexec, …) execute without an on-host agent, so their traces carry no
-        // agent — but they DO carry the structured output the chaining engine decomposes into primitives
-        // to drive events. Only the agent_id enrichment is agent-specific. Dropping the whole trace here
+        // Network injectors (nmap, netexec, …) execute without an on-host agent, so their traces
+        // carry no
+        // agent — but they DO carry the structured output the chaining engine decomposes into
+        // primitives
+        // to drive events. Only the agent_id enrichment is agent-specific. Dropping the whole trace
+        // here
         // meant no port/share/… event could ever fire from a network injector's findings; keep the
         // structured output so it still feeds the workflow state.
         if (trace.getStructuredOutput() != null) {
