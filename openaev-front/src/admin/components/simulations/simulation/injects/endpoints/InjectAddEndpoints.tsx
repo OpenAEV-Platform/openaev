@@ -4,7 +4,7 @@ import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../../components/i18n';
-import EndpointsDialogAdding from '../../../../assets/endpoints/EndpointsDialogAdding';
+import EndpointsPicker from '../../../../assets/endpoints/EndpointsPicker';
 
 const useStyles = makeStyles()(theme => ({
   icon: { minWidth: 30 },
@@ -73,7 +73,7 @@ const InjectAddEndpoints: FunctionComponent<Props> = ({
           {errorLabel}
         </FormHelperText>
       )}
-      <EndpointsDialogAdding
+      <EndpointsPicker
         initialState={endpointIds}
         open={openDialog}
         platforms={platforms}

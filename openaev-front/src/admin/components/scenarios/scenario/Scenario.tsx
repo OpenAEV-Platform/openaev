@@ -425,6 +425,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
             <MitreCoverageMatrix
               widgetId={`scenario-mitre-${scenarioId}`}
               injectResults={isSample ? plannedInjectResults : lastInjectResults}
+              defaultKillChain={scenario.scenario_default_kill_chain}
               resultsContext={!isSample && lastSimulationId
                 ? {
                     source: 'simulation',

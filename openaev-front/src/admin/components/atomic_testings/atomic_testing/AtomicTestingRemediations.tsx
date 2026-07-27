@@ -6,21 +6,20 @@ import DOMPurify from 'dompurify';
 import { type SyntheticEvent, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 
-import { fetchCollectorsForAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
-import { fetchCollectors } from '../../../../actions/Collector';
-import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
+import type { SecurityPlatformHelper } from '../../../../actions/assets/asset-helper';
+import { fetchSecurityPlatforms } from '../../../../actions/assets/securityPlatform-actions';
+import { fetchSecurityPlatformsForAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { postDetectionRemediationAIRulesByInject } from '../../../../actions/detection-remediation/detectionremediation-action';
 import { fetchPayloadDetectionRemediationsByInject } from '../../../../actions/injects/inject-action';
 import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
-import { COLLECTOR_LIST } from '../../../../constants/Entities';
 import { useHelper } from '../../../../store';
 import {
-  type Collector,
   type DetectionRemediationOutput,
   type InjectResultOverviewOutput,
+  type SecurityPlatform,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -33,13 +32,15 @@ import DetectionRemediationUseAriane from '../../threat_arsenal/form/DetectionRe
 import { type SnapshotEditionRemediationType } from '../../threat_arsenal/utils/SnapshotRemediationContext';
 import { useSnapshotRemediation } from '../../threat_arsenal/utils/useSnapshotRemediation';
 
+// Remediations are keyed by security platform (manual platforms included): the tab
+// list is the security platform inventory, with no dependency on registered collectors.
 const AtomicTestingRemediations = () => {
   const { injectId } = useParams() as { injectId: InjectResultOverviewOutput['inject_id'] };
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
   const theme = useTheme();
   const location = useLocation();
-  const [tabs, setTabs] = useState<Collector[]>([]);
+  const [tabs, setTabs] = useState<SecurityPlatform[]>([]);
   const [activeTab, setActiveTab] = useState<number>(0);
   const [detectionRemediations, setDetectionRemediations] = useState<DetectionRemediationOutput[]>([]);
   const [hasFetchedRemediations, setHasFetchedRemediations] = useState(false);
@@ -50,37 +51,38 @@ const AtomicTestingRemediations = () => {
   const hasSecurityPlatformsAccess = ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
   const [loading, setLoading] = useState(false);
 
-  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getExistingCollectors() }));
+  const { securityPlatforms }: { securityPlatforms: SecurityPlatform[] } = useHelper(
+    (helper: SecurityPlatformHelper) => ({ securityPlatforms: helper.getSecurityPlatforms() }),
+  );
 
   const { snapshot, setSnapshot } = useSnapshotRemediation();
   const [activeDetectionRemediation, setActiveDetectionRemediation] = useState<DetectionRemediationOutput>();
 
   const [displayedText, setDisplayedText] = useState<string>('');
-  const [typing, setTyping] = useState<boolean>(!!snapshot?.get(tabs[activeTab]?.collector_type)?.isLoading);
+  const [typing, setTyping] = useState<boolean>(!!snapshot?.get(tabs[activeTab]?.asset_id)?.isLoading);
 
   useDataLoader(() => {
     if (hasSecurityPlatformsAccess) {
       setLoading(true);
-      dispatch(fetchCollectors()).finally(() => {
+      dispatch(fetchSecurityPlatforms()).finally(() => {
         setLoading(false);
       });
     } else if (injectId) {
       setLoading(true);
-      dispatch(fetchCollectorsForAtomicTesting(injectId)).finally(() => {
+      dispatch(fetchSecurityPlatformsForAtomicTesting(injectId)).finally(() => {
         setLoading(false);
       });
     }
   });
 
-  // Filter valid collectors
   useEffect(() => {
-    if (collectors.length > 0) {
-      const filtered = collectors.filter((c: { collector_type: string }) =>
-        COLLECTOR_LIST.includes(c.collector_type),
-      ).sort((a: Collector, b: Collector) => a.collector_name.localeCompare(b.collector_name));
-      setTabs(filtered);
+    if (securityPlatforms.length > 0) {
+      const sorted = [...securityPlatforms].sort(
+        (a: SecurityPlatform, b: SecurityPlatform) => a.asset_name.localeCompare(b.asset_name),
+      );
+      setTabs(sorted);
     }
-  }, [collectors]);
+  }, [securityPlatforms]);
 
   useEffect(() => {
     if (isRemediationTab && injectId && !hasFetchedRemediations) {
@@ -95,34 +97,34 @@ const AtomicTestingRemediations = () => {
     if (activeTab >= tabs.length) {
       setActiveTab(0);
     }
-    setTyping(!!snapshot?.get(tabs[activeTab]?.collector_type)?.isLoading);
+    setTyping(!!snapshot?.get(tabs[activeTab]?.asset_id)?.isLoading);
   }, [tabs, activeTab]);
 
   const handleActiveTabChange = (_: SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
 
-  const activeCollectorRemediations = useMemo(() => {
-    const activeCollector = tabs[activeTab];
-    if (!activeCollector) return [];
+  const activePlatformRemediations = useMemo(() => {
+    const activePlatform = tabs[activeTab];
+    if (!activePlatform) return [];
     return detectionRemediations.filter(
-      rem => rem.detection_remediation_collector === activeCollector.collector_type,
+      rem => rem.detection_remediation_security_platform === activePlatform.asset_id,
     );
   }, [tabs, activeTab, detectionRemediations]);
 
   useEffect(() => {
     setActiveDetectionRemediation(detectionRemediations.find((value) => {
-      return value.detection_remediation_collector === tabs[activeTab]?.collector_type;
+      return value.detection_remediation_security_platform === tabs[activeTab]?.asset_id;
     }));
   }, [tabs, activeTab, detectionRemediations]);
 
-  const updateSnapshot = useCallback((tabsData: Collector[], activeTabIndex: number, isLoading?: boolean) => {
+  const updateSnapshot = useCallback((tabsData: SecurityPlatform[], activeTabIndex: number, isLoading?: boolean) => {
     setSnapshot((prev) => {
       const map = new Map(prev || []);
       if (!tabsData || !tabsData[activeTabIndex]) return map;
 
-      map.set(tabsData[activeTabIndex].collector_type, {
-        ...map.get(tabsData[activeTabIndex].collector_type) || {},
+      map.set(tabsData[activeTabIndex].asset_id, {
+        ...map.get(tabsData[activeTabIndex].asset_id) || {},
         isLoading: isLoading,
       } as SnapshotEditionRemediationType);
 
@@ -130,12 +132,12 @@ const AtomicTestingRemediations = () => {
     });
   }, []);
 
-  const updateSnapshotNewRemediation = useCallback((tabsData: Collector[], collectorType: string, AIRules: string, isLoading: boolean) => {
+  const updateSnapshotNewRemediation = useCallback((tabsData: SecurityPlatform[], securityPlatformId: string, AIRules: string, isLoading: boolean) => {
     setSnapshot((prev) => {
       const map = new Map(prev || []);
       if (!tabsData) return map;
-      map.set(collectorType, {
-        ...map.get(collectorType) || {},
+      map.set(securityPlatformId, {
+        ...map.get(securityPlatformId) || {},
         isLoading: isLoading,
         AIRules: AIRules,
       } as SnapshotEditionRemediationType);
@@ -146,7 +148,7 @@ const AtomicTestingRemediations = () => {
 
   function addOrUpdateRemediation(newRemediation: DetectionRemediationOutput) {
     setDetectionRemediations((prev) => {
-      const index = prev.findIndex(item => item.detection_remediation_collector === newRemediation.detection_remediation_collector);
+      const index = prev.findIndex(item => item.detection_remediation_security_platform === newRemediation.detection_remediation_security_platform);
       if (index === -1) {
         return [...prev, newRemediation];
       } else {
@@ -172,26 +174,26 @@ const AtomicTestingRemediations = () => {
   async function onClickUseAriane(agentSlug?: string) {
     updateSnapshot(tabs, activeTab, true);
     setTyping(true);
-    const collectorType = tabs[activeTab].collector_type;
+    const securityPlatformId = tabs[activeTab].asset_id;
     return postDetectionRemediationAIRulesByInject(
       injectId,
-      tabs[activeTab].collector_type,
+      securityPlatformId,
       agentSlug,
     ).then((value) => {
-      updateSnapshotNewRemediation(tabs, collectorType, value.data.detection_remediation_values, true);
+      updateSnapshotNewRemediation(tabs, securityPlatformId, value.data.detection_remediation_values, true);
       addOrUpdateRemediation(value.data);
     }).finally(() => {
       updateSnapshot(tabs, activeTab, false);
     });
   }
 
-  const activeCollector = tabs[activeTab];
+  const activePlatform = tabs[activeTab];
 
   // Resolves the rule text to display for a remediation, honouring the live
   // typing animation and any AI snapshot override, falling back to the stored value.
   const resolveRuleHtml = (rem: DetectionRemediationOutput) => {
-    const collector = rem?.detection_remediation_collector;
-    const entry = collector ? snapshot?.get?.(collector) : undefined;
+    const platformId = rem?.detection_remediation_security_platform;
+    const entry = platformId ? snapshot?.get?.(platformId) : undefined;
     const aiRules = entry?.AIRules;
     let raw: string;
     if (typing) {
@@ -227,10 +229,11 @@ const AtomicTestingRemediations = () => {
       <Typography variant="body2" color="text.secondary">
         {t('No detection rule available for this security platform yet.')}
       </Typography>
-      {activeCollector && (
+      {activePlatform && (
         <DetectionRemediationUseAriane
-          key={activeCollector.collector_type}
-          collectorType={activeCollector.collector_type}
+          key={activePlatform.asset_id}
+          securityPlatformId={activePlatform.asset_id}
+          securityPlatformName={activePlatform.asset_name}
           detectionRemediationContent={activeDetectionRemediation?.detection_remediation_values}
           onSubmit={onClickUseAriane}
         />
@@ -239,12 +242,12 @@ const AtomicTestingRemediations = () => {
   );
 
   const renderRuleBody = () => {
-    if (activeCollectorRemediations.length === 0) {
+    if (activePlatformRemediations.length === 0) {
       return renderEmptyRule();
     }
-    return activeCollectorRemediations.map((rem) => {
-      const content = (snapshot?.get(activeCollector.collector_type)?.AIRules) != null
-        ? (snapshot?.get(activeCollector.collector_type)?.AIRules)
+    return activePlatformRemediations.map((rem) => {
+      const content = (snapshot?.get(activePlatform.asset_id)?.AIRules) != null
+        ? (snapshot?.get(activePlatform.asset_id)?.AIRules)
         : rem.detection_remediation_values?.trim();
       if (!content) {
         return <Box key={'empty.' + rem.detection_remediation_id} sx={{ display: 'flex' }}>{renderEmptyRule()}</Box>;
@@ -285,7 +288,7 @@ const AtomicTestingRemediations = () => {
   };
 
   if (!(hasSecurityPlatformsAccess || injectId)) {
-    return <RestrictionAccess restrictedField="collectors" />;
+    return <RestrictionAccess restrictedField="security platforms" />;
   }
 
   if (loading) {
@@ -301,7 +304,7 @@ const AtomicTestingRemediations = () => {
           padding: 3,
         }}
       >
-        <Empty message={t('No collector configured.')} />
+        <Empty message={t('No security platform configured yet. Create one (including manual platforms) to document detection and remediation rules.')} />
       </Paper>
     );
   }
@@ -331,7 +334,7 @@ const AtomicTestingRemediations = () => {
           '& .MuiTab-root': {
             // The theme forces `display: inline-block` + lowercase on MuiTab for
             // its `::first-letter` trick; restore the flex row so the platform
-            // logo and name align, and keep the collector name capitalised.
+            // logo and name align, and keep the platform name capitalised.
             display: 'flex',
             flexDirection: 'row',
             textTransform: 'none',
@@ -346,13 +349,13 @@ const AtomicTestingRemediations = () => {
       >
         {tabs.map((tab, index) => (
           <Tab
-            key={tab.collector_type}
+            key={tab.asset_id}
             value={index}
             iconPosition="start"
             icon={(
               <img
-                src={buildTenantApiPath(`/api/collectors/${tab.collector_type}/image`)}
-                alt={tab.collector_type}
+                src={buildTenantApiPath(`/api/images/security_platforms/id/${tab.asset_id}/${theme.palette.mode}`)}
+                alt={tab.asset_name}
                 style={{
                   width: 20,
                   height: 20,
@@ -360,7 +363,7 @@ const AtomicTestingRemediations = () => {
                 }}
               />
             )}
-            label={<span style={{ textTransform: 'capitalize' }}>{tab.collector_name}</span>}
+            label={<span>{tab.asset_name}</span>}
           />
         ))}
       </Tabs>
@@ -384,10 +387,9 @@ const AtomicTestingRemediations = () => {
           <Typography sx={{
             fontSize: 15,
             fontWeight: 600,
-            textTransform: 'capitalize',
           }}
           >
-            {activeCollector?.collector_name}
+            {activePlatform?.asset_name}
           </Typography>
           {activeDetectionRemediation?.detection_remediation_values && (
             <DetectionRemediationInfo author_rule={activeDetectionRemediation?.detection_remediation_author_rule} />

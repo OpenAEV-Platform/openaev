@@ -5,7 +5,7 @@ import type {
   InjectorContractSearchPaginationInput, SearchPaginationInput,
   ThreatArsenalActionCreateInput, ThreatArsenalActionUpdateInput,
 } from '../../utils/api-types';
-import * as schema from '../Schema';
+import { arrayOfSecurityPlatforms } from '../assets/asset-schema';
 
 const THREAT_ARSENAL_URI = '/api/threat_arsenals';
 
@@ -68,9 +68,11 @@ export const fetchThreatArsenalFacetCounts = (input: SearchPaginationInput) => {
   return simplePostCall(`${THREAT_ARSENAL_URI}/facet-counts`, input);
 };
 
-export const fetchCollectorsForActionRemediation = (actionId: string) => (dispatch: Dispatch) => {
-  const uri = `${THREAT_ARSENAL_URI}/${actionId}/collectors`;
-  return getReferential(schema.arrayOfCollectors, uri)(dispatch);
+// Security platforms carrying detection remediations for this action (scoped
+// endpoint for users without the global security-platform read capability).
+export const fetchSecurityPlatformsForActionRemediation = (actionId: string) => (dispatch: Dispatch) => {
+  const uri = `${THREAT_ARSENAL_URI}/${actionId}/security-platforms`;
+  return getReferential(arrayOfSecurityPlatforms, uri)(dispatch);
 };
 
 export const exportThreatArsenalCsvMapper = (searchPaginationInput: SearchPaginationInput | undefined) => {

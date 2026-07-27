@@ -5,21 +5,23 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
 import io.openaev.api.expectations.ExpectationsDriftService;
+import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.api.expectations.dto.InjectExpectationOutput;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.atomic_testing.form.*;
-import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.UnprocessableContentException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.service.AtomicTestingService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectImportService;
+import io.openaev.service.detection_remediation.DetectionRemediationService;
+import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -47,7 +49,7 @@ public class AtomicTestingApi extends RestBehavior {
 
   private final AtomicTestingService atomicTestingService;
   private final InjectExpectationService injectExpectationService;
-  private final CollectorService collectorsService;
+  private final DetectionRemediationService detectionRemediationService;
   private final InjectImportService injectImportService;
   private final ExpectationsDriftService expectationsDriftService;
 
@@ -171,6 +173,24 @@ public class AtomicTestingApi extends RestBehavior {
   public ExpectationsRealignOutput realignAtomicTestingExpectations(
       @PathVariable @NotBlank final String injectId) {
     return expectationsDriftService.realignInject(injectId);
+  }
+
+  @Operation(
+      summary = "Dismiss or restore the expectation drift warning of an atomic testing",
+      description =
+          "Acknowledges that the drifted expectations were customized on purpose: the warning is"
+              + " downgraded to a discreet indicator. Persisted in database so the dismissal is"
+              + " shared between users, and reset on realignment")
+  @PutMapping("/{injectId}/expectations-drift/dismiss")
+  @Transactional
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.INJECT)
+  public ExpectationsDriftOutput dismissAtomicTestingExpectationsDrift(
+      @PathVariable @NotBlank final String injectId,
+      @Valid @RequestBody final ExpectationsDriftDismissInput input) {
+    return expectationsDriftService.dismissInjectDrift(injectId, input.dismissed());
   }
 
   @PostMapping("/{atomicTestingId}/launch")
@@ -297,21 +317,23 @@ public class AtomicTestingApi extends RestBehavior {
     return atomicTestingService.updateAtomicTestingTags(injectId, input);
   }
 
-  @GetMapping("/{injectId}/collectors")
+  @GetMapping("/{injectId}/security-platforms")
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  @Operation(summary = "Get the Collectors used in an atomic testing remediation")
+  @Operation(summary = "Get the Security platforms used in an atomic testing remediation")
   @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(
             responseCode = "200",
-            description = "The list of Collectors used in an atomic testing remediation")
+            description = "The list of Security platforms used in an atomic testing remediation")
       })
-  public List<Collector> collectorsFromAtomicTesting(@PathVariable String injectId) {
-    return collectorsService.collectorsForAtomicTesting(injectId);
+  public List<SecurityPlatformSimpleOutput> securityPlatformsFromAtomicTesting(
+      @PathVariable String injectId) {
+    return SecurityPlatformMapper.toSimpleOutputs(
+        detectionRemediationService.securityPlatformsForInject(injectId));
   }
 
   @PostMapping(

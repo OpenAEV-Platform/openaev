@@ -168,6 +168,14 @@ export const realignScenarioExpectations = (scenarioId: Scenario['scenario_id'])
   return simplePostCall(uri);
 };
 
+// Dismissal is stored in database (not local storage) so it is shared between
+// users. The generic success toast is disabled: the caller notifies with a
+// dismissal-specific message.
+export const dismissScenarioExpectationsDrift = (scenarioId: Scenario['scenario_id'], dismissed: boolean) => {
+  const uri = `${SCENARIO_URI}/${scenarioId}/expectations-drift/dismiss`;
+  return simplePutCall(uri, { dismissed }, undefined, true, false);
+};
+
 // -- RECURRENCE --
 
 export const updateScenarioRecurrence = (

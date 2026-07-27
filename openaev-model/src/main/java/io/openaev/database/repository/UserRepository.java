@@ -130,6 +130,8 @@ public interface UserRepository
               + "left join tags tg on usr_tg.tag_id = tg.tag_id "
               + "left join users_tenants ut on us.user_id = ut.user_id "
               + "where ut.tenant_id = :#{#tenantContext.currentTenant} "
+              // Reserved service/connector accounts are system users, never players.
+              + "and us.user_email not ilike '%@openaev.invalid' "
               + "group by us.user_id;",
       nativeQuery = true)
   List<RawPlayer> rawAllPlayers();

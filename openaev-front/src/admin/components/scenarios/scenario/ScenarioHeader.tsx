@@ -26,6 +26,7 @@ import { type ChallengeHelper } from '../../../../actions/helper';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import {
   createRunningExerciseFromScenario,
+  dismissScenarioExpectationsDrift,
   fetchScenarioExpectationsDrift,
   fetchScenarioTeams,
   realignScenarioExpectations,
@@ -194,6 +195,13 @@ const ScenarioHeader = ({
     dispatch(fetchScenarioInjectsSimple(scenarioId));
   };
 
+  // Dismissal is persisted in database (shared between users); the endpoint
+  // returns the refreshed drift report.
+  const onDismissExpectations = async (dismissed: boolean) => {
+    const result = await dismissScenarioExpectationsDrift(scenarioId, dismissed);
+    setExpectationsDrift(result.data);
+  };
+
   // The schedule chip / tooltip derive directly from the store: the dialog
   // owns its own form state.
   const cronObject = useMemo(() => handle(scenario.scenario_recurrence), [scenario.scenario_recurrence]);
@@ -263,12 +271,14 @@ const ScenarioHeader = ({
               {canManage && (
                 <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />
               )}
-              {/* Expectation drift warning - self-hides when aligned. */}
+              {/* Expectation drift warning - self-hides when aligned or dismissed. */}
               {canManage && (
                 <ExpectationsDriftIndicator
                   drift={expectationsDrift}
                   variant="scenario"
                   onRealign={onRealignExpectations}
+                  onDismiss={onDismissExpectations}
+                  placement="warning"
                 />
               )}
               {/* Configuration promoted to a first-class button (not buried in the
@@ -287,6 +297,17 @@ const ScenarioHeader = ({
                     {t('Configuration')}
                   </Button>
                 </Tooltip>
+              )}
+              {/* Dismissed drift downgraded to a discreet icon after Configuration -
+                  the drift is acknowledged but still reviewable. */}
+              {canManage && (
+                <ExpectationsDriftIndicator
+                  drift={expectationsDrift}
+                  variant="scenario"
+                  onRealign={onRealignExpectations}
+                  onDismiss={onDismissExpectations}
+                  placement="dismissed"
+                />
               )}
               {/* Secondary actions surfaced as compact icon buttons (with explicit
                   tooltips) instead of being buried in the overflow menu. */}

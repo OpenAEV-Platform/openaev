@@ -56,7 +56,7 @@ const buildInitialValues
   } => {
     const remediations: Record<string, DetectionRemediationForm> = {};
     action.action_detection_remediations?.forEach((remediation) => {
-      remediations[remediation.detection_remediation_collector_type ?? ''] = {
+      remediations[remediation.detection_remediation_security_platform ?? ''] = {
         content: remediation.detection_remediation_values ?? '',
         remediationId: remediation.detection_remediation_id ?? '',
         author_rule: remediation.author_rule,
@@ -157,7 +157,7 @@ const ThreatArsenalActionPopover = ({
         .map(([key, value]) => {
           const remediation = value as unknown as DetectionRemediationForm;
           return {
-            detection_remediation_collector: key,
+            detection_remediation_security_platform: key,
             detection_remediation_values: remediation.content,
             detection_remediation_id: remediation.remediationId,
             author_rule: remediation.author_rule,
@@ -251,7 +251,7 @@ const ThreatArsenalActionPopover = ({
         open={deletion}
         handleClose={handleCloseDelete}
         handleSubmit={submitDelete}
-        text={`${t('Do you want to delete this action: ')} ${name ?? actionId} ?`}
+        text={`${t('Do you want to delete this arsenal item: ')} ${name ?? actionId} ?`}
       />
 
       <Dialog
@@ -262,7 +262,7 @@ const ThreatArsenalActionPopover = ({
       >
         <DialogContent>
           <DialogContentText>
-            {t('Do you want to duplicate this action?')}
+            {t('Do you want to duplicate this arsenal item?')}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -274,7 +274,7 @@ const ThreatArsenalActionPopover = ({
       <Drawer
         open={openEdit}
         handleClose={handleCloseEdit}
-        title={`${t('Update the action :')} ${name}`}
+        title={`${t('Update the arsenal item :')} ${name}`}
       >
         <>
           {fetchedAction && !!payloadId && (

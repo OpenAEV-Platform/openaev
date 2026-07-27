@@ -33,6 +33,12 @@ public interface SecurityPlatformRepository
   Optional<SecurityPlatform> findByNameIgnoreCaseAndSecurityPlatformType(
       String name, SecurityPlatform.SECURITY_PLATFORM_TYPE securityPlatformType);
 
+  /**
+   * Case-insensitive exact-name lookup (smallest id wins for determinism): used by the V1 importer
+   * to re-attach detection remediations to an existing platform by name.
+   */
+  Optional<SecurityPlatform> findFirstByNameIgnoreCaseOrderByIdAsc(String name);
+
   Optional<SecurityPlatform> findByIdAndTenantId(String id, String tenantId);
 
   @Override

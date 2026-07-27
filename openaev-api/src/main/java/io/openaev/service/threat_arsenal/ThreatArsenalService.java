@@ -6,11 +6,10 @@ import static io.openaev.utils.ThreatArsenalFilterUtils.ENTITY_TO_ACTION_FIELDS;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.api.threat_arsenal.dto.*;
-import io.openaev.database.model.Collector;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
-import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.database.model.SecurityPlatform;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
@@ -26,6 +25,7 @@ import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpdateService;
 import io.openaev.schema.SchemaUtils;
 import io.openaev.schema.model.PropertySchemaDTO;
+import io.openaev.service.detection_remediation.DetectionRemediationService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
@@ -48,7 +48,7 @@ public class ThreatArsenalService {
   private final PayloadService payloadService;
   private final InjectorContractService injectorContractService;
   private final ThreatArsenalMapper threatArsenalMapper;
-  private final CollectorService collectorService;
+  private final DetectionRemediationService detectionRemediationService;
   private final BulkDeleteExecutor bulkDeleteExecutor;
 
   /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
@@ -199,24 +199,25 @@ public class ThreatArsenalService {
   }
 
   /**
-   * Retrieves the collectors associated with the remediation of a given action.
+   * Retrieves the security platforms associated with the remediation of a given action.
    *
-   * <p>Resolves the injector contract by the given action ID and fetches the collectors linked to
-   * the underlying payload. Only payload-based injector contracts are supported.
+   * <p>Resolves the injector contract by the given action ID and fetches the security platforms
+   * linked to the underlying payload's detection remediations. Only payload-based injector
+   * contracts are supported.
    *
    * @param actionId the action (injector contract) identifier
-   * @return the list of collectors associated with the action's payload
+   * @return the list of security platforms associated with the action's payload
    * @throws ElementNotFoundException if the injector contract is not payload-based
    */
-  public List<Collector> getCollectorsForActionRemediation(String actionId) {
+  public List<SecurityPlatform> getSecurityPlatformsForActionRemediation(String actionId) {
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
     Payload payload = injectorContract.getPayload();
     if (payload == null) {
       throw new ElementNotFoundException(
-          "Only payload-based threat arsenal items can provide collectors for action remediation.");
+          "Only payload-based threat arsenal items can provide security platforms for action remediation.");
     }
 
-    return collectorService.collectorsForPayload(payload.getId());
+    return detectionRemediationService.securityPlatformsForPayload(payload.getId());
   }
 
   /**

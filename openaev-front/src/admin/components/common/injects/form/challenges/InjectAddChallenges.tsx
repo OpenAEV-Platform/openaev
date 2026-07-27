@@ -1,25 +1,12 @@
 import { ControlPointOutlined, EmojiEventsOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Grid,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-} from '@mui/material';
+import { Box, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import * as R from 'ramda';
-import { type FunctionComponent, useState } from 'react';
+import { type FunctionComponent, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchChallenges } from '../../../../../../actions/challenge-action';
 import { type ChallengeHelper } from '../../../../../../actions/helper';
-import Transition from '../../../../../../components/common/Transition';
+import SelectListPicker, { type SelectListPickerElements } from '../../../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../../../components/i18n';
 import SearchFilter from '../../../../../../components/SearchFilter';
 import { useHelper } from '../../../../../../store';
@@ -27,18 +14,10 @@ import { type Challenge } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
 import { type Option } from '../../../../../../utils/Option';
-import { truncate } from '../../../../../../utils/String';
 import CreateChallenge from '../../../../components/challenges/CreateChallenge';
 import TagsFilter from '../../../filters/TagsFilter';
 
 const useStyles = makeStyles()(theme => ({
-  box: {
-    width: '100%',
-    minHeight: '100%',
-    padding: 20,
-    border: `1px dashed ${theme.palette.divider}`,
-  },
-  chip: { margin: '0 10px 10px 0' },
   icon: { minWidth: 30 },
   text: {
     fontSize: 15,
@@ -71,12 +50,9 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
   const { classes } = useStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const [open, setopen] = useState(false);
+  const [open, setOpen] = useState(false);
 
-  const { challenges, challengesMap } = useHelper((helper: ChallengeHelper) => ({
-    challenges: helper.getChallenges(),
-    challengesMap: helper.getChallengesMap(),
-  }));
+  const { challenges } = useHelper((helper: ChallengeHelper) => ({ challenges: helper.getChallenges() }));
 
   useDataLoader(() => {
     if (open) {
@@ -88,37 +64,21 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
   const [challengesIds, setChallengesIds] = useState<string[]>([]);
   const [tags, setTags] = useState<Option[]>([]);
 
-  const handleOpen = () => setopen(true);
+  const handleOpen = () => setOpen(true);
 
   const handleClose = () => {
-    setopen(false);
+    setOpen(false);
     setKeyword('');
     setChallengesIds([]);
   };
 
-  const handleSearchChallenges = (value?: string) => {
-    setKeyword(value || '');
-  };
-
-  const handleAddTag = (value: Option) => {
-    if (value) {
-      setTags([value]);
-    }
-  };
-
-  const handleClearTag = () => {
-    setTags([]);
-  };
-
-  const addChallenge = (challengeId: string) => {
-    setChallengesIds(R.append(challengeId, challengesIds));
-  };
-
-  const removeChallenge = (challengeId: string) => {
+  const toggleChallenge = (challengeId: string) => {
     if (challengesIds.includes(challengeId)) {
       setChallengesIds(challengesIds.filter(u => u !== challengeId));
     } else if (injectChallengesIds.includes(challengeId)) {
       handleRemoveChallenge(challengeId);
+    } else {
+      setChallengesIds(R.append(challengeId, challengesIds));
     }
   };
 
@@ -128,7 +88,7 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
   };
 
   const onCreate = (result: string) => {
-    addChallenge(result);
+    setChallengesIds(prev => [...prev, result]);
   };
 
   const filterByKeyword = (n: Challenge) => keyword === ''
@@ -149,8 +109,52 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
         ),
     ),
     R.filter(filterByKeyword),
-    R.take(10),
+    R.take(20),
   )(challenges);
+
+  const elements: SelectListPickerElements<Challenge> = useMemo(() => ({
+    icon: { value: () => <EmojiEventsOutlined /> },
+    headers: [
+      {
+        field: 'challenge_name',
+        label: 'Name',
+        isSortable: true,
+        value: (challenge: Challenge) => challenge.challenge_name,
+        width: 60,
+      },
+      {
+        field: 'challenge_category',
+        label: 'Category',
+        isSortable: true,
+        value: (challenge: Challenge) => challenge.challenge_category ?? '',
+        width: 40,
+      },
+    ],
+  }), []);
+
+  const headerComponent = (
+    <Box sx={{
+      display: 'flex',
+      gap: 1,
+    }}
+    >
+      <SearchFilter
+        onChange={(value?: string) => setKeyword(value || '')}
+        fullWidth
+      />
+      <TagsFilter
+        onAddTag={(value: Option) => {
+          if (value) {
+            setTags([value]);
+          }
+        }}
+        onClearTag={() => setTags([])}
+        currentTags={tags}
+        fullWidth
+      />
+    </Box>
+  );
+
   return (
     <>
       <ListItemButton
@@ -167,101 +171,27 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
           classes={{ primary: error ? classes.textError : classes.text }}
         />
       </ListItemButton>
-      <Dialog
+      {/* Inline dialog: the inject form is already a drawer (never drawer over drawer). */}
+      <SelectListPicker<Challenge>
         open={open}
-        slots={{ transition: Transition }}
         onClose={handleClose}
-        fullWidth
-        maxWidth="lg"
-        slotProps={{
-          paper: {
-            elevation: 1,
-            sx: {
-              minHeight: 580,
-              maxHeight: 580,
-            },
-          },
-        }}
-      >
-        <DialogTitle>{t('Add challenge in this inject')}</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 8 }}>
-              <Grid container spacing={3}>
-                <Grid size={{ xs: 6 }}>
-                  <SearchFilter
-                    onChange={handleSearchChallenges}
-                    fullWidth
-                  />
-                </Grid>
-                <Grid size={{ xs: 6 }}>
-                  <TagsFilter
-                    onAddTag={handleAddTag}
-                    onClearTag={handleClearTag}
-                    currentTags={tags}
-                    fullWidth
-                  />
-                </Grid>
-              </Grid>
-              <List>
-                {filteredChallenges.map((challenge: Challenge) => {
-                  const disabled = challengesIds.includes(challenge.challenge_id)
-                    || injectChallengesIds.includes(challenge.challenge_id);
-                  return (
-                    (
-                      <ListItemButton
-                        key={challenge.challenge_id}
-                        disabled={disabled}
-                        divider
-                        dense
-                        onClick={() => addChallenge(challenge.challenge_id)}
-                      >
-                        <ListItemIcon>
-                          <EmojiEventsOutlined />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={challenge.challenge_name}
-                          secondary={challenge.challenge_category}
-                        />
-                      </ListItemButton>
-                    )
-                  );
-                })}
-                <CreateChallenge
-                  inline
-                  onCreate={onCreate}
-                />
-              </List>
-            </Grid>
-            <Grid size={{ xs: 4 }}>
-              <Box className={classes.box}>
-                {[...injectChallengesIds, ...challengesIds].map((challengeId) => {
-                  const challenge = challengesMap[challengeId];
-                  return (
-                    <Chip
-                      key={challengeId}
-                      onDelete={() => removeChallenge(challengeId)}
-                      label={truncate(challenge?.challenge_name || '', 22)}
-                      icon={<EmojiEventsOutlined />}
-                      classes={{ root: classes.chip }}
-                    />
-                  );
-                })}
-              </Box>
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleClose}>{t('Cancel')}</Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={submitAddChallenges}
-          >
-            {t('Add')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onSubmit={submitAddChallenges}
+        title={t('Add challenge in this inject')}
+        submitLabel={t('Add')}
+        inline
+        headerComponent={headerComponent}
+        values={filteredChallenges}
+        elements={elements}
+        selectedIds={[...injectChallengesIds, ...challengesIds]}
+        onToggle={toggleChallenge}
+        getId={element => element.challenge_id}
+        buttonComponent={(
+          <CreateChallenge
+            inline
+            onCreate={onCreate}
+          />
+        )}
+      />
     </>
   );
 };

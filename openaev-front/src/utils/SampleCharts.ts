@@ -70,6 +70,29 @@ export const sampleSuccessRateSeries = (
   }];
 };
 
+/** Weekly activity-count sample: one gently varying series over 8 weeks. */
+export const sampleCountOverTimeSeries = (
+  name: string,
+  theme: Theme,
+): {
+  name: string;
+  color: string;
+  data: {
+    x: string;
+    y: number;
+  }[];
+}[] => {
+  const values = [2, 5, 3, 8, 6, 11, 9, 14];
+  return [{
+    name,
+    color: theme.palette.primary.main,
+    data: values.map((y, pointIndex) => ({
+      x: weeklyDate(values.length - 1 - pointIndex),
+      y,
+    })),
+  }];
+};
+
 /** Cumulative score-over-time sample: two ascending series over 8 weeks. */
 export const sampleScoreOverTimeSeries = (
   names: [string, string],

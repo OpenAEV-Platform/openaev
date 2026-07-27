@@ -61,7 +61,6 @@ public class DetectionRemediationApi {
         @ApiResponse(
             responseCode = "500",
             description = "Illegal value, AI Webservice available only for empty content"),
-        @ApiResponse(responseCode = "500", description = "Illegal value collector type unknow"),
         @ApiResponse(responseCode = "500", description = "Enterprise Edition is not available"),
         @ApiResponse(
             responseCode = "501",
@@ -71,20 +70,19 @@ public class DetectionRemediationApi {
             description = "Web service is not deployed on this instance"),
         @ApiResponse(
             responseCode = "501",
-            description = "AI Webservice for collector type microsoft defender not implemented"),
-        @ApiResponse(
-            responseCode = "501",
-            description = "AI Webservice for collector type microsoft sentinel not implemented")
+            description = "AI Webservice for this security platform not implemented"),
+        @ApiResponse(responseCode = "404", description = "Security platform not found")
       })
   @PostMapping({
-    DETECTION_REMEDIATION_URI + "/rules/{collectorType}",
-    TENANT_DETECTION_REMEDIATION_URI + "/rules/{collectorType}"
+    DETECTION_REMEDIATION_URI + "/rules/{securityPlatformId}",
+    TENANT_DETECTION_REMEDIATION_URI + "/rules/{securityPlatformId}"
   })
   @Transactional
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.THREAT_ARSENAL)
   public ResponseEntity<DetectionRemediationAIOutput> postRuleDetectionRemediation(
-      @PathVariable @NotBlank final String collectorType, @Valid @RequestBody PayloadInput input) {
+      @PathVariable @NotBlank final String securityPlatformId,
+      @Valid @RequestBody PayloadInput input) {
     if (input.getType().equals(FileDrop.FILE_DROP_TYPE)
         || input.getType().equals(Executable.EXECUTABLE_TYPE))
       throw new ResponseStatusException(
@@ -92,7 +90,8 @@ public class DetectionRemediationApi {
           "AI Webservice for FileDrop or Executable File not implemented");
 
     String rules =
-        getRulesDetectionRemediationByCollector(input, collectorType, input.getAgentSlug());
+        getRulesDetectionRemediationBySecurityPlatform(
+            input, securityPlatformId, input.getAgentSlug());
 
     DetectionRemediationAIOutput detectionRemediationAIOutput =
         DetectionRemediationAIOutput.builder().rules(rules).build();
@@ -100,12 +99,12 @@ public class DetectionRemediationApi {
     return ResponseEntity.ok(detectionRemediationAIOutput);
   }
 
-  private String getRulesDetectionRemediationByCollector(
-      PayloadInput input, String collectorType, String agentSlug) {
+  private String getRulesDetectionRemediationBySecurityPlatform(
+      PayloadInput input, String securityPlatformId, String agentSlug) {
 
     Optional<DetectionRemediationInput> currentDetectionRemediation =
         input.getDetectionRemediations().stream()
-            .filter(remediation -> remediation.getCollectorType().equals(collectorType))
+            .filter(remediation -> remediation.getSecurityPlatformId().equals(securityPlatformId))
             .findFirst();
 
     if (currentDetectionRemediation.isPresent()) {
@@ -114,7 +113,7 @@ public class DetectionRemediationApi {
         throw new IllegalStateException("AI Webservice available only for empty content");
     }
     return detectionRemediationService.getRulesDetectionRemediationAI(
-        input, collectorType, agentSlug);
+        input, securityPlatformId, agentSlug);
   }
 
   @Operation(summary = "Get detection and remediation rule by inject using AI")
@@ -130,7 +129,6 @@ public class DetectionRemediationApi {
         @ApiResponse(
             responseCode = "500",
             description = "Illegal value, AI Webservice available only for empty content"),
-        @ApiResponse(responseCode = "500", description = "Illegal value collector type unknow"),
         @ApiResponse(responseCode = "500", description = "Enterprise Edition is not available"),
         @ApiResponse(
             responseCode = "501",
@@ -140,25 +138,23 @@ public class DetectionRemediationApi {
             description = "Web service is not deployed on this instance"),
         @ApiResponse(
             responseCode = "501",
-            description = "AI Webservice for collector type microsoft defender not implemented"),
-        @ApiResponse(
-            responseCode = "501",
-            description = "AI Webservice for collector type microsoft sentinel not implemented"),
+            description = "AI Webservice for this security platform not implemented"),
         @ApiResponse(
             responseCode = "404",
-            description = "Collector not found with type {collectorType}")
+            description = "Security platform not found with id {securityPlatformId}")
       })
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.THREAT_ARSENAL)
   @PostMapping({
-    DETECTION_REMEDIATION_URI + "/rules/inject/{injectId}/collector/{collectorType}",
-    TENANT_DETECTION_REMEDIATION_URI + "/rules/inject/{injectId}/collector/{collectorType}"
+    DETECTION_REMEDIATION_URI + "/rules/inject/{injectId}/security-platform/{securityPlatformId}",
+    TENANT_DETECTION_REMEDIATION_URI
+        + "/rules/inject/{injectId}/security-platform/{securityPlatformId}"
   })
   @Transactional
   public ResponseEntity<DetectionRemediationOutput>
-      postRuleDetectionRemediationByInjectIdAndCollectorType(
+      postRuleDetectionRemediationByInjectIdAndSecurityPlatformId(
           @PathVariable @NotBlank String injectId,
-          @PathVariable @NotBlank String collectorType,
+          @PathVariable @NotBlank String securityPlatformId,
           @RequestParam(value = "agent_slug", required = false) String agentSlug) {
 
     Inject inject = injectService.inject(injectId);
@@ -175,8 +171,8 @@ public class DetectionRemediationApi {
 
     List<DetectionRemediation> detectionRemediations = payload.getDetectionRemediations();
     DetectionRemediation detectionRemediation =
-        detectionRemediationService.getOrCreateDetectionRemediationWithAIRulesByCollector(
-            detectionRemediations, payload, collectorType, attackPatterns, agentSlug);
+        detectionRemediationService.getOrCreateDetectionRemediationWithAIRulesBySecurityPlatform(
+            detectionRemediations, payload, securityPlatformId, attackPatterns, agentSlug);
 
     DetectionRemediationOutput detectionRemediationOutput =
         PayloadMapper.toDetectionRemediationOutput(detectionRemediation);

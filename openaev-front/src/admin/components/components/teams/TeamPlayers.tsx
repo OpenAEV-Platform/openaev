@@ -1,5 +1,5 @@
-import { ArrowDropDownOutlined, ArrowDropUpOutlined, CloseRounded, EmailOutlined, KeyOutlined, PersonOutlined, SmartphoneOutlined } from '@mui/icons-material';
-import { IconButton, List, ListItem, ListItemIcon, ListItemText, Typography } from '@mui/material';
+import { ArrowDropDownOutlined, ArrowDropUpOutlined, EmailOutlined, KeyOutlined, PersonOutlined, SmartphoneOutlined } from '@mui/icons-material';
+import { Box, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -8,6 +8,7 @@ import { type OrganizationHelper, type UserHelper } from '../../../../actions/he
 import { fetchOrganizations } from '../../../../actions/Organization';
 import { fetchTeam, fetchTeamPlayers } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
+import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import ItemBoolean from '../../../../components/ItemBoolean';
 import ItemTags from '../../../../components/ItemTags';
@@ -23,31 +24,7 @@ import { type UserStore } from '../../teams/players/Player';
 import PlayerPopover from '../../teams/players/PlayerPopover';
 import TeamAddPlayers from './TeamAddPlayers';
 
-const useStyles = makeStyles()(theme => ({
-  header: {
-    backgroundColor: theme.palette.background.nav,
-    padding: '20px 20px 20px 60px',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 12,
-    left: 5,
-    color: 'inherit',
-  },
-  title: { float: 'left' },
-  search: {
-    float: 'right',
-    width: 200,
-    marginRight: 20,
-  },
-  tags: { float: 'right' },
-  parameters: {
-    float: 'right',
-    marginTop: -8,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-  },
+const useStyles = makeStyles()(() => ({
   container: { marginTop: 10 },
   itemHead: {
     textTransform: 'uppercase',
@@ -240,22 +217,33 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage 
   };
 
   return (
-    <>
-      <div className={classes.header}>
-        <IconButton
-          aria-label="Close"
-          className={classes.closeButton}
-          onClick={handleClose}
-          size="large"
-          color="primary"
+    <Drawer
+      open
+      handleClose={handleClose}
+      title={R.propOr('-', 'team_name', team)}
+    >
+      <>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1.5,
+            marginTop: 1,
+          }}
         >
-          <CloseRounded fontSize="small" color="primary" />
-        </IconButton>
-        <Typography variant="h6" classes={{ root: classes.title }}>
-          {R.propOr('-', 'team_name', team)}
-        </Typography>
-        <div className={classes.parameters}>
-          <div className={classes.tags}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+            }}
+          >
+            <SearchFilter
+              variant="thin"
+              onChange={(value?: string) => setKeyword(value || '')}
+              keyword={keyword}
+            />
             <TagsFilter
               onAddTag={(value: Option) => {
                 if (value) {
@@ -268,160 +256,152 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage 
               currentTags={tags}
               thin={true}
             />
-          </div>
-          <div className={classes.search}>
-            <SearchFilter
-              fullWidth={true}
-              onChange={(value?: string) => setKeyword(value || '')}
-              keyword={keyword}
-            />
-          </div>
+          </Box>
           {canManage && (
             <TeamAddPlayers
               teamId={teamId}
               addedUsersIds={users.filter(u => !!u).map(u => u.user_id)}
             />
           )}
-        </div>
-        <div className="clearfix" />
-      </div>
-      <List classes={{ root: classes.container }}>
-        <ListItem
-          classes={{ root: classes.itemHead }}
-          divider={false}
-          style={{ paddingTop: 0 }}
-          secondaryAction={<span> &nbsp; </span>}
-        >
-          <ListItemIcon>
-            <span
-              style={{
-                padding: '0 8px 0 8px',
-                fontWeight: 700,
-                fontSize: 12,
-              }}
-            >
-                &nbsp;
-            </span>
-          </ListItemIcon>
-          <ListItemText
-            primary={(
-              <>
-                {onToggleUser && sortHeader('user_enabled', 'Enabled', true)}
-                {sortHeader('user_email', 'Email address', true)}
-                {sortHeader('user_options', 'Options', false)}
-                {sortHeader('user_organization', 'Organization', true)}
-                {sortHeader('user_tags', 'Tags', true)}
-              </>
-            )}
-          />
-        </ListItem>
-        {sortedUsers.map(user => (
+        </Box>
+        <List classes={{ root: classes.container }}>
           <ListItem
-            key={user.user_id}
-            classes={{ root: classes.item }}
-            divider
-            secondaryAction={canManage
-              ? (<PlayerPopover user={user} teamId={teamId} />)
-              : <span> &nbsp; </span>}
+            classes={{ root: classes.itemHead }}
+            divider={false}
+            style={{ paddingTop: 0 }}
+            secondaryAction={<span> &nbsp; </span>}
           >
             <ListItemIcon>
-              <PersonOutlined />
+              <span
+                style={{
+                  padding: '0 8px 0 8px',
+                  fontWeight: 700,
+                  fontSize: 12,
+                }}
+              >
+                &nbsp;
+              </span>
             </ListItemIcon>
             <ListItemText
               primary={(
                 <>
-                  {onToggleUser && (
-                    <div
-                      className={classes.bodyItem}
-                      style={{
-                        ...inlineStyles.user_enabled,
-                        ...(canManage ? inlineStyles.clickable : {}),
-                      }}
-                      onClick={() => canManage && onToggleUser(teamId, user.user_id, user.user_enabled)}
-                    >
-                      <ItemBoolean
-                        status={user.user_enabled}
-                        label={user.user_enabled ? t('Enabled') : t('Disabled')}
-                        variant="inList"
-                      />
-                    </div>
-                  )}
-                  <div
-                    className={classes.bodyItem}
-                    style={inlineStyles.user_email}
-                  >
-                    {user.user_email}
-                  </div>
-                  <div
-                    className={classes.bodyItem}
-                    style={inlineStyles.user_options}
-                  >
-                    {R.isNil(user.user_email)
-                      || R.isEmpty(user.user_email) ? (
-                          <EmailOutlined
-                            color="warning"
-                            fontSize="small"
-                            className={classes.icon}
-                          />
-                        ) : (
-                          <EmailOutlined
-                            color="success"
-                            fontSize="small"
-                            className={classes.icon}
-                          />
-                        )}
-                    {R.isNil(user.user_pgp_key)
-                      || R.isEmpty(user.user_pgp_key) ? (
-                          <KeyOutlined
-                            color="warning"
-                            fontSize="small"
-                            className={classes.icon}
-                          />
-                        ) : (
-                          <KeyOutlined
-                            color="success"
-                            fontSize="small"
-                            className={classes.icon}
-                          />
-                        )}
-                    {R.isNil(user.user_phone)
-                      || R.isEmpty(user.user_phone) ? (
-                          <SmartphoneOutlined
-                            color="warning"
-                            fontSize="small"
-                            className={classes.icon}
-                          />
-                        ) : (
-                          <SmartphoneOutlined
-                            color="success"
-                            fontSize="small"
-                            className={classes.icon}
-                          />
-                        )}
-                  </div>
-                  <div
-                    className={classes.bodyItem}
-                    style={inlineStyles.user_organization}
-                  >
-                    {
-                      user.user_organization
-                      && organizationsMap?.[user.user_organization]
-                        ?.organization_name
-                    }
-                  </div>
-                  <div
-                    className={classes.bodyItem}
-                    style={inlineStyles.user_tags}
-                  >
-                    <ItemTags variant="reduced-view" tags={user.user_tags} />
-                  </div>
+                  {onToggleUser && sortHeader('user_enabled', 'Enabled', true)}
+                  {sortHeader('user_email', 'Email address', true)}
+                  {sortHeader('user_options', 'Options', false)}
+                  {sortHeader('user_organization', 'Organization', true)}
+                  {sortHeader('user_tags', 'Tags', true)}
                 </>
               )}
             />
           </ListItem>
-        ))}
-      </List>
-    </>
+          {sortedUsers.map(user => (
+            <ListItem
+              key={user.user_id}
+              classes={{ root: classes.item }}
+              divider
+              secondaryAction={canManage
+                ? (<PlayerPopover user={user} teamId={teamId} />)
+                : <span> &nbsp; </span>}
+            >
+              <ListItemIcon>
+                <PersonOutlined />
+              </ListItemIcon>
+              <ListItemText
+                primary={(
+                  <>
+                    {onToggleUser && (
+                      <div
+                        className={classes.bodyItem}
+                        style={{
+                          ...inlineStyles.user_enabled,
+                          ...(canManage ? inlineStyles.clickable : {}),
+                        }}
+                        onClick={() => canManage && onToggleUser(teamId, user.user_id, user.user_enabled)}
+                      >
+                        <ItemBoolean
+                          status={user.user_enabled}
+                          label={user.user_enabled ? t('Enabled') : t('Disabled')}
+                          variant="inList"
+                        />
+                      </div>
+                    )}
+                    <div
+                      className={classes.bodyItem}
+                      style={inlineStyles.user_email}
+                    >
+                      {user.user_email}
+                    </div>
+                    <div
+                      className={classes.bodyItem}
+                      style={inlineStyles.user_options}
+                    >
+                      {R.isNil(user.user_email)
+                        || R.isEmpty(user.user_email) ? (
+                            <EmailOutlined
+                              color="warning"
+                              fontSize="small"
+                              className={classes.icon}
+                            />
+                          ) : (
+                            <EmailOutlined
+                              color="success"
+                              fontSize="small"
+                              className={classes.icon}
+                            />
+                          )}
+                      {R.isNil(user.user_pgp_key)
+                        || R.isEmpty(user.user_pgp_key) ? (
+                            <KeyOutlined
+                              color="warning"
+                              fontSize="small"
+                              className={classes.icon}
+                            />
+                          ) : (
+                            <KeyOutlined
+                              color="success"
+                              fontSize="small"
+                              className={classes.icon}
+                            />
+                          )}
+                      {R.isNil(user.user_phone)
+                        || R.isEmpty(user.user_phone) ? (
+                            <SmartphoneOutlined
+                              color="warning"
+                              fontSize="small"
+                              className={classes.icon}
+                            />
+                          ) : (
+                            <SmartphoneOutlined
+                              color="success"
+                              fontSize="small"
+                              className={classes.icon}
+                            />
+                          )}
+                    </div>
+                    <div
+                      className={classes.bodyItem}
+                      style={inlineStyles.user_organization}
+                    >
+                      {
+                        user.user_organization
+                        && organizationsMap?.[user.user_organization]
+                          ?.organization_name
+                      }
+                    </div>
+                    <div
+                      className={classes.bodyItem}
+                      style={inlineStyles.user_tags}
+                    >
+                      <ItemTags variant="reduced-view" tags={user.user_tags} />
+                    </div>
+                  </>
+                )}
+              />
+            </ListItem>
+          ))}
+        </List>
+      </>
+    </Drawer>
   );
 };
 

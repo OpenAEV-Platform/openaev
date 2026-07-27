@@ -526,6 +526,60 @@ public class InjectExpectationService {
     return new ArrayList<>();
   }
 
+  // -- PARENT EXPECTATIONS (SCORE DERIVED FROM CHILDREN) --
+
+  /**
+   * Whether the expectation is a PARENT whose score is derived from its children (an asset-level
+   * expectation whose asset has agent expectations, or an asset-group-level expectation) rather
+   * than answered directly by a collector or a user.
+   *
+   * @param expectation the technical expectation to check
+   * @return {@code true} if the expectation score must be rolled up from children
+   */
+  public boolean isParentTechnicalExpectation(
+      @NotNull final TechnicalInjectExpectation expectation) {
+    return isAssetGroupExpectation(expectation)
+        || (isAssetExpectation(expectation)
+            && !getAgentsExpectationsForAsset(expectation).isEmpty());
+  }
+
+  /**
+   * Recomputes the score of a PARENT technical expectation (asset level with agent children, or
+   * asset group level) from its current children, without writing any direct result on it.
+   *
+   * <p>Used by the expectations expiration manager: a parent expectation must ALWAYS reflect its
+   * children. When the parent score is still null at expiration time but its agents were already
+   * answered by a security platform (e.g. Microsoft Defender answered PREVENTED/DETECTED), the
+   * parent must roll up to that green verdict instead of being independently forced to a failed
+   * score - otherwise the asset shows "Not prevented" while its only agent shows "Prevented",
+   * corrupting the asset/asset-group verdicts and every statistic built on them.
+   *
+   * <p>If the children are still unanswered, the parent score stays null (pending): it will be
+   * resolved by a later propagation or a later expiration run, never wrongly failed.
+   *
+   * @param parent the parent expectation to recompute
+   * @return the recomputed parent expectations (already saved), empty when the expectation is not a
+   *     recomputable parent
+   */
+  public List<BaseInjectExpectation> recomputeParentTechnicalExpectation(
+      @NotNull final TechnicalInjectExpectation parent) {
+    List<BaseInjectExpectation> recomputed = new ArrayList<>();
+    if (isAssetGroupExpectation(parent)) {
+      recomputed.addAll(propagateToAssetGroup(parent, null));
+    } else if (isAssetExpectation(parent) && !getAgentsExpectationsForAsset(parent).isEmpty()) {
+      recomputed.addAll(propagateToAsset(parent, null));
+    }
+    if (!recomputed.isEmpty()) {
+      this.injectExpectationRepository.saveAll(recomputed);
+      Exercise exercise = parent.getInject().getExercise();
+      if (exercise != null) {
+        securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
+            List.of(exercise));
+      }
+    }
+    return recomputed;
+  }
+
   // -- UPDATE FROM EXTERNAL SOURCE : COLLECTORS --
 
   /**

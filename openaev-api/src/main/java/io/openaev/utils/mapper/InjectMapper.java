@@ -110,7 +110,8 @@ public class InjectMapper {
   /**
    * Converts a single raw database result array to a target simple DTO.
    *
-   * @param target array containing [exerciseId, targetId, targetName]
+   * @param target array containing [contextId, targetId, targetName] and, for asset rows,
+   *     optionally [assetCategory, endpointPlatform] used client-side to pick the correct icon
    * @param type the type of target
    * @return the target simple DTO
    */
@@ -119,6 +120,8 @@ public class InjectMapper {
         .id((String) target[1])
         .name((String) target[2])
         .type(type)
+        .category(target.length > 3 ? (String) target[3] : null)
+        .subtype(target.length > 4 ? (String) target[4] : null)
         .build();
   }
 

@@ -1,14 +1,12 @@
 import { BlockOutlined, GppMaybeOutlined, HelpOutlineOutlined, KeyboardArrowRight, ShieldOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type ApexOptions } from 'apexcharts';
 import { type CSSProperties, type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { fetchSecurityPlatform } from '../../../../actions/assets/securityPlatform-actions';
-import { adHocEntities, adHocSeries } from '../../../../actions/dashboards/dashboard-action';
+import { adHocEntities } from '../../../../actions/dashboards/dashboard-action';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import Chart from '../../../../components/Chart';
 import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, SectionBlock, SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
 import { buildFilter, generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
@@ -32,7 +30,6 @@ import {
   type EsBase,
   type EsEntities,
   type EsInjectExpectation,
-  type EsSeries,
   type Filter,
   type FilterGroup,
   type SearchPaginationInput,
@@ -40,14 +37,13 @@ import {
   type SortField,
   type Widget,
 } from '../../../../utils/api-types';
-import { sampleSuccessRateSeries } from '../../../../utils/SampleCharts';
 import { computeInjectExpectationLabel, computeStatusStyle } from '../../../../utils/statusUtils';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import expectationIconByType, { expectationTypeIcon } from '../../common/ExpectationIconByType';
 import ExpectationTypeChip from '../../workspaces/custom_dashboards/widgets/viz/list/elements/ExpectationTypeChip';
 import { getNavigationUrl } from '../../workspaces/custom_dashboards/widgets/viz/list/elements/ListNavigationHandler';
-import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import PostureScore from '../PostureScore';
+import PostureScoreOverTimeChart from '../statistics/PostureScoreOverTimeChart';
 import useExpectationPosture from '../useExpectationPosture';
 import SecurityPlatformPopover from './SecurityPlatformPopover';
 import isCollectorManaged from './securityPlatformUtils';
@@ -73,8 +69,8 @@ const rate = (success: number, failed: number) => {
 };
 
 // Full-page overview for a single security platform: identity, posture KPIs,
-// a prevention/detection performance trend over time, and the latest expectations
-// this platform missed - all fed by the dashboard engine scoped to this platform.
+// the posture score trend over time, and the latest expectations this
+// platform missed - all fed by the dashboard engine scoped to this platform.
 const SecurityPlatformDetail: FunctionComponent = () => {
   const { t, fldt, nsdt } = useFormatter();
   const theme = useTheme();
@@ -97,36 +93,8 @@ const SecurityPlatformDetail: FunctionComponent = () => {
 
   // -- KPIs + posture: per-pillar SUCCESS vs FAILED, shared with the asset hero
   const posture = useExpectationPosture(PLATFORM_FILTER_KEY, securityPlatformId, 'contains');
-  // -- Trend: temporal SUCCESS vs FAILED
-  const [trend, setTrend] = useState<EsSeries[] | null>(null);
   // -- Latest expectations (standard paginated list, dashboard look & feel)
   const [missed, setMissed] = useState<EsBase[]>([]);
-
-  useEffect(() => {
-    const expectation = (extra: Filter[]) => group(filter('base_entity', ['expectation-inject']), platformFilter, ...extra);
-
-    const trendConfig = {
-      title: '',
-      series: [
-        {
-          name: 'SUCCESS',
-          filter: expectation([filter('inject_expectation_status', ['SUCCESS'])]),
-        },
-        {
-          name: 'FAILED',
-          filter: expectation([filter('inject_expectation_status', ['FAILED'])]),
-        },
-      ],
-      mode: 'temporal',
-      stacked: false,
-      interval: 'week',
-      widget_configuration_type: 'temporal-histogram',
-      time_range: 'ALL_TIME',
-      date_attribute: 'base_created_at',
-    } as unknown as Widget['widget_config'];
-
-    adHocSeries(trendConfig).then((r: { data: EsSeries[] }) => setTrend(r.data)).catch(() => setTrend([]));
-  }, [securityPlatformId, platformFilter]);
 
   // Latest expectations: standard app list (sort headers + plain line items)
   // driven by the standard search / filters / pagination toolbar. The runtime
@@ -311,100 +279,6 @@ const SecurityPlatformDetail: FunctionComponent = () => {
     };
   }, [posture]);
 
-  const trendSeries = useMemo(() => {
-    if (!trend) return [];
-    const success = trend.find(s => s.label === 'SUCCESS');
-    const failed = trend.find(s => s.label === 'FAILED');
-    const at = (serie: EsSeries | undefined, key: string) => (serie?.data ?? []).find(d => d.key === key)?.value ?? 0;
-    const keys = [...new Set([
-      ...(success?.data ?? []).map(d => d.key ?? ''),
-      ...(failed?.data ?? []).map(d => d.key ?? ''),
-    ])].filter(Boolean).sort();
-    return [{
-      name: t('Success rate'),
-      data: keys.map((key) => {
-        const s = at(success, key);
-        const f = at(failed, key);
-        const total = s + f;
-        return {
-          x: key,
-          y: total === 0 ? 0 : Math.round((s / total) * 100),
-        };
-      }),
-    }];
-  }, [trend, t]);
-
-  const hasTrend = trendSeries.length > 0 && trendSeries[0].data.length > 0;
-
-  const chartOptions: ApexOptions = useMemo(() => ({
-    chart: {
-      type: 'area',
-      background: 'transparent',
-      toolbar: { show: false },
-      zoom: { enabled: false },
-      foreColor: theme.palette.text.secondary,
-      fontFamily: '"IBM Plex Sans", sans-serif',
-      parentHeightOffset: 0,
-    },
-    theme: { mode: theme.palette.mode },
-    colors: [theme.palette.success.main],
-    dataLabels: { enabled: false },
-    stroke: {
-      curve: 'smooth',
-      width: 2.5,
-      lineCap: 'round',
-    },
-    fill: {
-      type: 'gradient',
-      gradient: {
-        shadeIntensity: 1,
-        opacityFrom: 0.3,
-        opacityTo: 0,
-        stops: [0, 95],
-      },
-    },
-    markers: {
-      size: trendSeries[0]?.data.length <= 1 ? 5 : 0,
-      strokeWidth: 2,
-      strokeColors: theme.palette.background.paper,
-      hover: { size: 6 },
-    },
-    grid: {
-      borderColor: alpha(theme.palette.text.primary, 0.08),
-      strokeDashArray: 4,
-      xaxis: { lines: { show: false } },
-      yaxis: { lines: { show: true } },
-    },
-    xaxis: {
-      type: 'category',
-      tickPlacement: 'on',
-      axisBorder: { show: false },
-      axisTicks: { show: false },
-      labels: {
-        rotate: 0,
-        hideOverlappingLabels: true,
-        formatter: (value: string) => (value ? nsdt(value) : value),
-        style: { fontSize: '11px' },
-      },
-      tooltip: { enabled: false },
-    },
-    yaxis: {
-      min: 0,
-      max: 100,
-      tickAmount: 5,
-      labels: {
-        formatter: (value: number) => `${Math.round(value)}%`,
-        style: { fontSize: '11px' },
-      },
-    },
-    tooltip: {
-      theme: theme.palette.mode,
-      x: { formatter: (value: number | string) => (value ? nsdt(String(value)) : String(value)) },
-      y: { formatter: (value: number) => `${Math.round(value)}%` },
-    },
-    noData: { text: t('No data to display') },
-  }), [theme, trendSeries, nsdt, t]);
-
   if (loading) {
     return <Loader />;
   }
@@ -518,23 +392,15 @@ const SecurityPlatformDetail: FunctionComponent = () => {
           <Field label={t('Creation date')}>{fldt(platform.asset_created_at)}</Field>
           <Field label={t('Update date')}>{fldt(platform.asset_updated_at)}</Field>
         </InformationGrid>
-        <SectionBlock title={t('Performance over time')}>
-          {(() => {
-            if (trend === null) return <Loader variant="inElement" />;
-            // No results yet: preview the chart with greyed-out sample data
-            // (platform-wide convention) instead of a bare empty message.
-            return (
-              <SamplePreview active={!hasTrend}>
-                <Chart
-                  options={chartOptions}
-                  series={hasTrend ? trendSeries : sampleSuccessRateSeries(t('Success rate'), theme)}
-                  type="area"
-                  width="100%"
-                  height={280}
-                />
-              </SamplePreview>
-            );
-          })()}
+        <SectionBlock title={t('Posture score over time')}>
+          {/* Same SUCCESS / FAILED ratio as the hero posture score, plotted
+              weekly - shared chart with the asset & asset group Statistics tabs. */}
+          <PostureScoreOverTimeChart
+            scopeField={PLATFORM_FILTER_KEY}
+            entityId={securityPlatformId}
+            scopeOperator="contains"
+            height={280}
+          />
         </SectionBlock>
       </DetailSections>
 

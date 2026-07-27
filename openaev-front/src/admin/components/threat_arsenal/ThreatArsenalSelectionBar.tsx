@@ -57,7 +57,7 @@ const ThreatArsenalSelectionBar: FunctionComponent<Props> = ({
         }}
         >
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            {count === 1 ? t('1 action selected') : t('{count} actions selected', { count })}
+            {count === 1 ? t('1 arsenal item selected') : t('{count} arsenal items selected', { count })}
           </Typography>
           {totalElements > 0 && (
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>

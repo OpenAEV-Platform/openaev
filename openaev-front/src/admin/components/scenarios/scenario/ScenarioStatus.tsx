@@ -26,7 +26,10 @@ const useStyles = makeStyles()(() => ({
 }));
 
 interface Props {
-  scenario: Scenario;
+  scenario?: Scenario;
+  // Direct scheduled flag for callers that only have the indexed status
+  // (e.g. ES-backed dashboard list widgets), not the full scenario.
+  scheduled?: boolean;
   variant?: 'list';
 }
 
@@ -35,6 +38,7 @@ export const SCENARIO_NOT_SCHEDULED_STATUS = 'Not planned';
 
 const scenarioStatus: FunctionComponent<Props> = ({
   scenario,
+  scheduled,
   variant,
 }) => {
   // Standard hooks
@@ -42,7 +46,7 @@ const scenarioStatus: FunctionComponent<Props> = ({
   const { classes } = useStyles();
 
   const style = variant === 'list' ? classes.chipInList : classes.chip;
-  if (scenario.scenario_recurrence) {
+  if (scheduled ?? scenario?.scenario_recurrence) {
     return (
       <Chip
         classes={{ root: style }}

@@ -58,12 +58,12 @@ const ThreatArsenalRunTestDrawer: FunctionComponent<Props> = ({
     {
       icon: <Target fontSize="large" color={isOnlyOneItemSelected ? 'primary' : 'disabled'} />,
       title: t('Run atomic test'),
-      description: t('Execute individually the selected actions immediately'),
+      description: t('Execute individually the selected arsenal items immediately'),
       onClick: () => {
         setSelectedExecutionMode(ExecutionMode.ATOMIC_CREATE);
       },
       disabled: !isOnlyOneItemSelected,
-      tooltip: isOnlyOneItemSelected ? '' : t('Atomic testing validates one attack action in isolation. Select a single action to run the test'),
+      tooltip: isOnlyOneItemSelected ? '' : t('Atomic testing validates one arsenal item in isolation. Select a single arsenal item to run the test'),
     },
   ];
 

@@ -4,7 +4,7 @@ import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../../components/i18n';
-import AssetGroupDialogAdding from '../../../../assets/asset_groups/AssetGroupDialogAdding';
+import AssetGroupsPicker from '../../../../assets/asset_groups/AssetGroupsPicker';
 
 const useStyles = makeStyles()(theme => ({
   icon: { minWidth: 30 },
@@ -69,7 +69,7 @@ const InjectAddAssetGroups: FunctionComponent<Props> = ({
           {errorLabel}
         </FormHelperText>
       )}
-      <AssetGroupDialogAdding
+      <AssetGroupsPicker
         initialState={assetGroupIds}
         open={openDialog}
         onClose={handleClose}

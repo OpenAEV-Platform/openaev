@@ -4,10 +4,10 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.settings.PreviewFeature.INJECT_CHAINING;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
 import io.openaev.api.threat_arsenal.dto.*;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ChainingTypeRegistry;
-import io.openaev.database.model.Collector;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -18,6 +18,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutpu
 import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
+import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -151,21 +152,23 @@ public class ThreatArsenalApi {
     return this.threatArsenalService.searchNonTabletopInjectorContracts(outputMode, input);
   }
 
-  @GetMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/collectors")
+  @GetMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/security-platforms")
   @AccessControl(
       resourceId = "#actionId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.THREAT_ARSENAL)
-  @Operation(summary = "Get the Collectors used in a action remediation")
+  @Operation(summary = "Get the Security platforms used in a action remediation")
   @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(
             responseCode = "200",
-            description = "The list of Collectors used in a action remediation")
+            description = "The list of Security platforms used in a action remediation")
       })
-  public List<Collector> collectorsFromAction(@PathVariable String actionId) {
-    return threatArsenalService.getCollectorsForActionRemediation(actionId);
+  public List<SecurityPlatformSimpleOutput> securityPlatformsFromAction(
+      @PathVariable String actionId) {
+    return SecurityPlatformMapper.toSimpleOutputs(
+        threatArsenalService.getSecurityPlatformsForActionRemediation(actionId));
   }
 
   private List<PrimitiveType> resolveAvailableTypes() {

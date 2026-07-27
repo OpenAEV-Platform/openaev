@@ -1,4 +1,4 @@
-import { DevicesOtherOutlined, KeyboardArrowRight } from '@mui/icons-material';
+import { KeyboardArrowRight } from '@mui/icons-material';
 import {
   Box,
   List as MuiList,
@@ -29,6 +29,7 @@ import { expectationTypeIcon } from '../../../../../common/ExpectationIconByType
 import AssetElementStyles from './elements/AssetElementStyles';
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
+import getEntityLeadingIcon from './elements/EntityLeadingIcon';
 import listConfigRenderer, { defaultRenderer } from './elements/ListColumnConfig';
 import { getNavigationUrl } from './elements/ListNavigationHandler';
 
@@ -68,9 +69,10 @@ const ListWidgetItem = memo<{
   const url = getNavigationUrl(element);
 
   // Inject-expectation rows lead with the expectation-type icon (shield /
-  // sensor / bug / support agent...) instead of the generic device icon.
+  // sensor / bug / support agent...); every other entity leads with the same
+  // icon as its own list page (simulation play, scenario route, finding...).
   const expectationType = (element as EsInjectExpectation).inject_expectation_type;
-  const LeadingIcon = expectationType ? expectationTypeIcon(expectationType) : DevicesOtherOutlined;
+  const LeadingIcon = expectationType ? expectationTypeIcon(expectationType) : getEntityLeadingIcon(element);
 
   const renderedColumns = useMemo(() => columns.map((col) => {
     const renderer = listConfigRenderer[col] ?? defaultRenderer;

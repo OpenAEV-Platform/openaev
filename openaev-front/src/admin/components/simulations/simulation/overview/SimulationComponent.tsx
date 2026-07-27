@@ -175,6 +175,7 @@ const SimulationComponent = () => {
           <MitreCoverageMatrix
             widgetId={`simulation-mitre-${exerciseId}`}
             injectResults={injectResults}
+            defaultKillChain={exercise.exercise_default_kill_chain}
             resultsContext={{
               source: 'simulation',
               contextId: exerciseId,

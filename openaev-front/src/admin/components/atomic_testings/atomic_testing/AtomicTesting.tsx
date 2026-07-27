@@ -14,6 +14,7 @@ import { isAgentless } from '../../../../utils/target/TargetUtils';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../InjectResultOverviewOutputContext';
 import PaginatedTargetTab from './PaginatedTargetTab';
 import TargetResultsDetail from './target_result/TargetResultsDetail';
+import { TargetResultsSkeleton, TargetsPaneSkeleton } from './TargetSkeletons';
 
 const useStyles = makeStyles()({
   chip: {
@@ -73,6 +74,7 @@ const AtomicTesting = () => {
   const [hasPlayersChecked, setHasPlayersChecked] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState<InjectTarget>();
   const [pageTargets, setPageTargets] = useState<InjectTarget[]>([]);
+  const [targetsLoading, setTargetsLoading] = useState(false);
 
   // Initial tab open
   const [searchParams, setSearchParams] = useSearchParams();
@@ -300,6 +302,7 @@ const AtomicTesting = () => {
             reloadContentCount={reloadContentCount}
             selectedTargetId={selectedTarget?.target_id}
             onTargetsChange={setPageTargets}
+            onLoadingChange={setTargetsLoading}
           />
         )}
       </>
@@ -329,7 +332,7 @@ const AtomicTesting = () => {
       >
         <SectionLabel>{t('Targets')}</SectionLabel>
         <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
-          {allTargetsChecked && (
+          {allTargetsChecked ? (
             <>
               <Tabs
                 value={activeTabKey}
@@ -345,6 +348,8 @@ const AtomicTesting = () => {
               </Tabs>
               {drawTabs()}
             </>
+          ) : (
+            <TargetsPaneSkeleton />
           )}
         </Paper>
       </Grid>
@@ -381,7 +386,14 @@ const AtomicTesting = () => {
         )}
         {!selectedTarget && (
           <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
-            <Empty message={t('No target data available.')} />
+            {/* While the target probes or the target page are still loading, no
+                target is selected yet: show the results skeleton instead of
+                flashing "No target data available." before the data lands. */}
+            {(!allTargetsChecked || targetsLoading) ? (
+              <TargetResultsSkeleton />
+            ) : (
+              <Empty message={t('No target data available.')} />
+            )}
           </Paper>
         )}
       </Grid>

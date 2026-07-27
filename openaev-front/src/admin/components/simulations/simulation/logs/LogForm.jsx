@@ -57,8 +57,12 @@ class LogFormComponent extends Component {
               setFieldValue={form.mutators.setValue}
               style={{ marginTop: 20 }}
             />
+            {/* In-flow flex row (not a float) so the buttons contribute to the
+                form height and keep clear of the paper's bottom edge. */}
             <div style={{
-              float: 'right',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 10,
               marginTop: 20,
             }}
             >
@@ -66,7 +70,6 @@ class LogFormComponent extends Component {
                 variant="outlined"
                 color="primary"
                 onClick={handleClose.bind(this)}
-                style={{ marginRight: 10 }}
                 disabled={submitting}
               >
                 {t('Cancel')}

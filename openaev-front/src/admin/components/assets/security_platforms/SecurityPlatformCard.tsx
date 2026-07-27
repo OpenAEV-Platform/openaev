@@ -58,7 +58,12 @@ const SecurityPlatformCard: FunctionComponent<Props> = ({
           top: 6,
           right: 6,
         }}
-        onClick={event => event.stopPropagation()}
+        onClick={(event) => {
+          // The card is a real link: also cancel the native anchor navigation,
+          // stopPropagation() alone only blocks the router's client-side handler.
+          event.preventDefault();
+          event.stopPropagation();
+        }}
       >
         <SecurityPlatformPopover
           securityPlatform={{

@@ -1046,6 +1046,7 @@ public class ScenarioService {
     scenarioDuplicate.setSubtitle(scenario.getSubtitle());
     scenarioDuplicate.setHeader(scenario.getHeader());
     scenarioDuplicate.setMainFocus(scenario.getMainFocus());
+    scenarioDuplicate.setDefaultKillChain(scenario.getDefaultKillChain());
     scenarioDuplicate.setFrom(scenario.getFrom());
     scenarioDuplicate.setFromName(scenario.getFromName());
     scenarioDuplicate.setExternalUrl(scenario.getExternalUrl());

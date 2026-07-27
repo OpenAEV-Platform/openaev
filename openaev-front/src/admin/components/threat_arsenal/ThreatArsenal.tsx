@@ -554,8 +554,8 @@ const ThreatArsenal = () => {
                         >
                           {(() => {
                             if (numberOfSelectedElements === 0) return t('Select all');
-                            if (numberOfSelectedElements === 1) return t('1 action selected');
-                            return t('{count} actions selected', { count: numberOfSelectedElements });
+                            if (numberOfSelectedElements === 1) return t('1 arsenal item selected');
+                            return t('{count} arsenal items selected', { count: numberOfSelectedElements });
                           })()}
                         </Typography>
                       )}
@@ -578,10 +578,10 @@ const ThreatArsenal = () => {
                       }}
                     />
                     {canDeleteThreatArsenal && (
-                      <Tooltip title={t('Select orphaned actions (no injector, no payload) to purge them at once')}>
+                      <Tooltip title={t('Select orphaned arsenal items (no injector, no payload) to purge them at once')}>
                         <IconButton
                           size="small"
-                          aria-label={t('Select orphaned actions')}
+                          aria-label={t('Select orphaned arsenal items')}
                           onClick={handleSelectOrphaned}
                           sx={{ color: 'text.secondary' }}
                         >
@@ -630,8 +630,8 @@ const ThreatArsenal = () => {
           handleSubmit={handleBulkDelete}
           text={
             numberOfSelectedElements === 1
-              ? t('Do you want to delete this action?')
-              : `${t('Do you want to delete the selected actions?')} (${numberOfSelectedElements})`
+              ? t('Do you want to delete this arsenal item?')
+              : `${t('Do you want to delete the selected arsenal items?')} (${numberOfSelectedElements})`
           }
         />
       </Can>

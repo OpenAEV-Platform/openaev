@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router';
 
 import { fetchMe } from '../../../../actions/Application';
 import {
+  dismissAtomicTestingExpectationsDrift,
   fetchAtomicTestingExpectationsDrift,
   fetchInjectResultOverviewOutput,
   launchAtomicTesting,
@@ -73,6 +74,13 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
     await fetchInjectResultOverviewOutput(injectResultOverview.inject_id).then((overview: { data: InjectResultOverviewOutput }) => {
       setInjectResultOverview(overview.data);
     });
+  };
+
+  // Dismissal is persisted in database (shared between users); the endpoint
+  // returns the refreshed drift report.
+  const onDismissExpectations = async (dismissed: boolean) => {
+    const result = await dismissAtomicTestingExpectationsDrift(injectResultOverview.inject_id, dismissed);
+    setExpectationsDrift(result.data);
   };
 
   // Recurring scheduling (mirrors scenario scheduling): the backend relaunches
@@ -264,12 +272,14 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
     <>
       {/* Rendered inside the DetailHero action cluster, which provides the
           flex layout, the gap and the 32px control normalization. */}
-      {/* Expectation drift warning - self-hides when aligned. */}
+      {/* Expectation drift warning - self-hides when aligned or dismissed. */}
       {canManage && (
         <ExpectationsDriftIndicator
           drift={expectationsDrift}
           variant="atomic"
           onRealign={onRealignExpectations}
+          onDismiss={onDismissExpectations}
+          placement="warning"
         />
       )}
       {canManage && (
@@ -278,6 +288,17 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
             <UpdateOutlined fontSize="small" />
           </IconButton>
         </Tooltip>
+      )}
+      {/* Dismissed drift downgraded to a discreet icon within the compact icon
+          cluster - the drift is acknowledged but still reviewable. */}
+      {canManage && (
+        <ExpectationsDriftIndicator
+          drift={expectationsDrift}
+          variant="atomic"
+          onRealign={onRealignExpectations}
+          onDismiss={onDismissExpectations}
+          placement="dismissed"
+        />
       )}
       {canManage && isScheduled && !scheduleEnded && (
         <Button

@@ -1,5 +1,5 @@
 import { TrackChangesOutlined } from '@mui/icons-material';
-import { alpha, Box, Button, Popover, Typography } from '@mui/material';
+import { alpha, Box, Button, IconButton, Popover, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useState } from 'react';
 
@@ -11,6 +11,18 @@ interface Props {
   drift: ExpectationsDriftOutput | null;
   variant: 'scenario' | 'simulation' | 'atomic';
   onRealign: () => Promise<void>;
+  /**
+   * Persists the dismissal in database (shared between users, unlike local
+   * storage) and refreshes the drift report. Realignment resets it server-side.
+   */
+  onDismiss: (dismissed: boolean) => Promise<void>;
+  /**
+   * The parent renders this component in two slots: the full warning button
+   * before the Configuration button ("warning"), and the discreet dismissed
+   * icon after it ("dismissed"). Each slot self-hides when the drift state
+   * belongs to the other one, so ordering stays declarative in the header.
+   */
+  placement: 'warning' | 'dismissed';
 }
 
 /**
@@ -20,14 +32,26 @@ interface Props {
  * them). Not a red alert - the user may have customized expectations on
  * purpose - but a nudge with a one-click bulk realignment. Renders nothing when
  * everything is aligned.
+ *
+ * <p>When the drift is deliberate, the warning can be dismissed: it collapses
+ * into a small primary-colored icon button (rendered after the Configuration
+ * button) whose tooltip recalls that the expectations still do not match.
+ * Clicking it reopens the popover, where the drift can still be realigned or
+ * the full warning restored. The dismissal lives in database so it is shared
+ * between users, and a realignment clears it.
  */
-const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, onRealign }) => {
+const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, onRealign, onDismiss, placement }) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [realigning, setRealigning] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
 
   if (!drift?.drift_detected) {
+    return null;
+  }
+  const dismissed = drift.drift_dismissed;
+  if ((placement === 'warning') === dismissed) {
     return null;
   }
 
@@ -56,27 +80,57 @@ const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, 
     }
   };
 
+  const submitDismiss = async (nextDismissed: boolean) => {
+    setDismissing(true);
+    try {
+      await onDismiss(nextDismissed);
+      if (nextDismissed) {
+        MESSAGING$.notifySuccess(t('Drift warning dismissed for all users'));
+      }
+      setAnchorEl(null);
+    } catch {
+      // The API layer already notified the user; keep the popover open for retry.
+    } finally {
+      setDismissing(false);
+    }
+  };
+
   return (
     <>
-      <Button
-        size="small"
-        variant="outlined"
-        startIcon={<TrackChangesOutlined sx={{ fontSize: 16 }} />}
-        onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)}
-        sx={{
-          'lineHeight': 'initial',
-          'whiteSpace': 'nowrap',
-          'color': accent,
-          'borderColor': alpha(accent, 0.4),
-          'backgroundColor': alpha(accent, 0.08),
-          '&:hover': {
-            borderColor: accent,
-            backgroundColor: alpha(accent, 0.14),
-          },
-        }}
-      >
-        {t('Review expectations')}
-      </Button>
+      {dismissed
+        ? (
+            <Tooltip title={t('Expectation drift dismissed: expectations still do not match their threat arsenal templates. Click to review and realign.')}>
+              <IconButton
+                size="small"
+                color="primary"
+                aria-label={t('Review expectations')}
+                onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)}
+              >
+                <TrackChangesOutlined fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )
+        : (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<TrackChangesOutlined sx={{ fontSize: 16 }} />}
+              onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)}
+              sx={{
+                'lineHeight': 'initial',
+                'whiteSpace': 'nowrap',
+                'color': accent,
+                'borderColor': alpha(accent, 0.4),
+                'backgroundColor': alpha(accent, 0.08),
+                '&:hover': {
+                  borderColor: accent,
+                  backgroundColor: alpha(accent, 0.14),
+                },
+              }}
+            >
+              {t('Review expectations')}
+            </Button>
+          )}
       <Popover
         open={!!anchorEl}
         anchorEl={anchorEl}
@@ -157,16 +211,31 @@ const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, 
                 marginTop: 0.5,
               }}
             >
-              {t('If these expectations were not customized on purpose, realign them to apply the current threat arsenal templates.')}
+              {dismissed
+                ? t('This warning has been dismissed for all users, but the expectations still do not match. You can realign them or restore the full warning.')
+                : t('If these expectations were not customized on purpose, realign them to apply the current threat arsenal templates.')}
             </Typography>
           </Box>
         </Box>
         <Box sx={{
           display: 'flex',
-          justifyContent: 'flex-end',
+          alignItems: 'center',
           gap: 1,
         }}
         >
+          {/* Deliberate drift escape hatch: acknowledge without hiding forever. */}
+          <Button
+            size="small"
+            variant="text"
+            disabled={dismissing || realigning}
+            onClick={() => submitDismiss(!dismissed)}
+            sx={{
+              marginRight: 'auto',
+              color: 'text.secondary',
+            }}
+          >
+            {dismissed ? t('Restore warning') : t('Dismiss')}
+          </Button>
           <Button size="small" variant="outlined" onClick={() => setAnchorEl(null)}>
             {t('Cancel')}
           </Button>
@@ -174,7 +243,7 @@ const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, 
             size="small"
             variant="contained"
             color="warning"
-            disabled={realigning}
+            disabled={realigning || dismissing}
             onClick={submitRealign}
           >
             {t('Realign expectations')}

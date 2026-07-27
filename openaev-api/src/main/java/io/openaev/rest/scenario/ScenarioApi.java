@@ -12,6 +12,7 @@ import static org.springframework.util.StringUtils.hasText;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.expectations.ExpectationsDriftService;
+import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.context.BulkOperationContext;
@@ -264,6 +265,27 @@ public class ScenarioApi extends RestBehavior {
   public ExpectationsRealignOutput realignScenarioExpectations(
       @PathVariable @NotBlank final String scenarioId) {
     return expectationsDriftService.realignScenario(scenarioId);
+  }
+
+  @Operation(
+      summary = "Dismiss or restore the expectation drift warning of a scenario",
+      description =
+          "Acknowledges that the drifted expectations were customized on purpose: the warning is"
+              + " downgraded to a discreet indicator. Persisted in database so the dismissal is"
+              + " shared between users, and reset on realignment")
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/expectations-drift/dismiss",
+    TENANT_SCENARIO_URI + "/{scenarioId}/expectations-drift/dismiss"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SCENARIO)
+  public ExpectationsDriftOutput dismissScenarioExpectationsDrift(
+      @PathVariable @NotBlank final String scenarioId,
+      @Valid @RequestBody final ExpectationsDriftDismissInput input) {
+    return expectationsDriftService.dismissScenarioDrift(scenarioId, input.dismissed());
   }
 
   @PutMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})

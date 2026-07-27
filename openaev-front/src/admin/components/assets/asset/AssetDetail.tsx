@@ -18,6 +18,8 @@ import { type Page } from '../../../../components/common/queryable/Page';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
+import Tabs from '../../../../components/common/tabs/Tabs';
+import useTabs from '../../../../components/common/tabs/useTabs';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCriticality from '../../../../components/ItemCriticality';
@@ -42,6 +44,8 @@ import AssetCategoryIcon from '../AssetCategoryIcon';
 import AssetPopover, { type AssetPopoverProps } from '../endpoints/AssetPopover';
 import AgentList from '../endpoints/endpoint/AgentList';
 import PostureScore from '../PostureScore';
+import InjectsPlayedOverTimeChart from '../statistics/InjectsPlayedOverTimeChart';
+import PostureScoreOverTimeChart from '../statistics/PostureScoreOverTimeChart';
 import useExpectationPosture from '../useExpectationPosture';
 
 // The backend's EndpointOverviewOutput now also carries the AI target connection metadata; until
@@ -126,6 +130,10 @@ const AssetDetail = () => {
   ));
   const injectsTotal = useSearchTotal(fetchInjectsPlayed);
   const posture = useExpectationPosture('base_asset_side', id);
+
+  // Overview keeps the current detail sections; Statistics adds the over-time
+  // charts without eating vertical space on the main tab.
+  const { currentTab, handleChangeTab } = useTabs('overview');
 
   if (loading && !asset) {
     return <Loader />;
@@ -213,139 +221,171 @@ const AssetDetail = () => {
         )}
       />
 
-      {/* Information + the asset-kind-specific card side by side for a compact,
+      <Tabs
+        entries={[
+          {
+            key: 'overview',
+            label: t('Overview'),
+          },
+          {
+            key: 'statistics',
+            label: t('Statistics'),
+          },
+        ]}
+        currentTab={currentTab}
+        onChange={handleChangeTab}
+      />
+
+      {currentTab === 'statistics' && (
+        // Two simple 50/50 time series: the posture-score evolution (same
+        // formula as the hero gauge) and the injects-played activity.
+        <DetailSections>
+          <SectionBlock title={t('Posture score over time')}>
+            <PostureScoreOverTimeChart scopeField="base_asset_side" entityId={id} height={280} />
+          </SectionBlock>
+          <SectionBlock title={t('Injects played over time')}>
+            <InjectsPlayedOverTimeChart scopeField="base_assets_side" entityId={id} height={280} />
+          </SectionBlock>
+        </DetailSections>
+      )}
+
+      {currentTab === 'overview' && (
+        <>
+          {/* Information + the asset-kind-specific card side by side for a compact,
           grid-based overview (Network / Cloud / AI target as the second column). */}
-      <DetailSections>
-        <InformationGrid title={t('Asset Information')}>
-          <Field label={t('Description')}>
-            {asset.asset_description
-              ? <ExpandableMarkdown source={asset.asset_description} limit={300} />
-              : '-'}
-          </Field>
-          <Field label={t('Category')}>
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-            }}
-            >
-              <AssetCategoryIcon category={asset.asset_category} fontSize="small" />
-              <span>
-                {asset.asset_category ? t(humanizeEnum(asset.asset_category)) : '-'}
-                {asset.asset_subcategory ? ` / ${t(humanizeEnum(asset.asset_subcategory))}` : ''}
-              </span>
-            </Box>
-          </Field>
-          <Field label={t('Criticality')}>
-            <ItemCriticality criticality={asset.asset_criticality} />
-          </Field>
-          <Field label={t('Internet-facing')}>
-            <Typography variant="body2">{internetFacingLabel}</Typography>
-          </Field>
-          {asset.asset_url && (
-            <Field label={t('URL')}><Typography variant="body2">{asset.asset_url}</Typography></Field>
-          )}
-          {asset.asset_linked_person && (
-            <Field label={t('Person')}><Typography variant="body2">{emptyFilled(linkedPersonName)}</Typography></Field>
-          )}
-          <Field label={t('Tags')}>
-            <ItemTags variant="list" tags={asset.asset_tags} />
-          </Field>
-        </InformationGrid>
-
-        {isAiTarget && (
-          <InformationGrid title={t('AI target connection')}>
-            <Field label={t('Provider')}><Typography variant="body2">{emptyFilled(asset.ai_target_provider)}</Typography></Field>
-            <Field label={t('Modality')}><Typography variant="body2">{emptyFilled(asset.ai_target_modality)}</Typography></Field>
-            <Field label={t('Model')}><Typography variant="body2">{emptyFilled(asset.ai_target_model)}</Typography></Field>
-            <Field label={t('Endpoint URL')}><Typography variant="body2">{emptyFilled(asset.ai_target_endpoint)}</Typography></Field>
-            {asset.ai_target_system_prompt && (
-              <Field label={t('System prompt')}><ExpandableMarkdown source={asset.ai_target_system_prompt} limit={300} /></Field>
-            )}
-          </InformationGrid>
-        )}
-
-        {hasCloud && (
-          <InformationGrid title={t('Cloud')}>
-            <Field label={t('Cloud provider')}><Typography variant="body2">{asset.asset_cloud_provider ? t(humanizeEnum(asset.asset_cloud_provider)) : '-'}</Typography></Field>
-            <Field label={t('Native type')}><Typography variant="body2">{emptyFilled(asset.asset_cloud_native_type)}</Typography></Field>
-            <Field label={t('Region')}><Typography variant="body2">{emptyFilled(asset.asset_cloud_region)}</Typography></Field>
-          </InformationGrid>
-        )}
-
-        {!isAiTarget && hasNetwork && (
-          <InformationGrid title={t('Network')}>
-            <Field label={t('Hostname')}><Typography variant="body2">{emptyFilled(asset.asset_hostname)}</Typography></Field>
-            <Field label={t('Seen IP address')}><Typography variant="body2">{emptyFilled(asset.asset_seen_ip)}</Typography></Field>
-            {asset.endpoint_platform && (
-              <Field label={t('Platform')}>
+          <DetailSections>
+            <InformationGrid title={t('Asset Information')}>
+              <Field label={t('Description')}>
+                {asset.asset_description
+                  ? <ExpandableMarkdown source={asset.asset_description} limit={300} />
+                  : '-'}
+              </Field>
+              <Field label={t('Category')}>
                 <Box sx={{
                   display: 'flex',
                   alignItems: 'center',
+                  gap: 1,
                 }}
                 >
-                  <PlatformIcon platform={asset.endpoint_platform} width={20} marginRight={theme.spacing(2)} />
+                  <AssetCategoryIcon category={asset.asset_category} fontSize="small" />
+                  <span>
+                    {asset.asset_category ? t(humanizeEnum(asset.asset_category)) : '-'}
+                    {asset.asset_subcategory ? ` / ${t(humanizeEnum(asset.asset_subcategory))}` : ''}
+                  </span>
+                </Box>
+              </Field>
+              <Field label={t('Criticality')}>
+                <ItemCriticality criticality={asset.asset_criticality} />
+              </Field>
+              <Field label={t('Internet-facing')}>
+                <Typography variant="body2">{internetFacingLabel}</Typography>
+              </Field>
+              {asset.asset_url && (
+                <Field label={t('URL')}><Typography variant="body2">{asset.asset_url}</Typography></Field>
+              )}
+              {asset.asset_linked_person && (
+                <Field label={t('Person')}><Typography variant="body2">{emptyFilled(linkedPersonName)}</Typography></Field>
+              )}
+              <Field label={t('Tags')}>
+                <ItemTags variant="list" tags={asset.asset_tags} />
+              </Field>
+            </InformationGrid>
+
+            {isAiTarget && (
+              <InformationGrid title={t('AI target connection')}>
+                <Field label={t('Provider')}><Typography variant="body2">{emptyFilled(asset.ai_target_provider)}</Typography></Field>
+                <Field label={t('Modality')}><Typography variant="body2">{emptyFilled(asset.ai_target_modality)}</Typography></Field>
+                <Field label={t('Model')}><Typography variant="body2">{emptyFilled(asset.ai_target_model)}</Typography></Field>
+                <Field label={t('Endpoint URL')}><Typography variant="body2">{emptyFilled(asset.ai_target_endpoint)}</Typography></Field>
+                {asset.ai_target_system_prompt && (
+                  <Field label={t('System prompt')}><ExpandableMarkdown source={asset.ai_target_system_prompt} limit={300} /></Field>
+                )}
+              </InformationGrid>
+            )}
+
+            {hasCloud && (
+              <InformationGrid title={t('Cloud')}>
+                <Field label={t('Cloud provider')}><Typography variant="body2">{asset.asset_cloud_provider ? t(humanizeEnum(asset.asset_cloud_provider)) : '-'}</Typography></Field>
+                <Field label={t('Native type')}><Typography variant="body2">{emptyFilled(asset.asset_cloud_native_type)}</Typography></Field>
+                <Field label={t('Region')}><Typography variant="body2">{emptyFilled(asset.asset_cloud_region)}</Typography></Field>
+              </InformationGrid>
+            )}
+
+            {!isAiTarget && hasNetwork && (
+              <InformationGrid title={t('Network')}>
+                <Field label={t('Hostname')}><Typography variant="body2">{emptyFilled(asset.asset_hostname)}</Typography></Field>
+                <Field label={t('Seen IP address')}><Typography variant="body2">{emptyFilled(asset.asset_seen_ip)}</Typography></Field>
+                {asset.endpoint_platform && (
+                  <Field label={t('Platform')}>
+                    <Box sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    >
+                      <PlatformIcon platform={asset.endpoint_platform} width={20} marginRight={theme.spacing(2)} />
                   &nbsp;
-                  {asset.endpoint_platform}
-                </Box>
-              </Field>
+                      {asset.endpoint_platform}
+                    </Box>
+                  </Field>
+                )}
+                {asset.endpoint_arch && (
+                  <Field label={t('Architecture')}><EndpointArchFragment arch={asset.endpoint_arch} /></Field>
+                )}
+                {asset.asset_ips && asset.asset_ips.length > 0 && (
+                  <Field label={t('IP Addresses')}>
+                    <Box sx={{
+                      maxHeight: theme.spacing(20),
+                      overflowY: 'auto',
+                    }}
+                    >
+                      {asset.asset_ips.map((ip: string) => (
+                        <Typography key={ip} variant="body2" noWrap>{formatIp(ip)}</Typography>
+                      ))}
+                    </Box>
+                  </Field>
+                )}
+                {asset.asset_mac_addresses && asset.asset_mac_addresses.length > 0 && (
+                  <Field label={t('MAC Addresses')}>
+                    <Box sx={{
+                      maxHeight: theme.spacing(20),
+                      overflowY: 'auto',
+                    }}
+                    >
+                      {asset.asset_mac_addresses.map((mac: string) => (
+                        <Typography key={mac} variant="body2" noWrap>{formatMacAddress(mac)}</Typography>
+                      ))}
+                    </Box>
+                  </Field>
+                )}
+              </InformationGrid>
             )}
-            {asset.endpoint_arch && (
-              <Field label={t('Architecture')}><EndpointArchFragment arch={asset.endpoint_arch} /></Field>
-            )}
-            {asset.asset_ips && asset.asset_ips.length > 0 && (
-              <Field label={t('IP Addresses')}>
-                <Box sx={{
-                  maxHeight: theme.spacing(20),
-                  overflowY: 'auto',
-                }}
-                >
-                  {asset.asset_ips.map((ip: string) => (
-                    <Typography key={ip} variant="body2" noWrap>{formatIp(ip)}</Typography>
-                  ))}
-                </Box>
-              </Field>
-            )}
-            {asset.asset_mac_addresses && asset.asset_mac_addresses.length > 0 && (
-              <Field label={t('MAC Addresses')}>
-                <Box sx={{
-                  maxHeight: theme.spacing(20),
-                  overflowY: 'auto',
-                }}
-                >
-                  {asset.asset_mac_addresses.map((mac: string) => (
-                    <Typography key={mac} variant="body2" noWrap>{formatMacAddress(mac)}</Typography>
-                  ))}
-                </Box>
-              </Field>
-            )}
-          </InformationGrid>
-        )}
-      </DetailSections>
+          </DetailSections>
 
-      {hasAgents && (
-        <SectionBlock title={t('Agents')}>
-          <AgentList agents={asset.asset_agents} />
-        </SectionBlock>
+          {hasAgents && (
+            <SectionBlock title={t('Agents')}>
+              <AgentList agents={asset.asset_agents} />
+            </SectionBlock>
+          )}
+
+          <SectionBlock title={t('Findings')}>
+            <FindingList
+              filterLocalStorageKey="endpoint-findings"
+              searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindingsOnEndpoint(id, input)}
+              contextId={id}
+            />
+          </SectionBlock>
+
+          <SectionBlock title={t('Injects played')}>
+            <InjectResultList
+              fetchInjects={fetchInjectsPlayed}
+              goTo={injectId => `/admin/atomic_testings/${injectId}`}
+              queryableHelpers={injectsHelpers}
+              searchPaginationInput={injectsInput}
+              contextId={id}
+            />
+          </SectionBlock>
+        </>
       )}
-
-      <SectionBlock title={t('Findings')}>
-        <FindingList
-          filterLocalStorageKey="endpoint-findings"
-          searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindingsOnEndpoint(id, input)}
-          contextId={id}
-        />
-      </SectionBlock>
-
-      <SectionBlock title={t('Injects played')}>
-        <InjectResultList
-          fetchInjects={fetchInjectsPlayed}
-          goTo={injectId => `/admin/atomic_testings/${injectId}`}
-          queryableHelpers={injectsHelpers}
-          searchPaginationInput={injectsInput}
-          contextId={id}
-        />
-      </SectionBlock>
     </Box>
   );
 };

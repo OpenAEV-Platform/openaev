@@ -5,11 +5,22 @@ import { makeStyles } from 'tss-react/mui';
 
 import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
 import AssetTypeFragment from '../../../../components/common/list/fragments/AssetTypeFragment';
+import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
+import { type SortHelpers } from '../../../../components/common/queryable/sort/SortHelpers';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type AssetOutput } from '../../../../utils/api-types';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
 import { type AssetPopoverProps } from './AssetPopover';
+
+// Header labels are still rendered without sort handles when no sortHelpers
+// are provided (client-side lists).
+const NOOP_SORT_HELPERS: SortHelpers = {
+  handleSort: () => {},
+  handleDirectedSort: () => {},
+  getSortBy: () => '',
+  getSortAsc: () => true,
+};
 
 const useStyles = makeStyles()(() => ({
   item: { height: 50 },
@@ -34,6 +45,10 @@ interface Props<T extends AssetOutput> {
   renderActions: ((asset: T) => ReactElement<AssetPopoverProps>);
   loading?: boolean;
   compact?: boolean;
+  /** Render a column headers row above the list. */
+  withHeaders?: boolean;
+  /** Enables clickable column sorting (pass `queryableHelpers.sortHelpers`). */
+  sortHelpers?: SortHelpers;
 }
 
 // Generic over AssetOutput so asset groups (which can hold any asset type: endpoints, AI targets,
@@ -44,6 +59,8 @@ const AssetsList = <T extends AssetOutput>({
   renderActions,
   loading = false,
   compact = false,
+  withHeaders = false,
+  sortHelpers,
 }: Props<T>) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -86,9 +103,35 @@ const AssetsList = <T extends AssetOutput>({
     },
   ];
 
+  const headersRow = withHeaders && (
+    <ListItem
+      dense
+      divider
+      secondaryAction={<span>&nbsp;</span>}
+    >
+      <ListItemIcon />
+      <ListItemText
+        primary={(
+          <SortHeadersComponentV2
+            headers={headers.map(header => ({
+              field: header.field,
+              label: header.label,
+              isSortable: header.isSortable && !!sortHelpers,
+            }))}
+            inlineStylesHeaders={inlineStyles}
+            sortHelpers={sortHelpers ?? NOOP_SORT_HELPERS}
+          />
+        )}
+      />
+    </ListItem>
+  );
+
   if (loading) {
     return (
-      <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
+      <>
+        {headersRow && <List>{headersRow}</List>}
+        <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
+      </>
     );
   }
   if (endpoints == undefined || endpoints?.length == 0) {
@@ -96,6 +139,7 @@ const AssetsList = <T extends AssetOutput>({
   }
   return (
     <List>
+      {headersRow}
       { endpoints?.map((asset) => {
         return (
           <ListItem

@@ -281,7 +281,12 @@ const CatalogConnectorLine = ({ connector, footerAction }: Props) => {
       </Box>
       {/* Action column: deploy button or instance status. */}
       <Box
-        onClick={event => event.stopPropagation()}
+        onClick={(event) => {
+          // The row may be a real link: also cancel the native anchor
+          // navigation for any action child that does not self-protect.
+          event.preventDefault();
+          event.stopPropagation();
+        }}
         sx={cellSx('action')}
       >
         {footerAction}

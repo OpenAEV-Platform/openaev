@@ -1,15 +1,5 @@
 import { ControlPointOutlined, GroupsOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-} from '@mui/material';
+import { ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -17,8 +7,7 @@ import { findTeams } from '../../../../../../actions/teams/team-actions';
 import PaginationComponentV2 from '../../../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../../../components/common/queryable/useQueryableWithLocalStorage';
-import SelectList, { type SelectListElements } from '../../../../../../components/common/SelectList';
-import Transition from '../../../../../../components/common/Transition';
+import SelectListPicker, { type SelectListPickerElements } from '../../../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../../../components/i18n';
 import ItemTags from '../../../../../../components/ItemTags';
 import { type TeamOutput } from '../../../../../../utils/api-types';
@@ -63,7 +52,7 @@ const InjectAddTeams: FunctionComponent<Props> = ({
   const [selectedTeamValues, setSelectedTeamValues] = useState<TeamOutput[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // Dialog
+  // Drawer
   const [open, setOpen] = useState(false);
   const handleClose = () => {
     setOpen(false);
@@ -80,22 +69,31 @@ const InjectAddTeams: FunctionComponent<Props> = ({
     }
   }, [open, injectTeamsIds]);
 
-  // Pagination
-  const addTeam = (_teamId: string, team: TeamOutput) => setSelectedTeamValues([...selectedTeamValues, team]);
-  const removeTeam = (teamId: string) => setSelectedTeamValues(selectedTeamValues.filter(v => v.team_id !== teamId));
+  const selectedIds = useMemo(() => selectedTeamValues.map(v => v.team_id), [selectedTeamValues]);
+
+  const toggleTeam = (teamId: string, team: TeamOutput) => {
+    if (selectedIds.includes(teamId)) {
+      setSelectedTeamValues(selectedTeamValues.filter(v => v.team_id !== teamId));
+    } else {
+      setSelectedTeamValues([...selectedTeamValues, team]);
+    }
+  };
 
   // Headers
-  const elements: SelectListElements<TeamOutput> = useMemo(() => ({
+  const elements: SelectListPickerElements<TeamOutput> = useMemo(() => ({
     icon: { value: () => <GroupsOutlined /> },
     headers: [
       {
         field: 'team_name',
+        label: 'Name',
+        isSortable: true,
         value: (team: TeamOutput) => team.team_name,
         width: 70,
       },
       {
         field: 'team_tags',
-        value: (team: TeamOutput) => <ItemTags variant="reduced-view" tags={team.team_tags} />,
+        label: 'Tags',
+        value: (team: TeamOutput) => <ItemTags variant="list" limit={2} tags={team.team_tags} />,
         width: 30,
       },
     ],
@@ -130,60 +128,36 @@ const InjectAddTeams: FunctionComponent<Props> = ({
           classes={{ primary: error ? classes.textError : classes.text }}
         />
       </ListItemButton>
-      <Dialog
+      {/* Inline dialog: the inject form is already a drawer (never drawer over drawer). */}
+      <SelectListPicker<TeamOutput>
         open={open}
-        slots={{ transition: Transition }}
         onClose={handleClose}
-        fullWidth
-        maxWidth="lg"
-        slotProps={{
-          paper: {
-            elevation: 1,
-            sx: {
-              minHeight: 580,
-              maxHeight: 580,
-            },
-          },
-        }}
-      >
-        <DialogTitle>{t('Modify target teams in this inject')}</DialogTitle>
-        <DialogContent>
-          <Box sx={{ marginTop: 2 }} data-testid="select-team-list">
-            <SelectList
-              values={teamValues}
-              selectedValues={selectedTeamValues}
-              isLoadingValues={isLoading}
-              elements={elements}
-              onSelect={addTeam}
-              onDelete={removeTeam}
-              paginationComponent={paginationComponent}
-              buttonComponent={(
-                <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
-                  <CreateTeam
-                    inline
-                    onCreate={(team) => {
-                      setTeamValues([...teamValues, team as TeamOutput]);
-                      setSelectedTeamValues([...selectedTeamValues, team as TeamOutput]);
-                      // If a team is created, it has to be linked to the simulation/scenario
-                      onReplaceTeam?.([...selectedTeamValues, team as TeamOutput].map(v => v.team_id));
-                    }}
-                  />
-                </Can>
-              )}
-              getId={element => element.team_id}
-              getName={element => element.team_name}
+        onSubmit={submitAddTeams}
+        title={t('Modify target teams in this inject')}
+        inline
+        headerComponent={paginationComponent}
+        values={teamValues}
+        elements={elements}
+        sortHelpers={queryableHelpers.sortHelpers}
+        selectedIds={selectedIds}
+        onToggle={toggleTeam}
+        getId={element => element.team_id}
+        isLoading={isLoading}
+        containerTestId="select-team-list"
+        buttonComponent={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
+            <CreateTeam
+              inline
+              onCreate={(team) => {
+                setTeamValues([...teamValues, team as TeamOutput]);
+                setSelectedTeamValues([...selectedTeamValues, team as TeamOutput]);
+                // If a team is created, it has to be linked to the simulation/scenario
+                onReplaceTeam?.([...selectedTeamValues, team as TeamOutput].map(v => v.team_id));
+              }}
             />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleClose}>{t('Cancel')}</Button>
-          {!isLoading && (
-            <Button variant="contained" color="primary" onClick={submitAddTeams}>
-              {t('Update')}
-            </Button>
-          )}
-        </DialogActions>
-      </Dialog>
+          </Can>
+        )}
+      />
     </div>
   );
 };
