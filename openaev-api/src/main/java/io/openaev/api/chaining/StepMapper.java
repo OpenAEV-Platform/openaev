@@ -63,8 +63,14 @@ public final class StepMapper {
   /**
    * Extracts output types from the step_data JSON tree.
    *
-   * <p>Path: inject_injector_contract → injector_contract_payload → payload_output_parsers[] →
-   * output_parser_contract_output_elements[] → contract_output_element_type
+   * <p>Primary source: inject_injector_contract → injector_contract_providing[]. This field is
+   * computed by {@link io.openaev.database.model.InjectorContract#getProviding()} and already
+   * covers both payload-backed contracts and native injectors that declare their outputs directly
+   * in the contract content ("outputs" array).
+   *
+   * <p>Fallback (legacy step data): inject_injector_contract → injector_contract_payload →
+   * payload_output_parsers[] → output_parser_contract_output_elements[] →
+   * contract_output_element_type
    *
    * <p>todo: refacto in primitive type
    */
@@ -72,6 +78,17 @@ public final class StepMapper {
     if (dataNode == null) return List.of();
     JsonNode contract = dataNode.path("inject_injector_contract");
     if (contract.isMissingNode()) return List.of();
+
+    JsonNode providing = contract.path("injector_contract_providing");
+    if (providing.isArray() && !providing.isEmpty()) {
+      List<String> result = new java.util.ArrayList<>();
+      for (JsonNode type : providing) {
+        String value = type.asText(null);
+        if (value != null && !value.isBlank()) result.add(value);
+      }
+      return result;
+    }
+
     JsonNode parsers = contract.path("injector_contract_payload").path("payload_output_parsers");
     if (!parsers.isArray()) return List.of();
 
