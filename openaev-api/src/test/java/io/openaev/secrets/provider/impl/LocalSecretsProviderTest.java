@@ -14,11 +14,10 @@ import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.UsernamePasswordSecret;
-import io.openaev.database.repository.SecretReferenceRepository;
-import io.openaev.database.repository.SecretsRepository;
 import io.openaev.secrets.provider.SecretStoreRequest;
+import io.openaev.secrets.service.SecretReferenceService;
+import io.openaev.secrets.service.SecretService;
 import io.openaev.service.connector_instances.NativeEncryptionService;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -33,8 +32,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class LocalSecretsProviderTest {
 
   @Mock private NativeEncryptionService nativeEncryptionService;
-  @Mock private SecretsRepository secretsRepository;
-  @Mock private SecretReferenceRepository secretReferenceRepository;
+  @Mock private SecretService secretService;
+  @Mock private SecretReferenceService secretReferenceService;
 
   private LocalSecretsProvider localSecretsProvider;
 
@@ -45,8 +44,8 @@ class LocalSecretsProviderTest {
             "test-id",
             "Test Local Provider",
             nativeEncryptionService,
-            secretsRepository,
-            secretReferenceRepository);
+            secretService,
+            secretReferenceService);
   }
 
   @Nested
@@ -63,14 +62,14 @@ class LocalSecretsProviderTest {
       secretReference.setTenant(new Tenant("tenant-1"));
 
       when(nativeEncryptionService.encrypt("plain-secret")).thenReturn("encrypted-secret");
-      when(secretsRepository.save(any(UsernamePasswordSecret.class)))
+      when(secretService.save(any(UsernamePasswordSecret.class)))
           .thenAnswer(
               invocation -> {
                 UsernamePasswordSecret persisted = invocation.getArgument(0);
                 persisted.setId("secret-id-1");
                 return persisted;
               });
-      when(secretReferenceRepository.save(any(SecretReference.class)))
+      when(secretReferenceService.save(any(SecretReference.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
@@ -82,7 +81,7 @@ class LocalSecretsProviderTest {
       assertThat(result.getLocation()).isEqualTo("secret-id-1");
       ArgumentCaptor<UsernamePasswordSecret> secretCaptor =
           ArgumentCaptor.forClass(UsernamePasswordSecret.class);
-      verify(secretsRepository).save(secretCaptor.capture());
+      verify(secretService).save(secretCaptor.capture());
       assertThat(secretCaptor.getValue().getPassword()).isEqualTo("encrypted-secret");
     }
 
@@ -96,14 +95,14 @@ class LocalSecretsProviderTest {
       secretReference.setTenant(new Tenant("tenant-1"));
 
       when(nativeEncryptionService.encrypt("plain-hash")).thenReturn("encrypted-hash");
-      when(secretsRepository.save(any(HashSecret.class)))
+      when(secretService.save(any(HashSecret.class)))
           .thenAnswer(
               invocation -> {
                 HashSecret persisted = invocation.getArgument(0);
                 persisted.setId("secret-id-2");
                 return persisted;
               });
-      when(secretReferenceRepository.save(any(SecretReference.class)))
+      when(secretReferenceService.save(any(SecretReference.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
@@ -114,7 +113,7 @@ class LocalSecretsProviderTest {
       // Assert
       assertThat(result.getLocation()).isEqualTo("secret-id-2");
       ArgumentCaptor<HashSecret> secretCaptor = ArgumentCaptor.forClass(HashSecret.class);
-      verify(secretsRepository).save(secretCaptor.capture());
+      verify(secretService).save(secretCaptor.capture());
       assertThat(secretCaptor.getValue().getHash()).isEqualTo("encrypted-hash");
       assertThat(secretCaptor.getValue().getHashAlgorithm()).isEqualTo("NTLM");
     }
@@ -173,11 +172,11 @@ class LocalSecretsProviderTest {
       UsernamePasswordSecret existingSecret = new UsernamePasswordSecret();
       existingSecret.setId("secret-id-1");
 
-      when(secretsRepository.findById("secret-id-1")).thenReturn(Optional.of(existingSecret));
+      when(secretService.findByIdOrThrow("secret-id-1")).thenReturn(existingSecret);
       when(nativeEncryptionService.encrypt("next-password")).thenReturn("encrypted-next-password");
-      when(secretsRepository.save(any(Secret.class)))
+      when(secretService.save(any(Secret.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
-      when(secretReferenceRepository.save(any(SecretReference.class)))
+      when(secretReferenceService.save(any(SecretReference.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
@@ -204,11 +203,11 @@ class LocalSecretsProviderTest {
       HashSecret existingSecret = new HashSecret();
       existingSecret.setId("secret-id-2");
 
-      when(secretsRepository.findById("secret-id-2")).thenReturn(Optional.of(existingSecret));
+      when(secretService.findByIdOrThrow("secret-id-2")).thenReturn(existingSecret);
       when(nativeEncryptionService.encrypt("next-hash")).thenReturn("encrypted-next-hash");
-      when(secretsRepository.save(any(Secret.class)))
+      when(secretService.save(any(Secret.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
-      when(secretReferenceRepository.save(any(SecretReference.class)))
+      when(secretReferenceService.save(any(SecretReference.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
@@ -232,7 +231,8 @@ class LocalSecretsProviderTest {
       secretReference.setLocation("unknown-secret-id");
       secretReference.setTenant(new Tenant("tenant-1"));
 
-      when(secretsRepository.findById("unknown-secret-id")).thenReturn(Optional.empty());
+      when(secretService.findByIdOrThrow("unknown-secret-id"))
+          .thenThrow(new IllegalArgumentException("Secret not found for id: unknown-secret-id"));
 
       // Act & Assert
       assertThatThrownBy(
@@ -257,7 +257,7 @@ class LocalSecretsProviderTest {
       HashSecret existingSecret = new HashSecret();
       existingSecret.setId("secret-id-2");
 
-      when(secretsRepository.findById("secret-id-2")).thenReturn(Optional.of(existingSecret));
+      when(secretService.findByIdOrThrow("secret-id-2")).thenReturn(existingSecret);
 
       // Act & Assert
       assertThatThrownBy(
@@ -281,7 +281,7 @@ class LocalSecretsProviderTest {
       UsernamePasswordSecret existingSecret = new UsernamePasswordSecret();
       existingSecret.setId("secret-id-1");
 
-      when(secretsRepository.findById("secret-id-1")).thenReturn(Optional.of(existingSecret));
+      when(secretService.findByIdOrThrow("secret-id-1")).thenReturn(existingSecret);
 
       // Act & Assert
       assertThatThrownBy(
@@ -310,8 +310,8 @@ class LocalSecretsProviderTest {
       localSecretsProvider.delete(secretReference);
 
       // Assert
-      verify(secretsRepository).deleteById("secret-id-1");
-      verify(secretReferenceRepository).delete(secretReference);
+      verify(secretService).deleteById("secret-id-1");
+      verify(secretReferenceService).delete(secretReference);
     }
   }
 }

@@ -17,14 +17,18 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.SecretsProviderMapper;
 import java.util.List;
+
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 public class SecretsProviderService
     extends AbstractConnectorService<SecretsProvider, SecretsProviderOutput> {
+
+
   private final SecretsProviderMapper secretsProviderMapper;
-  private final SecretService secretService;
   private final ManagerFactory managerFactory;
 
   @Autowired
@@ -33,7 +37,6 @@ public class SecretsProviderService
       CatalogConnectorService catalogConnectorService,
       ConnectorInstanceService connectorInstanceService,
       SecretsProviderMapper secretsProviderMapper,
-      SecretService secretService,
       CatalogConnectorMapper catalogConnectorMapper,
       ManagerFactory managerFactory) {
     super(
@@ -43,7 +46,6 @@ public class SecretsProviderService
         connectorInstanceService,
         catalogConnectorMapper);
     this.secretsProviderMapper = secretsProviderMapper;
-    this.secretService = secretService;
     this.managerFactory = managerFactory;
   }
 
@@ -57,15 +59,21 @@ public class SecretsProviderService
     return getConnectorsOutput(isIncludeNext);
   }
 
-  public ConnectorIds getSecretsProviderRelationsId(String executorId) {
-    return getConnectorRelationsId(executorId);
+  /**
+   * Retrieves IDs of resources associated with a secretProvider.
+   *
+   * @param secretProviderId  secret provider identifier
+   * @return connector instance ID and catalog connector ID if available, null values if not found
+   */
+  public ConnectorIds getSecretsProviderRelationsId(String secretProviderId) {
+    return getConnectorRelationsId(secretProviderId);
   }
 
   @Override
   protected List<SecretsProvider> getAllConnectors() {
     return managerFactory
         .getManager(TenantContext.getCurrentTenant())
-        .requestManyAllStates(new ComponentRequest("secrets-provider"), SecretsProvider.class)
+        .requestManyAllStates(new ComponentRequest(SecretsProvider.SERVICE_NAME), SecretsProvider.class)
         .stream()
         .toList();
   }

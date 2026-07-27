@@ -25,6 +25,7 @@ public class SecretsProviderMapper {
         .name(secretsProvider.getName())
         .type(secretsProvider.getProviderType().name())
         .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))
+        .verified(connectorInstance != null)
         .connectorInstance(
             connectorInstance != null
                 ? connectorInstanceMapper.toConnectorInstanceOutput(connectorInstance)

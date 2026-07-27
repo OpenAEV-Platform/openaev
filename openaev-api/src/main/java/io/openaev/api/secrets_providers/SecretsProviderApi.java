@@ -27,19 +27,17 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping({
-  SecretsProviderApi.SECRETS_PROVIDER_URI,
   SecretsProviderApi.TENANT_SECRETS_PROVIDER_URI
 })
 @Tag(name = "Secrets Providers API", description = "Operations related to Secrets Providers")
 public class SecretsProviderApi extends RestBehavior {
-  public static final String SECRETS_PROVIDER_URI = "/api/secrets_providers";
   public static final String TENANT_SECRETS_PROVIDER_URI = TENANT_PREFIX + "/secrets_providers";
 
   private final SecretsProviderService secretsProviderService;
 
   @GetMapping
   @Transactional
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SECRET_PROVIDER)
   @Operation(
       summary = "Retrieve secrets providers",
       description =
@@ -65,7 +63,7 @@ public class SecretsProviderApi extends RestBehavior {
   @AccessControl(
       resourceId = "#secretsProviderId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.ASSET)
+      resourceType = ResourceType.SECRET_PROVIDER)
   public SecretsProvider getSecretsProvider(@PathVariable String secretsProviderId) {
     try {
       return secretsProviderService.getConnectorById(secretsProviderId);
@@ -83,7 +81,7 @@ public class SecretsProviderApi extends RestBehavior {
   @AccessControl(
       resourceId = "#secretsProviderId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.ASSET)
+      resourceType = ResourceType.SECRET_PROVIDER)
   @Operation(summary = "Retrieve secrets provider related ids")
   public ConnectorIds getExecutorRelatedIds(@PathVariable String secretsProviderId) {
     return secretsProviderService.getSecretsProviderRelationsId(secretsProviderId);

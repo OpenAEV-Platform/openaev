@@ -3,25 +3,23 @@ package io.openaev.integration.impl.secrets.local;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
-import io.openaev.database.repository.SecretReferenceRepository;
-import io.openaev.database.repository.SecretsRepository;
 import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
+import io.openaev.secrets.service.SecretReferenceService;
+import io.openaev.secrets.service.SecretService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.NativeEncryptionService;
 import java.util.List;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 @Service
-@Profile("!test")
 public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFactory {
   private final ComponentRequestEngine componentRequestEngine;
   private final NativeEncryptionService nativeEncryptionService;
-  private final SecretsRepository secretsRepository;
-  private final SecretReferenceRepository secretReferenceRepository;
+  private final SecretService secretService;
+  private final SecretReferenceService secretReferenceService;
 
   public LocalSecretsProviderIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -29,13 +27,13 @@ public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFa
       ComponentRequestEngine componentRequestEngine,
       HttpClientFactory httpClientFactory,
       NativeEncryptionService nativeEncryptionService,
-      SecretsRepository secretsRepository,
-      SecretReferenceRepository secretReferenceRepository) {
+      SecretService secretService,
+      SecretReferenceService secretReferenceService) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.nativeEncryptionService = nativeEncryptionService;
-    this.secretsRepository = secretsRepository;
-    this.secretReferenceRepository = secretReferenceRepository;
+    this.secretService = secretService;
+    this.secretReferenceService = secretReferenceService;
   }
 
   @Override
@@ -69,8 +67,8 @@ public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFa
         connectorInstanceService,
         componentRequestEngine,
         nativeEncryptionService,
-        secretsRepository,
-        secretReferenceRepository);
+        secretService,
+        secretReferenceService);
   }
 
   @Override
