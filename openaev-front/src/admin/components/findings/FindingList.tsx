@@ -1,4 +1,4 @@
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
 import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
@@ -51,15 +51,32 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
   ];
 
   const [findings, setFindings] = useState<AggregatedFindingOutput[]>([]);
+  // Total across all pages, tracked in compact mode (no pager) so we can tell the user when the list is
+  // truncated instead of silently hiding findings beyond the page.
+  const [total, setTotal] = useState<number>(0);
+  // Compact mode drops the pager, so raise the page size well above the default to cover most scans; a
+  // "showing X of N" note still appears if a run produces more than this.
+  const compactPageSize = 100;
   // Default sort on last seen: the most recent activity is what tells whether a finding is still
   // alive or has been solved. The storage key is suffixed (-v2) so browsers that persisted the
   // previous "first seen" default pick up the new one instead of restoring the stale sort.
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(`${filterLocalStorageKey}-v2`, buildSearchPagination({ sorts: initSorting('finding_updated_at', 'DESC') }));
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
+    `${filterLocalStorageKey}-v2`,
+    buildSearchPagination({
+      sorts: initSorting('finding_updated_at', 'DESC'),
+      ...(compact ? { size: compactPageSize } : {}),
+    }),
+  );
   const searchFindingsToload = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchDistinctFindings(input).finally(() => {
-      setLoading(false);
-    });
+    return searchDistinctFindings(input)
+      .then((res) => {
+        setTotal(res.data.totalElements);
+        return res;
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   const headers = [
@@ -230,6 +247,24 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
             ))}
         {!loading && findings.length === 0 && <Empty message={t('No finding found.')} />}
       </List>
+      {/* Compact mode has no pager: if the run produced more findings than one compact page, say so
+          explicitly (with the total) so the list never reads as "this inject has N findings". */}
+      {compact && !loading && total > findings.length && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{
+            display: 'block',
+            px: 2,
+            py: 1,
+          }}
+        >
+          {t('Showing {shown} of {total} findings — open the inject to see them all.', {
+            shown: findings.length,
+            total,
+          })}
+        </Typography>
+      )}
     </>
   );
 };
