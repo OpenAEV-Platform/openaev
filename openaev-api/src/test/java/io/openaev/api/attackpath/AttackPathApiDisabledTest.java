@@ -28,6 +28,14 @@ class AttackPathApiDisabledTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("The graph delta endpoint returns 404 when the attack-path preview feature is off")
+  void graph_delta_endpoint_is_404_when_feature_off() throws Exception {
+    mvc.perform(
+            get(AttackPathApi.ATTACK_PATH_URI + "/simulations/any/graph/delta").param("since", "0"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
   @DisplayName("The findings endpoint returns 404 when the attack-path preview feature is off")
   void findings_endpoint_is_404_when_feature_off() throws Exception {
     mvc.perform(

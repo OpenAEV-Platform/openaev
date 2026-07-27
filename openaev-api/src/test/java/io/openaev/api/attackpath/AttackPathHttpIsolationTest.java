@@ -54,6 +54,7 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   private static final String PLAIN = AttackPathApi.ATTACK_PATH_URI;
 
   private static final String GRAPH = SCOPED + "/simulations/{simulationId}/graph";
+  private static final String DELTA = SCOPED + "/simulations/{simulationId}/graph/delta";
   private static final String EXPAND = SCOPED + "/simulations/{simulationId}/endpoint/findings";
   private static final String RELATIONS = SCOPED + "/simulations/{simulationId}/endpoint/relations";
   private static final String LIST = SCOPED + "/simulations";
@@ -80,6 +81,34 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
     executionId = seedExecution(tenantA);
     findingId = seedFinding(tenantA);
     linkExecutionFinding(executionId, findingId);
+    seedGraphVersion(tenantA);
+  }
+
+  @Test
+  @DisplayName("under the owner tenant's path: the delta from version 0 carries the graph")
+  void deltaUnderOwnerTenantIsVisible() throws Exception {
+    mvc.perform(get(DELTA, tenantA, SIM).param("since", "0"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.resyncRequired").value(false))
+        .andExpect(jsonPath("$.attackPathNodes").isNotEmpty())
+        .andExpect(jsonPath("$.attackPathEdges").isNotEmpty());
+  }
+
+  @Test
+  @DisplayName("under another tenant's path: the delta carries none of the owner's rows")
+  void deltaUnderOtherTenantIsHidden() throws Exception {
+    // The delta is a second, polled path into the same projection, so it needs its own proof: the
+    // cursor reads and the affected-endpoint aggregations are all separate queries from the
+    // snapshot's. The version number itself is not tenant data (it is a counter behind
+    // assertCanReadSimulation); what must never cross is a row, a node, an edge or a count.
+    mvc.perform(get(DELTA, tenantB, SIM).param("since", "0"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.attackPathNodes").isEmpty())
+        .andExpect(jsonPath("$.attackPathEdges").isEmpty())
+        .andExpect(jsonPath("$.attackPathExecutions").isEmpty())
+        .andExpect(jsonPath("$.staticAttackPathFindings").isEmpty())
+        .andExpect(jsonPath("$.counters.endpoints").value(0))
+        .andExpect(jsonPath("$.counters.credentials").value(0));
   }
 
   @Test
@@ -277,9 +306,10 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
                 + " attackpath_execution_source_injector, attackpath_execution_target_kind,"
                 + " attackpath_execution_target_asset_id, attackpath_execution_target_key,"
                 + " attackpath_execution_target_hostname, attackpath_execution_executed_at,"
-                + " attackpath_execution_prevention_status) VALUES (:id, :tenant, :sim, 'INJECTOR',"
+                + " attackpath_execution_prevention_status, attackpath_execution_row_version)"
+                + " VALUES (:id, :tenant, :sim, 'INJECTOR',"
                 + " 'NMAP', 'ASSET', :ep, :ep, 'CORP-DC-01', TIMESTAMP '2026-06-18 08:00:00',"
-                + " 'Prevented')")
+                + " 'Prevented', 1)")
         .setParameter("id", id)
         .setParameter("tenant", tenantId)
         .setParameter("sim", SIM)
@@ -295,14 +325,28 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
             "INSERT INTO attackpath_finding (attackpath_finding_id, tenant_id,"
                 + " attackpath_finding_simulation_id, attackpath_finding_type,"
                 + " attackpath_finding_value, attackpath_finding_endpoint_id,"
-                + " attackpath_finding_endpoint_key) VALUES (:id, :tenant, :sim, 'credentials',"
-                + " 'admin:secret', :ep, :ep)")
+                + " attackpath_finding_endpoint_key, attackpath_finding_row_version)"
+                + " VALUES (:id, :tenant, :sim, 'credentials', 'admin:secret', :ep, :ep, 1)")
         .setParameter("id", id)
         .setParameter("tenant", tenantId)
         .setParameter("sim", SIM)
         .setParameter("ep", ENDPOINT_KEY)
         .executeUpdate();
     return id;
+  }
+
+  /**
+   * The simulation's version counter, as a writer would have left it after stamping the seeded rows
+   * at version 1. Without it the delta read has nothing to compare a cursor against.
+   */
+  private void seedGraphVersion(String tenantId) {
+    entityManager
+        .createNativeQuery(
+            "INSERT INTO attackpath_graph_version (attackpath_graph_version_simulation_id,"
+                + " tenant_id, attackpath_graph_version_value) VALUES (:sim, :tenant, 1)")
+        .setParameter("sim", SIM)
+        .setParameter("tenant", tenantId)
+        .executeUpdate();
   }
 
   private void linkExecutionFinding(String executionId, String findingId) {
