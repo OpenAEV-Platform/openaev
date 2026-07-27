@@ -744,7 +744,6 @@ const ReportingForm: FunctionComponent<Props> = ({
         style={{
           display: 'flex',
           flexDirection: 'column',
-          minHeight: '100%',
           gap: theme.spacing(3),
         }}
         onSubmit={handleSubmit(submit)}
@@ -767,12 +766,13 @@ const ReportingForm: FunctionComponent<Props> = ({
         {activeStep === 2 && renderBrandingStep()}
         {activeStep === 3 && renderScheduleStep()}
 
+        {/* Buttons follow the form content like every other drawer form in
+            the app (no bottom-pinned footer). */}
         <Box sx={{
           display: 'flex',
           justifyContent: 'flex-end',
           gap: 1,
-          marginTop: 'auto',
-          paddingTop: 2,
+          marginBottom: 2,
         }}
         >
           <Button

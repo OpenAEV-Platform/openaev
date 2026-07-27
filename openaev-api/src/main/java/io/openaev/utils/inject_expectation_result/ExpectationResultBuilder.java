@@ -1,7 +1,6 @@
 package io.openaev.utils.inject_expectation_result;
 
 import static io.openaev.collectors.expectations_vulnerability_manager.ExpectationsVulnerabilityManagerCollector.*;
-import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.service.InjectExpectationService.COLLECTOR;
 import static io.openaev.service.InjectExpectationService.SECURITY_PLATFORM;
 import static java.time.Instant.now;
@@ -321,10 +320,6 @@ public final class ExpectationResultBuilder {
         .build();
   }
 
-  public static InjectExpectationResult buildForVulnerabilityManagerInFailed() {
-    return buildForVulnerabilityManager(VULNERABILITY.failureLabel, 0.0);
-  }
-
   public static InjectExpectationResult buildDefaultForVulnerabilityManagerInFailed() {
     return buildForVulnerabilityManager(NO_RESULT, NO_SCORE);
   }
@@ -351,11 +346,6 @@ public final class ExpectationResultBuilder {
         .result(result)
         .date(String.valueOf(Instant.now()))
         .build();
-  }
-
-  public static InjectExpectationResult buildForSecurityPlatformInFailed(
-      @NotNull final SecurityPlatform securityPlatform) {
-    return buildForSecurityPlatform(securityPlatform, VULNERABILITY.failureLabel, 0.0);
   }
 
   public static InjectExpectationResult buildDefaultForSecurityPlatform(

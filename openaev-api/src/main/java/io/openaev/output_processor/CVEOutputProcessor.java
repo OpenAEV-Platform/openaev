@@ -15,10 +15,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class CVEOutputProcessor extends FindingCapableOutputProcessor {
 
-  private static final String ASSET_ID = "asset_id";
-  private static final String ID = "id";
-  private static final String HOST = "host";
-  private static final String SEVERITY = "severity";
+  // Public: InjectExpectationService reads the same fields to attribute vulnerability
+  // verdicts per asset, so the expectation matching can never drift from the findings.
+  public static final String ASSET_ID = "asset_id";
+  public static final String ID = "id";
+  public static final String HOST = "host";
+  public static final String SEVERITY = "severity";
 
   private final InjectExpectationService injectExpectationService;
 
