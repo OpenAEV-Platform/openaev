@@ -11,6 +11,7 @@ interface BaseProps {
   label: string;
   options: AutocompleteOption[];
   onInputChange: (search: string) => void;
+  disableCloseOnSelect?: boolean;
   required?: boolean;
   error?: boolean;
   className?: string;
@@ -127,6 +128,7 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
       selectOnFocus
       openOnFocus
       autoHighlight
+      disableCloseOnSelect={props.disableCloseOnSelect ?? false}
       noOptionsText={t('No available options')}
       multiple={multiple}
       options={options}

@@ -2,11 +2,9 @@ import { KeyboardArrowDown, LinkOff, LinkOutlined } from '@mui/icons-material';
 import {
   Box,
   Button,
-  Checkbox,
   FormControl,
   IconButton,
   InputLabel,
-  ListItemText,
   Menu,
   MenuItem,
   Select,
@@ -17,7 +15,9 @@ import {
 } from '@mui/material';
 import { type FunctionComponent, type MouseEvent, useMemo, useState } from 'react';
 
+import AutocompleteField from '../../../../../components/fields/AutocompleteField';
 import { useFormatter } from '../../../../../components/i18n';
+import type { Option } from '../../../../../utils/Option';
 import { formatPrimitiveTypeLabel } from '../../../../../utils/String';
 import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 
@@ -59,11 +59,19 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
   const { argumentTypes } = useArgumentTypes();
 
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
-  const [selectedOutputTypes, setSelectedOutputTypes] = useState<string[]>([]);
 
   const menuItems = useMemo(
     () => (argumentTypes.length > 0 ? argumentTypes : ['text']),
     [argumentTypes],
+  );
+
+  const linkTypeOptions = useMemo<Option[]>(
+    () =>
+      menuItems.map(item => ({
+        id: item,
+        label: t(formatPrimitiveTypeLabel(item)),
+      })),
+    [menuItems, t],
   );
 
   const normalizedLinkOutputTypes = useMemo(() => {
@@ -72,8 +80,6 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
   }, [link]);
 
   const openTypeMenu = (event: MouseEvent<HTMLElement>) => {
-    const initialSelection = normalizedLinkOutputTypes.filter(item => menuItems.includes(item));
-    setSelectedOutputTypes(initialSelection);
     setMenuAnchor(event.currentTarget);
   };
 
@@ -81,22 +87,11 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
     setMenuAnchor(null);
   };
 
-  const toggleSelectedType = (outputType: string) => {
-    setSelectedOutputTypes((previous) => {
-      if (previous.includes(outputType)) {
-        return previous.filter(type => type !== outputType);
-      }
-      return [...previous, outputType];
-    });
-  };
-
-  const applySelectedTypes = () => {
-    const nextTypes = selectedOutputTypes.length > 0 ? selectedOutputTypes : ['text'];
+  const handleOutputTypesChange = (nextOutputTypes: string[]) => {
     onLink(fieldKey, {
-      outputTypes: nextTypes,
+      outputTypes: nextOutputTypes.length > 0 ? nextOutputTypes : ['text'],
       localScope: link?.localScope ?? false,
     });
-    handleCloseMenu();
   };
 
   return (
@@ -241,22 +236,24 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
         open={Boolean(menuAnchor)}
         onClose={handleCloseMenu}
       >
-        {menuItems.map(item => (
-          <MenuItem
-            key={item}
-            onClick={() => toggleSelectedType(item)}
-            dense
-            sx={{ gap: 1 }}
-          >
-            <Checkbox checked={selectedOutputTypes.includes(item)} />
-            <ListItemText primary={t(formatPrimitiveTypeLabel(item))} />
-          </MenuItem>
-        ))}
-        <MenuItem dense>
-          <Button onClick={applySelectedTypes} size="small" variant="contained" color="primary">
-            {t('Apply')}
-          </Button>
-        </MenuItem>
+        <Box
+          sx={{
+            width: 320,
+            px: 1.5,
+            py: 1,
+          }}
+        >
+          <AutocompleteField
+            label={t('Primitive types')}
+            variant="standard"
+            multiple
+            disableCloseOnSelect
+            options={linkTypeOptions}
+            value={normalizedLinkOutputTypes.filter(type => menuItems.includes(type))}
+            onInputChange={() => {}}
+            onChange={handleOutputTypesChange}
+          />
+        </Box>
       </Menu>
     </Box>
   );
