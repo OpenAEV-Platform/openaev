@@ -1,5 +1,7 @@
 package io.openaev.service.attackpath;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointTypeCountRow;
@@ -7,12 +9,15 @@ import io.openaev.database.model.attackpath.projection.AttackPathExecutionRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
+import io.openaev.service.attackpath.dto.AttackPathCounters;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathDeltaDTO;
 import io.openaev.service.attackpath.dto.AttackPathEdges;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,16 +54,34 @@ public class AttackPathDeltaService {
    * snapshot-sized delta — and the client would be re-laying-out the whole graph anyway. This is
    * the bound that keeps a far-behind cursor from turning one poll into a full rebuild (FR17).
    */
-  private static final long MAX_DELTA_ROWS = 5_000;
+  @Value("${openaev.attackpath.delta-max-rows:5000}")
+  private long maxDeltaRows;
 
   private final AttackPathGraphService graphService;
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathFindingRepository findingRepository;
   private final AttackPathVersionService versionService;
 
+  /**
+   * The counters of one (simulation, version) tick, computed once however many clients poll for it.
+   * The two aggregate queries behind them are O(graph), not O(changed), so with N viewers on a
+   * running simulation the naive cost is N aggregations per write — the one part of a delta that
+   * does not shrink with the change. The key includes the version, so a new write always
+   * recomputes; the entries are only worth keeping for as long as a poll cycle, hence the short
+   * expiry.
+   */
+  private final Cache<String, AttackPathCounters> countersCache =
+      Caffeine.newBuilder().maximumSize(1_000).expireAfterWrite(Duration.ofMinutes(1)).build();
+
+  /**
+   * @param tenantIds the request's tenant scope, for the version counter alone: unlike the
+   *     projection tables it is not tenant-active, so its reads carry the scope explicitly (see
+   *     {@link AttackPathTenantScope}).
+   */
   @Transactional(readOnly = true)
-  public AttackPathDeltaDTO buildDelta(String simulationId, long since) {
-    Optional<Long> current = versionService.current(simulationId);
+  public AttackPathDeltaDTO buildDelta(
+      String simulationId, long since, Collection<String> tenantIds) {
+    Optional<Long> current = versionService.current(simulationId, tenantIds);
     if (current.isEmpty()) {
       // No counter: either the simulation never produced attack-path data, or its data was deleted.
       // A client claiming a version has therefore lost the state it describes and must resync; a
@@ -73,21 +97,31 @@ public class AttackPathDeltaService {
       return AttackPathDeltaDTO.empty(
           since, currentVersion); // steady state: one point read, no more
     }
-    long changed =
-        executionRepository.countChangedSince(simulationId, since)
-            + findingRepository.countChangedSince(simulationId, since);
-    if (changed > MAX_DELTA_ROWS) {
+    // Two counts, the second only when the first has not already blown the budget: over the
+    // threshold the answer is a resync whatever the exact total is.
+    long changed = executionRepository.countChangedSince(simulationId, since);
+    if (changed <= maxDeltaRows) {
+      changed += findingRepository.countChangedSince(simulationId, since);
+    }
+    if (changed > maxDeltaRows) {
       return AttackPathDeltaDTO.resync(since, currentVersion);
     }
-    return assembleDelta(simulationId, since, currentVersion);
+    return assembleDelta(simulationId, since, currentVersion, tenantIds);
   }
 
-  private AttackPathDeltaDTO assembleDelta(String simulationId, long since, long currentVersion) {
+  private AttackPathDeltaDTO assembleDelta(
+      String simulationId, long since, long currentVersion, Collection<String> tenantIds) {
     List<AttackPathExecutionRow> executions =
         executionRepository.findGraphRowsSince(simulationId, since);
     List<AttackPathFindingRow> findings = findingRepository.findGraphRowsSince(simulationId, since);
+    if (executions.isEmpty() && findings.isEmpty()) {
+      // The version moved but nothing this read can see changed (a guarded verdict update that
+      // matched no row, or a re-copy of identical findings): an empty tick, and null counters say
+      // "keep the ones you have" rather than paying two aggregate queries to confirm them.
+      return AttackPathDeltaDTO.empty(since, currentVersion);
+    }
 
-    AttackPathDTO partial = graphService.assemble(executions, findings);
+    AttackPathDTO partial = graphService.assemble(executions, findings, 0);
     Map<String, AttackPathNodeDTO> nodesById = new LinkedHashMap<>();
     partial.attackPathNodes().forEach(node -> nodesById.put(node.getId(), node));
     Map<String, AttackPathEdges> edgesById = new LinkedHashMap<>();
@@ -106,9 +140,27 @@ public class AttackPathDeltaService {
         partial.attackPathExecutions(),
         new ArrayList<>(nodesById.values()),
         new ArrayList<>(edgesById.values()),
-        graphService.collapsedCounters(
-            executionRepository.countEndpoints(simulationId),
-            findingRepository.findTypeCounts(simulationId)));
+        counters(simulationId, currentVersion, tenantIds));
+  }
+
+  /**
+   * The top-bar counters of this tick, computed once per (simulation, version) rather than once per
+   * poll. They are the only part of a delta that is O(graph): both queries aggregate the whole
+   * projection, so N viewers of a running simulation would otherwise pay N aggregations for every
+   * write. Shipped whole, never as increments (FR1).
+   *
+   * <p>The tenant scope belongs in the key, not only the simulation and version: the counts are
+   * inspector-filtered per scope, so keying on the simulation alone would serve one scope's counts
+   * to another.
+   */
+  private AttackPathCounters counters(
+      String simulationId, long version, Collection<String> tenantIds) {
+    return countersCache.get(
+        simulationId + ' ' + version + ' ' + String.join(",", tenantIds),
+        key ->
+            graphService.collapsedCounters(
+                executionRepository.countEndpoints(simulationId),
+                findingRepository.findTypeCounts(simulationId)));
   }
 
   /**

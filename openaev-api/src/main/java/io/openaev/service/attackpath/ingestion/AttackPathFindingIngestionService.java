@@ -108,10 +108,11 @@ public class AttackPathFindingIngestionService {
     if (findingRows.isEmpty() && links.isEmpty()) {
       return; // nothing to write, so nothing to version: never bump on an empty copy
     }
-    // Bump and stamp inside this transaction, so a client can never hold a version whose rows it
-    // has not been sent (#6647, spec 002). A re-copied identical finding hits ON CONFLICT DO
-    // NOTHING and keeps its original version, so the bump yields one empty delta tick — cheap, and
-    // the alternative (pre-checking every row) is a read per event.
+    // Every row is prepared above, before the bump: the counter's row lock is held until this
+    // transaction commits, so the less work between the bump and the commit, the shorter concurrent
+    // writers on the same simulation block. Bumping and stamping inside the transaction is what
+    // keeps a client from holding a version whose rows it has not been sent (#6647, spec 002); a
+    // re-copied finding is re-stamped, so a newly added link reaches the next delta.
     long version = versionService.bump(simulationId, tenantId);
     findingWriter.insertFindings(findingRows, version);
     findingWriter.insertLinks(links);

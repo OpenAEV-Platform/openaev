@@ -33,9 +33,10 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
 
   /**
    * Delta read (#6647, spec 002): the same projection as {@link #findGraphRows}, restricted to the
-   * findings written since {@code since}. Backed by {@code idx_ap_finding_sim_rowversion}. The copy
-   * is insert-only, so an unchanged finding keeps its original version and is correctly absent
-   * here.
+   * findings written since {@code since}. Backed by {@code idx_ap_finding_sim_rowversion}. A
+   * finding whose value was re-discovered is re-stamped by the copy's conflict branch, so it comes
+   * back here with its (possibly new) links; one left untouched keeps its original version and is
+   * correctly absent.
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingRow("
@@ -47,11 +48,15 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
       @Param("simulationId") String simulationId, @Param("since") long since);
 
   /**
-   * How many findings changed since {@code since}, for the delta's resync threshold. Counted rather
-   * than fetched, so the guard is cheaper than the work it avoids.
+   * How many rows {@link #findGraphRowsSince} would return, for the delta's resync threshold.
+   * Counted over the SAME link join, not over the findings alone: a finding produced by several
+   * executions yields one row per producer, so counting bare findings would under-report the
+   * payload this guard exists to bound. Counted rather than fetched, so the guard stays cheaper
+   * than the work it avoids.
    */
   @Query(
-      "SELECT count(f) FROM AttackPathFinding f "
+      "SELECT count(ef) FROM AttackPathFinding f "
+          + "JOIN AttackPathExecutionFinding ef ON ef.findingId = f.id "
           + "WHERE f.simulationId = :simulationId AND f.rowVersion > :since")
   long countChangedSince(@Param("simulationId") String simulationId, @Param("since") long since);
 
