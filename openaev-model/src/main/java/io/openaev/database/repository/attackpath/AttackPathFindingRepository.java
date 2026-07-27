@@ -32,6 +32,46 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
   List<AttackPathFindingRow> findGraphRows(@Param("simulationId") String simulationId);
 
   /**
+   * Delta read (#6647, spec 002): the same projection as {@link #findGraphRows}, restricted to the
+   * findings written since {@code since}. Backed by {@code idx_ap_finding_sim_rowversion}. The copy
+   * is insert-only, so an unchanged finding keeps its original version and is correctly absent
+   * here.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingRow("
+          + "f.id, f.type, f.value, f.endpointId, f.endpointRaw, f.endpointKey, ef.executionId) "
+          + "FROM AttackPathFinding f "
+          + "JOIN AttackPathExecutionFinding ef ON ef.findingId = f.id "
+          + "WHERE f.simulationId = :simulationId AND f.rowVersion > :since")
+  List<AttackPathFindingRow> findGraphRowsSince(
+      @Param("simulationId") String simulationId, @Param("since") long since);
+
+  /**
+   * How many findings changed since {@code since}, for the delta's resync threshold. Counted rather
+   * than fetched, so the guard is cheaper than the work it avoids.
+   */
+  @Query(
+      "SELECT count(f) FROM AttackPathFinding f "
+          + "WHERE f.simulationId = :simulationId AND f.rowVersion > :since")
+  long countChangedSince(@Param("simulationId") String simulationId, @Param("since") long since);
+
+  /**
+   * Delta read: {@link #findEndpointTypeCounts} restricted to the endpoints a delta actually
+   * touched, so each affected endpoint node ships its full recomputed per-type finding counts (FR1:
+   * aggregates whole, never as increments) at O(changed endpoints).
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointTypeCountRow("
+          + "f.endpointKey, f.type, count(distinct f.value)) "
+          + "FROM AttackPathFinding f WHERE f.simulationId = :simulationId "
+          + "AND f.endpointKey IN :endpointKeys "
+          + "AND EXISTS (SELECT ef FROM AttackPathExecutionFinding ef WHERE ef.findingId = f.id) "
+          + "GROUP BY f.endpointKey, f.type")
+  List<AttackPathEndpointTypeCountRow> findEndpointTypeCountsByEndpointKeys(
+      @Param("simulationId") String simulationId,
+      @Param("endpointKeys") Collection<String> endpointKeys);
+
+  /**
    * Expand one endpoint: its findings' (type, value) joined to their producing executions' three
    * status columns, so the read can carry a per-finding verdict. The inner join to {@code
    * AttackPathExecutionFinding} is the graph invariant (a finding is in the graph iff an execution

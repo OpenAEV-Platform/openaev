@@ -444,7 +444,15 @@ public class AttackPathGraphService {
         new ArrayList<>(feedByExecutionId.values()), new ArrayList<>(edges.values()));
   }
 
-  private AttackPathDTO assemble(
+  /**
+   * The full-mode rebuild pass, over whatever rows it is handed. Package-private rather than
+   * private because {@link AttackPathDeltaService} runs it over the rows that CHANGED, which is
+   * what makes "snapshot(v) + delta(v→w) ≡ snapshot(w)" hold by construction: the delta cannot
+   * drift from the snapshot's node shapes, ids or field set, because it is the same code. The
+   * aggregates a subset of rows cannot compute (endpoint colour, edge counts, counters) are the
+   * delta service's job to recompute over the whole affected endpoints.
+   */
+  AttackPathDTO assemble(
       List<AttackPathExecutionRow> executions, List<AttackPathFindingRow> findings) {
     Map<String, AttackPathNodeDTO> nodes = new LinkedHashMap<>();
     Map<String, AttackPathEdges> edges = new LinkedHashMap<>();
@@ -722,8 +730,7 @@ public class AttackPathGraphService {
         "collapsed");
   }
 
-  private AttackPathCounters collapsedCounters(
-      int endpoints, List<AttackPathTypeCountRow> typeCounts) {
+  AttackPathCounters collapsedCounters(long endpoints, List<AttackPathTypeCountRow> typeCounts) {
     long credentials = 0;
     long users = 0;
     long cves = 0;
@@ -743,7 +750,7 @@ public class AttackPathGraphService {
   }
 
   /** Worst-case severity of an endpoint's executions from the aggregated red/orange counts. */
-  private String collapsedColour(long redCount, long orangeCount) {
+  String collapsedColour(long redCount, long orangeCount) {
     if (redCount > 0) {
       return RED;
     }
@@ -753,7 +760,7 @@ public class AttackPathGraphService {
     return GREEN;
   }
 
-  private String collapsedSourceNodeId(AttackPathEdgeGroupRow g) {
+  String collapsedSourceNodeId(AttackPathEdgeGroupRow g) {
     return SOURCE_INJECTOR.equals(g.sourceKind())
         ? AttackPathIds.injectorNode(g.sourceInjector())
         : AttackPathIds.endpointNode(g.sourceAssetId());

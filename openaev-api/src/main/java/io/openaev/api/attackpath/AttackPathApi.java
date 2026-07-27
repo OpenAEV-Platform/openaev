@@ -10,9 +10,11 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.attackpath.AttackPathAccessControl;
+import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.AttackPathSeedService;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
+import io.openaev.service.attackpath.dto.AttackPathDeltaDTO;
 import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
 import io.openaev.service.attackpath.dto.AttackPathExecutionDetailDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
@@ -56,6 +58,7 @@ public class AttackPathApi extends RestBehavior {
   private static final int MAX_FINDINGS_PAGE_SIZE = 200;
 
   private final AttackPathGraphService graphService;
+  private final AttackPathDeltaService deltaService;
   private final AttackPathSeedService seedService;
   private final PreviewFeatureService previewFeatureService;
   private final AttackPathAccessControl attackPathAccessControl;
@@ -84,6 +87,31 @@ public class AttackPathApi extends RestBehavior {
     requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
     return graphService.buildGraph(simulationId, mode);
+  }
+
+  /**
+   * What changed in the simulation's attack path since the client's version (#6647, spec 002), so a
+   * running run can be followed without re-downloading the whole graph every few seconds.
+   *
+   * <p>Same guards as {@link #graph}, evaluated on every poll: the feature gate, {@code
+   * assertCanReadSimulation}, and the {@link TxCtx} that scopes the reads to the caller's tenant.
+   * Because authorization is per request, a permission lost between two polls takes effect on the
+   * next one — there is no long-lived channel to carry a stale decision.
+   *
+   * <p>{@code since} is the version the client already holds; 0 means "I have just loaded a
+   * snapshot with no version". A cursor the server cannot answer comes back as {@code
+   * resyncRequired}, never as a partial graph.
+   */
+  @GetMapping("/simulations/{simulationId}/graph/delta")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true)
+  public AttackPathDeltaDTO graphDelta(
+      TxCtx ctx, @PathVariable String simulationId, @RequestParam long since) {
+    requireAttackPathFeature();
+    attackPathAccessControl.assertCanReadSimulation(simulationId);
+    // Clamped rather than rejected, in the style of the findings page bounds above: a negative
+    // cursor is meaningless, and treating it as "I have nothing" is the safe reading.
+    return deltaService.buildDelta(simulationId, Math.max(since, 0));
   }
 
   /**
