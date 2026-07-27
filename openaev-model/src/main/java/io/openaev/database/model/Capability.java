@@ -165,6 +165,20 @@ public enum Capability {
       pair(ResourceType.DASHBOARD, Action.CREATE)),
   DELETE_DASHBOARDS(MANAGE_DASHBOARDS, pair(ResourceType.DASHBOARD, Action.DELETE)),
 
+  // Reportings
+  ACCESS_REPORTINGS(
+      null,
+      CapabilityGroup.REPORTINGS,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.REPORT, Action.READ),
+      pair(ResourceType.REPORT, Action.SEARCH)),
+  MANAGE_REPORTINGS(
+      ACCESS_REPORTINGS,
+      pair(ResourceType.REPORT, Action.WRITE),
+      pair(ResourceType.REPORT, Action.CREATE),
+      pair(ResourceType.REPORT, Action.DUPLICATE)),
+  DELETE_REPORTINGS(MANAGE_REPORTINGS, pair(ResourceType.REPORT, Action.DELETE)),
+
   // Findings
   ACCESS_FINDINGS(
       null,

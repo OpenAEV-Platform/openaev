@@ -47,7 +47,10 @@ const DocumentPopover = (props) => {
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
-  const { document, disabled, onRemoveDocument, attached, onToggleAttach, inline, onUpdate, onDelete } = props;
+  // managedMessage: when set, the document is system-owned (e.g. a report generation
+  // output managed by the Reporting module) and Update/Delete are disabled with this
+  // message as tooltip. The backend enforces the same read-only contract.
+  const { document, disabled, onRemoveDocument, attached, onToggleAttach, inline, onUpdate, onDelete, managedMessage } = props;
 
   // Fetching data
   const { tagsMap, exercisesMap, scenariosMap } = useHelper(helper => ({
@@ -228,6 +231,8 @@ const DocumentPopover = (props) => {
     label: t('Update'),
     action: () => handleOpenEdit(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.DOCUMENTS),
+    disabled: !!managedMessage,
+    disabledMessage: managedMessage,
   });
   if (onToggleAttach) entries.push({
     label: attached ? t('Disable attachment') : t('Enable attachment'),
@@ -243,6 +248,8 @@ const DocumentPopover = (props) => {
     label: t('Delete'),
     action: () => handleOpenDelete(),
     userRight: ability.can(ACTIONS.DELETE, SUBJECTS.DOCUMENTS),
+    disabled: !!managedMessage,
+    disabledMessage: managedMessage,
   });
 
   return (

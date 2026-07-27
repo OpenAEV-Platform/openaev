@@ -213,13 +213,6 @@ export const lessonsAnswer = new schema.Entity(
 );
 export const arrayOfLessonsAnswers = new schema.Array(lessonsAnswer);
 
-export const report = new schema.Entity(
-  'reports',
-  {},
-  { idAttribute: 'report_id' },
-);
-export const arrayOfReports = new schema.Array(report);
-
 export const variable = new schema.Entity(
   'variables',
   {},
@@ -331,9 +324,6 @@ export const storeHelper = state => ({
     l => l.get('lessons_answer_exercise') === exerciseId,
   ),
   isExercise: id => !maps('exercises', state)?.get(id)?.isEmpty(),
-  getExerciseReports: exerciseId => entities('reports', state).filter(l => l.get('report_exercise') === exerciseId),
-  // report
-  getReport: id => entity(id, 'reports', state),
   // comcheck
   getComcheck: id => entity(id, 'comchecks', state),
   getComcheckStatus: id => entity(id, 'comcheckstatuses', state),

@@ -57,6 +57,15 @@ const glyphIcons: Record<string, SvgIconComponent> = {
   Android: AndroidOutlined,
 };
 
+/**
+ * Whether PlatformIcon will actually render a glyph for this platform. Callers
+ * with their own fallback (e.g. TargetIcon's asset category glyph) should test
+ * this instead of rendering an empty spot for "Unknown" platforms.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export const hasPlatformIcon = (platform?: string): boolean =>
+  !!platform && (platform in brandIcons || platform in glyphIcons);
+
 const renderIcon = (platform: string, width: number | undefined = 40, borderRadius: number | undefined = 0, marginRight: string | undefined = '') => {
   const theme = useTheme();
   const { mode } = theme.palette;

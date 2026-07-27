@@ -41,6 +41,7 @@ import { computeInjectExpectationLabel, computeStatusStyle } from '../../../../u
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import expectationIconByType, { expectationTypeIcon } from '../../common/ExpectationIconByType';
 import ExpectationTypeChip from '../../workspaces/custom_dashboards/widgets/viz/list/elements/ExpectationTypeChip';
+import InjectExpectationSourceFragment from '../../workspaces/custom_dashboards/widgets/viz/list/elements/InjectExpectationSourceFragment';
 import { getNavigationUrl } from '../../workspaces/custom_dashboards/widgets/viz/list/elements/ListNavigationHandler';
 import PostureScore from '../PostureScore';
 import PostureScoreOverTimeChart from '../statistics/PostureScoreOverTimeChart';
@@ -102,7 +103,7 @@ const SecurityPlatformDetail: FunctionComponent = () => {
   // scoped to this platform's expectations. The list opens pre-filtered on
   // FAILED (the missed ones), but the filter is a regular removable chip so
   // the user can widen the view to every expectation.
-  const MISSED_COLUMNS = ['inject_title', 'inject_expectation_type', 'inject_expectation_status', 'inject_expectation_score', 'base_created_at'];
+  const MISSED_COLUMNS = ['inject_title', 'inject_expectation_source', 'inject_expectation_type', 'inject_expectation_status', 'inject_expectation_score', 'base_created_at'];
   const [missedLoading, setMissedLoading] = useState(true);
   // Static key (like 'asset-injects' & co): one shared entry instead of an
   // unbounded localStorage entry per platform ever visited.
@@ -118,10 +119,11 @@ const SecurityPlatformDetail: FunctionComponent = () => {
   );
 
   const missedInlineStyles: Record<string, CSSProperties> = {
-    inject_title: { width: '34%' },
-    inject_expectation_type: { width: '16%' },
-    inject_expectation_status: { width: '20%' },
-    inject_expectation_score: { width: '12%' },
+    inject_title: { width: '26%' },
+    inject_expectation_source: { width: '16%' },
+    inject_expectation_type: { width: '13%' },
+    inject_expectation_status: { width: '17%' },
+    inject_expectation_score: { width: '10%' },
     base_created_at: { width: '18%' },
   };
 
@@ -141,6 +143,15 @@ const SecurityPlatformDetail: FunctionComponent = () => {
           </Tooltip>
         );
       },
+    },
+    {
+      field: 'inject_expectation_source',
+      // The target the expectation was evaluated against (endpoint, asset
+      // group, team, player) - same resolved-name chip as the findings and
+      // dashboard expectation lists.
+      label: 'Source',
+      isSortable: false,
+      value: (expectation: EsInjectExpectation) => <InjectExpectationSourceFragment element={expectation as unknown as EsBase} />,
     },
     {
       field: 'inject_expectation_type',

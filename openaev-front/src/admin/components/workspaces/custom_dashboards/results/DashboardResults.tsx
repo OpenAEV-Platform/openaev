@@ -11,6 +11,7 @@ import { fetchCustomDashboardFromScenario, widgetToEntitiesByByScenario } from '
 import { fetchTenantHomeDashboard, tenantHomeWidgetToEntitiesRuntime } from '../../../../../actions/settings/tenant-settings-action';
 import { buildFilter } from '../../../../../components/common/queryable/filter/FilterUtils';
 import { DEFAULT_ROWS_PER_PAGE } from '../../../../../components/common/queryable/pagination/usePaginationState';
+import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import {
@@ -303,9 +304,10 @@ const DashboardResults = () => {
 
   if (!widgetId || (source === 'default' && !defaultWidget)) {
     return (
-      <Typography variant="subtitle1" align="center" sx={{ marginTop: 6 }}>
-        {t('No data to display')}
-      </Typography>
+      <Empty
+        message={t('No data to display')}
+        hint={t('The widget behind this drill-down could not be resolved.')}
+      />
     );
   }
 
@@ -330,9 +332,10 @@ const DashboardResults = () => {
         </Typography>
       </div>
       {seedError && (
-        <Typography variant="subtitle1" align="center" sx={{ marginTop: 6 }}>
-          {t('No data to display')}
-        </Typography>
+        <Empty
+          message={t('No data to display')}
+          hint={t('The results for this widget could not be loaded.')}
+        />
       )}
       {/* The explorer snapshots its filter state at mount: wait for the
           dashboard definition (parameter ids, time range) so the seeded

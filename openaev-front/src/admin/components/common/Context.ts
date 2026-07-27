@@ -1,4 +1,4 @@
-import { createContext, type ReactElement } from 'react';
+import { createContext } from 'react';
 
 import { type FullArticleStore } from '../../../actions/channels/Article';
 import { type InjectOutputType, type InjectStore } from '../../../actions/injects/Inject';
@@ -31,8 +31,6 @@ import {
   type ObjectiveInput,
   type PublicExercise,
   type PublicScenario,
-  type Report,
-  type ReportInput,
   type SearchPaginationInput,
   type Team,
   type TeamCreateInput,
@@ -116,12 +114,6 @@ export type VariableContextType = {
   onCreateVariable: (data: VariableInput) => void;
   onEditVariable: (variable: Variable, data: VariableInput) => void;
   onDeleteVariable: (variable: Variable) => void;
-};
-
-export type ReportContextType = {
-  onDeleteReport: (report: Report) => void;
-  onUpdateReport: (reportId: Report['report_id'], report: ReportInput) => void;
-  renderReportForm: (onSubmitForm: (data: ReportInput) => void, onHandleCancel: () => void, report: Report) => ReactElement;
 };
 
 export type TeamContextType = {
@@ -316,14 +308,6 @@ export const VariableContext = createContext<VariableContextType>({
   onDeleteVariable(_variable: Variable): void {
   },
   onEditVariable(_variable: Variable, _data: VariableInput): void {
-  },
-});
-export const ReportContext = createContext<ReportContextType>(<ReportContextType>{
-  onDeleteReport(_report: Report): void {
-  },
-  onUpdateReport(_reportId: Report['report_id'], _report: ReportInput): void {
-  },
-  renderReportForm(_onSubmit: (data: ReportInput) => void, _onCancel: () => void, _report: Report): void {
   },
 });
 export const TeamContext = createContext<TeamContextType>({

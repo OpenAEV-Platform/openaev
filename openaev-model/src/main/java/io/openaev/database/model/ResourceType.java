@@ -24,6 +24,7 @@ public enum ResourceType {
   CHANNEL,
   FINDING,
   DASHBOARD,
+  REPORT,
   PLATFORM_SETTING,
   LESSON_LEARNED,
   CHALLENGE,
