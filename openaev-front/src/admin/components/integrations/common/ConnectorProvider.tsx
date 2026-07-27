@@ -22,7 +22,7 @@ const ConnectorProvider = ({ children, type }: Props) => {
     INJECTOR: injectorConfig,
     COLLECTOR: collectorConfig,
     EXECUTOR: executorConfig,
-    SECRETS_PROVIDER: secretsProviderConfig
+    SECRETS_PROVIDER: secretsProviderConfig,
   };
 
   return (

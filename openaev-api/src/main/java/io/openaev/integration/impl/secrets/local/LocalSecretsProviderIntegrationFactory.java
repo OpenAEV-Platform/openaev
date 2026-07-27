@@ -6,8 +6,10 @@ import io.openaev.database.model.ConnectorType;
 import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.NativeEncryptionService;
@@ -20,6 +22,7 @@ public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFa
   private final NativeEncryptionService nativeEncryptionService;
   private final SecretService secretService;
   private final SecretReferenceService secretReferenceService;
+  private final PreviewFeatureService previewFeatureService;
 
   public LocalSecretsProviderIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -28,12 +31,14 @@ public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFa
       HttpClientFactory httpClientFactory,
       NativeEncryptionService nativeEncryptionService,
       SecretService secretService,
-      SecretReferenceService secretReferenceService) {
+      SecretReferenceService secretReferenceService,
+      PreviewFeatureService previewFeatureService) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.nativeEncryptionService = nativeEncryptionService;
     this.secretService = secretService;
     this.secretReferenceService = secretReferenceService;
+    this.previewFeatureService = previewFeatureService;
   }
 
   @Override
@@ -53,6 +58,9 @@ public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFa
 
   @Override
   public List<ConnectorInstance> findRelatedInstances(String tenantId) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.CREDENTIAL_ASSET)) {
+      return List.of();
+    }
     return List.of(
         connectorInstanceService.createAutostartInstance(
             LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID,

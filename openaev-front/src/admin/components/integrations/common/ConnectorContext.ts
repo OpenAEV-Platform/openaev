@@ -5,8 +5,15 @@ import { type Dispatch } from 'redux';
 import { deleteCollector, fetchCollector, fetchCollectorRelatedIds, fetchCollectors } from '../../../../actions/Collector';
 import { deleteExecutor, fetchExecutor, fetchExecutorRelatedIds, fetchExecutors } from '../../../../actions/executors/executor-action';
 import { deleteInjector, fetchInjector, fetchInjectorRelatedIds, fetchInjectors } from '../../../../actions/injectors/injector-action';
+import {
+  deleteSecretsProvider,
+  fetchSecretProvider,
+  fetchSecretsProviderRelatedIds,
+  fetchSecretsProviders,
+} from '../../../../actions/secrets_providers/secrets-providers-action';
 import type {
-  CatalogConnectorOutput, CatalogConnectorSimpleOutput,
+  CatalogConnectorOutput,
+  CatalogConnectorSimpleOutput,
   Collector,
   CollectorOutput, ConnectorIds,
   ConnectorInstanceOutput,
@@ -15,11 +22,6 @@ import type {
   SecretsProviderOutput,
 } from '../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
-import {
-  deleteSecretsProvider,
-  fetchSecretProvider, fetchSecretsProviderRelatedIds,
-  fetchSecretsProviders
-} from "../../../../actions/secrets_providers/secrets-providers-action";
 
 /**
  * Freshest of the available heartbeat signals: an external collector bumps its

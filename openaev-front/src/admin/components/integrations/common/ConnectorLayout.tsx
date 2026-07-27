@@ -9,7 +9,7 @@ import { fetchConnectorInstance } from '../../../../actions/connector_instances/
 import type { ConnectorInstanceHelper } from '../../../../actions/connector_instances/connector-instance-helper';
 import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
-import { type SecretsProviderHelper } from "../../../../actions/secrets_providers/secrets-provider-helper";
+import { type SecretsProviderHelper } from '../../../../actions/secrets_providers/secrets-provider-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';

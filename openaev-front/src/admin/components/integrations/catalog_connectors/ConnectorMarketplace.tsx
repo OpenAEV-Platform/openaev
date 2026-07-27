@@ -81,7 +81,7 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
       SECRETS_PROVIDER: {
         label: t('Secrets Provider'),
         icon: TerminalOutlined,
-      }
+      },
     };
     return CONNECTOR_TYPE_ORDER
       .map(type => ({

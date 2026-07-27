@@ -18,6 +18,7 @@ import type {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import { type ConnectorItem, type ConnectorItemType } from '../catalog_connectors/catalog-facets';
 import ConnectorMarketplace from '../catalog_connectors/ConnectorMarketplace';
 import builtinConnectorDescription from '../common/builtinConnectorDescriptions';
@@ -58,12 +59,17 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const { t, nsdt, locale } = useFormatter();
+  const isCredentialAssetEnabled = isFeatureEnabled(
+    'CREDENTIAL_ASSET' as Parameters<typeof isFeatureEnabled>[0],
+  );
 
   useDataLoader(() => {
     dispatch(injectorConfig.apiRequest.fetchAll());
     dispatch(collectorConfig.apiRequest.fetchAll());
     dispatch(executorConfig.apiRequest.fetchAll());
-    dispatch(secretsProviderConfig.apiRequest.fetchAll());
+    if (isCredentialAssetEnabled) {
+      dispatch(secretsProviderConfig.apiRequest.fetchAll());
+    }
   });
 
   const { executors } = useHelper((helper: ExecutorHelper) => ({ executors: helper.getExecutorsIncludingPending() }));
@@ -133,7 +139,9 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     append<InjectorOutput>(injectors, injectorConfig, 'INJECTOR');
     append<CollectorOutput & Collector>(collectors, collectorConfig, 'COLLECTOR');
     append<ExecutorOutput>(executors, executorConfig, 'EXECUTOR');
-    append<SecretsProviderOutput>(secretsProviders, secretsProviderConfig, 'SECRETS_PROVIDER');
+    if (isCredentialAssetEnabled) {
+      append<SecretsProviderOutput>(secretsProviders, secretsProviderConfig, 'SECRETS_PROVIDER');
+    }
 
     return {
       items: allItems,
@@ -141,7 +149,15 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     };
     // `t` is a new function every render (see useFormatter); `locale` is the
     // stable signal that the built-in descriptions it produces have changed.
-  }, [injectors, collectors, executors, secretsProviders, catalogConnectors, locale]);
+  }, [
+    injectors,
+    collectors,
+    executors,
+    secretsProviders,
+    catalogConnectors,
+    locale,
+    isCredentialAssetEnabled,
+  ]);
 
   // Migrate flow: converts a manually-deployed external connector into a
   // managed instance (same behavior as the legacy per-type pages).
