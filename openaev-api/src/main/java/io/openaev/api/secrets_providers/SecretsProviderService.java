@@ -10,14 +10,12 @@ import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.secrets.provider.SecretsProvider;
-import io.openaev.secrets.service.SecretService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.SecretsProviderMapper;
 import java.util.List;
-
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,7 +24,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class SecretsProviderService
     extends AbstractConnectorService<SecretsProvider, SecretsProviderOutput> {
-
 
   private final SecretsProviderMapper secretsProviderMapper;
   private final ManagerFactory managerFactory;
@@ -62,7 +59,7 @@ public class SecretsProviderService
   /**
    * Retrieves IDs of resources associated with a secretProvider.
    *
-   * @param secretProviderId  secret provider identifier
+   * @param secretProviderId secret provider identifier
    * @return connector instance ID and catalog connector ID if available, null values if not found
    */
   public ConnectorIds getSecretsProviderRelationsId(String secretProviderId) {
@@ -73,7 +70,8 @@ public class SecretsProviderService
   protected List<SecretsProvider> getAllConnectors() {
     return managerFactory
         .getManager(TenantContext.getCurrentTenant())
-        .requestManyAllStates(new ComponentRequest(SecretsProvider.SERVICE_NAME), SecretsProvider.class)
+        .requestManyAllStates(
+            new ComponentRequest(SecretsProvider.SERVICE_NAME), SecretsProvider.class)
         .stream()
         .toList();
   }

@@ -155,6 +155,7 @@ const CatalogConnectorLine = ({ connector, footerAction }: Props) => {
     COLLECTOR: t('Collector'),
     INJECTOR: t('Injector'),
     EXECUTOR: t('Executor'),
+    SECRETS_PROVIDER: t('Secrets Provider'),
   };
 
   const isClickable = detailUrl != null;
