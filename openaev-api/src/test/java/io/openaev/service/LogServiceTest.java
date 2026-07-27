@@ -43,6 +43,7 @@ class LogServiceTest {
   @Mock private AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private LicenseCacheManager licenseCacheManager;
+  @Mock private PreviewFeatureService previewFeatureService;
 
   private final ObjectMapper objectMapper = new ObjectMapper();
 
