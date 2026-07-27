@@ -3343,5 +3343,6 @@
   "your trial license online": "la vostra licenza di prova online",
   "YYYY": "AAAA",
   "Zoom in": "Ingrandisci",
-  "Zoom out": "Riduci"
+  "Zoom out": "Riduci",
+  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all."
 }

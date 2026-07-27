@@ -20,109 +20,26 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Transactional
   @Query(
       "UPDATE AttackPathExecution e "
-          + "SET e.preventionStatus = :status "
-          + "WHERE e.stepId = :stepId AND e.agentId = :agentId AND e.tenant.id = :tenantId")
-  int updatePreventionStatusByStepIdAndAgentId(
-      @Param("stepId") String stepId,
-      @Param("agentId") String agentId,
-      @Param("status") String status,
+          + "SET e.terminalOutput = :terminalOutput "
+          + "WHERE e.id =:id AND e.tenant.id = :tenantId")
+  int updateTerminalViewByExecutionIndex(
+      @Param("id") String id,
+      @Param("terminalOutput") String terminalOutput,
       @Param("tenantId") String tenantId);
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Transactional
   @Query(
       "UPDATE AttackPathExecution e "
-          + "SET e.preventionStatus = :status "
-          + "WHERE e.stepId = :stepId AND e.targetAssetId = :assetId "
-          + "AND e.tenant.id = :tenantId")
-  int updatePreventionStatusByStepIdAndTargetAssetId(
-      @Param("stepId") String stepId,
-      @Param("assetId") String assetId,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.preventionStatus = :status "
-          + "WHERE e.stepId = :stepId AND e.targetKey = :targetKey AND e.tenant.id = :tenantId")
-  int updatePreventionStatusByStepIdAndTargetKey(
-      @Param("stepId") String stepId,
-      @Param("targetKey") String targetKey,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.detectionStatus = :status "
-          + "WHERE e.stepId = :stepId AND e.agentId = :agentId AND e.tenant.id = :tenantId")
-  int updateDetectionStatusByStepIdAndAgentId(
-      @Param("stepId") String stepId,
-      @Param("agentId") String agentId,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.detectionStatus = :status "
-          + "WHERE e.stepId = :stepId AND e.targetAssetId = :assetId AND e.tenant.id = :tenantId")
-  int updateDetectionStatusByStepIdAndTargetAssetId(
-      @Param("stepId") String stepId,
-      @Param("assetId") String assetId,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.detectionStatus = :status "
-          + "WHERE e.stepId = :stepId AND e.targetKey = :targetKey AND e.tenant.id = :tenantId")
-  int updateDetectionStatusByStepIdAndTargetKey(
-      @Param("stepId") String stepId,
-      @Param("targetKey") String targetKey,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.vulnerabilityStatus = :status "
-          + "WHERE e.stepId = :stepId AND e.agentId = :agentId AND e.tenant.id = :tenantId")
-  int updateVulnerabilityStatusByStepIdAndAgentId(
-      @Param("stepId") String stepId,
-      @Param("agentId") String agentId,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.vulnerabilityStatus = :status "
-          + "WHERE e.stepId = :stepId AND e.targetAssetId = :assetId AND e.tenant.id = :tenantId")
-  int updateVulnerabilityStatusByStepIdAndTargetAssetId(
-      @Param("stepId") String stepId,
-      @Param("assetId") String assetId,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.vulnerabilityStatus = :status "
-          + "WHERE e.stepId = :stepId AND e.targetKey = :targetKey AND e.tenant.id = :tenantId")
-  int updateVulnerabilityStatusByStepIdAndTargetKey(
-      @Param("stepId") String stepId,
-      @Param("targetKey") String targetKey,
-      @Param("status") String status,
+          + "SET e.preventionStatus = :preventionStatus "
+          + ", e.detectionStatus = :detectionStatus "
+          + ", e.vulnerabilityStatus = :vulnerabilityStatus "
+          + "WHERE e.id =:id AND e.tenant.id = :tenantId")
+  int updateExpectationStatusByExecutionId(
+      @Param("id") String id,
+      @Param("preventionStatus") String preventionStatus,
+      @Param("detectionStatus") String detectionStatus,
+      @Param("vulnerabilityStatus") String vulnerabilityStatus,
       @Param("tenantId") String tenantId);
 
   /**
@@ -222,11 +139,11 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow("
-          + "e.sourceKind, e.sourceInjector, e.sourceAssetId, "
+          + "e.sourceKind, e.sourceInjector, e.sourceAssetId, e.contractExternalId, "
           + "max(e.sourceHostname), max(e.sourceIp), max(e.sourcePlatform), "
           + "e.targetKey, count(e)) "
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId "
-          + "GROUP BY e.sourceKind, e.sourceInjector, e.sourceAssetId, e.targetKey")
+          + "GROUP BY e.sourceKind, e.sourceInjector, e.sourceAssetId, e.contractExternalId, e.targetKey")
   List<AttackPathEdgeGroupRow> findEdgeGroups(@Param("simulationId") String simulationId);
 
   /**

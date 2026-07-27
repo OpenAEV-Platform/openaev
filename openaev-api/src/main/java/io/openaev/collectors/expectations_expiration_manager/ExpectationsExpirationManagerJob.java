@@ -4,6 +4,7 @@ import io.openaev.collectors.expectations_expiration_manager.config.Expectations
 import io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.integration.BuiltinTenantRegistrable;
 import io.openaev.rest.collector.service.CollectorService;
 import lombok.extern.slf4j.Slf4j;
@@ -50,10 +51,11 @@ public class ExpectationsExpirationManagerJob implements Runnable, BuiltinTenant
   public void run() {
     log.debug("ExpectationsExpirationManagerJob starting (interval={}s)", config.getInterval());
     tenantTx.forEachTenant(
-        tenantId -> {
+        scope -> {
           // Bridge: set TenantContext so that the v1 Hibernate @Filter (enabled by
           // HibernateFilterTransactionAspect) keeps working for tables not yet on v2.
           // Once all tables touched by this job are activated on v2, remove this line.
+          String tenantId = ((TxCtx.Restricted) scope).tenantIds().getFirst();
           TenantContext.setCurrentTenant(tenantId);
           try {
             log.debug("Processing expectations expiration for tenant {}", tenantId);

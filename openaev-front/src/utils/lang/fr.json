@@ -3354,5 +3354,6 @@
   "your trial license online": "votre licence d'essai en ligne",
   "YYYY": "AAAA",
   "Zoom in": "Zoom avant",
-  "Zoom out": "Zoom arriere"
+  "Zoom out": "Zoom arriere",
+  "Showing {shown} of {total} findings — open the inject to see them all.": "Affichage de {shown} sur {total} findings — ouvrez l’inject pour tous les voir."
 }
