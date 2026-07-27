@@ -73,15 +73,25 @@ public class InjectExpectationTraceService {
    */
   private List<InjectExpectationTrace> deduplicateByAlertIdentity(
       final List<InjectExpectationTrace> traces) {
-    Set<String> seenAlerts = new HashSet<>();
+    Set<AlertIdentity> seenAlerts = new HashSet<>();
     List<InjectExpectationTrace> distinctTraces = new ArrayList<>();
     for (InjectExpectationTrace trace : traces) {
-      if (seenAlerts.add(trace.getAlertName() + "|" + trace.getAlertLink())) {
+      if (seenAlerts.add(new AlertIdentity(trace.getAlertName(), trace.getAlertLink()))) {
         distinctTraces.add(trace);
       }
     }
     return distinctTraces;
   }
+
+  /**
+   * Identity of a physical alert as reported by the security platform. A dedicated key type (not a
+   * string concatenation) so values containing any separator, or null fields, can never make two
+   * different alerts collide or the same alert count twice.
+   *
+   * @param name the alert name
+   * @param link the alert link
+   */
+  private record AlertIdentity(String name, String link) {}
 
   /**
    * Alerts (traces) are attached by the collector to the AGENT-level expectations. The asset
@@ -92,7 +102,7 @@ public class InjectExpectationTraceService {
    * directly at the asset level). Any other expectation resolves to itself.
    *
    * @param injectExpectationId the expectation whose alerts are requested
-   * @return the set of expectation ids whose traces must be aggregated
+   * @return the list of expectation ids whose traces must be aggregated
    */
   private List<String> resolveAlertExpectationIds(@NotNull final String injectExpectationId) {
     return injectExpectationRepository

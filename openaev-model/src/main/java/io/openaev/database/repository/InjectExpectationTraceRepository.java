@@ -16,14 +16,10 @@ public interface InjectExpectationTraceRepository
     extends CrudRepository<InjectExpectationTrace, String>,
         JpaSpecificationExecutor<InjectExpectationTrace> {
 
-  @Query(
-      "select t from InjectExpectationTrace t where t.injectExpectation.id = :expectationId and t.securityPlatform.id = :sourceId")
-  List<InjectExpectationTrace> findByExpectationAndSecurityPlatform(
-      @Param("expectationId") final String expectationId, @Param("sourceId") final String sourceId);
-
-  // Same as above but across several expectations: used to roll an asset (endpoint)
-  // expectation's alerts up from its child agent expectations, which is where the
-  // collector actually attaches the traces (the asset row carries none of its own).
+  // Accepts several expectation ids: used to roll an asset (endpoint) expectation's
+  // alerts up from its child agent expectations, which is where the collector actually
+  // attaches the traces (the asset row carries none of its own). Single-expectation
+  // lookups simply pass a singleton collection.
   @Query(
       "select t from InjectExpectationTrace t where t.injectExpectation.id in :expectationIds and t.securityPlatform.id = :sourceId")
   List<InjectExpectationTrace> findByExpectationsAndSecurityPlatform(
