@@ -3,8 +3,8 @@ package io.openaev.service.attackpath.ingestion;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Command;
