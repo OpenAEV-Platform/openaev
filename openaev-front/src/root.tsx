@@ -35,13 +35,13 @@ const IndexPrivate = lazy(() => import('./private/Index'));
 const IndexAdmin = lazy(() => import('./admin/Index'));
 const Comcheck = lazy(() => import('./public/components/comcheck/Comcheck'));
 const Channel = lazy(() => import('./public/components/channels/Channel'));
-const SimulationReport = lazy(() => import('./admin/components/simulations/simulation/reports/SimulationReportPage'));
 const Challenges = lazy(() => import('./public/components/challenges/ChallengesPlayer'));
 const ExerciseViewLessons = lazy(() => import('./public/components/lessons/ExerciseViewLessons'));
 const ScenarioViewLessons = lazy(() => import('./public/components/lessons/ScenarioViewLessons'));
 const UrlAccess = lazy(() => import('./public/components/url_access/UrlAccess'));
 const SimulationChallengesPreview = lazy(() => import('./admin/components/simulations/simulation/challenges/SimulationChallengesPreview'));
 const ScenarioChallengesPreview = lazy(() => import('./admin/components/scenarios/scenario/challenges/ScenarioChallengesPreview'));
+const ReportingRender = lazy(() => import('./admin/components/reporting/render/ReportingRender'));
 
 const Root = () => {
   const { logged, me, settings } = useHelper((helper: LoggedHelper) => {
@@ -154,6 +154,8 @@ const Root = () => {
                     {/* Add challenge preview routes here to ensure they are rendered without the top & left bar */}
                     <Route path="admin/simulations/:exerciseId/challenges" element={errorWrapper(SimulationChallengesPreview)()} />
                     <Route path="admin/scenarios/:scenarioId/challenges" element={errorWrapper(ScenarioChallengesPreview)()} />
+                    {/* Standalone print-ready report render (headless PDF capture + in-app preview) */}
+                    <Route path="reporting/:reportingId/render" element={errorWrapper(ReportingRender)()} />
                     <Route path="redirect/*" element={errorWrapper(XtmHubRedirect)()} />
                     <Route path="admin/*" element={errorWrapper(IndexAdmin)()} />
                     {/* Routes from /public/Index that need to be accessible for logged user are duplicated here */}
@@ -163,8 +165,6 @@ const Root = () => {
                     <Route path="lessons/simulation/:exerciseId" element={errorWrapper(ExerciseViewLessons)()} />
                     <Route path="lessons/scenario/:scenarioId" element={errorWrapper(ScenarioViewLessons)()} />
                     <Route path="url/access" element={errorWrapper(UrlAccess)()} />
-                    <Route path="reports/:reportId/exercise/:exerciseId" element={errorWrapper(SimulationReport)()} />
-
                     {/* Not found */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>

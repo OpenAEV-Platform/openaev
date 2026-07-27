@@ -67,7 +67,6 @@
     "final-form": "4.20.10",
     "final-form-arrays": "4.0.1",
     "html-react-parser": "6.1.5",
-    "html-to-image": "1.11.13",
     "http-proxy-middleware": "4.2.0",
     "immutable": "5.1.9",
     "ipaddr.js": "^2.2.0",
@@ -76,7 +75,6 @@
     "moment": "2.30.1",
     "moment-timezone": "0.6.3",
     "normalizr": "3.6.2",
-    "pdfmake": "0.3.11",
     "prop-types": "15.8.1",
     "qs": "6.15.3",
     "ramda": "0.32.0",
@@ -115,7 +113,6 @@
     "@testing-library/react": "16.3.2",
     "@types/d3-hierarchy": "3.1.7",
     "@types/node": "22.20.1",
-    "@types/pdfmake": "0.3.3",
     "@types/qs": "6",
     "@types/react": "19.2.17",
     "@types/react-csv": "1.1.10",
@@ -153,7 +150,6 @@
   "resolutions": {
     "@types/react": "19.2.17",
     "form-data": "4.0.6",
-    "html-to-image": "patch:html-to-image@1.11.13#./patches/html-to-image.patch",
     "react-apexcharts": "patch:react-apexcharts@1.7.0#./patches/react-apexcharts.patch"
   }
 }

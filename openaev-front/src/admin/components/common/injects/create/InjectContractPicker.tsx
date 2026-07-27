@@ -1,6 +1,6 @@
 import { ArrowBackOutlined, GridViewOutlined, ReorderOutlined } from '@mui/icons-material';
 import { Box, IconButton, Skeleton, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { type FunctionComponent, type SyntheticEvent, useMemo, useRef, useState } from 'react';
+import { type FunctionComponent, type SyntheticEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type AttackPatternHelper } from '../../../../../actions/attack_patterns/attackpattern-helper';
 import { fetchAttackPatterns } from '../../../../../actions/AttackPattern';
@@ -29,6 +29,7 @@ import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import useEntityToggle from '../../../../../utils/hooks/useEntityToggle';
 import computeAttackPatterns from '../../../../../utils/injector_contract/InjectorContractUtils';
 import useDomainIconFilter from '../../domains/useDomainIconFilter';
+import { MITRE_FILTER_KEY } from '../../filters/MitreFilter';
 import InjectContractCard from './InjectContractCard';
 import InjectContractListRow, { LIST_GRID_COLUMNS } from './InjectContractListRow';
 import InjectContractSidebar from './InjectContractSidebar';
@@ -53,6 +54,12 @@ interface Props {
   title: string;
   /** Atomic testing creation: single-select, atomic-capable contracts only. */
   isAtomic?: boolean;
+  /**
+   * Deep-link scoping (e.g. the "Create an atomic testing" CTA of a TTP-scoped
+   * dashboard drill-down): replaces the picker's attack pattern filter with
+   * these ids on mount so only contracts covering the TTPs are listed.
+   */
+  initialAttackPatternIds?: string[];
   onSelectContract: (contract: InjectorContractFullOutput) => void;
   /** Basket bulk-add (absent in atomic mode). */
   onQuickAdd?: (contracts: InjectorContractFullOutput[]) => void;
@@ -67,6 +74,7 @@ interface Props {
 const InjectContractPicker: FunctionComponent<Props> = ({
   title,
   isAtomic = false,
+  initialAttackPatternIds,
   onSelectContract,
   onQuickAdd,
   onBack,
@@ -151,6 +159,16 @@ const InjectContractPicker: FunctionComponent<Props> = ({
     searchPaginationInput,
   } = useQueryableWithLocalStorage(isAtomic ? 'injector-contracts-picker-atomic' : 'injector-contracts-picker', initSearchPaginationInput());
   const totalElements = queryableHelpers.paginationHelpers.getTotalElements();
+
+  // Deep-link TTP scoping: replace (not merge) any attack pattern filter left
+  // over from a previous session so the picker opens exactly on the requested
+  // techniques; the filter stays a regular editable chip afterwards.
+  useEffect(() => {
+    if (initialAttackPatternIds && initialAttackPatternIds.length > 0) {
+      queryableHelpers.filterHelpers.handleRemoveFilterByKey(MITRE_FILTER_KEY);
+      queryableHelpers.filterHelpers.handleAddMultipleValueFilter(MITRE_FILTER_KEY, initialAttackPatternIds);
+    }
+  }, []);
 
   // Domain facet (live counts + toggling of the injector_contract_domains filter)
   const { iconBarOrderedDomains } = useDomainIconFilter({

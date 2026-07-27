@@ -193,7 +193,6 @@ nav:
         - Lessons: usage/components/lessons.md
       - Threat Arsenal: usage/threat-arsenals/threat-arsenals.md
     - Share and export:
-      - Simulations: usage/simulation-reports.md
       - Notifications: usage/notifications.md
     - Interact with your environment:
       - Injectors:

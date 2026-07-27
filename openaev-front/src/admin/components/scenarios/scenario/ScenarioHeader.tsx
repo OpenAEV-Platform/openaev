@@ -67,6 +67,7 @@ import ExpectationsDriftIndicator from '../../common/injects/expectations/Expect
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
 import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
+import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
 import ScenarioConfiguration from './ScenarioConfiguration';
 import ScenarioPopover from './ScenarioPopover';
@@ -326,6 +327,13 @@ const ScenarioHeader = ({
                   </IconButton>
                 </Tooltip>
               )}
+              {/* Entity-scoped reports - self-hides without the reporting
+                  access capability. */}
+              <EntityReportsPanel
+                contextType="SCENARIO"
+                contextId={scenarioId}
+                entityName={scenario.scenario_name}
+              />
               {canManage && (
                 <>
                   <TriggerSubscribeButton

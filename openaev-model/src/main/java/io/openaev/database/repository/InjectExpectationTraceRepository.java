@@ -16,19 +16,19 @@ public interface InjectExpectationTraceRepository
     extends CrudRepository<InjectExpectationTrace, String>,
         JpaSpecificationExecutor<InjectExpectationTrace> {
 
+  // Accepts several expectation ids: used to roll an asset (endpoint) expectation's
+  // alerts up from its child agent expectations, which is where the collector actually
+  // attaches the traces (the asset row carries none of its own). Single-expectation
+  // lookups simply pass a singleton collection.
   @Query(
-      "select t from InjectExpectationTrace t where t.injectExpectation.id = :expectationId and t.securityPlatform.id = :sourceId")
-  List<InjectExpectationTrace> findByExpectationAndSecurityPlatform(
-      @Param("expectationId") final String expectationId, @Param("sourceId") final String sourceId);
+      "select t from InjectExpectationTrace t where t.injectExpectation.id in :expectationIds and t.securityPlatform.id = :sourceId")
+  List<InjectExpectationTrace> findByExpectationsAndSecurityPlatform(
+      @Param("expectationIds") final Collection<String> expectationIds,
+      @Param("sourceId") final String sourceId);
 
   @Query("select t from InjectExpectationTrace t where t.injectExpectation.id in :expectationIds")
   List<InjectExpectationTrace> findByInjectExpectationIdIn(
       @Param("expectationIds") final Collection<String> expectationIds);
-
-  @Query(
-      "select count(distinct t) from InjectExpectationTrace t where t.injectExpectation.id = :expectationId and t.securityPlatform.id = :sourceId")
-  long countAlerts(
-      @Param("expectationId") final String expectationId, @Param("sourceId") final String sourceId);
 
   @Query(
       "select t from InjectExpectationTrace t where t.injectExpectation.id = :expectationId and t.securityPlatform.id = :sourceId and t.alertName = :alertName and t.alertLink = :alertLink")

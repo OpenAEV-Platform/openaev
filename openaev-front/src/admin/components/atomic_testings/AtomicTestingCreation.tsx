@@ -1,6 +1,6 @@
 import * as R from 'ramda';
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useMemo, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { createAtomicTesting } from '../../../actions/atomic_testings/atomic-testing-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
@@ -22,6 +22,15 @@ const AtomicTestingCreation = () => {
   const { t } = useFormatter();
   const navigate = useNavigate();
   const { contractId } = useParams() as { contractId?: string };
+  // Deep links (e.g. the empty-state CTA of a TTP-scoped dashboard drill-down)
+  // can pre-scope the contract picker on specific attack patterns:
+  // /admin/atomic_testings/create?attack_patterns=<id>,<id>
+  const [searchParams] = useSearchParams();
+  const initialAttackPatternIds = useMemo(
+    () => (searchParams.get('attack_patterns') ?? '').split(',').filter(Boolean),
+    // Snapshot at mount: the picker only consumes the seed once.
+    [],
+  );
 
   const listUrl = '/admin/atomic_testings';
   const pickerUrl = `${listUrl}/create`;
@@ -74,6 +83,7 @@ const AtomicTestingCreation = () => {
         <InjectContractPicker
           title={t('Create a new atomic test')}
           isAtomic
+          initialAttackPatternIds={initialAttackPatternIds}
           onSelectContract={contract => setSelectedContractId(contract.injector_contract_id)}
           onBack={() => navigate(listUrl)}
         />

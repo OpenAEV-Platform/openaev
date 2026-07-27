@@ -86,7 +86,13 @@ const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => 
             paddingRight: theme.spacing(0.25),
           })}
         >
-          <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
+          {/* Same 8px icon-text gap as the regular rows (menuItemSx sets it via
+              .MuiListItemIcon-root, which this custom row does not inherit). */}
+          <ListItemIcon sx={{
+            ...leftMenuStyle.listItemIcon,
+            marginRight: 1,
+          }}
+          >
             {switching ? <Loader variant="inElement" size="xs" /> : <HomeWorkOutlined />}
           </ListItemIcon>
           {navOpen && (

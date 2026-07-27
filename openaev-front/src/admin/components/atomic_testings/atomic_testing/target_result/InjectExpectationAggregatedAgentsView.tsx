@@ -72,6 +72,7 @@ const InjectExpectationAggregatedAgentsView = ({ inject, injectExpectation, expe
       injectorContractPayload={inject.inject_injector_contract?.injector_contract_payload}
       injectType={inject.inject_type}
       agentBreakdownBySource={agentBreakdownBySource}
+      aggregateAgentAlerts
     />
   );
 };

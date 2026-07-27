@@ -4,7 +4,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import { type FunctionComponent } from 'react';
 
-import PlatformIcon from '../../../../components/PlatformIcon';
+import PlatformIcon, { hasPlatformIcon } from '../../../../components/PlatformIcon';
 import { type InjectTarget } from '../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import { type AssetCategory } from '../../assets/asset-categories';
@@ -36,9 +36,11 @@ const TargetIcon: FunctionComponent<Props> = ({ target, size = 32 }) => {
         // "Unknown" and PlatformIcon would render nothing - fall back to the asset category glyph.
         const category = target?.target_category as AssetCategory | undefined;
         const platform = target?.target_subtype;
-        // No category (legacy data): preserve the previous platform-icon behavior.
-        if (platform && (!category || OS_PLATFORM_CATEGORIES.has(category))) {
-          return <PlatformIcon platform={platform} width={glyphSize} />;
+        // Only take the platform path when it will actually paint something: discovered hosts
+        // often carry an "Unknown" platform, for which PlatformIcon renders nothing - the
+        // category glyph is always a better fallback than an empty frame.
+        if (hasPlatformIcon(platform) && (!category || OS_PLATFORM_CATEGORIES.has(category))) {
+          return <PlatformIcon platform={platform as string} width={glyphSize} />;
         }
         return <AssetCategoryIcon category={category ?? null} sx={{ fontSize: glyphSize }} />;
       }
