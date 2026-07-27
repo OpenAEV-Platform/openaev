@@ -2617,42 +2617,46 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           {!findingsLoading && drawerFilteredItems.length === 0 && (
             <Alert severity="info">{t('No findings')}</Alert>
           )}
-          {!findingsLoading && drawerPageItems.map((item, index) => (
-            <Box
-              key={`${item.endpointKey}-${item.value}-${index}`}
-              role="button"
-              tabIndex={0}
-              onClick={() => onFindingItemClick(item)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onFindingItemClick(item);
-                }
-              }}
-              sx={{
-                'py': 0.75,
-                'px': 0.5,
-                'borderRadius': 1,
-                'borderBottom': `1px solid ${theme.palette.divider}`,
-                'cursor': 'pointer',
-                '&:hover': { backgroundColor: 'action.hover' },
-                '&:focus-visible': {
-                  backgroundColor: 'action.hover',
-                  outline: `2px solid ${theme.palette.primary.main}`,
-                  outlineOffset: -2,
-                },
-              }}
-            >
-              <Typography variant="body2" title={maskFindingValue(item.type, item.value)} sx={{ wordBreak: 'break-all' }}>{maskFindingValue(item.type, item.value)}</Typography>
-              {/* Show the endpoint's friendly hostname, never the raw asset id/uuid. Hidden when it can't
+          {!findingsLoading && drawerPageItems.map((item, index) => {
+            // Friendly endpoint hostname (never the raw asset id/uuid); undefined when unresolved.
+            const endpointName = item.endpointKey ? endpointLabelByRef.get(item.endpointKey) : undefined;
+            return (
+              <Box
+                key={`${item.endpointKey}-${item.value}-${index}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => onFindingItemClick(item)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onFindingItemClick(item);
+                  }
+                }}
+                sx={{
+                  'py': 0.75,
+                  'px': 0.5,
+                  'borderRadius': 1,
+                  'borderBottom': `1px solid ${theme.palette.divider}`,
+                  'cursor': 'pointer',
+                  '&:hover': { backgroundColor: 'action.hover' },
+                  '&:focus-visible': {
+                    backgroundColor: 'action.hover',
+                    outline: `2px solid ${theme.palette.primary.main}`,
+                    outlineOffset: -2,
+                  },
+                }}
+              >
+                <Typography variant="body2" title={maskFindingValue(item.type, item.value)} sx={{ wordBreak: 'break-all' }}>{maskFindingValue(item.type, item.value)}</Typography>
+                {/* Show the endpoint's friendly hostname, never the raw asset id/uuid. Hidden when it can't
                   be resolved to a name so no bare id ever surfaces under the value. */}
-              {endpointLabelByRef.get(item.endpointKey) && (
-                <Typography variant="caption" color="text.secondary" noWrap title={endpointLabelByRef.get(item.endpointKey)}>
-                  {endpointLabelByRef.get(item.endpointKey)}
-                </Typography>
-              )}
-            </Box>
-          ))}
+                {endpointName && (
+                  <Typography variant="caption" color="text.secondary" noWrap title={endpointName}>
+                    {endpointName}
+                  </Typography>
+                )}
+              </Box>
+            );
+          })}
           {!findingsLoading && drawerFilteredItems.length > DRAWER_PAGE_SIZE && (
             <Box sx={{
               display: 'flex',
