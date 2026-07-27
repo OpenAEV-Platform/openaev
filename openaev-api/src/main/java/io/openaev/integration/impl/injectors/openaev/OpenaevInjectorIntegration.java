@@ -9,7 +9,6 @@ import io.openaev.integration.IntegrationInMemory;
 import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.InjectExpectationService;
-import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 
 public class OpenaevInjectorIntegration extends IntegrationInMemory {

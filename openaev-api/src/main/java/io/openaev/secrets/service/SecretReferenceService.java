@@ -34,4 +34,3 @@ public class SecretReferenceService {
         Objects.requireNonNull(secretReference, "secretReference must not be null"));
   }
 }
-
