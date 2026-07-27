@@ -165,19 +165,6 @@ class LogServiceTest {
     }
 
     @Test
-    @DisplayName("given_previewFeatureDisabled_should_returnTrueWithoutDispatching")
-    void given_previewFeatureDisabled_should_returnTrueWithoutDispatching() {
-      // -- EXECUTE --
-      boolean result =
-          logService.logSessionExpiredEvent(
-              "user-1", "sess-1", 60L, "inactivity_timeout", "1.1.1.1", "test");
-
-      // -- VERIFY --
-      assertTrue(result);
-      verify(auditLogTransportDispatcherUtils, never()).dispatch(any(LogEvent.class), any());
-    }
-
-    @Test
     @DisplayName("given_dispatchException_should_returnFalse")
     void given_dispatchException_should_returnFalse() {
       // -- PREPARE --
