@@ -14,7 +14,7 @@ import { SIMULATION_BASE_URL } from '../../../../../constants/BaseUrls';
 import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 import attackPathStatusColor, { attackPathChokepointColor } from './attack-path-colors';
-import { AP_ALL_ENDPOINTS, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
 import AttackPathTableView, { type AttackPathEndpointRow } from './AttackPathTableView';
@@ -1446,10 +1446,33 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         }
       }
     } else if (selectedFindingId) {
+      // Walk UP a finding's PRODUCTION path only: endpoint(s) it was found on, then the injector(s) that
+      // actually produced it. Two guards keep it scoped on a shared/hub endpoint (chain mode): never follow
+      // a causal ("Triggered …") edge — those point forward to the NEXT action, so following them lit the
+      // whole downstream kill-chain (NetExec + shares) off a mere portscan click; and when we know the
+      // producing injector(s) from the finding's executions, don't light the other injectors that merely
+      // also reached the endpoint.
+      const injectorNodeIds = new Set(
+        baseFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector).map(n => n.id),
+      );
+      const producingInjectors = new Set<string>();
+      for (const e of fullDto?.attackPathEdges ?? []) {
+        if (e.type === 'EDGE_EXECUTIONS' && e.edgeSourceId
+          && (e.executionIds ?? []).some(id => highlightedExecutionIds.has(id))) {
+          producingInjectors.add(e.edgeSourceId);
+        }
+      }
+      const restrictInjectors = producingInjectors.size > 0;
       pathSet.add(selectedFindingId);
       for (let pass = 0; pass < 6; pass += 1) {
         for (const e of baseFlow.edges) {
+          if (e.type === AP_FLOW_CAUSAL_EDGE_TYPE) {
+            continue;
+          }
           if (e.target && e.source && pathSet.has(e.target) && !pathSet.has(e.source)) {
+            if (restrictInjectors && injectorNodeIds.has(e.source) && !producingInjectors.has(e.source)) {
+              continue;
+            }
             pathSet.add(e.source);
           }
         }
@@ -1478,7 +1501,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       })),
     };
     return applyFindingFilter(withSelection.nodes, withSelection.edges, focus);
-  }, [baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, selectedInjectorId, focus, dto?.attackPathEdges]);
+  }, [
+    baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, selectedInjectorId,
+    focus, dto?.attackPathEdges, fullDto?.attackPathEdges, highlightedExecutionIds,
+  ]);
 
   // Additive kill-chain causal edges (issue 6647) for the AGGREGATED view, merged on top of the status
   // graph. Drawn only when a consumed key matches a produced finding (or a dependsOn resolves). In chain
