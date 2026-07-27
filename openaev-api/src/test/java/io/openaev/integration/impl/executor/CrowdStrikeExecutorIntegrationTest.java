@@ -1,7 +1,7 @@
-package io.openaev.integration.impl;
+package io.openaev.integration.impl.executor;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
@@ -13,17 +13,17 @@ import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
+import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.exception.ExecutorException;
-import io.openaev.executors.tanium.client.TaniumExecutorClient;
-import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
-import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration;
-import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegrationFactory;
-import io.openaev.integration.migration.TaniumExecutorConfigurationMigration;
+import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration;
+import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegrationFactory;
+import io.openaev.integration.migration.CrowdStrikeExecutorConfigurationMigration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -31,7 +31,7 @@ import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
-import io.openaev.utils.mockConfig.executors.WithMockTaniumConfig;
+import io.openaev.utils.mockConfig.executors.WithMockCrowdstrikeConfig;
 import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
@@ -52,19 +52,17 @@ import org.springframework.transaction.annotation.Transactional;
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 // The legacy properties migration only seeds an instance when the legacy config is enabled;
 // these tests exercise the factory around that migrated instance.
-@WithMockTaniumConfig(
+@WithMockCrowdstrikeConfig(
     enable = true,
-    url = "tanium_url",
-    apiKey = "tanium_api_key",
+    apiUrl = "cs_api",
+    clientId = "cs_client_id",
+    clientSecret = "cs_client_secret",
+    hostGroup = "cs_host_group",
     apiRegisterInterval = 1234,
-    computerGroupId = "tanium_cmptr_group_id",
-    cleanImplantInterval = 4321,
-    apiBatchExecutionActionPagination = 5678,
-    actionGroupId = 987,
-    windowsPackageId = 32,
-    unixPackageId = 67)
-public class TaniumExecutorIntegrationTest {
-  @Autowired private TaniumExecutorClient client;
+    unixScriptName = "cs_unix_script_name",
+    windowsScriptName = "cs_windows_script_name")
+public class CrowdStrikeExecutorIntegrationTest {
+  @Autowired private CrowdStrikeExecutorClient client;
   @Autowired private EndpointService endpointService;
   @Autowired private AgentService agentService;
   @Autowired private AssetGroupService assetGroupService;
@@ -76,29 +74,30 @@ public class TaniumExecutorIntegrationTest {
   @Autowired private CatalogConnectorService catalogConnectorService;
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
-  @Autowired private TaniumExecutorConfig taniumExecutorConfig;
+  @Autowired private CrowdStrikeExecutorConfig crowdStrikeExecutorConfig;
   @Autowired private EncryptionFactory encryptionFactory;
-  @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   @Autowired private HttpClientFactory httpClientFactory;
+  @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   @Autowired private OpenAEVConfig openAEVConfig;
 
-  @Autowired private TaniumExecutorConfigurationMigration taniumExecutorConfigurationMigration;
+  @Autowired
+  private CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
 
   @Autowired private FileService fileService;
 
-  private TaniumExecutorIntegrationFactory getFactory() {
-    return new TaniumExecutorIntegrationFactory(
+  private CrowdStrikeExecutorIntegrationFactory getFactory() {
+    return new CrowdStrikeExecutorIntegrationFactory(
         connectorInstanceService,
         catalogConnectorService,
-        executorService,
-        componentRequestEngine,
-        taniumExecutorConfigurationMigration,
-        agentService,
         endpointService,
+        agentService,
         assetGroupService,
+        executorService,
         enterpriseEditionService,
         licenseCacheManager,
+        componentRequestEngine,
         taskScheduler,
+        crowdStrikeExecutorConfigurationMigration,
         fileService,
         baseIntegrationConfigurationBuilder,
         httpClientFactory,
@@ -116,7 +115,7 @@ public class TaniumExecutorIntegrationTest {
 
     assertThat(connectors).hasSize(1);
     AssertionsForClassTypes.assertThat(connectors.getFirst().getClassName())
-        .isEqualTo(TaniumExecutorIntegrationFactory.class.getCanonicalName());
+        .isEqualTo(CrowdStrikeExecutorIntegrationFactory.class.getCanonicalName());
   }
 
   @Test
@@ -136,7 +135,7 @@ public class TaniumExecutorIntegrationTest {
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);
-    assertThat(syncedIntegrations).first().isInstanceOf(TaniumExecutorIntegration.class);
+    assertThat(syncedIntegrations).first().isInstanceOf(CrowdStrikeExecutorIntegration.class);
     assertThat(syncedIntegrations)
         .first()
         .satisfies(
@@ -163,14 +162,14 @@ public class TaniumExecutorIntegrationTest {
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);
-    assertThat(syncedIntegrations).first().isInstanceOf(TaniumExecutorIntegration.class);
+    assertThat(syncedIntegrations).first().isInstanceOf(CrowdStrikeExecutorIntegration.class);
     assertThat(syncedIntegrations)
         .first()
         .satisfies(
             integration ->
                 assertThat(
                         integration.requestComponent(
-                            new ComponentRequest(TANIUM_EXECUTOR_NAME),
+                            new ComponentRequest(CROWDSTRIKE_EXECUTOR_NAME),
                             ExecutorContextService.class))
                     .isEmpty());
   }
@@ -198,7 +197,7 @@ public class TaniumExecutorIntegrationTest {
                                 & left.getValue().toString().compareTo(right.getValue().toString()),
                         ConnectorInstanceConfiguration.class)
                     .hasSameElementsAs(
-                        taniumExecutorConfig.toInstanceConfigurationSet(
+                        crowdStrikeExecutorConfig.toInstanceConfigurationSet(
                             instance,
                             encryptionFactory.getEncryptionService(
                                 instance.getCatalogConnector()))));
@@ -233,16 +232,16 @@ public class TaniumExecutorIntegrationTest {
     // Act & Assert — passing null baseIntegrationConfigurationBuilder causes refresh() to fail
     assertThatThrownBy(
             () ->
-                new TaniumExecutorIntegration(
+                new CrowdStrikeExecutorIntegration(
                     instance,
                     connectorInstanceService,
                     endpointService,
                     agentService,
                     assetGroupService,
+                    executorService,
                     enterpriseEditionService,
                     licenseCacheManager,
                     componentRequestEngine,
-                    executorService,
                     taskScheduler,
                     null,
                     httpClientFactory,
@@ -264,9 +263,11 @@ public class TaniumExecutorIntegrationTest {
     ConnectorInstancePersisted instance =
         connectorInstanceService.findAllByCatalogConnector(connectors.getFirst()).getFirst();
 
+    // Set requestedStatus to starting
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
     connectorInstanceService.save(instance);
 
+    // Spawn creates integration in stopped state
     Integration integration = integrationFactory.spawn(instance);
     assertThat(integration.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);

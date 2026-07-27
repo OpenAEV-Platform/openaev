@@ -3,13 +3,11 @@ package io.openaev.secrets.provider;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.BaseConnectorEntity;
 import io.openaev.database.model.ConnectorType;
-import io.openaev.secrets.model.Credential;
-import java.io.IOException;
-import java.util.List;
+import io.openaev.database.model.SecretReference;
 import lombok.Getter;
 import lombok.Setter;
 
-public abstract class SecretsProvider extends BaseConnectorEntity {
+public abstract class SecretsProvider extends BaseConnectorEntity implements SecretProvider {
   protected SecretsProvider() {}
 
   @JsonProperty("secrets_provider_id")
@@ -30,11 +28,24 @@ public abstract class SecretsProvider extends BaseConnectorEntity {
 
   public abstract SecretsProviderType getProviderType();
 
-  public abstract List<Credential> getSecrets() throws IOException;
+  // -- SecretProvider default implementations  --
 
-  public void storeSecret(Credential credential) {
+  @Override
+  public SecretReference store(SecretReference secretReference, SecretStoreRequest request) {
     throw new UnsupportedOperationException(
         "This secret backend does not support storing secrets.");
+  }
+
+  @Override
+  public SecretReference update(SecretReference secretReference, SecretStoreRequest request) {
+    throw new UnsupportedOperationException(
+        "This secret backend does not support updating secrets.");
+  }
+
+  @Override
+  public void delete(SecretReference secretReference) {
+    throw new UnsupportedOperationException(
+        "This secret backend does not support deleting secrets.");
   }
 
   public static class Placeholder extends SecretsProvider {
@@ -45,11 +56,6 @@ public abstract class SecretsProvider extends BaseConnectorEntity {
     @Override
     public SecretsProviderType getProviderType() {
       return SecretsProviderType.PLACEHOLDER;
-    }
-
-    @Override
-    public List<Credential> getSecrets() {
-      return List.of();
     }
   }
 }

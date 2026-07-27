@@ -1,4 +1,4 @@
-package io.openaev.integration.impl;
+package io.openaev.integration.impl.executor;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

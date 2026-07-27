@@ -1,10 +1,13 @@
 package io.openaev.api.secrets_providers;
 
 import io.openaev.api.secrets_providers.form.SecretsProviderOutput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
+import io.openaev.integration.ComponentRequest;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.service.SecretService;
@@ -22,6 +25,7 @@ public class SecretsProviderService
     extends AbstractConnectorService<SecretsProvider, SecretsProviderOutput> {
   private final SecretsProviderMapper secretsProviderMapper;
   private final SecretService secretService;
+  private final ManagerFactory managerFactory;
 
   @Autowired
   public SecretsProviderService(
@@ -30,7 +34,8 @@ public class SecretsProviderService
       ConnectorInstanceService connectorInstanceService,
       SecretsProviderMapper secretsProviderMapper,
       SecretService secretService,
-      CatalogConnectorMapper catalogConnectorMapper) {
+      CatalogConnectorMapper catalogConnectorMapper,
+      ManagerFactory managerFactory) {
     super(
         ConnectorType.SECRETS_PROVIDER,
         connectorInstanceConfigurationRepository,
@@ -39,10 +44,11 @@ public class SecretsProviderService
         catalogConnectorMapper);
     this.secretsProviderMapper = secretsProviderMapper;
     this.secretService = secretService;
+    this.managerFactory = managerFactory;
   }
 
   /**
-   * Retrieve all executors.
+   * Retrieve all secrets' provider.
    *
    * @param isIncludeNext Include pending executors.
    * @return List of executor output
@@ -57,15 +63,16 @@ public class SecretsProviderService
 
   @Override
   protected List<SecretsProvider> getAllConnectors() {
-    return secretService.getAllProviders();
+    return managerFactory
+        .getManager(TenantContext.getCurrentTenant())
+        .requestManyAllStates(new ComponentRequest("secrets-provider"), SecretsProvider.class)
+        .stream()
+        .toList();
   }
 
   @Override
   protected SecretsProvider getConnectorById(String id) {
-    return secretService.getAllProviders().stream()
-        .filter(sp -> id.equals(sp.getId()))
-        .findFirst()
-        .orElse(null);
+    return getAllConnectors().stream().filter(sp -> id.equals(sp.getId())).findFirst().orElse(null);
   }
 
   @Override
