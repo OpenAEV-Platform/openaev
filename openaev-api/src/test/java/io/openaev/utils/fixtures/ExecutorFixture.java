@@ -55,8 +55,7 @@ public class ExecutorFixture {
    * tenant the rest of the fixture data (e.g. an {@code Agent}) is being persisted under.
    */
   public Executor getDefaultExecutor(String tenantId) {
-    Optional<Executor> executorOptional = executorRepository.findByType(OPENAEV_EXECUTOR_TYPE);
-    return executorOptional.orElseGet(() -> executorRepository.save(createOAEVExecutor(tenantId)));
+    return executorRepository.save(createOAEVExecutor(tenantId));
   }
 
   public Executor createCrowdstrikeExecutor() {
