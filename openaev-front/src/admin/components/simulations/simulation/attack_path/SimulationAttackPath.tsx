@@ -1,6 +1,6 @@
-import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LabelOutlined, LocalFireDepartment, PlayArrowOutlined, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
-import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, FullscreenExitOutlined, FullscreenOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LabelOutlined, LocalFireDepartment, PlayArrowOutlined, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
+import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, IconButton, Pagination, Paper, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -8,8 +8,10 @@ import { useNavigate, useParams } from 'react-router';
 import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchExecutionDetail, fetchFindingsByCategory, fetchSimulationsMetaById } from '../../../../../actions/attack-path/attack-path-actions';
 import { createRunningExerciseFromScenario } from '../../../../../actions/scenarios/scenario-actions';
 import Drawer from '../../../../../components/common/Drawer';
+import { criticalityColor } from '../../../../../components/criticalityColor';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
+import ScoreExplainerDialog, { type ScoreBreakdownRow } from '../../../../../components/ScoreExplainerDialog';
 import { SIMULATION_BASE_URL } from '../../../../../constants/BaseUrls';
 import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
@@ -613,6 +615,56 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       });
   }, [simulationId]);
 
+  // Focused view: expand the endpoint's finding clusters BY DEFAULT so the analyst sees the actual findings
+  // without a click. The endpoint's findings are already loaded (endpointFindings), and the focus layout
+  // keys a type's cluster deterministically as `path-cl-type|<type>|<endpointKey>`, so we pre-seed those
+  // clusters (findings + expanded flag + first batch). A type with many findings (> the cap) stays a
+  // collapsed "+N" cluster to keep the view readable; the user can still expand it.
+  const AUTO_EXPAND_MAX = 5;
+  useEffect(() => {
+    if (!pathFinding || endpointFindings.length === 0) {
+      return;
+    }
+    const epKey = pathFinding.endpointKey;
+    const byType = new Map<string, typeof endpointFindings>();
+    for (const f of endpointFindings) {
+      const type = f.typeFindings ?? '';
+      (byType.get(type) ?? byType.set(type, []).get(type)!).push(f);
+    }
+    const clusterData = new Map<string, typeof endpointFindings>();
+    for (const [type, list] of byType) {
+      if (type && list.length > 0 && list.length <= AUTO_EXPAND_MAX) {
+        clusterData.set(`path-cl-type|${type}|${epKey}`, list);
+      }
+    }
+    if (clusterData.size === 0) {
+      return;
+    }
+    setFindingsByCluster((prev) => {
+      const next = new Map(prev);
+      clusterData.forEach((v, k) => {
+        if (!next.has(k)) {
+          next.set(k, v);
+        }
+      });
+      return next;
+    });
+    setFindingBatch((prev) => {
+      const next = new Map(prev);
+      clusterData.forEach((_, k) => {
+        if (!next.has(k)) {
+          next.set(k, FINDING_BATCH_SIZE);
+        }
+      });
+      return next;
+    });
+    setExpandedFindingClusters((prev) => {
+      const next = new Set(prev);
+      clusterData.forEach((_, k) => next.add(k));
+      return next;
+    });
+  }, [pathFinding, endpointFindings]);
+
   // Progressive endpoint reveal: the "+N" header toggles expand/collapse; an "+rest" overflow reveals
   // the next batch.
   const onClusterClick = useCallback((injectorId: string, kind: 'header' | 'overflow') => {
@@ -744,6 +796,21 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       setFindingBatch(prev => new Map(prev).set(clusterId, FINDING_BATCH_SIZE));
       setSelectedFindingId(clusterId);
       setFindingDetail(null);
+      // In the focused view, scope the highlight to the action(s) that PRODUCED this finding type — so
+      // clicking the portscan cluster lights Nmap (its producer), not another injector that merely reached
+      // the endpoint. Mirrors a leaf-finding click, aggregated over every finding of the type.
+      if (pathFinding && typeFindings) {
+        const typeFindingIds = new Set(
+          (fullDto?.attackPathNodes ?? [])
+            .filter(n => n.type === 'FINDING' && (n.typeFindings ?? '') === typeFindings)
+            .map(n => n.id),
+        );
+        const refs = (fullDto?.attackPathExecutions ?? [])
+          .filter(e => (e.findingsNodeIds ?? []).some(id => typeFindingIds.has(id)))
+          .map(e => e.ref)
+          .filter((r): r is string => !!r);
+        setHighlightedExecutionIds(new Set(refs));
+      }
       if (!findingsByCluster.has(clusterId)) {
         if (endpointRef) {
           fetchEndpointFindings(simulationId, endpointRef)
@@ -782,7 +849,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         }
       }
     },
-    [expandedFindingClusters, findingsByCluster, fetchClusterFindings, simulationId, pathFinding],
+    [expandedFindingClusters, findingsByCluster, fetchClusterFindings, simulationId, pathFinding, fullDto],
   );
 
   // Open the findings drawer for a summary category and load the whole category once (bounded); the
@@ -1032,7 +1099,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           batch: findingBatch,
         });
       } else if (chainMode && fullDto) {
-        raw = buildCausalChainFlow(fullDto, t);
+        raw = buildCausalChainFlow(fullDto, t, expandedFindingClusters);
       } else {
         raw = buildClusteredAttackPathFlow(dto, endpointBatch, t, {
           expanded: expandedFindingClusters,
@@ -1467,6 +1534,20 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           }
         }
       }
+      // A selected finding CLUSTER sits upstream of its expanded children (cluster → finding). The up-walk
+      // above never reaches them, so they'd render dimmed once expanded. Add a scoped DOWNSTREAM pass from
+      // the selection so its own expanded findings (and their edges) stay lit.
+      if (selectedFindingId && pathSet.has(selectedFindingId)) {
+        const down = new Set<string>([selectedFindingId]);
+        for (let pass = 0; pass < 3; pass += 1) {
+          for (const e of baseFlow.edges) {
+            if (e.source && e.target && down.has(e.source) && !down.has(e.target)) {
+              down.add(e.target);
+              pathSet.add(e.target);
+            }
+          }
+        }
+      }
       return {
         nodes: baseFlow.nodes.map((n) => {
           const selected = pathSet.has(n.id);
@@ -1496,11 +1577,24 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     // Highlight a path: walk UP from a clicked finding to its actions, or DOWN from a clicked
     // injector (action) to its reach. Same visual, mirrored direction, so both feel consistent.
     const pathSet = new Set<string>();
-    if (selectedInjectorId) {
-      // An injector's downstream highlight shows its REACH — the endpoints it targeted — not the findings.
-      // In the clustered view findings hang off the SHARED endpoint hub and aggregate every injector, so
-      // walking into them would wrongly credit one injector with another's findings (e.g. NetExec lighting
-      // Nmap's portscans). Stop the walk at endpoint/hub nodes: never propagate into finding-type nodes.
+    if (selectedInjectorId && chainMode) {
+      // Chain view: clicking an action lights the WHOLE chain that led to it. Walk UPSTREAM from the action
+      // through BOTH production and causal ("Triggered …") edges (target in set → add source), so the path
+      // from the first action to the one clicked — findings, endpoints and the actions between — is shown.
+      pathSet.add(selectedInjectorId);
+      for (let pass = 0; pass < 8; pass += 1) {
+        for (const e of baseFlow.edges) {
+          if (e.source && e.target && pathSet.has(e.target) && !pathSet.has(e.source)) {
+            pathSet.add(e.source);
+          }
+        }
+      }
+    } else if (selectedInjectorId) {
+      // Clustered view: an injector's downstream highlight shows its REACH — the endpoints it targeted — not
+      // the findings. In the clustered view findings hang off the SHARED endpoint hub and aggregate every
+      // injector, so walking into them would wrongly credit one injector with another's findings (e.g.
+      // NetExec lighting Nmap's portscans). Stop the walk at endpoint/hub nodes: never propagate into
+      // finding-type nodes.
       const findingNodeIds = new Set(
         baseFlow.nodes
           .filter(n => n.type === AP_FLOW_NODE_TYPE.finding
@@ -1574,7 +1668,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     return applyFindingFilter(withSelection.nodes, withSelection.edges, focus);
   }, [
     baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, selectedInjectorId,
-    focus, dto?.attackPathEdges, fullDto?.attackPathEdges, highlightedExecutionIds,
+    focus, dto?.attackPathEdges, fullDto?.attackPathEdges, highlightedExecutionIds, chainMode,
   ]);
 
   // Additive kill-chain causal edges (issue 6647) for the AGGREGATED view, merged on top of the status
@@ -1824,10 +1918,26 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   };
 
   // "Top chokepoints" card popover: the ranked list of the most-exposed endpoints.
-  const [chokepointsAnchor, setChokepointsAnchor] = useState<HTMLElement | null>(null);
+  const [chokepointExplainOpen, setChokepointExplainOpen] = useState(false);
 
   // Graph (node-link) vs Table (sortable/exportable list of exposed endpoints) view of the same data.
   const [view, setView] = useState<'graph' | 'table'>('graph');
+
+  // Fullscreen: expand the whole view (cards strip + graph) over the viewport for room to navigate a large
+  // chain, keeping the finding cards for context. Escape leaves it.
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    if (!fullscreen) {
+      return undefined;
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fullscreen]);
 
   // Free-text search input (endpoint / injector / finding type), used by the search autocomplete.
   const [searchInput, setSearchInput] = useState('');
@@ -1843,7 +1953,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     // Ensure the graph is showing: the strip chip and the popover card are reachable from the table
     // view too, and the focused path only renders in the graph view.
     setView('graph');
-    setChokepointsAnchor(null);
+    setChokepointExplainOpen(false);
     setActiveCard(null);
     setDrawerCategory(null);
     setSelectedFindingId(null);
@@ -1987,9 +2097,19 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       display: 'flex',
       flexDirection: 'column',
       // Give the graph as much vertical room as possible (it grows with the endpoint count); the offset
-      // only reserves the page chrome above (header + tabs + the picker/cards strip).
-      height: 'calc(100vh - 200px)',
+      // only reserves the page chrome above (header + tabs + the picker/cards strip). Fullscreen lifts it
+      // out of the page flow to cover the viewport (cards strip included) for room to navigate.
       gap: theme.spacing(1),
+      ...(fullscreen
+        ? {
+            position: 'fixed' as const,
+            inset: 0,
+            zIndex: theme.zIndex.drawer + 2,
+            height: '100vh',
+            padding: theme.spacing(2),
+            background: theme.palette.background.default,
+          }
+        : { height: 'calc(100vh - 200px)' }),
     }}
     >
       <div style={{
@@ -2081,6 +2201,15 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               <Tooltip title={t('Table')}><TableRowsOutlined fontSize="small" /></Tooltip>
             </ToggleButton>
           </ToggleButtonGroup>
+          <Tooltip title={fullscreen ? t('Exit fullscreen') : t('Fullscreen')}>
+            <IconButton
+              size="small"
+              aria-label={fullscreen ? t('Exit fullscreen') : t('Fullscreen')}
+              onClick={() => setFullscreen(f => !f)}
+            >
+              {fullscreen ? <FullscreenExitOutlined fontSize="small" /> : <FullscreenOutlined fontSize="small" />}
+            </IconButton>
+          </Tooltip>
           <Autocomplete<SearchOption>
             size="small"
             options={searchOptions}
@@ -2195,9 +2324,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         {!pathFinding && chokepoints.length > 0 && (
           <>
             <ButtonBase
-              onClick={e => setChokepointsAnchor(e.currentTarget)}
-              aria-haspopup="true"
-              aria-expanded={Boolean(chokepointsAnchor)}
+              onClick={() => setChokepointExplainOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={chokepointExplainOpen}
               focusRipple
               sx={{
                 'flex': '1 1 0',
@@ -2207,7 +2336,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                 'gap': 1.5,
                 'padding': theme.spacing(1.5),
                 'borderRadius': 1,
-                'border': `1px solid ${chokepointsAnchor ? chokepointColor : theme.palette.divider}`,
+                'border': `1px solid ${chokepointExplainOpen ? chokepointColor : theme.palette.divider}`,
                 'backgroundColor': theme.palette.background.paper,
                 'transition': theme.transitions.create(['border-color', 'background-color']),
                 '&:hover': { borderColor: chokepointColor },
@@ -2246,125 +2375,47 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                 </Typography>
               </div>
             </ButtonBase>
-            <Popover
-              open={Boolean(chokepointsAnchor)}
-              anchorEl={chokepointsAnchor}
-              onClose={() => setChokepointsAnchor(null)}
-              anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'left',
-              }}
-            >
-              <Box sx={{
-                p: 1,
-                minWidth: 340,
-                maxWidth: 400,
-              }}
-              >
-                {/* Transparent formula, mirroring the exposure-score explanation: what it measures, the
-                    exact formula, and the criticality weights it uses. */}
-                <Box sx={{
-                  px: 1,
-                  pb: 1,
-                  mb: 0.5,
-                  borderBottom: `1px solid ${theme.palette.divider}`,
-                }}
-                >
-                  <Typography variant="subtitle2">{t('How chokepoints are scored')}</Typography>
-                  <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 0.5 }}>
-                    {t('A chokepoint is the endpoint where fixing findings closes the most attack paths. The score weights an endpoint\'s findings by its business criticality, so a critical host outranks a noisier but less important one.')}
-                  </Typography>
-                  <Box sx={{
-                    mt: 1,
-                    p: 0.75,
-                    borderRadius: 1,
-                    backgroundColor: alpha(chokepointColor, 0.12),
-                    fontFamily: 'monospace',
-                    fontSize: 12,
-                    textAlign: 'center',
-                  }}
-                  >
-                    {t('score = findings × criticality weight')}
-                  </Box>
-                  <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
-                    {t('Criticality weight')}
-                    {': '}
-                    {Object.entries(CRITICALITY_WEIGHT)
-                      .filter(([k]) => k !== 'UNKNOWN')
-                      .map(([k, w]) => `${t(CRITICALITY_LABEL[k])} ×${w}`)
-                      .join(' · ')}
-                    {` · ${t(CRITICALITY_LABEL.UNKNOWN)} ×${CRITICALITY_WEIGHT.UNKNOWN}`}
-                  </Typography>
-                </Box>
-                <Typography
-                  variant="subtitle2"
-                  sx={{
-                    px: 1,
-                    pb: 0.5,
-                  }}
-                >
-                  {t('Most exposed assets')}
-                </Typography>
-                {chokepoints.map((c, i) => (
-                  <Box
-                    key={c.nodeId}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => focusChokepoint(c)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        focusChokepoint(c);
-                      }
-                    }}
-                    sx={{
-                      'display': 'flex',
-                      'alignItems': 'center',
-                      'gap': 1,
-                      'px': 1,
-                      'py': 0.75,
-                      'borderRadius': 1,
-                      'cursor': 'pointer',
-                      '&:hover': { backgroundColor: 'action.hover' },
-                      '&:focus-visible': {
-                        outline: `2px solid ${theme.palette.primary.main}`,
-                        outlineOffset: -2,
-                      },
-                    }}
-                  >
-                    <span style={{
-                      flex: '0 0 auto',
-                      width: 20,
-                      height: 20,
-                      borderRadius: '50%',
-                      background: chokepointColor,
-                      color: theme.palette.getContrastText(chokepointColor),
-                      fontSize: 11,
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                    >
-                      {i + 1}
-                    </span>
-                    <div style={{
-                      minWidth: 0,
-                      flex: 1,
-                    }}
-                    >
-                      <Typography variant="body2" noWrap title={c.label}>{c.label}</Typography>
-                      <Typography variant="caption" color="text.secondary" noWrap>
-                        {[
-                          c.ip,
-                          `${c.findings} ${t('findings')} × ${c.weight} (${t(CRITICALITY_LABEL[c.criticality ?? 'UNKNOWN'] ?? CRITICALITY_LABEL.UNKNOWN)}) = ${c.score}`,
-                        ].filter(Boolean).join(' · ')}
-                      </Typography>
-                    </div>
-                  </Box>
-                ))}
-              </Box>
-            </Popover>
+            <ScoreExplainerDialog
+              open={chokepointExplainOpen}
+              onClose={() => setChokepointExplainOpen(false)}
+              title={t('How chokepoints are scored')}
+              score={chokepoints[0]?.score ?? null}
+              scoreColor={criticalityColor(chokepoints[0]?.criticality)}
+              bandLabel={t(CRITICALITY_LABEL[chokepoints[0]?.criticality ?? 'UNKNOWN'] ?? CRITICALITY_LABEL.UNKNOWN)}
+              verdict={t('{label} is the most exposed endpoint — fixing its findings closes the most attack paths.', { label: chokepoints[0]?.label ?? '' })}
+              measures={t('A chokepoint is the endpoint where fixing findings closes the most attack paths. The score weights an endpoint\'s findings by its business criticality, so a critical host outranks a noisier but less important one.')}
+              formula={(
+                <>
+                  {t('score')}
+                  {' = '}
+                  {t('findings')}
+                  {' × '}
+                  {t('criticality weight')}
+                </>
+              )}
+              breakdownTitle={t('Most exposed assets')}
+              breakdown={chokepoints.map((c, i): ScoreBreakdownRow => ({
+                key: c.nodeId,
+                label: `${i + 1}. ${c.label}`,
+                valueLabel: `${c.score}`,
+                segments: [{
+                  widthPct: Math.min(100, Math.max(6, ((c.score ?? 0) / (chokepoints[0]?.score || 1)) * 100)),
+                  color: criticalityColor(c.criticality),
+                }],
+                sublabel: [
+                  c.ip,
+                  `${c.findings} × ${c.weight} (${t(CRITICALITY_LABEL[c.criticality ?? 'UNKNOWN'] ?? CRITICALITY_LABEL.UNKNOWN)})`,
+                ].filter(Boolean).join(' · '),
+                onClick: () => focusChokepoint(c),
+              }))}
+              bandsTitle={t('Criticality weights')}
+              bands={(['VERY_HIGH', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']).map(k => ({
+                range: `×${CRITICALITY_WEIGHT[k]}`,
+                label: t(CRITICALITY_LABEL[k]),
+                color: criticalityColor(k),
+                desc: t('Weighs this endpoint\'s findings ×{weight} in the score.', { weight: `${CRITICALITY_WEIGHT[k]}` }),
+              }))}
+            />
           </>
         )}
       </div>
@@ -2690,30 +2741,21 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               </Box>
             );
           })}
-          {!findingsLoading && drawerFilteredItems.length > DRAWER_PAGE_SIZE && (
+          {!findingsLoading && drawerPageCount > 1 && (
             <Box sx={{
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'center',
               pt: 1.5,
             }}
             >
-              <Chip
+              {/* Standard MUI pagination (clickable page numbers), consistent with the rest of the app —
+                  replaces the previous custom Prev/Next chips whose page number was not clickable. */}
+              <Pagination
+                count={drawerPageCount}
+                page={drawerSafePage + 1}
+                onChange={(_, p) => setDrawerPage(p - 1)}
                 size="small"
-                variant="outlined"
-                label={t('Previous')}
-                disabled={drawerSafePage <= 0}
-                onClick={() => setDrawerPage(p => Math.max(0, p - 1))}
-              />
-              <Typography variant="caption" color="text.secondary">
-                {`${drawerSafePage + 1} / ${drawerPageCount}`}
-              </Typography>
-              <Chip
-                size="small"
-                variant="outlined"
-                label={t('Next')}
-                disabled={drawerSafePage >= drawerPageCount - 1}
-                onClick={() => setDrawerPage(p => Math.min(drawerPageCount - 1, p + 1))}
+                color="primary"
               />
             </Box>
           )}

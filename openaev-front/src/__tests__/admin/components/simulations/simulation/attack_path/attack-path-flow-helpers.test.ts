@@ -692,6 +692,93 @@ describe('buildCausalChainFlow', () => {
     expect(causal.filter(e => e.data?.label).length).toBe(1);
   });
 
+  it('collapses more than 4 same-type findings into one cluster and routes the causal edge through it', () => {
+    const fids = ['a', 'b', 'c', 'd', 'e']; // 5 files > cap of 4
+    const collapsed: AttackPathDTO = {
+      ...chainDto,
+      attackPathNodes: [
+        {
+          id: 'inj-A',
+          type: 'INJECTOR',
+          label: 'A',
+        },
+        {
+          id: 'inj-C',
+          type: 'INJECTOR',
+          label: 'C',
+        },
+        {
+          id: 'ep-1',
+          type: 'ASSET',
+          label: 'EP1',
+          ip: '10.0.0.1',
+        },
+        ...fids.map(v => ({
+          id: `NODE_FINDING|file|${v}`,
+          type: 'FINDING' as const,
+          typeFindings: 'file',
+          value: v,
+          label: v,
+        })),
+      ],
+      attackPathExecutions: [
+        {
+          id: 'xA',
+          type: 'EXECUTION',
+          ref: 'exec-A',
+          stepTemplateId: 'step-A',
+          findingsNodeIds: fids.map(v => `NODE_FINDING|file|${v}`),
+          dependsOn: [],
+        },
+        {
+          id: 'xC',
+          type: 'EXECUTION',
+          ref: 'exec-C',
+          stepTemplateId: 'step-C',
+          consumedFindingKeys: [{
+            keyType: 'share_name',
+            operator: 'IS_NOT_NULL',
+            value: null as unknown as string,
+            eventName: 'SHARE',
+          }],
+          dependsOn: ['step-A'],
+        },
+      ],
+      attackPathEdges: [
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'inj-A',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-A'],
+        },
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'inj-C',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-C'],
+        },
+      ],
+    };
+    // Collapsed (default): one cluster node, no individual file leaves, and ONE causal edge from the cluster.
+    const collapsedFlow = buildCausalChainFlow(collapsed, tt);
+    const clusterNodes = collapsedFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.findingCluster);
+    expect(clusterNodes).toHaveLength(1);
+    expect(clusterNodes[0].data.count).toBe(5);
+    expect(collapsedFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.finding)).toHaveLength(0);
+    const collapsedCausal = collapsedFlow.edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE && e.data?.causalKind === 'finding');
+    expect(collapsedCausal).toHaveLength(1);
+    expect(collapsedCausal[0].source).toBe(clusterNodes[0].id);
+    expect(collapsedCausal[0].target).toBe('inj-C');
+
+    // Expanded: the 5 findings render individually (no cluster) and the fan-in has 5 edges, one labelled.
+    const expandedFlow = buildCausalChainFlow(collapsed, tt, new Set([clusterNodes[0].id]));
+    expect(expandedFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.findingCluster)).toHaveLength(0);
+    expect(expandedFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.finding)).toHaveLength(5);
+    const expandedCausal = expandedFlow.edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE && e.data?.causalKind === 'finding');
+    expect(expandedCausal).toHaveLength(5);
+    expect(expandedCausal.filter(e => e.data?.label).length).toBe(1);
+  });
+
   it('anchors the causal edge on the finding of the resolved producer, not another injector sharing the type', () => {
     // Two injectors each produce a `file` finding; a consumer whose event `share_name IS_NOT_NULL` matches
     // BOTH depends (dependsOn, #6985) only on producer A. The edge must anchor on A's finding, never B's.

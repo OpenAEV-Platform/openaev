@@ -1265,26 +1265,22 @@ const causalKeyLabel = (key: CausalConsumedKey, t: ApTranslate): string =>
 //   - IS_NOT_NULL => any produced finding of the reconciled type matches (presence, not value).
 // EQ, IN and IS_NOT_NULL are handled. SKIPPED operators (no edge emitted, no silent cap): NEQ, GT, GTE,
 // LT, LTE, CONTAINS, REGEX, and any other — add them here when the backend needs them.
-const findingMatchesKey = (node: AttackPathFlowNode, key: CausalConsumedKey): boolean => {
-  if (node.type !== AP_FLOW_NODE_TYPE.finding) {
-    return false;
-  }
+// The type/value core of the match, shared by the flow-node matcher and the logical-finding matcher used
+// by the chain layout (where a finding may be collapsed into a cluster and so has no leaf flow node).
+const matchesKeyValue = (typeFindings: string, value: string, key: CausalConsumedKey): boolean => {
   const reconciledType = KEYTYPE_TO_FINDING_TYPE[key.keyType] ?? key.keyType;
-  if ((node.data.typeFindings ?? '') !== reconciledType) {
+  if (typeFindings !== reconciledType) {
     return false;
   }
-  // IS_NOT_NULL matches on presence, not value: any produced finding of the reconciled type satisfies it
-  // (e.g. an event "triggered when any share is found"). Its key.value is null, so this must be handled
-  // before the string guard below.
+  // IS_NOT_NULL matches on presence, not value (e.g. "triggered when any share is found"); its key.value is
+  // null, so handle it before the string guard below.
   if (key.operator === 'IS_NOT_NULL') {
-    return findingNodeValue(node).length > 0;
+    return value.length > 0;
   }
-  // Guard the real DTO field (the mock is always a string, but the backend value may be null/undefined):
-  // a non-string key value can never match and must not reach key.value.split() below.
+  // Guard the real DTO field (the mock is always a string, but the backend value may be null/undefined).
   if (typeof key.value !== 'string') {
     return false;
   }
-  const value = findingNodeValue(node);
   if (key.operator === 'EQ') {
     return value === key.value;
   }
@@ -1298,6 +1294,10 @@ const findingMatchesKey = (node: AttackPathFlowNode, key: CausalConsumedKey): bo
   // Unsupported operator (see list above): ignore, emit nothing.
   return false;
 };
+
+const findingMatchesKey = (node: AttackPathFlowNode, key: CausalConsumedKey): boolean =>
+  node.type === AP_FLOW_NODE_TYPE.finding
+  && matchesKeyValue(node.data.typeFindings ?? '', findingNodeValue(node), key);
 
 /**
  * Build the additive kill-chain causal edges for a set of flow nodes (issue 6647).
@@ -1424,6 +1424,8 @@ const CHAIN_STEP_GAP = 80; // vertical gap between two asset blocks sharing a de
 const CHAIN_INJECTOR_ROW = 110; // vertical slot per injector when several share one endpoint block
 const CHAIN_EP_BLOCK_MIN = 120; // minimum height of one endpoint block (endpoint node + breathing room)
 const CHAIN_FIND_HALF = 28; // half of AP_FINDING_SIZE (56), to centre a finding node on its row
+const CHAIN_FINDINGS_MAX_PER_TYPE = 4; // a type with more than this on an endpoint collapses into a "+N"
+// cluster (click to expand), so a heavy endpoint (e.g. 24 portscans) stays a few rows tall, not a column.
 
 interface ChainStep {
   injectorId: string;
@@ -1440,6 +1442,9 @@ interface ChainStep {
 export const buildCausalChainFlow = (
   dto: AttackPathDTO,
   t: ApTranslate,
+  // Cluster ids (chain-fc|<depth>|<endpoint>|<type>) the user expanded, so their findings render
+  // individually instead of collapsed into a "+N" cluster row.
+  expandedChainClusters: Set<string> = new Set(),
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
@@ -1635,6 +1640,10 @@ export const buildCausalChainFlow = (
   // A finding is placed once (unique React Flow id) on the first endpoint that produced it; any other
   // endpoint that also produced it just gets an edge to the same node.
   const placedFindings = new Set<string>();
+  const placedClusters = new Set<string>();
+  // Finding node id -> the flow node that REPRESENTS it in the graph: itself when rendered individually, or
+  // the cluster node when collapsed. Lets a causal edge point at the cluster when its findings are hidden.
+  const causalSourceByFinding = new Map<string, string>();
 
   for (const [d, ids] of sortedDepths) {
     const x = depthX.get(d) as number;
@@ -1672,9 +1681,38 @@ export const buildCausalChainFlow = (
     for (const epId of assetOrder) {
       const injectors = assetInjectors.get(epId) as string[];
       const findingIds = assetFindings.get(epId) as string[];
+      // Group the endpoint's findings by type; a type with more than the cap collapses into ONE "+N"
+      // cluster row (unless the user expanded it), so a heavy endpoint stays a handful of rows tall.
+      const findingsByType = new Map<string, string[]>();
+      for (const fid of findingIds) {
+        const ftype = findingById.get(fid)?.typeFindings ?? '';
+        (findingsByType.get(ftype) ?? findingsByType.set(ftype, []).get(ftype)!).push(fid);
+      }
+      const findRows: {
+        type: string;
+        fids: string[];
+        clusterId?: string;
+      }[] = [];
+      for (const [ftype, fids] of findingsByType) {
+        const clusterId = `chain-fc|${d}|${epId}|${ftype}`;
+        if (fids.length > CHAIN_FINDINGS_MAX_PER_TYPE && !expandedChainClusters.has(clusterId)) {
+          findRows.push({
+            type: ftype,
+            fids,
+            clusterId,
+          });
+        } else {
+          for (const fid of fids) {
+            findRows.push({
+              type: ftype,
+              fids: [fid],
+            });
+          }
+        }
+      }
       const h = Math.max(
         CHAIN_EP_BLOCK_MIN,
-        findingIds.length * CHAIN_FIND_ROW,
+        findRows.length * CHAIN_FIND_ROW,
         injectors.length * CHAIN_INJECTOR_ROW,
       );
       const blockTop = cursorY;
@@ -1730,10 +1768,57 @@ export const buildCausalChainFlow = (
         });
       });
 
-      // Findings discovered on this asset (union across the injectors), stacked and centred on the block.
-      findingIds.forEach((fid, k) => {
+      // Findings on this asset (union across the injectors), stacked and centred — each row is either a
+      // single finding or a collapsed "+N" cluster for its type.
+      findRows.forEach((row, k) => {
+        const fY = blockCenter + (k - (findRows.length - 1) / 2) * CHAIN_FIND_ROW;
+        if (row.clusterId) {
+          // Worst-of status across the collapsed findings (a missing status is treated as the worst, RED).
+          let clusterStatus = 'GREEN';
+          if (row.fids.some(f => findingById.get(f)?.status === 'ORANGE')) {
+            clusterStatus = 'ORANGE';
+          }
+          if (row.fids.some(f => (findingById.get(f)?.status ?? 'RED') === 'RED')) {
+            clusterStatus = 'RED';
+          }
+          if (!placedClusters.has(row.clusterId)) {
+            placedClusters.add(row.clusterId);
+            nodes.push({
+              id: row.clusterId,
+              type: AP_FLOW_NODE_TYPE.findingCluster,
+              position: {
+                x: x + chainFindDx,
+                y: fY - CHAIN_FIND_HALF,
+              },
+              data: {
+                typeFindings: row.type,
+                count: row.fids.length,
+                label: row.type,
+                clusterId: row.clusterId,
+                clusterKind: 'header',
+                expanded: false,
+                status: clusterStatus,
+              },
+            });
+          }
+          edges.push({
+            id: `${epNodeId}-${row.clusterId}`,
+            source: epNodeId,
+            target: row.clusterId,
+            type: AP_FLOW_EDGE_TYPE,
+            data: {
+              count: row.fids.length,
+              status: clusterStatus,
+              label: t('{type} found', { type: row.type }),
+            },
+          });
+          // The hidden findings are represented by the cluster for causal routing.
+          row.fids.forEach(fid => causalSourceByFinding.set(fid, row.clusterId as string));
+          return;
+        }
+        const fid = row.fids[0];
         const fDto = findingById.get(fid);
-        const fY = blockCenter + (k - (findingIds.length - 1) / 2) * CHAIN_FIND_ROW;
+        causalSourceByFinding.set(fid, fid);
         if (!placedFindings.has(fid)) {
           placedFindings.add(fid);
           nodes.push({
@@ -1772,9 +1857,8 @@ export const buildCausalChainFlow = (
   // Forward causal links: a produced finding → the downstream inject that consumes a matching key. When a
   // step consumes but no produced finding matches (value not surfaced, or a pure ordering dependency), fall
   // back to a dashed dependsOn edge so the sequencing is still shown.
-  const findingNodes = nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.finding);
   const nodeById = new Map(nodes.map(n => [n.id, n]));
-  // Which injector(s) produced each finding node, so a causal edge can be anchored on the finding of the
+  // Which injector(s) produced each finding, so a causal edge can be anchored on the finding of the
   // consumer's REAL producer rather than any finding that merely shares the value from another injector.
   const producersByFinding = new Map<string, Set<string>>();
   for (const [prodInjId, ps] of steps) {
@@ -1786,33 +1870,44 @@ export const buildCausalChainFlow = (
   }
   // Convergence with ONE label: a key like `share_name IS_NOT_NULL` matches every produced share, so draw a
   // grey edge from EACH producing finding to the consumer — the fan-in that reads as "all these findings
-  // triggered it" (the Option A grouping) — but label only the nearest edge. N identical "Triggered …"
-  // labels stacked over the node was the original illegibility; a single label on a fan-in is clean.
+  // triggered it" (the Option A grouping) — but label only the nearest edge. A collapsed cluster routes the
+  // fan-in through its single cluster node (so N hidden findings share one edge). Match against LOGICAL
+  // findings, since a collapsed finding has no leaf flow node.
   const drawnCausalEdges = new Set<string>();
   const labelledCausal = new Set<string>();
   for (const [injId, s] of steps) {
     let matched = false;
     const injY = nodeById.get(injId)?.position.y ?? 0;
     for (const key of s.consumed) {
-      const allMatches = findingNodes.filter(fn => findingMatchesKey(fn, key));
+      const allFids = [...producersByFinding.keys()].filter((fid) => {
+        const f = findingById.get(fid);
+        return !!f && matchesKeyValue(f.typeFindings ?? '', (f.value ?? f.label ?? ''), key);
+      });
       // Prefer findings produced by this consumer's resolved dependency (#6985 populates dependsOn with the
       // real producer step), so the fan-in stays on the real producer's findings and never reaches a
-      // same-typed finding from an unrelated injector. Fall back to every match when no dependency
-      // resolved (e.g. a complex-type key).
+      // same-typed finding from an unrelated injector. Fall back to every match when no dependency resolved.
       const fromDeps = s.deps.size > 0
-        ? allMatches.filter(fn => [...(producersByFinding.get(fn.id) ?? [])].some(p => s.deps.has(p)))
+        ? allFids.filter(fid => [...(producersByFinding.get(fid) ?? [])].some(p => s.deps.has(p)))
         : [];
-      const matches = fromDeps.length > 0 ? fromDeps : allMatches;
-      if (matches.length === 0) {
+      const fids = fromDeps.length > 0 ? fromDeps : allFids;
+      if (fids.length === 0) {
         continue;
       }
       matched = true;
       const label = causalKeyLabel(key, t);
+      // Resolve each finding to the flow node that represents it (itself or its cluster) and de-dup, so a
+      // collapsed cluster gets ONE causal edge for all its findings.
+      const sourceIds = new Set<string>();
+      for (const fid of fids) {
+        sourceIds.add(causalSourceByFinding.get(fid) ?? fid);
+      }
       // Nearest first, so the single label sits on the shortest edge of the fan-in.
-      const ordered = [...matches].sort((a, b) =>
-        Math.abs(a.position.y - injY) - Math.abs(b.position.y - injY));
-      for (const fn of ordered) {
-        const edgeId = `${AP_FLOW_CAUSAL_EDGE_TYPE}-finding-${fn.id}-${injId}`;
+      const ordered = [...sourceIds]
+        .map(id => nodeById.get(id))
+        .filter((n): n is AttackPathFlowNode => !!n)
+        .sort((a, b) => Math.abs(a.position.y - injY) - Math.abs(b.position.y - injY));
+      for (const src of ordered) {
+        const edgeId = `${AP_FLOW_CAUSAL_EDGE_TYPE}-finding-${src.id}-${injId}`;
         if (drawnCausalEdges.has(edgeId)) {
           continue;
         }
@@ -1823,7 +1918,7 @@ export const buildCausalChainFlow = (
         }
         edges.push({
           id: edgeId,
-          source: fn.id,
+          source: src.id,
           target: injId,
           type: AP_FLOW_CAUSAL_EDGE_TYPE,
           data: {
