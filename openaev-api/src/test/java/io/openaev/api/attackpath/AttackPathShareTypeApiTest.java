@@ -102,20 +102,23 @@ class AttackPathShareTypeApiTest extends IntegrationTest {
   }
 
   /**
-   * Why the {@code share -> file} stand-in was dropped: folding shares into a native {@code file}
-   * type would report "2 files" for one share plus one file. Each type counts under its own name.
+   * A share and a native {@code file} on the same endpoint each count under their own name: folding
+   * them together would report "2 files" for one share plus one file. Each read keeps them
+   * distinct.
    */
   @Test
   @DisplayName("a share and a file on the same endpoint are counted separately")
   void shareAndFileDoNotMerge() throws Exception {
+    String fileValue = "\\\\10.0.0.1\\NETLOGON\\scripts\\passwords.txt";
     seedFinding("share", SHARE_VALUE);
-    seedFinding("file", "C:\\temp\\passwords.txt");
+    seedFinding("file", fileValue);
 
     mvc.perform(
             get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/graph")
                 .param("mode", "full"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.counters.shares").value(1));
+        .andExpect(jsonPath("$.counters.shares").value(1))
+        .andExpect(jsonPath("$.counters.files").value(1));
 
     mvc.perform(
             get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/findings")
@@ -123,6 +126,38 @@ class AttackPathShareTypeApiTest extends IntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items.length()").value(1))
         .andExpect(jsonPath("$.items[0].type").value("share"));
+
+    mvc.perform(
+            get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/findings")
+                .param("category", "files"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].type").value("file"))
+        .andExpect(jsonPath("$.items[0].value").value(fileValue));
+  }
+
+  @Test
+  @DisplayName("a file finding reads type 'file' on graph node, collapsed counts and counter")
+  void fileAppearsOnEveryRead() throws Exception {
+    String fileValue = "\\\\10.0.0.1\\SYSVOL\\scripts\\secret.ps1";
+    seedFinding("file", fileValue);
+
+    mvc.perform(
+            get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/graph")
+                .param("mode", "full"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.counters.files").value(1))
+        .andExpect(
+            jsonPath("$.attackPathNodes[?(@.value=='" + fileValue + "')].typeFindings")
+                .value(hasItem("file")));
+
+    mvc.perform(
+            get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/graph")
+                .param("mode", "collapsed"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.counters.files").value(1))
+        .andExpect(
+            jsonPath("$.attackPathNodes[?(@.type=='ASSET')].findingCounts.file").value(hasItem(1)));
   }
 
   @Test

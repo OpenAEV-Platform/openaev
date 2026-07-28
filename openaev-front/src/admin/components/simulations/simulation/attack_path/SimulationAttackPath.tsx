@@ -1,6 +1,6 @@
 import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, FullscreenExitOutlined, FullscreenOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LabelOutlined, LocalFireDepartment, PlayArrowOutlined, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
-import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, IconButton, Pagination, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, IconButton, Pagination, Paper, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
 import { FolderNetworkOutline } from 'mdi-material-ui';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -76,10 +76,10 @@ const isSeedId = (id?: string) => !!id && id.startsWith('ap-seed-');
 
 // Finding types already surfaced by the curated summary cards (endpoints/shares/credentials/users/cves).
 // Every OTHER type present in the data gets an auto-generated card, so a new finding type needs no code.
-const COVERED_FINDING_TYPES = new Set(['share', 'credentials', 'username', 'admin_username', 'cve']);
+const COVERED_FINDING_TYPES = new Set(['share', 'file', 'credentials', 'username', 'admin_username', 'cve']);
 
 // Finding categories fetched (with per-finding executionIds) to attribute findings to an injector.
-const INJECTOR_FINDING_CATEGORIES = ['credentials', 'users', 'cves', 'shares'];
+const INJECTOR_FINDING_CATEGORIES = ['credentials', 'users', 'cves', 'shares', 'files'];
 
 // Drawer resize bounds (px).
 const PANEL_MIN_WIDTH = 320;
@@ -143,6 +143,7 @@ const CATEGORY_OF_TYPE: Record<string, string> = {
   admin_username: 'users',
   cve: 'cves',
   share: 'shares',
+  file: 'files',
 };
 
 // Match a drawer finding value to a graph finding value. Credentials are masked server-side in the
@@ -1810,11 +1811,13 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     [drawerFilteredItems, drawerSafePage],
   );
 
-  // "Discovered Shares" reads the backend share counter: SMB shares keep their stored type, so a
-  // future native `file` finding can never be counted here.
+  // "Discovered Shares" reads the backend share counter; "Captured Files" the native `file` counter.
+  // Each finding type keeps its own stored type, so shares and files are never folded together.
   const sharesCount = counters?.shares ?? 0;
+  const filesCount = counters?.files ?? 0;
 
   const focusedSharesCount = focusedEndpoint?.findingCounts?.share ?? 0;
+  const focusedFilesCount = focusedEndpoint?.findingCounts?.file ?? 0;
   const effectiveCounters = pathFinding
     ? {
         endpoints: 1,
@@ -1842,6 +1845,12 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         label: t('Discovered Shares'),
         icon: <FolderNetworkOutline fontSize="small" />,
         count: pathFinding ? focusedSharesCount : sharesCount,
+      },
+      {
+        key: 'files',
+        label: t('Captured Files'),
+        icon: <InsertDriveFileOutlined fontSize="small" />,
+        count: pathFinding ? focusedFilesCount : filesCount,
       },
       {
         key: 'credentials',
@@ -1889,7 +1898,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         };
       });
     return [...base, ...extras];
-  }, [t, effectiveCounters, pathFinding, focusedSharesCount, sharesCount, dto, focusedEndpoint]);
+  }, [t, effectiveCounters, pathFinding, focusedSharesCount, sharesCount, focusedFilesCount, filesCount, dto, focusedEndpoint]);
 
   // Click a summary card: focus the graph on that finding type and, for finding categories, open the
   // right drawer listing the (deduplicated, masked) items. Clicking again clears the focus/drawer.

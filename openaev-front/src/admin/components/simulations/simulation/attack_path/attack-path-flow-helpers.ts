@@ -772,6 +772,8 @@ export const findingCategoryNoun = (typeFindings?: string): string => {
       return 'hashes';
     case 'share':
       return 'shares';
+    case 'file':
+      return 'files';
     case 'password_policy':
       return 'password policies';
     case 'sid':
@@ -1015,7 +1017,8 @@ export const SENSITIVE_FINDING_TYPES = new Set(['credentials', 'password_policy'
 
 // Mask a finding value for display (rendered as text by the callers — never as HTML). Credentials
 // keep the username visible but mask the secret ("user:pass" -> "user : ••••••"); other secret types
-// (sid, password_policy) are fully masked; everything else is shown as-is.
+// (sid, password_policy) are fully masked; a `file` value is the full location but displays as its
+// basename (the full path stays available in the detail panel); everything else is shown as-is.
 export const maskFindingValue = (typeFindings?: string, value?: string): string => {
   if (!value) {
     return '';
@@ -1030,14 +1033,21 @@ export const maskFindingValue = (typeFindings?: string, value?: string): string 
   if (SENSITIVE_FINDING_TYPES.has(typeFindings ?? '')) {
     return '••••••••';
   }
+  if (typeFindings === 'file') {
+    // The stored value is the full location (e.g. \\host\SYSVOL\dir\secret.ps1); show only the
+    // basename so nodes/cards stay legible. The full path is kept in the finding detail panel.
+    const segments = value.split(/[\\/]/).filter(Boolean);
+    return segments.length > 0 ? segments[segments.length - 1] : value;
+  }
   return value;
 };
 
-// Card filter -> the finding-type values it focuses (issue 6647). "shares" maps to `share` (the backend
-// presents SMB `share` findings as `file`, an interim stand-in until a native file finding type
-// exists); "users" also includes admin usernames per product decision.
+// Card filter -> the finding-type values it focuses (issue 6647). "shares" maps to `share`, "files" to
+// the native `file` type (files discovered on shares or listed on a host); "users" also includes admin
+// usernames per product decision.
 export const FILTER_TO_FINDING_TYPES: Record<Exclude<AttackPathFindingFilter, 'endpoints'>, string[]> = {
   shares: ['share'],
+  files: ['file'],
   credentials: ['credentials'],
   users: ['username', 'admin_username'],
   cves: ['cve'],
@@ -1261,6 +1271,7 @@ const findingNodeValue = (node: AttackPathFlowNode): string => {
 // correct for primitives; complex value-matching is a follow-up (see backend requirements topo).
 const KEYTYPE_TO_FINDING_TYPE: Record<string, string> = {
   share_name: 'share',
+  file_name: 'file',
   password: 'credentials',
 };
 

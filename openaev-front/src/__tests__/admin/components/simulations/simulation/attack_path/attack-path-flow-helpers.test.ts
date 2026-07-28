@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildKillChainMeta, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildKillChainMeta, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 // Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
@@ -260,6 +260,18 @@ describe('orderSimulationPickerOptions', () => {
   });
 });
 
+describe('file finding type wiring', () => {
+  it('maps the files card to the native file finding type', () => {
+    expect(FILTER_TO_FINDING_TYPES.files).toEqual(['file']);
+    // shares stays distinct from files — a file is never folded into the share type.
+    expect(FILTER_TO_FINDING_TYPES.shares).toEqual(['share']);
+  });
+
+  it('reads a file finding as the "files" category noun', () => {
+    expect(findingCategoryNoun('file')).toBe('files');
+  });
+});
+
 describe('maskFindingValue', () => {
   it('masks secret finding types', () => {
     expect(maskFindingValue('credentials', 'admin:secret')).toBe('admin : ••••••');
@@ -273,6 +285,13 @@ describe('maskFindingValue', () => {
     expect(maskFindingValue('cve', 'CVE-2023-1')).toBe('CVE-2023-1');
     expect(maskFindingValue('port', '443')).toBe('443');
     expect(maskFindingValue('username', 'bob')).toBe('bob');
+  });
+
+  it('displays a file as its basename, keeping the full path out of the label', () => {
+    expect(maskFindingValue('file', '\\\\WINTERFELL\\SYSVOL\\scripts\\secret.ps1')).toBe('secret.ps1');
+    expect(maskFindingValue('file', 'ftp01:/home/user/config.ini')).toBe('config.ini');
+    // A bare name (no separators) is returned unchanged.
+    expect(maskFindingValue('file', 'notes.txt')).toBe('notes.txt');
   });
 
   it('returns an empty string for an undefined value', () => {

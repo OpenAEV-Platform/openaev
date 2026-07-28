@@ -97,6 +97,7 @@ public class AttackPathGraphService {
   private static final String CREDENTIAL_MASK = "••••";
 
   private static final String SHARE_TYPE = "share";
+  private static final String FILE_TYPE = "file";
 
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathFindingRepository findingRepository;
@@ -359,6 +360,7 @@ public class AttackPathGraphService {
       case "users" -> Set.of("username", "admin_username");
       case "cves" -> Set.of("cve");
       case "shares" -> Set.of(SHARE_TYPE);
+      case "files" -> Set.of(FILE_TYPE);
       // Any other category is a literal finding type (data-driven, mirroring the front's cards),
       // so the "Text fields"/etc. cards open a populated drawer instead of an empty one.
       default -> Set.of(category.toLowerCase(Locale.ROOT));
@@ -506,6 +508,7 @@ public class AttackPathGraphService {
     Set<String> cveKeys = new HashSet<>();
     Set<String> portKeys = new HashSet<>();
     Set<String> shareKeys = new HashSet<>();
+    Set<String> fileKeys = new HashSet<>();
     for (AttackPathFindingRow f : findings) {
       String assetNodeId = AttackPathIds.endpointNode(f.endpointKey());
       String typeNodeId = AttackPathIds.findingTypeNode(f.type(), f.endpointKey());
@@ -554,6 +557,7 @@ public class AttackPathGraphService {
         case "cve" -> cveKeys.add(counterKey);
         case "port" -> portKeys.add(counterKey);
         case SHARE_TYPE -> shareKeys.add(counterKey);
+        case FILE_TYPE -> fileKeys.add(counterKey);
         default -> {
           // other finding types do not feed a top-bar counter
         }
@@ -587,7 +591,8 @@ public class AttackPathGraphService {
             userKeys.size(),
             cveKeys.size(),
             portKeys.size(),
-            shareKeys.size());
+            shareKeys.size(),
+            fileKeys.size());
     return new AttackPathDTO(
         staticFindings,
         new ArrayList<>(feedByExecutionId.values()),
@@ -743,6 +748,7 @@ public class AttackPathGraphService {
     long cves = 0;
     long ports = 0;
     long shares = 0;
+    long files = 0;
     for (AttackPathTypeCountRow t : typeCounts) {
       switch (t.type()) {
         case "credentials" -> credentials += t.distinctValues();
@@ -750,12 +756,13 @@ public class AttackPathGraphService {
         case "cve" -> cves += t.distinctValues();
         case "port" -> ports += t.distinctValues();
         case SHARE_TYPE -> shares += t.distinctValues();
+        case FILE_TYPE -> files += t.distinctValues();
         default -> {
           // other finding types do not feed a top-bar counter
         }
       }
     }
-    return new AttackPathCounters(endpoints, credentials, users, cves, ports, shares);
+    return new AttackPathCounters(endpoints, credentials, users, cves, ports, shares, files);
   }
 
   /** Worst-case severity of an endpoint's executions from the aggregated red/orange counts. */

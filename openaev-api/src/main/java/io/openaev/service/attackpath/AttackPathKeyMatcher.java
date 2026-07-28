@@ -24,7 +24,7 @@ public final class AttackPathKeyMatcher {
   // The complex sub-field keys whose vocabulary differs from the finding type; every other key type
   // maps to a finding type 1:1 (identity).
   private static final Map<String, String> KEYTYPE_TO_FINDING_TYPE =
-      Map.of("share_name", "share", "password", "credentials");
+      Map.of("share_name", "share", "file_name", "file", "password", "credentials");
 
   private AttackPathKeyMatcher() {}
 

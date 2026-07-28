@@ -18,8 +18,14 @@ Answer these before writing code; they decide half the steps below.
 
 - **Primitive or complex?** A primitive is a single scalar the chaining engine can compare directly
   (`text`, `number`, `port`, `ipv4`). A complex type is an object with named sub-fields (`share` =
-  host + share_name + permissions). Getting this wrong is the mistake behind the `share`/`file`
-  confusion: a file name is a primitive, a share is not.
+  host + share_name + permissions). The test is not "is the display value one word" but "does the
+  finding need to carry context to be correct". A **bare** file name is a primitive, but a real
+  `file` finding is **complex**: the same basename means different things by location, so it carries
+  `file_name` + `path` + `share` (empty for local files) + `host`. Its `toFindingValue` is the full
+  location (unique dedup key) while the front shows only the basename; the `share` sub-field reuses
+  `PrimitiveType.ShareName` so a share-hosted file links back to its `share` finding. Defaulting to
+  "a name is a primitive" is the trap — a lone scalar cannot distinguish a share file from a local
+  file, nor link to its share.
 - **Which injector will actually produce it?** A type with no producer is dead weight that misleads
   the UI into showing a category that can never fill. Land the producer in the same milestone.
 - **Does it feed an attack-path summary card?** If not, the generic auto-generated card already
@@ -96,6 +102,15 @@ For a Python injector, mirroring `netexec/`:
 - `helpers/*_output_parser.py` + an extractor returning the dicts whose keys **exactly match** the
   processor's fields from step 3. A key mismatch fails `validate()` silently.
 - Declare the output on the contract so the UI can chain from it.
+
+  **Output on stdout vs. a file.** Most netexec parsers read the finding from stdout lines. Some
+  modules write structured data to a **file instead** — `spider_plus` prints only stats to stdout
+  and dumps the per-file list to a JSON metadata folder. For those: force a controlled output path
+  in the command builder (mirror `OPTIONS_REQUIRING_OUTPUT_FILE`, e.g. force `-o OUTPUT_FOLDER=<tmp>`
+  for `spider_plus`), record it on the parsed data, then in `openaev_netexec.execute` read that
+  file/folder after the run, parse it into findings, merge them into `parse_result["outputs"]`, and
+  clean it up in `finally`. Do NOT append raw JSON to stdout for the line parser to pick up — a
+  dedicated JSON parser keyed on the file name (netexec writes `<ip>.json`) is the clean path.
 
 ### Step 7 — Attack path (only if it gets its own card)
 

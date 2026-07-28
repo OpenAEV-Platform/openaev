@@ -208,6 +208,7 @@ export interface AggregatedFindingOutput {
     | "cve"
     | "username"
     | "share"
+    | "file"
     | "admin_username"
     | "group"
     | "computer"
@@ -958,6 +959,8 @@ export interface AttackPathCounters {
   cves?: number;
   /** @format int64 */
   endpoints?: number;
+  /** @format int64 */
+  files?: number;
   /** @format int64 */
   ports?: number;
   /** @format int64 */
@@ -2261,6 +2264,7 @@ export interface ContractOutputElement {
     | "cve"
     | "username"
     | "share"
+    | "file"
     | "admin_username"
     | "group"
     | "computer"
@@ -2315,6 +2319,7 @@ export interface ContractOutputElementInput {
     | "cve"
     | "username"
     | "share"
+    | "file"
     | "admin_username"
     | "group"
     | "computer"
@@ -2365,6 +2370,7 @@ export interface ContractOutputElementSimple {
     | "cve"
     | "username"
     | "share"
+    | "file"
     | "admin_username"
     | "group"
     | "computer"
@@ -4738,6 +4744,7 @@ export interface Finding {
     | "cve"
     | "username"
     | "share"
+    | "file"
     | "admin_username"
     | "group"
     | "computer"
@@ -4773,6 +4780,7 @@ export interface FindingInput {
     | "cve"
     | "username"
     | "share"
+    | "file"
     | "admin_username"
     | "group"
     | "computer"
@@ -8847,6 +8855,7 @@ export interface RelatedFindingOutput {
     | "cve"
     | "username"
     | "share"
+    | "file"
     | "admin_username"
     | "group"
     | "computer"
