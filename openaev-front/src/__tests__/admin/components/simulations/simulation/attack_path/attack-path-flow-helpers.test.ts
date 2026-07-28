@@ -487,10 +487,10 @@ describe('buildKillChainMeta', () => {
 });
 
 describe('buildCausalEdges', () => {
-  it('draws a solid finding edge, reconciling the primitive key type (share_name -> file)', () => {
+  it('draws a solid finding edge, reconciling the primitive key type (share_name -> share)', () => {
     // Arrange
     const meta = buildKillChainMeta(killChainDto);
-    const nodes = [injectorNode('inj-smb'), findingNode('find-share', 'file', 'ADMIN$')];
+    const nodes = [injectorNode('inj-smb'), findingNode('find-share', 'share', 'ADMIN$')];
     // Act
     const edges = buildCausalEdges(nodes, id => (id ? meta.get(id) : undefined), tt);
     // Assert
@@ -674,32 +674,32 @@ describe('buildCausalChainFlow', () => {
   });
 
   it('converges N matching findings into the consumer with a single label (Option A grouping)', () => {
-    // A hub endpoint yields THREE shares (native "file" type since #6972); NetExec's event consumes
-    // `share_name IS_NOT_NULL`, which reconciles to `file` and matches every one of them. We draw the fan-in
-    // (one grey edge per finding, so the grouping is visible) but label only ONE — three stacked "Triggered …"
-    // labels over the consumer was the original illegibility.
+    // A hub endpoint yields THREE shares; NetExec's event consumes `share_name IS_NOT_NULL`, which
+    // reconciles to `share` and matches every one of them. We draw the fan-in (one grey edge per finding,
+    // so the grouping is visible) but label only ONE — three stacked "Triggered …" labels over the
+    // consumer was the original illegibility.
     const hub: AttackPathDTO = {
       ...chainDto,
       attackPathNodes: [
         ...(chainDto.attackPathNodes ?? []),
         {
-          id: 'NODE_FINDING|file|NETLOGON',
+          id: 'NODE_FINDING|share|NETLOGON',
           type: 'FINDING',
-          typeFindings: 'file',
+          typeFindings: 'share',
           value: 'NETLOGON',
           label: 'NETLOGON',
         },
         {
-          id: 'NODE_FINDING|file|SYSVOL',
+          id: 'NODE_FINDING|share|SYSVOL',
           type: 'FINDING',
-          typeFindings: 'file',
+          typeFindings: 'share',
           value: 'SYSVOL',
           label: 'SYSVOL',
         },
         {
-          id: 'NODE_FINDING|file|CertEnroll',
+          id: 'NODE_FINDING|share|CertEnroll',
           type: 'FINDING',
-          typeFindings: 'file',
+          typeFindings: 'share',
           value: 'CertEnroll',
           label: 'CertEnroll',
         },
@@ -710,7 +710,7 @@ describe('buildCausalChainFlow', () => {
           type: 'EXECUTION',
           ref: 'exec-1',
           stepTemplateId: 'step-A',
-          findingsNodeIds: ['NODE_FINDING|file|NETLOGON', 'NODE_FINDING|file|SYSVOL', 'NODE_FINDING|file|CertEnroll'],
+          findingsNodeIds: ['NODE_FINDING|share|NETLOGON', 'NODE_FINDING|share|SYSVOL', 'NODE_FINDING|share|CertEnroll'],
           dependsOn: [],
         },
         {
@@ -730,17 +730,17 @@ describe('buildCausalChainFlow', () => {
     };
     const { edges } = buildCausalChainFlow(hub, tt);
     const causal = edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE);
-    // One grey edge per produced file (the fan-in), all targeting the consumer.
+    // One grey edge per produced share (the fan-in), all targeting the consumer.
     expect(causal).toHaveLength(3);
     expect(causal.every(e => e.target === 'inj-smb')).toBe(true);
-    expect(causal.every(e => /^NODE_FINDING\|file\|/.test(e.source ?? ''))).toBe(true);
+    expect(causal.every(e => /^NODE_FINDING\|share\|/.test(e.source ?? ''))).toBe(true);
     expect(causal.every(e => e.data?.causalKind === 'finding')).toBe(true);
     // …but only ONE of them carries the "Triggered …" label.
     expect(causal.filter(e => e.data?.label).length).toBe(1);
   });
 
   it('collapses more than 4 same-type findings into one cluster and routes the causal edge through it', () => {
-    const fids = ['a', 'b', 'c', 'd', 'e']; // 5 files > cap of 4
+    const fids = ['a', 'b', 'c', 'd', 'e']; // 5 shares > cap of 4
     const collapsed: AttackPathDTO = {
       ...chainDto,
       attackPathNodes: [
@@ -761,9 +761,9 @@ describe('buildCausalChainFlow', () => {
           ip: '10.0.0.1',
         },
         ...fids.map(v => ({
-          id: `NODE_FINDING|file|${v}`,
+          id: `NODE_FINDING|share|${v}`,
           type: 'FINDING' as const,
-          typeFindings: 'file',
+          typeFindings: 'share',
           value: v,
           label: v,
         })),
@@ -774,7 +774,7 @@ describe('buildCausalChainFlow', () => {
           type: 'EXECUTION',
           ref: 'exec-A',
           stepTemplateId: 'step-A',
-          findingsNodeIds: fids.map(v => `NODE_FINDING|file|${v}`),
+          findingsNodeIds: fids.map(v => `NODE_FINDING|share|${v}`),
           dependsOn: [],
         },
         {
@@ -827,7 +827,7 @@ describe('buildCausalChainFlow', () => {
   });
 
   it('anchors the causal edge on the finding of the resolved producer, not another injector sharing the type', () => {
-    // Two injectors each produce a `file` finding; a consumer whose event `share_name IS_NOT_NULL` matches
+    // Two injectors each produce a `share` finding; a consumer whose event `share_name IS_NOT_NULL` matches
     // BOTH depends (dependsOn, #6985) only on producer A. The edge must anchor on A's finding, never B's.
     const twoProducers: AttackPathDTO = {
       ...chainDto,
@@ -860,16 +860,16 @@ describe('buildCausalChainFlow', () => {
           ip: '10.0.0.2',
         },
         {
-          id: 'NODE_FINDING|file|shareA',
+          id: 'NODE_FINDING|share|shareA',
           type: 'FINDING',
-          typeFindings: 'file',
+          typeFindings: 'share',
           value: 'shareA',
           label: 'shareA',
         },
         {
-          id: 'NODE_FINDING|file|shareB',
+          id: 'NODE_FINDING|share|shareB',
           type: 'FINDING',
-          typeFindings: 'file',
+          typeFindings: 'share',
           value: 'shareB',
           label: 'shareB',
         },
@@ -880,7 +880,7 @@ describe('buildCausalChainFlow', () => {
           type: 'EXECUTION',
           ref: 'exec-A',
           stepTemplateId: 'step-A',
-          findingsNodeIds: ['NODE_FINDING|file|shareA'],
+          findingsNodeIds: ['NODE_FINDING|share|shareA'],
           dependsOn: [],
         },
         {
@@ -888,7 +888,7 @@ describe('buildCausalChainFlow', () => {
           type: 'EXECUTION',
           ref: 'exec-B',
           stepTemplateId: 'step-B',
-          findingsNodeIds: ['NODE_FINDING|file|shareB'],
+          findingsNodeIds: ['NODE_FINDING|share|shareB'],
           dependsOn: [],
         },
         {
@@ -930,7 +930,7 @@ describe('buildCausalChainFlow', () => {
     const causal = edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE && e.data?.causalKind === 'finding');
     expect(causal).toHaveLength(1);
     expect(causal[0].target).toBe('inj-C');
-    expect(causal[0].source).toBe('NODE_FINDING|file|shareA');
+    expect(causal[0].source).toBe('NODE_FINDING|share|shareA');
   });
 
   it('merges same-depth injectors hitting the same asset onto one shared endpoint node', () => {

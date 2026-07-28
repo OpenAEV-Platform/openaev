@@ -20,11 +20,11 @@ class AttackPathKeyMatcherTest {
 
   @Test
   @DisplayName(
-      "the key type is reconciled to the finding type (share_name -> file, password -> credentials)")
+      "the key type is reconciled to the finding type (share_name -> share, password -> credentials)")
   void reconciles_key_type_to_finding_type() {
     assertThat(
             AttackPathKeyMatcher.matches(
-                finding("file", "\\\\host\\NETLOGON"), key("share_name", "IS_NOT_NULL", null)))
+                finding("share", "\\\\host\\NETLOGON"), key("share_name", "IS_NOT_NULL", null)))
         .isTrue();
     assertThat(
             AttackPathKeyMatcher.matches(
@@ -51,15 +51,15 @@ class AttackPathKeyMatcherTest {
   void is_not_null_is_presence() {
     assertThat(
             AttackPathKeyMatcher.matches(
-                finding("file", "\\\\host\\NETLOGON"), key("share_name", "IS_NOT_NULL", null)))
+                finding("share", "\\\\host\\NETLOGON"), key("share_name", "IS_NOT_NULL", null)))
         .isTrue();
     assertThat(
             AttackPathKeyMatcher.matches(
-                finding("file", ""), key("share_name", "IS_NOT_NULL", null)))
+                finding("share", ""), key("share_name", "IS_NOT_NULL", null)))
         .isFalse();
     assertThat(
             AttackPathKeyMatcher.matches(
-                finding("file", null), key("share_name", "IS_NOT_NULL", null)))
+                finding("share", null), key("share_name", "IS_NOT_NULL", null)))
         .isFalse();
   }
 
@@ -86,7 +86,7 @@ class AttackPathKeyMatcherTest {
     // Single token: substring containment (mirrors the front).
     assertThat(
             AttackPathKeyMatcher.matches(
-                finding("file", "\\\\host\\NETLOGON"), key("share_name", "IN", "NETLOGON")))
+                finding("share", "\\\\host\\NETLOGON"), key("share_name", "IN", "NETLOGON")))
         .isTrue();
   }
 
@@ -94,7 +94,7 @@ class AttackPathKeyMatcherTest {
   @DisplayName("a null key type reconciles to null and never matches (no NPE from Map.of)")
   void null_key_type_is_safe() {
     assertThat(AttackPathKeyMatcher.reconciledType(null)).isNull();
-    assertThat(AttackPathKeyMatcher.matches(finding("file", "x"), key(null, "IS_NOT_NULL", null)))
+    assertThat(AttackPathKeyMatcher.matches(finding("share", "x"), key(null, "IS_NOT_NULL", null)))
         .isFalse();
   }
 
