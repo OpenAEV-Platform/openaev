@@ -6,7 +6,7 @@ on:
     tags:
       - "[0-9]*.[0-9]*.[0-9]*"
   pull_request:
-    branches: [main, issue-6399/api-v2-collectors]
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
