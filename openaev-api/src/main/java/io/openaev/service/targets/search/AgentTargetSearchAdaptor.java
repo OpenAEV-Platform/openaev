@@ -46,11 +46,16 @@ public class AgentTargetSearchAdaptor extends SearchAdaptorBase {
     // Agents only take part in injects whose contract runs through an executor (payloads).
     // For executor-less contracts (Nuclei, Nmap, HTTP...) no agent is ever involved in the
     // execution, so listing the targeted assets' agents would only show empty targets - hide
-    // the Agents tab entirely by returning an empty page.
+    // the Agents tab entirely by returning an empty page. A contract belonging to a
+    // payloads-type injector always runs through agents, even when its needs-executor flag
+    // was never populated (legacy rows).
     boolean needsExecutor =
         scopedInject
             .getInjectorContract()
-            .map(InjectorContract::getNeedsExecutorEffective)
+            .map(
+                contract ->
+                    contract.getNeedsExecutorEffective()
+                        || contract.getInjectors().stream().anyMatch(Injector::isPayloads))
             // No resolvable contract (uninstalled connector): keep the legacy behavior.
             .orElse(true);
     if (!needsExecutor) {

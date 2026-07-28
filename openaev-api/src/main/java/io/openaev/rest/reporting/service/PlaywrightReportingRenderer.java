@@ -67,6 +67,17 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
   private static final double NETWORK_IDLE_CAP_MS = 30_000;
 
   /**
+   * Full page-load attempts before giving up: the render page retries every data query itself (with
+   * backoff) and reports the number of sections that STILL settled in error through {@code
+   * window.OPENAEV_REPORT_SECTION_ERRORS}; a fresh reload re-runs the whole pipeline, which clears
+   * transient backend hiccups that outlived the in-page retries.
+   */
+  private static final int MAX_PAGE_ATTEMPTS = 3;
+
+  /** Pause between two page attempts, giving a transient backend condition time to clear. */
+  private static final double PAGE_RETRY_PAUSE_MS = 2_000;
+
+  /**
    * Extracts a reasonably self-contained HTML snapshot of the rendered page.
    *
    * <p>Approach: clone the DOM, drop scripts and stylesheet links, inline all readable (i.e.
@@ -270,36 +281,7 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
         context -> {
           context.setDefaultTimeout(this.renderTimeoutMs);
           Page page = context.newPage();
-          Response response = null;
-          try {
-            response =
-                page.navigate(
-                    url,
-                    new Page.NavigateOptions()
-                        .setWaitUntil(WaitUntilState.NETWORKIDLE)
-                        .setTimeout(Math.min(NETWORK_IDLE_CAP_MS, this.renderTimeoutMs)));
-          } catch (TimeoutError e) {
-            // Network-idle is best-effort (polling can keep the network busy); the readiness
-            // flag below is the authoritative contract with the render page.
-          }
-          // Fail fast on an error page instead of waiting out the readiness timeout. Typical
-          // cause: the base URL does not serve the SPA (e.g. dev API without a frontend build);
-          // openaev.reporting.render-base-url must then point at the server hosting the SPA.
-          if (response != null && response.status() >= 400) {
-            throw new IllegalStateException(
-                "Render page "
-                    + url
-                    + " returned HTTP "
-                    + response.status()
-                    + " - the render base URL must serve the platform SPA"
-                    + " (configure openaev.reporting.render-base-url)");
-          }
-          page.waitForFunction(
-              "() => window.OPENAEV_REPORT_READY === true",
-              null,
-              new Page.WaitForFunctionOptions()
-                  .setTimeout(this.renderTimeoutMs)
-                  .setPollingInterval(250));
+          loadUntilClean(page, url, job);
           page.waitForTimeout(SETTLE_DELAY_MS);
           if (ReportingFormat.HTML.equals(job.format())) {
             String html = (String) page.evaluate(SELF_CONTAINED_HTML_SNIPPET);
@@ -325,6 +307,94 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
                           new Margin().setTop("0").setBottom("0").setLeft("0").setRight("0")));
           return new CapturedOutput(pdf, "pdf", "application/pdf");
         });
+  }
+
+  /**
+   * Loads the render page and waits until it is BOTH ready and clean (no section settled in error),
+   * reloading up to {@link #MAX_PAGE_ATTEMPTS} times otherwise.
+   *
+   * <p>Reliability contract of a generation: a captured report must never contain a broken section.
+   * The render page already retries every data query with backoff before flagging it as error; a
+   * full reload on top re-runs that whole pipeline for hiccups that outlived the in-page retries.
+   * If sections still fail after every attempt the generation is FAILED with an explicit message -
+   * an honest error the user can retry beats silently distributing a broken report (scheduled
+   * generations are emailed unseen).
+   */
+  private void loadUntilClean(final Page page, final String url, final RenderJob job) {
+    for (int attempt = 1; ; attempt++) {
+      boolean lastAttempt = attempt >= MAX_PAGE_ATTEMPTS;
+      Response response = null;
+      try {
+        Page.NavigateOptions navigateOptions =
+            new Page.NavigateOptions()
+                .setWaitUntil(WaitUntilState.NETWORKIDLE)
+                .setTimeout(Math.min(NETWORK_IDLE_CAP_MS, this.renderTimeoutMs));
+        Page.ReloadOptions reloadOptions =
+            new Page.ReloadOptions()
+                .setWaitUntil(WaitUntilState.NETWORKIDLE)
+                .setTimeout(Math.min(NETWORK_IDLE_CAP_MS, this.renderTimeoutMs));
+        response = attempt == 1 ? page.navigate(url, navigateOptions) : page.reload(reloadOptions);
+      } catch (TimeoutError e) {
+        // Network-idle is best-effort (polling can keep the network busy); the readiness
+        // flag below is the authoritative contract with the render page.
+      }
+      // Fail fast on an error page instead of waiting out the readiness timeout. Typical
+      // cause: the base URL does not serve the SPA (e.g. dev API without a frontend build);
+      // openaev.reporting.render-base-url must then point at the server hosting the SPA.
+      // A configuration problem, not a transient one - never retried.
+      if (response != null && response.status() >= 400) {
+        throw new IllegalStateException(
+            "Render page "
+                + url
+                + " returned HTTP "
+                + response.status()
+                + " - the render base URL must serve the platform SPA"
+                + " (configure openaev.reporting.render-base-url)");
+      }
+      try {
+        page.waitForFunction(
+            "() => window.OPENAEV_REPORT_READY === true",
+            null,
+            new Page.WaitForFunctionOptions()
+                .setTimeout(this.renderTimeoutMs)
+                .setPollingInterval(250));
+      } catch (TimeoutError e) {
+        if (lastAttempt) {
+          throw e;
+        }
+        log.warn(
+            "Render page of generation {} did not become ready (attempt {}/{}), reloading",
+            job.generationId(),
+            attempt,
+            MAX_PAGE_ATTEMPTS);
+        page.waitForTimeout(PAGE_RETRY_PAUSE_MS);
+        continue;
+      }
+      int sectionErrors = sectionErrors(page);
+      if (sectionErrors == 0) {
+        return;
+      }
+      if (lastAttempt) {
+        throw new IllegalStateException(
+            sectionErrors
+                + " report section(s) failed to load after "
+                + MAX_PAGE_ATTEMPTS
+                + " attempts - please retry the generation");
+      }
+      log.warn(
+          "Render page of generation {} has {} errored section(s) (attempt {}/{}), reloading",
+          job.generationId(),
+          sectionErrors,
+          attempt,
+          MAX_PAGE_ATTEMPTS);
+      page.waitForTimeout(PAGE_RETRY_PAUSE_MS);
+    }
+  }
+
+  /** Number of module queries the render page flagged as persistently failed. */
+  private static int sectionErrors(final Page page) {
+    Object value = page.evaluate("() => window.OPENAEV_REPORT_SECTION_ERRORS || 0");
+    return value instanceof Number number ? number.intValue() : 0;
   }
 
   /**

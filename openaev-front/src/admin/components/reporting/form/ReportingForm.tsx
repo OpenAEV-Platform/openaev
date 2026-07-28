@@ -163,8 +163,12 @@ const ReportingForm: FunctionComponent<Props> = ({
   initialValues,
   editing = false,
 }) => {
-  const { t } = useFormatter();
+  const { t, nsdt } = useFormatter();
   const theme = useTheme();
+
+  // Simulation options are labelled "name (date)": many simulations share the
+  // same name, so the friendly start date disambiguates them in the picker.
+  const formatSimulationDate = (startDate?: string | null) => (startDate ? nsdt(startDate) : '');
 
   const { settings, tenantSettings }: {
     settings: PlatformSettings;
@@ -276,8 +280,8 @@ const ReportingForm: FunctionComponent<Props> = ({
     let cancelled = false;
     const currentId = getValues('reporting_context_id');
     Promise.all([
-      searchSubjectOptions(contextType),
-      currentId ? resolveSubjectOptions(contextType, [currentId]) : Promise.resolve([] as Option[]),
+      searchSubjectOptions(contextType, '', formatSimulationDate),
+      currentId ? resolveSubjectOptions(contextType, [currentId], formatSimulationDate) : Promise.resolve([] as Option[]),
     ]).then(([searched, resolved]) => {
       if (cancelled) return;
       const searchedIds = new Set(searched.map(option => option.id));
@@ -440,7 +444,7 @@ const ReportingForm: FunctionComponent<Props> = ({
               onChange={value => field.onChange(value ?? '')}
               options={subjectOptions}
               onInputChange={(search: string) => {
-                searchSubjectOptions(contextType, search)
+                searchSubjectOptions(contextType, search, formatSimulationDate)
                   .then(setSubjectOptions)
                   .catch(() => setSubjectOptions([]));
               }}
@@ -744,7 +748,6 @@ const ReportingForm: FunctionComponent<Props> = ({
         style={{
           display: 'flex',
           flexDirection: 'column',
-          minHeight: '100%',
           gap: theme.spacing(3),
         }}
         onSubmit={handleSubmit(submit)}
@@ -767,12 +770,13 @@ const ReportingForm: FunctionComponent<Props> = ({
         {activeStep === 2 && renderBrandingStep()}
         {activeStep === 3 && renderScheduleStep()}
 
+        {/* Buttons follow the form content like every other drawer form in
+            the app (no bottom-pinned footer). */}
         <Box sx={{
           display: 'flex',
           justifyContent: 'flex-end',
           gap: 1,
-          marginTop: 'auto',
-          paddingTop: 2,
+          marginBottom: 2,
         }}
         >
           <Button

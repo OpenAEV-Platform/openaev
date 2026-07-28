@@ -81,16 +81,19 @@ const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => 
           disabled={switching}
           dense
           data-testid="tenant-switcher"
-          sx={theme => ({
-            height: 35,
-            paddingRight: theme.spacing(0.25),
-          })}
+          // Shared left-menu row styling (16px dimmed icon, row height): the
+          // switcher must read exactly like the regular rows. Only the right
+          // padding is tightened for the unfold-more affordance.
+          sx={[
+            leftMenuStyle.menuItemSx,
+            theme => ({ paddingRight: theme.spacing(0.25) }),
+          ]}
         >
-          {/* Same 8px icon-text gap as the regular rows (menuItemSx sets it via
-              .MuiListItemIcon-root, which this custom row does not inherit). */}
-          <ListItemIcon sx={{
+          {/* Half the regular rows' 8px icon-text gap: the switcher label sits
+              next to a wider glyph and reads better slightly tighter. */}
+          <ListItemIcon style={{
             ...leftMenuStyle.listItemIcon,
-            marginRight: 1,
+            marginRight: 4,
           }}
           >
             {switching ? <Loader variant="inElement" size="xs" /> : <HomeWorkOutlined />}

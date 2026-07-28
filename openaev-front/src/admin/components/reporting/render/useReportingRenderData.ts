@@ -35,6 +35,11 @@ import {
  * query parameter in exactly one place. Every fetch settles independently: a
  * failed query marks its module data as 'error' (the module renders an inline
  * error block) and never rejects the whole page.
+ *
+ * Reliability contract: a report must never show a broken section because of
+ * a transient hiccup (ES under load, a timed-out query, a network blip during
+ * a headless capture). Every fetch is therefore retried with backoff before
+ * it is allowed to settle as 'error' - see RETRY_DELAYS_MS.
  */
 
 // -- PUBLIC TYPES ------------------------------------------------------------
@@ -196,6 +201,42 @@ const asString = (value: unknown): string | undefined => (typeof value === 'stri
 
 const initialState = <T>(): ModuleDataState<T> => ({ status: 'loading' });
 
+/**
+ * Backoff schedule applied to every module query before it may settle as
+ * 'error' (3 attempts total). Kept short: the headless renderer waits for the
+ * readiness flag with its own timeout, and the sum of all delays must stay
+ * comfortably below it.
+ */
+const RETRY_DELAYS_MS = [1000, 3000];
+
+const delay = (ms: number) => new Promise<void>((resolve) => {
+  setTimeout(resolve, ms);
+});
+
+/**
+ * Re-executes a promise factory on failure following RETRY_DELAYS_MS, so a
+ * transient hiccup never surfaces in a report. `isCancelled` short-circuits
+ * pending retries when the caller unmounted.
+ */
+export const retryWithBackoff = async <T>(
+  factory: () => Promise<T>,
+  isCancelled: () => boolean = () => false,
+): Promise<T> => {
+  for (let retry = 0; ; retry += 1) {
+    try {
+      // Attempts are sequential BY DESIGN (retry with backoff), so awaiting
+      // inside the loop is exactly the intent here.
+      // eslint-disable-next-line no-await-in-loop
+      return await factory();
+    } catch (error) {
+      if (isCancelled() || retry >= RETRY_DELAYS_MS.length) throw error;
+      // eslint-disable-next-line no-await-in-loop
+      await delay(RETRY_DELAYS_MS[retry]);
+      if (isCancelled()) throw error;
+    }
+  }
+};
+
 // -- HOOK --------------------------------------------------------------------
 
 const useReportingRenderData = (reporting: Reporting | null, token: string | null): ReportingRenderData => {
@@ -240,8 +281,11 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
     // The cover and the page header always display the subject name.
     neededKinds.add('subject');
 
-    const settle = <T>(setter: (state: ModuleDataState<T>) => void, promise: Promise<T>) => {
-      promise
+    // Takes a promise FACTORY (not a promise) so the whole query pipeline can
+    // be re-executed on failure: transient errors are retried with backoff and
+    // only a persistent failure settles the module as 'error'.
+    const settle = <T>(setter: (state: ModuleDataState<T>) => void, factory: () => Promise<T>) => {
+      retryWithBackoff(factory, () => cancelled)
         .then((data) => {
           if (!cancelled) setter({
             status: 'success',
@@ -268,7 +312,7 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
       // Players have no GET-by-id endpoint: resolve the display name through
       // the options endpoint (details degrade to name-only, by design).
       setSubject(initialState());
-      settle(setSubject, post('/api/players/options', [contextId]).then((result: { data: Option[] }) => {
+      settle(setSubject, () => post('/api/players/options', [contextId]).then((result: { data: Option[] }) => {
         const option = result.data.find(o => o.id === contextId) ?? result.data[0];
         if (!option?.label) throw new Error('Player not found');
         return {
@@ -280,7 +324,7 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
       setSubject(initialState());
       const uri = SUBJECT_URI[contextType]?.(contextId);
       if (uri) {
-        settle(setSubject, call(uri).then((result: { data: Record<string, unknown> }) => ({
+        settle(setSubject, () => call(uri).then((result: { data: Record<string, unknown> }) => ({
           name: firstString(result.data, NAME_KEYS) ?? contextId,
           description: firstString(result.data, DESCRIPTION_KEYS),
           raw: result.data,
@@ -293,7 +337,7 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
     // -- Posture (executive summary + results breakdown) --
     if (neededKinds.has('posture')) {
       setPosture(initialState());
-      settle(setPosture, adhoc('series', { widget_config: buildPostureConfig(contextType, contextId, timeRange) })
+      settle(setPosture, () => adhoc('series', { widget_config: buildPostureConfig(contextType, contextId, timeRange) })
         .then((result: { data: EsSeries[] }) => {
           const breakdown = EXPECTATION_TYPES
             .map(type => ({
@@ -322,7 +366,7 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
         setInjectCount({ status: 'unsupported' });
       } else {
         setInjectCount(initialState());
-        settle(setInjectCount, adhoc('count', { widget_config: config })
+        settle(setInjectCount, () => adhoc('count', { widget_config: config })
           .then((result: { data: EsCountInterval }) => result.data.interval_count ?? 0));
       }
     } else {
@@ -341,7 +385,7 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
         ? (rawKillChains as unknown[]).filter((name): name is string => typeof name === 'string')
         : [];
       setMitre(initialState());
-      settle(setMitre, adhoc('series', { widget_config: buildMitreConfig(contextType, contextId, timeRange) })
+      settle(setMitre, () => adhoc('series', { widget_config: buildMitreConfig(contextType, contextId, timeRange) })
         .then(async (result: { data: EsSeries[] }) => {
           const successBuckets = namedSeriesBuckets(result.data, 'SUCCESS');
           const failedBuckets = namedSeriesBuckets(result.data, 'FAILED');
@@ -397,7 +441,7 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
     // -- Performance by security domain --
     if (neededKinds.has('securityDomains')) {
       setSecurityDomains(initialState());
-      settle(setSecurityDomains, Promise.all([
+      settle(setSecurityDomains, () => Promise.all([
         adhoc('average', { widget_config: buildSecurityDomainsConfig(contextType, contextId, timeRange) }),
         // The referential keeps untested domains visible (the home band does
         // the same through the Redux domain store).
@@ -413,7 +457,7 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
     // -- Score trends --
     if (neededKinds.has('trends')) {
       setTrends(initialState());
-      settle(setTrends, adhoc('series', { widget_config: buildTrendsConfig(contextType, contextId, timeRange) })
+      settle(setTrends, () => adhoc('series', { widget_config: buildTrendsConfig(contextType, contextId, timeRange) })
         .then((result: { data: EsSeries[] }) => {
           const success = result.data.find(s => s.label === 'SUCCESS')?.data ?? [];
           const failed = result.data.find(s => s.label === 'FAILED')?.data ?? [];
@@ -444,7 +488,7 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
     // -- Failed expectations --
     if (neededKinds.has('failedExpectations')) {
       setFailedExpectations(initialState());
-      settle(setFailedExpectations, adhoc('entities', { widget_config: buildFailedExpectationsConfig(contextType, contextId, timeRange) })
+      settle(setFailedExpectations, () => adhoc('entities', { widget_config: buildFailedExpectationsConfig(contextType, contextId, timeRange) })
         .then((result: { data: { es_datas?: EsBase[] } }) => (result.data.es_datas ?? []).map((entity) => {
           const raw = entity as unknown as Record<string, unknown>;
           return {
@@ -466,7 +510,7 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
         setFindings({ status: 'unsupported' });
       } else {
         setFindings(initialState());
-        settle(setFindings, Promise.all([
+        settle(setFindings, () => Promise.all([
           adhoc('series', { widget_config: byTypeConfig }),
           adhoc('entities', { widget_config: latestConfig }),
         ]).then(([seriesResult, entitiesResult]: [{ data: EsSeries[] }, { data: { es_datas?: EsBase[] } }]) => {
@@ -502,7 +546,7 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
         setAttackPaths({ status: 'unsupported' });
       } else {
         setAttackPaths(initialState());
-        settle(setAttackPaths, Promise.all([
+        settle(setAttackPaths, () => Promise.all([
           adhoc('series', { widget_config: config }),
           call('/api/kill_chain_phases'),
         ]).then(([seriesResult, phasesResult]: [{ data: EsSeries[] }, { data: Record<string, unknown>[] }]) => {

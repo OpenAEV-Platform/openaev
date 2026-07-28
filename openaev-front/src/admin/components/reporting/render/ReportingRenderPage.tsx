@@ -44,7 +44,16 @@ import useReportingRenderData from './useReportingRenderData';
  */
 
 declare global {
-  interface Window { OPENAEV_REPORT_READY?: boolean }
+  interface Window {
+    OPENAEV_REPORT_READY?: boolean;
+    /**
+     * Number of module queries that settled as 'error' (after the data
+     * layer's own retries). The headless renderer reads it alongside the
+     * readiness flag and reloads the page instead of capturing a report
+     * with broken sections.
+     */
+    OPENAEV_REPORT_SECTION_ERRORS?: number;
+  }
 }
 
 interface Props {
@@ -70,6 +79,17 @@ const ReportingRenderPage: FunctionComponent<Props> = ({ reporting, token }) => 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (cancelled) return;
+        window.OPENAEV_REPORT_SECTION_ERRORS = [
+          data.subject,
+          data.posture,
+          data.injectCount,
+          data.mitre,
+          data.securityDomains,
+          data.trends,
+          data.failedExpectations,
+          data.findings,
+          data.attackPaths,
+        ].filter(state => state.status === 'error').length;
         window.OPENAEV_REPORT_READY = true;
         setReady(true);
       });

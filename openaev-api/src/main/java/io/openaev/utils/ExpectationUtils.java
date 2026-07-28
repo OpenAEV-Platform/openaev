@@ -3,7 +3,6 @@ package io.openaev.utils;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAgent;
 import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAsset;
-import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.expectation.ManualExpectation.manualExpectationForAgent;
 import static io.openaev.expectation.ManualExpectation.manualExpectationForAsset;
 import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAgent;
@@ -441,34 +440,6 @@ public class ExpectationUtils {
     return Collections.emptyList();
   }
 
-  /**
-   * Sets the result for vulnerability expectations based on the vulnerability assessment outcome.
-   *
-   * <p>Updates all provided expectations with the vulnerability result, setting the score to the
-   * expected score if the vulnerability was successfully exploited, or 0.0 otherwise.
-   *
-   * @param expectations the vulnerability expectations to update
-   * @param result the result object to populate with outcome details
-   * @param vulnerabilityResult the vulnerability assessment result string
-   */
-  public static void setResultExpectationVulnerable(
-      List<VulnerabilityInjectExpectation> expectations,
-      InjectExpectationResult result,
-      String vulnerabilityResult) {
-
-    for (BaseInjectExpectation expectation : expectations) {
-      double score =
-          VULNERABILITY.successLabel.equals(vulnerabilityResult)
-              ? expectation.getExpectedScore()
-              : 0.0;
-
-      result.setResult(vulnerabilityResult);
-      result.setScore(score);
-      expectation.setScore(score);
-      expectation.setResults(List.of(result));
-    }
-  }
-
   public static List<ExpectationSignature> computeSignatures(
       String prefixSignature,
       String injectId,
@@ -790,7 +761,9 @@ public class ExpectationUtils {
    * <p>Resolved primarily from the injector contract's needs-executor flag because {@code
    * inject.getInjector()} is NULL for injects created by the scenario importer (XTM Hub) and for
    * legacy injects - relying on it silently disabled agentless asset-level expectations for those
-   * injects. Falls back to the injector's payloads flag when no contract is resolvable.
+   * injects. Falls back to the injector's payloads flag when no contract is resolvable, and fails
+   * closed (agents-based, no agentless expectation) when neither a contract nor an injector can be
+   * resolved: downstream expectation building needs the contract to locate the targeted assets.
    *
    * @param inject the inject to test
    * @return true when the inject runs through agents (expectations belong at the agent level)
@@ -799,6 +772,6 @@ public class ExpectationUtils {
     return inject
         .getInjectorContract()
         .map(InjectorContract::getNeedsExecutorEffective)
-        .orElseGet(() -> inject.getInjector() != null && inject.getInjector().isPayloads());
+        .orElseGet(() -> inject.getInjector() == null || inject.getInjector().isPayloads());
   }
 }

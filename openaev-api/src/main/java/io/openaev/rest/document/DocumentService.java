@@ -229,9 +229,6 @@ public class DocumentService {
   public void deleteDocument(String documentId) {
     Document document = document(documentId); // fetch or throw if not found
 
-    // Report generation outputs are read-only from the generic documents surface.
-    assertNotReportingGenerationOutput(documentId);
-
     boolean isUsedInFileDrop =
         document.getPayloadsByFileDrop() != null && !document.getPayloadsByFileDrop().isEmpty();
     boolean isUsedInExecutable =
@@ -257,6 +254,11 @@ public class DocumentService {
       throw new BadRequestException(
           "Document is used as a security platform logo and cannot be deleted.");
     }
+
+    // Report generation outputs are read-only from the generic documents surface. Checked last:
+    // the in-memory relation checks above must keep refusing in-use documents before this guard
+    // issues a query (a query flushes the persistence context mid-request).
+    assertNotReportingGenerationOutput(documentId);
 
     removeDocumentAndFile(documentId);
   }
