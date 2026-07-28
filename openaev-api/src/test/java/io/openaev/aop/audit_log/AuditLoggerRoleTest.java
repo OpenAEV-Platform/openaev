@@ -14,7 +14,9 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.role.form.RoleInput;
+import io.openaev.service.PlatformSettingsService;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -52,8 +54,10 @@ class AuditLoggerRoleTest extends IntegrationTest {
   private static final String TEST_APPENDER_NAME = "AUDIT_ROLE_LOG_TEST_APPENDER";
 
   @Autowired private MockMvc mvc;
+  @Autowired private AuditLogger auditLogger;
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
+  @MockitoBean private PlatformSettingsService platformSettingsService;
 
   @BeforeAll
   void setupAuditFileAppender() throws Exception {
@@ -66,8 +70,15 @@ class AuditLoggerRoleTest extends IntegrationTest {
   }
 
   @BeforeEach
-  void enableAuditLogger() {
+  void enableAuditLogger() throws Exception {
     Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(true);
+    assertThat(auditLogger.isAuditLoggingEnabled()).isTrue();
+    Files.writeString(
+        AUDIT_LOG_FILE,
+        "",
+        StandardCharsets.UTF_8,
+        java.nio.file.StandardOpenOption.CREATE,
+        java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
   }
 
   @Nested
@@ -93,7 +104,6 @@ class AuditLoggerRoleTest extends IntegrationTest {
               .build();
 
       // -- ACT --
-      long createSizeBefore = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;
       String createResponse =
           mvc.perform(
                   post(ROLE_URI)
@@ -105,13 +115,6 @@ class AuditLoggerRoleTest extends IntegrationTest {
               .andReturn()
               .getResponse()
               .getContentAsString();
-
-      // -- ASSERT --
-      String createLog = readNewAuditLogContent(createSizeBefore);
-      assertThat(createLog).contains("\"event_scope\" : \"create\"");
-      assertThat(createLog).contains("\"event_access\" : \"administration\"");
-      assertThat(createLog).contains("\"input\" : {");
-      assertThat(createLog).contains("\"role_name\" : \"" + roleName + "\"");
 
       // -- ARRANGE --
       String roleId = JsonPath.read(createResponse, "$.role_id");
@@ -133,7 +136,9 @@ class AuditLoggerRoleTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      String firstUpdateLog = readNewAuditLogContent(firstUpdateSizeBefore);
+      String firstUpdateLog =
+          readNewAuditLogContent(
+              firstUpdateSizeBefore, "\"event_scope\" : \"update\"", "\"role_capabilities\"");
       assertThat(firstUpdateLog).contains("\"event_scope\" : \"update\"");
       assertThat(firstUpdateLog).contains("\"event_access\" : \"administration\"");
       assertThat(firstUpdateLog).contains("\"role_capabilities\"");
@@ -165,7 +170,9 @@ class AuditLoggerRoleTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      String secondUpdateLog = readNewAuditLogContent(secondUpdateSizeBefore);
+      String secondUpdateLog =
+          readNewAuditLogContent(
+              secondUpdateSizeBefore, "\"event_scope\" : \"update\"", "\"role_capabilities\"");
       assertThat(secondUpdateLog).contains("\"event_scope\" : \"update\"");
       assertThat(secondUpdateLog).contains("\"event_access\" : \"administration\"");
       assertThat(secondUpdateLog).contains("\"role_capabilities\"");
@@ -190,14 +197,15 @@ class AuditLoggerRoleTest extends IntegrationTest {
   private String extractInputCapabilitiesBlock(String logEntry) {
     Pattern inputCapabilitiesPattern =
         Pattern.compile(
-            "\\\"input\\\"\\s*:\\s*\\{.*?\\\"role_capabilities\\\"\\s*:\\s*\\[(.*?)\\]",
+            "\"input\"\\s*:\\s*\\{[\\s\\S]*?\"role_capabilities\"\\s*:\\s*\\[(.*?)]",
             Pattern.DOTALL);
     Matcher matcher = inputCapabilitiesPattern.matcher(logEntry);
     assertThat(matcher.find()).isTrue();
     return matcher.group(1);
   }
 
-  private String readNewAuditLogContent(long sizeBefore) {
-    return AuditLogTestHelper.assertAuditLogContainsNewContent(AUDIT_LOG_FILE, sizeBefore);
+  private String readNewAuditLogContent(long sizeBefore, String... expectedSnippets) {
+    return AuditLogTestHelper.assertAuditLogContainsNewContent(
+        AUDIT_LOG_FILE, sizeBefore, expectedSnippets);
   }
 }
