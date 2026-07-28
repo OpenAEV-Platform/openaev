@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.DetectionInjectExpectation;
@@ -59,6 +61,7 @@ class AttackPathVerdictSyncTest extends IntegrationTest {
 
   @Autowired private AttackPathVerdictSyncService verdictSyncService;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private DataSource dataSource;
 
   private JdbcTemplate jdbc;
@@ -214,11 +217,21 @@ class AttackPathVerdictSyncTest extends IntegrationTest {
 
   // -- helpers --
 
+  /**
+   * Calls the service the way the chaining engine does: from inside an ambient tenant-scoped
+   * transaction. The sync opens its own {@code executeNew} boundary so its write commits
+   * independently of the run, and that primitive refuses to run at the top level. In production the
+   * ambient transaction is the one {@code StepEventService} opens per event with {@code
+   * tenantTx.execute(TxCtx.forTenant(...))}, so the test opens the same shape — calling at the top
+   * level would exercise a state the chaining engine never produces.
+   */
   private void sync(BaseInjectExpectation... expectations) {
     TenantContext.setCurrentTenant(tenant.getId());
     Step step = new Step();
     step.setId(STEP_ID);
-    verdictSyncService.sync(step, inject(), List.of(expectations));
+    tenantTx.execute(
+        TxCtx.forTenant(tenant.getId()),
+        () -> verdictSyncService.sync(step, inject(), List.of(expectations)));
     TenantContext.clearCurrentTenant();
   }
 

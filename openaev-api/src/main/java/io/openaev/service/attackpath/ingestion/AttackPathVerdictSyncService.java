@@ -82,6 +82,13 @@ public class AttackPathVerdictSyncService {
   /**
    * Syncs the step's expectation verdicts onto the simulation's execution rows. No-op for an inject
    * outside a simulation, and for a step whose expectations carry no resolvable verdict yet.
+   *
+   * <p>Precondition: must be called from inside an active tenant-scoped transaction. The write is
+   * opened with {@code executeNew} so it commits independently of the run — the whole point of the
+   * boundary — and that primitive refuses to run at the top level. On the chaining path the ambient
+   * transaction comes from {@code StepEventService}, which opens one per update event with {@code
+   * tenantTx.execute(TxCtx.forTenant(...))} before {@code InjectExecutionStep.update} reaches here.
+   * Any other caller, tests included, has to open one the same way.
    */
   public void sync(Step stepRun, Inject inject, List<BaseInjectExpectation> expectations) {
     if (inject.getExercise() == null || stepRun == null || stepRun.getId() == null) {
