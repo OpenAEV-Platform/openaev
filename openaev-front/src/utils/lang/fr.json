@@ -162,7 +162,7 @@
   "Add media pressure": "Ajouter de la pression médiatique",
   "Add media pressure in this inject": "Ajouter de la pression médiatique dans ce stimuli",
   "Add multiple items at once by separating them with commas.": "Ajoutez plusieurs éléments à la fois en les séparant par des virgules.",
-  "For IPv4 subnets, only /24 or narrower are expanded, with a maximum of 256 IPs per subnet.": "Pour les sous-réseaux IPv4, seuls les /24 ou plus spécifiques sont étendus, avec un maximum de 256 IP par sous-réseau.",
+  "Subnet expansion is safety-limited /24. Large subnets may not be expanded.": "L'expansion des sous-reseaux est limitee pour la securite en IPv4 et IPv6. Les grands sous-reseaux peuvent ne pas etre etendus.",
   "Add parent": "Ajouter un parent",
   "Add players in this team": "Ajouter des joueurs dans cette équipe",
   "Add schedule": "Ajouter une planification",

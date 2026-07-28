@@ -223,7 +223,7 @@ const ScopeInventoryBox = ({
         <InfoOutlined fontSize="small" color="primary" />
         {t('Add multiple items at once by separating them with commas.')}
         {' '}
-        {t('For IPv4 subnets, only /24 or narrower are expanded, with a maximum of 256 IPs per subnet.')}
+        {t('Subnet expansion is safety-limited /24. Large subnets may not be expanded.')}
       </Typography>
     </Box>
   );
