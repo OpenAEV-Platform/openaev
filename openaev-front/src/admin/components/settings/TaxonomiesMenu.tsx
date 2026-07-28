@@ -1,4 +1,4 @@
-import { ReportProblemOutlined, RouteOutlined, StyleOutlined } from '@mui/icons-material';
+import { BugReportOutlined, RouteOutlined, StyleOutlined } from '@mui/icons-material';
 import { LockPattern } from 'mdi-material-ui';
 import { type FunctionComponent, memo } from 'react';
 
@@ -23,7 +23,7 @@ const TaxonomiesMenuComponent: FunctionComponent = () => {
     },
     {
       path: '/admin/settings/taxonomies/vulnerabilities',
-      icon: () => (<ReportProblemOutlined />),
+      icon: () => (<BugReportOutlined />),
       label: 'Vulnerabilities',
     },
   ];

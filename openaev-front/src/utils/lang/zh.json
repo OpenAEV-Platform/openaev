@@ -3093,6 +3093,7 @@
   "This tenant": "此租户",
   "This user could not be found.": "未找到该用户。",
   "This user does not belong to any group.": "该用户不属于任何组。",
+  "This vulnerability is listed in CISA's Known Exploited Vulnerabilities catalog.": "此漏洞已列入 CISA 已知被利用漏洞 (KEV) 目录。",
   "This warning has been dismissed for all users, but the expectations still do not match. You can realign them or restore the full warning.": "此警告已对所有用户忽略，但预期仍不匹配。您可以重新对齐或恢复完整警告。",
   "Threat Arsenal": "武器库",
   "Threat Arsenal supports .zip file import format": "工具集支持导入 .zip 格式的文件",

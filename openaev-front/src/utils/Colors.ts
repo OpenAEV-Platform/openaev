@@ -40,36 +40,37 @@ export interface SeverityAndColor {
   color: string;
 }
 
-// CVSS
+// CVSS - hex colors aligned with the severity chip palette used across the app
+// (see ItemSeverity / ItemCriticality) so CVSS reads the same everywhere.
 export const getSeverityAndColor = (score: number | string | null | undefined): SeverityAndColor => {
   const numScore = typeof score === 'string' ? parseFloat(score) : (score ?? 0);
 
   if (numScore >= 9.0) {
     return {
       severity: 'CRITICAL',
-      color: 'red',
+      color: '#f44336',
     };
   }
   if (numScore >= 7.0) {
     return {
       severity: 'HIGH',
-      color: 'orangered',
+      color: '#ff9800',
     };
   }
   if (numScore >= 4.0) {
     return {
       severity: 'MEDIUM',
-      color: 'orange',
+      color: '#5c7bf5',
     };
   }
   if (numScore > 0.0) {
     return {
       severity: 'LOW',
-      color: 'green',
+      color: '#4caf50',
     };
   }
   return {
     severity: 'NONE',
-    color: 'gray',
+    color: '#607d8b',
   };
 };

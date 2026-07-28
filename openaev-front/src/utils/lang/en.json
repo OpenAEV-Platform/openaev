@@ -3093,6 +3093,7 @@
   "This tenant": "This tenant",
   "This user could not be found.": "This user could not be found.",
   "This user does not belong to any group.": "This user does not belong to any group.",
+  "This vulnerability is listed in CISA's Known Exploited Vulnerabilities catalog.": "This vulnerability is listed in CISA's Known Exploited Vulnerabilities catalog.",
   "This warning has been dismissed for all users, but the expectations still do not match. You can realign them or restore the full warning.": "This warning has been dismissed for all users, but the expectations still do not match. You can realign them or restore the full warning.",
   "Threat Arsenal": "Threat Arsenal",
   "Threat Arsenal supports .zip file import format": "Threat Arsenal supports .zip file import format",

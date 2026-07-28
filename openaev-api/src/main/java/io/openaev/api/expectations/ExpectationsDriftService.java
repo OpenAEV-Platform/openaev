@@ -43,9 +43,12 @@ import org.springframework.stereotype.Service;
  * name, description, expiration time) are deliberately ignored - users legitimately adjust those
  * per inject, and such adjustments are not a posture change.
  *
- * <p>Injects whose content carries no expectations are never drifted: they inherit the contract's
- * predefined expectations dynamically at execution time (see {@link
- * InjectorContractContentUtils#setExpectations}), so they always follow the current template.
+ * <p>Injects whose content carries no expectations field at all are never drifted: they inherit the
+ * contract's predefined expectations dynamically at execution time (see {@link
+ * InjectorContractContentUtils#setExpectations}), so they always follow the current template. An
+ * explicit empty expectations array is different: the user deliberately removed every expectation,
+ * which is a customization like any other - it is reported as drift (realignment being the opt-in
+ * way to restore the template) but never overridden at execution time.
  *
  * <p>Realignment overwrites the drifted injects' stored expectations with the contract's current
  * predefined expectations, chunk by chunk in short independent transactions, tracked as a massive
@@ -164,7 +167,7 @@ public class ExpectationsDriftService {
     }
     List<String> injectSignatures = injectExpectationSignatures(inject);
     if (injectSignatures == null) {
-      // No stored expectations: the inject inherits the contract's predefined expectations
+      // No stored expectations field: the inject inherits the contract's predefined expectations
       // dynamically at execution time, so it always follows the current template.
       return false;
     }
@@ -193,7 +196,9 @@ public class ExpectationsDriftService {
 
   /**
    * Canonical signatures of the expectations stored in the inject content, or {@code null} when the
-   * content carries no expectations (the inject then follows the contract dynamically).
+   * content carries no expectations field (the inject then follows the contract dynamically). An
+   * explicit empty array yields an empty signature list: the user deliberately removed every
+   * expectation, which counts as drift against a contract that declares predefined ones.
    */
   private List<String> injectExpectationSignatures(Inject inject) {
     ObjectNode content = inject.getContent();
@@ -201,7 +206,7 @@ public class ExpectationsDriftService {
       return null;
     }
     JsonNode expectations = content.get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS);
-    if (expectations == null || !expectations.isArray() || expectations.isEmpty()) {
+    if (expectations == null || expectations.isNull() || !expectations.isArray()) {
       return null;
     }
     List<String> signatures = new ArrayList<>();

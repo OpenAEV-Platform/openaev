@@ -7,8 +7,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.aop.AccessControl;
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.service.tenants.TenantService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -28,8 +30,11 @@ import org.springframework.web.bind.annotation.RestController;
  * End-to-end proof, through a real controller and MockMvc, that a {@code TxCtx} method parameter is
  * resolved from the request within the caller's rights: the selector (path or {@code X-Tenant-Ids}
  * header) is intersected with the user's tenants, the path wins when present, a selector outside
- * the rights is refused, and no selector yields the full allowed set. No mocks: a real user with
- * real tenant memberships hits a real endpoint that returns the resolved scope.
+ * the rights is refused, and no selector yields the full allowed set. On selector-requiring
+ * endpoints, a missing selector falls back (single-tenant caller, then default tenant) rather than
+ * being refused, so tenant-unaware API clients keep working; only a multi-tenant caller without
+ * default-tenant access is refused. No mocks: a real user with real tenant memberships hits a real
+ * endpoint that returns the resolved scope.
  */
 @WithMockUser
 @DisplayName("TxCtx is resolved from the request within the caller's rights (HTTP)")
@@ -41,6 +46,8 @@ class TxCtxArgumentResolverIntegrationTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantService tenantService;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private TenantMembershipCacheManager tenantMembershipCacheManager;
 
   private String tenantA;
   private String tenantB;
@@ -111,9 +118,29 @@ class TxCtxArgumentResolverIntegrationTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("an endpoint requiring a selector refuses a request without one (400)")
+  @DisplayName(
+      "a selector-requiring endpoint without one: a multi-tenant caller not on the default tenant"
+          + " is the only refused case (400)")
   void requiredSelectorMissingIsRejected() throws Exception {
+    // The mock user is a member of tenants A and B but NOT of the default tenant: no fallback is
+    // safe (any silent pick could read or write the wrong tenant), so the request is refused.
     mvc.perform(get("/api/test/txctx/required/scope")).andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName(
+      "a selector-requiring endpoint without one falls back to the default tenant for a"
+          + " multi-tenant caller authorized on it")
+  void requiredSelectorMissingFallsBackToDefaultTenant() throws Exception {
+    // Tenant-unaware API clients (collectors, injectors) never send a selector; the platform-wide
+    // convention for requests without an explicit tenant context is the default tenant.
+    String userId = SessionHelper.currentUser().getId();
+    tenantRepository.addUserToTenant(userId, Tenant.DEFAULT_TENANT_UUID);
+    tenantMembershipCacheManager.evict(userId, Tenant.DEFAULT_TENANT_UUID);
+
+    mvc.perform(get("/api/test/txctx/required/scope"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(Tenant.DEFAULT_TENANT_UUID));
   }
 
   @Test

@@ -3093,6 +3093,7 @@
   "This tenant": "このテナント",
   "This user could not be found.": "このユーザーが見つかりませんでした。",
   "This user does not belong to any group.": "このユーザーはどのグループにも属していません。",
+  "This vulnerability is listed in CISA's Known Exploited Vulnerabilities catalog.": "この脆弱性は、CISA の既知の悪用された脆弱性 (KEV) カタログに掲載されています。",
   "This warning has been dismissed for all users, but the expectations still do not match. You can realign them or restore the full warning.": "この警告はすべてのユーザーに対して却下されましたが、期待値は依然として一致していません。再調整するか、完全な警告を復元できます。",
   "Threat Arsenal": "兵器庫",
   "Threat Arsenal supports .zip file import format": "兵器庫 は .zip ファイルのインポート形式をサポートします。",

@@ -3093,6 +3093,7 @@
   "This tenant": "Este tenant",
   "This user could not be found.": "No se pudo encontrar este usuario.",
   "This user does not belong to any group.": "Este usuario no pertenece a ningún grupo.",
+  "This vulnerability is listed in CISA's Known Exploited Vulnerabilities catalog.": "Esta vulnerabilidad está incluida en el catálogo de vulnerabilidades explotadas conocidas (KEV) de CISA.",
   "This warning has been dismissed for all users, but the expectations still do not match. You can realign them or restore the full warning.": "Esta advertencia ha sido descartada para todos los usuarios, pero las expectativas siguen sin coincidir. Puede realinearlas o restaurar la advertencia completa.",
   "Threat Arsenal": "Arsenal",
   "Threat Arsenal supports .zip file import format": "Arsenal admite el formato de importación de archivos .zip",

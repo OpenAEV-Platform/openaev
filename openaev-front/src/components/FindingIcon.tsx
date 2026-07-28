@@ -1,4 +1,4 @@
-import { InsertDriveFileOutlined, ReportProblemOutlined } from '@mui/icons-material';
+import { BugReportOutlined, InsertDriveFileOutlined } from '@mui/icons-material';
 import { Tooltip } from '@mui/material';
 import {
   AccountAlertOutline,
@@ -40,8 +40,9 @@ const renderIcon = (findingType: string) => {
       return <IpOutline color="primary" />;
     case 'credentials':
       return <KeyOutline color="primary" />;
+    case 'cve':
     case 'vulnerability':
-      return <ReportProblemOutlined color="primary" />;
+      return <BugReportOutlined color="primary" />;
     case 'username':
     case 'admin_username':
       return <AccountOutline color="primary" />;
