@@ -26,7 +26,6 @@ import Loader from '../../../../components/Loader';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import { useHelper } from '../../../../store';
 import {
-  type AssetGroupSimple,
   type EndpointOverviewOutput,
   type InjectResultOutput,
   type SearchPaginationInput,
@@ -57,7 +56,6 @@ type AssetOverview = EndpointOverviewOutput & {
   ai_target_endpoint?: string;
   ai_target_model?: string;
   ai_target_system_prompt?: string;
-  asset_asset_groups?: AssetGroupSimple[];
 };
 
 const AssetDetail = () => {
