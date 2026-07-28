@@ -237,8 +237,9 @@ class TenantActiveTableAccessArchTest {
               ExecutorApi.class,
               // Service behind the handler; every caller is a wired handler:
               ExecutorService.class,
-              // Explicit tenantId param threaded from the caller (native DELETE ... AND
-              // tenant_id = ?), not inspector-scoped: safe regardless of activation:
+              // ConnectorInstanceService: invoked under TxCtx via ConnectorInstanceApi; deletes
+              // executors via inspector-scoped deleteByExecutorId, so it relies on executors being
+              // active on v2:
               ConnectorInstanceService.class,
               // EndpointService: reads executors via inspector-scoped findById (caller EndpointApi
               // carries TxCtx):
