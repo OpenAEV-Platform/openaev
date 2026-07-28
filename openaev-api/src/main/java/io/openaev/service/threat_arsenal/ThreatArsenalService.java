@@ -69,6 +69,7 @@ public class ThreatArsenalService {
 
   /** Max page size allowed by {@code Pagination}; used to page through select-all bulk deletes. */
   private static final int MAX_PAGE_SIZE = 1000;
+
   private static final String PROVIDING_FILTER_KEY = "injector_contract_providing";
 
   /**
@@ -412,7 +413,9 @@ public class ThreatArsenalService {
     }
 
     List<Filters.Filter> remainingFilters =
-        allFilters.stream().filter(filter -> !PROVIDING_FILTER_KEY.equals(filter.getKey())).toList();
+        allFilters.stream()
+            .filter(filter -> !PROVIDING_FILTER_KEY.equals(filter.getKey()))
+            .toList();
     searchInput.getFilterGroup().setFilters(remainingFilters);
 
     List<Specification<InjectorContract>> providingSpecs =
@@ -450,12 +453,16 @@ public class ThreatArsenalService {
               .select(cb.literal(1))
               .where(outputElementsJoin.get("type").in(expectedOutputTypes));
 
+          Predicate noPayload = cb.isNull(root.get("payload"));
+          var lowerContent = cb.lower(root.get("content"));
           List<Predicate> contentPredicates = new ArrayList<>();
           for (String label : expectedLabels) {
             contentPredicates.add(
-                cb.like(
-                    cb.lower(root.get("content")),
-                    "%\"type\"%\"" + label.toLowerCase(Locale.ROOT) + "\"%"));
+                cb.and(
+                    noPayload,
+                    cb.like(
+                        lowerContent,
+                        "%\"outputs\"%\"type\"%\"" + label.toLowerCase(Locale.ROOT) + "\"%")));
           }
 
           Predicate payloadMatch = cb.exists(payloadSubquery);
@@ -485,6 +492,16 @@ public class ThreatArsenalService {
         .forEach(normalizedLabels::add);
 
     EnumSet<ContractOutputType> resolvedTypes = EnumSet.noneOf(ContractOutputType.class);
+    String textLabel = ContractOutputType.Text.getLabel().toLowerCase(Locale.ROOT);
+    if (normalizedLabels.contains(textLabel)) {
+      resolvedTypes.add(ContractOutputType.Text);
+      normalizedLabels.remove(textLabel);
+    }
+
+    if (normalizedLabels.isEmpty()) {
+      return resolvedTypes;
+    }
+
     for (ContractOutputType candidate : ContractOutputType.values()) {
       if (normalizedLabels.contains(candidate.getLabel().toLowerCase(Locale.ROOT))) {
         resolvedTypes.add(candidate);
