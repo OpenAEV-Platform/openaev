@@ -2772,6 +2772,7 @@
   "Show in findings": "Показать в выводах",
   "Show timeline": "Показать временную шкалу",
   "Show Timeline": "Показать временную шкалу",
+  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all.",
   "Sid": "SID",
   "Sidebar": "Боковая панель",
   "Siem": "SIEM",

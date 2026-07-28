@@ -2772,6 +2772,7 @@
   "Show in findings": "Mostra nei risultati",
   "Show timeline": "Mostra linea temporale",
   "Show Timeline": "Mostra linea temporale",
+  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all.",
   "Sid": "SID",
   "Sidebar": "Barra laterale",
   "Siem": "SIEM",

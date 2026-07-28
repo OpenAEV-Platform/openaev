@@ -2772,6 +2772,7 @@
   "Show in findings": "결과에 표시",
   "Show timeline": "타임라인 표시",
   "Show Timeline": "타임라인 표시",
+  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all.",
   "Sid": "SID",
   "Sidebar": "사이드바",
   "Siem": "SIEM",

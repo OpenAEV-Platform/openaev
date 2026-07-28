@@ -2772,6 +2772,7 @@
   "Show in findings": "所見で表示",
   "Show timeline": "タイムラインを表示する",
   "Show Timeline": "タイムラインの表示",
+  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all.",
   "Sid": "SID",
   "Sidebar": "サイドバー",
   "Siem": "SIEM",

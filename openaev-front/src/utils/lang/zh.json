@@ -2772,6 +2772,7 @@
   "Show in findings": "在调查结果中显示",
   "Show timeline": "显示时间线",
   "Show Timeline": "显示时间线",
+  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all.",
   "Sid": "SID",
   "Sidebar": "侧边栏",
   "Siem": "SIEM",
