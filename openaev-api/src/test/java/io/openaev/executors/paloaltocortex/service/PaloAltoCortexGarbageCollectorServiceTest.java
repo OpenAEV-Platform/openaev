@@ -2,6 +2,8 @@ package io.openaev.executors.paloaltocortex.service;
 
 import static io.openaev.executors.ExecutorHelper.POWERSHELL_CMD;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,6 +39,17 @@ public class PaloAltoCortexGarbageCollectorServiceTest {
   @BeforeEach
   void setUp() {
     org.mockito.Mockito.when(executor.getId()).thenReturn(EXECUTOR_ID);
+    // run() wraps doRun() in tenantTx.execute(TxCtx.forTenant(executor.getTenantId()), ...):
+    // stub getTenantId() (TxCtx.forTenant rejects null via List.of) and make the tenantTx mock
+    // actually invoke the supplied work, otherwise doRun() never happens.
+    lenient().when(executor.getTenantId()).thenReturn("test-tenant-id");
+    lenient()
+        .when(tenantTx.execute(any(), any(java.util.function.Supplier.class)))
+        .thenAnswer(
+            invocation -> {
+              java.util.function.Supplier<?> work = invocation.getArgument(1);
+              return work.get();
+            });
     paloAltoCortexGarbageCollectorService =
         new PaloAltoCortexGarbageCollectorService(
             config, paloAltoCortexExecutorContextService, agentService, executor, tenantTx);

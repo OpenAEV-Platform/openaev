@@ -61,7 +61,7 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
     // /register carries a TxCtx param (v2 write-scope resolution): the mock user needs a
     // users_tenants row, otherwise the scope resolves to TxCtx.Missing and the write is refused
     // with 400 regardless of isAdmin/capabilities.
-    if (testUserHolder.get() != null) {
+    if (testUserHolder.isSet()) {
       tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
     }
   }
