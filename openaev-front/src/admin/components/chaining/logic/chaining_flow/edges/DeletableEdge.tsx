@@ -11,11 +11,18 @@ import {
 
 interface DeletableEdgeData {
   onDelete?: (edgeId: string, source: string, target: string) => void;
+  /** Emphasized in blue when its event is the currently selected one. */
+  isHighlighted?: boolean;
+  /** Faded out when outside the selected event's flow (spotlight backdrop). */
+  dimmed?: boolean;
 
   [key: string]: unknown;
 }
 
 type DeletableEdgeType = Edge<DeletableEdgeData, 'deletable'>;
+
+/** Opacity applied to edges outside the selected event's flow (spotlight backdrop). */
+const DIMMED_OPACITY = 0.24;
 
 const DeletableEdge = ({
   id,
@@ -46,9 +53,26 @@ const DeletableEdge = ({
     }
   };
 
+  const dimmed = !!data?.dimmed;
+
   return (
     <>
-      <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} />
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        markerEnd={markerEnd}
+        style={{
+          ...(data?.isHighlighted
+            ? {
+                stroke: theme.palette.primary.main,
+                strokeWidth: 2,
+              }
+            : {}),
+          ...(dimmed ? { opacity: DIMMED_OPACITY } : {}),
+          transition: 'opacity 0.2s ease',
+        }}
+      />
+
       <EdgeLabelRenderer>
         <div
           style={{
