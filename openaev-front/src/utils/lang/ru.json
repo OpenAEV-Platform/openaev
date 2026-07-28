@@ -162,7 +162,7 @@
   "Add media pressure": "Добавить давление среды",
   "Add media pressure in this inject": "Добавьте давление в прессу при этом",
   "Add multiple items at once by separating them with commas.": "Добавляйте сразу несколько элементов, разделяя их запятыми.",
-  "Subnet expansion is safety-limited for IPv4 and IPv6. Large subnets may not be expanded.": "Расширение подсетей для IPv4 и IPv6 ограничено в целях безопасности. Крупные подсети могут не расширяться.",
+  "Subnet expansion is safety-limited /24. Large subnets may not be expanded.": "Расширение подсетей для IPv4 и IPv6 ограничено в целях безопасности. Крупные подсети могут не расширяться.",
   "Add parent": "Добавить родителя",
   "Add players in this team": "Добавить игроков в эту команду",
   "Add schedule": "Add schedule",

@@ -162,7 +162,7 @@
   "Add media pressure": "添加媒体",
   "Add media pressure in this inject": "在此注入中加入媒体",
   "Add multiple items at once by separating them with commas.": "用逗号分隔，一次添加多个项目。",
-  "Subnet expansion is safety-limited for IPv4 and IPv6. Large subnets may not be expanded.": "IPv4 和 IPv6 的子网扩展有安全限制。较大的子网可能不会被扩展。",
+  "Subnet expansion is safety-limited /24. Large subnets may not be expanded.": "IPv4 和 IPv6 的子网扩展有安全限制。较大的子网可能不会被扩展。",
   "Add parent": "添加父项",
   "Add players in this team": "添加选手到这个团队",
   "Add schedule": "Add schedule",

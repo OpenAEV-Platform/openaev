@@ -162,7 +162,7 @@
   "Add media pressure": "メディアプレッシャーを追加",
   "Add media pressure in this inject": "このインジェクトにメディアプレッシャーを追加する",
   "Add multiple items at once by separating them with commas.": "カンマ区切りで複数の項目を一度に追加できます。",
-  "Subnet expansion is safety-limited for IPv4 and IPv6. Large subnets may not be expanded.": "IPv4 と IPv6 のサブネット展開には安全上の制限があります。大きなサブネットは展開されない場合があります。",
+  "Subnet expansion is safety-limited /24. Large subnets may not be expanded.": "IPv4 と IPv6 のサブネット展開には安全上の制限があります。大きなサブネットは展開されない場合があります。",
   "Add parent": "親を追加",
   "Add players in this team": "このチームにプレイヤーを追加する",
   "Add schedule": "Add schedule",
