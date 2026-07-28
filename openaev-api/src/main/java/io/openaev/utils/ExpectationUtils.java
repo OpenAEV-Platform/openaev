@@ -741,11 +741,16 @@ public class ExpectationUtils {
       // On an endpoint a payload runs through an OAEV agent, so the expectation
       // is created at the agent level. An asset-level (agentless) expectation is
       // therefore only needed for a non-executor injector (Nuclei, Nmap, HTTP...)
-      // targeting an endpoint that carries no agent.
+      // targeting an endpoint whose agents produce no agent-level expectations.
       if (injectRunsThroughAgents(inject)) {
         return false;
       }
-      return endpoint.getAgents().isEmpty();
+      // Judge on USABLE agents, not the mere presence of agent rows: a network
+      // scanner reaches the endpoint regardless of agent health, so an endpoint
+      // whose only agents are inactive (or invalid for this inject) must still
+      // get its asset-level expectation - otherwise it silently gets none at all
+      // (no active agent children, no agentless parent).
+      return AgentUtils.getActiveAgents(endpoint, inject).isEmpty();
     }
     // Non-endpoint assets (AI targets, ...) never run an agent: the asset itself
     // is the validation target, fulfilled by an external collector (e.g. the XTM
