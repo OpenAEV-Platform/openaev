@@ -9,7 +9,6 @@ import io.openaev.service.AssetService;
 import io.openaev.utils.IpAddressUtils;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -121,17 +120,14 @@ public class ScopeService {
   }
 
   /**
-   * Returns the raw IP, subnet, and domain strings from allowlist rules that are not denied.
+   * Returns manual targets from allowlist scope rules after denylist filtering.
    *
-   * <p>Each returned value is suitable for use as a manual target (e.g. in the {@code targets}
-   * field of an inject content with {@code target_selector = "manual"}). Subnets are returned in
-   * their CIDR notation as-is, since tools like nmap accept them directly. Domains (hostnames) from
-   * DOMAIN rules are included alongside IPs and subnets.
+   * <p>IP_SUBNET rules are expanded to individual host IPs. For IPv4, network and broadcast
+   * addresses are excluded when applicable (e.g. /26 -> .1.. .62). IP and domain rules are kept as
+   * direct targets.
    *
-   * <p>Denylist filtering: an individual IP is removed if it exactly matches a denied IP rule or
-   * falls inside a denied IP_SUBNET rule. A subnet value is removed only on exact match against a
-   * denied IP_SUBNET rule (partial overlap is not computed). A domain is removed only on exact
-   * case-insensitive match against a denied DOMAIN rule.
+   * <p>Denylist filtering is then applied on resulting targets: denied IPs and denied subnets
+   * remove matching expanded hosts, and denied domains remove matching domain targets.
    *
    * <p>In addition to the scope rules, this method includes every IPv4 and IPv6 value discovered in
    * the workflow global pool (workflow states) of the current simulation. These global-pool IPs are
@@ -157,36 +153,49 @@ public class ScopeService {
             collectRuleValues(
                 allRules, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.IP_SUBNET));
 
-    Stream<String> scopeTargets =
-        allRules.stream()
-            .filter(r -> ScopeRuleSelectedMode.ALLOWLIST.equals(r.getSelectedMode()))
-            .filter(
-                r ->
-                    ScopeRuleValueType.IP.equals(r.getValueType())
-                        || ScopeRuleValueType.IP_SUBNET.equals(r.getValueType())
-                        || ScopeRuleValueType.DOMAIN.equals(r.getValueType()))
-            .filter(
-                r ->
-                    switch (r.getValueType()) {
-                      case IP ->
-                          PrimitiveValueValidator.isIpAllowedByScope(r.getRuleValue(), context);
-                      case IP_SUBNET ->
-                          PrimitiveValueValidator.isSubnetAllowedByScope(r.getRuleValue(), context);
-                      case DOMAIN ->
-                          PrimitiveValueValidator.isDomainAllowedByScope(r.getRuleValue(), context);
-                      default -> false;
-                    })
-            .map(WorkflowScopeRule::getRuleValue);
+    LinkedHashSet<String> validTargets = new LinkedHashSet<>();
 
-    Stream<String> globalStateIps =
-        getIpsFromGlobalState(workflowId).stream()
-            .filter(ip -> !PrimitiveValueValidator.isIpDeniedByScope(ip, context));
+    // 1. Process rules (allowlist mode only)
+    for (WorkflowScopeRule rule : allRules) {
+      if (!ScopeRuleSelectedMode.ALLOWLIST.equals(rule.getSelectedMode())) {
+        continue;
+      }
 
-    // Preserve order (scope targets first, then global-state IPs) and deduplicate.
-    return Stream.concat(scopeTargets, globalStateIps)
-        .collect(Collectors.toCollection(LinkedHashSet::new))
-        .stream()
-        .toList();
+      switch (rule.getValueType()) {
+        case IP -> {
+          String ip = rule.getRuleValue();
+          if (PrimitiveValueValidator.isIpAllowedByScope(ip, context)) {
+            validTargets.add(ip);
+          }
+        }
+        case DOMAIN -> {
+          String domain = rule.getRuleValue();
+          if (PrimitiveValueValidator.isDomainAllowedByScope(domain, context)) {
+            validTargets.add(domain);
+          }
+        }
+        case IP_SUBNET -> {
+          String subnet = rule.getRuleValue();
+          if (PrimitiveValueValidator.isSubnetAllowedByScope(subnet, context)) {
+            for (String expandedIp : IpAddressUtils.expandSubnetToHostIps(subnet)) {
+              if (PrimitiveValueValidator.isIpAllowedByScope(expandedIp, context)) {
+                validTargets.add(expandedIp);
+              }
+            }
+          }
+        }
+        default -> {
+          // Scope rules only accept IP, IP_SUBNET, or DOMAIN.
+        }
+      }
+    }
+
+    // 2. Add non-denied global state IPs (appended after rule targets)
+    getIpsFromGlobalState(workflowId).stream()
+        .filter(ip -> !PrimitiveValueValidator.isIpDeniedByScope(ip, context))
+        .forEach(validTargets::add);
+
+    return List.copyOf(validTargets);
   }
 
   /**

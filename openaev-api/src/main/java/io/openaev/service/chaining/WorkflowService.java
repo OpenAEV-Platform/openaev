@@ -39,7 +39,6 @@ public class WorkflowService {
   private final PreviewFeatureService previewFeatureService;
   private final WorkflowStateService workflowStateService;
   private final StepDelayQueueService stepDelayQueueService;
-  private final SimulationRateLimitService simulationRateLimitService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
@@ -873,6 +872,26 @@ public class WorkflowService {
         scopeData.computeIfAbsent(key, ignored -> new ArrayList<>()).add(rule.getRuleValue());
         typeMappings.putIfAbsent(
             key, ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(rule.getValueType()));
+
+        if (ScopeRuleValueType.IP_SUBNET.equals(rule.getValueType())) {
+          for (String expandedIp : IpAddressUtils.expandSubnetToHostIps(rule.getRuleValue())) {
+            if (IpAddressUtils.isIpv4Address(expandedIp)) {
+              scopeData
+                  .computeIfAbsent(PrimitiveType.IPv4.name(), ignored -> new ArrayList<>())
+                  .add(expandedIp);
+              typeMappings.putIfAbsent(
+                  PrimitiveType.IPv4.name(),
+                  ChainingMappedType.primitive(List.of(PrimitiveType.IPv4)));
+            } else if (IpAddressUtils.isIpv6Address(expandedIp)) {
+              scopeData
+                  .computeIfAbsent(PrimitiveType.IPv6.name(), ignored -> new ArrayList<>())
+                  .add(expandedIp);
+              typeMappings.putIfAbsent(
+                  PrimitiveType.IPv6.name(),
+                  ChainingMappedType.primitive(List.of(PrimitiveType.IPv6)));
+            }
+          }
+        }
       }
     }
 

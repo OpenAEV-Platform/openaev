@@ -38,6 +38,7 @@ import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowStateService;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
+import io.openaev.utils.IpAddressUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Resource;
@@ -634,6 +635,10 @@ public class InjectExecutionStep implements ActionStep {
       // One batch per manual data
       Set<String> uniqueManualTargets = new LinkedHashSet<>(validManualTargets);
       for (String manualTarget : uniqueManualTargets) {
+        if (IpAddressUtils.isIpv4Subnet(manualTarget)
+            || IpAddressUtils.isIpv6Subnet(manualTarget)) {
+          continue;
+        }
         JsonObject target = new JsonObject();
         target.addProperty("type", "MANUAL");
         target.addProperty("manual", manualTarget);
