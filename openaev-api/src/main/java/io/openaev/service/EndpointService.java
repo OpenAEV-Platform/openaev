@@ -34,6 +34,7 @@ import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -577,7 +578,13 @@ public class EndpointService implements AuditLoggedService {
           assetAgentJob.setCommand(
               generateUpgradeCommand(
                   endpoint.getPlatform().name(),
-                  input.getInstallationMode(),
+                  // Normalise/validate against the known installation modes before it reaches the
+                  // resource-path resolution in loadAgentScriptTemplate (avoids
+                  // java/path-injection): the raw value here comes straight from the register
+                  // request body.
+                  input.getInstallationMode() == null
+                      ? null
+                      : AgentUtils.getSupportedInstallationMode(input.getInstallationMode()),
                   input.getInstallationDirectory(),
                   input.getServiceName(),
                   agent.getTenant().getId()));

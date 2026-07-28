@@ -356,7 +356,10 @@ public class ExecutorApi extends RestBehavior {
 
       String filename = "openaev-agent-installer-";
       if (!resolvedInstallationMode.equals(SERVICE)) {
-        filename = filename.concat(installationMode).concat("-");
+        // Use the validated/normalised value here (not the raw path variable) so this stays
+        // restricted to the known installation modes before it reaches the resource path
+        // resolution below (avoids java/path-injection).
+        filename = filename.concat(resolvedInstallationMode).concat("-");
       }
 
       if (agentBinaryOrigin.equals("local")) { // if we want the local binaries
