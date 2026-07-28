@@ -14,6 +14,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, useMemo } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import {
   type CatalogFacetFilters,
   type ConnectorItem,
@@ -151,6 +152,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
   const theme = useTheme();
   const { t } = useFormatter();
   const anyActive = hasActiveFacetFilters(filters);
+  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
 
   const groups: FacetGroup[] = useMemo(() => {
     // Faceted-search count semantics: each group is counted against items
@@ -187,12 +189,14 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
             icon: TerminalOutlined,
             count: countByPredicate(typesBase, c => c.type === 'EXECUTOR'),
           },
-          {
-            value: 'SECRETS_PROVIDER',
-            label: t('Secrets Provider'),
-            icon: Key,
-            count: countByPredicate(typesBase, c => c.type === 'SECRETS_PROVIDER'),
-          },
+          ...isCredentialAssetEnabled
+            ? [{
+                value: 'SECRETS_PROVIDER',
+                label: t('Secrets Provider'),
+                icon: Key,
+                count: countByPredicate(typesBase, c => c.type === 'SECRETS_PROVIDER'),
+              }]
+            : [],
         ],
       },
       {

@@ -59,9 +59,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const { t, nsdt, locale } = useFormatter();
-  const isCredentialAssetEnabled = isFeatureEnabled(
-    'CREDENTIAL_ASSET' as Parameters<typeof isFeatureEnabled>[0],
-  );
+  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
 
   useDataLoader(() => {
     dispatch(injectorConfig.apiRequest.fetchAll());
