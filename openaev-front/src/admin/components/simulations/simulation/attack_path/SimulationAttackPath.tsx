@@ -613,6 +613,56 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       });
   }, [simulationId]);
 
+  // Focused view: expand the endpoint's finding clusters BY DEFAULT so the analyst sees the actual findings
+  // without a click. The endpoint's findings are already loaded (endpointFindings), and the focus layout
+  // keys a type's cluster deterministically as `path-cl-type|<type>|<endpointKey>`, so we pre-seed those
+  // clusters (findings + expanded flag + first batch). A type with many findings (> the cap) stays a
+  // collapsed "+N" cluster to keep the view readable; the user can still expand it.
+  const AUTO_EXPAND_MAX = 5;
+  useEffect(() => {
+    if (!pathFinding || endpointFindings.length === 0) {
+      return;
+    }
+    const epKey = pathFinding.endpointKey;
+    const byType = new Map<string, typeof endpointFindings>();
+    for (const f of endpointFindings) {
+      const type = f.typeFindings ?? '';
+      (byType.get(type) ?? byType.set(type, []).get(type)!).push(f);
+    }
+    const clusterData = new Map<string, typeof endpointFindings>();
+    for (const [type, list] of byType) {
+      if (type && list.length > 0 && list.length <= AUTO_EXPAND_MAX) {
+        clusterData.set(`path-cl-type|${type}|${epKey}`, list);
+      }
+    }
+    if (clusterData.size === 0) {
+      return;
+    }
+    setFindingsByCluster((prev) => {
+      const next = new Map(prev);
+      clusterData.forEach((v, k) => {
+        if (!next.has(k)) {
+          next.set(k, v);
+        }
+      });
+      return next;
+    });
+    setFindingBatch((prev) => {
+      const next = new Map(prev);
+      clusterData.forEach((_, k) => {
+        if (!next.has(k)) {
+          next.set(k, FINDING_BATCH_SIZE);
+        }
+      });
+      return next;
+    });
+    setExpandedFindingClusters((prev) => {
+      const next = new Set(prev);
+      clusterData.forEach((_, k) => next.add(k));
+      return next;
+    });
+  }, [pathFinding, endpointFindings]);
+
   // Progressive endpoint reveal: the "+N" header toggles expand/collapse; an "+rest" overflow reveals
   // the next batch.
   const onClusterClick = useCallback((injectorId: string, kind: 'header' | 'overflow') => {
@@ -1453,6 +1503,20 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                 continue;
               }
               pathSet.add(e.source);
+            }
+          }
+        }
+      }
+      // A selected finding CLUSTER sits upstream of its expanded children (cluster → finding). The up-walk
+      // above never reaches them, so they'd render dimmed once expanded. Add a scoped DOWNSTREAM pass from
+      // the selection so its own expanded findings (and their edges) stay lit.
+      if (selectedFindingId && pathSet.has(selectedFindingId)) {
+        const down = new Set<string>([selectedFindingId]);
+        for (let pass = 0; pass < 3; pass += 1) {
+          for (const e of baseFlow.edges) {
+            if (e.source && e.target && down.has(e.source) && !down.has(e.target)) {
+              down.add(e.target);
+              pathSet.add(e.target);
             }
           }
         }
