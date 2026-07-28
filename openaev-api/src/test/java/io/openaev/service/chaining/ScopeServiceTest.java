@@ -231,6 +231,19 @@ class ScopeServiceTest {
   }
 
   @Test
+  @DisplayName("Allowlisted /18 subnet is expanded and available as manual targets")
+  void givenAllowlistedSlash18Subnet_whenResolvingManualTargets_thenExpandsAllHosts() {
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(List.of(allowlistRule(ScopeRuleValueType.IP_SUBNET, "67.205.128.0/18")));
+
+    List<String> result = scopeService.getValidManualTargetsFromScope(WORKFLOW_ID);
+
+    assertThat(result).hasSize(16382);
+    assertThat(result).contains("67.205.128.1", "67.205.191.254");
+    assertThat(result).doesNotContain("67.205.128.0", "67.205.191.255");
+  }
+
+  @Test
   @DisplayName("Denylisted IP is removed from an expanded subnet")
   void givenDenylistedIp_whenResolvingExpandedSubnet_thenIpIsExcluded() {
     when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))

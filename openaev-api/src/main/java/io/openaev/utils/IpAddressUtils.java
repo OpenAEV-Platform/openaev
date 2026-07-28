@@ -29,7 +29,7 @@ public class IpAddressUtils {
   private static final Pattern IPV4_NUMERIC = Pattern.compile("^\\d{1,3}(\\.\\d{1,3}){3}$");
 
   /** Safety limit for subnet expansion to keep chaining scope resolution bounded. */
-  private static final int MAX_EXPANDED_HOSTS = 4096;
+  private static final int MAX_EXPANDED_HOSTS = 65536;
 
   private IpAddressUtils() {}
 
