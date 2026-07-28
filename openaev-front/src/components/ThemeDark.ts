@@ -81,7 +81,11 @@ const ThemeDark = (
     warning: { main: '#ffa726' },
     primary: {
       main: primary || THEME_DARK_DEFAULT_PRIMARY,
-      light: primary ? alpha(primary, 0.08) : '#B2ECFF',
+      // fds-migration/TOKEN-MAPPING.md § 9 — resolved (lib gap-fix lib#52) on
+      // --color-filigran-brand-secondary. ≈approximate per the guide (small delta: was #B2ECFF,
+      // token resolves #A8E7FF — R/G ~4% darker, B unchanged). 0 consumers confirmed for this root
+      // property (designSystem.primary.light is a different, already-wired property).
+      light: primary ? alpha(primary, 0.08) : FDS.colors.dark['--color-filigran-brand-secondary'],
     },
     secondary: { main: secondary || THEME_DARK_DEFAULT_SECONDARY },
     gradient: { main: EE_COLOR },
@@ -173,16 +177,17 @@ const ThemeDark = (
       text: '#F2F2F3',
     },
     // fds-migration/TOKEN-MAPPING.md § 4 — critical/high/medium/low/info mapped to the closest FDS
-    // feedback token (not 1:1, mirrors OpenCTI's own wiring). none/default: no FDS equivalent
-    // (neutral/unset states), left as-is, backlogged.
+    // feedback token (not 1:1, mirrors OpenCTI's own wiring). none/default: resolved in § 9 on
+    // --color-feedback-neutral-primary (both keys collapse to the same neutral value — lib gap-fix
+    // lib#52).
     severity: {
       critical: FDS.colors.dark['--color-feedback-error-primary'],
       high: FDS.colors.dark['--color-feedback-warning-primary'],
       medium: FDS.colors.dark['--color-feedback-alert-primary'],
       low: FDS.colors.dark['--color-feedback-success-primary'],
       info: FDS.colors.dark['--color-feedback-info-primary'],
-      none: '#424242',
-      default: '#1C2F49',
+      none: FDS.colors.dark['--color-feedback-neutral-primary'],
+      default: FDS.colors.dark['--color-feedback-neutral-primary'],
     },
     designSystem: {
       // "filigran-brand" family: light/dark are the -secondary/-tertiary tiers of `main`.
@@ -212,20 +217,22 @@ const ThemeDark = (
       },
       background: {
         main: THEME_DARK_DEFAULT_BACKGROUND,
-        // bg1-bg4/disabled: no confident 1:1 FDS token found (fds-migration/TOKEN-MAPPING.md § 5
-        // gaps), left as-is, backlogged for design arbitration.
-        bg1: '#0C1524',
-        bg2: '#0D182A',
-        bg3: '#253348',
-        bg4: '#1C2F49',
-        disabled: '#363B46',
+        // bg1-bg4/disabled: resolved in § 9 on the matching elevation layer (bgN → layer-(N-1);
+        // lib gap-fix lib#52). bg2 has a live consumer (LeftMenu.tsx separator) — delta confirmed
+        // imperceptible, see § 9 proof table.
+        bg1: FDS.colors.dark['--bg-elevation-default-layer-0'],
+        bg2: FDS.colors.dark['--bg-elevation-default-layer-1'],
+        bg3: FDS.colors.dark['--bg-elevation-default-layer-2'],
+        bg4: FDS.colors.dark['--bg-elevation-default-layer-3'],
+        disabled: FDS.colors.dark['--bg-elevation-disabled'],
       },
-      // No confident FDS token found for any of these three (fds-migration/TOKEN-MAPPING.md § 5
-      // gaps), left as-is, backlogged for design arbitration.
+      // fds-migration/TOKEN-MAPPING.md § 9 — resolved (lib gap-fix lib#52): main on
+      // --border-elevation-default, border1/border2 both collapse onto --border-elevation-subtle
+      // (0 consumers, confirmed by grep before and after).
       border: {
-        main: '#2B3447',
-        border1: '#424751',
-        border2: '#1C253A',
+        main: FDS.colors.dark['--border-elevation-default'],
+        border1: FDS.colors.dark['--border-elevation-subtle'],
+        border2: FDS.colors.dark['--border-elevation-subtle'],
       },
       gradient: {
         // No FDS gradient exactly named "background" in this bridge (only '--gradient-default', a
@@ -260,9 +267,12 @@ const ThemeDark = (
           secondary: FDS.colors.dark['--color-feedback-error-secondary'],
         },
       },
-      // fds-migration/TOKEN-MAPPING.md § 4 — retokenized on scalar ramps (mode-invariant, hence
-      // FDS.scalars not FDS.colors.dark). blue.500/900: no scalar matches these two values
-      // (fds-migration/TOKEN-MAPPING.md § 5 gaps), left as-is, backlogged.
+      // fds-migration/TOKEN-MAPPING.md § 4 — grey/darkBlue/turquoise/green/red retokenized on scalar
+      // ramps (mode-invariant, hence FDS.scalars). blue.500/900: resolved in § 9 on
+      // --color-feedback-info-secondary-transparency (mode-dependent color token, not a scalar —
+      // both keys collapse to the same semi-transparent value; ⚠ semantic change if ever consumed:
+      // was two distinct opaque colors, now one alpha overlay. 0 consumers confirmed, lib gap-fix
+      // lib#52).
       tertiary: {
         grey: {
           400: FDS.scalars['--gray-400'],
@@ -270,8 +280,8 @@ const ThemeDark = (
           800: FDS.scalars['--gray-800'],
         },
         blue: {
-          500: '#0099CC',
-          900: '#003242',
+          500: FDS.colors.dark['--color-feedback-info-secondary-transparency'],
+          900: FDS.colors.dark['--color-feedback-info-secondary-transparency'],
         },
         darkBlue: {
           300: FDS.scalars['--darkblue-300'],
