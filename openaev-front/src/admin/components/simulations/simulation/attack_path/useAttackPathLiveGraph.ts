@@ -68,6 +68,12 @@ interface UseAttackPathLiveGraphResult {
    * re-walk the whole graph.
    */
   structuralNonce: number;
+  /**
+   * The full graph is being merged in and has not settled yet, so a chain-eligible run does not yet know
+   * whether it renders the causal chain. Bounded to that one attempt: a failed read settles it too, so a
+   * caller gating a loader on it falls back to the aggregated view instead of spinning forever.
+   */
+  fullPending: boolean;
 }
 
 /**
@@ -101,6 +107,9 @@ const useAttackPathLiveGraph = ({
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   const [batch, setBatch] = useState<Batch>(EMPTY_BATCH);
   const [structuralNonce, setStructuralNonce] = useState(0);
+  // Whether the full read has settled for this simulation (merged, or failed and given up). Only the
+  // window before it settles is "pending"; after that the view commits to whichever mode it can render.
+  const [fullSettled, setFullSettled] = useState(false);
   // Bumped on every resync so the seed effect re-runs on a fresh cursor; also the monotonic token
   // that drops responses from a superseded simulation or an in-flight resync.
   const [seedNonce, setSeedNonce] = useState(0);
@@ -117,6 +126,7 @@ const useAttackPathLiveGraph = ({
   // the user picked, never to a resync of the run they are already looking at.
   useEffect(() => {
     setSeeded(false);
+    setFullSettled(false);
   }, [simulationId]);
 
   // Initial read (and every resync): the collapsed snapshot, which seeds the store and the cursor from
@@ -195,9 +205,14 @@ const useAttackPathLiveGraph = ({
         storeRef.current = next;
         setStore(next);
         setStructuralNonce(n => n + 1);
+        setFullSettled(true);
       })
       .catch(() => {
-        // No overlay for this run; the collapsed projection is unaffected.
+        // No overlay for this run; the collapsed projection is unaffected. Settle anyway so a caller
+        // waiting on the causal chain stops waiting and renders the aggregated view.
+        if (current === seq.current) {
+          setFullSettled(true);
+        }
       });
   }, [simulationId, fullEligible, seeded, store.hasFull]);
 
@@ -332,6 +347,7 @@ const useAttackPathLiveGraph = ({
     newNodes: batch.newNodes,
     changedFindingTypes: batch.changedFindingTypes,
     structuralNonce,
+    fullPending: fullEligible && !fullSettled && !store.hasFull,
   };
 };
 

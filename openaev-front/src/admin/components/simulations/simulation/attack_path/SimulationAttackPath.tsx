@@ -271,6 +271,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     newNodes,
     changedFindingTypes,
     structuralNonce,
+    fullPending,
   } = useAttackPathLiveGraph({
     simulationId,
     fullEligible,
@@ -972,6 +973,18 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // Render the causal execution-chain layout whenever the size-gated full graph is available and carries
   // executions (small runs). Large runs never fetch it (fullDto stays null) and keep the aggregated view.
   const chainMode = !!fullDto && (fullDto.attackPathExecutions?.length ?? 0) > 0;
+
+  // A run that HAS executions will render the causal chain, so while its full projection is still being
+  // merged show a loader instead of the aggregated view (which reads as "no links yet"). `fullPending` is
+  // bounded to that one read — including its failure — so a non-chained, large, or unreadable run never
+  // waits on it.
+  const chainLoading = useMemo(() => {
+    if (fullDto) {
+      return false;
+    }
+    const row = simulations.find(s => s.simulationId === simulationId);
+    return fullPending && (row?.executionCount ?? 0) > 0;
+  }, [fullDto, fullPending, simulations, simulationId]);
 
   const baseFlow = useMemo(
     () => {
@@ -2441,7 +2454,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                 position: 'relative',
               }}
             >
-              {loading && <Loader />}
+              {(loading || chainLoading) && <Loader />}
               {!loading && forbidden && (
                 <Alert severity="warning" sx={{ m: 2 }}>
                   {t('You do not have access to this simulation\'s attack path.')}
@@ -2452,7 +2465,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                   {t('Failed to load the attack-path graph. Check the simulation or reload the page.')}
                 </Alert>
               )}
-              {!loading && !forbidden && !error && !graphHasContent && (
+              {!loading && !chainLoading && !forbidden && !error && !graphHasContent && (
                 <Box sx={{
                   // Fill the (relative) graph Paper and centre both ways so the empty-state is the focal point.
                   position: 'absolute',
@@ -2493,7 +2506,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                   )}
                 </Box>
               )}
-              {!loading && !forbidden && !error && graphHasContent && (
+              {!loading && !chainLoading && !forbidden && !error && graphHasContent && (
                 <ReactFlowProvider>
                   <AttackPathFlow
                     nodes={graphNodes}
