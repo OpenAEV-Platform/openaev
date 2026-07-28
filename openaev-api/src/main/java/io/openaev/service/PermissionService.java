@@ -234,8 +234,12 @@ public class PermissionService {
       @NotNull final Action action) {
     if (resourceType == ResourceType.INJECT) {
       Inject inject = injectService.inject(resourceId);
-      // parent action rule: anything non-READ becomes WRITE on the parent
-      Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
+      // parent action rule: READ stays READ, LAUNCH stays LAUNCH (atomic testing), rest becomes
+      // WRITE
+      Action parentAction =
+          (action == Action.READ)
+              ? Action.READ
+              : (action == Action.LAUNCH) ? Action.LAUNCH : Action.WRITE;
       return new Target(inject.getParentResourceId(), inject.getParentResourceType(), parentAction);
     } else if (resourceType == ResourceType.INJECTOR_CONTRACT) {
       return new Target(resourceId, ResourceType.THREAT_ARSENAL, action);
