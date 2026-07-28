@@ -259,8 +259,7 @@ class AuditLoggerTest extends IntegrationTest {
     @DisplayName("given_auditFlagDisabled_should_cleanBanner")
     void given_auditFlagDisabled_should_cleanBanner() {
       // Arrange
-      Mockito.when(previewFeatureService.isFeatureEnabled(Mockito.any()))
-          .thenReturn(false);
+      Mockito.when(previewFeatureService.isFeatureEnabled(Mockito.any())).thenReturn(false);
 
       // Act
       auditLogger.isAuditLoggingEnabled();
@@ -275,8 +274,7 @@ class AuditLoggerTest extends IntegrationTest {
     @DisplayName("given_auditFlagEnabled_and_licenseActive_should_cleanBanner")
     void given_auditFlagEnabled_and_licenseActive_should_cleanBanner() {
       // Arrange
-      Mockito.when(previewFeatureService.isFeatureEnabled(Mockito.any()))
-          .thenReturn(true);
+      Mockito.when(previewFeatureService.isFeatureEnabled(Mockito.any())).thenReturn(true);
       Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(true);
 
       // Act
@@ -292,8 +290,7 @@ class AuditLoggerTest extends IntegrationTest {
     @DisplayName("given_auditFlagEnabled_and_licenseInactive_should_showBanner")
     void given_auditFlagEnabled_and_licenseInactive_should_showBanner() {
       // Arrange
-      Mockito.when(previewFeatureService.isFeatureEnabled(Mockito.any()))
-          .thenReturn(true);
+      Mockito.when(previewFeatureService.isFeatureEnabled(Mockito.any())).thenReturn(true);
       Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(false);
 
       // Act
