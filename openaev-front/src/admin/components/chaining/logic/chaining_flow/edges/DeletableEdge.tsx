@@ -11,6 +11,8 @@ import {
 
 interface DeletableEdgeData {
   onDelete?: (edgeId: string, source: string, target: string) => void;
+  /** Emphasized in blue when its event is the currently selected one. */
+  isHighlighted?: boolean;
 
   [key: string]: unknown;
 }
@@ -48,7 +50,17 @@ const DeletableEdge = ({
 
   return (
     <>
-      <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} />
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        markerEnd={markerEnd}
+        style={data?.isHighlighted
+          ? {
+              stroke: theme.palette.primary.main,
+              strokeWidth: 2,
+            }
+          : undefined}
+      />
       <EdgeLabelRenderer>
         <div
           style={{

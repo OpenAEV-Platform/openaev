@@ -14,6 +14,10 @@ export type ActionNodeData = Node<{
   payloadType?: string;
   isPayload?: boolean;
   injectorContract?: string;
+  /** Highlighted in blue when it produces or consumes the currently selected event. */
+  isHighlighted?: boolean;
+  /** 1-based position of this step in the selected event's data-flow path (badge). */
+  pathIndex?: number;
   onEdit?: (id: string, type: string) => void;
   onDelete?: (id: string) => void;
 }>;
@@ -49,11 +53,45 @@ const ActionNode = ({ id, data }: NodeProps<ActionNodeData>) => {
         background: theme.palette.background.default,
         width: ACTION_WIDTH,
         position: 'relative',
+        boxShadow: data.isHighlighted ? `0 0 0 2px ${theme.palette.primary.main}` : 'none',
       }}
     >
+      {data.pathIndex !== undefined && (
+        <div
+          style={{
+            position: 'absolute',
+            top: -10,
+            left: -10,
+            width: 20,
+            height: 20,
+            borderRadius: '50%',
+            background: theme.palette.primary.main,
+            color: theme.palette.primary.contrastText,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 12,
+            fontWeight: 700,
+            zIndex: 2,
+          }}
+        >
+          {data.pathIndex}
+        </div>
+      )}
       <Handle
         type="target"
         position={Position.Left}
+        style={{
+          background: 'transparent',
+          border: 'none',
+        }}
+      />
+      {/* Hidden source handle used as the origin of informational (data-flow) arrows toward events. */}
+      <Handle
+        id="action-source-left"
+        type="source"
+        position={Position.Left}
+        isConnectable={false}
         style={{
           background: 'transparent',
           border: 'none',

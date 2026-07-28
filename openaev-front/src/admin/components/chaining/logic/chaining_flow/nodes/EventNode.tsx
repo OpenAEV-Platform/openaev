@@ -9,6 +9,10 @@ import NodePopover from './NodePopover';
 export type EventNodeData = Node<{
   label: string;
   conditions?: string[];
+  /** Whether this event is currently selected to reveal its informational data-flow arrows. */
+  isSelected?: boolean;
+  /** 1-based position of this event in the selected data-flow path (badge). */
+  pathIndex?: number;
   onEdit?: (id: string, type: string) => void;
   onDelete?: (id: string) => void;
 }>;
@@ -41,6 +45,27 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
       paddingTop: 2,
     }}
     >
+      {data.pathIndex !== undefined && (
+        <Box sx={{
+          position: 'absolute',
+          top: 8,
+          left: -10,
+          width: 20,
+          height: 20,
+          borderRadius: '50%',
+          background: theme.palette.warning.main,
+          color: theme.palette.warning.contrastText,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 12,
+          fontWeight: 700,
+          zIndex: 2,
+        }}
+        >
+          {data.pathIndex}
+        </Box>
+      )}
       <Box
         sx={{
           position: 'absolute',
@@ -74,6 +99,7 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
           justifyContent: 'space-between',
           alignItems: 'center',
           position: 'relative',
+          boxShadow: data.isSelected ? `0 0 0 2px ${theme.palette.warning.main}` : 'none',
         }}
       >
         <Typography
@@ -104,6 +130,17 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
           position={Position.Right}
           style={{
             background: theme.palette.primary.main,
+            border: 'none',
+          }}
+        />
+        {/* Hidden target handle used to receive informational (data-flow) arrows from provider actions. */}
+        <Handle
+          id="event-target"
+          type="target"
+          position={Position.Right}
+          isConnectable={false}
+          style={{
+            background: 'transparent',
             border: 'none',
           }}
         />

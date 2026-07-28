@@ -8,9 +8,10 @@ import {
   type Node,
   ReactFlow,
   useEdgesState,
+  useKeyPress,
   useNodesState,
 } from '@xyflow/react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   deleteCondition,
@@ -29,6 +30,8 @@ import {
   buildActionMetas,
   buildEdges,
   buildEventData,
+  buildEventPath,
+  buildInformationalEdges,
   buildOutputProvidersMap,
   buildTacticForStep,
   buildTacticNodes,
@@ -92,6 +95,9 @@ const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEvent
 
   // Delete confirmation dialog state
   const [pendingDeleteNodeId, setPendingDeleteNodeId] = useState<string | null>(null);
+
+  // Event currently selected to reveal its informational (data-flow) arrows.
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   /**
      * Build the step for updateStep API calls.
@@ -244,6 +250,8 @@ const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEvent
   const onEdgesDelete = useCallback(
     (deletedEdges: Edge[]) => {
       for (const edge of deletedEdges) {
+        // Informational edges are read-only visualizations — never unlink steps for them.
+        if (edge.type !== 'deletable') continue;
         removeEdge(edge.source, edge.target);
       }
     },
@@ -321,6 +329,24 @@ const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEvent
   }, [actionMetas, eventMetas, onEditStep, onEditEvent]);
 
   /**
+     * Invert action metas into an "output type → provider actions" map so we can
+     * resolve which actions feed a given event condition field.
+     */
+  const outputProviders = useMemo(() => buildOutputProvidersMap(actionMetas), [actionMetas]);
+
+  // Read-only dotted arrows from provider actions into the selected event (see helper).
+  const informationalEdges = useMemo<Edge[]>(
+    () => buildInformationalEdges(selectedEventId, eventMetas, outputProviders, theme.palette.warning.main),
+    [selectedEventId, eventMetas, outputProviders, theme.palette.warning.main],
+  );
+
+  // Numbered path (provider = 1, event = 2, consumer = 3) + highlighted steps
+  const { highlightedStepIds, stepPathIndex, eventPathIndex } = useMemo(
+    () => buildEventPath(selectedEventId, informationalEdges, actionMetas),
+    [selectedEventId, informationalEdges, actionMetas],
+  );
+
+  /**
      * Enrich all nodes with edit/delete callbacks so custom node components can trigger actions.
      * Recomputed whenever nodes or callbacks change.
      */
@@ -331,9 +357,21 @@ const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEvent
         ...node.data,
         onEdit: editNode,
         onDelete: requestDeleteNode,
+        ...(node.type === 'event'
+          ? {
+              isSelected: node.id === selectedEventId,
+              pathIndex: node.id === selectedEventId ? eventPathIndex : undefined,
+            }
+          : {}),
+        ...(node.type === 'action'
+          ? {
+              isHighlighted: highlightedStepIds.has(node.id),
+              pathIndex: stepPathIndex[node.id],
+            }
+          : {}),
       },
     })),
-    [nodes, editNode, requestDeleteNode],
+    [nodes, editNode, requestDeleteNode, selectedEventId, highlightedStepIds, stepPathIndex, eventPathIndex],
   );
 
   /**
@@ -346,10 +384,37 @@ const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEvent
       data: {
         ...edge.data,
         onDelete: onDeleteEdgeClick,
+        // Real event → step links are emphasized in blue while their event is selected.
+        isHighlighted: !!selectedEventId && edge.source === selectedEventId,
       },
     })),
-    [edges, onDeleteEdgeClick],
+    [edges, onDeleteEdgeClick, selectedEventId],
   );
+
+  const allEdges = useMemo(
+    () => [...edgesWithCallbacks, ...informationalEdges],
+    [edgesWithCallbacks, informationalEdges],
+  );
+
+  /**
+     * Select an event when clicked, or clear the
+     * selection when any other node is clicked.
+     */
+  const onNodeClick = useCallback(
+    (_: ReactMouseEvent, node: Node) => {
+      setSelectedEventId(node.type === 'event' ? node.id : null);
+    },
+    [],
+  );
+
+  /** Dismiss the informational visualization when clicking on the empty canvas. */
+  const onPaneClick = useCallback(() => setSelectedEventId(null), []);
+
+  // Dismiss the informational visualization when pressing Escape (ReactFlow's key hook).
+  const escapePressed = useKeyPress('Escape');
+  useEffect(() => {
+    if (escapePressed) setSelectedEventId(null);
+  }, [escapePressed]);
 
   return (
     <>
@@ -358,11 +423,13 @@ const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEvent
         <>
           <ReactFlow
             nodes={nodesWithCallbacks}
-            edges={edgesWithCallbacks}
+            edges={allEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onEdgesDelete={onEdgesDelete}
             onConnect={onConnect}
+            onNodeClick={onNodeClick}
+            onPaneClick={onPaneClick}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             proOptions={proOptions}
