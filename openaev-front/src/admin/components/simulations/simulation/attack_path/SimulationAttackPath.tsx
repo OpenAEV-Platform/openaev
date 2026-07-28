@@ -14,7 +14,7 @@ import { SIMULATION_BASE_URL } from '../../../../../constants/BaseUrls';
 import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 import attackPathStatusColor, { attackPathChokepointColor } from './attack-path-colors';
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, type PathFinding, pivotEndpointIds } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
 import AttackPathTableView, { type AttackPathEndpointRow } from './AttackPathTableView';
@@ -947,6 +947,12 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     return m;
   }, [chokepoints]);
 
+  // Pivot endpoints (an ASSET both attacked and used as an attack source) get a tooltip flag.
+  const pivotNodeIds = useMemo(
+    () => pivotEndpointIds(dto?.attackPathEdges ?? []),
+    [dto?.attackPathEdges],
+  );
+
   // All exposed endpoints (not just the top-N) for the table view; same source as chokepoints, no
   // extra fetch. Type columns are the union of finding types present, in a stable order.
   const endpointRows = useMemo<AttackPathEndpointRow[]>(
@@ -1034,23 +1040,27 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           batch: findingBatch,
         });
       }
-      if (chokepointRankById.size === 0) {
+      if (chokepointRankById.size === 0 && pivotNodeIds.size === 0) {
         return raw;
       }
       return {
-        nodes: raw.nodes.map(n => (n.type === AP_FLOW_NODE_TYPE.asset && chokepointRankById.has(n.id)
+        nodes: raw.nodes.map(n => (n.type === AP_FLOW_NODE_TYPE.asset && (chokepointRankById.has(n.id) || pivotNodeIds.has(n.id))
           ? {
               ...n,
               data: {
                 ...n.data,
                 chokepointRank: chokepointRankById.get(n.id),
+                isPivot: pivotNodeIds.has(n.id),
               },
             }
           : n)),
         edges: raw.edges,
       };
     },
-    [dto, chainMode, fullDto, pathFinding, pathContractLabelByInjector, endpointBatch, expandedFindingClusters, findingsByCluster, findingBatch, chokepointRankById, t],
+    [
+      dto, chainMode, fullDto, pathFinding, pathContractLabelByInjector, endpointBatch,
+      expandedFindingClusters, findingsByCluster, findingBatch, chokepointRankById, pivotNodeIds, t,
+    ],
   );
 
   // Highlight, in place, a finding clicked directly in the focused graph: keep it where it is and

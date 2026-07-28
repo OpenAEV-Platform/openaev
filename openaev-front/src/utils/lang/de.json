@@ -2372,6 +2372,7 @@
   "Phone number must start with + and contain only digits": "Die Telefonnummer muss mit + beginnen und darf nur Ziffern enthalten",
   "phone_number_tooltip": "Die Rufnummer sollte mit einem Pluszeichen ( + ) beginnen. Sie kann Leerzeichen oder Bindestriche ( - ) oder Klammern enthalten.",
   "Pipe": "Rohrleitung",
+  "Pivot node": "Pivot node",
   "Planning": "Planung",
   "Platform": "Plattform",
   "Platform connected": "Plattform verbunden",

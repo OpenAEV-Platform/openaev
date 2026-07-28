@@ -2372,6 +2372,7 @@
   "Phone number must start with + and contain only digits": "Номер телефона должен начинаться с + и содержать только цифры",
   "phone_number_tooltip": "Номер телефона должен начинаться со знака плюс ( + ). Он может содержать пробелы, дефисы ( - ) или круглые скобки.",
   "Pipe": "Труба",
+  "Pivot node": "Pivot node",
   "Planning": "Планирование",
   "Platform": "Платформа",
   "Platform connected": "Платформа подключена",

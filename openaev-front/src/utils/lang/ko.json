@@ -2372,6 +2372,7 @@
   "Phone number must start with + and contain only digits": "전화 번호는 +로 시작하고 숫자만 포함해야 합니다",
   "phone_number_tooltip": "전화번호는 더하기 기호(+)로 시작해야 합니다. 공백이나 하이픈( - ) 또는 괄호를 포함할 수 있습니다.",
   "Pipe": "파이프",
+  "Pivot node": "Pivot node",
   "Planning": "계획",
   "Platform": "플랫폼",
   "Platform connected": "플랫폼 연결",
