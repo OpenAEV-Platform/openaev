@@ -190,12 +190,10 @@ public class InjectsExecutionJob implements Job {
         }
       }
       injectStatusService.updateFinalInjectStatus(status);
+      // Save + stream one by one: the timeout finalization must reach the execution screens in
+      // real time (an inject stuck PENDING would otherwise stay "in flight" until a reload).
+      injectStatusService.saveAndStreamInject(status);
     }
-
-    injectStatusService.saveAll(
-        pendingInjects.stream()
-            .map(inject -> inject.getStatus().orElseThrow(ElementNotFoundException::new))
-            .collect(Collectors.toList()));
   }
 
   private void executeInject(ExecutableInject executableInject) throws Exception {
@@ -392,6 +390,41 @@ public class InjectsExecutionJob implements Job {
     exerciseRepository.save(exercise);
   }
 
+  /**
+   * Runs an inject execution under BOTH tenant scopes of the platform, set to the inject's tenant:
+   * the v2 primitive (transaction GUC, read by the inspector for activated tables such as
+   * collectors) and the v1 thread-local {@link TenantContext}, which {@link
+   * io.openaev.aop.HibernateFilterTransactionAspect} turns into the Hibernate {@code tenantFilter}
+   * on every {@code @Transactional} method it enters.
+   *
+   * <p>The v1 bridge is not optional: executing an inject resolves asset groups, endpoints and
+   * agents through Criteria queries, all still {@code @Filter} entities. {@link
+   * TenantContext#getCurrentTenant()} falls back to the DEFAULT tenant when the thread-local is
+   * unset, so without this a customer's simulation resolved the default tenant's endpoints and
+   * created its expectations against them - cross-tenant rows, and none for the real targets. It
+   * stayed invisible in single-tenant deployments, where that fallback happens to be the right
+   * tenant. Every other background executor (ScenarioExecutionJob, AtomicTestingExecutionJob,
+   * ExpectationsExpirationManagerJob, StepEventService...) already carries the same bridge.
+   *
+   * <p>Unlike those, this job runs on the shared {@code ForkJoinPool.commonPool} (nested {@code
+   * parallelStream}), which also borrows the calling thread: restore the previous value instead of
+   * clearing, so the scope of whatever else runs on that thread survives.
+   */
+  private void executeInTenant(@NotNull final String tenantId, @NotNull final Runnable work) {
+    String previousTenant =
+        TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
+    TenantContext.setCurrentTenant(tenantId);
+    try {
+      tenantTx.execute(TxCtx.forTenant(tenantId), work);
+    } finally {
+      if (previousTenant == null) {
+        TenantContext.clearCurrentTenant();
+      } else {
+        TenantContext.setCurrentTenant(previousTenant);
+      }
+    }
+  }
+
   @Override
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
@@ -448,31 +481,17 @@ public class InjectsExecutionJob implements Job {
                           try {
                             String tenantId =
                                 executableInject.getInjection().getInject().getTenant().getId();
-                            try {
-                              // Bridge for v1 tables (Tag, Asset, Agent, AssetGroup) still
-                              // relying on TenantContext via HibernateFilterTransactionAspect:
-                              // this runs on a parallelStream (ForkJoinPool) thread, never an
-                              // HTTP request thread, so TenantContext is never set here
-                              // otherwise and falls back to the default tenant, silently
-                              // scoping the v1 Hibernate filter to the wrong tenant (e.g.
-                              // endpoint.getAgents() resolving empty for a real agent).
-                              TenantContext.setCurrentTenant(tenantId);
-                              // Scope the transaction so the v2 inspector can resolve
-                              // can_access_tenant for activated tables (e.g. collectors)
-                              tenantTx.execute(
-                                  TxCtx.forTenant(tenantId),
-                                  () -> {
-                                    try {
-                                      this.executeInject(executableInject);
-                                    } catch (RuntimeException re) {
-                                      throw re;
-                                    } catch (Exception e) {
-                                      throw new RuntimeException(e);
-                                    }
-                                  });
-                            } finally {
-                              TenantContext.clearCurrentTenant();
-                            }
+                            executeInTenant(
+                                tenantId,
+                                () -> {
+                                  try {
+                                    this.executeInject(executableInject);
+                                  } catch (RuntimeException re) {
+                                    throw re;
+                                  } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                  }
+                                });
                           } catch (RuntimeException e) {
                             Inject inject = executableInject.getInjection().getInject();
                             Throwable cause = e.getCause() != null ? e.getCause() : e;

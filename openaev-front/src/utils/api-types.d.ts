@@ -2516,82 +2516,6 @@ export interface CveCreateInput {
   cve_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
 }
 
-/** Full CVE output including references and CWEs */
-export interface CveOutput {
-  /**
-   * CVSS score
-   * @example "7.8"
-   */
-  cve_cvss_v31: number;
-  /**
-   * CISA required action due date
-   * @format date-time
-   */
-  cve_cisa_action_due?: string;
-  /**
-   * CISA exploit addition date
-   * @format date-time
-   */
-  cve_cisa_exploit_add?: string;
-  /** Action required by CISA */
-  cve_cisa_required_action?: string;
-  /** Name used by CISA for the vulnerability */
-  cve_cisa_vulnerability_name?: string;
-  /** List of CWE outputs */
-  cve_cwes?: CweOutput[];
-  /** Detailed CVE description */
-  cve_description?: string;
-  /**
-   * External CVE identifier
-   * @minLength 1
-   * @example "CVE-2024-0001"
-   */
-  cve_external_id: string;
-  /**
-   * Id
-   * @minLength 1
-   */
-  cve_id: string;
-  /**
-   * CVE published date
-   * @format date-time
-   */
-  cve_published?: string;
-  /** External references */
-  cve_reference_urls?: string[];
-  /** Remediation suggestions */
-  cve_remediation?: string;
-  /** Source identifier */
-  cve_source_identifier?: string;
-  /** Status of the vulnerability */
-  cve_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
-}
-
-/** Simplified CVE representation */
-export interface CveSimple {
-  /**
-   * CVSS score
-   * @example "7.8"
-   */
-  cve_cvss_v31: number;
-  /**
-   * External CVE identifier
-   * @minLength 1
-   * @example "CVE-2024-0001"
-   */
-  cve_external_id: string;
-  /**
-   * Id
-   * @minLength 1
-   */
-  cve_id: string;
-  /**
-   * CVE published date
-   * @format date-time
-   */
-  cve_published?: string;
-}
-
 /** CWE input used in vulnerability creation/update */
 export interface CweInput {
   /**
@@ -3358,6 +3282,8 @@ export interface EndpointOverviewOutput {
    * @uniqueItems true
    */
   asset_agents: AgentOutput[];
+  /** Asset groups the asset belongs to (static or dynamic membership) */
+  asset_asset_groups?: AssetGroupSimple[];
   /** Asset category */
   asset_category?:
     | "HOST"
@@ -5846,6 +5772,29 @@ export interface InjectorContract {
     | "Internal"
     | "Unknown"
   )[];
+  injector_contract_providing?: (
+    | "text"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature"
+  )[];
   injector_contract_tags?: string[];
   /** @format date-time */
   injector_contract_updated_at: string;
@@ -7212,25 +7161,6 @@ export interface PageConnectorInstanceLog {
 
 export interface PageCustomDashboard {
   content?: CustomDashboard[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject[];
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
-export interface PageCveSimple {
-  content?: CveSimple[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;

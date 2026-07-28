@@ -1,0 +1,91 @@
+name: Deploy documentation
+
+# Publishes MkDocs documentation to GitHub Pages via mike.
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Documentation version label (e.g. "2.260717.0")'
+        required: true
+        type: string
+    secrets:
+      RELEASE_TOKEN:
+        required: false
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Documentation version label (e.g. "2.260717.0")'
+        required: true
+        type: string
+
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: write # mike pushes to the gh-pages branch
+
+jobs:
+  deploy-docs:
+    name: Deploy documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.version }}
+          fetch-depth: 0 # full history required by mike and git-based plugins
+          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Install documentation dependencies
+        working-directory: docs
+        run: pip install -r requirements.txt
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Validate version tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! git tag --list "$VERSION" | grep -q .; then
+            echo "::error::Tag '${VERSION}' does not exist. The version must match an existing git tag."
+            exit 1
+          fi
+
+      - name: Find latest tag
+        uses: ./.github/actions/find-latest-tag
+        id: find-latest-tag
+
+      - name: Resolve latest tag
+        id: latest-tag
+        env:
+          VERSION: ${{ inputs.version }}
+          LATEST_TAG: ${{ steps.find-latest-tag.outputs.latest-tag }}
+        run: |
+          IS_LATEST=$( [ "$VERSION" = "$LATEST_TAG" ] && echo "true" || echo "false" )
+          echo "is_latest=${IS_LATEST}" >> "$GITHUB_OUTPUT"
+          echo "Resolved latest tag: ${LATEST_TAG}, input version is latest: ${IS_LATEST}"
+
+      - name: Deploy with mike
+        working-directory: docs
+        env:
+          MKDOCS_GIT_COMMITTERS_APIKEY: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          IS_LATEST: ${{ steps.latest-tag.outputs.is_latest }}
+        run: |
+          if [ "$IS_LATEST" = "true" ]; then
+            mike deploy --push --update-aliases "$VERSION" latest
+          else
+            mike deploy --push "$VERSION"
+          fi
+          echo "Documentation deployed: version=${VERSION}, latest=${IS_LATEST}"

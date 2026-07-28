@@ -127,6 +127,10 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     return collectorRepository.findAll();
   }
 
+  public CollectorOutput collectorOutput(String id) {
+    return getConnectorOutput(id);
+  }
+
   /**
    * Retrieve all collectors.
    *

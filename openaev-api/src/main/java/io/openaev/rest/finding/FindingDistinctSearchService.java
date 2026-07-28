@@ -37,13 +37,11 @@ public class FindingDistinctSearchService {
         buildPaginationJPA(
             (specification, pageable) ->
                 findingRepository.findAll(
-                    FindingSpecification.distinctTypeValueWithFilter(
-                        FindingSpecification.forLatestSimulations().and(specification)),
-                    pageable),
+                    FindingSpecification.distinctTypeValueWithFilter(specification), pageable),
             searchPaginationInput,
             Finding.class);
 
-    return searchDistinctBySpecification(FindingSpecification.forLatestSimulations(), page);
+    return searchDistinctBySpecification(Specification.unrestricted(), page);
   }
 
   public Page<AggregatedFindingOutput> searchDistinctFindingsByInject(
@@ -87,16 +85,13 @@ public class FindingDistinctSearchService {
                 this.findingRepository.findAll(
                     FindingSpecification.distinctTypeValueWithFilter(
                         FindingSpecification.findFindingsForScenario(scenarioId)
-                            .and(FindingSpecification.forLatestSimulations())
                             .and(specification)),
                     pageable),
             searchPaginationInput,
             Finding.class);
 
     return searchDistinctBySpecification(
-        FindingSpecification.findFindingsForScenario(scenarioId)
-            .and(FindingSpecification.forLatestSimulations()),
-        page);
+        FindingSpecification.findFindingsForScenario(scenarioId), page);
   }
 
   public Page<AggregatedFindingOutput> searchDistinctFindingsByEndpoint(
@@ -107,16 +102,13 @@ public class FindingDistinctSearchService {
                 this.findingRepository.findAll(
                     FindingSpecification.distinctTypeValueWithFilter(
                         FindingSpecification.findFindingsForEndpoint(endpointId)
-                            .and(FindingSpecification.forLatestSimulations())
                             .and(specification)),
                     pageable),
             searchPaginationInput,
             Finding.class);
 
     return searchDistinctBySpecification(
-        FindingSpecification.findFindingsForEndpoint(endpointId)
-            .and(FindingSpecification.forLatestSimulations()),
-        page);
+        FindingSpecification.findFindingsForEndpoint(endpointId), page);
   }
 
   public Page<AggregatedFindingOutput> searchDistinctBySpecification(

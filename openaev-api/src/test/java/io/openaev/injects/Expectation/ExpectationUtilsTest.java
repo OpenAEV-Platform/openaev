@@ -281,6 +281,25 @@ class ExpectationUtilsTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "Endpoint whose only agent is inactive still needs an agentless expectation for a non-payload"
+          + " injector")
+  void given_endpointWithOnlyInactiveAgentAndNonPayloadInjector_should_needAgentlessExpectation() {
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    // A network scanner (Nuclei, Nmap...) reaches the endpoint regardless of agent health: a dead
+    // agent must not swallow the asset-level expectation (the endpoint would otherwise get no
+    // expectation at all - no active agent children, no agentless parent).
+    Agent inactiveAgent = AgentFixture.createInactiveAgent();
+    inactiveAgent.setId("inactiveAgentId");
+    inactiveAgent.setAsset(endpoint);
+    endpoint.setAgents(List.of(inactiveAgent));
+    Inject inject =
+        injectWithInjector(InjectorFixture.createInjector("injectorId", "manual", "manual"));
+
+    assertTrue(isAgentlessAssetExpectationNecessary(endpoint, inject));
+  }
+
+  @Test
   @DisplayName("AI target asset always needs an agentless expectation, even for a payload injector")
   void given_aiTargetAssetWithPayloadInjector_should_needAgentlessExpectation() {
     Asset aiTarget = new Asset();

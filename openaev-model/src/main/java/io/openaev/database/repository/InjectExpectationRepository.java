@@ -24,11 +24,16 @@ public interface InjectExpectationRepository
 
   // JSON predicates over inject_expectation_results: a result "fills" the expectation when its
   // result text is non-empty. Keys are the Java property names serialized by JsonType (camelCase).
+  // LATERAL is a noise word for a function-call FROM item in PostgreSQL (same semantics and plan),
+  // but it matters for multi-tenancy v2: the fail-closed TenantStatementInspector only accepts
+  // table functions carrying the LATERAL prefix (they unnest a column of the current row, never a
+  // whole table). Without it, any query embedding these predicates that also touches a
+  // tenant-active table (e.g. collectors) is refused with TENANT_FILTERING_REFUSED (#7007).
   String RESULTS_HAS_NO_RESULT_FOR_SOURCE =
-      "NOT EXISTS (SELECT 1 FROM jsonb_array_elements(e.inject_expectation_results::jsonb) r "
+      "NOT EXISTS (SELECT 1 FROM LATERAL jsonb_array_elements(e.inject_expectation_results::jsonb) r "
           + "WHERE r->>'sourceId' = :sourceId AND COALESCE(r->>'result', '') <> '') ";
   String RESULTS_HAS_NO_RESULT_AT_ALL =
-      "NOT EXISTS (SELECT 1 FROM jsonb_array_elements(e.inject_expectation_results::jsonb) r "
+      "NOT EXISTS (SELECT 1 FROM LATERAL jsonb_array_elements(e.inject_expectation_results::jsonb) r "
           + "WHERE COALESCE(r->>'result', '') <> '') ";
 
   @NotNull

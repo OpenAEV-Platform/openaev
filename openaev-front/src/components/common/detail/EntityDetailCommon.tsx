@@ -108,11 +108,22 @@ export const InformationGrid = ({ title, action, children }: {
 
 // Lays the related-entity sections in an adaptive multi-column grid: two (or
 // more) sections sit side by side on wide screens, while a lone section spans
-// the full width (auto-fit collapses the empty track).
-export const DetailSections = ({ children }: { children: ReactNode }) => (
+// the full width (auto-fit collapses the empty track). An explicit `columns`
+// template (e.g. '2fr 2fr 1fr') overrides the equal split on large screens
+// when the sections have known, unequal content densities; smaller screens
+// keep the adaptive wrap.
+export const DetailSections = ({ children, columns }: {
+  children: ReactNode;
+  columns?: string;
+}) => (
   <Box sx={{
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+    gridTemplateColumns: columns
+      ? {
+          xs: 'repeat(auto-fit, minmax(340px, 1fr))',
+          lg: columns,
+        }
+      : 'repeat(auto-fit, minmax(340px, 1fr))',
     gap: 2,
     alignItems: 'stretch',
   }}

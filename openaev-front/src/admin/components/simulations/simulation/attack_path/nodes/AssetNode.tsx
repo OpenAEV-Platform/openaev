@@ -1,20 +1,22 @@
-import { LocalFireDepartment } from '@mui/icons-material';
-import { Tooltip, Typography } from '@mui/material';
+import { LocalFireDepartment, SwapHoriz } from '@mui/icons-material';
+import { Button, Chip, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Handle, type NodeProps, Position } from '@xyflow/react';
-import { memo } from 'react';
+import { memo, useContext } from 'react';
 
 import { useFormatter } from '../../../../../../components/i18n';
 import attackPathStatusColor, { attackPathChokepointColor, attackPathStatusLabel } from '../attack-path-colors';
 import { type AttackPathFlowNode } from '../attack-path-flow-helpers';
+import EndpointActionContext from '../attack-path-node-context';
 import { AP_ENDPOINT_SIZE } from './node-sizes';
 
 // The endpoint (target) node: a circle whose ring is the prevention/detection colour. An endpoint
 // with no findings is a faint dashed grey circle; one with findings carries a coloured "+N" badge of
 // its distinct-finding count (collapsed mode). Mirrors the product mockup's endpoint node.
-const AssetNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) => {
+const AssetNode = ({ id, data, selected }: NodeProps<AttackPathFlowNode>) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  const onDetails = useContext(EndpointActionContext);
   // findingCounts is only set in collapsed mode; when it is present and empty the endpoint is known
   // to have no findings (faint dashed grey). Otherwise the ring follows the prevention status.
   const counts = data.findingCounts;
@@ -32,6 +34,75 @@ const AssetNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) => {
   } else if (selected) {
     nodeShadow = `0 0 0 4px ${alpha(color, 0.45)}`;
   }
+  const agents = data.agents ?? [];
+  const tooltipTitle = (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6,
+      padding: 2,
+      minWidth: 170,
+    }}
+    >
+      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{data.hostname || data.label}</Typography>
+      {data.ip && (
+        <Typography variant="caption" color="text.secondary">
+          {t('IP')}
+          :
+          {' '}
+          {data.ip}
+        </Typography>
+      )}
+      {data.platform && (
+        <Typography variant="caption" color="text.secondary">
+          {t('Platform')}
+          :
+          {' '}
+          {data.platform}
+        </Typography>
+      )}
+      {data.isPivot && (
+        <Typography
+          variant="caption"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            color: 'warning.main',
+          }}
+        >
+          <SwapHoriz sx={{ fontSize: 16 }} />
+          {t('Pivot node')}
+        </Typography>
+      )}
+      {agents.length > 0 && (
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 4,
+          marginTop: 2,
+        }}
+        >
+          {agents.map(a => <Chip key={a} label={a} size="small" variant="outlined" />)}
+        </div>
+      )}
+      {onDetails && (
+        <Button
+          size="small"
+          variant="outlined"
+          sx={{
+            alignSelf: 'flex-end',
+            mt: 0.5,
+          }}
+          onClick={() => onDetails(id, data.ref, data.label)}
+        >
+          {t('Details')}
+          {' '}
+          →
+        </Button>
+      )}
+    </div>
+  );
   return (
     <div
       style={{
@@ -39,49 +110,56 @@ const AssetNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) => {
         width: AP_ENDPOINT_SIZE,
         height: AP_ENDPOINT_SIZE,
       }}
-      title={`${data.label} — ${statusText}`}
       aria-label={`${data.label}, ${statusText}${isChokepoint ? `, ${t('chokepoint')}` : ''}`}
     >
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
-      <div
-        style={{
-          width: AP_ENDPOINT_SIZE,
-          height: AP_ENDPOINT_SIZE,
-          borderRadius: '50%',
-          border: `${selected || isChokepoint ? 3 : 2}px ${knownNoFindings ? 'dashed' : 'solid'} ${color}`,
-          // Keep the dark node fill (readable white label); show selection with a halo ring, not a
-          // pale fill that would wash the text out. A chokepoint gets a violet halo so it stands out
-          // without overriding the verdict-coloured ring.
-          background: theme.palette.background.paper,
-          boxShadow: nodeShadow,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 4,
-          boxSizing: 'border-box',
-        }}
+      <Tooltip
+        title={tooltipTitle}
+        arrow
+        // Interactive tooltip with a Details button: give the pointer time to travel the gap from
+        // the circle to the tooltip so it does not close unless you cross exactly through the centre.
+        leaveDelay={200}
       >
-        <Typography
-          variant="caption"
-          fontWeight={700}
-          sx={{
-            maxWidth: AP_ENDPOINT_SIZE - 12,
-            textAlign: 'center',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            lineHeight: 1.1,
+        <div
+          style={{
+            width: AP_ENDPOINT_SIZE,
+            height: AP_ENDPOINT_SIZE,
+            borderRadius: '50%',
+            border: `${selected || isChokepoint ? 3 : 2}px ${knownNoFindings ? 'dashed' : 'solid'} ${color}`,
+            // Keep the dark node fill (readable white label); show selection with a halo ring, not a
+            // pale fill that would wash the text out. A chokepoint gets a violet halo so it stands out
+            // without overriding the verdict-coloured ring.
+            background: theme.palette.background.paper,
+            boxShadow: nodeShadow,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 4,
+            boxSizing: 'border-box',
           }}
         >
-          {data.label}
-        </Typography>
-        {data.ip && (
-          <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
-            {data.ip}
+          <Typography
+            variant="caption"
+            fontWeight={700}
+            sx={{
+              maxWidth: AP_ENDPOINT_SIZE - 12,
+              textAlign: 'center',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              lineHeight: 1.1,
+            }}
+          >
+            {data.label}
           </Typography>
-        )}
-      </div>
+          {data.ip && (
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
+              {data.ip}
+            </Typography>
+          )}
+        </div>
+      </Tooltip>
       {data.chokepointRank !== undefined && (
         <Tooltip title={t('Chokepoint #{rank} — most exposed endpoint ({count} findings)', {
           rank: String(data.chokepointRank),

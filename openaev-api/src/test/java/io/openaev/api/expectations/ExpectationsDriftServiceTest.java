@@ -236,6 +236,27 @@ class ExpectationsDriftServiceTest {
   }
 
   @Test
+  @DisplayName("An explicitly emptied expectations list is a customization - drift")
+  void explicitlyEmptiedExpectationsListIsDrift() {
+    // The user deliberately removed every expectation from the inject (the form persists an
+    // explicit empty array). Execution respects that choice, so drift is how the divergence from
+    // the contract template is surfaced - realignment being the opt-in way to restore it.
+    InjectorContract contract =
+        contractWithExpectations(expectationNode("PREVENTION", false, 100, true));
+    Inject inject = injectWith(contract);
+    ObjectNode content = MAPPER.createObjectNode();
+    content.set("expectations", MAPPER.createArrayNode());
+    inject.setContent(content);
+    stubScenarioInjects(inject);
+
+    ExpectationsDriftOutput output = service.scenarioDrift(SCENARIO_ID);
+
+    assertThat(output.driftDetected()).isTrue();
+    assertThat(output.driftedInjectCount()).isEqualTo(1);
+    assertThat(output.totalInjectCount()).isEqualTo(1);
+  }
+
+  @Test
   @DisplayName("Injects whose contract has no expectations field are excluded from the report")
   void injectWithoutExpectationsContractIsExcluded() {
     Inject inject =
