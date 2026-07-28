@@ -57,6 +57,9 @@ const proOptions = {
   hideAttribution: true,
 };
 
+/** Opacity applied to nodes/edges outside the selected event's flow (spotlight backdrop). */
+const DIMMED_OPACITY = 0.24;
+
 /**
  * Main logic flow part that displays actions and events as a ReactFlow graph,
  * grouped into MITRE tactic columns. Supports connecting events to actions, editing,
@@ -351,26 +354,42 @@ const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEvent
      * Recomputed whenever nodes or callbacks change.
      */
   const nodesWithCallbacks = useMemo(
-    () => nodes.map(node => ({
-      ...node,
-      data: {
-        ...node.data,
-        onEdit: editNode,
-        onDelete: requestDeleteNode,
-        ...(node.type === 'event'
-          ? {
-              isSelected: node.id === selectedEventId,
-              pathIndex: node.id === selectedEventId ? eventPathIndex : undefined,
-            }
-          : {}),
-        ...(node.type === 'action'
-          ? {
-              isHighlighted: highlightedStepIds.has(node.id),
-              pathIndex: stepPathIndex[node.id],
-            }
-          : {}),
-      },
-    })),
+    () => nodes.map((node) => {
+      // When an event is selected, everything outside its data-flow is dimmed
+      // to create a spotlight ("backdrop") effect on the highlighted flow.
+      let inFlow = false;
+      if (node.type === 'event') {
+        inFlow = node.id === selectedEventId;
+      } else if (node.type === 'action') {
+        inFlow = highlightedStepIds.has(node.id);
+      }
+      const dimmed = !!selectedEventId && !inFlow;
+      return {
+        ...node,
+        style: {
+          ...node.style,
+          opacity: dimmed ? DIMMED_OPACITY : 1,
+          transition: 'opacity 0.2s ease',
+        },
+        data: {
+          ...node.data,
+          onEdit: editNode,
+          onDelete: requestDeleteNode,
+          ...(node.type === 'event'
+            ? {
+                isSelected: node.id === selectedEventId,
+                pathIndex: node.id === selectedEventId ? eventPathIndex : undefined,
+              }
+            : {}),
+          ...(node.type === 'action'
+            ? {
+                isHighlighted: highlightedStepIds.has(node.id),
+                pathIndex: stepPathIndex[node.id],
+              }
+            : {}),
+        },
+      };
+    }),
     [nodes, editNode, requestDeleteNode, selectedEventId, highlightedStepIds, stepPathIndex, eventPathIndex],
   );
 
@@ -379,15 +398,22 @@ const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEvent
      * Recomputed whenever edges or the delete handler changes.
      */
   const edgesWithCallbacks = useMemo(
-    () => edges.map(edge => ({
-      ...edge,
-      data: {
-        ...edge.data,
-        onDelete: onDeleteEdgeClick,
-        // Real event → step links are emphasized in blue while their event is selected.
-        isHighlighted: !!selectedEventId && edge.source === selectedEventId,
-      },
-    })),
+    () => edges.map((edge) => {
+      // Real event → step link belonging to the selected event's flow.
+      const inFlow = !!selectedEventId && edge.source === selectedEventId;
+      const dimmed = !!selectedEventId && !inFlow;
+      return {
+        ...edge,
+        data: {
+          ...edge.data,
+          onDelete: onDeleteEdgeClick,
+          // Real event → step links are emphasized in blue while their event is selected.
+          isHighlighted: inFlow,
+          // Faded out when outside the selected event's flow (spotlight backdrop).
+          dimmed,
+        },
+      };
+    }),
     [edges, onDeleteEdgeClick, selectedEventId],
   );
 
