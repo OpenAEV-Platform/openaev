@@ -216,6 +216,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // Full-mode graph (executions + produced findings), fetched only for small runs (see the gated effect).
   // Drives the causal execution-chain layout; null for large runs (fall back to the aggregated view).
   const [fullDto, setFullDto] = useState<AttackPathDTO | null>(null);
+  // True from the first full-graph fetch until it resolves (once), so a chained run shows a loader while the
+  // causal chain is still loading instead of flashing the misleading aggregated view. Bounded to the first
+  // attempt so a persistent fetch error falls back to the aggregated view rather than a stuck spinner.
+  const [fullLoading, setFullLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [forbidden, setForbidden] = useState(false);
@@ -434,6 +438,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     if (!simulationId) {
       setKillChainMeta(new Map());
       setFullDto(null);
+      setFullLoading(false);
       return undefined;
     }
     const row = simulations.find(s => s.simulationId === simulationId);
@@ -441,17 +446,20 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     if (!row || (row.executionCount ?? 0) > CAUSAL_META_MAX_EXECUTIONS) {
       setKillChainMeta(new Map());
       setFullDto(null);
+      setFullLoading(false);
       return undefined;
     }
     let cancelled = false;
     let lastJson = '';
     const REFRESH_MS = 10000;
+    setFullLoading(true);
     const applyFull = () =>
       fetchAttackPathGraph(simulationId, 'full')
         .then((r) => {
           if (cancelled) {
             return;
           }
+          setFullLoading(false);
           // Skip the swap when nothing changed, so an open drawer / pan-zoom and a stable graph never
           // churn (same discipline as the collapsed poll).
           const json = JSON.stringify(r.data);
@@ -468,6 +476,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           if (!cancelled && lastJson === '') {
             setFullDto(null);
             setKillChainMeta(new Map());
+          }
+          if (!cancelled) {
+            setFullLoading(false);
           }
         });
     applyFull();
@@ -977,6 +988,18 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // Render the causal execution-chain layout whenever the size-gated full graph is available and carries
   // executions (small runs). Large runs never fetch it (fullDto stays null) and keep the aggregated view.
   const chainMode = !!fullDto && (fullDto.attackPathExecutions?.length ?? 0) > 0;
+
+  // A run that HAS executions will render the causal chain, so while its full graph is still loading show a
+  // loader instead of the aggregated view (which reads as "no links yet"). Scoped to the first fetch
+  // (fullLoading) and to runs within the causal ceiling, so non-chained/large runs never wait on it.
+  const chainLoading = useMemo(() => {
+    if (fullDto) {
+      return false;
+    }
+    const row = simulations.find(s => s.simulationId === simulationId);
+    const count = row?.executionCount ?? 0;
+    return fullLoading && count > 0 && count <= CAUSAL_META_MAX_EXECUTIONS;
+  }, [fullDto, fullLoading, simulations, simulationId]);
 
   const baseFlow = useMemo(
     () => {
@@ -2371,7 +2394,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                 position: 'relative',
               }}
             >
-              {loading && <Loader />}
+              {(loading || chainLoading) && <Loader />}
               {!loading && forbidden && (
                 <Alert severity="warning" sx={{ m: 2 }}>
                   {t('You do not have access to this simulation\'s attack path.')}
@@ -2382,7 +2405,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                   {t('Failed to load the attack-path graph. Check the simulation or reload the page.')}
                 </Alert>
               )}
-              {!loading && !forbidden && !error && !graphHasContent && (
+              {!loading && !chainLoading && !forbidden && !error && !graphHasContent && (
                 <Box sx={{
                   // Fill the (relative) graph Paper and centre both ways so the empty-state is the focal point.
                   position: 'absolute',
@@ -2423,7 +2446,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                   )}
                 </Box>
               )}
-              {!loading && !forbidden && !error && graphHasContent && (
+              {!loading && !chainLoading && !forbidden && !error && graphHasContent && (
                 <ReactFlowProvider>
                   <AttackPathFlow
                     nodes={nodes}
