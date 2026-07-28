@@ -18,6 +18,7 @@ export interface Header {
   field: string;
   label: string;
   isSortable: boolean;
+  tooltip?: string;
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   value?: (...values: any[]) => ReactElement | string | undefined;
 }

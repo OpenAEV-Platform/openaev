@@ -1,4 +1,4 @@
-import { ArrowDropDownOutlined, ArrowDropUpOutlined } from '@mui/icons-material';
+import { ArrowDropDownOutlined, ArrowDropUpOutlined, InfoOutlined } from '@mui/icons-material';
 import { Tooltip } from '@mui/material';
 import { type CSSProperties, type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -20,6 +20,11 @@ const useStyles = makeStyles()(() => ({
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     fontWeight: '700',
+  },
+  headerInfoIcon: {
+    fontSize: 14,
+    marginLeft: 4,
+    opacity: 0.6,
   },
 }));
 
@@ -56,6 +61,14 @@ const SortHeadersComponentV2: FunctionComponent<Props> = ({
           onClick={() => sortHelpers.handleSort(header.field)}
         >
           <div className={classes.headerItemText}>{t(header.label)}</div>
+          {header.tooltip && (
+            <Tooltip title={t(header.tooltip)}>
+              <InfoOutlined
+                className={classes.headerInfoIcon}
+                onClick={e => e.stopPropagation()}
+              />
+            </Tooltip>
+          )}
           {sortHelpers.getSortBy() === header.field ? sortComponent(sortHelpers.getSortAsc()) : ''}
         </div>
       );

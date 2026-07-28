@@ -129,7 +129,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     },
     {
       field: 'finding_assets',
-      label: 'Assets',
+      label: 'Asset',
       isSortable: false,
       value: (finding: AggregatedFindingOutput) => (
         <ItemTargets
@@ -169,6 +169,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       field: 'finding_updated_at',
       label: 'Last seen',
       isSortable: true,
+      tooltip: 'finding_last_seen_tooltip',
       value: (finding: AggregatedFindingOutput) => <>{nsdt(finding.finding_updated_at)}</>,
     },
   ];
