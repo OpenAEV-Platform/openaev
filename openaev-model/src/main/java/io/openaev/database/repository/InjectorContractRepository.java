@@ -1,5 +1,6 @@
 package io.openaev.database.repository;
 
+import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
@@ -60,6 +61,19 @@ public interface InjectorContractRepository
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
   List<RawInjectorsContracts> getAllRawInjectorsContracts();
+
+  /**
+   * Retrieves the distinct platforms declared by the injector contracts used in an exercise.
+   *
+   * @param exerciseId the ID of the exercise
+   * @return list of distinct platform arrays, one per contract
+   */
+  @Query(
+      "SELECT DISTINCT ic.platforms FROM Inject i JOIN i.injectorContract ic"
+          + " WHERE i.exercise.id = :exerciseId"
+          + " AND ic.platforms IS NOT NULL")
+  List<Endpoint.PLATFORM_TYPE[]> findDistinctPlatformsByExerciseId(
+      @Param("exerciseId") String exerciseId);
 
   /**
    * Retrieves injector contracts that a specific user has been granted access to.

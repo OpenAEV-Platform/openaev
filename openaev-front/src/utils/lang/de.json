@@ -2073,6 +2073,7 @@
   "No alert linked": "Kein Alarm verknüpft",
   "No alerts have been reported by this security platform.": "Von dieser Sicherheitsplattform wurden keine Alarme gemeldet.",
   "No asset added yet.": "Noch kein Asset hinzugefügt.",
+  "No asset group": "Keine Anlagengruppe",
   "No asset in this asset group.": "No asset in this asset group.",
   "No asset selected. Add asset manually by typing IPs, CIDRs or hostnames or select some in the asset list.": "Kein Asset ausgewählt. Fügen Sie manuell Assets hinzu, indem Sie IPs, CIDRs oder Hostnamen eingeben oder einige aus der Asset-Liste auswählen.",
   "No asset selected. Add asset manually or select some in the asset list.": "Kein Vermögenswert ausgewählt. Fügen Sie manuell ein Asset hinzu oder wählen Sie eines aus der Asset-Liste.",
@@ -2372,6 +2373,7 @@
   "Phone number must start with + and contain only digits": "Die Telefonnummer muss mit + beginnen und darf nur Ziffern enthalten",
   "phone_number_tooltip": "Die Rufnummer sollte mit einem Pluszeichen ( + ) beginnen. Sie kann Leerzeichen oder Bindestriche ( - ) oder Klammern enthalten.",
   "Pipe": "Rohrleitung",
+  "Pivot node": "Pivot node",
   "Planning": "Planung",
   "Platform": "Plattform",
   "Platform connected": "Plattform verbunden",
@@ -3093,6 +3095,7 @@
   "This tenant": "Dieser Tenant",
   "This user could not be found.": "Dieser Benutzer wurde nicht gefunden.",
   "This user does not belong to any group.": "Dieser Benutzer gehört keiner Gruppe an.",
+  "This vulnerability is listed in CISA's Known Exploited Vulnerabilities catalog.": "Diese Schwachstelle ist im CISA-Katalog der bekannten ausgenutzten Schwachstellen (KEV) aufgeführt.",
   "This warning has been dismissed for all users, but the expectations still do not match. You can realign them or restore the full warning.": "Diese Warnung wurde für alle Benutzer verworfen, aber die Erwartungen stimmen weiterhin nicht überein. Sie können sie neu ausrichten oder die vollständige Warnung wiederherstellen.",
   "Threat Arsenal": "Arsenal",
   "Threat Arsenal supports .zip file import format": "Arsenal unterstützt das .zip-Datei-Importformat",
@@ -3457,5 +3460,11 @@
   "YYYY": "JJJJ",
   "Zoom in": "Vergrößern",
   "Zoom out": "Verkleinern",
-  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all."
+  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all.",
+  "Fullscreen": "Fullscreen",
+  "Exit fullscreen": "Exit fullscreen",
+  "criticality weight": "criticality weight",
+  "Criticality weights": "Criticality weights",
+  "{label} is the most exposed endpoint — fixing its findings closes the most attack paths.": "{label} is the most exposed endpoint — fixing its findings closes the most attack paths.",
+  "Weighs this endpoint's findings ×{weight} in the score.": "Weighs this endpoint's findings ×{weight} in the score."
 }

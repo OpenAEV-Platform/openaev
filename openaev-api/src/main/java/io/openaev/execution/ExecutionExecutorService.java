@@ -119,9 +119,10 @@ public class ExecutionExecutorService {
         Manager manager = managerFactory.getManager(inject.getTenant().getId());
         ExecutorContextService executorContextService;
         if (executor.isExternal()) {
-          // Resolve the ConnectorInstance that owns this executor
+          // Resolve the ConnectorInstance that owns this executor, scoped to the inject's tenant
           ConnectorInstancePersisted instance =
-              connectorInstanceService.findByExecutorId(executor.getId());
+              connectorInstanceService.findByExecutorId(
+                  executor.getId(), inject.getTenant().getId());
           executorContextService =
               manager.requestForInstance(instance, ExecutorContextService.class);
         } else {

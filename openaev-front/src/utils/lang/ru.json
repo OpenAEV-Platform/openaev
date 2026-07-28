@@ -2073,6 +2073,7 @@
   "No alert linked": "Нет связанных оповещений",
   "No alerts have been reported by this security platform.": "Эта платформа безопасности не сообщила ни об одном оповещении.",
   "No asset added yet.": "Еще не добавлены активы.",
+  "No asset group": "Нет групп активов",
   "No asset in this asset group.": "No asset in this asset group.",
   "No asset selected. Add asset manually by typing IPs, CIDRs or hostnames or select some in the asset list.": "Не выбран ни один актив. Добавьте актив вручную, введя IP-адреса, CIDR или имена хостов, или выберите несколько в списке активов.",
   "No asset selected. Add asset manually or select some in the asset list.": "Не выбран ни один актив. Добавьте актив вручную или выберите его в списке активов.",
@@ -2372,6 +2373,7 @@
   "Phone number must start with + and contain only digits": "Номер телефона должен начинаться с + и содержать только цифры",
   "phone_number_tooltip": "Номер телефона должен начинаться со знака плюс ( + ). Он может содержать пробелы, дефисы ( - ) или круглые скобки.",
   "Pipe": "Труба",
+  "Pivot node": "Pivot node",
   "Planning": "Планирование",
   "Platform": "Платформа",
   "Platform connected": "Платформа подключена",
@@ -3093,6 +3095,7 @@
   "This tenant": "Этот тенант",
   "This user could not be found.": "Этот пользователь не найден.",
   "This user does not belong to any group.": "Этот пользователь не входит ни в одну группу.",
+  "This vulnerability is listed in CISA's Known Exploited Vulnerabilities catalog.": "Эта уязвимость включена в каталог известных эксплуатируемых уязвимостей (KEV) CISA.",
   "This warning has been dismissed for all users, but the expectations still do not match. You can realign them or restore the full warning.": "Это предупреждение было скрыто для всех пользователей, но ожидания по-прежнему не совпадают. Вы можете выровнять их или восстановить полное предупреждение.",
   "Threat Arsenal": "Арсенал",
   "Threat Arsenal supports .zip file import format": "Арсенал поддерживает импорт файлов в формате .zip",
@@ -3457,5 +3460,11 @@
   "YYYY": "ГГГГ",
   "Zoom in": "Приблизить",
   "Zoom out": "Отдалить",
-  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all."
+  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all.",
+  "Fullscreen": "Fullscreen",
+  "Exit fullscreen": "Exit fullscreen",
+  "criticality weight": "criticality weight",
+  "Criticality weights": "Criticality weights",
+  "{label} is the most exposed endpoint — fixing its findings closes the most attack paths.": "{label} is the most exposed endpoint — fixing its findings closes the most attack paths.",
+  "Weighs this endpoint's findings ×{weight} in the score.": "Weighs this endpoint's findings ×{weight} in the score."
 }

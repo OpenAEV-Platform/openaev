@@ -12,7 +12,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.utils.ExecutorUtils;
@@ -142,8 +141,11 @@ class InjectServiceTest {
 
   @BeforeEach
   void setUp() {
-    mapper = new ObjectMapper();
+    // InjectStatusService serializes the inject (Instant / Optional fields) into the SSE
+    // BaseEvent payload on status transitions, so the mapper needs the JSR-310/JDK8 modules.
+    mapper = new ObjectMapper().findAndRegisterModules();
     ReflectionTestUtils.setField(injectService, "mapper", mapper);
+    ReflectionTestUtils.setField(injectStatusService, "mapper", mapper);
     ReflectionTestUtils.setField(
         injectService,
         "healthCheckUtils",
@@ -1165,56 +1167,6 @@ class InjectServiceTest {
       assertEquals(simulationId, simulationIdCaptor.getValue());
       assertEquals(teamIds, teamIdsCaptor.getValue());
       verifyNoMoreInteractions(injectRepository);
-    }
-  }
-
-  /* ============================================================
-   * Find raw injects
-   * ============================================================ */
-  @Nested
-  @DisplayName("findRawByIds")
-  class FindRawByIdsTests {
-
-    @Captor private ArgumentCaptor<List<String>> idsCaptor;
-
-    private static Stream<Arguments> testCases() {
-      String id1 = UUID.randomUUID().toString();
-      String id2 = UUID.randomUUID().toString();
-      String id3 = UUID.randomUUID().toString();
-
-      RawInject rawInject1 = mock(RawInject.class);
-      RawInject rawInject2 = mock(RawInject.class);
-
-      return Stream.of(
-          Arguments.of(
-              "multiple IDs returning multiple injects",
-              List.of(id1, id2, id3),
-              List.of(rawInject1, rawInject2),
-              2),
-          Arguments.of(
-              "multiple IDs returning single inject", List.of(id1, id2), List.of(rawInject1), 1),
-          Arguments.of("single ID", List.of(id1), List.of(rawInject1), 1),
-          Arguments.of("empty IDs list", Collections.emptyList(), Collections.emptyList(), 0),
-          Arguments.of(
-              "IDs with no matching injects", List.of(id1, id2), Collections.emptyList(), 0));
-    }
-
-    @ParameterizedTest(name = "should handle {0}")
-    @MethodSource("testCases")
-    void shouldReturnRawInjects(
-        String name, List<String> ids, List<RawInject> expected, int expectedSize) {
-      // Prepare
-      when(injectRepository.findRawByIds(ids)).thenReturn(expected);
-
-      // Act
-      List<RawInject> result = injectService.findRawByIds(ids);
-
-      // Assert
-      verify(injectRepository).findRawByIds(idsCaptor.capture());
-      assertEquals(ids, idsCaptor.getValue());
-      assertNotNull(result);
-      assertEquals(expectedSize, result.size());
-      assertEquals(expected, result);
     }
   }
 }

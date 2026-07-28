@@ -98,17 +98,16 @@ public class CollectorApi extends RestBehavior {
   }
 
   @GetMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.COLLECTOR)
   // Collector uses a composite PK (collector_id, tenant_id); the same ID exists per tenant.
   // Require a selector so findByCollectorId never returns multiple rows under a multi-tenant scope.
-  public Collector getCollector(
+  public CollectorOutput getCollector(
       @RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) {
-    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    return collectorService.collector(collectorId, tenantId);
+    return collectorService.collectorOutput(collectorId);
   }
 
   @GetMapping({
