@@ -444,6 +444,40 @@ public class PermissionServiceTest extends IntegrationTest {
             user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.DELETE));
   }
 
+  @Test
+  public void test_hasPermission_launch_atomic_testing_inject_WHEN_has_launch_grant() {
+    // Regression for #6976: launching an atomic testing inject must preserve the LAUNCH action
+    // when resolving to the parent resource, so LAUNCH_ASSESSMENT capability is sufficient.
+    String injectId = "injectId";
+    Inject inject = mock(Inject.class);
+    when(inject.getParentResourceId()).thenReturn(injectId);
+    when(inject.getParentResourceType()).thenReturn(ResourceType.ATOMIC_TESTING);
+    when(injectService.inject(injectId)).thenReturn(inject);
+
+    User user = getUser(USER_ID, false);
+    user.setGroups(List.of(getGroup(Capability.LAUNCH_ASSESSMENT)));
+    when(grantService.hasLaunchGrant(injectId, user)).thenReturn(true);
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), injectId, ResourceType.INJECT, Action.LAUNCH));
+  }
+
+  @Test
+  public void test_hasPermission_launch_atomic_testing_inject_WHEN_has_no_launch_grant() {
+    // Verify that without a launch grant the permission is denied.
+    String injectId = "injectId";
+    Inject inject = mock(Inject.class);
+    when(inject.getParentResourceId()).thenReturn(injectId);
+    when(inject.getParentResourceType()).thenReturn(ResourceType.ATOMIC_TESTING);
+    when(injectService.inject(injectId)).thenReturn(inject);
+
+    User user = getUser(USER_ID, false);
+    when(grantService.hasLaunchGrant(injectId, user)).thenReturn(false);
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), injectId, ResourceType.INJECT, Action.LAUNCH));
+  }
+
   public void given_workflowWithParentSimulation_should_allowAccessWhenGranted() {
     String workflowId = "workflowId";
     String simulationId = "simulationId";
