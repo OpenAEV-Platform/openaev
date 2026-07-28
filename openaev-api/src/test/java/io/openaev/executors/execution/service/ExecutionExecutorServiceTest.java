@@ -314,8 +314,8 @@ public class ExecutionExecutorServiceTest {
       ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase ids =
           mock(ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase.class);
       when(ids.getConnectorInstanceId()).thenReturn(instance.getId());
-      when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
-              "EXECUTOR_ID", executorId))
+      when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+              eq("EXECUTOR_ID"), eq(executorId), anyString()))
           .thenReturn(ids);
       when(connectorInstanceRepository.findById(instance.getId()))
           .thenReturn(Optional.of(instance));
@@ -354,7 +354,8 @@ public class ExecutionExecutorServiceTest {
 
       // Assert
       verify(connectorInstanceConfigurationRepository)
-          .findInstanceAndCatalogIdsByKeyValue("EXECUTOR_ID", executor.getId());
+          .findInstanceAndCatalogIdsByKeyValueAndTenantId(
+              eq("EXECUTOR_ID"), eq(executor.getId()), anyString());
       verify(manager).requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class));
       verify(mockContextService)
           .launchBatchExecutorSubprocess(eq(inject), any(), any(), anyString());

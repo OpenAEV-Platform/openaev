@@ -127,23 +127,35 @@ public abstract class AbstractConnectorService<
             .collect(Collectors.toList()));
   }
 
+  /**
+   * Builds the Output DTO for a single connector, including its instance context (in-memory
+   * auto-start instance or persisted instance), so single-resource GET endpoints expose the same
+   * status information as the list endpoints.
+   *
+   * @param id the connector entity ID
+   * @return the connector output
+   * @throws ElementNotFoundException if the connector is not visible in the current tenant scope
+   */
   public Output getConnectorOutput(String id) {
     T connector = getConnectorById(id);
     if (connector == null) {
       throw new ElementNotFoundException("Connector not found with id: " + id);
     }
-    return toConnectorOutput(connector, findInstanceForConnector(id));
+    return toConnectorOutput(connector, findInstanceForConnector(id, connector.getTenantId()));
   }
 
-  private ConnectorInstance findInstanceForConnector(String connectorId) {
+  private ConnectorInstance findInstanceForConnector(String connectorId, String tenantId) {
     for (ConnectorInstanceInMemory instance :
         connectorInstanceService.getConnectorInstancesInMemoryByConnectorType(connectorType)) {
       if (connectorId.equals(getConnectorIdFromInstance(instance))) {
         return instance;
       }
     }
+    // The persisted lookup uses a native query that bypasses the Hibernate tenant filter, so it
+    // must be scoped to the connector's tenant explicitly (the same connector ID can exist in
+    // several tenants).
     return connectorInstanceService
-        .findPersistedByConnectorId(connectorType, connectorId)
+        .findPersistedByConnectorId(connectorType, connectorId, tenantId)
         .orElse(null);
   }
 
