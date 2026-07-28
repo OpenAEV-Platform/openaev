@@ -157,7 +157,7 @@ class InjectStatusServiceTest {
         assertThat(event.getEventType()).isEqualTo(EventType.EXECUTION);
         assertThat(event.getEventScope()).isEqualTo(AuditEventScope.INJECT_STATUS_TRANSITION);
         assertThat(event.getEventStatus()).isEqualTo(EventStatus.SUCCESS);
-        assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SCHEDULED);
+        assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SYSTEM);
         assertThat(event.getResourceId()).isEqualTo("inject-1");
         assertThat(event.getContextData().get("previous_status")).isEqualTo("PENDING");
         assertThat(event.getContextData()).containsKey("new_status");
@@ -226,7 +226,7 @@ class InjectStatusServiceTest {
         assertThat(event.getEventType()).isEqualTo(EventType.EXECUTION);
         assertThat(event.getEventScope()).isEqualTo(AuditEventScope.INJECT_STATUS_TRANSITION);
         assertThat(event.getEventStatus()).isEqualTo(EventStatus.SUCCESS);
-        assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SCHEDULED);
+        assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SYSTEM);
         assertThat(event.getResourceId()).isEqualTo("inject-3");
         assertThat(event.getContextData().get("previous_status")).isEqualTo("PENDING");
         assertThat(event.getContextData().get("new_status")).isEqualTo("EXECUTED");
