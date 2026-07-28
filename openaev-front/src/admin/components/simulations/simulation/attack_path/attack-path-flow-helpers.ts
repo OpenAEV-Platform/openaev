@@ -1739,6 +1739,16 @@ export const buildCausalChainFlow = (
   // back to a dashed dependsOn edge so the sequencing is still shown.
   const findingNodes = nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.finding);
   const nodeById = new Map(nodes.map(n => [n.id, n]));
+  // Which injector(s) produced each finding node, so a causal edge can be anchored on the finding of the
+  // consumer's REAL producer rather than any finding that merely shares the value from another injector.
+  const producersByFinding = new Map<string, Set<string>>();
+  for (const [prodInjId, ps] of steps) {
+    for (const findingIds of ps.endpoints.values()) {
+      for (const fid of findingIds) {
+        (producersByFinding.get(fid) ?? producersByFinding.set(fid, new Set()).get(fid)!).add(prodInjId);
+      }
+    }
+  }
   // One causal edge per (consumer, label): a key like `share_name IS_NOT_NULL` matches EVERY produced
   // share, but drawing one "Triggered SHARE" edge per matching finding stacks N identical labels over the
   // consumer node — illegible as soon as an endpoint yields several findings of the type. Collapse them to
@@ -1750,7 +1760,14 @@ export const buildCausalChainFlow = (
     let matched = false;
     const injY = nodeById.get(injId)?.position.y ?? 0;
     for (const key of s.consumed) {
-      const matches = findingNodes.filter(fn => findingMatchesKey(fn, key));
+      const allMatches = findingNodes.filter(fn => findingMatchesKey(fn, key));
+      // Prefer findings produced by this consumer's resolved dependency (#6985 populates dependsOn with the
+      // real producer step), so the event edge never points at a same-typed finding from an unrelated
+      // injector. Fall back to every match when no dependency resolved (e.g. a complex-type key).
+      const fromDeps = s.deps.size > 0
+        ? allMatches.filter(fn => [...(producersByFinding.get(fn.id) ?? [])].some(p => s.deps.has(p)))
+        : [];
+      const matches = fromDeps.length > 0 ? fromDeps : allMatches;
       if (matches.length === 0) {
         continue;
       }

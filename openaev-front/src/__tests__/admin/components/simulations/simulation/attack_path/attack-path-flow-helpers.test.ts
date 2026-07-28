@@ -650,6 +650,113 @@ describe('buildCausalChainFlow', () => {
     expect(causal[0].data?.causalKind).toBe('finding');
   });
 
+  it('anchors the causal edge on the finding of the resolved producer, not another injector sharing the type', () => {
+    // Two injectors each produce a `file` finding; a consumer whose event `share_name IS_NOT_NULL` matches
+    // BOTH depends (dependsOn, #6985) only on producer A. The edge must anchor on A's finding, never B's.
+    const twoProducers: AttackPathDTO = {
+      ...chainDto,
+      attackPathNodes: [
+        {
+          id: 'inj-A',
+          type: 'INJECTOR',
+          label: 'A',
+        },
+        {
+          id: 'inj-B',
+          type: 'INJECTOR',
+          label: 'B',
+        },
+        {
+          id: 'inj-C',
+          type: 'INJECTOR',
+          label: 'C',
+        },
+        {
+          id: 'ep-1',
+          type: 'ASSET',
+          label: 'EP1',
+          ip: '10.0.0.1',
+        },
+        {
+          id: 'ep-2',
+          type: 'ASSET',
+          label: 'EP2',
+          ip: '10.0.0.2',
+        },
+        {
+          id: 'NODE_FINDING|file|shareA',
+          type: 'FINDING',
+          typeFindings: 'file',
+          value: 'shareA',
+          label: 'shareA',
+        },
+        {
+          id: 'NODE_FINDING|file|shareB',
+          type: 'FINDING',
+          typeFindings: 'file',
+          value: 'shareB',
+          label: 'shareB',
+        },
+      ],
+      attackPathExecutions: [
+        {
+          id: 'xA',
+          type: 'EXECUTION',
+          ref: 'exec-A',
+          stepTemplateId: 'step-A',
+          findingsNodeIds: ['NODE_FINDING|file|shareA'],
+          dependsOn: [],
+        },
+        {
+          id: 'xB',
+          type: 'EXECUTION',
+          ref: 'exec-B',
+          stepTemplateId: 'step-B',
+          findingsNodeIds: ['NODE_FINDING|file|shareB'],
+          dependsOn: [],
+        },
+        {
+          id: 'xC',
+          type: 'EXECUTION',
+          ref: 'exec-C',
+          stepTemplateId: 'step-C',
+          consumedFindingKeys: [{
+            keyType: 'share_name',
+            operator: 'IS_NOT_NULL',
+            value: null as unknown as string,
+            eventName: 'SHARE',
+          }],
+          dependsOn: ['step-A'],
+        },
+      ],
+      attackPathEdges: [
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'inj-A',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-A'],
+        },
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'inj-B',
+          edgeTargetId: 'ep-2',
+          executionIds: ['exec-B'],
+        },
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'inj-C',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-C'],
+        },
+      ],
+    };
+    const { edges } = buildCausalChainFlow(twoProducers, tt);
+    const causal = edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE && e.data?.causalKind === 'finding');
+    expect(causal).toHaveLength(1);
+    expect(causal[0].target).toBe('inj-C');
+    expect(causal[0].source).toBe('NODE_FINDING|file|shareA');
+  });
+
   it('merges same-depth injectors hitting the same asset onto one shared endpoint node', () => {
     // Arrange: two INDEPENDENT injectors (no dependsOn → both at depth 0) target the SAME asset ep-1.
     const parallel: AttackPathDTO = {
