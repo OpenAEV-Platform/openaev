@@ -4,11 +4,9 @@ import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.ThreatArsenalFilterUtils.ACTION_TO_ENTITY_FIELDS;
 import static io.openaev.utils.ThreatArsenalFilterUtils.ENTITY_TO_ACTION_FIELDS;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.threat_arsenal.dto.*;
-import io.openaev.database.model.ChainingTypeRegistry;
-import io.openaev.database.model.ContractOutputType;
-import io.openaev.database.model.Filters;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
@@ -34,16 +32,7 @@ import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.JoinType;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Subquery;
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
@@ -62,6 +51,7 @@ public class ThreatArsenalService {
   private final ThreatArsenalMapper threatArsenalMapper;
   private final DetectionRemediationService detectionRemediationService;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+  private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
 
   /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
   public static final List<String> TABLETOP_INJECTOR_TYPES =
@@ -69,8 +59,6 @@ public class ThreatArsenalService {
 
   /** Max page size allowed by {@code Pagination}; used to page through select-all bulk deletes. */
   private static final int MAX_PAGE_SIZE = 1000;
-
-  private static final String PROVIDING_FILTER_KEY = "injector_contract_providing";
 
   /**
    * Retrieves a threat arsenal action by its identifier and returns the full-detail output.
@@ -349,12 +337,15 @@ public class ThreatArsenalService {
       InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
     SearchPaginationInput searchInput =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
-    ProvidingFilterContext providingFilterContext = extractProvidingFilter(searchInput);
+    ProvidingFilterSpecificationBuilder.ProvidingFilterContext providingFilterContext =
+        providingFilterSpecificationBuilder.extractProvidingFilter(searchInput);
+    Specification<InjectorContract> searchSpecification =
+        computeSearchJpa(searchInput.getTextSearch());
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                spec.and(providingFilterContext.specification()),
-                specCount.and(providingFilterContext.specification()),
+                combineWithProvidingSpec(spec, providingFilterContext, searchSpecification),
+                combineWithProvidingSpec(specCount, providingFilterContext, searchSpecification),
                 pageable,
                 mode,
                 input.getInjectorContractIdsToIgnore(),
@@ -376,7 +367,10 @@ public class ThreatArsenalService {
       InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
     SearchPaginationInput searchInput =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
-    ProvidingFilterContext providingFilterContext = extractProvidingFilter(searchInput);
+    ProvidingFilterSpecificationBuilder.ProvidingFilterContext providingFilterContext =
+        providingFilterSpecificationBuilder.extractProvidingFilter(searchInput);
+    Specification<InjectorContract> searchSpecification =
+        computeSearchJpa(searchInput.getTextSearch());
     Specification<InjectorContract> excludeTabletop =
         (root, query, cb) -> {
           Join<?, Injector> injectorJoin = root.join("injectorLinks").join("injector");
@@ -386,8 +380,10 @@ public class ThreatArsenalService {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                spec.and(excludeTabletop).and(providingFilterContext.specification()),
-                specCount.and(excludeTabletop).and(providingFilterContext.specification()),
+                combineWithProvidingSpec(
+                    spec.and(excludeTabletop), providingFilterContext, searchSpecification),
+                combineWithProvidingSpec(
+                    specCount.and(excludeTabletop), providingFilterContext, searchSpecification),
                 pageable,
                 mode,
                 input.getInjectorContractIdsToIgnore(),
@@ -396,124 +392,18 @@ public class ThreatArsenalService {
         InjectorContract.class);
   }
 
-  private record ProvidingFilterContext(
-      SearchPaginationInput searchInput, Specification<InjectorContract> specification) {}
-
-  private ProvidingFilterContext extractProvidingFilter(SearchPaginationInput searchInput) {
-    if (searchInput.getFilterGroup() == null || searchInput.getFilterGroup().getFilters() == null) {
-      return new ProvidingFilterContext(searchInput, Specification.where(null));
+  private Specification<InjectorContract> combineWithProvidingSpec(
+      Specification<InjectorContract> baseSpecification,
+      ProvidingFilterSpecificationBuilder.ProvidingFilterContext providingFilterContext,
+      Specification<InjectorContract> searchSpecification) {
+    if (!providingFilterContext.hasProvidingFilters()) {
+      return baseSpecification;
     }
-
-    List<Filters.Filter> allFilters = searchInput.getFilterGroup().getFilters();
-    List<Filters.Filter> providingFilters =
-        allFilters.stream().filter(filter -> PROVIDING_FILTER_KEY.equals(filter.getKey())).toList();
-
-    if (providingFilters.isEmpty()) {
-      return new ProvidingFilterContext(searchInput, Specification.where(null));
+    if (providingFilterContext.mode() == io.openaev.database.model.Filters.FilterMode.or
+        && providingFilterContext.hasRemainingFilters()) {
+      return baseSpecification.or(providingFilterContext.specification().and(searchSpecification));
     }
-
-    List<Filters.Filter> remainingFilters =
-        allFilters.stream()
-            .filter(filter -> !PROVIDING_FILTER_KEY.equals(filter.getKey()))
-            .toList();
-    searchInput.getFilterGroup().setFilters(remainingFilters);
-
-    List<Specification<InjectorContract>> providingSpecs =
-        providingFilters.stream().map(this::toProvidingSpecification).toList();
-    Filters.FilterMode mode = searchInput.getFilterGroup().getMode();
-    Specification<InjectorContract> merged = providingSpecs.get(0);
-    for (int i = 1; i < providingSpecs.size(); i++) {
-      merged =
-          mode == Filters.FilterMode.or
-              ? merged.or(providingSpecs.get(i))
-              : merged.and(providingSpecs.get(i));
-    }
-    return new ProvidingFilterContext(searchInput, merged);
-  }
-
-  private Specification<InjectorContract> toProvidingSpecification(Filters.Filter filter) {
-    Set<ContractOutputType> expectedOutputTypes = resolveContractOutputTypes(filter.getValues());
-    if (expectedOutputTypes.isEmpty()) {
-      return Specification.where(null);
-    }
-    Set<String> expectedLabels =
-        expectedOutputTypes.stream().map(ContractOutputType::getLabel).collect(Collectors.toSet());
-
-    Specification<InjectorContract> hasProviding =
-        (root, query, cb) -> {
-          query.distinct(true);
-
-          Subquery<Integer> payloadSubquery = query.subquery(Integer.class);
-          var payloadRoot = payloadSubquery.correlate(root);
-          Join<?, ?> payloadJoin = payloadRoot.join("payload", JoinType.LEFT);
-          Join<?, ?> outputParserJoin = payloadJoin.join("outputParsers", JoinType.LEFT);
-          Join<?, ?> outputElementsJoin =
-              outputParserJoin.join("contractOutputElements", JoinType.LEFT);
-          payloadSubquery
-              .select(cb.literal(1))
-              .where(outputElementsJoin.get("type").in(expectedOutputTypes));
-
-          Predicate noPayload = cb.isNull(root.get("payload"));
-          var lowerContent = cb.lower(root.get("content"));
-          List<Predicate> contentPredicates = new ArrayList<>();
-          for (String label : expectedLabels) {
-            contentPredicates.add(
-                cb.and(
-                    noPayload,
-                    cb.like(
-                        lowerContent,
-                        "%\"outputs\"%\"type\"%\"" + label.toLowerCase(Locale.ROOT) + "\"%")));
-          }
-
-          Predicate payloadMatch = cb.exists(payloadSubquery);
-          Predicate contentMatch =
-              contentPredicates.isEmpty()
-                  ? cb.disjunction()
-                  : cb.or(contentPredicates.toArray(Predicate[]::new));
-          return cb.or(payloadMatch, contentMatch);
-        };
-
-    Filters.FilterOperator operator =
-        filter.getOperator() == null ? Filters.FilterOperator.eq : filter.getOperator();
-    return switch (operator) {
-      case not_eq, not_contains, empty -> Specification.not(hasProviding);
-      default -> hasProviding;
-    };
-  }
-
-  private Set<ContractOutputType> resolveContractOutputTypes(List<String> primitiveLabels) {
-    if (primitiveLabels == null || primitiveLabels.isEmpty()) {
-      return Set.of();
-    }
-    Set<String> normalizedLabels = new HashSet<>();
-    primitiveLabels.stream()
-        .filter(value -> value != null && !value.isBlank())
-        .map(value -> value.toLowerCase(Locale.ROOT))
-        .forEach(normalizedLabels::add);
-
-    EnumSet<ContractOutputType> resolvedTypes = EnumSet.noneOf(ContractOutputType.class);
-    String textLabel = ContractOutputType.Text.getLabel().toLowerCase(Locale.ROOT);
-    if (normalizedLabels.contains(textLabel)) {
-      resolvedTypes.add(ContractOutputType.Text);
-      normalizedLabels.remove(textLabel);
-    }
-
-    if (normalizedLabels.isEmpty()) {
-      return resolvedTypes;
-    }
-
-    for (ContractOutputType candidate : ContractOutputType.values()) {
-      if (normalizedLabels.contains(candidate.getLabel().toLowerCase(Locale.ROOT))) {
-        resolvedTypes.add(candidate);
-        continue;
-      }
-      ChainingTypeRegistry.getPrimitiveTypesForContractOutputType(candidate).stream()
-          .map(primitiveType -> primitiveType.label.toLowerCase(Locale.ROOT))
-          .filter(normalizedLabels::contains)
-          .findFirst()
-          .ifPresent(_unused -> resolvedTypes.add(candidate));
-    }
-    return resolvedTypes;
+    return baseSpecification.and(providingFilterContext.specification());
   }
 
   /**
