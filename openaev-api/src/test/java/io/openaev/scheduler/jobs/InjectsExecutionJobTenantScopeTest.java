@@ -101,7 +101,10 @@ class InjectsExecutionJobTenantScopeTest {
     when(injectHelper.getAllPendingInjectsWithThresholdMinutes(anyInt())).thenReturn(List.of());
     when(healthCheckUtils.runContentChecks(any(Inject.class))).thenReturn(List.of());
 
-    when(injectHelper.getInjectsToRun()).thenReturn(List.of(atomicInjectOfTenant(INJECT_TENANT)));
+    // Built before the when(): the helper stubs its own mocks, and nesting that inside
+    // thenReturn(...) argument evaluation trips Mockito's unfinished-stubbing detection.
+    ExecutableInject injectToRun = atomicInjectOfTenant(INJECT_TENANT);
+    when(injectHelper.getInjectsToRun()).thenReturn(List.of(injectToRun));
 
     // Stand in for the real primitive: record the scope, run the work on this thread.
     doAnswer(
@@ -169,10 +172,25 @@ class InjectsExecutionJobTenantScopeTest {
   @Test
   @DisplayName("the thread-local scope is restored once the inject is done")
   void scopeDoesNotLeakOntoThePooledThread() throws Exception {
+    // The job borrows shared ForkJoinPool threads (including this caller): a scope the thread
+    // carried before the sweep must survive it (restore semantics, not a blanket clear). Note
+    // DefaultTenantExtension pre-sets the default tenant on every test thread, so "starts empty"
+    // is not a premise this suite can rely on.
+    String preexistingScope = "99999999-8888-7777-6666-555555555555";
+    TenantContext.setCurrentTenant(preexistingScope);
+
     job.execute(null);
 
-    assertThat(TenantContext.hasCurrentTenant())
-        .as("the job borrows shared ForkJoinPool threads: it must leave no scope behind")
-        .isFalse();
+    assertThat(TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null)
+        .as("the pre-existing scope of the borrowed thread must be restored, not overwritten")
+        .isEqualTo(preexistingScope);
+
+    // And a thread that had no scope at all must end with none.
+    TenantContext.clearCurrentTenant();
+    job.execute(null);
+
+    assertThat(TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null)
+        .as("a scope-less thread must leave the sweep scope-less")
+        .isNull();
   }
 }

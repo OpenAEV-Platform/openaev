@@ -131,6 +131,9 @@ class TxCtxArgumentResolverIntegrationTest extends IntegrationTest {
   @DisplayName(
       "a selector-requiring endpoint without one falls back to the default tenant for a"
           + " multi-tenant caller authorized on it")
+  // Transactional so the native membership INSERT runs inside a transaction (a @Modifying query
+  // cannot flush without one) and rolls back, keeping the sibling refusal test's premise intact.
+  @Transactional
   void requiredSelectorMissingFallsBackToDefaultTenant() throws Exception {
     // Tenant-unaware API clients (collectors, injectors) never send a selector; the platform-wide
     // convention for requests without an explicit tenant context is the default tenant.
