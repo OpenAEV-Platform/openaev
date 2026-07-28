@@ -28,8 +28,11 @@ public class IpAddressUtils {
    */
   private static final Pattern IPV4_NUMERIC = Pattern.compile("^\\d{1,3}(\\.\\d{1,3}){3}$");
 
+  /** Minimum IPv4 prefix supported for expansion (e.g. /24, /25, ...). */
+  private static final int MIN_IPV4_EXPANSION_PREFIX = 24;
+
   /** Safety limit for subnet expansion to keep chaining scope resolution bounded. */
-  private static final int MAX_EXPANDED_HOSTS = 65536;
+  private static final int MAX_EXPANDED_HOSTS = 256;
 
   private IpAddressUtils() {}
 
@@ -183,6 +186,14 @@ public class IpAddressUtils {
 
       byte[] subnetBytes = InetAddress.getByName(subnetAddress).getAddress();
       boolean ipv4 = subnetBytes.length == 4;
+      if (ipv4 && prefixLength < MIN_IPV4_EXPANSION_PREFIX) {
+        log.warn(
+            "Subnet {} expansion skipped: IPv4 prefix /{} is broader than supported /{}",
+            cidr,
+            prefixLength,
+            MIN_IPV4_EXPANSION_PREFIX);
+        return List.of();
+      }
       int addressBitLength = subnetBytes.length * 8;
       int hostBits = addressBitLength - prefixLength;
       if (hostBits < 0) {

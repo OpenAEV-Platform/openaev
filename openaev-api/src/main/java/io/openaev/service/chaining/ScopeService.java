@@ -123,8 +123,9 @@ public class ScopeService {
    * Returns manual targets from allowlist scope rules after denylist filtering.
    *
    * <p>IP_SUBNET rules are expanded to individual host IPs. For IPv4, network and broadcast
-   * addresses are excluded when applicable (e.g. /26 -> .1.. .62). IP and domain rules are kept as
-   * direct targets.
+   * addresses are excluded when applicable (e.g. /26 -> .1.. .62). To keep execution bounded, IPv4
+   * expansion is supported only for /24-or-narrower subnets. IP and domain rules are kept as direct
+   * targets.
    *
    * <p>Denylist filtering is then applied on resulting targets: denied IPs and denied subnets
    * remove matching expanded hosts, and denied domains remove matching domain targets.
