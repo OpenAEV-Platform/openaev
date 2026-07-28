@@ -20,5 +20,5 @@ export const fetchSecretsProviderRelatedIds = (secrets_providerId: string) => {
 };
 
 export const deleteSecretsProvider = (secrets_providerId: string) => (dispatch: Dispatch) => {
-  return delReferential(`${SECRETS_PROVIDERS_URI}/${secrets_providerId}`, 'secrets_provider', secrets_providerId)(dispatch);
+  return delReferential(`${SECRETS_PROVIDERS_URI}/${secrets_providerId}`, 'secretsproviders', secrets_providerId)(dispatch);
 };
