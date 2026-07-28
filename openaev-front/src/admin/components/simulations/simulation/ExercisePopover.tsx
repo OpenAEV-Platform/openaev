@@ -21,11 +21,10 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ExerciseForm from './ExerciseForm';
-import ExerciseReports from './reports/ExerciseReports';
 
 type ExerciseUpdateFormInput = UpdateExerciseInput & { exercise_lessons_enabled?: boolean };
 
-export type ExerciseActionPopover = 'Duplicate' | 'Update' | 'Delete' | 'Export' | 'Access reports';
+export type ExerciseActionPopover = 'Duplicate' | 'Update' | 'Delete' | 'Export';
 
 interface ExercisePopoverProps {
   exercise: Exercise;
@@ -108,11 +107,6 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
   const handleOpenExport = () => setOpenExport(true);
   const handleCloseExport = () => setOpenExport(false);
 
-  // Reports
-  const [openReports, setOpenReports] = useState(false);
-  const handleOpenReports = () => setOpenReports(true);
-  const handleCloseReports = () => setOpenReports(false);
-
   // apply rule dialog
   const [openApplyRule, setOpenApplyRule] = useState(false);
   const handleOpenApplyRule = () => setOpenApplyRule(true);
@@ -144,11 +138,6 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
   if (actions.includes('Export')) entries.push({
     label: 'Export',
     action: () => handleOpenExport(),
-    userRight: true,
-  });
-  if (actions.includes('Access reports')) entries.push({
-    label: 'Access reports',
-    action: () => handleOpenReports(),
     userRight: true,
   });
   if (actions.includes('Delete')) entries.push({
@@ -241,14 +230,6 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
         handleApplyRule={() => handleTagRuleChoice(true)}
         handleDontApplyRule={() => handleTagRuleChoice(false)}
       />
-      <Drawer
-        open={openReports}
-        containerStyle={{ padding: '0px' }}
-        handleClose={handleCloseReports}
-        title={t('Reports')}
-      >
-        <ExerciseReports exerciseId={exercise.exercise_id} exerciseName={exercise.exercise_name} />
-      </Drawer>
       <DialogDuplicate
         open={openDuplicate}
         handleClose={handleCloseDuplicate}

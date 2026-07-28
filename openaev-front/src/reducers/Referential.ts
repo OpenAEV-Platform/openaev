@@ -43,7 +43,6 @@ export const entitiesInitializer = Map({
     lessonscategorys: Map({}),
     lessonsquestions: Map({}),
     lessonsanswers: Map({}),
-    reports: Map({}),
     variables: Map({}),
     killchainphases: Map({}),
     attackpatterns: Map({}),

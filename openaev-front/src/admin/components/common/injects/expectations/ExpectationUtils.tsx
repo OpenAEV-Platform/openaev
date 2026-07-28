@@ -76,7 +76,7 @@ export const useIsManuallyUpdatable = (injectExpectation: InjectExpectationOutpu
   // Technical: manually updatable at agent level (result on that agent only, then
   // propagated up) and at asset level (result written on each agent of the endpoint).
   // Asset groups are always computed from their assets, never updated directly.
-  if (['DETECTION', 'PREVENTION'].includes(expectationType)) {
+  if (['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(expectationType)) {
     return !isAssetGroupExpectation(injectExpectation);
   }
   // Human

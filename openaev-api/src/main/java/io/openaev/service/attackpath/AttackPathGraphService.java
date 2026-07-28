@@ -36,6 +36,7 @@ import io.openaev.service.attackpath.dto.AttackPathFindingItemDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingVerdictsDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
+import io.openaev.service.attackpath.dto.ConsumedFindingKeyDTO;
 import io.openaev.utils.mapper.PayloadMapper;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -561,6 +562,7 @@ public class AttackPathGraphService {
       feedByExecutionId.put(e.id(), executionFeedNode(e));
     }
     applyKillChain(executions, feedByExecutionId);
+    applyEventDependencies(executions, findings, feedByExecutionId);
     Map<String, String> contractNames = applyContractNames(executions, feedByExecutionId);
     applyInjectorNodeLabels(nodes, contractsByInjectorNode, contractNames);
 
@@ -1021,6 +1023,70 @@ public class AttackPathGraphService {
       }
       if (!meta.consumedFindingKeys().isEmpty()) {
         node.setConsumedFindingKeys(meta.consumedFindingKeys());
+      }
+    }
+  }
+
+  /**
+   * Adds event-consumption dependencies to each consumer's {@code dependsOn}: when a step consumes
+   * a finding key, the step templates of the executions that produced a matching finding (mirroring
+   * the front matcher) are added, so the front places the consumer after its producer. A producer
+   * counts only when its execution ran strictly before the consumer's — a finding is produced
+   * before it is consumed, which also keeps {@code dependsOn} acyclic — and never the consumer's
+   * own step. Resolved in memory from the executions and findings already read, so no extra query;
+   * full mode only.
+   */
+  private void applyEventDependencies(
+      List<AttackPathExecutionRow> executions,
+      List<AttackPathFindingRow> findings,
+      Map<String, AttackPathNodeDTO> feedByExecutionId) {
+    if (findings.isEmpty()) {
+      return;
+    }
+    Map<String, AttackPathExecutionRow> executionById = new HashMap<>();
+    for (AttackPathExecutionRow e : executions) {
+      executionById.putIfAbsent(e.id(), e);
+    }
+    // Findings indexed by presented type, so a consumed key scans only its reconciled type.
+    Map<String, List<AttackPathFindingRow>> findingsByType = new HashMap<>();
+    for (AttackPathFindingRow f : findings) {
+      findingsByType.computeIfAbsent(f.type(), k -> new ArrayList<>()).add(f);
+    }
+    for (AttackPathExecutionRow consumer : executions) {
+      AttackPathNodeDTO node = feedByExecutionId.get(consumer.id());
+      if (node == null
+          || node.getConsumedFindingKeys() == null
+          || node.getConsumedFindingKeys().isEmpty()
+          || consumer.executedAt() == null) {
+        continue;
+      }
+      Set<String> producerSteps = new LinkedHashSet<>();
+      for (ConsumedFindingKeyDTO key : node.getConsumedFindingKeys()) {
+        for (AttackPathFindingRow f :
+            findingsByType.getOrDefault(
+                AttackPathKeyMatcher.reconciledType(key.keyType()), List.of())) {
+          if (!AttackPathKeyMatcher.matches(f, key)) {
+            continue;
+          }
+          AttackPathExecutionRow producer = executionById.get(f.executionId());
+          if (producer != null
+              && producer.stepTemplateId() != null
+              && producer.executedAt() != null
+              && producer.executedAt().isBefore(consumer.executedAt())
+              && !producer.stepTemplateId().equals(consumer.stepTemplateId())) {
+            producerSteps.add(producer.stepTemplateId());
+          }
+        }
+      }
+      if (!producerSteps.isEmpty()) {
+        List<String> dependsOn =
+            new ArrayList<>(node.getDependsOn() == null ? List.of() : node.getDependsOn());
+        for (String s : producerSteps) {
+          if (!dependsOn.contains(s)) {
+            dependsOn.add(s);
+          }
+        }
+        node.setDependsOn(dependsOn);
       }
     }
   }

@@ -2,6 +2,9 @@ FROM registry.access.redhat.com/ubi9/openjdk-21-runtime AS app
 
 USER root
 
+# Fixed world-readable browser path so any runtime UID finds the Chromium bundle (reporting)
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
 RUN set -eux; \
     microdnf upgrade -y --refresh openssl-libs; \
     curl -L -o /usr/bin/tini https://github.com/krallin/tini/releases/download/v0.19.0/tini; \
@@ -9,8 +12,21 @@ RUN set -eux; \
     chmod +x /usr/bin/tini; \
     microdnf clean all
 
+# Chromium runtime libraries for server-side report rendering. Playwright's
+# "install --with-deps" does not support RHEL/UBI, so the dependency set is installed
+# explicitly and only the browser bundle is downloaded through the CLI below.
+RUN set -eux; \
+    microdnf install -y nss nspr dbus-libs expat glib2 atk at-spi2-atk at-spi2-core \
+        cups-libs libdrm libX11 libXcomposite libXdamage libXext libXfixes libXrandr \
+        libxcb libxkbcommon pango cairo alsa-lib mesa-libgbm; \
+    microdnf clean all
+
 WORKDIR /opt/openaev
 COPY openaev-build/openaev-api.jar ./
+# The boot jar uses the ZIP layout, so PropertiesLauncher can run the embedded Playwright CLI
+RUN set -eux; \
+    java -Dloader.main=com.microsoft.playwright.CLI -jar openaev-api.jar install chromium; \
+    chmod -R a+rX /ms-playwright
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["java", "-jar", "openaev-api.jar"]

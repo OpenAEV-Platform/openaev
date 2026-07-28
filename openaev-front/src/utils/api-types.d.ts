@@ -6796,6 +6796,7 @@ export interface NotificationTriggerInput {
     | "CHANNEL"
     | "FINDING"
     | "DASHBOARD"
+    | "REPORT"
     | "PLATFORM_SETTING"
     | "LESSON_LEARNED"
     | "CHALLENGE"
@@ -6894,6 +6895,7 @@ export interface NotificationTriggerOutput {
     | "CHANNEL"
     | "FINDING"
     | "DASHBOARD"
+    | "REPORT"
     | "PLATFORM_SETTING"
     | "LESSON_LEARNED"
     | "CHALLENGE"
@@ -7702,6 +7704,25 @@ export interface PageRelatedFindingOutput {
   totalPages?: number;
 }
 
+export interface PageReporting {
+  content?: Reporting[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageRoleOutput {
   content?: RoleOutput[];
   empty?: boolean;
@@ -8317,6 +8338,9 @@ export interface PlatformRoleInput {
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
+    | "ACCESS_REPORTINGS"
+    | "MANAGE_REPORTINGS"
+    | "DELETE_REPORTINGS"
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
@@ -8751,6 +8775,7 @@ export interface RawDocument {
 
 export interface RawPaginationDocument {
   document_can_be_deleted?: boolean;
+  document_can_be_updated?: boolean;
   document_description?: string;
   document_exercises?: string[];
   document_id?: string;
@@ -8923,66 +8948,144 @@ export interface RenewTokenInput {
   token_id: string;
 }
 
-export interface Report {
+export interface Reporting {
+  listened?: boolean;
+  reporting_branding?: ReportingBranding;
+  reporting_context_id?: string;
+  reporting_context_type:
+    | "PLATFORM"
+    | "SIMULATION"
+    | "SCENARIO"
+    | "ATOMIC_TESTING"
+    | "ENDPOINT"
+    | "ASSET_GROUP"
+    | "PLAYER"
+    | "TEAM";
+  /** @format date-time */
+  reporting_created_at?: string;
+  reporting_default_format?: "PDF" | "HTML";
+  reporting_description?: string;
+  reporting_generations?: ReportingGeneration[];
+  /** @minLength 1 */
+  reporting_id: string;
+  reporting_modules?: ReportingModule[];
+  /** @minLength 1 */
+  reporting_name: string;
+  reporting_schedules?: ReportingSchedule[];
+  reporting_time_range?:
+    | "LAST_7_DAYS"
+    | "LAST_30_DAYS"
+    | "LAST_90_DAYS"
+    | "LAST_180_DAYS"
+    | "LAST_365_DAYS"
+    | "ALL_TIME";
+  /** @format date-time */
+  reporting_updated_at?: string;
+}
+
+export interface ReportingBranding {
+  accent_color?: string;
+  background_color?: string;
+  logo_document_id?: string;
+  paper_color?: string;
+  primary_color?: string;
+  secondary_color?: string;
+  text_color?: string;
+  theme_mode?: "LIGHT" | "DARK";
+}
+
+export interface ReportingGenerateInput {
+  reporting_generation_format: "PDF" | "HTML";
+}
+
+export interface ReportingGeneration {
   listened?: boolean;
   /** @format date-time */
-  report_created_at: string;
-  report_exercise?: string;
-  report_global_observation?: string;
-  report_id: string;
-  report_informations?: ReportInformation[];
-  report_injects_comments?: ReportInjectComment[];
-  /** @minLength 1 */
-  report_name: string;
+  reporting_generation_completed_at?: string;
   /** @format date-time */
-  report_updated_at: string;
+  reporting_generation_created_at?: string;
+  reporting_generation_document?: string;
+  reporting_generation_error?: string;
+  reporting_generation_format?: "PDF" | "HTML";
+  /** @minLength 1 */
+  reporting_generation_id: string;
+  reporting_generation_reporting?: string;
+  reporting_generation_status?: "PENDING" | "RUNNING" | "SUCCESS" | "ERROR";
+  reporting_generation_trigger?: "MANUAL" | "SCHEDULED";
 }
 
-export interface ReportInformation {
-  id: string;
+export interface ReportingInput {
+  reporting_branding?: ReportingBranding;
+  reporting_context_id?: string;
+  reporting_context_type:
+    | "PLATFORM"
+    | "SIMULATION"
+    | "SCENARIO"
+    | "ATOMIC_TESTING"
+    | "ENDPOINT"
+    | "ASSET_GROUP"
+    | "PLAYER"
+    | "TEAM";
+  reporting_default_format?: "PDF" | "HTML";
+  reporting_description?: string;
+  reporting_modules?: ReportingModule[];
+  /** @minLength 1 */
+  reporting_name: string;
+  reporting_time_range?:
+    | "LAST_7_DAYS"
+    | "LAST_30_DAYS"
+    | "LAST_90_DAYS"
+    | "LAST_180_DAYS"
+    | "LAST_365_DAYS"
+    | "ALL_TIME";
+}
+
+export interface ReportingModule {
+  module_config?: Record<string, any>;
+  module_title?: string;
+  module_type?:
+    | "COVER"
+    | "EXECUTIVE_SUMMARY"
+    | "SUBJECT_DETAILS"
+    | "MITRE_COVERAGE"
+    | "RESULTS_BREAKDOWN"
+    | "SECURITY_DOMAINS"
+    | "SCORE_TRENDS"
+    | "FAILED_EXPECTATIONS"
+    | "FINDINGS"
+    | "ATTACK_PATHS"
+    | "CUSTOM_MARKDOWN";
+}
+
+export interface ReportingSchedule {
   listened?: boolean;
-  report: string;
-  report_informations_display?: boolean;
-  report_informations_type:
-    | "MAIN_INFORMATION"
-    | "SCORE_DETAILS"
-    | "INJECT_RESULT"
-    | "GLOBAL_OBSERVATION"
-    | "PLAYER_SURVEYS"
-    | "EXERCISE_DETAILS";
-}
-
-export interface ReportInformationInput {
-  report_informations_display: boolean;
+  /** @format date-time */
+  reporting_schedule_created_at?: string;
+  reporting_schedule_enabled?: boolean;
+  reporting_schedule_format?: "PDF" | "HTML";
   /** @minLength 1 */
-  report_informations_type:
-    | "MAIN_INFORMATION"
-    | "SCORE_DETAILS"
-    | "INJECT_RESULT"
-    | "GLOBAL_OBSERVATION"
-    | "PLAYER_SURVEYS"
-    | "EXERCISE_DETAILS";
+  reporting_schedule_id: string;
+  /** @format date-time */
+  reporting_schedule_last_run_at?: string;
+  reporting_schedule_name?: string;
+  reporting_schedule_owner: string;
+  reporting_schedule_period: "HOUR" | "DAY" | "WEEK" | "MONTH";
+  reporting_schedule_recipient_emails?: string[];
+  reporting_schedule_recipient_users?: string[];
+  reporting_schedule_reporting?: string;
+  reporting_schedule_time?: string;
+  /** @format date-time */
+  reporting_schedule_updated_at?: string;
 }
 
-export interface ReportInjectComment {
-  /** ID of the inject */
-  inject_id?: string;
-  /** ID of the report */
-  report_id?: string;
-  report_inject_comment?: string;
-}
-
-export interface ReportInjectCommentInput {
-  /** @minLength 1 */
-  inject_id: string;
-  report_inject_comment?: string;
-}
-
-export interface ReportInput {
-  report_global_observation?: string;
-  report_informations?: ReportInformationInput[];
-  /** @minLength 1 */
-  report_name: string;
+export interface ReportingScheduleInput {
+  reporting_schedule_enabled?: boolean;
+  reporting_schedule_format?: "PDF" | "HTML";
+  reporting_schedule_name?: string;
+  reporting_schedule_period: "HOUR" | "DAY" | "WEEK" | "MONTH";
+  reporting_schedule_recipient_emails?: string[];
+  reporting_schedule_recipient_users?: string[];
+  reporting_schedule_time?: string;
 }
 
 export interface ResetUserInput {
@@ -9030,6 +9133,9 @@ export interface RoleInput {
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
+    | "ACCESS_REPORTINGS"
+    | "MANAGE_REPORTINGS"
+    | "DELETE_REPORTINGS"
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
@@ -10852,6 +10958,9 @@ export interface User {
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
+    | "ACCESS_REPORTINGS"
+    | "MANAGE_REPORTINGS"
+    | "DELETE_REPORTINGS"
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"

@@ -1,7 +1,6 @@
 import { HelpOutlineOutlined, KeyboardArrowRight } from '@mui/icons-material';
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
+import { Box, Button, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { type ComponentType, type FunctionComponent, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -17,6 +16,7 @@ import SortHeadersComponentV2 from '../../../../../components/common/queryable/s
 import useBodyItemsStyles from '../../../../../components/common/queryable/style/style';
 import { useQueryable } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type Header } from '../../../../../components/common/SortHeadersList';
+import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
 import { useHelper } from '../../../../../store';
@@ -28,6 +28,8 @@ import {
   type ListConfiguration,
   type PropertySchemaDTO,
 } from '../../../../../utils/api-types';
+import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { capitalize } from '../../../../../utils/String';
 import { MITRE_FILTER_KEY } from '../../../common/filters/MitreFilter';
 import getAuthorizedPerspectives from '../widgets/configuration/AuthorizedPerspectives';
@@ -62,9 +64,9 @@ interface ExplorerProps {
  */
 const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initialEntities, seedDateFilters = [] }) => {
   const { t } = useFormatter();
-  const theme = useTheme();
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
+  const ability = useContext(AbilityContext);
 
   const { attackPatterns }: { attackPatterns: AttackPattern[] } = useHelper(
     (helper: AttackPatternHelper) => ({ attackPatterns: helper.getAttackPatterns() }),
@@ -212,6 +214,18 @@ const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initial
 
   const loaderIcon = entityConfig?.loaderIcon ?? HelpOutlineOutlined;
 
+  // Empty-state call to action: when the drill-down is scoped to specific
+  // attack patterns (e.g. an uncovered cell of a MITRE coverage widget), the
+  // most natural next step is to create an atomic test exercising those TTPs.
+  // The ids are handed to the atomic testing creation picker, which seeds its
+  // contract filter with them.
+  const scopedAttackPatternIds = useMemo(() => Array.from(new Set(
+    (searchPaginationInput.filterGroup?.filters ?? [])
+      .filter(filter => filter.key === 'base_attack_patterns_side' && filter.operator === 'eq')
+      .flatMap(filter => filter.values ?? []),
+  )), [searchPaginationInput]);
+  const canCreateAtomicTesting = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+
   return (
     <>
       <div
@@ -258,16 +272,30 @@ const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initial
         </ListItem>
         {loading && <PaginatedListLoader Icon={loaderIcon} headers={headers} headerStyles={columnStyles} />}
         {!loading && elements.length === 0 && (
-          <Typography
-            variant="subtitle1"
-            align="center"
-            sx={{
-              marginTop: 4,
-              color: theme.palette.text.secondary,
-            }}
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
           >
-            {t('No data to display')}
-          </Typography>
+            <Empty
+              icon={loaderIcon as ComponentType<{ sx?: object }>}
+              message={t('No data to display')}
+              hint={t('Adjust or clear the filters to widen the scope.')}
+            />
+            {canCreateAtomicTesting && scopedAttackPatternIds.length > 0 && (
+              <Button
+                variant="contained"
+                color="primary"
+                component={Link}
+                to={`/admin/atomic_testings/create?attack_patterns=${scopedAttackPatternIds.join(',')}`}
+                // Pull the CTA into the empty state's bottom padding.
+                sx={{ marginTop: -3 }}
+              >
+                {t('Create an atomic testing')}
+              </Button>
+            )}
+          </Box>
         )}
         {!loading && elements.map((element) => {
           // Real router link (not a JS navigate) so ctrl/cmd+click opens a new tab.

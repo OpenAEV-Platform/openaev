@@ -17,7 +17,7 @@ import { initSorting } from '../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import Tabs from '../../../../components/common/tabs/Tabs';
-import useTabs from '../../../../components/common/tabs/useTabs';
+import useRoutedTabs from '../../../../components/common/tabs/useRoutedTabs';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCriticality from '../../../../components/ItemCriticality';
@@ -37,6 +37,7 @@ import { emptyFilled, formatIp, formatMacAddress } from '../../../../utils/Strin
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
+import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import AssetPopover, { type AssetPopoverProps } from '../endpoints/AssetPopover';
@@ -119,8 +120,10 @@ const AssetDetail = () => {
   const posture = useExpectationPosture('base_asset_side', id);
 
   // Overview keeps the current detail sections; Statistics adds the over-time
-  // charts without eating vertical space on the main tab.
-  const { currentTab, handleChangeTab } = useTabs('overview');
+  // charts without eating vertical space on the main tab. Tabs are routed
+  // (/admin/assets/:id[/statistics]) so they can be deep-linked like the
+  // atomic testing and scenario tabs.
+  const { currentTab, handleChangeTab } = useRoutedTabs(['overview', 'statistics'], 'overview');
 
   if (loading && !asset) {
     return <Loader />;
@@ -182,12 +185,21 @@ const AssetDetail = () => {
         iconNode={<AssetCategoryIcon category={asset.asset_category} color="primary" />}
         title={asset.asset_name}
         action={(
-          <AssetPopover
-            endpoint={asset as AssetPopoverProps['endpoint']}
-            agentless={!hasAgents}
-            onUpdate={() => loadAsset()}
-            onDelete={() => navigate('/admin/assets')}
-          />
+          <>
+            {/* Entity-scoped reports - self-hides without the reporting
+                access capability. */}
+            <EntityReportsPanel
+              contextType="ENDPOINT"
+              contextId={id}
+              entityName={asset.asset_name}
+            />
+            <AssetPopover
+              endpoint={asset as AssetPopoverProps['endpoint']}
+              agentless={!hasAgents}
+              onUpdate={() => loadAsset()}
+              onDelete={() => navigate('/admin/assets')}
+            />
+          </>
         )}
         stats={(
           <>

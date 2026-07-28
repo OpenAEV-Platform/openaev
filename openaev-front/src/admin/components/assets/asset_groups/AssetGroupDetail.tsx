@@ -20,7 +20,7 @@ import useBodyItemsStyles from '../../../../components/common/queryable/style/st
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type Header } from '../../../../components/common/SortHeadersList';
 import Tabs from '../../../../components/common/tabs/Tabs';
-import useTabs from '../../../../components/common/tabs/useTabs';
+import useRoutedTabs from '../../../../components/common/tabs/useRoutedTabs';
 import Empty from '../../../../components/Empty';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
@@ -36,6 +36,7 @@ import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
+import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import PostureScore from '../PostureScore';
 import InjectsPlayedOverTimeChart from '../statistics/InjectsPlayedOverTimeChart';
@@ -92,8 +93,10 @@ const AssetGroupDetail = () => {
   const posture = useExpectationPosture('base_asset_group_side', assetGroupId);
 
   // Overview keeps the current detail sections; Statistics adds the over-time
-  // charts without eating vertical space on the main tab.
-  const { currentTab, handleChangeTab } = useTabs('overview');
+  // charts without eating vertical space on the main tab. Tabs are routed
+  // (/admin/asset_groups/:id[/statistics]) so they can be deep-linked like the
+  // atomic testing and scenario tabs.
+  const { currentTab, handleChangeTab } = useRoutedTabs(['overview', 'statistics'], 'overview');
 
   // Injects played: the same scoped search as the hero count above, but
   // server-paginated for the full list section below.
@@ -190,14 +193,23 @@ const AssetGroupDetail = () => {
         icon={SelectGroup}
         title={assetGroup.asset_group_name}
         action={(
-          <AssetGroupPopover
-            assetGroup={assetGroup}
-            onUpdate={() => {
-              dispatch(fetchAssetGroup(assetGroupId));
-              setReloadContentCount(count => count + 1);
-            }}
-            onDelete={() => navigate(ASSET_GROUP_BASE_URL)}
-          />
+          <>
+            {/* Entity-scoped reports - self-hides without the reporting
+                access capability. */}
+            <EntityReportsPanel
+              contextType="ASSET_GROUP"
+              contextId={assetGroupId}
+              entityName={assetGroup.asset_group_name}
+            />
+            <AssetGroupPopover
+              assetGroup={assetGroup}
+              onUpdate={() => {
+                dispatch(fetchAssetGroup(assetGroupId));
+                setReloadContentCount(count => count + 1);
+              }}
+              onDelete={() => navigate(ASSET_GROUP_BASE_URL)}
+            />
+          </>
         )}
         stats={(
           <>

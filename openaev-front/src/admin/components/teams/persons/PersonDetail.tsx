@@ -38,6 +38,7 @@ import { emptyFilled } from '../../../../utils/String';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
+import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import PlayerPopover from '../players/PlayerPopover';
 
 // Adds a scoped filter to a search input without mutating the caller's group.
@@ -155,10 +156,19 @@ const PersonDetail = () => {
           </>
         )}
         action={(
-          <PlayerPopover
-            user={user}
-            onDelete={() => navigate(PERSON_BASE_URL)}
-          />
+          <>
+            {/* Entity-scoped reports - self-hides without the reporting
+                access capability. */}
+            <EntityReportsPanel
+              contextType="PLAYER"
+              contextId={userId}
+              entityName={displayName}
+            />
+            <PlayerPopover
+              user={user}
+              onDelete={() => navigate(PERSON_BASE_URL)}
+            />
+          </>
         )}
         stats={(
           <>
