@@ -47,6 +47,11 @@ public class ExecutionExecutorService {
         this.injectService.getAgentsAndAgentlessAssetsByInject(inject);
     Set<Agent> agents = agentsAndAssetsAgentless.agents();
     Set<Asset> assetsAgentless = agentsAndAssetsAgentless.assetsAgentless();
+    log.debug(
+        "launchExecutorContext inject={} resolved agents={} agentlessAssets={}",
+        inject.getId(),
+        agents.stream().map(Agent::getId).toList(),
+        assetsAgentless.stream().map(Asset::getId).toList());
     // Persist the number of agents resolved at launch so the COMPLETE callback path can decide
     // completion without re-resolving the full asset/agent graph on every callback
     injectStatus.setExpectedAgentCount(agents.size());
@@ -62,6 +67,14 @@ public class ExecutionExecutorService {
     agents.removeAll(agentsWithoutExecutor);
     Set<Agent> overloadedAgents = executorUtils.findOverloadedAgents(agents);
     agents.removeAll(overloadedAgents);
+    log.debug(
+        "launchExecutorContext inject={} inactiveAgents={} agentsWithoutExecutor={}"
+            + " overloadedAgents={} remainingAgents={}",
+        inject.getId(),
+        inactiveAgents.stream().map(Agent::getId).toList(),
+        agentsWithoutExecutor.stream().map(Agent::getId).toList(),
+        overloadedAgents.stream().map(Agent::getId).toList(),
+        agents.stream().map(Agent::getId).toList());
 
     AtomicBoolean atLeastOneExecution = new AtomicBoolean(false);
     // Manage inactive agents
@@ -139,7 +152,8 @@ public class ExecutionExecutorService {
             "{} (id={}) launchBatchExecutorSubprocess error: {}",
             executor.getName(),
             executor.getId(),
-            e.getMessage());
+            e.getMessage(),
+            e);
         saveAgentsErrorTraces(e, agents, injectStatus);
       }
     }

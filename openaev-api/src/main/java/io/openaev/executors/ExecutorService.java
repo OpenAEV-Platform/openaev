@@ -21,6 +21,8 @@ import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +35,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   public static final String EXT_PNG = ".png";
   @Resource protected ObjectMapper mapper;
+  @PersistenceContext private EntityManager entityManager;
 
   private final ExecutorRepository executorRepository;
   private final ExecutionTraceRepository executionTraceRepository;
@@ -228,7 +231,17 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
         .ifPresent(
             executor -> {
               endpointService.removeSourceTagsForExecutor(id, executor.getTenantId());
-              executorRepository.delete(executor);
+              // removeSourceTagsForExecutor eager-loads this executor's Agents (agent_executor is
+              // FetchType.EAGER), which pins them - and the Executor they reference - in the
+              // persistence context. Deleting the (still-referenced) Executor entity as-is makes
+              // Hibernate's flush-time integrity check reject it: a live, managed Agent still
+              // points at an entity we're marking for removal, and that association carries no
+              // cascade=REMOVE. The FK itself is ON DELETE CASCADE at the DB level (agents are
+              // dropped regardless), so flushing and clearing here - then re-fetching the now
+              // detached executor - lets the delete proceed with a clean persistence context.
+              entityManager.flush();
+              entityManager.clear();
+              executorRepository.findByExecutorId(id).ifPresent(executorRepository::delete);
             });
   }
 

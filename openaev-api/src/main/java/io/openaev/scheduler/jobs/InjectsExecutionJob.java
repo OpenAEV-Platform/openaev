@@ -8,6 +8,7 @@ import static java.util.stream.Collectors.groupingBy;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -447,19 +448,31 @@ public class InjectsExecutionJob implements Job {
                           try {
                             String tenantId =
                                 executableInject.getInjection().getInject().getTenant().getId();
-                            // Scope the transaction so the v2 inspector can resolve
-                            // can_access_tenant for activated tables (e.g. collectors)
-                            tenantTx.execute(
-                                TxCtx.forTenant(tenantId),
-                                () -> {
-                                  try {
-                                    this.executeInject(executableInject);
-                                  } catch (RuntimeException re) {
-                                    throw re;
-                                  } catch (Exception e) {
-                                    throw new RuntimeException(e);
-                                  }
-                                });
+                            try {
+                              // Bridge for v1 tables (Tag, Asset, Agent, AssetGroup) still
+                              // relying on TenantContext via HibernateFilterTransactionAspect:
+                              // this runs on a parallelStream (ForkJoinPool) thread, never an
+                              // HTTP request thread, so TenantContext is never set here
+                              // otherwise and falls back to the default tenant, silently
+                              // scoping the v1 Hibernate filter to the wrong tenant (e.g.
+                              // endpoint.getAgents() resolving empty for a real agent).
+                              TenantContext.setCurrentTenant(tenantId);
+                              // Scope the transaction so the v2 inspector can resolve
+                              // can_access_tenant for activated tables (e.g. collectors)
+                              tenantTx.execute(
+                                  TxCtx.forTenant(tenantId),
+                                  () -> {
+                                    try {
+                                      this.executeInject(executableInject);
+                                    } catch (RuntimeException re) {
+                                      throw re;
+                                    } catch (Exception e) {
+                                      throw new RuntimeException(e);
+                                    }
+                                  });
+                            } finally {
+                              TenantContext.clearCurrentTenant();
+                            }
                           } catch (RuntimeException e) {
                             Inject inject = executableInject.getInjection().getInject();
                             Throwable cause = e.getCause() != null ? e.getCause() : e;

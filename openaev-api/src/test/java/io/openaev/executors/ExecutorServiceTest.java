@@ -15,6 +15,7 @@ import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
+import jakarta.persistence.EntityManager;
 import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +23,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class ExecutorServiceTest {
@@ -35,11 +37,15 @@ class ExecutorServiceTest {
   @Mock private ExecutorMapper executorMapper;
   @Mock private CatalogConnectorMapper catalogConnectorMapper;
   @Mock private EndpointService endpointService;
+  @Mock private EntityManager entityManager;
   @InjectMocks private ExecutorService executorService;
 
   @BeforeEach
   void setUp() {
     TenantContext.setCurrentTenant("tenant-001");
+    // entityManager is a @PersistenceContext field, not a constructor param: Mockito's
+    // constructor-based @InjectMocks strategy never touches it, so it must be wired manually.
+    ReflectionTestUtils.setField(executorService, "entityManager", entityManager);
   }
 
   @AfterEach
