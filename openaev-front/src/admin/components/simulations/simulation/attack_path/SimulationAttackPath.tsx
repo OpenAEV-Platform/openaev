@@ -1,5 +1,5 @@
-import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LabelOutlined, LocalFireDepartment, PlayArrowOutlined, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
-import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, FullscreenExitOutlined, FullscreenOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LabelOutlined, LocalFireDepartment, PlayArrowOutlined, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
+import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, IconButton, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -1486,11 +1486,24 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     // Highlight a path: walk UP from a clicked finding to its actions, or DOWN from a clicked
     // injector (action) to its reach. Same visual, mirrored direction, so both feel consistent.
     const pathSet = new Set<string>();
-    if (selectedInjectorId) {
-      // An injector's downstream highlight shows its REACH — the endpoints it targeted — not the findings.
-      // In the clustered view findings hang off the SHARED endpoint hub and aggregate every injector, so
-      // walking into them would wrongly credit one injector with another's findings (e.g. NetExec lighting
-      // Nmap's portscans). Stop the walk at endpoint/hub nodes: never propagate into finding-type nodes.
+    if (selectedInjectorId && chainMode) {
+      // Chain view: clicking an action lights the WHOLE chain that led to it. Walk UPSTREAM from the action
+      // through BOTH production and causal ("Triggered …") edges (target in set → add source), so the path
+      // from the first action to the one clicked — findings, endpoints and the actions between — is shown.
+      pathSet.add(selectedInjectorId);
+      for (let pass = 0; pass < 8; pass += 1) {
+        for (const e of baseFlow.edges) {
+          if (e.source && e.target && pathSet.has(e.target) && !pathSet.has(e.source)) {
+            pathSet.add(e.source);
+          }
+        }
+      }
+    } else if (selectedInjectorId) {
+      // Clustered view: an injector's downstream highlight shows its REACH — the endpoints it targeted — not
+      // the findings. In the clustered view findings hang off the SHARED endpoint hub and aggregate every
+      // injector, so walking into them would wrongly credit one injector with another's findings (e.g.
+      // NetExec lighting Nmap's portscans). Stop the walk at endpoint/hub nodes: never propagate into
+      // finding-type nodes.
       const findingNodeIds = new Set(
         baseFlow.nodes
           .filter(n => n.type === AP_FLOW_NODE_TYPE.finding
@@ -1564,7 +1577,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     return applyFindingFilter(withSelection.nodes, withSelection.edges, focus);
   }, [
     baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, selectedInjectorId,
-    focus, dto?.attackPathEdges, fullDto?.attackPathEdges, highlightedExecutionIds,
+    focus, dto?.attackPathEdges, fullDto?.attackPathEdges, highlightedExecutionIds, chainMode,
   ]);
 
   // Additive kill-chain causal edges (issue 6647) for the AGGREGATED view, merged on top of the status
@@ -1819,6 +1832,22 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // Graph (node-link) vs Table (sortable/exportable list of exposed endpoints) view of the same data.
   const [view, setView] = useState<'graph' | 'table'>('graph');
 
+  // Fullscreen: expand the whole view (cards strip + graph) over the viewport for room to navigate a large
+  // chain, keeping the finding cards for context. Escape leaves it.
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    if (!fullscreen) {
+      return undefined;
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fullscreen]);
+
   // Free-text search input (endpoint / injector / finding type), used by the search autocomplete.
   const [searchInput, setSearchInput] = useState('');
 
@@ -1977,9 +2006,19 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       display: 'flex',
       flexDirection: 'column',
       // Give the graph as much vertical room as possible (it grows with the endpoint count); the offset
-      // only reserves the page chrome above (header + tabs + the picker/cards strip).
-      height: 'calc(100vh - 200px)',
+      // only reserves the page chrome above (header + tabs + the picker/cards strip). Fullscreen lifts it
+      // out of the page flow to cover the viewport (cards strip included) for room to navigate.
       gap: theme.spacing(1),
+      ...(fullscreen
+        ? {
+            position: 'fixed' as const,
+            inset: 0,
+            zIndex: theme.zIndex.drawer + 2,
+            height: '100vh',
+            padding: theme.spacing(2),
+            background: theme.palette.background.default,
+          }
+        : { height: 'calc(100vh - 200px)' }),
     }}
     >
       <div style={{
@@ -2071,6 +2110,15 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               <Tooltip title={t('Table')}><TableRowsOutlined fontSize="small" /></Tooltip>
             </ToggleButton>
           </ToggleButtonGroup>
+          <Tooltip title={fullscreen ? t('Exit fullscreen') : t('Fullscreen')}>
+            <IconButton
+              size="small"
+              aria-label={fullscreen ? t('Exit fullscreen') : t('Fullscreen')}
+              onClick={() => setFullscreen(f => !f)}
+            >
+              {fullscreen ? <FullscreenExitOutlined fontSize="small" /> : <FullscreenOutlined fontSize="small" />}
+            </IconButton>
+          </Tooltip>
           <Autocomplete<SearchOption>
             size="small"
             options={searchOptions}

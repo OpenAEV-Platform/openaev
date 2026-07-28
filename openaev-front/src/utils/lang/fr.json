@@ -3469,5 +3469,7 @@
   "YYYY": "AAAA",
   "Zoom in": "Zoom avant",
   "Zoom out": "Zoom arriere",
-  "Showing {shown} of {total} findings — open the inject to see them all.": "Affichage de {shown} sur {total} findings — ouvrez l’inject pour tous les voir."
+  "Showing {shown} of {total} findings — open the inject to see them all.": "Affichage de {shown} sur {total} findings — ouvrez l’inject pour tous les voir.",
+  "Fullscreen": "Plein écran",
+  "Exit fullscreen": "Quitter le plein écran"
 }

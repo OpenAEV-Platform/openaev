@@ -3459,5 +3459,7 @@
   "YYYY": "AAAA",
   "Zoom in": "Acercar",
   "Zoom out": "Alejar",
-  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all."
+  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all.",
+  "Fullscreen": "Fullscreen",
+  "Exit fullscreen": "Exit fullscreen"
 }
