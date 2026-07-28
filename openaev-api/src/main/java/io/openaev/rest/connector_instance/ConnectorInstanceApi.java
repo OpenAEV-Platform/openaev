@@ -3,6 +3,8 @@ package io.openaev.rest.connector_instance;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -40,6 +42,7 @@ public class ConnectorInstanceApi extends RestBehavior {
   private final ConnectorInstanceService connectorInstanceService;
   private final ConnectorInstanceLogService connectorInstanceLogService;
   private final ConnectorOrchestrationService orchestrationService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @PostMapping(value = {CONNECTOR_INSTANCE_URI, TENANT_CONNECTOR_INSTANCE_URI})
   @Transactional
@@ -194,8 +197,12 @@ public class ConnectorInstanceApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Successfully deleted connector instance")
       })
   public void deleteConnectorInstance(
-      TxCtx ctx, @PathVariable @NotBlank final String connectorInstanceId)
+      @RequireTenantSelector TxCtx ctx, @PathVariable @NotBlank final String connectorInstanceId)
       throws ConnectorStatusException {
+    // Enforce a single-tenant write scope (400 on ambiguous selector) before deleteById tears down
+    // the executor/collector/injector row it owns: those deletes rely on this method's ambient
+    // scope, not an explicit tenant predicate (see ConnectorInstanceService#deleteById).
+    writeScopeResolver.tenantForWrite(ctx, null);
     connectorInstanceService.deleteById(connectorInstanceId);
   }
 }
