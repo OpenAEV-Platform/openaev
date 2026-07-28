@@ -170,6 +170,33 @@ class ExecutorHttpIsolationTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "deleting with an ambiguous multi-tenant scope is refused (400), like"
+          + " CollectorApi.deleteCollector (#7007-style follow-up)")
+  void deleteWithAmbiguousScopeIsRejected() throws Exception {
+    mvc.perform(
+            delete("/api/executors/{executorId}", executorA)
+                .header("X-Tenant-Ids", tenantA + "," + tenantB)
+                .with(csrf()))
+        .andExpect(status().isBadRequest());
+
+    // Ground truth: the executor must survive an ambiguous-scope delete attempt
+    assertEquals(1L, rawCount(executorA), "A's executor must not have been deleted");
+  }
+
+  @Test
+  @DisplayName("deleting under a single-tenant header scope removes the executor")
+  void deleteWithSingleTenantHeaderScopeSucceeds() throws Exception {
+    mvc.perform(
+            delete("/api/executors/{executorId}", executorA)
+                .header("X-Tenant-Ids", tenantA)
+                .with(csrf()))
+        .andExpect(status().isOk());
+
+    assertEquals(0L, rawCount(executorA), "A's executor must have been deleted");
+  }
+
+  @Test
   @DisplayName("related-ids under tenant A's path: A's executor is visible")
   void relatedIdsUnderTenantA() throws Exception {
     mvc.perform(

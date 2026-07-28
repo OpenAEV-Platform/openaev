@@ -6,6 +6,7 @@ import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -169,8 +170,9 @@ public class ExecutorApi extends RestBehavior {
               + " an active executor re-registers on its next heartbeat. The agent executor drives"
               + " every agent and cannot be removed.")
   @Transactional(rollbackFor = Exception.class)
-  public void deleteExecutor(TxCtx ctx, @PathVariable String executorId)
+  public void deleteExecutor(@RequireTenantSelector TxCtx ctx, @PathVariable String executorId)
       throws ConnectorStatusException {
+    writeScopeResolver.tenantForWrite(ctx, null);
     executorRepository
         .findByExecutorId(executorId)
         .ifPresent(
