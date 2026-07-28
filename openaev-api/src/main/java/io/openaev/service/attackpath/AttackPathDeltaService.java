@@ -3,6 +3,7 @@ package io.openaev.service.attackpath;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow;
+import io.openaev.database.model.attackpath.projection.AttackPathEndpointAgentRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointTypeCountRow;
 import io.openaev.database.model.attackpath.projection.AttackPathExecutionRow;
@@ -165,9 +166,10 @@ public class AttackPathDeltaService {
 
   /**
    * Replaces, on the endpoints this delta touched, every value the partial rebuild could only have
-   * derived from a subset: the endpoint's worst-case colour, its per-type finding counts, and each
-   * incoming edge's execution count. Without this an endpoint that gained one prevented execution
-   * would flip to GREEN because the delta only saw that one row.
+   * derived from a subset: the endpoint's worst-case colour, its per-type finding counts, its agent
+   * list, and each incoming edge's execution count. Without this an endpoint that gained one
+   * prevented execution would flip to GREEN, and one that gained an execution from a second agent
+   * would shrink to that agent alone, because the delta only saw that one row.
    */
   private void recomputeAggregates(
       String simulationId,
@@ -198,6 +200,22 @@ public class AttackPathDeltaService {
       AttackPathNodeDTO node = nodesById.get(AttackPathIds.endpointNode(endpointKey));
       if (node != null) {
         node.setFindingCounts(countsByEndpoint.getOrDefault(endpointKey, Map.of()));
+      }
+    }
+
+    Map<String, List<String>> agentsByEndpoint = new LinkedHashMap<>();
+    for (AttackPathEndpointAgentRow row :
+        executionRepository.findEndpointAgentsByTargetKeys(simulationId, affectedEndpoints)) {
+      agentsByEndpoint
+          .computeIfAbsent(row.targetKey(), key -> new ArrayList<>())
+          .add(row.agentName());
+    }
+    // Same reasoning as the finding counts: every affected endpoint, so an endpoint that no longer
+    // has a named agent is told so rather than keeping the list a client already rendered.
+    for (String endpointKey : affectedEndpoints) {
+      AttackPathNodeDTO node = nodesById.get(AttackPathIds.endpointNode(endpointKey));
+      if (node != null) {
+        node.setAgents(agentsByEndpoint.getOrDefault(endpointKey, List.of()));
       }
     }
 

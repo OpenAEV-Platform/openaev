@@ -862,11 +862,15 @@ public class AttackPathGraphService {
         representative.targetHostname() != null && !representative.targetHostname().isBlank()
             ? representative.targetHostname()
             : targetKey);
+    // Sorted rather than left in row order: the rebuild reads its rows without an ORDER BY, so row
+    // order is not a stable property of the graph, and the delta recomputes this same list from its
+    // own grouped read (see AttackPathDeltaService#recomputeAggregates).
     node.setAgents(
         executions.stream()
             .map(AttackPathExecutionRow::agentName)
             .filter(Objects::nonNull)
             .distinct()
+            .sorted()
             .toList());
     node.setStatus(endpointColour(executions));
     return node;

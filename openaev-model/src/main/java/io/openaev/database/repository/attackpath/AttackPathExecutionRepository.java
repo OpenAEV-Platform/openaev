@@ -2,6 +2,7 @@ package io.openaev.database.repository.attackpath;
 
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow;
+import io.openaev.database.model.attackpath.projection.AttackPathEndpointAgentRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathExecutionRow;
 import io.openaev.database.model.attackpath.projection.AttackPathInjectorMetaRow;
@@ -237,6 +238,22 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId "
           + "AND e.targetKey IN :targetKeys GROUP BY e.targetKey")
   List<AttackPathEndpointGroupRow> findEndpointGroupsByTargetKeys(
+      @Param("simulationId") String simulationId,
+      @Param("targetKeys") Collection<String> targetKeys);
+
+  /**
+   * Delta read: the distinct agent names of the endpoints a delta touched, over ALL their
+   * executions. An endpoint node's agent list is a property of the whole endpoint, so a delta that
+   * derived it from the changed rows alone would shrink an already-rendered node's list down to the
+   * one agent that just ran. Ordered, so the recomputed list is byte-identical to a snapshot's.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointAgentRow("
+          + "e.targetKey, e.agentName) "
+          + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId "
+          + "AND e.targetKey IN :targetKeys AND e.agentName IS NOT NULL "
+          + "GROUP BY e.targetKey, e.agentName ORDER BY e.targetKey, e.agentName")
+  List<AttackPathEndpointAgentRow> findEndpointAgentsByTargetKeys(
       @Param("simulationId") String simulationId,
       @Param("targetKeys") Collection<String> targetKeys);
 
