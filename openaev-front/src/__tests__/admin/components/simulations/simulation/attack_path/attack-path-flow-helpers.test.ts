@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildKillChainMeta, maskFindingValue } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildKillChainMeta, friendlyNodeId, maskFindingValue } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 // Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
@@ -154,6 +154,24 @@ describe('applyFindingFilter', () => {
   it('dims every node when no node matches the filter', () => {
     const { nodes } = applyFindingFilter(base.nodes, base.edges, ['cve']);
     expect(nodes.every(n => n.data.dimmed === true)).toBe(true);
+  });
+});
+
+describe('friendlyNodeId', () => {
+  it('shows just the injector name for a per-contract injector id (drops the contract uuid)', () => {
+    expect(friendlyNodeId('NODE_INJECTOR|NetExec|8f3c-contract-uuid')).toBe('NetExec');
+  });
+
+  it('keeps the plain injector name for a contractless (2-segment) injector id', () => {
+    expect(friendlyNodeId('NODE_INJECTOR|Nmap')).toBe('Nmap');
+  });
+
+  it('keeps the full key for non-injector nodes (endpoints)', () => {
+    expect(friendlyNodeId('NODE_ENDPOINT|10.0.0.1')).toBe('10.0.0.1');
+  });
+
+  it('returns an empty string for an undefined id', () => {
+    expect(friendlyNodeId(undefined)).toBe('');
   });
 });
 
@@ -570,10 +588,11 @@ describe('buildCausalChainFlow', () => {
     expect(causal[0].data?.causalKind).toBe('finding');
   });
 
-  it('collapses N findings matching one consumed key into a single causal edge (legibility on hub endpoints)', () => {
+  it('converges N matching findings into the consumer with a single label (Option A grouping)', () => {
     // A hub endpoint yields THREE shares (native "file" type since #6972); NetExec's event consumes
-    // `share_name IS_NOT_NULL`, which reconciles to `file` and matches every one of them. Without dedup that
-    // stacks three identical "Triggered …" labels over the consumer. We must draw exactly ONE causal edge.
+    // `share_name IS_NOT_NULL`, which reconciles to `file` and matches every one of them. We draw the fan-in
+    // (one grey edge per finding, so the grouping is visible) but label only ONE — three stacked "Triggered …"
+    // labels over the consumer was the original illegibility.
     const hub: AttackPathDTO = {
       ...chainDto,
       attackPathNodes: [
@@ -626,10 +645,120 @@ describe('buildCausalChainFlow', () => {
     };
     const { edges } = buildCausalChainFlow(hub, tt);
     const causal = edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE);
+    // One grey edge per produced file (the fan-in), all targeting the consumer.
+    expect(causal).toHaveLength(3);
+    expect(causal.every(e => e.target === 'inj-smb')).toBe(true);
+    expect(causal.every(e => /^NODE_FINDING\|file\|/.test(e.source ?? ''))).toBe(true);
+    expect(causal.every(e => e.data?.causalKind === 'finding')).toBe(true);
+    // …but only ONE of them carries the "Triggered …" label.
+    expect(causal.filter(e => e.data?.label).length).toBe(1);
+  });
+
+  it('anchors the causal edge on the finding of the resolved producer, not another injector sharing the type', () => {
+    // Two injectors each produce a `file` finding; a consumer whose event `share_name IS_NOT_NULL` matches
+    // BOTH depends (dependsOn, #6985) only on producer A. The edge must anchor on A's finding, never B's.
+    const twoProducers: AttackPathDTO = {
+      ...chainDto,
+      attackPathNodes: [
+        {
+          id: 'inj-A',
+          type: 'INJECTOR',
+          label: 'A',
+        },
+        {
+          id: 'inj-B',
+          type: 'INJECTOR',
+          label: 'B',
+        },
+        {
+          id: 'inj-C',
+          type: 'INJECTOR',
+          label: 'C',
+        },
+        {
+          id: 'ep-1',
+          type: 'ASSET',
+          label: 'EP1',
+          ip: '10.0.0.1',
+        },
+        {
+          id: 'ep-2',
+          type: 'ASSET',
+          label: 'EP2',
+          ip: '10.0.0.2',
+        },
+        {
+          id: 'NODE_FINDING|file|shareA',
+          type: 'FINDING',
+          typeFindings: 'file',
+          value: 'shareA',
+          label: 'shareA',
+        },
+        {
+          id: 'NODE_FINDING|file|shareB',
+          type: 'FINDING',
+          typeFindings: 'file',
+          value: 'shareB',
+          label: 'shareB',
+        },
+      ],
+      attackPathExecutions: [
+        {
+          id: 'xA',
+          type: 'EXECUTION',
+          ref: 'exec-A',
+          stepTemplateId: 'step-A',
+          findingsNodeIds: ['NODE_FINDING|file|shareA'],
+          dependsOn: [],
+        },
+        {
+          id: 'xB',
+          type: 'EXECUTION',
+          ref: 'exec-B',
+          stepTemplateId: 'step-B',
+          findingsNodeIds: ['NODE_FINDING|file|shareB'],
+          dependsOn: [],
+        },
+        {
+          id: 'xC',
+          type: 'EXECUTION',
+          ref: 'exec-C',
+          stepTemplateId: 'step-C',
+          consumedFindingKeys: [{
+            keyType: 'share_name',
+            operator: 'IS_NOT_NULL',
+            value: null as unknown as string,
+            eventName: 'SHARE',
+          }],
+          dependsOn: ['step-A'],
+        },
+      ],
+      attackPathEdges: [
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'inj-A',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-A'],
+        },
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'inj-B',
+          edgeTargetId: 'ep-2',
+          executionIds: ['exec-B'],
+        },
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'inj-C',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-C'],
+        },
+      ],
+    };
+    const { edges } = buildCausalChainFlow(twoProducers, tt);
+    const causal = edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE && e.data?.causalKind === 'finding');
     expect(causal).toHaveLength(1);
-    expect(causal[0].target).toBe('inj-smb');
-    expect(causal[0].source).toMatch(/^NODE_FINDING\|file\|/);
-    expect(causal[0].data?.causalKind).toBe('finding');
+    expect(causal[0].target).toBe('inj-C');
+    expect(causal[0].source).toBe('NODE_FINDING|file|shareA');
   });
 
   it('merges same-depth injectors hitting the same asset onto one shared endpoint node', () => {
