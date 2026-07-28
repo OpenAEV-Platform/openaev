@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
@@ -16,6 +17,7 @@ import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
+import io.openaev.service.attackpath.dto.AttackPathCounters;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathDeltaDTO;
 import io.openaev.service.attackpath.dto.AttackPathEdges;
@@ -45,6 +47,10 @@ import org.springframework.transaction.annotation.Transactional;
  * produce a state a full reload would not, the front shows a graph that never existed, and no
  * amount of polling fixes it. Equivalence is checked on the serialized entities keyed by id, so it
  * covers the field set too, not just which nodes exist.
+ *
+ * <p>"snapshot" here means the state a client actually holds after a read — the collapsed seed with
+ * the full graph merged over it — not one of the two reads alone; see {@link #clientState()} for
+ * why that distinction is load-bearing rather than incidental.
  *
  * <p>The rows are written the way a real writer writes them (bump the version, stamp it on the rows
  * of that write) rather than through the run pipeline: this test is about the read contract, and
@@ -81,14 +87,14 @@ class AttackPathDeltaApiTest extends IntegrationTest {
   @DisplayName("given a graph that grew, applying the delta yields the same state as a full reload")
   void given_a_grown_graph_should_make_snapshot_plus_delta_equal_the_new_snapshot() {
     long v1 = write(() -> executionOn("dc-01", "nmap", null));
-    AttackPathDTO atV1 = snapshot();
+    ClientState atV1 = clientState();
 
     write(
         () -> {
           AttackPathExecution execution = executionOn("dc-02", "hydra", "Not Prevented");
           findingOn(execution, "credentials", "admin:secret");
         });
-    AttackPathDTO atV2 = snapshot();
+    ClientState atV2 = clientState();
 
     AttackPathDeltaDTO delta = deltaSince(v1);
 
@@ -110,10 +116,10 @@ class AttackPathDeltaApiTest extends IntegrationTest {
         writeReturning(
             () -> findingOn(executionOn("dc-01", "nmap", null), "credentials", "admin:secret"));
     long v1 = currentVersion();
-    AttackPathDTO atV1 = snapshot();
+    ClientState atV1 = clientState();
 
     write(() -> relinkFinding(finding, executionOn("dc-01", "hydra", null)));
-    AttackPathDTO atV2 = snapshot();
+    ClientState atV2 = clientState();
 
     assertThatApplyingEquals(atV1, deltaSince(v1), atV2);
   }
@@ -146,7 +152,7 @@ class AttackPathDeltaApiTest extends IntegrationTest {
   @DisplayName("given the same delta applied twice, the state is the same as applying it once")
   void given_a_delta_applied_twice_should_equal_applying_it_once() {
     long v1 = write(() -> executionOn("dc-01", "nmap", null));
-    AttackPathDTO atV1 = snapshot();
+    ClientState atV1 = clientState();
     write(() -> executionOn("dc-02", "nmap", null));
 
     AttackPathDeltaDTO delta = deltaSince(v1);
@@ -232,6 +238,25 @@ class AttackPathDeltaApiTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "given a second agent on an endpoint, the delta keeps the endpoint's whole agent list")
+  void given_a_second_agent_should_recompute_the_endpoint_agents_over_all_its_executions() {
+    // Same shape as the colour recompute above, for the other aggregate an endpoint node carries.
+    // The delta only sees the hydra row, so a list derived from the changed rows alone would ship
+    // one agent and shrink an already-rendered node from two to one.
+    write(() -> executionOn("dc-01", "nmap", null));
+    long v1 = currentVersion();
+    write(() -> executionOn("dc-01", "hydra", null));
+
+    AttackPathNodeDTO endpoint =
+        deltaSince(v1).attackPathNodes().stream()
+            .filter(node -> "dc-01".equals(node.getRef()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(endpoint.getAgents()).containsExactly("agent-hydra", "agent-nmap");
+  }
+
+  @Test
   @DisplayName("the delta endpoint is reachable and reports the simulation's current version")
   void the_delta_endpoint_returns_the_current_version() throws Exception {
     long version = write(() -> executionOn("dc-01", "nmap", null));
@@ -248,34 +273,71 @@ class AttackPathDeltaApiTest extends IntegrationTest {
   // -- the property, and the client-side reducer it is stated against --
 
   /**
-   * The client's reducer, in the simplest form the contract allows: upsert every entity by its id,
-   * replacing whole. If the property holds against THIS, it holds against any faithful client.
+   * What a client holds at one version: the entities it has accumulated, keyed by kind and id, plus
+   * the counters it last received.
    */
-  private Map<String, JsonNode> apply(AttackPathDTO base, AttackPathDeltaDTO... deltas) {
+  private record ClientState(Map<String, JsonNode> entities, AttackPathCounters counters) {}
+
+  /**
+   * The state a faithful client holds after reading a version, which is what FR4's equivalence is
+   * stated against: the COLLAPSED snapshot it seeds from, with the FULL snapshot merged on top.
+   * That is literally what the front does — {@code fromSnapshot} then {@code withFullSnapshot} in
+   * {@code attack-path-delta-store.ts} — and it is the reference on purpose rather than the full
+   * snapshot alone.
+   *
+   * <p>One delta stream feeds BOTH projections (the store derives {@code toCollapsedDto} and {@code
+   * toFullDto} from one accumulated graph), so a delta's ASSET node deliberately carries the UNION
+   * of the two shapes' fields: the causal fields the full graph needs, and the per-type {@code
+   * findingCounts} the collapsed map renders from. Compared against the full snapshot alone, those
+   * counts would look like something only the delta invents; compared against the state the client
+   * really holds, they are the field it seeded with, recomputed.
+   */
+  private ClientState clientState() {
+    AttackPathDTO collapsed = collapsedSnapshot();
+    AttackPathDTO full = snapshot();
     Map<String, JsonNode> state = new LinkedHashMap<>();
-    index(state, "node", base.attackPathNodes(), AttackPathNodeDTO::getId);
-    index(state, "edge", base.attackPathEdges(), AttackPathEdges::getEdgeId);
-    index(state, "exec", base.attackPathExecutions(), AttackPathNodeDTO::getId);
-    index(state, "finding", base.staticAttackPathFindings(), AttackPathNodeDTO::getId);
+    merge(state, "node", collapsed.attackPathNodes(), AttackPathNodeDTO::getId);
+    merge(state, "edge", collapsed.attackPathEdges(), AttackPathEdges::getEdgeId);
+    merge(state, "node", full.attackPathNodes(), AttackPathNodeDTO::getId);
+    merge(state, "edge", full.attackPathEdges(), AttackPathEdges::getEdgeId);
+    merge(state, "exec", full.attackPathExecutions(), AttackPathNodeDTO::getId);
+    merge(state, "finding", full.staticAttackPathFindings(), AttackPathNodeDTO::getId);
+    return new ClientState(state, full.counters());
+  }
+
+  /**
+   * The client's reducer: upsert every entity by its id, merging field by field. Merging rather
+   * than replacing is the store's actual contract (see {@code upsert} in {@code
+   * attack-path-delta-store.ts}) and the reason the two projections can share one stream.
+   */
+  private Map<String, JsonNode> apply(ClientState base, AttackPathDeltaDTO... deltas) {
+    Map<String, JsonNode> state = new LinkedHashMap<>(base.entities());
     for (AttackPathDeltaDTO delta : deltas) {
-      index(state, "node", delta.attackPathNodes(), AttackPathNodeDTO::getId);
-      index(state, "edge", delta.attackPathEdges(), AttackPathEdges::getEdgeId);
-      index(state, "exec", delta.attackPathExecutions(), AttackPathNodeDTO::getId);
-      index(state, "finding", delta.staticAttackPathFindings(), AttackPathNodeDTO::getId);
+      merge(state, "node", delta.attackPathNodes(), AttackPathNodeDTO::getId);
+      merge(state, "edge", delta.attackPathEdges(), AttackPathEdges::getEdgeId);
+      merge(state, "exec", delta.attackPathExecutions(), AttackPathNodeDTO::getId);
+      merge(state, "finding", delta.staticAttackPathFindings(), AttackPathNodeDTO::getId);
     }
     return state;
   }
 
   private void assertThatApplyingEquals(
-      AttackPathDTO base, AttackPathDeltaDTO delta, AttackPathDTO expected) {
-    assertThat(apply(base, delta)).isEqualTo(apply(expected));
+      ClientState base, AttackPathDeltaDTO delta, ClientState expected) {
+    assertThat(apply(base, delta)).isEqualTo(expected.entities());
     assertThat(delta.counters()).isEqualTo(expected.counters());
   }
 
-  private <T> void index(
+  private <T> void merge(
       Map<String, JsonNode> state, String kind, List<T> entities, Function<T, String> id) {
     entities.forEach(
-        entity -> state.put(kind + '#' + id.apply(entity), objectMapper.valueToTree(entity)));
+        entity -> {
+          String key = kind + '#' + id.apply(entity);
+          ObjectNode incoming = objectMapper.valueToTree(entity);
+          JsonNode existing = state.get(key);
+          state.put(
+              key,
+              existing == null ? incoming : ((ObjectNode) existing.deepCopy()).setAll(incoming));
+        });
   }
 
   // -- fixtures: a writer's bump-and-stamp, without the run pipeline --
@@ -302,12 +364,21 @@ class AttackPathDeltaApiTest extends IntegrationTest {
 
   private long pendingVersion;
 
+  /**
+   * An execution on an endpoint, run by an agent named after its injector. The agent name is part
+   * of the fixture rather than left null on purpose: the endpoint node's {@code agents} list is an
+   * aggregate over ALL the endpoint's executions, so it is one of the values a delta carrying a
+   * subset of rows cannot derive, and without a name in the fixture the list is empty on both sides
+   * and a regression there would go unseen.
+   */
   private AttackPathExecution executionOn(String targetKey, String injector, String prevention) {
     AttackPathExecution execution = new AttackPathExecution();
     execution.setTenant(tenant);
     execution.setSimulationId(SIM);
     execution.setSourceKind("INJECTOR");
     execution.setSourceInjector(injector);
+    execution.setAgentId("agent-" + injector + '-' + targetKey);
+    execution.setAgentName("agent-" + injector);
     execution.setTargetKind("ASSET");
     execution.setTargetAssetId(targetKey);
     execution.setTargetKey(targetKey);
@@ -355,6 +426,12 @@ class AttackPathDeltaApiTest extends IntegrationTest {
     entityManager.flush();
     // The read path's order: the version first, then the rows (see AttackPathApi#graph).
     return graphService.buildGraph(SIM, "full", currentVersion());
+  }
+
+  /** The read a client actually seeds and resyncs from (see {@link #clientState()}). */
+  private AttackPathDTO collapsedSnapshot() {
+    entityManager.flush();
+    return graphService.buildGraph(SIM, "collapsed", currentVersion());
   }
 
   private long currentVersion() {
