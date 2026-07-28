@@ -162,6 +162,7 @@
   "Add media pressure": "Добавить давление среды",
   "Add media pressure in this inject": "Добавьте давление в прессу при этом",
   "Add multiple items at once by separating them with commas.": "Добавляйте сразу несколько элементов, разделяя их запятыми.",
+  "For IPv4 subnets, only /24 or narrower are expanded, with a maximum of 256 IPs per subnet.": "Для IPv4-подсетей расширяются только /24 и более узкие, максимум 256 IP на подсеть.",
   "Add parent": "Добавить родителя",
   "Add players in this team": "Добавить игроков в эту команду",
   "Add schedule": "Add schedule",

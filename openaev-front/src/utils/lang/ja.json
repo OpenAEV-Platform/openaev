@@ -162,6 +162,7 @@
   "Add media pressure": "メディアプレッシャーを追加",
   "Add media pressure in this inject": "このインジェクトにメディアプレッシャーを追加する",
   "Add multiple items at once by separating them with commas.": "カンマ区切りで複数の項目を一度に追加できます。",
+  "For IPv4 subnets, only /24 or narrower are expanded, with a maximum of 256 IPs per subnet.": "IPv4サブネットは /24 以上（/24, /25 ...）のみ展開され、1サブネットあたり最大256IPまでです。",
   "Add parent": "親を追加",
   "Add players in this team": "このチームにプレイヤーを追加する",
   "Add schedule": "Add schedule",

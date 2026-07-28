@@ -162,6 +162,7 @@
   "Add media pressure": "미디어 압력 추가",
   "Add media pressure in this inject": "이 인젝트에 미디어 압력 추가",
   "Add multiple items at once by separating them with commas.": "쉼표로 구분하여 한 번에 여러 항목을 추가합니다.",
+  "For IPv4 subnets, only /24 or narrower are expanded, with a maximum of 256 IPs per subnet.": "IPv4 서브넷은 /24 또는 그보다 좁은 범위만 확장되며, 서브넷당 최대 256개 IP까지만 지원됩니다.",
   "Add parent": "부모 추가",
   "Add players in this team": "이 팀에 선수 추가",
   "Add schedule": "Add schedule",
