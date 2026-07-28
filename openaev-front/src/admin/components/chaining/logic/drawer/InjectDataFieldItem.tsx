@@ -2,10 +2,10 @@ import { KeyboardArrowDown, LinkOff, LinkOutlined } from '@mui/icons-material';
 import {
   Box,
   Button,
+  ClickAwayListener,
   FormControl,
   IconButton,
   InputLabel,
-  Menu,
   MenuItem,
   Select,
   Switch,
@@ -13,11 +13,10 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { type FunctionComponent, type MouseEvent, useMemo, useState } from 'react';
+import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 
 import AutocompleteField from '../../../../../components/fields/AutocompleteField';
 import { useFormatter } from '../../../../../components/i18n';
-import type { Option } from '../../../../../utils/Option';
 import { formatPrimitiveTypeLabel } from '../../../../../utils/String';
 import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 
@@ -27,6 +26,7 @@ export interface FieldLink {
 }
 
 interface Props {
+  panelOpen?: boolean;
   fieldKey: string;
   fieldLabel: string;
   value: string;
@@ -42,6 +42,7 @@ interface Props {
 }
 
 const InjectDataFieldItem: FunctionComponent<Props> = ({
+  panelOpen = true,
   fieldKey,
   fieldLabel,
   value,
@@ -58,20 +59,11 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const { argumentTypes } = useArgumentTypes();
 
-  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [isTypeSelectorOpen, setIsTypeSelectorOpen] = useState(false);
 
   const menuItems = useMemo(
     () => (argumentTypes.length > 0 ? argumentTypes : ['text']),
     [argumentTypes],
-  );
-
-  const linkTypeOptions = useMemo<Option[]>(
-    () =>
-      menuItems.map(item => ({
-        id: item,
-        label: t(formatPrimitiveTypeLabel(item)),
-      })),
-    [menuItems, t],
   );
 
   const normalizedLinkOutputTypes = useMemo(() => {
@@ -79,20 +71,27 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
     return link.outputTypes ?? [];
   }, [link]);
 
-  const openTypeMenu = (event: MouseEvent<HTMLElement>) => {
-    setMenuAnchor(event.currentTarget);
-  };
-
-  const handleCloseMenu = () => {
-    setMenuAnchor(null);
-  };
+  const openTypeSelector = () => setIsTypeSelectorOpen(prev => !prev);
+  const closeTypeSelector = () => setIsTypeSelectorOpen(false);
 
   const handleOutputTypesChange = (nextOutputTypes: string[]) => {
+    if (nextOutputTypes.length === 0) {
+      closeTypeSelector();
+      onUnlink(fieldKey);
+      return;
+    }
+
     onLink(fieldKey, {
-      outputTypes: nextOutputTypes.length > 0 ? nextOutputTypes : ['text'],
+      outputTypes: nextOutputTypes,
       localScope: link?.localScope ?? false,
     });
   };
+
+  useEffect(() => {
+    if (!panelOpen) {
+      closeTypeSelector();
+    }
+  }, [panelOpen]);
 
   return (
     <Box
@@ -155,7 +154,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
                   variant="text"
                   color="primary"
                   endIcon={<KeyboardArrowDown />}
-                  onClick={openTypeMenu}
+                  onClick={openTypeSelector}
                 >
                   {t('Edit links')}
                 </Button>
@@ -218,7 +217,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
               variant="text"
               color="primary"
               endIcon={<KeyboardArrowDown />}
-              onClick={openTypeMenu}
+              onClick={openTypeSelector}
               sx={{
                 whiteSpace: 'nowrap',
                 textTransform: 'none',
@@ -231,30 +230,39 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
         </Box>
       )}
 
-      <Menu
-        anchorEl={menuAnchor}
-        open={Boolean(menuAnchor)}
-        onClose={handleCloseMenu}
-      >
-        <Box
-          sx={{
-            width: 320,
-            px: 1.5,
-            py: 1,
-          }}
-        >
-          <AutocompleteField
-            label={t('Primitive types')}
-            variant="standard"
-            multiple
-            disableCloseOnSelect
-            options={linkTypeOptions}
-            value={normalizedLinkOutputTypes.filter(type => menuItems.includes(type))}
-            onInputChange={() => {}}
-            onChange={handleOutputTypesChange}
-          />
-        </Box>
-      </Menu>
+      {isTypeSelectorOpen && (
+        <ClickAwayListener onClickAway={closeTypeSelector}>
+          <Box
+            sx={{
+              width: 320,
+              px: 1.5,
+              py: 1,
+              ml: 'auto',
+            }}
+          >
+            <AutocompleteField
+              label={t('Primitive types')}
+              variant="standard"
+              multiple
+              options={menuItems.map(type => ({
+                id: type,
+                label: t(formatPrimitiveTypeLabel(type)),
+              }))}
+              value={normalizedLinkOutputTypes.filter(type => menuItems.includes(type))}
+              onInputChange={() => {}}
+              onChange={(nextOutputTypes) => {
+                if (nextOutputTypes.length === 0) {
+                  closeTypeSelector();
+                  onUnlink(fieldKey);
+                  return;
+                }
+                handleOutputTypesChange(nextOutputTypes);
+                closeTypeSelector();
+              }}
+            />
+          </Box>
+        </ClickAwayListener>
+      )}
     </Box>
   );
 };

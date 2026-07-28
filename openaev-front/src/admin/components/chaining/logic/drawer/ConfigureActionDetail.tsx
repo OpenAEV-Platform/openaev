@@ -282,6 +282,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
           <ActionScopeChips isPayload={isPayload} validAssets={validAssets} />
 
           <ActionInjectData
+            panelOpen={open}
             loading={loadingContract}
             fields={inputArgumentFields}
             fieldValues={fieldValues}
