@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildKillChainMeta, friendlyNodeId, maskFindingValue } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildKillChainMeta, friendlyNodeId, maskFindingValue, pivotEndpointIds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 // Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
@@ -172,6 +172,44 @@ describe('friendlyNodeId', () => {
 
   it('returns an empty string for an undefined id', () => {
     expect(friendlyNodeId(undefined)).toBe('');
+  });
+});
+
+describe('pivotEndpointIds', () => {
+  it('flags an endpoint that is both an EDGE_EXECUTIONS source and target as a pivot', () => {
+    const pivots = pivotEndpointIds([
+      {
+        type: 'EDGE_EXECUTIONS',
+        edgeSourceId: 'NODE_INJECTOR|nmap',
+        edgeTargetId: 'NODE_ENDPOINT|a',
+      },
+      {
+        type: 'EDGE_EXECUTIONS',
+        edgeSourceId: 'NODE_ENDPOINT|a',
+        edgeTargetId: 'NODE_ENDPOINT|b',
+      },
+    ]);
+    expect([...pivots]).toEqual(['NODE_ENDPOINT|a']);
+  });
+
+  it('never flags a plain target or a source-only endpoint (injector→asset only)', () => {
+    expect(pivotEndpointIds([
+      {
+        type: 'EDGE_EXECUTIONS',
+        edgeSourceId: 'NODE_INJECTOR|nmap',
+        edgeTargetId: 'NODE_ENDPOINT|a',
+      },
+    ]).size).toBe(0);
+  });
+
+  it('ignores non-EDGE_EXECUTIONS edges', () => {
+    expect(pivotEndpointIds([
+      {
+        type: 'EDGE_FINDINGS_TYPE_FINDING',
+        edgeSourceId: 'NODE_ENDPOINT|a',
+        edgeTargetId: 'NODE_ENDPOINT|a',
+      },
+    ]).size).toBe(0);
   });
 });
 

@@ -79,6 +79,9 @@ export interface AttackPathFlowNodeData {
   // For an endpoint (ASSET) node: its 1-based rank among the top chokepoints (most findings), used to
   // badge the most-exposed endpoints. Absent when the endpoint is not a top chokepoint.
   chokepointRank?: number;
+  // For an endpoint (ASSET) node: it is a pivot (both attacked and used as an attack source, i.e. an
+  // AGENT_ASSET source that is also a target), so the tooltip flags lateral movement through it.
+  isPivot?: boolean;
   dimmed?: boolean;
   // Aggregate cluster nodes: the endpoint count (endpoint cluster) or finding count (finding cluster).
   count?: number;
@@ -703,6 +706,38 @@ export const friendlyNodeId = (raw?: string): string => {
     return stripped.split('|')[0];
   }
   return stripped;
+};
+
+// A pivot endpoint is an ASSET both attacked and used as an attack source (an AGENT_ASSET source that is
+// also a target), so its node id is BOTH an EDGE_EXECUTIONS source and target. Injector sources are never
+// targets, so the source∩target intersection is exactly the pivot assets.
+export const pivotEndpointIds = (
+  edges: {
+    type?: string;
+    edgeSourceId?: string;
+    edgeTargetId?: string;
+  }[],
+): Set<string> => {
+  const sources = new Set<string>();
+  const targets = new Set<string>();
+  for (const e of edges) {
+    if (e.type !== EDGE_EXECUTIONS) {
+      continue;
+    }
+    if (e.edgeSourceId) {
+      sources.add(e.edgeSourceId);
+    }
+    if (e.edgeTargetId) {
+      targets.add(e.edgeTargetId);
+    }
+  }
+  const pivots = new Set<string>();
+  sources.forEach((s) => {
+    if (targets.has(s)) {
+      pivots.add(s);
+    }
+  });
+  return pivots;
 };
 
 // Human-readable plural noun for a finding type, used to give contextual cluster edges a label with

@@ -2373,6 +2373,7 @@
   "Phone number must start with + and contain only digits": "电话号码必须以 + 开头，且只包含数字",
   "phone_number_tooltip": "电话号码应以加号 ( + )开头. 它可以包含空格、连字符( - ) 或括号.",
   "Pipe": "管道",
+  "Pivot node": "Pivot node",
   "Planning": "计划",
   "Platform": "平台",
   "Platform connected": "平台已连接",

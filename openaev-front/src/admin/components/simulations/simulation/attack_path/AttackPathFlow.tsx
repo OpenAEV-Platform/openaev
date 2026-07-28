@@ -13,6 +13,7 @@ import {
 import { useEffect } from 'react';
 
 import { AP_FLOW_NODE_TYPE, type AttackPathFlowEdge, type AttackPathFlowNode, type AttackPathFlowNodeData } from './attack-path-flow-helpers';
+import EndpointActionContext from './attack-path-node-context';
 import edgeTypes from './edges';
 import nodeTypes from './nodes';
 
@@ -94,57 +95,59 @@ const AttackPathFlow = ({
   }, [fitRequest, reactFlow]);
 
   return (
-    <ReactFlow
-      nodes={flowNodes}
-      edges={flowEdges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onNodeClick={(_, node) => {
-        const data = node.data as AttackPathFlowNodeData;
-        if (node.type === AP_FLOW_NODE_TYPE.asset) {
-          onEndpointClick?.(node.id, data.ref, data.label);
-        } else if (node.type === AP_FLOW_NODE_TYPE.endpointCluster && data.injectorId) {
-          onClusterClick?.(data.injectorId, data.clusterKind === 'overflow' ? 'overflow' : 'header');
-        } else if (node.type === AP_FLOW_NODE_TYPE.findingCluster && data.clusterId) {
-          onFindingClusterClick?.(data.clusterId, data.typeFindings, data.injectorId, data.endpointRef, data.clusterKind === 'overflow' ? 'overflow' : 'header');
-        } else if (node.type === AP_FLOW_NODE_TYPE.finding) {
-          onFindingSelect?.(node.id, data.typeFindings, data.label, data.assetNodeId);
-        } else if (node.type === AP_FLOW_NODE_TYPE.injector) {
-          onInjectorSelect?.(node.id, data.label);
-        }
-      }}
-      nodeTypes={nodeTypes}
-      edgeTypes={edgeTypes}
-      proOptions={proOptions}
-      fitView
-      minZoom={0.05}
-      // Follow the app theme so the canvas is not the default white; dark theme gives the dark
-      // navy background the graph is designed for.
-      colorMode={theme.palette.mode}
-      // Cull off-screen nodes: a large collapsed graph is hundreds of endpoints, so only paint the
-      // ones in the viewport to keep pan/zoom responsive.
-      onlyRenderVisibleElements
-      style={{ background: 'transparent' }}
-      defaultEdgeOptions={{ type: 'apGrouped' }}
-    >
-      <Background bgColor={theme.palette.background.default} color={theme.palette.divider} gap={24} />
-      <Controls position="top-left" />
-      {showMiniMap && (
-        <MiniMap
-          position="bottom-right"
-          pannable
-          zoomable
-          style={{
-            width: 130,
-            height: 90,
-            background: theme.palette.background.paper,
-            border: `1px solid ${theme.palette.divider}`,
-          }}
-          maskColor={`${theme.palette.background.default}80`}
-          nodeColor={theme.palette.primary.main}
-        />
-      )}
-    </ReactFlow>
+    <EndpointActionContext.Provider value={onEndpointClick}>
+      <ReactFlow
+        nodes={flowNodes}
+        edges={flowEdges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={(_, node) => {
+          const data = node.data as AttackPathFlowNodeData;
+          if (node.type === AP_FLOW_NODE_TYPE.asset) {
+            onEndpointClick?.(node.id, data.ref, data.label);
+          } else if (node.type === AP_FLOW_NODE_TYPE.endpointCluster && data.injectorId) {
+            onClusterClick?.(data.injectorId, data.clusterKind === 'overflow' ? 'overflow' : 'header');
+          } else if (node.type === AP_FLOW_NODE_TYPE.findingCluster && data.clusterId) {
+            onFindingClusterClick?.(data.clusterId, data.typeFindings, data.injectorId, data.endpointRef, data.clusterKind === 'overflow' ? 'overflow' : 'header');
+          } else if (node.type === AP_FLOW_NODE_TYPE.finding) {
+            onFindingSelect?.(node.id, data.typeFindings, data.label, data.assetNodeId);
+          } else if (node.type === AP_FLOW_NODE_TYPE.injector) {
+            onInjectorSelect?.(node.id, data.label);
+          }
+        }}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        proOptions={proOptions}
+        fitView
+        minZoom={0.05}
+        // Follow the app theme so the canvas is not the default white; dark theme gives the dark
+        // navy background the graph is designed for.
+        colorMode={theme.palette.mode}
+        // Cull off-screen nodes: a large collapsed graph is hundreds of endpoints, so only paint the
+        // ones in the viewport to keep pan/zoom responsive.
+        onlyRenderVisibleElements
+        style={{ background: 'transparent' }}
+        defaultEdgeOptions={{ type: 'apGrouped' }}
+      >
+        <Background bgColor={theme.palette.background.default} color={theme.palette.divider} gap={24} />
+        <Controls position="top-left" />
+        {showMiniMap && (
+          <MiniMap
+            position="bottom-right"
+            pannable
+            zoomable
+            style={{
+              width: 130,
+              height: 90,
+              background: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+            }}
+            maskColor={`${theme.palette.background.default}80`}
+            nodeColor={theme.palette.primary.main}
+          />
+        )}
+      </ReactFlow>
+    </EndpointActionContext.Provider>
   );
 };
 

@@ -2373,6 +2373,7 @@
   "Phone number must start with + and contain only digits": "Il numero di telefono deve iniziare con + e deve contenere solo cifre",
   "phone_number_tooltip": "Il numero di telefono deve iniziare con un segno più ( + ). Può contenere spazi bianchi, trattini ( - ) o parentesi.",
   "Pipe": "Tubo",
+  "Pivot node": "Pivot node",
   "Planning": "Pianificazione",
   "Platform": "Piattaforma",
   "Platform connected": "Piattaforma collegata",
