@@ -1,6 +1,6 @@
 import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, FullscreenExitOutlined, FullscreenOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LabelOutlined, LocalFireDepartment, PlayArrowOutlined, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
 import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, IconButton, Pagination, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -2391,17 +2391,24 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                   <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 0.5 }}>
                     {t('A chokepoint is the endpoint where fixing findings closes the most attack paths. The score weights an endpoint\'s findings by its business criticality, so a critical host outranks a noisier but less important one.')}
                   </Typography>
+                  {/* Formula box styled like the asset posture-score explainer for a consistent look. */}
                   <Box sx={{
                     mt: 1,
-                    p: 0.75,
+                    p: 1,
                     borderRadius: 1,
-                    backgroundColor: alpha(chokepointColor, 0.12),
+                    background: theme.palette.action.hover,
+                    border: `1px solid ${theme.palette.divider}`,
                     fontFamily: 'monospace',
-                    fontSize: 12,
+                    fontSize: 13,
                     textAlign: 'center',
+                    color: 'text.primary',
                   }}
                   >
-                    {t('score = findings × criticality weight')}
+                    {t('score')}
+                    {' = '}
+                    <Box component="span">{t('findings')}</Box>
+                    {' × '}
+                    <Box component="span">{t('criticality weight')}</Box>
                   </Box>
                   <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
                     {t('Criticality weight')}

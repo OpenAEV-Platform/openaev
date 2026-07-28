@@ -3461,5 +3461,6 @@
   "Zoom out": "축소",
   "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all.",
   "Fullscreen": "Fullscreen",
-  "Exit fullscreen": "Exit fullscreen"
+  "Exit fullscreen": "Exit fullscreen",
+  "criticality weight": "criticality weight"
 }
