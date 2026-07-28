@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.audit_log.AuditEvent;
 import io.openaev.aop.audit_log.AuditEventOrigin;
 import io.openaev.aop.audit_log.AuditEventScope;
@@ -30,6 +31,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Inject status execution-time resolution")
@@ -90,6 +92,8 @@ class InjectStatusServiceTest {
       @Mock private ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
       @Mock private AuditLogger auditLogger;
       @Mock private EntityManager entityManager;
+      @Mock private ObjectMapper objectMapper;
+      @Mock private ApplicationEventPublisher eventPublisher;
 
       private InjectStatusService injectStatusService;
 
@@ -104,6 +108,8 @@ class InjectStatusServiceTest {
                 injectStatusRepository,
                 executionTraceRepositoryHelper,
                 Optional.of(auditLogger),
+                eventPublisher,
+                objectMapper,
                 entityManager);
       }
 
