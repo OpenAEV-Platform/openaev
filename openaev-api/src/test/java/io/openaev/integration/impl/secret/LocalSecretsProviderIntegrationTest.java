@@ -3,6 +3,7 @@ package io.openaev.integration.impl.secret;
 import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.integration.ComponentRequest;
@@ -22,6 +23,7 @@ import io.openaev.service.connector_instances.NativeEncryptionService;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.Comparator;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -45,6 +47,7 @@ public class LocalSecretsProviderIntegrationTest {
   @Autowired private SecretService secretService;
   @Autowired private SecretReferenceService secretReferenceService;
   @Autowired private PreviewFeatureService previewFeatureService;
+  @Autowired private OpenAEVConfig openAEVConfig;
 
   private LocalSecretsProviderIntegrationFactory getFactory() {
     return new LocalSecretsProviderIntegrationFactory(
@@ -56,6 +59,11 @@ public class LocalSecretsProviderIntegrationTest {
         secretService,
         secretReferenceService,
         previewFeatureService);
+  }
+
+  @BeforeEach()
+  void setup() {
+    openAEVConfig.setEnabledDevFeatures("CREDENTIAL_ASSET");
   }
 
   @Nested

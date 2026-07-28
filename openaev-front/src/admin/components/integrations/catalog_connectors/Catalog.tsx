@@ -19,9 +19,7 @@ interface Props {
  */
 const Catalog = ({ catalogConnectors, isXtmComposerUp }: Props) => {
   const { t } = useFormatter();
-  const isCredentialAssetEnabled = isFeatureEnabled(
-    'CREDENTIAL_ASSET' as Parameters<typeof isFeatureEnabled>[0],
-  );
+  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
 
   const visibleCatalogConnectors = useMemo(
     () => (isCredentialAssetEnabled

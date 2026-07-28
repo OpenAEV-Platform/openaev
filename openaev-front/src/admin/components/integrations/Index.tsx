@@ -21,9 +21,7 @@ const ConnectorPage = lazy(() => import('./common/ConnectorPage'));
 const useStyles = makeStyles()(() => ({ root: { flexGrow: 1 } }));
 
 const Index = () => {
-  const isCredentialAssetEnabled = isFeatureEnabled(
-    'CREDENTIAL_ASSET' as Parameters<typeof isFeatureEnabled>[0],
-  );
+  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
   const { classes } = useStyles();
   return (
     <div className={classes.root}>
