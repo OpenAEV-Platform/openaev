@@ -113,7 +113,13 @@ const AssetNode = ({ id, data, selected }: NodeProps<AttackPathFlowNode>) => {
       aria-label={`${data.label}, ${statusText}${isChokepoint ? `, ${t('chokepoint')}` : ''}`}
     >
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
-      <Tooltip title={tooltipTitle} arrow>
+      <Tooltip
+        title={tooltipTitle}
+        arrow
+        // Interactive tooltip with a Details button: give the pointer time to travel the gap from
+        // the circle to the tooltip so it does not close unless you cross exactly through the centre.
+        leaveDelay={200}
+      >
         <div
           style={{
             width: AP_ENDPOINT_SIZE,
@@ -154,61 +160,61 @@ const AssetNode = ({ id, data, selected }: NodeProps<AttackPathFlowNode>) => {
           )}
         </div>
       </Tooltip>
-        {data.chokepointRank !== undefined && (
-          <Tooltip title={t('Chokepoint #{rank} — most exposed endpoint ({count} findings)', {
-            rank: String(data.chokepointRank),
-            count: String(total),
-          })}
-          >
-            <div
-              style={{
-                position: 'absolute',
-                top: -12,
-                left: -12,
-                minWidth: 34,
-                height: 30,
-                padding: '0 9px',
-                borderRadius: 15,
-                background: chokepointColor,
-                color: theme.palette.getContrastText(chokepointColor),
-                fontSize: 15,
-                fontWeight: 800,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 3,
-                justifyContent: 'center',
-                boxShadow: `0 0 0 3px ${theme.palette.background.paper}, 0 2px 6px ${alpha(theme.palette.common.black, 0.4)}`,
-              }}
-            >
-              <LocalFireDepartment sx={{ fontSize: 19 }} />
-              {data.chokepointRank}
-            </div>
-          </Tooltip>
-        )}
-        {total > 0 && (
+      {data.chokepointRank !== undefined && (
+        <Tooltip title={t('Chokepoint #{rank} — most exposed endpoint ({count} findings)', {
+          rank: String(data.chokepointRank),
+          count: String(total),
+        })}
+        >
           <div
             style={{
               position: 'absolute',
-              top: -6,
-              right: -6,
-              minWidth: 22,
-              height: 22,
-              padding: '0 6px',
-              borderRadius: 11,
-              background: color,
-              color: theme.palette.getContrastText(color),
-              fontSize: 11,
-              fontWeight: 700,
+              top: -12,
+              left: -12,
+              minWidth: 34,
+              height: 30,
+              padding: '0 9px',
+              borderRadius: 15,
+              background: chokepointColor,
+              color: theme.palette.getContrastText(chokepointColor),
+              fontSize: 15,
+              fontWeight: 800,
               display: 'flex',
               alignItems: 'center',
+              gap: 3,
               justifyContent: 'center',
+              boxShadow: `0 0 0 3px ${theme.palette.background.paper}, 0 2px 6px ${alpha(theme.palette.common.black, 0.4)}`,
             }}
           >
-            {`+${total}`}
+            <LocalFireDepartment sx={{ fontSize: 19 }} />
+            {data.chokepointRank}
           </div>
-        )}
-        <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
-      </div>
+        </Tooltip>
+      )}
+      {total > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: -6,
+            right: -6,
+            minWidth: 22,
+            height: 22,
+            padding: '0 6px',
+            borderRadius: 11,
+            background: color,
+            color: theme.palette.getContrastText(color),
+            fontSize: 11,
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {`+${total}`}
+        </div>
+      )}
+      <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
+    </div>
   );
 };
 
