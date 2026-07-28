@@ -1,5 +1,5 @@
 import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, FullscreenExitOutlined, FullscreenOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LabelOutlined, LocalFireDepartment, PlayArrowOutlined, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
-import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, IconButton, Pagination, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, IconButton, Pagination, Paper, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -11,6 +11,7 @@ import Drawer from '../../../../../components/common/Drawer';
 import { criticalityColor } from '../../../../../components/criticalityColor';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
+import ScoreExplainerDialog, { type ScoreBreakdownRow } from '../../../../../components/ScoreExplainerDialog';
 import { SIMULATION_BASE_URL } from '../../../../../constants/BaseUrls';
 import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
@@ -1907,7 +1908,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   };
 
   // "Top chokepoints" card popover: the ranked list of the most-exposed endpoints.
-  const [chokepointsAnchor, setChokepointsAnchor] = useState<HTMLElement | null>(null);
+  const [chokepointExplainOpen, setChokepointExplainOpen] = useState(false);
 
   // Graph (node-link) vs Table (sortable/exportable list of exposed endpoints) view of the same data.
   const [view, setView] = useState<'graph' | 'table'>('graph');
@@ -1942,7 +1943,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     // Ensure the graph is showing: the strip chip and the popover card are reachable from the table
     // view too, and the focused path only renders in the graph view.
     setView('graph');
-    setChokepointsAnchor(null);
+    setChokepointExplainOpen(false);
     setActiveCard(null);
     setDrawerCategory(null);
     setSelectedFindingId(null);
@@ -2313,9 +2314,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         {!pathFinding && chokepoints.length > 0 && (
           <>
             <ButtonBase
-              onClick={e => setChokepointsAnchor(e.currentTarget)}
-              aria-haspopup="true"
-              aria-expanded={Boolean(chokepointsAnchor)}
+              onClick={() => setChokepointExplainOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={chokepointExplainOpen}
               focusRipple
               sx={{
                 'flex': '1 1 0',
@@ -2325,7 +2326,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                 'gap': 1.5,
                 'padding': theme.spacing(1.5),
                 'borderRadius': 1,
-                'border': `1px solid ${chokepointsAnchor ? chokepointColor : theme.palette.divider}`,
+                'border': `1px solid ${chokepointExplainOpen ? chokepointColor : theme.palette.divider}`,
                 'backgroundColor': theme.palette.background.paper,
                 'transition': theme.transitions.create(['border-color', 'background-color']),
                 '&:hover': { borderColor: chokepointColor },
@@ -2364,175 +2365,47 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                 </Typography>
               </div>
             </ButtonBase>
-            <Popover
-              open={Boolean(chokepointsAnchor)}
-              anchorEl={chokepointsAnchor}
-              onClose={() => setChokepointsAnchor(null)}
-              anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'left',
-              }}
-            >
-              <Box sx={{
-                p: 1,
-                minWidth: 340,
-                maxWidth: 400,
-              }}
-              >
-                {/* Transparent formula, mirroring the exposure-score explanation: what it measures, the
-                    exact formula, and the criticality weights it uses. */}
-                <Box sx={{
-                  px: 1,
-                  pb: 1,
-                  mb: 0.5,
-                  borderBottom: `1px solid ${theme.palette.divider}`,
-                }}
-                >
-                  <Typography variant="subtitle2">{t('How chokepoints are scored')}</Typography>
-                  <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 0.5 }}>
-                    {t('A chokepoint is the endpoint where fixing findings closes the most attack paths. The score weights an endpoint\'s findings by its business criticality, so a critical host outranks a noisier but less important one.')}
-                  </Typography>
-                  {/* Formula box styled like the asset posture-score explainer for a consistent look. */}
-                  <Box sx={{
-                    mt: 1,
-                    p: 1,
-                    borderRadius: 1,
-                    background: theme.palette.action.hover,
-                    border: `1px solid ${theme.palette.divider}`,
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                    textAlign: 'center',
-                    color: 'text.primary',
-                  }}
-                  >
-                    {t('score')}
-                    {' = '}
-                    <Box component="span">{t('findings')}</Box>
-                    {' × '}
-                    <Box component="span">{t('criticality weight')}</Box>
-                  </Box>
-                  <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
-                    {t('Criticality weight')}
-                    {': '}
-                    {Object.entries(CRITICALITY_WEIGHT)
-                      .filter(([k]) => k !== 'UNKNOWN')
-                      .map(([k, w]) => `${t(CRITICALITY_LABEL[k])} ×${w}`)
-                      .join(' · ')}
-                    {` · ${t(CRITICALITY_LABEL.UNKNOWN)} ×${CRITICALITY_WEIGHT.UNKNOWN}`}
-                  </Typography>
-                </Box>
-                <Typography
-                  variant="subtitle2"
-                  sx={{
-                    px: 1,
-                    pb: 0.5,
-                  }}
-                >
-                  {t('Most exposed assets')}
-                </Typography>
-                {chokepoints.map((c, i) => (
-                  <Box
-                    key={c.nodeId}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => focusChokepoint(c)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        focusChokepoint(c);
-                      }
-                    }}
-                    sx={{
-                      'display': 'flex',
-                      'flexDirection': 'column',
-                      'gap': 0.5,
-                      'px': 1,
-                      'py': 0.75,
-                      'borderRadius': 1,
-                      'cursor': 'pointer',
-                      '&:hover': { backgroundColor: 'action.hover' },
-                      '&:focus-visible': {
-                        outline: `2px solid ${theme.palette.primary.main}`,
-                        outlineOffset: -2,
-                      },
-                    }}
-                  >
-                    {/* Rank + name + score, then a horizontal exposure bar (fill = this endpoint's score
-                        relative to the top chokepoint) — the posture-score "breakdown by pillar" bar style. */}
-                    <Box sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                    }}
-                    >
-                      <span style={{
-                        flex: '0 0 auto',
-                        width: 18,
-                        height: 18,
-                        borderRadius: '50%',
-                        background: criticalityColor(c.criticality),
-                        color: theme.palette.getContrastText(criticalityColor(c.criticality)),
-                        fontSize: 10,
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                      >
-                        {i + 1}
-                      </span>
-                      <Typography
-                        variant="body2"
-                        noWrap
-                        title={c.label}
-                        sx={{
-                          flex: 1,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {c.label}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: 700,
-                          color: criticalityColor(c.criticality),
-                        }}
-                      >
-                        {c.score}
-                      </Typography>
-                    </Box>
-                    <Tooltip title={t('{findings} findings × {weight} ({criticality})', {
-                      findings: `${c.findings}`,
-                      weight: `${c.weight}`,
-                      criticality: t(CRITICALITY_LABEL[c.criticality ?? 'UNKNOWN'] ?? CRITICALITY_LABEL.UNKNOWN),
-                    })}
-                    >
-                      <Box sx={{
-                        height: 8,
-                        borderRadius: 999,
-                        overflow: 'hidden',
-                        background: theme.palette.action.hover,
-                      }}
-                      >
-                        <Box sx={{
-                          width: `${Math.min(100, Math.max(6, ((c.score ?? 0) / (chokepoints[0]?.score || 1)) * 100))}%`,
-                          height: '100%',
-                          background: criticalityColor(c.criticality),
-                        }}
-                        />
-                      </Box>
-                    </Tooltip>
-                    <Typography variant="caption" color="text.secondary" noWrap>
-                      {[
-                        c.ip,
-                        `${c.findings} × ${c.weight} (${t(CRITICALITY_LABEL[c.criticality ?? 'UNKNOWN'] ?? CRITICALITY_LABEL.UNKNOWN)})`,
-                      ].filter(Boolean).join(' · ')}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-            </Popover>
+            <ScoreExplainerDialog
+              open={chokepointExplainOpen}
+              onClose={() => setChokepointExplainOpen(false)}
+              title={t('How chokepoints are scored')}
+              score={chokepoints[0]?.score ?? null}
+              scoreColor={criticalityColor(chokepoints[0]?.criticality)}
+              bandLabel={t(CRITICALITY_LABEL[chokepoints[0]?.criticality ?? 'UNKNOWN'] ?? CRITICALITY_LABEL.UNKNOWN)}
+              verdict={t('{label} is the most exposed endpoint — fixing its findings closes the most attack paths.', { label: chokepoints[0]?.label ?? '' })}
+              measures={t('A chokepoint is the endpoint where fixing findings closes the most attack paths. The score weights an endpoint\'s findings by its business criticality, so a critical host outranks a noisier but less important one.')}
+              formula={(
+                <>
+                  {t('score')}
+                  {' = '}
+                  {t('findings')}
+                  {' × '}
+                  {t('criticality weight')}
+                </>
+              )}
+              breakdownTitle={t('Most exposed assets')}
+              breakdown={chokepoints.map((c, i): ScoreBreakdownRow => ({
+                key: c.nodeId,
+                label: `${i + 1}. ${c.label}`,
+                valueLabel: `${c.score}`,
+                segments: [{
+                  widthPct: Math.min(100, Math.max(6, ((c.score ?? 0) / (chokepoints[0]?.score || 1)) * 100)),
+                  color: criticalityColor(c.criticality),
+                }],
+                sublabel: [
+                  c.ip,
+                  `${c.findings} × ${c.weight} (${t(CRITICALITY_LABEL[c.criticality ?? 'UNKNOWN'] ?? CRITICALITY_LABEL.UNKNOWN)})`,
+                ].filter(Boolean).join(' · '),
+                onClick: () => focusChokepoint(c),
+              }))}
+              bandsTitle={t('Criticality weights')}
+              bands={(['VERY_HIGH', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']).map(k => ({
+                range: `×${CRITICALITY_WEIGHT[k]}`,
+                label: t(CRITICALITY_LABEL[k]),
+                color: criticalityColor(k),
+                desc: t('Weighs this endpoint\'s findings ×{weight} in the score.', { weight: `${CRITICALITY_WEIGHT[k]}` }),
+              }))}
+            />
           </>
         )}
       </div>

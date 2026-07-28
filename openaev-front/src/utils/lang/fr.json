@@ -3472,5 +3472,8 @@
   "Showing {shown} of {total} findings — open the inject to see them all.": "Affichage de {shown} sur {total} findings — ouvrez l’inject pour tous les voir.",
   "Fullscreen": "Plein écran",
   "Exit fullscreen": "Quitter le plein écran",
-  "criticality weight": "poids de criticité"
+  "criticality weight": "poids de criticité",
+  "Criticality weights": "Poids de criticité",
+  "{label} is the most exposed endpoint — fixing its findings closes the most attack paths.": "{label} est l’endpoint le plus exposé — corriger ses findings ferme le plus de chemins d’attaque.",
+  "Weighs this endpoint's findings ×{weight} in the score.": "Pondère les findings de cet endpoint ×{weight} dans le score."
 }

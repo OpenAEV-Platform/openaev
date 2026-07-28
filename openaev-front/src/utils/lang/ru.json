@@ -3462,5 +3462,8 @@
   "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all.",
   "Fullscreen": "Fullscreen",
   "Exit fullscreen": "Exit fullscreen",
-  "criticality weight": "criticality weight"
+  "criticality weight": "criticality weight",
+  "Criticality weights": "Criticality weights",
+  "{label} is the most exposed endpoint — fixing its findings closes the most attack paths.": "{label} is the most exposed endpoint — fixing its findings closes the most attack paths.",
+  "Weighs this endpoint's findings ×{weight} in the score.": "Weighs this endpoint's findings ×{weight} in the score."
 }
