@@ -24,3 +24,10 @@ Not scoped yet. See fds-migration/AGENTS.md rule 5 — do not start component
 migration under this phase without an explicit go-ahead. When it starts,
 order by filigran-design-system `ROADMAP.json` `priority`; readiness for
 this product is COMPONENT-MAPPING.md's "Product status" column.
+
+### Planned steps
+
+- [ ] Navbar — planned. Coverage audit already done: see COMPONENT-MAPPING.md
+  ("Navbar" row — MUI identifiers, occurrences, lib/product status). No
+  implementation started; this is a scoping placeholder only, rule 5 above
+  still applies.
