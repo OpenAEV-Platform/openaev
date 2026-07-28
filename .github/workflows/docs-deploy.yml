@@ -66,7 +66,7 @@ jobs:
         uses: ./.github/actions/find-latest-tag
         id: find-latest-tag
 
-      - name: Resolve latest flag
+      - name: Resolve latest tag
         id: latest-tag
         env:
           VERSION: ${{ inputs.version }}
