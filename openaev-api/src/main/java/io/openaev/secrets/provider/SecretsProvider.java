@@ -1,13 +1,16 @@
 package io.openaev.secrets.provider;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.BaseConnectorEntity;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.SecretReference;
+import io.openaev.database.model.TenantIdBase;
 import lombok.Getter;
 import lombok.Setter;
 
-public abstract class SecretsProvider extends BaseConnectorEntity implements SecretProvider {
+public abstract class SecretsProvider extends BaseConnectorEntity
+    implements SecretProvider, TenantIdBase {
   protected SecretsProvider() {}
 
   public static final String SERVICE_NAME = "secrets-provider";
@@ -21,6 +24,8 @@ public abstract class SecretsProvider extends BaseConnectorEntity implements Sec
   @Getter
   @Setter
   private String name;
+
+  @JsonIgnore @Getter @Setter private String tenantId;
 
   protected SecretsProvider(String id, String name) {
     this.id = id;
