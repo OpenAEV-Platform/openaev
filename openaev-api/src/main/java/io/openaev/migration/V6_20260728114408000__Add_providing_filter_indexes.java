@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-public class V6_20260728120000000__Add_providing_filter_indexes extends BaseJavaMigration {
+public class V6_20260728114408000__Add_providing_filter_indexes extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
