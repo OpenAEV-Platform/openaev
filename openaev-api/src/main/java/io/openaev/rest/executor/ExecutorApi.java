@@ -100,14 +100,14 @@ public class ExecutorApi extends RestBehavior {
   }
 
   @GetMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#executorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
-  public Executor getExecutor(@PathVariable String executorId) {
+  public ExecutorOutput getExecutor(@PathVariable String executorId) {
     try {
-      return executorService.executor(executorId);
+      return executorService.executorOutput(executorId);
     } catch (ElementNotFoundException e) {
       log.warn(
           "Executor with id {} not found - This may be because the executor has never been started yet",

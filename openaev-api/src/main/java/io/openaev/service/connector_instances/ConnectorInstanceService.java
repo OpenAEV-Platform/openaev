@@ -174,31 +174,24 @@ public class ConnectorInstanceService {
     }
   }
 
-  /**
-   * Resolves the {@link ConnectorInstance} that owns the given executor entity.
-   *
-   * <p>Looks up the connector instance configuration where the key is {@code EXECUTOR_ID} and the
-   * value matches the provided executor ID.
-   *
-   * @param executorId the executor entity ID
-   * @return the owning connector instance
-   * @throws EntityNotFoundException if no connector instance is found for the executor ID
-   */
-  @Transactional(readOnly = true)
-  public ConnectorInstancePersisted findByExecutorId(String executorId) {
+  public Optional<ConnectorInstancePersisted> findPersistedByConnectorId(
+      ConnectorType connectorType, String connectorId) {
     ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase persistedId =
         this.connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
-            ConnectorType.EXECUTOR.getIdKeyName(), executorId);
-    if (persistedId == null) {
-      throw new EntityNotFoundException(
-          "No connector instance found for executor ID: " + executorId);
+            connectorType.getIdKeyName(), connectorId);
+    if (persistedId == null || persistedId.getConnectorInstanceId() == null) {
+      return Optional.empty();
     }
-    return this.connectorInstanceRepository
-        .findById(persistedId.getConnectorInstanceId())
+    return this.connectorInstanceRepository.findById(persistedId.getConnectorInstanceId());
+  }
+
+  @Transactional(readOnly = true)
+  public ConnectorInstancePersisted findByExecutorId(String executorId) {
+    return findPersistedByConnectorId(ConnectorType.EXECUTOR, executorId)
         .orElseThrow(
             () ->
                 new EntityNotFoundException(
-                    "Connector instance not found: " + persistedId.getConnectorInstanceId()));
+                    "No connector instance found for executor ID: " + executorId));
   }
 
   /**

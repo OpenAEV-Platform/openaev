@@ -94,6 +94,10 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     return new Executor();
   }
 
+  public ExecutorOutput executorOutput(String id) {
+    return getConnectorOutput(id);
+  }
+
   /**
    * Retrieve all executors.
    *

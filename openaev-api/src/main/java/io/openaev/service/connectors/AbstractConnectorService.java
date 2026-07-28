@@ -3,6 +3,7 @@ package io.openaev.service.connectors;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.exception.ConnectorStatusException;
@@ -65,9 +66,7 @@ public abstract class AbstractConnectorService<
     return map;
   }
 
-  private Output toExistingConnectorOutput(
-      T connector, Map<String, ConnectorInstance> instanceMap) {
-    ConnectorInstance instance = instanceMap.get(connector.getId());
+  private Output toConnectorOutput(T connector, ConnectorInstance instance) {
     boolean isVerified = instance != null;
     CatalogConnector catalogConnector =
         isVerified && instance instanceof ConnectorInstancePersisted
@@ -77,6 +76,11 @@ public abstract class AbstractConnectorService<
       getConfiguredConnectorName(persistedInstance).ifPresent(connector::setName);
     }
     return mapToOutput(connector, catalogConnector, instance, true);
+  }
+
+  private Output toExistingConnectorOutput(
+      T connector, Map<String, ConnectorInstance> instanceMap) {
+    return toConnectorOutput(connector, instanceMap.get(connector.getId()));
   }
 
   private T createExternalConnector(String collectorId, ConnectorInstancePersisted instance) {
@@ -112,6 +116,37 @@ public abstract class AbstractConnectorService<
         .findFirst();
   }
 
+  private Map<String, ConnectorInstance> buildInstanceMap() {
+    List<ConnectorInstancePersisted> instancesPersisted =
+        this.connectorInstanceService.getAllConnectorInstancesPersistedByConnectorType(
+            connectorType);
+    List<ConnectorInstanceInMemory> instancesInMemory =
+        this.connectorInstanceService.getConnectorInstancesInMemoryByConnectorType(connectorType);
+    return mapInstancesByConnectorId(
+        Stream.concat(instancesPersisted.stream(), instancesInMemory.stream())
+            .collect(Collectors.toList()));
+  }
+
+  public Output getConnectorOutput(String id) {
+    T connector = getConnectorById(id);
+    if (connector == null) {
+      throw new ElementNotFoundException("Connector not found with id: " + id);
+    }
+    return toConnectorOutput(connector, findInstanceForConnector(id));
+  }
+
+  private ConnectorInstance findInstanceForConnector(String connectorId) {
+    for (ConnectorInstanceInMemory instance :
+        connectorInstanceService.getConnectorInstancesInMemoryByConnectorType(connectorType)) {
+      if (connectorId.equals(getConnectorIdFromInstance(instance))) {
+        return instance;
+      }
+    }
+    return connectorInstanceService
+        .findPersistedByConnectorId(connectorType, connectorId)
+        .orElse(null);
+  }
+
   /**
    * Retrieves all connectors including those pending deployment. Pending collectors are identified
    * through their connector instances that exist but haven't yet been registered in the
@@ -124,16 +159,7 @@ public abstract class AbstractConnectorService<
    */
   public Iterable<Output> getConnectorsOutput(boolean includeNext) {
     List<T> connectors = getAllConnectors();
-    List<ConnectorInstancePersisted> instancesPersisted =
-        this.connectorInstanceService.getAllConnectorInstancesPersistedByConnectorType(
-            connectorType);
-    List<ConnectorInstanceInMemory> instancesInMemory =
-        this.connectorInstanceService.getConnectorInstancesInMemoryByConnectorType(connectorType);
-
-    Map<String, ConnectorInstance> instancesByConnectorIdMap =
-        mapInstancesByConnectorId(
-            Stream.concat(instancesPersisted.stream(), instancesInMemory.stream())
-                .collect(Collectors.toList()));
+    Map<String, ConnectorInstance> instancesByConnectorIdMap = buildInstanceMap();
 
     List<Output> result = new ArrayList<>();
 
