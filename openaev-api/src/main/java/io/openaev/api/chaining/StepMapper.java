@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.chaining.dto.MapperConditionOutput;
 import io.openaev.api.chaining.dto.StepOutput;
-import io.openaev.database.model.ChainingMappedType;
 import io.openaev.database.model.ChainingTypeRegistry;
 import io.openaev.database.model.ConditionStep;
 import io.openaev.database.model.ConditionType;
@@ -136,9 +135,9 @@ public final class StepMapper {
         continue;
       }
 
-      ChainingMappedType mappedType =
-          ChainingTypeRegistry.getMappedTypeForContractOutputType(contractOutputType);
-      mappedType.primitiveTypes().stream().map(type -> type.label).forEach(primitiveLabels::add);
+      ChainingTypeRegistry.getPrimitiveTypesForContractOutputType(contractOutputType).stream()
+          .map(type -> type.label)
+          .forEach(primitiveLabels::add);
     }
     return List.copyOf(primitiveLabels);
   }

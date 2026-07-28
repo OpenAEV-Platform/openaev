@@ -507,7 +507,7 @@ public class ThreatArsenalService {
         resolvedTypes.add(candidate);
         continue;
       }
-      ChainingTypeRegistry.getMappedTypeForContractOutputType(candidate).primitiveTypes().stream()
+      ChainingTypeRegistry.getPrimitiveTypesForContractOutputType(candidate).stream()
           .map(primitiveType -> primitiveType.label.toLowerCase(Locale.ROOT))
           .filter(normalizedLabels::contains)
           .findFirst()
