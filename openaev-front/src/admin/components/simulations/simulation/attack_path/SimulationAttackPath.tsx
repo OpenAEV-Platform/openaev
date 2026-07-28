@@ -2456,22 +2456,52 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                       },
                     }}
                   >
-                    <span style={{
-                      flex: '0 0 auto',
-                      width: 20,
-                      height: 20,
-                      borderRadius: '50%',
-                      background: chokepointColor,
-                      color: theme.palette.getContrastText(chokepointColor),
-                      fontSize: 11,
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                    >
-                      {i + 1}
-                    </span>
+                    {/* Ring gauge (posture-score style): fills with this endpoint's exposure relative to the
+                        top chokepoint, coloured by the chokepoint hue, with its rank inside. */}
+                    {(() => {
+                      const maxScore = chokepoints[0]?.score || 1;
+                      const fill = Math.min(1, Math.max(0.08, (c.score ?? 0) / maxScore));
+                      const size = 26;
+                      const r = 10;
+                      const circ = 2 * Math.PI * r;
+                      return (
+                        <span style={{
+                          position: 'relative',
+                          flex: '0 0 auto',
+                          width: size,
+                          height: size,
+                        }}
+                        >
+                          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
+                            <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={theme.palette.divider} strokeWidth={2.5} />
+                            <circle
+                              cx={size / 2}
+                              cy={size / 2}
+                              r={r}
+                              fill="none"
+                              stroke={chokepointColor}
+                              strokeWidth={2.5}
+                              strokeLinecap="round"
+                              strokeDasharray={circ}
+                              strokeDashoffset={circ * (1 - fill)}
+                            />
+                          </svg>
+                          <span style={{
+                            position: 'absolute',
+                            inset: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: chokepointColor,
+                          }}
+                          >
+                            {i + 1}
+                          </span>
+                        </span>
+                      );
+                    })()}
                     <div style={{
                       minWidth: 0,
                       flex: 1,
