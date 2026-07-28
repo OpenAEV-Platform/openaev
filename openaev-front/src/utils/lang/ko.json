@@ -1450,6 +1450,7 @@
   "finding_created_at": "생성된 위치",
   "finding_field": "필드",
   "finding_inject_id": "주입",
+  "finding_last_seen_tooltip": "Last seen reflects detections within this test's execution history. Cross-scenario tracking is planned.",
   "finding_labels": "라벨",
   "finding_name": "이름",
   "finding_scenario": "시나리오",

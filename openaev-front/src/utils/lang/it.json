@@ -1450,6 +1450,7 @@
   "finding_created_at": "Creato in",
   "finding_field": "Campo",
   "finding_inject_id": "Iniettare",
+  "finding_last_seen_tooltip": "Last seen reflects detections within this test's execution history. Cross-scenario tracking is planned.",
   "finding_labels": "Etichette",
   "finding_name": "Nome",
   "finding_scenario": "Scenario",

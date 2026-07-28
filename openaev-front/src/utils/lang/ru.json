@@ -1450,6 +1450,7 @@
   "finding_created_at": "Создано в",
   "finding_field": "Поле",
   "finding_inject_id": "Inject",
+  "finding_last_seen_tooltip": "Last seen reflects detections within this test's execution history. Cross-scenario tracking is planned.",
   "finding_labels": "Метки",
   "finding_name": "Имя",
   "finding_scenario": "Сценарий",

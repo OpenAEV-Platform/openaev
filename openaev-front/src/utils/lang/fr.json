@@ -1451,6 +1451,7 @@
   "finding_created_at": "Créé à",
   "finding_field": "Champ",
   "finding_inject_id": "Stimuli",
+  "finding_last_seen_tooltip": "Last seen reflects detections within this test's execution history. Cross-scenario tracking is planned.",
   "finding_labels": "Labels",
   "finding_name": "Nom",
   "finding_scenario": "Scénario",

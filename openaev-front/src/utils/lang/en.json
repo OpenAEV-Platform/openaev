@@ -1451,6 +1451,7 @@
   "finding_created_at": "Created at",
   "finding_field": "Field",
   "finding_inject_id": "Inject",
+  "finding_last_seen_tooltip": "Last seen reflects detections within this test's execution history. Cross-scenario tracking is planned.",
   "finding_labels": "Labels",
   "finding_name": "Name",
   "finding_scenario": "Scenario",

@@ -1450,6 +1450,7 @@
   "finding_created_at": "作成日時",
   "finding_field": "フィールド",
   "finding_inject_id": "インジェクト",
+  "finding_last_seen_tooltip": "Last seen reflects detections within this test's execution history. Cross-scenario tracking is planned.",
   "finding_labels": "ラベル",
   "finding_name": "名前",
   "finding_scenario": "シナリオ",

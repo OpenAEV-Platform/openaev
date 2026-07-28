@@ -1450,6 +1450,7 @@
   "finding_created_at": "创建于",
   "finding_field": "字段",
   "finding_inject_id": "注入",
+  "finding_last_seen_tooltip": "Last seen reflects detections within this test's execution history. Cross-scenario tracking is planned.",
   "finding_labels": "标签",
   "finding_name": "名称",
   "finding_scenario": "场景",
