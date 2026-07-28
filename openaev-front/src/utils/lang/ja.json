@@ -69,6 +69,7 @@
   "a": "a",
   "A chained scenario requires a defined scope.": "チェイニング・シナリオには、定義されたスコープが必要です。",
   "A chained simulation requires a defined scope.": "連鎖シミュレーションには、定義されたスコープが必要です。",
+  "A chokepoint is the endpoint where fixing findings closes the most attack paths. The score weights an endpoint's findings by its business criticality, so a critical host outranks a noisier but less important one.": "チョークポイントとは、検出された問題を修正することで最も多くの攻撃経路を遮断できるエンドポイントのことです。このスコアは、エンドポイントの検出結果をそのビジネス上の重要度に応じて重み付けするため、重要度の高いホストは、ノイズが多いものの重要度の低いホストよりも優先順位が高くなります。",
   "A dashboard ( {existingDashboardName} ) is already set as {defaultTypeName} default": "ダッシュボード ( {existingDashboardName} ) は既に {defaultTypeName} デフォルトとして設定されています。",
   "A document used as a security platform logo can't be deleted.": "セキュリティプラットフォームのロゴとして使用されているドキュメントは削除できません。",
   "A document used in a payload can't be deleted.": "ペイロードで使用されたドキュメントは削除できません。",

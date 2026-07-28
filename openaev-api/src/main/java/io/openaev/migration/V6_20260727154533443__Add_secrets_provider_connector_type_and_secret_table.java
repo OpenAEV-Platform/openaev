@@ -72,6 +72,10 @@ public class V6_20260727154533443__Add_secrets_provider_connector_type_and_secre
                           PRIMARY KEY (secret_reference_id, tag_id)
                   )
                   """);
+      statement.execute(
+          """
+              CREATE INDEX IF NOT EXISTS idx_secret_reference_tags_tag_id ON secret_reference_tags (tag_id)
+              """);
     }
   }
 }

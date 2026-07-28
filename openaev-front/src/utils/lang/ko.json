@@ -69,6 +69,7 @@
   "a": "a",
   "A chained scenario requires a defined scope.": "연쇄 시나리오에는 정의된 범위가 필요합니다.",
   "A chained simulation requires a defined scope.": "체인 시뮬레이션에는 정의된 범위가 필요합니다.",
+  "A chokepoint is the endpoint where fixing findings closes the most attack paths. The score weights an endpoint's findings by its business criticality, so a critical host outranks a noisier but less important one.": "‘병목 지점’이란 특정 발견 사항을 수정함으로써 가장 많은 공격 경로를 차단할 수 있는 엔드포인트를 말합니다. 이 점수는 엔드포인트의 발견 사항에 대해 비즈니스 중요도에 따라 가중치를 부여하므로, 중요도가 높은 호스트가 잡음이 많지만 중요도가 낮은 호스트보다 우선순위가 높습니다.",
   "A dashboard ( {existingDashboardName} ) is already set as {defaultTypeName} default": "대시보드 ( {existingDashboardName} )가 이미 {defaultTypeName} 기본값으로 설정되어 있습니다",
   "A document used as a security platform logo can't be deleted.": "보안 플랫폼 로고로 사용되는 문서는 삭제할 수 없습니다.",
   "A document used in a payload can't be deleted.": "페이로드에 사용된 문서는 삭제할 수 없습니다.",
