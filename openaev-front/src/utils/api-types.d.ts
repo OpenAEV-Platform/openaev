@@ -959,9 +959,9 @@ export interface AttackPathCounters {
   /** @format int64 */
   endpoints?: number;
   /** @format int64 */
-  files?: number;
-  /** @format int64 */
   ports?: number;
+  /** @format int64 */
+  shares?: number;
   /** @format int64 */
   users?: number;
 }

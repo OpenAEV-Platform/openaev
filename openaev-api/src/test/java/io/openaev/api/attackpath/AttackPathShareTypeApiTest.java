@@ -24,20 +24,19 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * SMB {@code share} findings present as the native {@code file} type across the attack-path reads,
- * via the interim {@code share -> file} stand-in. A persisted {@code share} finding reads {@code
- * typeFindings == "file"} on the endpoint expand, the graph node, the drawer, the execution detail,
- * and the {@code files} counter.
+ * SMB {@code share} findings keep their stored type across every attack-path read: endpoint expand,
+ * graph node, drawer, execution detail and the {@code shares} counter. A share is a complex finding
+ * (host, share name, permissions), so it is never relabelled as — nor counted with — another type.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @TestPropertySource(properties = "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH")
-@DisplayName("attack path: share findings present as the native file type")
-class AttackPathFileTypeApiTest extends IntegrationTest {
+@DisplayName("attack path: share findings keep the share type")
+class AttackPathShareTypeApiTest extends IntegrationTest {
 
-  private static final String SIM = "SIM-FILE";
+  private static final String SIM = "SIM-SHARE";
   private static final String ENDPOINT = "dc-01";
-  private static final String SHARE_VALUE = "public-share-01";
+  private static final String SHARE_VALUE = "\\\\10.0.0.1\\NETLOGON (READ,WRITE)";
 
   @Autowired private MockMvc mvc;
   @Autowired private AttackPathExecutionRepository executionRepository;
@@ -47,13 +46,13 @@ class AttackPathFileTypeApiTest extends IntegrationTest {
 
   @BeforeEach
   void setUp() {
-    tenant = tenantRepository.save(TenantFixture.getTenant("ap-file-type"));
+    tenant = tenantRepository.save(TenantFixture.getTenant("ap-share-type"));
   }
 
   @Test
-  @DisplayName("expand: a share finding reads type 'file'")
-  void expandPresentsShareAsFile() throws Exception {
-    seedShare(SHARE_VALUE);
+  @DisplayName("expand: a share finding reads type 'share'")
+  void expandKeepsShareType() throws Exception {
+    seedFinding("share", SHARE_VALUE);
 
     mvc.perform(
             get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/endpoint/findings")
@@ -61,83 +60,90 @@ class AttackPathFileTypeApiTest extends IntegrationTest {
         .andExpect(status().isOk())
         .andExpect(
             jsonPath("$.findings[?(@.value=='" + SHARE_VALUE + "')].typeFindings")
-                .value(hasItem("file")));
+                .value(hasItem("share")));
   }
 
   @Test
-  @DisplayName(
-      "file appears consistently on graph node, counter, collapsed, drawer, execution detail")
-  void fileAppearsOnEveryRead() throws Exception {
-    String executionId = seedShare(SHARE_VALUE);
+  @DisplayName("share appears consistently on graph node, counter, collapsed, drawer, execution")
+  void shareAppearsOnEveryRead() throws Exception {
+    String executionId = seedFinding("share", SHARE_VALUE);
 
-    // Full graph: the FINDING node presents file, and the real files counter is populated.
     mvc.perform(
             get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/graph")
                 .param("mode", "full"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.counters.files").value(1))
+        .andExpect(jsonPath("$.counters.shares").value(1))
         .andExpect(
             jsonPath("$.attackPathNodes[?(@.value=='" + SHARE_VALUE + "')].typeFindings")
-                .value(hasItem("file")));
+                .value(hasItem("share")));
 
-    // Collapsed (default view): the top-bar files counter AND the per-endpoint findingCounts.file
-    // (what the front's focused count reads) are populated — second counter switch +
-    // presentEndpointTypeCounts.
     mvc.perform(
             get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/graph")
                 .param("mode", "collapsed"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.counters.files").value(1))
+        .andExpect(jsonPath("$.counters.shares").value(1))
         .andExpect(
-            jsonPath("$.attackPathNodes[?(@.type=='ASSET')].findingCounts.file").value(hasItem(1)));
+            jsonPath("$.attackPathNodes[?(@.type=='ASSET')].findingCounts.share")
+                .value(hasItem(1)));
 
-    // Drawer: the files category lists the finding as file.
     mvc.perform(
             get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/findings")
-                .param("category", "files"))
+                .param("category", "shares"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.items[0].type").value("file"))
+        .andExpect(jsonPath("$.items[0].type").value("share"))
         .andExpect(jsonPath("$.items[0].value").value(SHARE_VALUE));
 
-    // Execution detail: the produced finding reads file (attack-path store).
     mvc.perform(
             get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/execution")
                 .param("ref", executionId))
         .andExpect(status().isOk())
         .andExpect(
-            jsonPath("$.findings[?(@.value=='" + SHARE_VALUE + "')].type").value(hasItem("file")));
+            jsonPath("$.findings[?(@.value=='" + SHARE_VALUE + "')].type").value(hasItem("share")));
   }
 
+  /**
+   * Why the {@code share -> file} stand-in was dropped: folding shares into a native {@code file}
+   * type would report "2 files" for one share plus one file. Each type counts under its own name.
+   */
   @Test
-  @DisplayName("day one: no shares -> files counter is 0, no file nodes")
-  void dayOneNoShares() throws Exception {
-    // A CVE finding only: the files counter stays 0 and nothing presents as file.
-    AttackPathExecution execution = execution();
-    AttackPathFinding cve = new AttackPathFinding();
-    cve.setTenant(tenant);
-    cve.setSimulationId(SIM);
-    cve.setType("cve");
-    cve.setValue("CVE-2026-1");
-    cve.setEndpointId(ENDPOINT);
-    cve.setEndpointKey(ENDPOINT);
-    cve = findingRepository.save(cve);
-    link(execution, cve);
-    entityManager.flush();
+  @DisplayName("a share and a file on the same endpoint are counted separately")
+  void shareAndFileDoNotMerge() throws Exception {
+    seedFinding("share", SHARE_VALUE);
+    seedFinding("file", "C:\\temp\\passwords.txt");
 
     mvc.perform(
             get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/graph")
                 .param("mode", "full"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.counters.files").value(0));
+        .andExpect(jsonPath("$.counters.shares").value(1));
+
+    mvc.perform(
+            get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/findings")
+                .param("category", "shares"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].type").value("share"));
   }
 
-  /** A share finding needs a producing execution + link to appear on any read (graph invariant). */
-  private String seedShare(String value) {
+  @Test
+  @DisplayName("day one: no shares -> shares counter is 0")
+  void dayOneNoShares() throws Exception {
+    seedFinding("cve", "CVE-2026-1");
+
+    mvc.perform(
+            get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/graph")
+                .param("mode", "full"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.counters.shares").value(0));
+  }
+
+  /** A finding needs a producing execution + link to appear on any read (graph invariant). */
+  private String seedFinding(String type, String value) {
     AttackPathExecution execution = execution();
     AttackPathFinding finding = new AttackPathFinding();
     finding.setTenant(tenant);
     finding.setSimulationId(SIM);
-    finding.setType("share");
+    finding.setType(type);
     finding.setValue(value);
     finding.setEndpointId(ENDPOINT);
     finding.setEndpointKey(ENDPOINT);
@@ -152,7 +158,7 @@ class AttackPathFileTypeApiTest extends IntegrationTest {
     execution.setTenant(tenant);
     execution.setSimulationId(SIM);
     execution.setSourceKind("INJECTOR");
-    execution.setSourceInjector("nmap");
+    execution.setSourceInjector("netexec");
     execution.setTargetKind("ASSET");
     execution.setTargetAssetId(ENDPOINT);
     execution.setTargetKey(ENDPOINT);

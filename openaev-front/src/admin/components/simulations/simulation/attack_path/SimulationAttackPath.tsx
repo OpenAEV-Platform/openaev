@@ -1,7 +1,8 @@
-import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LabelOutlined, LocalFireDepartment, PlayArrowOutlined, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
+import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, GroupOutlined, HelpOutline, LabelOutlined, LocalFireDepartment, PlayArrowOutlined, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
 import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
+import { FolderNetworkOutline } from 'mdi-material-ui';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
@@ -71,12 +72,12 @@ const CRITICALITY_LABEL: Record<string, string> = {
 // from metadata resolution and fall back to their raw id in the picker.
 const isSeedId = (id?: string) => !!id && id.startsWith('ap-seed-');
 
-// Finding types already surfaced by the curated summary cards (endpoints/files/credentials/users/cves).
+// Finding types already surfaced by the curated summary cards (endpoints/shares/credentials/users/cves).
 // Every OTHER type present in the data gets an auto-generated card, so a new finding type needs no code.
-const COVERED_FINDING_TYPES = new Set(['file', 'credentials', 'username', 'admin_username', 'cve']);
+const COVERED_FINDING_TYPES = new Set(['share', 'credentials', 'username', 'admin_username', 'cve']);
 
 // Finding categories fetched (with per-finding executionIds) to attribute findings to an injector.
-const INJECTOR_FINDING_CATEGORIES = ['credentials', 'users', 'cves', 'files'];
+const INJECTOR_FINDING_CATEGORIES = ['credentials', 'users', 'cves', 'shares'];
 
 // Drawer resize bounds (px).
 const PANEL_MIN_WIDTH = 320;
@@ -139,7 +140,7 @@ const CATEGORY_OF_TYPE: Record<string, string> = {
   username: 'users',
   admin_username: 'users',
   cve: 'cves',
-  file: 'files',
+  share: 'shares',
 };
 
 // Match a drawer finding value to a graph finding value. Credentials are masked server-side in the
@@ -1166,7 +1167,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       // raw never matched the executions' findingsNodeIds → shares showed "no producing action".
       setSelectedFindingId(nodeId);
       // Producing executions come from the full graph's execution→findings links (available for EVERY
-      // finding type, unlike the drawer categories which only cover credentials/users/files/cves), so the
+      // finding type, unlike the drawer categories which only cover credentials/users/shares/cves), so the
       // panel lists only the injector(s) that actually produced this finding — not every injector that
       // merely reached the endpoint.
       const findingNodeId = nodeId;
@@ -1219,8 +1220,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       return;
     }
     // Prefer the full graph: each execution lists EVERY finding type it produced (findingsNodeIds), so
-    // shares surface here — the drawer category endpoint only covers credentials/users/cves/files and maps
-    // "files"→"file", so an injector that only produced shares wrongly read "No findings on this endpoint".
+    // shares surface here — the drawer category endpoint only covers credentials/users/cves/shares, so an
+    // injector that produced another type wrongly read "No findings on this endpoint".
     const findingById = new Map((fullDto?.attackPathNodes ?? [])
       .filter(n => n.type === 'FINDING' && n.id)
       .map(n => [n.id as string, n]));
@@ -1682,11 +1683,11 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     [drawerFilteredItems, drawerSafePage],
   );
 
-  // "Captured Files" reads the real backend files counter. SMB share findings are presented as file
-  // (an interim stand-in), so this is the distinct-share count today, but wired properly.
-  const filesCount = counters?.files ?? 0;
+  // "Discovered Shares" reads the backend share counter: SMB shares keep their stored type, so a
+  // future native `file` finding can never be counted here.
+  const sharesCount = counters?.shares ?? 0;
 
-  const focusedFilesCount = focusedEndpoint?.findingCounts?.file ?? 0;
+  const focusedSharesCount = focusedEndpoint?.findingCounts?.share ?? 0;
   const effectiveCounters = pathFinding
     ? {
         endpoints: 1,
@@ -1710,10 +1711,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         count: effectiveCounters.endpoints,
       },
       {
-        key: 'files',
-        label: t('Captured Files'),
-        icon: <InsertDriveFileOutlined fontSize="small" />,
-        count: pathFinding ? focusedFilesCount : filesCount,
+        key: 'shares',
+        label: t('Discovered Shares'),
+        icon: <FolderNetworkOutline fontSize="small" />,
+        count: pathFinding ? focusedSharesCount : sharesCount,
       },
       {
         key: 'credentials',
@@ -1761,7 +1762,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         };
       });
     return [...base, ...extras];
-  }, [t, effectiveCounters, pathFinding, focusedFilesCount, filesCount, dto, focusedEndpoint]);
+  }, [t, effectiveCounters, pathFinding, focusedSharesCount, sharesCount, dto, focusedEndpoint]);
 
   // Click a summary card: focus the graph on that finding type and, for finding categories, open the
   // right drawer listing the (deduplicated, masked) items. Clicking again clears the focus/drawer.

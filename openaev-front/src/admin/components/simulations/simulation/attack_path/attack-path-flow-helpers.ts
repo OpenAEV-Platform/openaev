@@ -711,8 +711,8 @@ export const findingCategoryNoun = (typeFindings?: string): string => {
       return 'open ports';
     case 'hash':
       return 'hashes';
-    case 'file':
-      return 'files';
+    case 'share':
+      return 'shares';
     case 'password_policy':
       return 'password policies';
     case 'sid':
@@ -974,11 +974,11 @@ export const maskFindingValue = (typeFindings?: string, value?: string): string 
   return value;
 };
 
-// Card filter -> the finding-type values it focuses (issue 6647). "files" maps to `file` (the backend
+// Card filter -> the finding-type values it focuses (issue 6647). "shares" maps to `share` (the backend
 // presents SMB `share` findings as `file`, an interim stand-in until a native file finding type
 // exists); "users" also includes admin usernames per product decision.
 export const FILTER_TO_FINDING_TYPES: Record<Exclude<AttackPathFindingFilter, 'endpoints'>, string[]> = {
-  files: ['file'],
+  shares: ['share'],
   credentials: ['credentials'],
   users: ['username', 'admin_username'],
   cves: ['cve'],
@@ -1201,7 +1201,7 @@ const findingNodeValue = (node: AttackPathFlowNode): string => {
 // matching still to come — today only the TYPE is reconciled and value comparison stays direct, which is
 // correct for primitives; complex value-matching is a follow-up (see backend requirements topo).
 const KEYTYPE_TO_FINDING_TYPE: Record<string, string> = {
-  share_name: 'file',
+  share_name: 'share',
   password: 'credentials',
 };
 
