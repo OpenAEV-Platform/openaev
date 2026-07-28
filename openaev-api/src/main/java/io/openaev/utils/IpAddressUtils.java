@@ -21,7 +21,14 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class IpAddressUtils {
 
+  /**
+   * Lightweight numeric-only guard for IPv4 addresses. Ensures the string contains only digits and
+   * dots in four-octet form before delegating to {@link InetAddress}, preventing DNS lookups on
+   * hostnames (e.g. {@code example.org}).
+   */
   private static final Pattern IPV4_NUMERIC = Pattern.compile("^\\d{1,3}(\\.\\d{1,3}){3}$");
+
+  /** Safety limit for subnet expansion to keep chaining scope resolution bounded. */
   private static final int MAX_EXPANDED_HOSTS = 4096;
 
   private IpAddressUtils() {}
