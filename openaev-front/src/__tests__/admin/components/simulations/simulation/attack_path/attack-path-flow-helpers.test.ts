@@ -588,10 +588,11 @@ describe('buildCausalChainFlow', () => {
     expect(causal[0].data?.causalKind).toBe('finding');
   });
 
-  it('collapses N findings matching one consumed key into a single causal edge (legibility on hub endpoints)', () => {
+  it('converges N matching findings into the consumer with a single label (Option A grouping)', () => {
     // A hub endpoint yields THREE shares (native "file" type since #6972); NetExec's event consumes
-    // `share_name IS_NOT_NULL`, which reconciles to `file` and matches every one of them. Without dedup that
-    // stacks three identical "Triggered …" labels over the consumer. We must draw exactly ONE causal edge.
+    // `share_name IS_NOT_NULL`, which reconciles to `file` and matches every one of them. We draw the fan-in
+    // (one grey edge per finding, so the grouping is visible) but label only ONE — three stacked "Triggered …"
+    // labels over the consumer was the original illegibility.
     const hub: AttackPathDTO = {
       ...chainDto,
       attackPathNodes: [
@@ -644,10 +645,13 @@ describe('buildCausalChainFlow', () => {
     };
     const { edges } = buildCausalChainFlow(hub, tt);
     const causal = edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE);
-    expect(causal).toHaveLength(1);
-    expect(causal[0].target).toBe('inj-smb');
-    expect(causal[0].source).toMatch(/^NODE_FINDING\|file\|/);
-    expect(causal[0].data?.causalKind).toBe('finding');
+    // One grey edge per produced file (the fan-in), all targeting the consumer.
+    expect(causal).toHaveLength(3);
+    expect(causal.every(e => e.target === 'inj-smb')).toBe(true);
+    expect(causal.every(e => /^NODE_FINDING\|file\|/.test(e.source ?? ''))).toBe(true);
+    expect(causal.every(e => e.data?.causalKind === 'finding')).toBe(true);
+    // …but only ONE of them carries the "Triggered …" label.
+    expect(causal.filter(e => e.data?.label).length).toBe(1);
   });
 
   it('anchors the causal edge on the finding of the resolved producer, not another injector sharing the type', () => {

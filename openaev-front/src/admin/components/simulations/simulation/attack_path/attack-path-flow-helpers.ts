@@ -1749,21 +1749,21 @@ export const buildCausalChainFlow = (
       }
     }
   }
-  // One causal edge per (consumer, label): a key like `share_name IS_NOT_NULL` matches EVERY produced
-  // share, but drawing one "Triggered SHARE" edge per matching finding stacks N identical labels over the
-  // consumer node — illegible as soon as an endpoint yields several findings of the type. Collapse them to
-  // a single edge, anchored to the matching finding nearest (vertically) to the consumer so the line stays
-  // short and crosses the least. This keeps a hub endpoint (1 asset, many findings) as readable as a
-  // linear multi-endpoint chain.
-  const drawnCausal = new Set<string>();
+  // Convergence with ONE label: a key like `share_name IS_NOT_NULL` matches every produced share, so draw a
+  // grey edge from EACH producing finding to the consumer — the fan-in that reads as "all these findings
+  // triggered it" (the Option A grouping) — but label only the nearest edge. N identical "Triggered …"
+  // labels stacked over the node was the original illegibility; a single label on a fan-in is clean.
+  const drawnCausalEdges = new Set<string>();
+  const labelledCausal = new Set<string>();
   for (const [injId, s] of steps) {
     let matched = false;
     const injY = nodeById.get(injId)?.position.y ?? 0;
     for (const key of s.consumed) {
       const allMatches = findingNodes.filter(fn => findingMatchesKey(fn, key));
       // Prefer findings produced by this consumer's resolved dependency (#6985 populates dependsOn with the
-      // real producer step), so the event edge never points at a same-typed finding from an unrelated
-      // injector. Fall back to every match when no dependency resolved (e.g. a complex-type key).
+      // real producer step), so the fan-in stays on the real producer's findings and never reaches a
+      // same-typed finding from an unrelated injector. Fall back to every match when no dependency
+      // resolved (e.g. a complex-type key).
       const fromDeps = s.deps.size > 0
         ? allMatches.filter(fn => [...(producersByFinding.get(fn.id) ?? [])].some(p => s.deps.has(p)))
         : [];
@@ -1773,24 +1773,31 @@ export const buildCausalChainFlow = (
       }
       matched = true;
       const label = causalKeyLabel(key, t);
-      const dedupKey = `${injId}|${label}`;
-      if (drawnCausal.has(dedupKey)) {
-        continue;
+      // Nearest first, so the single label sits on the shortest edge of the fan-in.
+      const ordered = [...matches].sort((a, b) =>
+        Math.abs(a.position.y - injY) - Math.abs(b.position.y - injY));
+      for (const fn of ordered) {
+        const edgeId = `${AP_FLOW_CAUSAL_EDGE_TYPE}-finding-${fn.id}-${injId}`;
+        if (drawnCausalEdges.has(edgeId)) {
+          continue;
+        }
+        drawnCausalEdges.add(edgeId);
+        const showLabel = !labelledCausal.has(`${injId}|${label}`);
+        if (showLabel) {
+          labelledCausal.add(`${injId}|${label}`);
+        }
+        edges.push({
+          id: edgeId,
+          source: fn.id,
+          target: injId,
+          type: AP_FLOW_CAUSAL_EDGE_TYPE,
+          data: {
+            count: 1,
+            causalKind: 'finding',
+            label: showLabel ? label : undefined,
+          },
+        });
       }
-      drawnCausal.add(dedupKey);
-      const fn = matches.reduce((best, cur) =>
-        Math.abs(cur.position.y - injY) < Math.abs(best.position.y - injY) ? cur : best, matches[0]);
-      edges.push({
-        id: `${AP_FLOW_CAUSAL_EDGE_TYPE}-finding-${fn.id}-${injId}`,
-        source: fn.id,
-        target: injId,
-        type: AP_FLOW_CAUSAL_EDGE_TYPE,
-        data: {
-          count: 1,
-          causalKind: 'finding',
-          label,
-        },
-      });
     }
     if (!matched) {
       for (const dep of s.deps) {
