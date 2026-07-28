@@ -9,6 +9,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -26,6 +28,7 @@ import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
+import io.openaev.utilstest.DatabaseSnapshotManager;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.io.IOException;
 import java.util.List;
@@ -40,7 +43,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @TestExecutionListeners(
@@ -48,7 +50,10 @@ import org.springframework.transaction.annotation.Transactional;
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("StarterPack process tests")
-@Transactional
+// Deliberately NOT @Transactional: V20260101_Starter_pack uses TenantScopedTransaction#executeNew
+// (PROPAGATION_REQUIRES_NEW), which commits for real and would escape a rollback-based test
+// transaction (see TenantScopedTransaction's javadoc). Isolation between test methods is instead
+// restored explicitly via DatabaseSnapshotManager in @AfterEach below.
 public class StarterPackTest extends IntegrationTest {
 
   @Autowired private TagRepository tagRepository;
@@ -67,6 +72,7 @@ public class StarterPackTest extends IntegrationTest {
   @Autowired private ImportService importService;
   @Autowired private ZipJsonService<CustomDashboard> zipJsonService;
   @Autowired private ResourcePatternResolver resolver;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
   @Mock private ImportService mockImportService;
   @Mock private ZipJsonService<CustomDashboard> mockZipJsonService;
   @Mock private ResourcePatternResolver mockResolver;
@@ -81,6 +87,38 @@ public class StarterPackTest extends IntegrationTest {
   @Autowired private V20260725_Fix_starter_pack_payload_contracts fixPayloadContractsMigration;
 
   @Autowired private DataPackService dataPackService;
+  @Autowired private DatabaseSnapshotManager databaseSnapshotManager;
+
+  /**
+   * executeNew() inside V20260101_Starter_pack commits for real, escaping the (now-removed)
+   * @Transactional rollback. Restore the DB to the startup snapshot after every test method so
+   * each one still starts from a pristine state, exactly like the old rollback guaranteed.
+   */
+  @AfterEach
+  public void restoreDatabaseSnapshot() {
+    databaseSnapshotManager.restoreToSnapshotState();
+  }
+
+  /**
+   * These tests construct {@code V20260101_Starter_pack} directly via {@code new}, bypassing the
+   * Spring proxy that would normally apply {@code @Transactional} to {@link
+   * io.openaev.processor.datapack.DataPack#process}. Without a real transaction, the nested {@code
+   * executeNew} calls inside {@code doProcess} refuse to run (they require an active transaction).
+   * Open that top-level transaction explicitly here, exactly like a real background caller
+   * (through {@code TenantScopedTransaction}) would.
+   */
+  private void processDatapack(V20260101_Starter_pack datapack, Tenant tenant) {
+    tenantScopedTransaction.execute(TxCtx.forTenant(tenant.getId()), () -> datapack.process(tenant));
+  }
+
+  /**
+   * Composer fixtures need a real transaction to persist (the shared EntityManager requires one).
+   * Runs the fixture setup in its own top-level transaction, same rationale as {@link
+   * #processDatapack}.
+   */
+  private void persistFixture(String tenantId, Runnable fixtureSetup) {
+    tenantScopedTransaction.execute(TxCtx.forTenant(tenantId), fixtureSetup);
+  }
 
   @Test
   @DisplayName("Should not init StarterPack for disabled feature")
@@ -96,11 +134,12 @@ public class StarterPackTest extends IntegrationTest {
             tagRuleService,
             importService,
             zipJsonService,
+            tenantScopedTransaction,
             resolver);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", false);
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    processDatapack(datapack, new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     long assetsCount = assetRepository.count();
@@ -137,14 +176,15 @@ public class StarterPackTest extends IntegrationTest {
             tagRuleService,
             importService,
             zipJsonService,
+            tenantScopedTransaction,
             resolver);
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    processDatapack(datapack, new Tenant(TenantContext.getCurrentTenant()));
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    processDatapack(datapack, new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     long assetsCount = assetRepository.count();
@@ -181,12 +221,13 @@ public class StarterPackTest extends IntegrationTest {
             tagRuleService,
             mockImportService,
             zipJsonService,
+            tenantScopedTransaction,
             resolver);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
     doThrow(new Exception()).when(mockImportService).handleFileImport(any(), isNull(), isNull());
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    processDatapack(datapack, new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     this.verifyTagsExist();
@@ -215,6 +256,7 @@ public class StarterPackTest extends IntegrationTest {
             tagRuleService,
             importService,
             mockZipJsonService,
+            tenantScopedTransaction,
             resolver);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
     doThrow(new IOException())
@@ -222,7 +264,7 @@ public class StarterPackTest extends IntegrationTest {
         .handleImport(any(), eq("custom_dashboard_name"), isNull(), isNull(), eq(""));
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    processDatapack(datapack, new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     this.verifyTagsExist();
@@ -248,6 +290,7 @@ public class StarterPackTest extends IntegrationTest {
             tagRuleService,
             importService,
             zipJsonService,
+            tenantScopedTransaction,
             mockResolver);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
     doThrow(new IOException())
@@ -258,7 +301,7 @@ public class StarterPackTest extends IntegrationTest {
         .getResources(eq("classpath:starterpack/dashboards/*"));
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    processDatapack(datapack, new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     this.verifyTagsExist();
@@ -285,11 +328,12 @@ public class StarterPackTest extends IntegrationTest {
             tagRuleService,
             importService,
             zipJsonService,
+            tenantScopedTransaction,
             resolver);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    processDatapack(datapack, new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     this.verifyTagsExist();
@@ -321,11 +365,12 @@ public class StarterPackTest extends IntegrationTest {
             tagRuleService,
             importService,
             zipJsonService,
+            tenantScopedTransaction,
             resolver);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    processDatapack(datapack, new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     this.verifyTagsExist();
@@ -353,12 +398,15 @@ public class StarterPackTest extends IntegrationTest {
             injector, payload, List.of(contractAsset));
     // Be careful should match inject into the zip scenario
     injectorContract.setId("2e7fc079-4444-4531-4444-928fe4a1fc0b");
-    injectorContractComposer
-        .forInjectorContract(injectorContract)
-        .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
-        .withInjector(injector)
-        .withPayload(payloadComposer.forPayload(payload))
-        .persist();
+    persistFixture(
+        TenantContext.getCurrentTenant(),
+        () ->
+            injectorContractComposer
+                .forInjectorContract(injectorContract)
+                .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                .withInjector(injector)
+                .withPayload(payloadComposer.forPayload(payload))
+                .persist());
 
     V20260101_Starter_pack datapack =
         new V20260101_Starter_pack(
@@ -370,11 +418,12 @@ public class StarterPackTest extends IntegrationTest {
             tagRuleService,
             importService,
             zipJsonService,
+            tenantScopedTransaction,
             resolver);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    processDatapack(datapack, new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     this.verifyTagsExist();
@@ -412,12 +461,15 @@ public class StarterPackTest extends IntegrationTest {
             injector, payload, List.of(contractAssetGroup));
     // Be careful should match inject into the zip scenario
     injectorContract.setId("df0d6fe6-ffb1-4e4c-a5f8-11a45b30dd69");
-    injectorContractComposer
-        .forInjectorContract(injectorContract)
-        .withInjector(injector)
-        .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
-        .withPayload(payloadComposer.forPayload(payload))
-        .persist();
+    persistFixture(
+        TenantContext.getCurrentTenant(),
+        () ->
+            injectorContractComposer
+                .forInjectorContract(injectorContract)
+                .withInjector(injector)
+                .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+                .withPayload(payloadComposer.forPayload(payload))
+                .persist());
 
     V20260101_Starter_pack datapack =
         new V20260101_Starter_pack(
@@ -429,11 +481,12 @@ public class StarterPackTest extends IntegrationTest {
             tagRuleService,
             importService,
             zipJsonService,
+            tenantScopedTransaction,
             resolver);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    processDatapack(datapack, new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY
     this.verifyTagsExist();
@@ -473,11 +526,12 @@ public class StarterPackTest extends IntegrationTest {
             tagRuleService,
             importService,
             zipJsonService,
+            tenantScopedTransaction,
             resolver);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    processDatapack(datapack, new Tenant(TenantContext.getCurrentTenant()));
 
     // VERIFY — the regression is fixed: every non-custom contract that was built from an
     // injector_contract_payload (its label matches an imported payload name) carries its payload.

@@ -14,6 +14,7 @@ import io.openaev.database.repository.CweRepository;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
 import io.openaev.database.repository.MitigationRepository;
+import io.openaev.database.repository.TagRuleRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
@@ -38,9 +39,11 @@ import io.openaev.rest.payload.PayloadApi;
 import io.openaev.rest.payload.service.PayloadUpsertService;
 import io.openaev.rest.scenario.ScenarioApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
+import io.openaev.rest.tag_rule.TagRuleApi;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.InjectExpectationTraceService;
 import io.openaev.service.MapperService;
+import io.openaev.service.TagRuleService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
@@ -89,7 +92,8 @@ class TenantActiveTableAccessArchTest {
           "mitigations",
           "collectors",
           "attackpath_execution",
-          "attackpath_finding");
+          "attackpath_finding",
+          "tag_rules");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -265,4 +269,21 @@ class TenantActiveTableAccessArchTest {
           .because(
               "attackpath_finding is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule tag_rules_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying HTTP entrypoint, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              TagRuleApi.class,
+              // Service behind the API and datapacks; writes are explicitly attributed, reads are
+              // scoped by the transaction scope active on the caller:
+              TagRuleService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(TagRuleRepository.class)
+          .because(
+              "tag_rules is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
 }

@@ -25,7 +25,13 @@ public abstract class DataPack implements Processable {
     this.dataPackService = dataPackService;
   }
 
-  protected abstract boolean doProcess();
+  /**
+   * Implementations receive the tenant explicitly and must pass it down to any tenant-scoped call
+   * (e.g. {@code TxCtx.forTenant(tenant.getId())} for v2-activated tables). Do not fall back to
+   * {@code TenantContext.getCurrentTenant()}: it is a v1 thread-local that background code must not
+   * rely on now that this tenant is passed as an explicit argument.
+   */
+  protected abstract boolean doProcess(Tenant tenant);
 
   @Getter private final String packId = getProcessableId();
 
@@ -42,7 +48,7 @@ public abstract class DataPack implements Processable {
         .orElseGet(
             () -> {
               log.info("Processing datapack '{}' for tenant {}.", packId, tenant.getId());
-              if (doProcess()) {
+              if (doProcess(tenant)) {
                 dataPackService.registerDataPack(packId, tenant);
               }
               return MigrationProcessingResult.PROCESSED;

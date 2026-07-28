@@ -104,7 +104,14 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.inject.ScenarioInjectApi#updateInjectForScenario",
           // health-check streams: runChecks -> securityPlatformCollectors
           "io.openaev.rest.scenario.ScenarioApi#streamHealthChecks",
-          "io.openaev.rest.exercise.ExerciseApi#streamHealthChecks");
+          "io.openaev.rest.exercise.ExerciseApi#streamHealthChecks",
+          // tag_rules (v2)
+          "io.openaev.rest.tag_rule.TagRuleApi#findTagRule",
+          "io.openaev.rest.tag_rule.TagRuleApi#tags",
+          "io.openaev.rest.tag_rule.TagRuleApi#deleteTagRule",
+          "io.openaev.rest.tag_rule.TagRuleApi#createTagRule",
+          "io.openaev.rest.tag_rule.TagRuleApi#updateTagRule",
+          "io.openaev.rest.tag_rule.TagRuleApi#searchTagRules");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =

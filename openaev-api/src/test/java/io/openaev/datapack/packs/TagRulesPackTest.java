@@ -4,6 +4,8 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.processor.datapack.V20260107_Tags_and_tagrules_and_assetgroups;
@@ -13,27 +15,52 @@ import io.openaev.service.DataPackService;
 import io.openaev.service.TagRuleService;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.TagRuleFixture;
+import io.openaev.utilstest.DatabaseSnapshotManager;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Tags and Tag rules process tests")
-@Transactional
+// Deliberately NOT @Transactional: V20260107_Tags_and_tagrules_and_assetgroups uses
+// TenantScopedTransaction#executeNew (PROPAGATION_REQUIRES_NEW), which commits for real and
+// would escape a rollback-based test transaction. Cleanup happens explicitly below.
 public class TagRulesPackTest extends IntegrationTest {
   @Autowired private DataPackService dataPackService;
   @Autowired private TagService tagService;
   @Autowired private TagRuleService tagRuleService;
   @Autowired private AssetGroupService assetGroupService;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
+  @Autowired private DatabaseSnapshotManager databaseSnapshotManager;
 
   @Autowired private TagRepository tagRepository;
+
+  /**
+   * This test's writes (Tags/TagRules/AssetGroups) commit for real via executeNew and must not
+   * leak into whatever runs next in the same JVM/class-run.
+   */
+  @AfterEach
+  public void restoreDatabaseSnapshot() {
+    databaseSnapshotManager.restoreToSnapshotState();
+  }
+
+  /**
+   * This test constructs {@code V20260107_Tags_and_tagrules_and_assetgroups} directly via
+   * {@code new}, bypassing the Spring proxy that would normally apply {@code @Transactional} to
+   * {@code DataPack#process}. Open the top-level transaction explicitly, exactly like a real
+   * background caller (through {@code TenantScopedTransaction}) would.
+   */
+  private void processDatapack(
+      V20260107_Tags_and_tagrules_and_assetgroups datapack, Tenant tenant) {
+    tenantScopedTransaction.execute(TxCtx.forTenant(tenant.getId()), () -> datapack.process(tenant));
+  }
 
   private Optional<TagRule> getExpectedTagRulePerPlatform(Endpoint.PLATFORM_TYPE platformType) {
     return switch (platformType) {
@@ -49,13 +76,23 @@ public class TagRulesPackTest extends IntegrationTest {
   public void processingPackInsertsExpectedData() {
     V20260107_Tags_and_tagrules_and_assetgroups datapack =
         new V20260107_Tags_and_tagrules_and_assetgroups(
-            dataPackService, tagService, tagRuleService, assetGroupService);
+            dataPackService,
+            tagService,
+            tagRuleService,
+            assetGroupService,
+            tenantScopedTransaction);
 
     // act
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    processDatapack(datapack, new Tenant(TenantContext.getCurrentTenant()));
 
-    // assert
+    // assert — run inside a real transaction: TagRule.assetGroups is LAZY, and without the old
+    // class-level @Transactional keeping a session open for the whole method, accessing it here
+    // (outside a transaction) throws LazyInitializationException.
+    tenantScopedTransaction.execute(
+        TxCtx.forTenant(TenantContext.getCurrentTenant()), this::assertExpectedDataWasInserted);
+  }
 
+  private void assertExpectedDataWasInserted() {
     // all necessary tags
     assertThat(tagRepository.findAll())
         .containsExactlyElementsOf(

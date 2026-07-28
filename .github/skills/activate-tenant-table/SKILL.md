@@ -541,6 +541,22 @@ scope choice or its blocker reason.
   from a joined `@Transactional` service marks the whole transaction
   rollback-only; carrying on dies at commit (`UnexpectedRollbackException`).
   Recover around a boundary, not inside one.
+- **Never source the tenant id from `TenantContext.getCurrentTenant()`.** It is
+  the v1 thread-local; reaching for it to build `TxCtx.forTenant(tenantId)` (or
+  to pass into a scoped service call) just reintroduces the v1 pattern one
+  layer down, inside code that is supposed to be the v2 conversion. The tenant
+  must come from an explicit, typed source instead:
+  - the caller's own known tenant (a `Tenant`/tenant id already passed as a
+    method parameter — e.g. `DataPack#process(Tenant tenant)` already hands the
+    tenant to `doProcess`; thread it through instead of re-reading a
+    thread-local for the same value),
+  - the loop variable inside `forEachTenant`,
+  - or, for a write whose tenant is genuinely ambiguous until resolved,
+    `writeScopeResolver.tenantForWrite(ctx, null)` against the scope already
+    established by `execute`/`executeNew`.
+  A grep for this mistake: `grep -rn "TenantContext.getCurrentTenant" <files just converted>`
+  must return nothing once Phase 5b is done, mirroring the Phase 7 audit but
+  run on the background code you touched in this phase, not just the HTTP side.
 
 **Choose the scope by what the job does:**
 
@@ -740,14 +756,24 @@ catches, do not rely on it alone.
 
 Before running the regression suite, audit the full call stack of every public
 method on `{Api}` (and on the other APIs from Phase 5) for v1 isolation
-patterns that conflict with or duplicate the v2 mechanism.
+patterns that conflict with or duplicate the v2 mechanism. This audit is not
+limited to pre-existing code: it also covers every background writer you just
+converted in Phase 5b — it is easy to "convert" a job by wrapping it in
+`executeNew`/`forEachTenant` while still sourcing the tenant id for that scope
+from `TenantContext.getCurrentTenant()`, which just moves the v1 pattern one
+layer down instead of removing it.
 
 **What to search for:**
 
 1. **`TenantContext.getCurrentTenant()`** — the v1 thread-local tenant. Any
-   call in the controller, service, repository, or specification layer that
-   touches `{table}` is a v1 remnant. The v2 inspector handles scoping; the
-   thread-local is no longer the source of truth for activated tables.
+   call in the controller, service, repository, specification layer, or
+   background job/datapack that touches `{table}` is a v1 remnant, INCLUDING a
+   call used only to compute the argument to `TxCtx.forTenant(...)` in code you
+   just wrote for this activation. The v2 pattern is: take the tenant id from
+   an explicit parameter already available at that point (a method argument, a
+   `forEachTenant` loop variable) or resolve it via
+   `writeScopeResolver.tenantForWrite(ctx, ...)`. The thread-local is no longer
+   the source of truth for activated tables.
 2. **`findByIdAndTenantId`** or any repository method that explicitly filters
    by `tenant_id` on `{table}` — redundant and restrictive. The inspector
    already scopes reads; an explicit `AND tenant_id = ?` prevents multi-tenant

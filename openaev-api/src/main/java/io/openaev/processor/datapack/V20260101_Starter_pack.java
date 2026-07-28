@@ -1,6 +1,7 @@
 package io.openaev.processor.datapack;
 
-import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.jsonapi.JsonApiDocument;
@@ -29,6 +30,7 @@ public class V20260101_Starter_pack extends DataPack {
       TagRuleService tagRuleService,
       ImportService importService,
       ZipJsonService<CustomDashboard> zipJsonService,
+      TenantScopedTransaction tenantScopedTransaction,
       ResourcePatternResolver resolver) {
     super(dataPackService);
     this.settingRepository = settingRepository;
@@ -38,6 +40,7 @@ public class V20260101_Starter_pack extends DataPack {
     this.tagRuleService = tagRuleService;
     this.importService = importService;
     this.zipJsonService = zipJsonService;
+    this.tenantScopedTransaction = tenantScopedTransaction;
     this.resolver = resolver;
   }
 
@@ -83,11 +86,12 @@ public class V20260101_Starter_pack extends DataPack {
   private final TagRuleService tagRuleService;
   private final ImportService importService;
   private final ZipJsonService<CustomDashboard> zipJsonService;
+  private final TenantScopedTransaction tenantScopedTransaction;
 
   private final ResourcePatternResolver resolver;
 
   @Override
-  protected boolean doProcess() {
+  protected boolean doProcess(Tenant tenant) {
     // early break for when the starter pack was already run
     if (!isStarterPackEnabled) {
       log.info("Starter pack is disabled by configuration");
@@ -100,8 +104,18 @@ public class V20260101_Starter_pack extends DataPack {
     }
 
     // unconditionally run this code
-    Set<Tag> tags = tagService.ensureWellKnownTags();
-    Set<TagRule> tagRules = tagRuleService.ensurePresetRules();
+    String tenantId = tenant.getId();
+    // ensureWellKnownTags must commit in its own transaction before ensurePresetRules runs in its
+    // own executeNew: both would otherwise touch the same (name, tenant) tag rows, one on the
+    // outer suspended transaction, one on the nested one, and block on each other's uncommitted
+    // locks forever (the nested transaction can never see the outer's uncommitted insert, and the
+    // outer stays suspended until the nested one returns).
+    Set<Tag> tags =
+        tenantScopedTransaction.executeNew(
+            TxCtx.forTenant(tenantId), tagService::ensureWellKnownTags);
+    Set<TagRule> tagRules =
+        tenantScopedTransaction.executeNew(
+            TxCtx.forTenant(tenantId), () -> tagRuleService.ensurePresetRules(tenantId));
 
     try {
       Endpoint honeyScanMeEndpoint =
@@ -114,21 +128,27 @@ public class V20260101_Starter_pack extends DataPack {
                                   .contains(t.getName()))
                       .map(Tag::getId)
                       .toList()));
-      AssetGroup allEndpointAssetGroup = this.createAllEndpointsAssetGroup();
+      // Must also commit in its own transaction before updateTagRule's executeNew below looks it
+      // up by id on a different connection — otherwise the same lock-wait trap as tags/tag_rules.
+      AssetGroup allEndpointAssetGroup =
+          tenantScopedTransaction.executeNew(
+              TxCtx.forTenant(tenantId), this::createAllEndpointsAssetGroup);
 
       TagRule openCTITagRule =
           tagRules.stream()
               .filter(tr -> Tag.OPENCTI_TAG_NAME.equals(tr.getTag().getName()))
               .findFirst()
               .orElseThrow();
-      this.tagRuleService.updateTagRule(
-          openCTITagRule.getId(),
-          openCTITagRule.getTag().getName(),
-          new ArrayList<>(List.of(allEndpointAssetGroup.getId())),
-          TenantContext.getCurrentTenant());
+      tenantScopedTransaction.executeNew(
+          TxCtx.forTenant(tenantId),
+          () ->
+              this.tagRuleService.updateTagRule(
+                  openCTITagRule.getId(),
+                  openCTITagRule.getTag().getName(),
+                  new ArrayList<>(List.of(allEndpointAssetGroup.getId()))));
 
       this.importScenariosFromResources(honeyScanMeEndpoint, allEndpointAssetGroup);
-      this.importDashboardsFromResources();
+      this.importDashboardsFromResources(tenant);
       return true;
     } catch (Exception e) {
       log.error("Unexpected error during DataPack 20260101 initialization.", e);
@@ -184,7 +204,7 @@ public class V20260101_Starter_pack extends DataPack {
             });
   }
 
-  private void importDashboardsFromResources() {
+  private void importDashboardsFromResources(Tenant tenant) {
     listFilesInResourceFolder(Config.DASHBOARDS_FOLDER_NAME)
         .forEach(
             resourceToAdd -> {
@@ -198,7 +218,8 @@ public class V20260101_Starter_pack extends DataPack {
                             CustomDashboardService::sanityCheck,
                             "")
                         .jsonApiDocument();
-                this.setDefaultDashboard(resourceToAdd.getFilename(), dashboard.data().id());
+                this.setDefaultDashboard(
+                    resourceToAdd.getFilename(), dashboard.data().id(), tenant);
                 log.info(
                     "Successfully imported StarterPack dashboard file : {}",
                     resourceToAdd.getFilename());
@@ -227,7 +248,7 @@ public class V20260101_Starter_pack extends DataPack {
     }
   }
 
-  private void setDefaultDashboard(String filename, String dashboardId) {
+  private void setDefaultDashboard(String filename, String dashboardId, Tenant tenant) {
     String settingKey =
         DASHBOARD_PREFIX_TO_SETTING_KEY.entrySet().stream()
             .filter(entry -> filename.startsWith(entry.getKey()))
@@ -236,8 +257,7 @@ public class V20260101_Starter_pack extends DataPack {
             .orElse(null);
 
     if (settingKey != null) {
-      String tenantId = TenantContext.getCurrentTenant();
-      Tenant tenant = new Tenant(tenantId);
+      String tenantId = tenant.getId();
       Setting defaultDashboardSetting =
           settingRepository
               .findByKeyAndTenantId(settingKey, tenantId)

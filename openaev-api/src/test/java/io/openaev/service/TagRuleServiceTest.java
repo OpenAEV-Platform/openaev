@@ -2,7 +2,6 @@ package io.openaev.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,9 +44,8 @@ class TagRuleServiceTest {
   @Test
   void testFindById() {
     TagRule expected = TagRuleFixture.createTagRule(TAG_RULE_ID);
-    when(tagRuleRepository.findByIdAndTenantId(eq(TAG_RULE_ID), any()))
-        .thenReturn(Optional.of(expected));
-    Optional<TagRule> result = tagRuleService.findById(TAG_RULE_ID, TENANT_ID);
+    when(tagRuleRepository.findById(eq(TAG_RULE_ID))).thenReturn(Optional.of(expected));
+    Optional<TagRule> result = tagRuleService.findById(TAG_RULE_ID);
     assertEquals(expected, result.get());
   }
 
@@ -65,10 +63,8 @@ class TagRuleServiceTest {
   @Test
   void testDeleteTagRule() {
     TagRule expected = TagRuleFixture.createTagRule(TAG_RULE_ID);
-    when(tagRuleRepository.existsByIdAndTenantId(eq(TAG_RULE_ID), any())).thenReturn(true);
-    when(tagRuleRepository.findByIdAndTenantId(eq(TAG_RULE_ID), any()))
-        .thenReturn(Optional.of(expected));
-    tagRuleService.deleteTagRule(TAG_RULE_ID, TENANT_ID);
+    when(tagRuleRepository.findById(eq(TAG_RULE_ID))).thenReturn(Optional.of(expected));
+    tagRuleService.deleteTagRule(TAG_RULE_ID);
     verify(tagRuleRepository).deleteById(TAG_RULE_ID);
   }
 
@@ -76,14 +72,12 @@ class TagRuleServiceTest {
   void testDeleteTagRule_WITH_octi_rule() {
     TagRule expected = TagRuleFixture.createTagRule(TAG_RULE_ID);
     expected.setTag(TagFixture.getTagWithText("opencti"));
-    when(tagRuleRepository.existsByIdAndTenantId(eq(TAG_RULE_ID), any())).thenReturn(true);
-    when(tagRuleRepository.findByIdAndTenantId(eq(TAG_RULE_ID), any()))
-        .thenReturn(Optional.of(expected));
+    when(tagRuleRepository.findById(eq(TAG_RULE_ID))).thenReturn(Optional.of(expected));
 
     assertThrows(
         ForbiddenException.class,
         () -> {
-          tagRuleService.deleteTagRule(TAG_RULE_ID, TENANT_ID);
+          tagRuleService.deleteTagRule(TAG_RULE_ID);
         });
   }
 
@@ -103,7 +97,8 @@ class TagRuleServiceTest {
     TagRule result =
         tagRuleService.createTagRule(
             expected.getTag().getName(),
-            expected.getAssetGroups().stream().map(AssetGroup::getId).toList());
+            expected.getAssetGroups().stream().map(AssetGroup::getId).toList(),
+            TENANT_ID);
     assertEquals(expected, result);
   }
 
@@ -125,7 +120,8 @@ class TagRuleServiceTest {
         () -> {
           tagRuleService.createTagRule(
               expected.getTag().getName(),
-              expected.getAssetGroups().stream().map(AssetGroup::getId).toList());
+              expected.getAssetGroups().stream().map(AssetGroup::getId).toList(),
+              TENANT_ID);
         });
   }
 
@@ -146,7 +142,9 @@ class TagRuleServiceTest {
         ElementNotFoundException.class,
         () -> {
           tagRuleService.createTagRule(
-              expected.getId(), expected.getAssetGroups().stream().map(AssetGroup::getId).toList());
+              expected.getId(),
+              expected.getAssetGroups().stream().map(AssetGroup::getId).toList(),
+              TENANT_ID);
         });
   }
 
@@ -168,7 +166,8 @@ class TagRuleServiceTest {
           TagRule result =
               tagRuleService.createTagRule(
                   expected.getId(),
-                  expected.getAssetGroups().stream().map(AssetGroup::getId).toList());
+                  expected.getAssetGroups().stream().map(AssetGroup::getId).toList(),
+                  TENANT_ID);
         });
   }
 
@@ -179,12 +178,10 @@ class TagRuleServiceTest {
     expected.setId(TAG_RULE_ID);
     expected.setTag(TagFixture.getTag("test"));
 
-    when(tagRuleRepository.existsByIdAndTenantId(anyString(), anyString())).thenReturn(true);
     when(tagRuleRepository.save(any())).thenReturn(expected);
     when(tagRepository.findByName(expected.getTag().getName()))
         .thenReturn(Optional.of(TagFixture.getTag()));
-    when(tagRuleRepository.findByIdAndTenantId(eq(TAG_RULE_ID), any()))
-        .thenReturn(Optional.of(beforeUpdate));
+    when(tagRuleRepository.findById(eq(TAG_RULE_ID))).thenReturn(Optional.of(beforeUpdate));
     expected
         .getAssetGroups()
         .forEach(
@@ -196,8 +193,7 @@ class TagRuleServiceTest {
         tagRuleService.updateTagRule(
             expected.getId(),
             expected.getTag().getName(),
-            expected.getAssetGroups().stream().map(AssetGroup::getId).toList(),
-            TENANT_ID);
+            expected.getAssetGroups().stream().map(AssetGroup::getId).toList());
     assertEquals(expected, result);
   }
 
@@ -209,12 +205,10 @@ class TagRuleServiceTest {
     expected.setId(TAG_RULE_ID);
     expected.setTag(TagFixture.getTag("test"));
 
-    when(tagRuleRepository.existsByIdAndTenantId(anyString(), anyString())).thenReturn(true);
     when(tagRuleRepository.save(any())).thenReturn(expected);
     when(tagRepository.findByName(expected.getTag().getName()))
         .thenReturn(Optional.of(TagFixture.getTag()));
-    when(tagRuleRepository.findByIdAndTenantId(eq(TAG_RULE_ID), any()))
-        .thenReturn(Optional.of(beforeUpdate));
+    when(tagRuleRepository.findById(eq(TAG_RULE_ID))).thenReturn(Optional.of(beforeUpdate));
     expected
         .getAssetGroups()
         .forEach(
@@ -227,8 +221,7 @@ class TagRuleServiceTest {
           tagRuleService.updateTagRule(
               expected.getId(),
               expected.getTag().getName(),
-              expected.getAssetGroups().stream().map(AssetGroup::getId).toList(),
-              TENANT_ID);
+              expected.getAssetGroups().stream().map(AssetGroup::getId).toList());
         });
   }
 
@@ -245,9 +238,7 @@ class TagRuleServiceTest {
     when(tagRuleRepository.save(any())).thenReturn(tagRule);
     when(tagRepository.findByName(unreservedTag.getName())).thenReturn(Optional.of(unreservedTag));
     when(tagRepository.findByName(reservedTag.getName())).thenReturn(Optional.of(reservedTag));
-    when(tagRuleRepository.existsByIdAndTenantId(anyString(), anyString())).thenReturn(true);
-    when(tagRuleRepository.findByIdAndTenantId(eq(TAG_RULE_ID), any()))
-        .thenReturn(Optional.of(tagRule));
+    when(tagRuleRepository.findById(eq(TAG_RULE_ID))).thenReturn(Optional.of(tagRule));
     tagRule
         .getAssetGroups()
         .forEach(
@@ -260,8 +251,7 @@ class TagRuleServiceTest {
           tagRuleService.updateTagRule(
               tagRule.getId(),
               reservedTag.getName(),
-              tagRule.getAssetGroups().stream().map(AssetGroup::getId).toList(),
-              TENANT_ID);
+              tagRule.getAssetGroups().stream().map(AssetGroup::getId).toList());
         });
   }
 
@@ -269,12 +259,10 @@ class TagRuleServiceTest {
   void testUpdateTagRule_WITH_non_existing_tag() {
     TagRule expected = TagRuleFixture.createTagRule(TAG_RULE_ID);
     Tag tag = TagFixture.getTag();
-    when(tagRuleRepository.existsByIdAndTenantId(anyString(), anyString())).thenReturn(true);
     when(tagRuleRepository.save(any())).thenReturn(expected);
     when(tagRepository.findByName(expected.getTag().getName())).thenReturn(Optional.empty());
     when(tagRepository.save(any())).thenReturn(tag);
-    when(tagRuleRepository.findByIdAndTenantId(eq(TAG_RULE_ID), any()))
-        .thenReturn(Optional.of(expected));
+    when(tagRuleRepository.findById(eq(TAG_RULE_ID))).thenReturn(Optional.of(expected));
     expected
         .getAssetGroups()
         .forEach(
@@ -287,20 +275,17 @@ class TagRuleServiceTest {
           tagRuleService.updateTagRule(
               expected.getId(),
               expected.getTag().getName(),
-              expected.getAssetGroups().stream().map(AssetGroup::getId).toList(),
-              TENANT_ID);
+              expected.getAssetGroups().stream().map(AssetGroup::getId).toList());
         });
   }
 
   @Test
   void testUpdateTagRule_WITH_non_existing_asset_group() {
     TagRule expected = TagRuleFixture.createTagRule(TAG_RULE_ID);
-    when(tagRuleRepository.existsByIdAndTenantId(anyString(), anyString())).thenReturn(true);
     when(tagRuleRepository.save(any())).thenReturn(expected);
     when(tagRepository.findByName(expected.getTag().getName()))
         .thenReturn(Optional.of(TagFixture.getTag()));
-    when(tagRuleRepository.findByIdAndTenantId(eq(TAG_RULE_ID), any()))
-        .thenReturn(Optional.of(expected));
+    when(tagRuleRepository.findById(eq(TAG_RULE_ID))).thenReturn(Optional.of(expected));
     expected
         .getAssetGroups()
         .forEach(
@@ -313,23 +298,21 @@ class TagRuleServiceTest {
           tagRuleService.updateTagRule(
               expected.getId(),
               expected.getTag().getName(),
-              expected.getAssetGroups().stream().map(AssetGroup::getId).toList(),
-              TENANT_ID);
+              expected.getAssetGroups().stream().map(AssetGroup::getId).toList());
         });
   }
 
   @Test
   void testUpdateTagRule_WITH_non_existing_tag_rule() {
     TagRule expected = TagRuleFixture.createTagRule(TAG_RULE_ID);
-    when(tagRuleRepository.existsByIdAndTenantId(anyString(), anyString())).thenReturn(false);
+    when(tagRuleRepository.findById(eq(TAG_RULE_ID))).thenReturn(Optional.empty());
     assertThrows(
         ElementNotFoundException.class,
         () -> {
           tagRuleService.updateTagRule(
               expected.getId(),
               expected.getTag().getName(),
-              expected.getAssetGroups().stream().map(AssetGroup::getId).toList(),
-              TENANT_ID);
+              expected.getAssetGroups().stream().map(AssetGroup::getId).toList());
         });
   }
 

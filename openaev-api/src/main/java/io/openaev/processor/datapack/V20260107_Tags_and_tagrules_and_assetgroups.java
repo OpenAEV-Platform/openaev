@@ -1,6 +1,9 @@
 package io.openaev.processor.datapack;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.DataPackService;
@@ -19,16 +22,19 @@ public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
   private final TagService tagService;
   private final TagRuleService tagRuleService;
   private final AssetGroupService assetGroupService;
+  private final TenantScopedTransaction tenantScopedTransaction;
 
   public V20260107_Tags_and_tagrules_and_assetgroups(
       DataPackService dataPackService,
       TagService tagService,
       TagRuleService tagRuleService,
-      AssetGroupService assetGroupService) {
+      AssetGroupService assetGroupService,
+      TenantScopedTransaction tenantScopedTransaction) {
     super(dataPackService);
     this.tagService = tagService;
     this.tagRuleService = tagRuleService;
     this.assetGroupService = assetGroupService;
+    this.tenantScopedTransaction = tenantScopedTransaction;
   }
 
   private Optional<TagRule> findTagRuleForPlatform(
@@ -48,10 +54,19 @@ public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
   }
 
   @Override
-  public boolean doProcess() {
+  public boolean doProcess(Tenant tenant) {
     try {
-      tagService.ensureWellKnownTags();
-      Set<TagRule> presetRules = tagRuleService.ensurePresetRules();
+      String tenantId = tenant.getId();
+      // ensureWellKnownTags must commit in its own transaction before ensurePresetRules runs in
+      // its own executeNew: both would otherwise touch the same (name, tenant) tag rows, one on
+      // the outer suspended transaction, one on the nested one, and block on each other's
+      // uncommitted locks forever (the nested transaction can never see the outer's uncommitted
+      // insert, and the outer stays suspended until the nested one returns).
+      tenantScopedTransaction.executeNew(
+          TxCtx.forTenant(tenantId), tagService::ensureWellKnownTags);
+      Set<TagRule> presetRules =
+          tenantScopedTransaction.executeNew(
+              TxCtx.forTenant(tenantId), () -> tagRuleService.ensurePresetRules(tenantId));
 
       Set<Endpoint.PLATFORM_TYPE> platformsToConsider =
           Set.of(
@@ -83,13 +98,34 @@ public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
           assetGroup.setName("All %s %s".formatted(platform.toString(), arch.toString()));
           assetGroup.setDynamicFilter(filterGroup);
 
-          AssetGroup saved = this.assetGroupService.createAssetGroup(assetGroup);
+          // Must commit in its own transaction before addAssetGroup's executeNew below attaches
+          // it to the tag rule on a different connection — otherwise the same lock-wait trap as
+          // tags/tag_rules above.
+          AssetGroup saved =
+              tenantScopedTransaction.executeNew(
+                  TxCtx.forTenant(tenantId),
+                  () -> this.assetGroupService.createAssetGroup(assetGroup));
 
           findTagRuleForPlatform(presetRules, platform)
+              .map(TagRule::getId)
               .ifPresent(
-                  tagRule -> {
-                    tagRuleService.addAssetGroup(tagRule, saved);
-                  });
+                  tagRuleId ->
+                      tenantScopedTransaction.executeNew(
+                          TxCtx.forTenant(tenantId),
+                          () -> {
+                            // Re-fetch inside this transaction: tagRule came from the previous,
+                            // now-closed executeNew and is a detached entity — its LAZY
+                            // assetGroups collection would throw LazyInitializationException if
+                            // touched without a managed instance from the current session.
+                            TagRule managedTagRule =
+                                tagRuleService
+                                    .findById(tagRuleId)
+                                    .orElseThrow(
+                                        () ->
+                                            new ElementNotFoundException(
+                                                "TagRule not found with id: " + tagRuleId));
+                            tagRuleService.addAssetGroup(managedTagRule, saved);
+                          }));
         }
       }
       return true;
