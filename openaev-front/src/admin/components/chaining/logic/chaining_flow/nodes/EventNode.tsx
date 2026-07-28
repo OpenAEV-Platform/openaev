@@ -137,7 +137,7 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
         <Handle
           id="event-target"
           type="target"
-          position={Position.Right}
+          position={Position.Left}
           isConnectable={false}
           style={{
             background: 'transparent',

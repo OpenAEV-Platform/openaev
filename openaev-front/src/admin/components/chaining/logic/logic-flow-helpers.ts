@@ -541,7 +541,7 @@ export const buildInformationalEdges = (
   return Array.from(typesByAction.entries()).map(([stepId, types]) => ({
     id: `info-${stepId}-${selectedEventId}`,
     source: stepId,
-    sourceHandle: 'action-source-left',
+    sourceHandle: 'action-source-right',
     target: selectedEventId,
     targetHandle: 'event-target',
     type: 'informational',

@@ -88,9 +88,9 @@ const ActionNode = ({ id, data }: NodeProps<ActionNodeData>) => {
       />
       {/* Hidden source handle used as the origin of informational (data-flow) arrows toward events. */}
       <Handle
-        id="action-source-left"
+        id="action-source-right"
         type="source"
-        position={Position.Left}
+        position={Position.Right}
         isConnectable={false}
         style={{
           background: 'transparent',
