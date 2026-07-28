@@ -165,8 +165,8 @@ class InjectStatusServiceTest {
       }
 
       @Test
-      @DisplayName("given_noStatusChange_should_notEmitAuditEvent")
-      void given_noStatusChange_should_notEmitAuditEvent() {
+      @DisplayName("given_traceCreationWithoutStatusChange_should_emitAgentTraceStepAuditEvent")
+      void given_traceCreationWithoutStatusChange_should_emitAgentTraceStepAuditEvent() {
         // Arrange — a non-complete trace that doesn't change the status
         Inject inject = new Inject();
         inject.setId("inject-2");
@@ -179,6 +179,12 @@ class InjectStatusServiceTest {
         injectStatus.setTraces(new ArrayList<>());
         inject.setStatus(injectStatus);
 
+        Agent agent = new Agent();
+        agent.setId("agent-2");
+        Asset endpoint = new Asset();
+        endpoint.setId("asset-2");
+        agent.setAsset(endpoint);
+
         InjectExecutionInput input = new InjectExecutionInput();
         input.setAction(InjectExecutionAction.command_execution);
         input.setStatus("SUCCESS");
@@ -188,10 +194,148 @@ class InjectStatusServiceTest {
         when(executionTraceRepositoryHelper.saveExecutionTrace(any())).thenReturn("trace-id");
 
         // Act
+        injectStatusService.updateInjectStatus(inject, agent, input, null);
+
+        // Assert
+        ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+        verify(auditLogger).logEvent(eventCaptor.capture());
+
+        AuditEvent event = eventCaptor.getValue();
+        assertThat(event.getEventType()).isEqualTo(EventType.EXECUTION);
+        assertThat(event.getEventScope()).isEqualTo(AuditEventScope.AGENT_TRACE_STEP);
+        assertThat(event.getEventStatus()).isEqualTo(EventStatus.SUCCESS);
+        assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SCHEDULED);
+        assertThat(event.getContextData().get("trace_id")).isEqualTo("trace-id");
+        assertThat(event.getContextData().get("step_name")).isEqualTo("EXECUTION");
+        assertThat(event.getContextData().get("trace_status")).isEqualTo("EXECUTED");
+        assertThat(event.getContextData().get("inject_id")).isEqualTo("inject-2");
+        assertThat(event.getContextData().get("agent_id")).isEqualTo("agent-2");
+        assertThat(event.getContextData().get("endpoint_id")).isEqualTo("asset-2");
+      }
+
+      @Test
+      @DisplayName("given_prerequisiteTrace_should_emitPrerequisiteStepAuditEvent")
+      void given_prerequisiteTrace_should_emitPrerequisiteStepAuditEvent() {
+        // Arrange
+        Inject inject = new Inject();
+        inject.setId("inject-prereq");
+        inject.setTitle("Prerequisite Inject");
+
+        InjectStatus injectStatus = new InjectStatus();
+        injectStatus.setId("status-prereq");
+        injectStatus.setName(ExecutionStatus.PENDING);
+        injectStatus.setInject(inject);
+        injectStatus.setTraces(new ArrayList<>());
+        inject.setStatus(injectStatus);
+
+        Agent agent = new Agent();
+        agent.setId("agent-prereq");
+        Asset endpoint = new Asset();
+        endpoint.setId("asset-prereq");
+        agent.setAsset(endpoint);
+
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setAction(InjectExecutionAction.prerequisite_check);
+        input.setStatus("SUCCESS");
+        input.setMessage("prerequisite validated");
+        input.setDuration(0);
+
+        when(executionTraceRepositoryHelper.saveExecutionTrace(any())).thenReturn("trace-prereq");
+
+        // Act
+        injectStatusService.updateInjectStatus(inject, agent, input, null);
+
+        // Assert
+        ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+        verify(auditLogger).logEvent(eventCaptor.capture());
+
+        AuditEvent event = eventCaptor.getValue();
+        assertThat(event.getEventScope()).isEqualTo(AuditEventScope.AGENT_TRACE_STEP);
+        assertThat(event.getEventStatus()).isEqualTo(EventStatus.SUCCESS);
+        assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SCHEDULED);
+        assertThat(event.getContextData().get("step_name")).isEqualTo("PREREQUISITE_CHECK");
+        assertThat(event.getContextData().get("trace_status")).isEqualTo("EXECUTED");
+        assertThat(event.getContextData().get("trace_id")).isEqualTo("trace-prereq");
+      }
+
+      @Test
+      @DisplayName("given_cleanupTrace_should_emitCleanupStepAuditEvent")
+      void given_cleanupTrace_should_emitCleanupStepAuditEvent() {
+        // Arrange
+        Inject inject = new Inject();
+        inject.setId("inject-cleanup");
+        inject.setTitle("Cleanup Inject");
+
+        InjectStatus injectStatus = new InjectStatus();
+        injectStatus.setId("status-cleanup");
+        injectStatus.setName(ExecutionStatus.PENDING);
+        injectStatus.setInject(inject);
+        injectStatus.setTraces(new ArrayList<>());
+        inject.setStatus(injectStatus);
+
+        Agent agent = new Agent();
+        agent.setId("agent-cleanup");
+        Asset endpoint = new Asset();
+        endpoint.setId("asset-cleanup");
+        agent.setAsset(endpoint);
+
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setAction(InjectExecutionAction.cleanup_execution);
+        input.setStatus("SUCCESS");
+        input.setMessage("cleanup done");
+        input.setDuration(0);
+
+        when(executionTraceRepositoryHelper.saveExecutionTrace(any())).thenReturn("trace-cleanup");
+
+        // Act
+        injectStatusService.updateInjectStatus(inject, agent, input, null);
+
+        // Assert
+        ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+        verify(auditLogger).logEvent(eventCaptor.capture());
+
+        AuditEvent event = eventCaptor.getValue();
+        assertThat(event.getEventScope()).isEqualTo(AuditEventScope.AGENT_TRACE_STEP);
+        assertThat(event.getEventStatus()).isEqualTo(EventStatus.SUCCESS);
+        assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SCHEDULED);
+        assertThat(event.getContextData().get("step_name")).isEqualTo("CLEANUP_EXECUTION");
+        assertThat(event.getContextData().get("trace_status")).isEqualTo("EXECUTED");
+        assertThat(event.getContextData().get("trace_id")).isEqualTo("trace-cleanup");
+      }
+
+      @Test
+      @DisplayName("given_noStatusChange_should_notEmitInjectStatusTransitionAuditEvent")
+      void given_noStatusChange_should_notEmitInjectStatusTransitionAuditEvent() {
+        // Arrange — a non-complete trace that keeps inject status unchanged
+        Inject inject = new Inject();
+        inject.setId("inject-2b");
+        inject.setTitle("Test Inject 2b");
+
+        InjectStatus injectStatus = new InjectStatus();
+        injectStatus.setId("status-2b");
+        injectStatus.setName(ExecutionStatus.PENDING);
+        injectStatus.setInject(inject);
+        injectStatus.setTraces(new ArrayList<>());
+        inject.setStatus(injectStatus);
+
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
+        input.setMessage("running");
+        input.setDuration(0);
+
+        when(executionTraceRepositoryHelper.saveExecutionTrace(any())).thenReturn("trace-id-2b");
+
+        // Act
         injectStatusService.updateInjectStatus(inject, null, input, null);
 
-        // Assert — no audit event since status remains PENDING
-        verify(auditLogger, never()).logEvent(any());
+        // Assert — trace event is emitted, but no status-transition event should exist
+        ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+        verify(auditLogger).logEvent(eventCaptor.capture());
+
+        AuditEvent event = eventCaptor.getValue();
+        assertThat(event.getEventScope()).isEqualTo(AuditEventScope.AGENT_TRACE_STEP);
+        assertThat(event.getContextData().get("trace_id")).isEqualTo("trace-id-2b");
       }
 
       @Test
