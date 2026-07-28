@@ -192,6 +192,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     return injectorRepository.findAllById(compositeIds);
   }
 
+  public InjectorOutput injectorOutput(String id) {
+    return getConnectorOutput(id);
+  }
+
   /**
    * Retrieve all injectors.
    *
