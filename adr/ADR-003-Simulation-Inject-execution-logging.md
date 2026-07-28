@@ -681,7 +681,34 @@ auditLogger.ifPresent(logger -> logger.logEvent(AuditEvent.builder()
 2. **Tests**:
     - Verify `createExecutionTrace()` emits an `AGENT_TRACE_STEP` audit event with correct `trace_id`, `step_name`, `trace_status`
 
-##### Chunk 3 — Agent inactivity monitoring (US.1a only)
+##### Chunk 3 — Scheduled execution + target resolution (shared + US.1a)
+1. Inject `Optional<AuditLogger>` into `InjectsExecutionJob`
+2. Log after auto-start transition `SCHEDULED → RUNNING` in `handleAutoStartExercises()` (shared)
+3. Enrich context with scenario info when the simulation originates from a scenario recurrence
+4. Log resolved target list in `executeInject()` at inject execution time, once targets are known — including inactive agents and agentless assets in `contextData` (US.1a)
+5. **Tests**:
+    - Verify `handleAutoStartExercises()` emits `SCHEDULED_LAUNCH` audit event with `simulation_id`, `initiator = "scheduler"`
+    - Verify scenario recurrence enriches context with `scenario_id`, `scenario_name`
+    - Verify from-scratch simulation does NOT include scenario fields in context
+    - Verify `executeInject()` emits `TARGET_RESOLUTION` audit event with structured `endpoints` list containing per-endpoint agent status (`AGENT_ACTIVE`, `AGENT_INACTIVE`, or `ASSET_AGENTLESS`)
+
+##### Chunk 4 — Inject queued for integration agent (US.1b only)
+1. Inject `Optional<AuditLogger>` into `ExecutionExecutorService`
+2. Log inject dispatch in `launchExecutorContext()` with `INJECT_QUEUED` scope, before routing to individual `ExecutorContextService` implementations
+3. Include `executor_type` and integration agent details in `contextData`
+4. **Tests**:
+    - Verify `launchExecutorContext()` emits `INJECT_QUEUED` audit event with correct `executor_type`, `integration_agent_id`
+    - Verify event is emitted per executor type when inject targets multiple integration agents
+
+##### Chunk 5 — Expectation results (shared)
+1. Inject `Optional<AuditLogger>` into `InjectExpectationService`
+2. Log in `updateInjectExpectation()` (automatic) with collector source
+3. Log in manual validation path with user attribution
+4. **Tests**:
+    - Verify automatic expectation result emits `EXPECTATION_RESULT` audit event with `source_type = "automatic"` and `origin = SYSTEM`
+    - Verify manual expectation result emits `EXPECTATION_RESULT` audit event with `source_type = "manual"`, user ID, and `origin = REQUEST`
+
+##### Issue 6918 — Agent inactivity monitoring (next step)
 1. Migration: add `agent_status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'` column to `agents` table + backfill inactive agents
 2. Add `AgentStatus` enum (`ACTIVE`, `INACTIVE`) and `status` field to `Agent` entity
 3. Change `Agent.isActive()` implementation to read persisted `status` field (no signature change — `@JsonProperty("agent_active")` preserved, zero impact on callers)
@@ -696,33 +723,6 @@ auditLogger.ifPresent(logger -> logger.logEvent(AuditEvent.builder()
     - Verify no duplicate event is emitted on subsequent poll cycles for the same agent
     - Verify event is re-emitted if agent recovers (heartbeat received → status reset to ACTIVE) then becomes inactive again
     - Verify job does nothing when no agents are inactive
-
-##### Chunk 4 — Scheduled execution + target resolution (shared + US.1a)
-1. Inject `Optional<AuditLogger>` into `InjectsExecutionJob`
-2. Log after auto-start transition `SCHEDULED → RUNNING` in `handleAutoStartExercises()` (shared)
-3. Enrich context with scenario info when the simulation originates from a scenario recurrence
-4. Log resolved target list in `executeInject()` at inject execution time, once targets are known — including inactive agents and agentless assets in `contextData` (US.1a)
-5. **Tests**:
-    - Verify `handleAutoStartExercises()` emits `SCHEDULED_LAUNCH` audit event with `simulation_id`, `initiator = "scheduler"`
-    - Verify scenario recurrence enriches context with `scenario_id`, `scenario_name`
-    - Verify from-scratch simulation does NOT include scenario fields in context
-    - Verify `executeInject()` emits `TARGET_RESOLUTION` audit event with structured `endpoints` list containing per-endpoint agent status (`AGENT_ACTIVE`, `AGENT_INACTIVE`, or `ASSET_AGENTLESS`)
-
-##### Chunk 5 — Inject queued for integration agent (US.1b only)
-1. Inject `Optional<AuditLogger>` into `ExecutionExecutorService`
-2. Log inject dispatch in `launchExecutorContext()` with `INJECT_QUEUED` scope, before routing to individual `ExecutorContextService` implementations
-3. Include `executor_type` and integration agent details in `contextData`
-4. **Tests**:
-    - Verify `launchExecutorContext()` emits `INJECT_QUEUED` audit event with correct `executor_type`, `integration_agent_id`
-    - Verify event is emitted per executor type when inject targets multiple integration agents
-
-##### Chunk 6 — Expectation results (shared)
-1. Inject `Optional<AuditLogger>` into `InjectExpectationService`
-2. Log in `updateInjectExpectation()` (automatic) with collector source
-3. Log in manual validation path with user attribution
-4. **Tests**:
-    - Verify automatic expectation result emits `EXPECTATION_RESULT` audit event with `source_type = "automatic"` and `origin = SYSTEM`
-    - Verify manual expectation result emits `EXPECTATION_RESULT` audit event with `source_type = "manual"`, user ID, and `origin = REQUEST`
 
 #### Volume & performance considerations
 
