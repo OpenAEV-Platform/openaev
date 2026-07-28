@@ -1,10 +1,11 @@
-import { Circle, ExpandMore } from '@mui/icons-material';
-import { Accordion, AccordionDetails, AccordionSummary, Button, Typography } from '@mui/material';
+import { Circle } from '@mui/icons-material';
+import { Button, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
 import type { HealthCheck } from '../../../../utils/api-types';
+import AlertBanner from '../AlertBanner';
 
 interface Props {
   healthchecks: HealthCheck[];
@@ -80,70 +81,41 @@ const Healthchecks = ({ healthchecks, scenarioId, exerciseId }: Props) => {
   };
 
   return (
-    <div style={{
-      width: '100%',
-      display: 'flex',
-      marginBottom: theme.spacing(2),
-    }}
-    >
-      <div style={{
-        backgroundColor: getPaperInformationBarColor(),
-        borderBottomLeftRadius: 5,
-        borderTopLeftRadius: 5,
-        height: 'auto',
-        width: '2px',
-      }}
-      />
-      <Accordion
-        defaultExpanded
-        style={{
-          width: '100%',
-          margin: 0,
-        }}
+    <div style={{ marginBottom: theme.spacing(2) }}>
+      <AlertBanner
+        color={getPaperInformationBarColor()}
+        title={t(exerciseId ? 'Simulation configuration' : 'Scenario configuration')}
       >
-        <AccordionSummary expandIcon={<ExpandMore />}>
-          <Typography variant="h6" sx={{ color: theme.palette.warning.main }}>
-            {t(exerciseId ? 'Simulation configuration' : 'Scenario configuration')}
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails style={{
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-        >
-          {orderedHealthchecks.map((healthcheck: HealthCheck, index: number) => {
-            return (
-              <div
-                key={'scenario-healthcheck-' + index}
-                style={{
-                  alignItems: 'center',
-                  display: 'flex',
-                  gap: theme.spacing(1),
-                }}
-              >
-                <Circle
-                  sx={{
-                    color: healthcheck.status === 'ERROR' ? theme.palette.error.main : theme.palette.warning.main,
-                    height: '10px',
-                  }}
-                />
-                <Typography variant="h3" marginBottom={0}>
-                  {t(`healthcheck.type.${healthcheck.type}`)}
-                  :
-                </Typography>
-                <span>{t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`)}</span>
-                <Button
-                  color="primary"
-                  size="small"
-                  onClick={() => goToHealthcheckAction(healthcheck.type!)}
-                >
-                  {t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`)}
-                </Button>
-              </div>
-            );
-          })}
-        </AccordionDetails>
-      </Accordion>
+        {orderedHealthchecks.map((healthcheck: HealthCheck, index: number) => (
+          <div
+            key={'scenario-healthcheck-' + index}
+            style={{
+              alignItems: 'center',
+              display: 'flex',
+              gap: theme.spacing(1),
+            }}
+          >
+            <Circle
+              sx={{
+                color: healthcheck.status === 'ERROR' ? theme.palette.error.main : theme.palette.warning.main,
+                height: '10px',
+              }}
+            />
+            <Typography variant="h3" marginBottom={0}>
+              {t(`healthcheck.type.${healthcheck.type}`)}
+              :
+            </Typography>
+            <span>{t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`)}</span>
+            <Button
+              color="primary"
+              size="small"
+              onClick={() => goToHealthcheckAction(healthcheck.type!)}
+            >
+              {t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`)}
+            </Button>
+          </div>
+        ))}
+      </AlertBanner>
     </div>
   );
 };

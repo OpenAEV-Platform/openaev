@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Central registry that translates injector contract output types into chaining-engine semantics.
@@ -142,6 +143,26 @@ public final class ChainingTypeRegistry {
       case COMPLEX -> ChainingMappedType.complex(outputType.primitiveRecipe(), type);
       case NOT_CHAINABLE -> ChainingMappedType.nonChainable();
     };
+  }
+
+  public static List<PrimitiveType> getPrimitiveTypesForContractOutputType(
+      ContractOutputType type) {
+    if (type == null) {
+      return List.of();
+    }
+
+    ChainingMappedType mappedType = getMappedTypeForContractOutputType(type);
+    if (!mappedType.primitiveTypes().isEmpty()) {
+      return mappedType.primitiveTypes();
+    }
+
+    Map<String, PrimitiveType> contextualFieldMapping =
+        CONTEXTUAL_COMPLEX_FIELD_PRIMITIVES.get(type);
+    if (contextualFieldMapping == null) {
+      return List.of();
+    }
+
+    return contextualFieldMapping.values().stream().distinct().collect(Collectors.toList());
   }
 
   public static ChainingMappedType getMappedTypeForScopeRuleValueType(
