@@ -205,6 +205,47 @@ public class AssetGroupService {
     return assets;
   }
 
+  /**
+   * Resolve every asset group the given asset belongs to: static membership (the asset is
+   * explicitly listed in the group) plus dynamic membership (the group's dynamic filter matches the
+   * asset). Dynamic membership is checked with an id-constrained query per dynamic group so the
+   * potentially large dynamic member lists are never materialized.
+   */
+  @Transactional(readOnly = true)
+  public List<AssetGroup> assetGroupsOfAsset(@NotNull final Asset asset) {
+    Map<String, AssetGroup> assetGroupsById = new LinkedHashMap<>();
+    asset.getAssetGroups().forEach(group -> assetGroupsById.putIfAbsent(group.getId(), group));
+    fromIterable(this.assetGroupRepository.findAll()).stream()
+        .filter(group -> !assetGroupsById.containsKey(group.getId()))
+        .filter(group -> !isEmptyFilterGroup(group.getDynamicFilter()))
+        .filter(group -> isAssetInDynamicGroup(asset, group))
+        .forEach(group -> assetGroupsById.putIfAbsent(group.getId(), group));
+    return new ArrayList<>(assetGroupsById.values());
+  }
+
+  /** True when the group's dynamic filter matches the given asset (id-constrained query). */
+  private boolean isAssetInDynamicGroup(
+      @NotNull final Asset asset, @NotNull final AssetGroup assetGroup) {
+    if (Hibernate.unproxy(asset) instanceof Endpoint) {
+      Specification<Endpoint> filterSpecification =
+          computeFilterGroupJpa(assetGroup.getDynamicFilter());
+      Specification<Endpoint> specification =
+          filterSpecification
+              .and(EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints())
+              .and((root, query, cb) -> cb.equal(root.get("id"), asset.getId()));
+      return !this.endpointService.endpoints(specification).isEmpty();
+    }
+    // Same eager key validation as resolveDynamicNonEndpointAssets: endpoint-only filter keys
+    // cannot match non-endpoint assets and would fail the base-Asset query.
+    if (!isFilterResolvableForBaseAssets(assetGroup.getDynamicFilter())) {
+      return false;
+    }
+    Specification<Asset> filterSpecification = computeFilterGroupJpa(assetGroup.getDynamicFilter());
+    Specification<Asset> specification =
+        filterSpecification.and((root, query, cb) -> cb.equal(root.get("id"), asset.getId()));
+    return !this.assetService.assets(specification).isEmpty();
+  }
+
   private List<AssetGroup> computeDynamicAssets(@NotNull final List<AssetGroup> assetGroups) {
     if (assetGroups.stream()
         .allMatch(assetGroup -> isEmptyFilterGroup(assetGroup.getDynamicFilter()))) {

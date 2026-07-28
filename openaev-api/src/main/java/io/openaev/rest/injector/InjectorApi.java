@@ -152,15 +152,13 @@ public class InjectorApi extends RestBehavior {
   }
 
   @GetMapping({INJECT0R_URI + "/{injectorId}", TENANT_INJECTOR_URI + "/{injectorId}"})
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR)
-  public Injector injector(@PathVariable String injectorId) {
-    return injectorRepository
-        .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
-        .orElseThrow(ElementNotFoundException::new);
+  public InjectorOutput injector(@PathVariable String injectorId) {
+    return injectorService.injectorOutput(injectorId);
   }
 
   @GetMapping({

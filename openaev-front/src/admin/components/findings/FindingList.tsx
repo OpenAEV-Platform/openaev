@@ -174,6 +174,22 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
   ];
 
   const visibleHeaders = headers.filter(h => !hiddenFields.includes(h.field));
+  // Hiding columns (e.g. the compact drawer) leaves the fixed per-column widths summing to < 100%, which
+  // squeezes and truncates the last columns (Assets). Rescale the visible columns proportionally so they
+  // fill the row; a no-op in full mode where the widths already total 100%.
+  const visibleWidthTotal = visibleHeaders.reduce(
+    (sum, h) => sum + (parseFloat(String(inlineStyles[h.field]?.width ?? '0')) || 0),
+    0,
+  );
+  const visibleStyles: Record<string, CSSProperties> = Object.fromEntries(
+    visibleHeaders.map((h) => {
+      const w = parseFloat(String(inlineStyles[h.field]?.width ?? '0')) || 0;
+      return [h.field, {
+        ...inlineStyles[h.field],
+        ...(visibleWidthTotal > 0 && w > 0 ? { width: `${((w / visibleWidthTotal) * 100).toFixed(2)}%` } : {}),
+      }];
+    }),
+  );
 
   return (
     <>
@@ -201,14 +217,14 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
             primary={(
               <SortHeadersComponentV2
                 headers={visibleHeaders}
-                inlineStylesHeaders={inlineStyles}
+                inlineStylesHeaders={visibleStyles}
                 sortHelpers={queryableHelpers.sortHelpers}
               />
             )}
           />
         </ListItem>
         {loading
-          ? <PaginatedListLoader Icon={Binoculars} headers={visibleHeaders} headerStyles={inlineStyles} />
+          ? <PaginatedListLoader Icon={Binoculars} headers={visibleHeaders} headerStyles={visibleStyles} />
           : findings.map(finding => (
               <ListItem
                 key={finding.finding_id}
@@ -233,7 +249,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
                             key={header.field}
                             style={{
                               ...bodyItemsStyles.bodyItem,
-                              ...inlineStyles[header.field],
+                              ...visibleStyles[header.field],
                             }}
                           >
                             {header.value && header.value(finding)}

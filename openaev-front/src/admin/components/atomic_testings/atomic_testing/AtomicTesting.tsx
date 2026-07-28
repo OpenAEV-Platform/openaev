@@ -50,6 +50,28 @@ type TabConfig = {
   entityPrefix: string;
 };
 
+// The Targets tab the user last opened, remembered per inject. An atomic testing IS an inject, and
+// this screen serves both, so keying on the inject id scopes the memory to a single atomic testing
+// or a single simulation inject - opening another one never inherits the tab. First visit has
+// nothing stored and lands on the first (broadest) tab; every later visit or reload reopens where
+// the user left off. Same per-inject key shape as the target filters stored next to it
+// (`${targetType}_${injectId}_filters` in PaginatedTargetTab).
+const targetTabStorageKey = (injectId: string) => `${injectId}_target_tab`;
+
+const readStoredTargetTab = (injectId: string): string | null => {
+  if (!injectId || typeof window === 'undefined') {
+    return null;
+  }
+  return window.localStorage.getItem(targetTabStorageKey(injectId));
+};
+
+const storeTargetTab = (injectId: string, targetType: string) => {
+  if (!injectId || typeof window === 'undefined') {
+    return;
+  }
+  window.localStorage.setItem(targetTabStorageKey(injectId), targetType);
+};
+
 const AtomicTesting = () => {
   // Standard hooks
   const { classes } = useStyles();
@@ -79,6 +101,7 @@ const AtomicTesting = () => {
   // Initial tab open
   const [searchParams, setSearchParams] = useSearchParams();
   const targetType = searchParams.get('target');
+  const injectId = injectResultOverviewOutput?.inject_id || '';
 
   const navigateToTab = (tab: TabConfig | undefined) => {
     setActiveTab(tab);
@@ -153,32 +176,40 @@ const AtomicTesting = () => {
     }
 
     // tabs visibility may have changed so we reevaluate this structure;
-    // figure out which tab to display; if the previously displayed tab
-    // is still available, keep it up
-    // otherwise default to the first occurring tab (the broadest scope:
-    // asset groups, then teams, then assets, ...)
+    // figure out which tab to display, in order of precedence: an explicit
+    // ?target= deep link, the tab already open, the tab this inject was last
+    // left on, and finally the first occurring tab (the broadest scope: asset
+    // groups, then teams, then assets, ...) on a first visit.
     if (tabs.length === 0) {
       navigateToTab(undefined);
+      return tabs;
     }
 
-    if (targetType != null && tabs.map(conf => conf.type).includes(targetType)) {
+    const availableTypes = tabs.map(conf => conf.type);
+    if (targetType != null && availableTypes.includes(targetType)) {
       navigateToTab(tabs.find(tc => targetType === tc.type));
+      // The deep link is consumed from the URL, so remember it: a reload must
+      // land on the tab the user is looking at, not back on the first one.
+      storeTargetTab(injectId, targetType);
       searchParams.delete('target');
       setSearchParams(searchParams, { replace: true });
-    } else if (activeTab && tabs.map(conf => conf.type).includes(activeTab.type)) {
-      navigateToTab(tabs.find(tc => activeTab.type === tc.type));
-    } else {
-      navigateToTab(tabs[0]);
+      return tabs;
     }
+    if (activeTab && availableTypes.includes(activeTab.type)) {
+      navigateToTab(tabs.find(tc => activeTab.type === tc.type));
+      return tabs;
+    }
+    const storedType = readStoredTargetTab(injectId);
+    // A stored tab that no longer exists on this inject (targets changed since)
+    // falls back to the first one instead of leaving the pane empty.
+    navigateToTab(tabs.find(tc => tc.type === storedType) ?? tabs[0]);
 
     return tabs;
-  }, [hasAssetsGroup, hasTeams, hasEndpoints, hasAgents, hasPlayers, hasAiTargets, allTargetsChecked]);
+  }, [hasAssetsGroup, hasTeams, hasEndpoints, hasAgents, hasPlayers, hasAiTargets, allTargetsChecked, injectId]);
 
   const activeTabKey: number = useMemo(() => {
     return activeTab?.key || 0;
   }, [activeTab]);
-
-  const injectId = injectResultOverviewOutput?.inject_id || '';
 
   useEffect(() => {
     if (!injectResultOverviewOutput) return;
@@ -282,6 +313,9 @@ const AtomicTesting = () => {
   const handleTabChange = (_event: SyntheticEvent, newValue: number) => {
     const location = tabConfig.find(tc => newValue == tc.key);
     navigateToTab(location);
+    if (location) {
+      storeTargetTab(injectId, location.type);
+    }
   };
 
   const drawTabs = () => {

@@ -2073,6 +2073,7 @@
   "No alert linked": "リンクされたアラートはありません",
   "No alerts have been reported by this security platform.": "このセキュリティプラットフォームからアラートは報告されていません。",
   "No asset added yet.": "アセット未追加",
+  "No asset group": "アセットグループなし",
   "No asset in this asset group.": "No asset in this asset group.",
   "No asset selected. Add asset manually by typing IPs, CIDRs or hostnames or select some in the asset list.": "アセットが選択されていません。IP、CIDR、またはホスト名を入力して手動でアセットを追加するか、アセットリストからいくつかを選択します。",
   "No asset selected. Add asset manually or select some in the asset list.": "アセットが選択されていません。手動でアセットを追加するか、アセットリストからアセットを選択してください。",
@@ -2372,6 +2373,7 @@
   "Phone number must start with + and contain only digits": "電話番号は+で始まり、数字のみであること",
   "phone_number_tooltip": "電話番号はプラス記号（+）で始まります。空白やハイフン（-）、括弧が含まれていても構いません。",
   "Pipe": "パイプ",
+  "Pivot node": "Pivot node",
   "Planning": "プランニング",
   "Platform": "プラットフォーム",
   "Platform connected": "プラットフォーム接続",
@@ -3093,6 +3095,7 @@
   "This tenant": "このテナント",
   "This user could not be found.": "このユーザーが見つかりませんでした。",
   "This user does not belong to any group.": "このユーザーはどのグループにも属していません。",
+  "This vulnerability is listed in CISA's Known Exploited Vulnerabilities catalog.": "この脆弱性は、CISA の既知の悪用された脆弱性 (KEV) カタログに掲載されています。",
   "This warning has been dismissed for all users, but the expectations still do not match. You can realign them or restore the full warning.": "この警告はすべてのユーザーに対して却下されましたが、期待値は依然として一致していません。再調整するか、完全な警告を復元できます。",
   "Threat Arsenal": "兵器庫",
   "Threat Arsenal supports .zip file import format": "兵器庫 は .zip ファイルのインポート形式をサポートします。",
@@ -3457,5 +3460,11 @@
   "YYYY": "年",
   "Zoom in": "ズームイン",
   "Zoom out": "ズームアウト",
-  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all."
+  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all.",
+  "Fullscreen": "Fullscreen",
+  "Exit fullscreen": "Exit fullscreen",
+  "criticality weight": "criticality weight",
+  "Criticality weights": "Criticality weights",
+  "{label} is the most exposed endpoint — fixing its findings closes the most attack paths.": "{label} is the most exposed endpoint — fixing its findings closes the most attack paths.",
+  "Weighs this endpoint's findings ×{weight} in the score.": "Weighs this endpoint's findings ×{weight} in the score."
 }

@@ -47,7 +47,8 @@ When the Test Specialist writes isolation tests, flag this agent to verify the p
 | 🟠 **HIGH** | Single service handling both platform and tenant scope for dual-scope entity | `issue (blocking):` — cross-scope data leak risk |
 | 🟠 **HIGH** | Unscoped `findAll()` / `findById()` on dual-scope entity (no `tenant_id` filter) | `issue (blocking):` — returns mixed platform + tenant data |
 | 🟡 **MEDIUM** | Service calling `TenantContext.getCurrentTenant()` directly (should receive tenant as argument from API layer) | `suggestion (blocking):` — hidden coupling, breaks testability and async safety |
-| 🟡 **MEDIUM** | Background job / async without `TenantContext.setCurrentTenant()` | `suggestion (non-blocking):` — potential leak in async context |
+| 🔴 **CRITICAL** | Background job / queue consumer / async task reading or writing tenant rows without `TenantContext.setCurrentTenant()` (even when it sets `TxCtx`) | `issue (blocking):` — silently resolves the DEFAULT tenant, see `multi-tenancy.instructions.md` > Background Threads Carry Both Scopes |
+| 🟠 **HIGH** | `TenantContext.setCurrentTenant()` on a pooled thread without a `finally` restore | `issue (blocking):` — leaks the scope into the next task on that thread |
 | 🟡 **MEDIUM** | Cache key without `tenant_id` | `suggestion (non-blocking):` — cross-tenant cache poisoning risk |
 | 🟢 **LOW** | Entity could be tenant-scoped but isn't yet (tech debt tracking) | `note:` — informational |
 
@@ -90,6 +91,19 @@ For tenant-scoped tables:
 - ✅ FK to `tenants(tenant_id) ON DELETE CASCADE`
 - ✅ Index on `tenant_id`
 - ✅ Unique constraints are composite with `tenant_id`
+
+### Step 5 — Audit background entry points
+
+```bash
+# Every off-request entry point: Quartz jobs, queue consumers, @Async, parallelStream workers
+grep -rn "tenantTx.execute\|forEachTenant\|implements Job\|@Async" --include="*.java" openaev-api/src/main/java/
+```
+
+Each hit that reads or writes tenant rows MUST also set the thread-local `TenantContext`, cleared
+in a `finally`. Setting only `TxCtx` is 🔴 CRITICAL: the v1 `@Filter` then resolves the DEFAULT
+tenant instead of failing, so the leak is silent and invisible in single-tenant deployments. Model:
+`InjectsExecutionJob#executeInTenant`. Note that `findById` is *not* filtered by Hibernate, so it
+never reveals this class of bug — check JPQL / Criteria reads and `TenantBaseListener` inserts.
 
 ## What NOT to Flag
 

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.BulkOperationContext;
 import io.openaev.database.model.Base;
 import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -85,43 +86,38 @@ public class BaseEvent implements Cloneable {
     Class<?> baseClass = data.getClass();
 
     /*
-     * Inspect fields declared directly in the current class.
-     * If an @Id is found, initialize the identifier attribute and schema
-     * based on the current class name.
+     * Locate the @Id field by walking the WHOLE class hierarchy. Concrete entities can sit
+     * several levels below the class that declares the identifier (e.g. the InjectExpectation
+     * subclasses: PreventionInjectExpectation -> TechnicalInjectExpectation ->
+     * BaseInjectExpectation). The previous implementation only inspected the class and its
+     * direct superclass, so 2+ level hierarchies produced events with a null attribute_id /
+     * attribute_schema, which crashed the frontend SSE pipeline (normalizr requires a string
+     * schema key) and silently dropped every such update. The topmost declaring class wins,
+     * preserving the historical "parent overrides child" semantics.
      */
-    for (Field field : baseClass.getDeclaredFields()) {
-      if (field.isAnnotationPresent(Id.class)) {
-        JsonProperty jp = field.getAnnotation(JsonProperty.class);
-        this.attributeId = (jp != null) ? jp.value() : field.getName();
-
-        String className = baseClass.getSimpleName().toLowerCase();
-        this.schema = className + (className.endsWith("s") ? "es" : "s");
-        break;
-      }
-    }
-
-    /*
-     * If the class has a parent class, inspect its declared fields.
-     * If an @Id is found in the superclass, override the identifier attribute
-     * and schema using the parent class definition.
-     */
-    if (baseClass.getSuperclass() != Object.class) {
-      for (Field fieldSC : baseClass.getSuperclass().getDeclaredFields()) {
-        if (fieldSC.isAnnotationPresent(Id.class)) {
-          if (this.schema != null) {
+    Field idField = null;
+    Class<?> idDeclaringClass = null;
+    for (Class<?> current = baseClass;
+        current != null && current != Object.class;
+        current = current.getSuperclass()) {
+      for (Field field : current.getDeclaredFields()) {
+        if (field.isAnnotationPresent(Id.class)) {
+          if (idDeclaringClass != null) {
             log.warn(
                 "Schema already defined in child class {} but overridden by parent class {} (both define an @Id).",
-                baseClass.getSimpleName(),
-                baseClass.getSuperclass().getSimpleName());
+                idDeclaringClass.getSimpleName(),
+                current.getSimpleName());
           }
-          JsonProperty jp = fieldSC.getAnnotation(JsonProperty.class);
-          this.attributeId = (jp != null) ? jp.value() : fieldSC.getName();
-
-          String className = baseClass.getSuperclass().getSimpleName().toLowerCase();
-          this.schema = className + (className.endsWith("s") ? "es" : "s");
+          idField = field;
+          idDeclaringClass = current;
           break;
         }
       }
+    }
+    if (idField != null) {
+      JsonProperty jp = idField.getAnnotation(JsonProperty.class);
+      this.attributeId = (jp != null) ? jp.value() : idField.getName();
+      this.schema = schemaNameFor(idDeclaringClass);
     }
 
     /*
@@ -138,12 +134,30 @@ public class BaseEvent implements Cloneable {
           } catch (NoSuchMethodException e) {
             this.attributeId = "id";
           }
-          String className = baseClass.getSimpleName().toLowerCase();
-          this.schema = className + (className.endsWith("s") ? "es" : "s");
+          this.schema = schemaNameFor(baseClass);
           break;
         }
       }
     }
+  }
+
+  /**
+   * Derives the pluralized schema name from the class declaring the identifier. The explicit JPA
+   * entity name is preferred when present ({@code @Entity(name = "InjectExpectation")} on {@code
+   * BaseInjectExpectation} yields "injectexpectations"): it is the stable, functional name the
+   * frontend keys its entity store on, while the simple class name can drift through refactors
+   * (e.g. Base* prefixes introduced when adding JPA subclasses).
+   *
+   * @param declaringClass the class that declares the {@code @Id} / {@code @EmbeddedId}
+   * @return the pluralized, lowercased schema name
+   */
+  private static String schemaNameFor(Class<?> declaringClass) {
+    Entity entity = declaringClass.getAnnotation(Entity.class);
+    String className =
+        (entity != null && !entity.name().isEmpty())
+            ? entity.name().toLowerCase()
+            : declaringClass.getSimpleName().toLowerCase();
+    return className + (className.endsWith("s") ? "es" : "s");
   }
 
   /**

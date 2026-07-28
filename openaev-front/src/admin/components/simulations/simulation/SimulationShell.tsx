@@ -45,6 +45,7 @@ const SimulationShell: FunctionComponent<{
         ['/logic', t('Logic')],
         ['/execution', t('Execution')],
         ...(isAttackPathEnabled ? [['/attack-path', t('Attack path')] as [string, string]] : []),
+        ['/findings', t('Findings')],
         ['/statistics', t('Statistics')],
       ]
     : [
