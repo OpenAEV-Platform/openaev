@@ -3,7 +3,6 @@ package io.openaev.utils;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAgent;
 import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAsset;
-import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.expectation.ManualExpectation.manualExpectationForAgent;
 import static io.openaev.expectation.ManualExpectation.manualExpectationForAsset;
 import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAgent;
@@ -439,34 +438,6 @@ public class ExpectationUtils {
           .toList();
     }
     return Collections.emptyList();
-  }
-
-  /**
-   * Sets the result for vulnerability expectations based on the vulnerability assessment outcome.
-   *
-   * <p>Updates all provided expectations with the vulnerability result, setting the score to the
-   * expected score if the vulnerability was successfully exploited, or 0.0 otherwise.
-   *
-   * @param expectations the vulnerability expectations to update
-   * @param result the result object to populate with outcome details
-   * @param vulnerabilityResult the vulnerability assessment result string
-   */
-  public static void setResultExpectationVulnerable(
-      List<VulnerabilityInjectExpectation> expectations,
-      InjectExpectationResult result,
-      String vulnerabilityResult) {
-
-    for (BaseInjectExpectation expectation : expectations) {
-      double score =
-          VULNERABILITY.successLabel.equals(vulnerabilityResult)
-              ? expectation.getExpectedScore()
-              : 0.0;
-
-      result.setResult(vulnerabilityResult);
-      result.setScore(score);
-      expectation.setScore(score);
-      expectation.setResults(List.of(result));
-    }
   }
 
   public static List<ExpectationSignature> computeSignatures(

@@ -133,6 +133,9 @@ const ScenarioHeader = ({
   const hasChallenges = challenges.length > 0;
 
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  // isFeatureEnabled reads the store through a hook, so it must stay at render scope: calling it
+  // from an event handler throws and silently aborts the handler mid-way.
+  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
   const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
   const isScopeMissing = isScenarioChaining
@@ -525,7 +528,7 @@ const ScenarioHeader = ({
               // graph; time-based ones land on the overview as before. The
               // route only exists when ATTACK_PATH is enabled (see
               // simulation/Index.tsx route gating).
-              if (isScenarioChaining && isFeatureEnabled('ATTACK_PATH')) {
+              if (isScenarioChaining && isAttackPathEnabled) {
                 navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
               } else {
                 navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);

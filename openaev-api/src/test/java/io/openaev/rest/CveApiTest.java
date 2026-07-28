@@ -92,7 +92,7 @@ class CveApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      assertThatJson(response).node("cve_external_id").isEqualTo("CVE-2025-1234");
+      assertThatJson(response).node("vulnerability_external_id").isEqualTo("CVE-2025-1234");
     }
 
     @Test
@@ -112,7 +112,7 @@ class CveApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      assertThatJson(response).node("cve_external_id").isEqualTo(CVE_2025_5678);
+      assertThatJson(response).node("vulnerability_external_id").isEqualTo(CVE_2025_5678);
     }
 
     @Test
@@ -237,7 +237,7 @@ class CveApiTest extends IntegrationTest {
               .getContentAsString();
 
       assertThatJson(response)
-          .inPath("content[*].cve_external_id")
+          .inPath("content[*].vulnerability_external_id")
           .isArray()
           .contains("CVE-2024-5679", "CVE-2025-5671");
     }

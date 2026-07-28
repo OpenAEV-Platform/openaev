@@ -1,11 +1,12 @@
 package io.openaev.service;
 
+import static io.openaev.collectors.expectations_vulnerability_manager.ExpectationsVulnerabilityManagerCollector.EXPECTATIONS_VULNERABILITY_COLLECTOR_ID;
 import static io.openaev.utils.fixtures.InjectExpectationFixture.createVulnerabilityInjectExpectation;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -16,18 +17,21 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.DetectionExpectation;
 import io.openaev.expectation.Expectation;
 import io.openaev.expectation.ExpectationSignature;
+import io.openaev.expectation.ExpectationType;
 import io.openaev.expectation.ManualExpectation;
 import io.openaev.expectation.PreventionExpectation;
 import io.openaev.expectation.VulnerabilityExpectation;
 import io.openaev.injectors.common.model.BaseInjectContent;
+import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.utils.ExpectationUtils;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Stream;
@@ -41,6 +45,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class InjectExpectationServiceTest {
@@ -51,6 +56,8 @@ class InjectExpectationServiceTest {
   @Mock private AssetGroupService assetGroupService;
   @Mock private InjectService injectService;
   @Mock private InjectExpectationLockService injectExpectationLockService;
+  @Mock private CollectorService collectorService;
+  @Mock private InjectorContractContentUtils injectorContractContentUtils;
 
   // Unstubbed: findByExternalReference defaults to Optional.empty(), so vulnerability verdicts
   // keep the legacy Expectations Vulnerability Manager attribution in these tests.
@@ -73,14 +80,13 @@ class InjectExpectationServiceTest {
     doReturn(expectation)
         .when(injectExpectationService)
         .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
-    when(injectExpectationRepository.saveAll(any())).thenReturn(List.of(expectation));
   }
 
   private ExecutionProcessingContext createContext(InjectExecutionInput input) {
     return new ExecutionProcessingContext(inject, agent, input, Map.of());
   }
 
-  private InjectExecutionInput buildDefaultInput(ObjectNode structuredOutput) {
+  private InjectExecutionInput buildDefaultInput(JsonNode structuredOutput) {
     InjectExecutionInput input = new InjectExecutionInput();
     input.setMessage("message");
     input.setOutputStructured(structuredOutput != null ? String.valueOf(structuredOutput) : null);
@@ -91,26 +97,18 @@ class InjectExpectationServiceTest {
     return input;
   }
 
-  private void setupInjectWithOutputParser(OutputParser outputParser)
-      throws JsonProcessingException {
-    Injector injector = InjectorFixture.createDefaultInjector("InjectorName");
-    Payload payload = PayloadFixture.createDefaultCommand();
-    payload.setOutputParsers(outputParser != null ? Set.of(outputParser) : Set.of());
-    InjectorContract contract =
-        InjectorContractFixture.createPayloadInjectorContractWithDefaultDomain(injector, payload);
-    inject.setInjectorContract(contract);
-  }
-
   private void setupVulnerabilityExpectation() {
     BaseInjectExpectation expectation = createVulnerabilityInjectExpectation(inject, agent);
     inject.setExpectations(List.of(expectation));
     mockExpectation(expectation);
   }
 
-  private void verifySetResultExpectationVulnerableCalledOnce(
-      MockedStatic<ExpectationUtils> mocked) {
-    mocked.verify(
-        () -> ExpectationUtils.setResultExpectationVulnerable(any(), any(), any()), times(1));
+  /** Verifies a single verdict was written and returns its update input. */
+  private InjectExpectationUpdateInput captureSingleVerdict() {
+    ArgumentCaptor<InjectExpectationUpdateInput> captor =
+        ArgumentCaptor.forClass(InjectExpectationUpdateInput.class);
+    verify(injectExpectationService, times(1)).updateInjectExpectation(any(), captor.capture());
+    return captor.getValue();
   }
 
   private static io.openaev.model.inject.form.Expectation createFormExpectation(
@@ -213,60 +211,6 @@ class InjectExpectationServiceTest {
         executableInject, List.of(mock(Expectation.class)));
 
     verify(executableInject, atLeastOnce()).getTeams();
-  }
-
-  @Test
-  @DisplayName(
-      "Should map zero score to unsuccessful collector result when validating asset result")
-  void given_zeroScoreResult_should_setIsSuccessToFalseInCollectorUpdate() {
-    // Arrange
-    DetectionInjectExpectation expectation =
-        InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
-    InjectExpectationResult result = new InjectExpectationResult();
-    result.setSourceId("collector-id");
-    result.setResult("detected");
-    result.setScore(0.0);
-
-    ArgumentCaptor<InjectExpectationUpdateInput> captor =
-        ArgumentCaptor.forClass(InjectExpectationUpdateInput.class);
-    doReturn(expectation)
-        .when(injectExpectationService)
-        .updateInjectExpectation(eq(expectation.getId()), any(InjectExpectationUpdateInput.class));
-
-    // Act
-    injectExpectationService.validateResultForAsset(List.of(expectation), result);
-
-    // Assert
-    verify(injectExpectationService)
-        .updateInjectExpectation(eq(expectation.getId()), captor.capture());
-    assertEquals(Boolean.FALSE, captor.getValue().getIsSuccess());
-  }
-
-  @Test
-  @DisplayName(
-      "Should map positive score to successful collector result when validating asset result")
-  void given_positiveScoreResult_should_setIsSuccessToTrueInCollectorUpdate() {
-    // Arrange
-    DetectionInjectExpectation expectation =
-        InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
-    InjectExpectationResult result = new InjectExpectationResult();
-    result.setSourceId("collector-id");
-    result.setResult("detected");
-    result.setScore(42.0);
-
-    ArgumentCaptor<InjectExpectationUpdateInput> captor =
-        ArgumentCaptor.forClass(InjectExpectationUpdateInput.class);
-    doReturn(expectation)
-        .when(injectExpectationService)
-        .updateInjectExpectation(eq(expectation.getId()), any(InjectExpectationUpdateInput.class));
-
-    // Act
-    injectExpectationService.validateResultForAsset(List.of(expectation), result);
-
-    // Assert
-    verify(injectExpectationService)
-        .updateInjectExpectation(eq(expectation.getId()), captor.capture());
-    assertEquals(Boolean.TRUE, captor.getValue().getIsSuccess());
   }
 
   @Test
@@ -443,6 +387,63 @@ class InjectExpectationServiceTest {
 
   @Test
   @DisplayName(
+      "Reset/relaunch fallback: contract expectations are used when the inject content has none")
+  void given_contentWithoutExpectations_should_fallBackToContractExpectations() throws Exception {
+    // Inject created before its contract declared predefined expectations: stored content has no
+    // "expectations" field, so resetting + relaunching the simulation used to create none.
+    ObjectNode storedContent = mapper.createObjectNode();
+    inject.setContent(storedContent);
+    InjectorContract contract = mock(InjectorContract.class);
+    // Agentless injector (Nuclei-like): asset-level expectations are created without agents.
+    when(contract.getNeedsExecutorEffective()).thenReturn(false);
+    inject.setInjectorContract(contract);
+    ReflectionTestUtils.setField(inject, "tenant", TenantFixture.getTenant());
+    // @Resource field, not constructor-injected: provide the default expiration configuration.
+    ReflectionTestUtils.setField(
+        injectExpectationService,
+        "expectationPropertiesConfig",
+        new io.openaev.expectation.ExpectationPropertiesConfig());
+
+    BaseInjectContent contractContent = new BaseInjectContent();
+    contractContent.setExpectations(
+        List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY)));
+    ObjectNode enrichedContent = mapper.valueToTree(contractContent);
+    when(injectorContractContentUtils.setExpectations(eq(contract), any(ObjectNode.class)))
+        .thenReturn(enrichedContent);
+
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    endpoint.setId("asset-id");
+    endpoint.setAgents(List.of());
+    when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
+
+    ExecutableInject executableInject = mock(ExecutableInject.class);
+    Injection injection = mock(Injection.class);
+    when(executableInject.getInjection()).thenReturn(injection);
+    when(injection.getInject()).thenReturn(inject);
+    when(executableInject.isDirect()).thenReturn(false);
+    when(executableInject.getTeams()).thenReturn(List.of());
+    when(executableInject.getAssets()).thenReturn(List.of(endpoint));
+    when(executableInject.getAssetGroups()).thenReturn(List.of());
+
+    injectExpectationService.computeAndSaveExpectations(
+        executableInject, inject, "implant", List.of(new AssetToExecute(endpoint)));
+
+    // The contract's predefined expectations were resolved and materialized as a persisted
+    // asset-level vulnerability expectation.
+    verify(injectorContractContentUtils).setExpectations(eq(contract), any(ObjectNode.class));
+    ArgumentCaptor<List<BaseInjectExpectation>> savedCaptor = ArgumentCaptor.captor();
+    verify(injectExpectationRepository).saveAll(savedCaptor.capture());
+    List<BaseInjectExpectation> saved = savedCaptor.getValue();
+    assertEquals(1, saved.size());
+    VulnerabilityInjectExpectation savedExpectation =
+        assertInstanceOf(VulnerabilityInjectExpectation.class, saved.get(0));
+    assertEquals("asset-id", savedExpectation.getAsset().getId());
+    assertNull(savedExpectation.getAgent());
+  }
+
+  @Test
+  @DisplayName(
       "Should create one asset group expectation per supported type when at least one asset matches")
   void given_matchingAssetExpectations_should_createAssetGroupExpectationsForAllSupportedTypes()
       throws Exception {
@@ -550,113 +551,45 @@ class InjectExpectationServiceTest {
   }
 
   @Test
-  @DisplayName("Should set not vulnerable when no output parsers")
-  void shouldSetNotVulnerableWhenNoOutputParsers() throws JsonProcessingException {
-    try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
-      setupInjectWithOutputParser(null);
-      setupVulnerabilityExpectation();
-
-      injectExpectationService.matchesVulnerabilityExpectations(
-          createContext(new InjectExecutionInput()), mapper.createObjectNode());
-
-      verifySetResultExpectationVulnerableCalledOnce(mocked);
-    }
-  }
-
-  @Test
-  @DisplayName("Should set not vulnerable when structured output is empty")
+  @DisplayName("Agent path: empty structured output concludes not vulnerable")
   void shouldSetNotVulnerableWhenEmptyStructuredOutput() {
-    try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
-      setupVulnerabilityExpectation();
+    setupVulnerabilityExpectation();
 
-      injectExpectationService.matchesVulnerabilityExpectations(
-          createContext(buildDefaultInput(null)), mapper.createObjectNode());
+    injectExpectationService.matchesVulnerabilityExpectations(
+        createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
-      verifySetResultExpectationVulnerableCalledOnce(mocked);
-    }
+    InjectExpectationUpdateInput input = captureSingleVerdict();
+    assertEquals(Boolean.TRUE, input.getIsSuccess());
+    assertEquals(ExpectationType.VULNERABILITY.successLabel, input.getResult());
   }
 
   @Test
-  @DisplayName("Should set not vulnerable when structured output has no CVE type")
-  void shouldSetNotVulnerableWhenNoCveType() throws JsonProcessingException {
-    ObjectNode structuredOutput = mapper.createObjectNode();
-    structuredOutput
-        .putArray("no-cve-key")
-        .addObject()
-        .put("id", "no-cve-id")
-        .put("host", "savanna28")
-        .put("severity", "7.1");
-
-    try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
-      setupInjectWithOutputParser(
-          OutputParserFixture.getOutputParser(
-              Set.of(OutputParserFixture.getContractOutputElementTypeIPv6())));
-      setupVulnerabilityExpectation();
-
-      injectExpectationService.matchesVulnerabilityExpectations(
-          createContext(buildDefaultInput(structuredOutput)), structuredOutput);
-
-      verifySetResultExpectationVulnerableCalledOnce(mocked);
-    }
-  }
-
-  @Test
-  @DisplayName("Should set vulnerable when structured output has CVE type and CVE data")
-  void shouldSetVulnerableWhenHasCveTypeAndCveData() {
-    ObjectNode structuredOutput = mapper.createObjectNode();
-    structuredOutput
-        .putArray("cve-key")
-        .addObject()
-        .put("id", "CVE-2025-0234")
-        .put("host", "savacano28")
-        .put("severity", "7.1");
-
-    try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
-      setupInjectWithOutputParser(
-          OutputParserFixture.getOutputParser(
-              Set.of(OutputParserFixture.getContractOutputElementTypeIPv6())));
-      setupVulnerabilityExpectation();
-
-      injectExpectationService.matchesVulnerabilityExpectations(
-          createContext(buildDefaultInput(structuredOutput)), structuredOutput);
-
-      verifySetResultExpectationVulnerableCalledOnce(mocked);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  @Test
-  @DisplayName("Should set not vulnerable when structured output is an empty array")
+  @DisplayName("Agent path: empty CVE array concludes not vulnerable")
   void shouldSetNotVulnerableWhenStructuredOutputIsEmptyArray() {
     // isArray()=true but size()=0 -> not vulnerable
-    ArrayNode structuredOutput = mapper.createArrayNode();
+    setupVulnerabilityExpectation();
 
-    try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
-      setupVulnerabilityExpectation();
+    injectExpectationService.matchesVulnerabilityExpectations(
+        createContext(buildDefaultInput(null)), mapper.createArrayNode());
 
-      injectExpectationService.matchesVulnerabilityExpectations(
-          createContext(buildDefaultInput(null)), structuredOutput);
-
-      verifySetResultExpectationVulnerableCalledOnce(mocked);
-    }
+    assertEquals(Boolean.TRUE, captureSingleVerdict().getIsSuccess());
   }
 
   @Test
-  @DisplayName("Should set vulnerable when structured output is a non-empty array")
+  @DisplayName("Agent path: non-empty CVE array concludes vulnerable for the agent's asset")
   void shouldSetVulnerableWhenStructuredOutputIsNonEmptyArray() {
     // isArray()=true and size()>0 -> vulnerable
     ArrayNode structuredOutput = mapper.createArrayNode();
     structuredOutput.addObject().put("id", "CVE-2025-9999");
+    setupVulnerabilityExpectation();
 
-    try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
-      setupVulnerabilityExpectation();
+    injectExpectationService.matchesVulnerabilityExpectations(
+        createContext(buildDefaultInput(null)), structuredOutput);
 
-      injectExpectationService.matchesVulnerabilityExpectations(
-          createContext(buildDefaultInput(null)), structuredOutput);
-
-      verifySetResultExpectationVulnerableCalledOnce(mocked);
-    }
+    InjectExpectationUpdateInput input = captureSingleVerdict();
+    assertEquals(Boolean.FALSE, input.getIsSuccess());
+    assertEquals(ExpectationType.VULNERABILITY.failureLabel, input.getResult());
+    assertEquals(EXPECTATIONS_VULNERABILITY_COLLECTOR_ID, input.getCollectorId());
   }
 
   @Test
@@ -668,15 +601,11 @@ class InjectExpectationServiceTest {
         createVulnerabilityInjectExpectation(inject, otherAgent);
     inject.setExpectations(List.of(expectationForOtherAgent));
 
-    try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
-      injectExpectationService.matchesVulnerabilityExpectations(
-          createContext(buildDefaultInput(null)), mapper.createObjectNode());
+    injectExpectationService.matchesVulnerabilityExpectations(
+        createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
-      // early return: nothing should be called
-      mocked.verify(
-          () -> ExpectationUtils.setResultExpectationVulnerable(any(), any(), any()), never());
-      verify(injectExpectationRepository, never()).saveAll(any());
-    }
+    verify(injectExpectationService, never())
+        .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
   }
 
   @Test
@@ -689,32 +618,27 @@ class InjectExpectationServiceTest {
         InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
     inject.setExpectations(List.of(prevention, detection));
 
-    try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
-      injectExpectationService.matchesVulnerabilityExpectations(
-          createContext(buildDefaultInput(null)), mapper.createObjectNode());
+    injectExpectationService.matchesVulnerabilityExpectations(
+        createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
-      mocked.verify(
-          () -> ExpectationUtils.setResultExpectationVulnerable(any(), any(), any()), never());
-      verify(injectExpectationRepository, never()).saveAll(any());
-    }
+    verify(injectExpectationService, never())
+        .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
   }
 
   @Test
-  @DisplayName("Should do nothing when expectation has a null agent")
+  @DisplayName(
+      "Should do nothing for an agent execution when the expectation is not bound to an agent")
   void shouldDoNothingWhenExpectationHasNullAgent() {
-    // exp.getAgent() == null -> filtered out -> early return
+    // exp.getAgent() == null while ctx.agent() != null -> filtered out -> early return
     BaseInjectExpectation expectationWithNullAgent =
         createVulnerabilityInjectExpectation(inject, null);
     inject.setExpectations(List.of(expectationWithNullAgent));
 
-    try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
-      injectExpectationService.matchesVulnerabilityExpectations(
-          createContext(buildDefaultInput(null)), mapper.createObjectNode());
+    injectExpectationService.matchesVulnerabilityExpectations(
+        createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
-      mocked.verify(
-          () -> ExpectationUtils.setResultExpectationVulnerable(any(), any(), any()), never());
-      verify(injectExpectationRepository, never()).saveAll(any());
-    }
+    verify(injectExpectationService, never())
+        .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
   }
 
   @Test
@@ -722,27 +646,11 @@ class InjectExpectationServiceTest {
   void shouldDoNothingWhenInjectHasNoExpectations() {
     inject.setExpectations(List.of());
 
-    try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
-      injectExpectationService.matchesVulnerabilityExpectations(
-          createContext(buildDefaultInput(null)), mapper.createObjectNode());
+    injectExpectationService.matchesVulnerabilityExpectations(
+        createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
-      mocked.verify(
-          () -> ExpectationUtils.setResultExpectationVulnerable(any(), any(), any()), never());
-      verify(injectExpectationRepository, never()).saveAll(any());
-    }
-  }
-
-  @Test
-  @DisplayName("Should save all expectations after processing")
-  void shouldSaveAllExpectationsAfterProcessing() {
-    setupVulnerabilityExpectation();
-
-    try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
-      injectExpectationService.matchesVulnerabilityExpectations(
-          createContext(buildDefaultInput(null)), mapper.createObjectNode());
-
-      verify(injectExpectationRepository, times(1)).saveAll(any());
-    }
+    verify(injectExpectationService, never())
+        .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
   }
 
   @Test
@@ -755,16 +663,241 @@ class InjectExpectationServiceTest {
     doReturn(exp1)
         .when(injectExpectationService)
         .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
-    when(injectExpectationRepository.saveAll(any())).thenReturn(List.of(exp1, exp2));
 
-    try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
-      injectExpectationService.matchesVulnerabilityExpectations(
-          createContext(buildDefaultInput(null)), mapper.createObjectNode());
+    injectExpectationService.matchesVulnerabilityExpectations(
+        createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
-      // updateInjectExpectation called once per expectation
-      verify(injectExpectationService, times(2))
+    // updateInjectExpectation called once per expectation
+    verify(injectExpectationService, times(2))
+        .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
+  }
+
+  @Nested
+  @DisplayName("matchesVulnerabilityExpectations - injector path (agent == null)")
+  class MatchesVulnerabilityExpectationsInjectorPath {
+
+    private VulnerabilityInjectExpectation expectationAssetOne;
+    private VulnerabilityInjectExpectation expectationAssetTwo;
+    private VulnerabilityInjectExpectation expectationGroup;
+
+    @BeforeEach
+    void setUpInjectorPath() {
+      Asset assetOne = AssetFixture.createDefaultAsset("vulnerable-asset");
+      assetOne.setId("asset-1");
+      Asset assetTwo = AssetFixture.createDefaultAsset("clean-asset");
+      assetTwo.setId("asset-2");
+      AssetGroup assetGroup = AssetGroupFixture.createDefaultAssetGroup("group");
+      assetGroup.setId("group-1");
+
+      expectationAssetOne = createVulnerabilityInjectExpectation(inject, null);
+      expectationAssetOne.setId("exp-asset-1");
+      expectationAssetOne.setAsset(assetOne);
+      expectationAssetOne.setAssetGroup(assetGroup);
+
+      expectationAssetTwo = createVulnerabilityInjectExpectation(inject, null);
+      expectationAssetTwo.setId("exp-asset-2");
+      expectationAssetTwo.setAsset(assetTwo);
+      expectationAssetTwo.setAssetGroup(assetGroup);
+
+      expectationGroup = createVulnerabilityInjectExpectation(inject, null);
+      expectationGroup.setId("exp-group");
+      expectationGroup.setAssetGroup(assetGroup);
+
+      inject.setExpectations(List.of(expectationAssetOne, expectationAssetTwo, expectationGroup));
+      // Lenient: the security-platform attribution test routes the verdicts through
+      // updateInjectExpectationFromSecurityPlatform instead and never hits this stub.
+      lenient()
+          .doReturn(expectationAssetOne)
+          .when(injectExpectationService)
           .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
-      verify(injectExpectationRepository, times(1)).saveAll(any());
+    }
+
+    private ExecutionProcessingContext injectorContext(ArrayNode structuredOutput) {
+      return new ExecutionProcessingContext(
+          inject, null, buildDefaultInput(structuredOutput), Map.of());
+    }
+
+    private InjectExpectationUpdateInput capturedVerdict(String expectationId) {
+      ArgumentCaptor<InjectExpectationUpdateInput> captor =
+          ArgumentCaptor.forClass(InjectExpectationUpdateInput.class);
+      verify(injectExpectationService).updateInjectExpectation(eq(expectationId), captor.capture());
+      return captor.getValue();
+    }
+
+    @Test
+    @DisplayName("Only the asset carrying the CVE is marked vulnerable, siblings stay clean")
+    void shouldMarkOnlyAttributedAssetVulnerable() {
+      ArrayNode structuredOutput = mapper.createArrayNode();
+      ObjectNode cve = structuredOutput.addObject();
+      cve.put("id", "CVE-2025-0001").put("host", "https://vulnerable-host").put("severity", "7.5");
+      cve.putArray("asset_id").add("asset-1");
+
+      injectExpectationService.matchesVulnerabilityExpectations(
+          injectorContext(structuredOutput), structuredOutput);
+
+      assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-1").getIsSuccess());
+      assertEquals(Boolean.TRUE, capturedVerdict("exp-asset-2").getIsSuccess());
+      // Default group semantics: one vulnerable asset makes the group vulnerable, and the group
+      // verdict is written with its own attributed source result.
+      assertEquals(Boolean.FALSE, capturedVerdict("exp-group").getIsSuccess());
+    }
+
+    @Test
+    @DisplayName("All assets stay clean when the CVE is attributed to an untargeted asset")
+    void shouldKeepAllAssetsCleanWhenCveAttributedElsewhere() {
+      ArrayNode structuredOutput = mapper.createArrayNode();
+      ObjectNode cve = structuredOutput.addObject();
+      cve.put("id", "CVE-2025-0002").put("host", "https://other-host").put("severity", "5.0");
+      cve.putArray("asset_id").add("asset-unrelated");
+
+      injectExpectationService.matchesVulnerabilityExpectations(
+          injectorContext(structuredOutput), structuredOutput);
+
+      assertEquals(Boolean.TRUE, capturedVerdict("exp-asset-1").getIsSuccess());
+      assertEquals(Boolean.TRUE, capturedVerdict("exp-asset-2").getIsSuccess());
+      assertEquals(Boolean.TRUE, capturedVerdict("exp-group").getIsSuccess());
+    }
+
+    @Test
+    @DisplayName("Host matching attributes the CVE when asset_id is missing")
+    void shouldAttributeCveThroughHostFallback() {
+      Endpoint endpointOne = EndpointFixture.createEndpoint();
+      endpointOne.setId("asset-1");
+      when(injectService.getValueTargetedAssetMap(inject))
+          .thenReturn(Map.of("vulnerable-host", endpointOne));
+
+      ArrayNode structuredOutput = mapper.createArrayNode();
+      structuredOutput
+          .addObject()
+          .put("id", "CVE-2025-0003")
+          .put("host", "https://vulnerable-host:8443/path")
+          .put("severity", "9.8");
+
+      injectExpectationService.matchesVulnerabilityExpectations(
+          injectorContext(structuredOutput), structuredOutput);
+
+      assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-1").getIsSuccess());
+      assertEquals(Boolean.TRUE, capturedVerdict("exp-asset-2").getIsSuccess());
+      assertEquals(Boolean.FALSE, capturedVerdict("exp-group").getIsSuccess());
+    }
+
+    @Test
+    @DisplayName("Findings without any attribution fall back to the legacy blanket verdict")
+    void shouldFallBackToBlanketVerdictWithoutAttribution() {
+      when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
+
+      ArrayNode structuredOutput = mapper.createArrayNode();
+      structuredOutput
+          .addObject()
+          .put("id", "CVE-2025-0004")
+          .put("host", "https://unknown-host")
+          .put("severity", "6.1");
+
+      injectExpectationService.matchesVulnerabilityExpectations(
+          injectorContext(structuredOutput), structuredOutput);
+
+      assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-1").getIsSuccess());
+      assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-2").getIsSuccess());
+      assertEquals(Boolean.FALSE, capturedVerdict("exp-group").getIsSuccess());
+    }
+
+    @Test
+    @DisplayName(
+        "Verdicts are attributed to the injector's security platform for assets AND their group")
+    void shouldAttributeVerdictsToInjectorSecurityPlatform() {
+      Injector injector = new Injector();
+      injector.setType("openaev_nuclei");
+      inject.setInjector(injector);
+      SecurityPlatform securityPlatform =
+          SecurityPlatformFixture.createDefault("Nuclei", "VULNERABILITY_SCANNER");
+      securityPlatform.setId("nuclei-platform");
+      when(securityPlatformRepository.findByExternalReference("openaev_nuclei"))
+          .thenReturn(Optional.of(securityPlatform));
+      doReturn(expectationAssetOne)
+          .when(injectExpectationService)
+          .updateInjectExpectationFromSecurityPlatform(
+              any(), any(InjectExpectationUpdateInput.class), any(SecurityPlatform.class));
+
+      ArrayNode structuredOutput = mapper.createArrayNode();
+      ObjectNode cve = structuredOutput.addObject();
+      cve.put("id", "CVE-2025-0008").put("host", "https://vulnerable-host").put("severity", "7.5");
+      cve.putArray("asset_id").add("asset-1");
+
+      injectExpectationService.matchesVulnerabilityExpectations(
+          injectorContext(structuredOutput), structuredOutput);
+
+      // The vulnerable asset AND its group are both concluded through the security platform
+      // path, so the group row is immediately attributed to the Nuclei platform.
+      ArgumentCaptor<InjectExpectationUpdateInput> assetInput =
+          ArgumentCaptor.forClass(InjectExpectationUpdateInput.class);
+      verify(injectExpectationService)
+          .updateInjectExpectationFromSecurityPlatform(
+              eq("exp-asset-1"), assetInput.capture(), eq(securityPlatform));
+      assertEquals(Boolean.FALSE, assetInput.getValue().getIsSuccess());
+      assertNull(assetInput.getValue().getCollectorId());
+
+      ArgumentCaptor<InjectExpectationUpdateInput> groupInput =
+          ArgumentCaptor.forClass(InjectExpectationUpdateInput.class);
+      verify(injectExpectationService)
+          .updateInjectExpectationFromSecurityPlatform(
+              eq("exp-group"), groupInput.capture(), eq(securityPlatform));
+      assertEquals(Boolean.FALSE, groupInput.getValue().getIsSuccess());
+      assertNull(groupInput.getValue().getCollectorId());
+
+      verify(injectExpectationService)
+          .updateInjectExpectationFromSecurityPlatform(
+              eq("exp-asset-2"), any(InjectExpectationUpdateInput.class), eq(securityPlatform));
+      // No verdict falls back to the generic Expectations Vulnerability Manager collector.
+      verify(injectExpectationService, never())
+          .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
+    }
+
+    @Test
+    @DisplayName(
+        "Mixed attribution: an unattributable finding triggers the blanket verdict for all assets")
+    void shouldFallBackToBlanketVerdictOnMixedAttribution() {
+      when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
+
+      ArrayNode structuredOutput = mapper.createArrayNode();
+      ObjectNode attributedCve = structuredOutput.addObject();
+      attributedCve
+          .put("id", "CVE-2025-0006")
+          .put("host", "https://vulnerable-host")
+          .put("severity", "7.5");
+      attributedCve.putArray("asset_id").add("asset-1");
+      structuredOutput
+          .addObject()
+          .put("id", "CVE-2025-0007")
+          .put("host", "https://unknown-host")
+          .put("severity", "6.1");
+
+      injectExpectationService.matchesVulnerabilityExpectations(
+          injectorContext(structuredOutput), structuredOutput);
+
+      // The second finding cannot be attributed to any targeted asset: rather than silently
+      // dropping it, every asset falls back to the legacy blanket verdict.
+      assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-1").getIsSuccess());
+      assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-2").getIsSuccess());
+      assertEquals(Boolean.FALSE, capturedVerdict("exp-group").getIsSuccess());
+    }
+
+    @Test
+    @DisplayName(
+        "Expectation-group semantics keep the group clean while at least one asset is clean")
+    void shouldKeepExpectationGroupCleanWhenOneAssetIsClean() {
+      expectationGroup.setExpectationGroup(true);
+
+      ArrayNode structuredOutput = mapper.createArrayNode();
+      ObjectNode cve = structuredOutput.addObject();
+      cve.put("id", "CVE-2025-0005").put("host", "https://vulnerable-host").put("severity", "7.5");
+      cve.putArray("asset_id").add("asset-1");
+
+      injectExpectationService.matchesVulnerabilityExpectations(
+          injectorContext(structuredOutput), structuredOutput);
+
+      assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-1").getIsSuccess());
+      assertEquals(Boolean.TRUE, capturedVerdict("exp-asset-2").getIsSuccess());
+      assertEquals(Boolean.TRUE, capturedVerdict("exp-group").getIsSuccess());
     }
   }
 

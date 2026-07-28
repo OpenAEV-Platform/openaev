@@ -1,14 +1,23 @@
 import { searchAssetGroupAsOption, searchAssetGroupByIdAsOption } from '../../../actions/asset_groups/assetgroup-action';
 import { searchEndpointAsOption, searchEndpointByIdAsOption } from '../../../actions/assets/endpoint-actions';
 import { searchAtomicTestings } from '../../../actions/atomic_testings/atomic-testing-actions';
+import { searchExercises, searchExercisesByIds } from '../../../actions/Exercise';
 import { searchInjectByIdAsOption } from '../../../actions/injects/inject-action';
 import { searchScenarioAsOption, searchScenarioByIdAsOption } from '../../../actions/scenarios/scenario-actions';
 import { searchSimulationAsOptions, searchSimulationByIdAsOptions } from '../../../actions/simulations/simulation-action';
 import { searchTeamByIdAsOption, searchTeamsAsOption } from '../../../actions/teams/team-actions';
 import { searchPlayerByIdAsOption, searchPlayersAsOption } from '../../../actions/users/User';
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
-import { type InjectResultOutput, type Reporting, type ReportingModule, type ThemeInput } from '../../../utils/api-types';
+import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
+import { type ExerciseSimple, type InjectResultOutput, type Reporting, type ReportingModule, type ThemeInput } from '../../../utils/api-types';
 import { type Option } from '../../../utils/Option';
+
+/**
+ * Formats a simulation start date into a short, human-friendly string for the
+ * option label (empty string when there is no start date). Supplied by the
+ * caller so the format stays locale-aware (i18n formatter).
+ */
+export type SimulationDateFormatter = (startDate?: string | null) => string;
 
 // NonNullable: the generated spec marks these fields optional (no @NotNull on
 // the entity), but every persisted reporting carries them; the form and label
@@ -158,13 +167,49 @@ const mapAtomicTestingOptions = (page: Page<InjectResultOutput>): Option[] =>
     label: inject.inject_title || inject.inject_id,
   }));
 
-/** Text-search the candidate subject entities of a context type. */
+/**
+ * Builds a simulation option label as {@code name (start date)}, so the many
+ * same-named simulations can be told apart. The date part is dropped when the
+ * simulation has no start date or no formatter is provided.
+ */
+const simulationOptionLabel = (
+  name: string,
+  startDate: string | undefined | null,
+  formatSimulationDate?: SimulationDateFormatter,
+): string => {
+  const friendlyDate = formatSimulationDate && startDate ? formatSimulationDate(startDate) : '';
+  return friendlyDate ? `${name} (${friendlyDate})` : name;
+};
+
+const mapSimulationOptions = (
+  exercises: ExerciseSimple[],
+  formatSimulationDate?: SimulationDateFormatter,
+): Option[] =>
+  exercises.map(exercise => ({
+    id: exercise.exercise_id,
+    label: simulationOptionLabel(exercise.exercise_name, exercise.exercise_start_date, formatSimulationDate),
+  }));
+
+/**
+ * Text-search the candidate subject entities of a context type.
+ *
+ * When {@code formatSimulationDate} is provided, simulation options carry their
+ * start date in the label (fetched from the richer simulation search endpoint);
+ * otherwise the lightweight name-only options endpoint is used.
+ */
 export const searchSubjectOptions = (
   contextType: ReportingContextType,
   search: string = '',
+  formatSimulationDate?: SimulationDateFormatter,
 ): Promise<Option[]> => {
   switch (contextType) {
     case 'SIMULATION':
+      if (formatSimulationDate) {
+        return searchExercises(buildSearchPagination({
+          textSearch: search,
+          sorts: initSorting('exercise_name', 'ASC'),
+        })).then((result: { data: Page<ExerciseSimple> }) => mapSimulationOptions(result.data.content ?? [], formatSimulationDate));
+      }
       return searchSimulationAsOptions(search).then((result: { data: Option[] }) => result.data);
     case 'SCENARIO':
       return searchScenarioAsOption(search).then((result: { data: Option[] }) => result.data);
@@ -190,12 +235,23 @@ export const searchSubjectOptions = (
   }
 };
 
-/** Resolve subject entity ids into display options (edit mode, detail header). */
+/**
+ * Resolve subject entity ids into display options (edit mode, detail header).
+ *
+ * When {@code formatSimulationDate} is provided, resolved simulation options
+ * carry their start date in the label, matching {@link searchSubjectOptions}.
+ */
 export const resolveSubjectOptions = (
   contextType: ReportingContextType,
   ids: string[],
+  formatSimulationDate?: SimulationDateFormatter,
 ): Promise<Option[]> => {
   if (ids.length === 0) return Promise.resolve([]);
+  if (contextType === 'SIMULATION' && formatSimulationDate) {
+    return searchExercisesByIds(ids)
+      .then((result: { data: ExerciseSimple[] }) => mapSimulationOptions(result.data ?? [], formatSimulationDate))
+      .catch(() => []);
+  }
   let request: Promise<{ data: Option[] }> | undefined;
   switch (contextType) {
     case 'SIMULATION':
