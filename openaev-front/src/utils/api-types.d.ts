@@ -3297,6 +3297,8 @@ export interface EndpointOverviewOutput {
    * @uniqueItems true
    */
   asset_agents: AgentOutput[];
+  /** Asset groups the asset belongs to (static or dynamic membership) */
+  asset_asset_groups?: AssetGroupSimple[];
   /** Asset category */
   asset_category?:
     | "HOST"
@@ -5784,6 +5786,29 @@ export interface InjectorContract {
     | "Generic"
     | "Internal"
     | "Unknown"
+  )[];
+  injector_contract_providing?: (
+    | "text"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature"
   )[];
   injector_contract_tags?: string[];
   /** @format date-time */

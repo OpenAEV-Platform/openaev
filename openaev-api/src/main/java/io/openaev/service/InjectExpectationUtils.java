@@ -170,6 +170,44 @@ public class InjectExpectationUtils {
     return success ? expectedScore : FAILED_SCORE_VALUE;
   }
 
+  /**
+   * Guards a children-derived rollup score against clobbering a definitive direct VULNERABLE
+   * verdict carried by the parent expectation's own results.
+   *
+   * <p>VULNERABILITY has an inverted signal polarity compared to detection/prevention: the
+   * meaningful signal is a FAILURE (a scanner proved the target vulnerable), while a success ("Not
+   * vulnerable") is merely the absence of a finding. Assessment injectors such as Nuclei write
+   * their verdict directly on the asset/asset-group row (agent == null execution), so when the
+   * untouched agent children later expire to the default "Not vulnerable", the children rollup must
+   * not overwrite the proven vulnerable verdict with an absence-of-signal default.
+   *
+   * <p>Rows attributed to the expiration manager and rows expired to "Expired" are defaults, not
+   * signals, and are ignored.
+   *
+   * @param expectation the parent expectation whose score is being recomputed from children
+   * @param childrenScore the score derived from the children rollup
+   * @return the score to persist: the worst direct vulnerable score when one exists, otherwise the
+   *     children score
+   */
+  public static Double reconcileWithDirectVulnerableVerdict(
+      @NotNull final BaseInjectExpectation expectation, @Nullable final Double childrenScore) {
+    Double expectedScore = expectation.getExpectedScore();
+    List<InjectExpectationResult> results = expectation.getResults();
+    if (expectedScore == null || results == null || !VULNERABILITY.equals(expectation.getType())) {
+      return childrenScore;
+    }
+    return results.stream()
+        .filter(
+            result ->
+                !ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(result.getSourceId()))
+        .filter(result -> !EXPIRED.equals(result.getResult()))
+        .map(InjectExpectationResult::getScore)
+        .filter(Objects::nonNull)
+        .filter(score -> score < expectedScore)
+        .reduce(Math::min)
+        .orElse(childrenScore);
+  }
+
   public static Double computeChildrenScore(
       boolean isGroupExpectation,
       @NotNull Double expectedScore,
@@ -227,7 +265,9 @@ public class InjectExpectationUtils {
     parentExpectations.forEach(
         expectation -> {
           if (noExpectationScore) {
-            expectation.setScore(null);
+            // Children still pending: keep a definitive direct vulnerable verdict (e.g. Nuclei
+            // answered the asset row itself) instead of resetting the parent to pending.
+            expectation.setScore(reconcileWithDirectVulnerableVerdict(expectation, null));
             return;
           }
 
@@ -245,8 +285,12 @@ public class InjectExpectationUtils {
               score = InjectExpectationUtils.computeScore(expectation, false);
             }
           }
-          expectation.setScore(score);
-          if (addResult != null) {
+          Double reconciledScore = reconcileWithDirectVulnerableVerdict(expectation, score);
+          expectation.setScore(reconciledScore);
+          // When the direct vulnerable verdict overrode the children rollup, stamping the
+          // triggering result (an expiration "Not vulnerable") would contradict the verdict the
+          // parent just kept: skip it, the genuine platform row already explains the score.
+          if (addResult != null && Objects.equals(reconciledScore, score)) {
             InjectExpectationResult newResultToAdd = addResult.apply(score);
             Optional<InjectExpectationResult> existingResult =
                 expectation.getResults().stream()
@@ -258,10 +302,15 @@ public class InjectExpectationUtils {
             expectation.getResults().add(newResultToAdd);
 
             // IF RESULT TO ADD IS EXPIRATION MANAGER => SO I EXPIRE ALL the inject expectation with
-            // no result to expired
+            // no result to expired, using the type's default polarity (silence means "Not
+            // vulnerable" for VULNERABILITY, failure for the other types)
             if (ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(
                 newResultToAdd.getSourceId())) {
-              expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
+              Double expiredScore =
+                  VULNERABILITY.equals(expectation.getType())
+                      ? expectation.getExpectedScore()
+                      : Double.valueOf(FAILED_SCORE_VALUE);
+              expireEmptyResults(expectation.getResults(), expiredScore, EXPIRED);
             }
           }
         });

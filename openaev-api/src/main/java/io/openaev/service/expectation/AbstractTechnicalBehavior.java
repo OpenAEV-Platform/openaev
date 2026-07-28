@@ -1,6 +1,7 @@
 package io.openaev.service.expectation;
 
 import static io.openaev.service.InjectExpectationUtils.computeChildrenScore;
+import static io.openaev.service.InjectExpectationUtils.reconcileWithDirectVulnerableVerdict;
 import static io.openaev.utils.AgentUtils.getActiveAgents;
 import static io.openaev.utils.ExpectationSignatureUtils.convertToInjectExpectationSignatures;
 import static io.openaev.utils.ExpectationUtils.*;
@@ -212,7 +213,9 @@ public abstract class AbstractTechnicalBehavior implements ExpectationBehavior {
       if (!children.isEmpty()) {
         Double score =
             computeChildrenScore(parent.isExpectationGroup(), parent.getExpectedScore(), children);
-        parent.setScore(score);
+        // A definitive direct VULNERABLE verdict written on the parent row (e.g. by an assessment
+        // injector such as Nuclei) must survive the children rollup.
+        parent.setScore(reconcileWithDirectVulnerableVerdict(parent, score));
         updated.add(parent);
       }
     }

@@ -67,16 +67,7 @@ public class ExpectationsExpirationManagerService {
           || !ExpectationUtils.isAgentExpectation(technicalExpectation)) {
         continue;
       }
-      InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
-      if (ExpectationType.VULNERABILITY.toString().equals(expectation.getType().toString())) {
-        input.setIsSuccess(true);
-        input.setResult(computeSuccessMessage(expectation.getType()));
-        expireEmptyResults(expectation.getResults(), expectation.getExpectedScore(), EXPIRED);
-      } else {
-        input.setIsSuccess(false);
-        input.setResult(computeFailedMessage(expectation.getType()));
-        expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
-      }
+      InjectExpectationUpdateInput input = buildExpirationInput(expectation);
       expiredExpectations.add(technicalExpectation);
       inputsById.put(expectation.getId(), input);
     }
@@ -115,15 +106,13 @@ public class ExpectationsExpirationManagerService {
         directlyAnswerable.add(expectation);
       }
     }
-    // Genuine leaves (human expectations, agentless assets / AI targets) are answered directly:
-    // unanswered and expired means failed. Processed FIRST so parent recomputation below reads
-    // the final leaf scores (an asset group may aggregate agentless asset leaves).
+    // Genuine leaves (human expectations, agentless assets / AI targets) are answered directly
+    // with the type's default verdict (failed, except VULNERABILITY where silence means "Not
+    // vulnerable"). Processed FIRST so parent recomputation below reads the final leaf scores
+    // (an asset group may aggregate agentless asset leaves).
     directlyAnswerable.forEach(
         expectation -> {
-          InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
-          input.setIsSuccess(false);
-          input.setResult(computeFailedMessage(expectation.getType()));
-          expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
+          InjectExpectationUpdateInput input = buildExpirationInput(expectation);
           if (HUMAN_EXPECTATION.contains(expectation.getType())) {
             updated.add(
                 injectExpectationService.computeInjectExpectationForHumanResponse(
@@ -141,5 +130,30 @@ public class ExpectationsExpirationManagerService {
     assetGroupParents.forEach(
         parent ->
             updated.addAll(injectExpectationService.recomputeParentTechnicalExpectation(parent)));
+  }
+
+  /**
+   * Builds the expiration verdict for an unanswered expectation, honoring the type's signal
+   * polarity: silence means FAILURE for detection/prevention/human expectations (nothing was
+   * prevented, detected or validated within the window), but SUCCESS for VULNERABILITY (no scanner
+   * reported a finding, so the target defaults to "Not vulnerable"). Empty per-source result rows
+   * are expired with the matching score.
+   *
+   * @param expectation the expired, unanswered expectation
+   * @return the update input carrying the expiration verdict
+   */
+  private InjectExpectationUpdateInput buildExpirationInput(
+      @NotNull final BaseInjectExpectation expectation) {
+    InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
+    if (ExpectationType.VULNERABILITY.toString().equals(expectation.getType().toString())) {
+      input.setIsSuccess(true);
+      input.setResult(computeSuccessMessage(expectation.getType()));
+      expireEmptyResults(expectation.getResults(), expectation.getExpectedScore(), EXPIRED);
+    } else {
+      input.setIsSuccess(false);
+      input.setResult(computeFailedMessage(expectation.getType()));
+      expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
+    }
+    return input;
   }
 }

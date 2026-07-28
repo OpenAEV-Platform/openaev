@@ -141,8 +141,11 @@ class InjectServiceTest {
 
   @BeforeEach
   void setUp() {
-    mapper = new ObjectMapper();
+    // InjectStatusService serializes the inject (Instant / Optional fields) into the SSE
+    // BaseEvent payload on status transitions, so the mapper needs the JSR-310/JDK8 modules.
+    mapper = new ObjectMapper().findAndRegisterModules();
     ReflectionTestUtils.setField(injectService, "mapper", mapper);
+    ReflectionTestUtils.setField(injectStatusService, "mapper", mapper);
     ReflectionTestUtils.setField(
         injectService,
         "healthCheckUtils",

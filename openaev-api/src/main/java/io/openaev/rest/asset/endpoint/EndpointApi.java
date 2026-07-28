@@ -22,12 +22,14 @@ import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.InjectSearchService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.InputFilterOptions;
+import io.openaev.utils.mapper.AssetGroupMapper;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.Valid;
@@ -57,12 +59,26 @@ public class EndpointApi extends RestBehavior {
 
   private final EndpointService endpointService;
   private final AssetService assetService;
+  private final AssetGroupService assetGroupService;
   private final InjectSearchService injectSearchService;
   private final InjectStatusService injectStatusService;
   private final EndpointRepository endpointRepository;
   private final AssetAgentJobRepository assetAgentJobRepository;
 
   private final EndpointMapper endpointMapper;
+  private final AssetGroupMapper assetGroupMapper;
+
+  /**
+   * Complete an overview output with the asset groups the asset belongs to (static or dynamic
+   * membership), so the asset detail page can show its group memberships.
+   */
+  private EndpointOverviewOutput withAssetGroups(EndpointOverviewOutput output, Asset asset) {
+    output.setAssetGroups(
+        this.assetGroupService.assetGroupsOfAsset(asset).stream()
+            .map(assetGroupMapper::toAssetGroupSimple)
+            .toList());
+    return output;
+  }
 
   @PostMapping({ENDPOINT_URI + "/agentless", TENANT_ENDPOINT_URI + "/agentless"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
@@ -153,8 +169,9 @@ public class EndpointApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   public EndpointOverviewOutput endpoint(@PathVariable @NotBlank final String endpointId) {
-    return endpointMapper.toEndpointOverviewOutput(
-        this.endpointService.getEndpoint(endpointId, TenantContext.getCurrentTenant()));
+    Endpoint endpoint =
+        this.endpointService.getEndpoint(endpointId, TenantContext.getCurrentTenant());
+    return withAssetGroups(endpointMapper.toEndpointOverviewOutput(endpoint), endpoint);
   }
 
   @LogExecutionTime
@@ -220,8 +237,9 @@ public class EndpointApi extends RestBehavior {
   public EndpointOverviewOutput updateEndpoint(
       @PathVariable @NotBlank final String endpointId,
       @Valid @RequestBody final EndpointInput input) {
-    return endpointMapper.toEndpointOverviewOutput(
-        this.endpointService.updateEndpoint(endpointId, input, TenantContext.getCurrentTenant()));
+    Endpoint endpoint =
+        this.endpointService.updateEndpoint(endpointId, input, TenantContext.getCurrentTenant());
+    return withAssetGroups(endpointMapper.toEndpointOverviewOutput(endpoint), endpoint);
   }
 
   @DeleteMapping({ENDPOINT_URI + "/{endpointId}", TENANT_ENDPOINT_URI + "/{endpointId}"})
@@ -246,7 +264,8 @@ public class EndpointApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   public EndpointOverviewOutput asset(@PathVariable @NotBlank final String assetId) {
-    return endpointMapper.toAssetOverviewOutput(assetService.asset(assetId));
+    Asset asset = assetService.asset(assetId);
+    return withAssetGroups(endpointMapper.toAssetOverviewOutput(asset), asset);
   }
 
   /**
