@@ -1026,7 +1026,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           batch: findingBatch,
         });
       } else if (chainMode && fullDto) {
-        raw = buildCausalChainFlow(fullDto, t);
+        raw = buildCausalChainFlow(fullDto, t, expandedFindingClusters);
       } else {
         raw = buildClusteredAttackPathFlow(dto, endpointBatch, t, {
           expanded: expandedFindingClusters,
