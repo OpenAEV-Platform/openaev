@@ -721,7 +721,7 @@ export const pivotEndpointIds = (
   const sources = new Set<string>();
   const targets = new Set<string>();
   for (const e of edges) {
-    if (e.type !== 'EDGE_EXECUTIONS') {
+    if (e.type !== EDGE_EXECUTIONS) {
       continue;
     }
     if (e.edgeSourceId) {
