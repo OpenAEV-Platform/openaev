@@ -794,6 +794,21 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       setFindingBatch(prev => new Map(prev).set(clusterId, FINDING_BATCH_SIZE));
       setSelectedFindingId(clusterId);
       setFindingDetail(null);
+      // In the focused view, scope the highlight to the action(s) that PRODUCED this finding type — so
+      // clicking the portscan cluster lights Nmap (its producer), not another injector that merely reached
+      // the endpoint. Mirrors a leaf-finding click, aggregated over every finding of the type.
+      if (pathFinding && typeFindings) {
+        const typeFindingIds = new Set(
+          (fullDto?.attackPathNodes ?? [])
+            .filter(n => n.type === 'FINDING' && (n.typeFindings ?? '') === typeFindings)
+            .map(n => n.id),
+        );
+        const refs = (fullDto?.attackPathExecutions ?? [])
+          .filter(e => (e.findingsNodeIds ?? []).some(id => typeFindingIds.has(id)))
+          .map(e => e.ref)
+          .filter((r): r is string => !!r);
+        setHighlightedExecutionIds(new Set(refs));
+      }
       if (!findingsByCluster.has(clusterId)) {
         if (endpointRef) {
           fetchEndpointFindings(simulationId, endpointRef)
@@ -832,7 +847,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         }
       }
     },
-    [expandedFindingClusters, findingsByCluster, fetchClusterFindings, simulationId, pathFinding],
+    [expandedFindingClusters, findingsByCluster, fetchClusterFindings, simulationId, pathFinding, fullDto],
   );
 
   // Open the findings drawer for a summary category and load the whole category once (bounded); the
