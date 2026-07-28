@@ -1,6 +1,5 @@
 import { simpleCall, simplePostCall } from '../../utils/Action';
-import type { AttackPathEndpointRelationsDTO, AttackPathExecutionDetailDTO, AttackPathExpandDTO, AttackPathFindingPageDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../utils/api-types';
-import type { AttackPathDeltaDTO, AttackPathSnapshotDTO } from '../../utils/api-types-custom';
+import type { AttackPathDeltaDTO, AttackPathDTO, AttackPathEndpointRelationsDTO, AttackPathExecutionDetailDTO, AttackPathExpandDTO, AttackPathFindingPageDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../utils/api-types';
 
 // Attack-path execution-store POC (issue 6647), gated by the ATTACK_PATH preview feature.
 // The tenant prefix is added centrally by Action.buildUri, so these use the plain /api paths.
@@ -27,7 +26,7 @@ export const fetchSimulationsMetaById = (simulationIds: string[]): Promise<{ dat
 export const fetchAttackPathGraph = (
   simulationId: string,
   mode?: 'full' | 'collapsed',
-): Promise<{ data: AttackPathSnapshotDTO }> =>
+): Promise<{ data: AttackPathDTO }> =>
   simpleCall(`${simulationUri(simulationId)}/graph${mode ? `?mode=${mode}` : ''}`, undefined, false);
 
 // Everything that changed in the graph since a given version: upserted nodes/edges/executions, the

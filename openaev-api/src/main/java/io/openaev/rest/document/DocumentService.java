@@ -43,6 +43,7 @@ public class DocumentService {
   private final ExerciseRepository exerciseRepository;
   private final ScenarioRepository scenarioRepository;
   private final TagRepository tagRepository;
+  private final ReportingGenerationRepository reportingGenerationRepository;
   private final FileService fileService;
 
   // -- CRUD --
@@ -189,6 +190,42 @@ public class DocumentService {
         .toList();
   }
 
+  /**
+   * Rejects mutations of documents produced by the Reporting module (report generation outputs).
+   * Their lifecycle is owned by the reporting generations that reference them: renaming, retagging
+   * or deleting them from the generic documents surface would corrupt the generation history.
+   *
+   * <p>The Reporting module's own cleanup goes through {@link
+   * #deleteReportingGenerationOutput(String)}, which skips this guard.
+   *
+   * <p>TODO(documents-management sweep): generalize a proper "system-owned document" contract
+   * covering all owners (security platform logos, report outputs, ...) for update AND delete.
+   *
+   * @param documentId the document to check
+   * @throws BadRequestException when the document is a report generation output
+   */
+  public void assertNotReportingGenerationOutput(@NotBlank final String documentId) {
+    if (reportingGenerationRepository.existsByDocumentId(documentId)) {
+      throw new BadRequestException(
+          "Document is a generated report managed by the Reporting module and cannot be modified"
+              + " or deleted from here.");
+    }
+  }
+
+  /**
+   * Deletes a report generation output document on behalf of the Reporting module, which owns the
+   * lifecycle of these documents. Skips {@link #assertNotReportingGenerationOutput(String)}: that
+   * guard exists precisely to reserve deletion for the reporting flows, and throwing from here
+   * inside the caller's transaction would mark it rollback-only and fail the whole call at commit
+   * time. Generated reports can never be payload files or security platform logos, so those in-use
+   * checks do not apply either.
+   *
+   * @param documentId the document to delete
+   */
+  public void deleteReportingGenerationOutput(@NotBlank final String documentId) {
+    removeDocumentAndFile(documentId);
+  }
+
   public void deleteDocument(String documentId) {
     Document document = document(documentId); // fetch or throw if not found
 
@@ -218,9 +255,18 @@ public class DocumentService {
           "Document is used as a security platform logo and cannot be deleted.");
     }
 
+    // Report generation outputs are read-only from the generic documents surface. Checked last:
+    // the in-memory relation checks above must keep refusing in-use documents before this guard
+    // issues a query (a query flushes the persistence context mid-request).
+    assertNotReportingGenerationOutput(documentId);
+
+    removeDocumentAndFile(documentId);
+  }
+
+  private void removeDocumentAndFile(final String documentId) {
     List<Document> documents = documentRepository.removeById(documentId);
 
-    // Remove document from minio
+    // Remove document from minio (best-effort: a missing file must not fail the row deletion)
     documents.forEach(
         documentToRemove -> {
           try {

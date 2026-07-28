@@ -23,6 +23,7 @@ import { AbilityContext } from '../../../../utils/permissions/permissionsContext
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
+import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import AtomicTestingPopover from './AtomicTestingPopover';
 import AtomicTestingUpdate from './AtomicTestingUpdate';
 
@@ -282,6 +283,13 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
           placement="warning"
         />
       )}
+      {/* Entity-scoped reports - self-hides without the reporting access
+          capability. */}
+      <EntityReportsPanel
+        contextType="ATOMIC_TESTING"
+        contextId={injectResultOverview.inject_id}
+        entityName={injectResultOverview.inject_title}
+      />
       {canManage && (
         <Tooltip title={t('Scheduling')}>
           <IconButton size="small" color="primary" onClick={() => setOpenScheduling(true)}>

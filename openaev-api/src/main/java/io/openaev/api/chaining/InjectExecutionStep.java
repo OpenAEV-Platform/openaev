@@ -326,6 +326,8 @@ public class InjectExecutionStep implements ActionStep {
     if (injectStatus != null) {
       // FORMAT EXECUTION TRACE TO OUTPUT STEP
       formatExecutionTracesToOutput(injectStatus, output);
+      attackPathIngestion.updateTerminalView(inject);
+
       // FORMAT INJECT STATUS TO OUTPUT STEP
       formatStatusToOutput(inject, output);
     }
@@ -335,6 +337,16 @@ public class InjectExecutionStep implements ActionStep {
 
     // SYNC the same verdicts onto the attack-path projection (per event, idempotent, non-fatal)
     syncAttackPathVerdicts(stepRun, inject, expectations);
+
+    // Then the per-execution-row verdicts, which reach the rows the step-keyed sync above cannot
+    // (injector-level rows indexed by execution id). It runs second on purpose: its updates carry
+    // no
+    // version stamp, and running it first would satisfy the guards of the versioned updates above,
+    // leaving the change invisible to a polling client.
+    Map<String, AttackPathExecutionIngestionService.ExecutionExpectationResults>
+        expectationResults =
+            attackPathIngestion.getExpectationByEndpointIndex(inject, expectations);
+    attackPathIngestion.updateExpectationByExecutionIndex(inject, expectationResults);
 
     // UPDATE step output
     if (!output.isEmpty()) {
@@ -781,70 +793,32 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   private String getCommand(Inject inject) {
-    if (inject.getStatus().isEmpty()) return "";
-
-    InjectStatus status = inject.getStatus().get();
-    StatusPayload statusPayload = status.getPayloadOutput();
-    if (statusPayload == null || statusPayload.getPayloadCommandBlocks() == null) {
+    Optional<InjectorContract> injectorContract = inject.getInjectorContract();
+    if (injectorContract.isEmpty()) {
       return "";
     }
-    StringBuilder command = new StringBuilder();
-    statusPayload
-        .getPayloadCommandBlocks()
-        .forEach(
-            payloadCommandBlock -> {
-              command.append(payloadCommandBlock.getContent());
-              command.append("\n");
-            });
-    return command.toString();
-  }
-
-  private Map<String, StringBuilder> getExecutionTracesByEndpointIndex(Inject inject) {
-    Map<String, StringBuilder> tracesByEndpointSource = new HashMap<>();
-    if (inject.getStatus().isEmpty()) return tracesByEndpointSource;
-
-    InjectStatus status = inject.getStatus().get();
-    List<ExecutionTrace> executionTraces = status.getTraces();
-
-    if (inject.getInjector() == null) {
-      executionTraces.forEach(
-          executionTrace -> {
-            if (executionTrace.getAgent() == null || executionTrace.getAgent().getAsset() == null) {
-              return;
-            }
-            String agentId =
-                executionTrace.getAgent().getId() + executionTrace.getAgent().getAsset().getId();
-            StringBuilder agentTraces =
-                tracesByEndpointSource.computeIfAbsent(agentId, k -> new StringBuilder());
-            // A trace with no timestamp must not render a literal "null" at the start of the line.
-            if (executionTrace.getTime() != null) {
-              agentTraces.append(executionTrace.getTime()).append(" ");
-            }
-            agentTraces
-                .append(executionTrace.getStatus().name())
-                .append(" ")
-                .append(executionTrace.getMessage())
-                .append("\n");
-          });
-    } else {
-      // TODO BUILD INDEX
-      String injectorId = inject.getInjector().getId();
-      executionTraces.forEach(
-          executionTrace -> {
-            StringBuilder injectorTraces =
-                tracesByEndpointSource.computeIfAbsent(injectorId, k -> new StringBuilder());
-            // A trace with no timestamp must not render a literal "null" at the start of the line.
-            if (executionTrace.getTime() != null) {
-              injectorTraces.append(executionTrace.getTime()).append(" ");
-            }
-            injectorTraces
-                .append(executionTrace.getStatus().name())
-                .append(" ")
-                .append(executionTrace.getMessage())
-                .append("\n");
-          });
+    if (!(injectorContract.get().getPayload() instanceof Command command)) {
+      return "";
     }
-    return tracesByEndpointSource;
+
+    String resolvedCommand = command.getContent();
+    if (resolvedCommand == null || resolvedCommand.isBlank()) {
+      return "";
+    }
+
+    List<PayloadArgument> args = command.getArguments();
+    if (args == null || args.isEmpty()) {
+      return resolvedCommand;
+    }
+
+    for (PayloadArgument arg : args) {
+      if (arg == null || arg.getKey() == null || arg.getKey().isBlank()) {
+        continue;
+      }
+      String value = arg.getDefaultValue() != null ? arg.getDefaultValue() : "";
+      resolvedCommand = resolvedCommand.replace("#{" + arg.getKey() + "}", value);
+    }
+    return resolvedCommand;
   }
 
   /**

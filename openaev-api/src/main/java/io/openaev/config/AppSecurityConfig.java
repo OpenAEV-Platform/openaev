@@ -35,6 +35,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.core.context.DeferredSecurityContext;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
@@ -96,6 +97,10 @@ public class AppSecurityConfig {
                     .ignoringRequestMatchers("/api/health", "/api/login", "/actuator/**")
                     .ignoringRequestMatchers(bearerWithoutCookiesMatcher()))
         .formLogin(AbstractHttpConfigurer::disable)
+        // Spring Security defaults X-Frame-Options to DENY, which blocks the reporting
+        // live-preview iframe (same-origin embed of the chrome-less render route).
+        // SAMEORIGIN keeps cross-origin clickjacking protection while allowing our own frames.
+        .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
         .securityContext(
             securityContext ->
                 securityContext

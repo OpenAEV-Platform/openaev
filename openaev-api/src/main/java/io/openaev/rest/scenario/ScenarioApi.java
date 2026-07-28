@@ -17,6 +17,7 @@ import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.context.BulkOperationContext;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.raw.RawPaginationScenario;
@@ -217,12 +218,15 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/healthchecks",
     TENANT_SCENARIO_URI + "/{scenarioId}/healthchecks"
   })
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public List<HealthCheck> streamHealthChecks(@PathVariable @NotBlank final String scenarioId) {
+  public List<HealthCheck> streamHealthChecks(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     return scenarioService.runChecks(scenarioId);
   }
 

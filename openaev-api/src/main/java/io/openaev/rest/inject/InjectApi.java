@@ -14,6 +14,7 @@ import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.context.BulkOperationContext;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.ExerciseRepository;
@@ -490,6 +491,9 @@ public class InjectApi extends RestBehavior {
               mediaType = "application/json",
               schema = @Schema(implementation = ValidationErrorBag.class)))
   public InjectOutput updateInject(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectInput input) {

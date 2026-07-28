@@ -5,7 +5,6 @@ import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
@@ -79,9 +78,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   @Override
   protected Collector getConnectorById(String collectorId) {
-    return collectorRepository
-        .findByIdAndTenantId(collectorId, TenantContext.getCurrentTenant())
-        .orElse(null);
+    return collectorRepository.findByCollectorId(collectorId).orElse(null);
   }
 
   @Override
@@ -101,9 +98,23 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   // -- CRUD --
 
+  /**
+   * Full composite key lookup — use when tenantId is explicitly available (from TxCtx). Avoids
+   * ambiguity on the composite PK (collector_id, tenant_id).
+   */
+  public Collector collector(String id, String tenantId) {
+    return collectorRepository
+        .findById(ConnectorCompositeId.of(id, tenantId))
+        .orElseThrow(() -> new ElementNotFoundException("Collector not found with id: " + id));
+  }
+
+  /**
+   * Inspector-scoped lookup — use from background services or paths where tenantId is not
+   * explicitly available but the transaction is guaranteed single-tenant (e.g. forEachTenant).
+   */
   public Collector collector(String id) {
     return collectorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findByCollectorId(id)
         .orElseThrow(() -> new ElementNotFoundException("Collector not found with id: " + id));
   }
 
@@ -127,13 +138,35 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   }
 
   /**
-   * Retrieves IDs of resources associated with a collector.
+   * Retrieves IDs of resources associated with a collector, using the full composite key.
    *
-   * @param collectorId collector identifier.
+   * @param collectorId collector identifier
+   * @param tenantId tenant for the composite PK lookup
    * @return connector instance ID and catalog connector ID if available, null values if not found
    */
-  public ConnectorIds getCollectorRelationsId(String collectorId) {
-    return getConnectorRelationsId(collectorId);
+  public ConnectorIds getCollectorRelationsId(String collectorId, String tenantId) {
+    ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
+        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
+            ConnectorType.COLLECTOR.getIdKeyName(), collectorId);
+    if (relatedIds != null) {
+      boolean registered =
+          collectorRepository.findById(ConnectorCompositeId.of(collectorId, tenantId)).isPresent();
+      return catalogConnectorMapper.toConnectorIds(
+          relatedIds.getCatalogConnectorId(), relatedIds.getConnectorInstanceId(), registered);
+    }
+
+    Collector collector =
+        collectorRepository
+            .findById(ConnectorCompositeId.of(collectorId, tenantId))
+            .orElseThrow(
+                () -> new ElementNotFoundException("Collector not found with id: " + collectorId));
+    CatalogConnector catalogConnector =
+        catalogConnectorService.findBySlug(collector.getType()).orElse(null);
+    if (catalogConnector != null) {
+      return catalogConnectorMapper.toConnectorIds(catalogConnector.getId(), null, true);
+    }
+
+    return catalogConnectorMapper.toConnectorIds(null, null, true);
   }
 
   public List<Collector> securityPlatformCollectors(@NotNull String tenantId) {
@@ -204,7 +237,9 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
     CollectorType collectorType = ensureCollectorTypeExists(type);
 
-    Collector collector = collectorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
+    // Full composite key lookup: identity is (collector_id, tenant_id).
+    Collector collector =
+        collectorRepository.findById(ConnectorCompositeId.of(id, tenantId)).orElse(null);
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null
@@ -272,7 +307,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   @Transactional(rollbackFor = Exception.class)
   public void deleteCollector(@NotBlank final String collectorId) throws ConnectorStatusException {
     if (!deleteOwningConnectorInstance(collectorId)) {
-      collectorRepository.deleteByIdAndTenantId(collectorId, TenantContext.getCurrentTenant());
+      collectorRepository.deleteByCollectorId(collectorId);
     }
   }
 }

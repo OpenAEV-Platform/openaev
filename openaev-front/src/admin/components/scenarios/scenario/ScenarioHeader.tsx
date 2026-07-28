@@ -67,6 +67,7 @@ import ExpectationsDriftIndicator from '../../common/injects/expectations/Expect
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
 import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
+import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
 import ScenarioConfiguration from './ScenarioConfiguration';
 import ScenarioPopover from './ScenarioPopover';
@@ -132,6 +133,9 @@ const ScenarioHeader = ({
   const hasChallenges = challenges.length > 0;
 
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  // isFeatureEnabled reads the store through a hook, so it must stay at render scope: calling it
+  // from an event handler throws and silently aborts the handler mid-way.
+  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
   const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
   const isScopeMissing = isScenarioChaining
@@ -326,6 +330,13 @@ const ScenarioHeader = ({
                   </IconButton>
                 </Tooltip>
               )}
+              {/* Entity-scoped reports - self-hides without the reporting
+                  access capability. */}
+              <EntityReportsPanel
+                contextType="SCENARIO"
+                contextId={scenarioId}
+                entityName={scenario.scenario_name}
+              />
               {canManage && (
                 <>
                   <TriggerSubscribeButton
@@ -513,7 +524,15 @@ const ScenarioHeader = ({
             onClick={async () => {
               setOpenInstantiateSimulationAndStart(false);
               const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;
-              navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
+              // A chained simulation is best followed live on its attack path
+              // graph; time-based ones land on the overview as before. The
+              // route only exists when ATTACK_PATH is enabled (see
+              // simulation/Index.tsx route gating).
+              if (isScenarioChaining && isAttackPathEnabled) {
+                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
+              } else {
+                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
+              }
               MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
             }}
           >

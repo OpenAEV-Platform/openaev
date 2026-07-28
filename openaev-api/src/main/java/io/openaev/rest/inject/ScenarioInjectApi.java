@@ -6,6 +6,7 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -134,7 +135,11 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public InjectOutput createInjectForScenario(
-      @PathVariable @NotBlank final String scenarioId, @Valid @RequestBody InjectInput input) {
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx,
+      @PathVariable @NotBlank final String scenarioId,
+      @Valid @RequestBody InjectInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     Inject persistedInject = this.injectService.createAndSaveInject(null, scenario, input);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
@@ -186,6 +191,9 @@ public class ScenarioInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public InjectOutput duplicateInjectForScenario(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
     Inject persistedInject =
@@ -206,6 +214,9 @@ public class ScenarioInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public InjectOutput updateInjectForScenario(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody @NotNull InjectInput input) {

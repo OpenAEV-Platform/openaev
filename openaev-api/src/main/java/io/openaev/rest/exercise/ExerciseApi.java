@@ -18,6 +18,7 @@ import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.raw.*;
@@ -62,7 +63,6 @@ import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -98,6 +98,8 @@ public class ExerciseApi extends RestBehavior {
   private final EvaluationRepository evaluationRepository;
   private final KillChainPhaseRepository killChainPhaseRepository;
   private final GrantRepository grantRepository;
+  private final CommunicationRepository communicationRepository;
+  private final InjectorContractRepository injectorContractRepository;
   // endregion
 
   // region services
@@ -126,12 +128,15 @@ public class ExerciseApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/healthchecks",
     TENANT_EXERCISE_URI + "/{exerciseId}/healthchecks"
   })
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public List<HealthCheck> streamHealthChecks(@PathVariable @NotBlank final String exerciseId) {
+  public List<HealthCheck> streamHealthChecks(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
     return exerciseService.runChecks(exerciseId);
   }
 
@@ -681,9 +686,17 @@ public class ExerciseApi extends RestBehavior {
   public SimulationDetails exercise(@PathVariable String exerciseId) {
     // We get the raw exercise
     RawSimulationIndexing rawSimulation = exerciseService.rawSimulation(exerciseId);
-    // We get the injects linked to this exercise
-    List<RawInject> rawInjects =
-        injectRepository.findRawByIds(rawSimulation.getInject_ids().stream().distinct().toList());
+    // We get aggregated inject metadata: platforms, comms count, kill chain phases
+    long communicationsNumber = communicationRepository.countByExerciseId(exerciseId);
+    List<KillChainPhase> killChainPhases =
+        killChainPhaseRepository.findDistinctByExerciseId(exerciseId);
+    List<String> platforms =
+        injectorContractRepository.findDistinctPlatformsByExerciseId(exerciseId).stream()
+            .filter(Objects::nonNull)
+            .flatMap(Arrays::stream)
+            .distinct()
+            .map(Enum::name)
+            .toList();
     // We get the tuple exercise/team/user
     List<RawExerciseTeamUser> listRawExerciseTeamUsers =
         exerciseTeamUserRepository.rawByExerciseIds(List.of(exerciseId));
@@ -699,17 +712,6 @@ public class ExerciseApi extends RestBehavior {
     Map<String, List<RawGrant>> rawGrants =
         grantRepository.rawByExerciseIds(List.of(exerciseId)).stream()
             .collect(Collectors.groupingBy(RawGrant::getGrant_name));
-    // We get all the kill chain phases
-    List<KillChainPhase> killChainPhase =
-        StreamSupport.stream(
-                killChainPhaseRepository
-                    .findAllById(
-                        rawInjects.stream()
-                            .flatMap(rawInject -> rawInject.getInject_kill_chain_phases().stream())
-                            .toList())
-                    .spliterator(),
-                false)
-            .collect(Collectors.toList());
 
     // We create objectives and fill them with evaluations
     List<Objective> objectives =
@@ -738,16 +740,9 @@ public class ExerciseApi extends RestBehavior {
 
     // We create an ExerciseDetails object and populate it
     SimulationDetails detail = fromRawExercise(rawSimulation, listExerciseTeamUsers, objectives);
-    detail.setPlatforms(
-        rawInjects.stream()
-            .flatMap(inject -> inject.getInject_platforms().stream())
-            .distinct()
-            .toList());
-    detail.setCommunicationsNumber(
-        rawInjects.stream()
-            .mapToLong(rawInject -> rawInject.getInject_communications().size())
-            .sum());
-    detail.setKillChainPhases(killChainPhase);
+    detail.setPlatforms(platforms);
+    detail.setCommunicationsNumber(communicationsNumber);
+    detail.setKillChainPhases(killChainPhases);
     if (rawGrants.get(Grant.GRANT_TYPE.OBSERVER.name()) != null) {
       detail.setObservers(
           rawGrants.get(Grant.GRANT_TYPE.OBSERVER.name()).stream()

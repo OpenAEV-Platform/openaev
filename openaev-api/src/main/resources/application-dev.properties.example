@@ -311,10 +311,17 @@ collector.sentinel.subscription.id=<subscription-id>
 collector.sentinel.subscription.resource-groups.name=default
 collector.sentinel.subscription.workspace.name=<name>
 
+# Reporting (server-side render)
+# In dev the API does not serve the SPA (build/index.html only exists in production jars),
+# so the headless browser must load the render page from the Vite dev server, which
+# proxies /api calls back to the API on 8080.
+openaev.reporting.render-base-url=http://localhost:3001
+
 #############################
 # FEATURE UNDER DEVELOPMENT #
 #############################
 
 # Use "*" to enable all dev features, or a comma-separated list
 openaev.enabled-dev-features=*
+
 

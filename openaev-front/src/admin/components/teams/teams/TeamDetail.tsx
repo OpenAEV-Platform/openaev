@@ -40,6 +40,7 @@ import { TeamContext, type TeamContextType } from '../../common/Context';
 import TeamPlayers from '../../components/teams/TeamPlayers';
 import TeamPopover from '../../components/teams/TeamPopover';
 import FindingList from '../../findings/FindingList';
+import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 
 const withFilter = (input: SearchPaginationInput, key: string, values: string[]): SearchPaginationInput => {
   const filter: Filter = {
@@ -218,12 +219,21 @@ const TeamDetail = () => {
             </>
           )}
           action={(
-            <TeamPopover
-              team={team}
-              managePlayers={() => setManaging(true)}
-              onUpdate={() => dispatch(fetchTeam(teamId))}
-              onDelete={() => navigate(TEAM_BASE_URL)}
-            />
+            <>
+              {/* Entity-scoped reports - self-hides without the reporting
+                  access capability. */}
+              <EntityReportsPanel
+                contextType="TEAM"
+                contextId={teamId}
+                entityName={team.team_name}
+              />
+              <TeamPopover
+                team={team}
+                managePlayers={() => setManaging(true)}
+                onUpdate={() => dispatch(fetchTeam(teamId))}
+                onDelete={() => navigate(TEAM_BASE_URL)}
+              />
+            </>
           )}
           stats={(
             <>

@@ -711,7 +711,7 @@ export const findingCategoryNoun = (typeFindings?: string): string => {
       return 'open ports';
     case 'hash':
       return 'hashes';
-    case 'share':
+    case 'file':
       return 'files';
     case 'password_policy':
       return 'password policies';
@@ -974,11 +974,11 @@ export const maskFindingValue = (typeFindings?: string, value?: string): string 
   return value;
 };
 
-// Card filter -> the ContractOutputType finding-type values it focuses (issue 6647). "files" maps to
-// `share` as a temporary stand-in until a native file finding type exists; "users" also includes
-// admin usernames per product decision.
+// Card filter -> the finding-type values it focuses (issue 6647). "files" maps to `file` (the backend
+// presents SMB `share` findings as `file`, an interim stand-in until a native file finding type
+// exists); "users" also includes admin usernames per product decision.
 export const FILTER_TO_FINDING_TYPES: Record<Exclude<AttackPathFindingFilter, 'endpoints'>, string[]> = {
-  files: ['share'],
+  files: ['file'],
   credentials: ['credentials'],
   users: ['username', 'admin_username'],
   cves: ['cve'],
@@ -1194,14 +1194,14 @@ const findingNodeValue = (node: AttackPathFlowNode): string => {
 };
 
 // A consumed key uses the raw PrimitiveType vocabulary (e.g. `share_name`, `password`) while finding
-// nodes use the finding-type vocabulary (`share`, `credentials`). Reconcile the known complex sub-field
+// nodes use the finding-type vocabulary (`file`, `credentials`). Reconcile the known complex sub-field
 // keys to their finding type here. Primitives that already match a finding type 1:1 (`port`, `cve`,
 // `ipv4`, `username`, `hostname`, `hash`…) are left untouched (identity). NOTE: reconciling the VALUE of
 // a complex finding (reaching into its sub-field, e.g. a share's `share_name`) is the front-side complex
 // matching still to come — today only the TYPE is reconciled and value comparison stays direct, which is
 // correct for primitives; complex value-matching is a follow-up (see backend requirements topo).
 const KEYTYPE_TO_FINDING_TYPE: Record<string, string> = {
-  share_name: 'share',
+  share_name: 'file',
   password: 'credentials',
 };
 
@@ -1729,25 +1729,42 @@ export const buildCausalChainFlow = (
   // step consumes but no produced finding matches (value not surfaced, or a pure ordering dependency), fall
   // back to a dashed dependsOn edge so the sequencing is still shown.
   const findingNodes = nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.finding);
+  const nodeById = new Map(nodes.map(n => [n.id, n]));
+  // One causal edge per (consumer, label): a key like `share_name IS_NOT_NULL` matches EVERY produced
+  // share, but drawing one "Triggered SHARE" edge per matching finding stacks N identical labels over the
+  // consumer node — illegible as soon as an endpoint yields several findings of the type. Collapse them to
+  // a single edge, anchored to the matching finding nearest (vertically) to the consumer so the line stays
+  // short and crosses the least. This keeps a hub endpoint (1 asset, many findings) as readable as a
+  // linear multi-endpoint chain.
+  const drawnCausal = new Set<string>();
   for (const [injId, s] of steps) {
     let matched = false;
+    const injY = nodeById.get(injId)?.position.y ?? 0;
     for (const key of s.consumed) {
-      for (const fn of findingNodes) {
-        if (findingMatchesKey(fn, key)) {
-          matched = true;
-          edges.push({
-            id: `${AP_FLOW_CAUSAL_EDGE_TYPE}-finding-${fn.id}-${injId}`,
-            source: fn.id,
-            target: injId,
-            type: AP_FLOW_CAUSAL_EDGE_TYPE,
-            data: {
-              count: 1,
-              causalKind: 'finding',
-              label: causalKeyLabel(key, t),
-            },
-          });
-        }
+      const matches = findingNodes.filter(fn => findingMatchesKey(fn, key));
+      if (matches.length === 0) {
+        continue;
       }
+      matched = true;
+      const label = causalKeyLabel(key, t);
+      const dedupKey = `${injId}|${label}`;
+      if (drawnCausal.has(dedupKey)) {
+        continue;
+      }
+      drawnCausal.add(dedupKey);
+      const fn = matches.reduce((best, cur) =>
+        Math.abs(cur.position.y - injY) < Math.abs(best.position.y - injY) ? cur : best, matches[0]);
+      edges.push({
+        id: `${AP_FLOW_CAUSAL_EDGE_TYPE}-finding-${fn.id}-${injId}`,
+        source: fn.id,
+        target: injId,
+        type: AP_FLOW_CAUSAL_EDGE_TYPE,
+        data: {
+          count: 1,
+          causalKind: 'finding',
+          label,
+        },
+      });
     }
     if (!matched) {
       for (const dep of s.deps) {

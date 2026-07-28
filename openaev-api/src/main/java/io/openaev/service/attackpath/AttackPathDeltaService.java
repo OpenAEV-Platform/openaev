@@ -114,7 +114,9 @@ public class AttackPathDeltaService {
       String simulationId, long since, long currentVersion, Collection<String> tenantIds) {
     List<AttackPathExecutionRow> executions =
         executionRepository.findGraphRowsSince(simulationId, since);
-    List<AttackPathFindingRow> findings = findingRepository.findGraphRowsSince(simulationId, since);
+    List<AttackPathFindingRow> findings =
+        AttackPathGraphService.presentGraphRows(
+            findingRepository.findGraphRowsSince(simulationId, since));
     if (executions.isEmpty() && findings.isEmpty()) {
       // The version moved but nothing this read can see changed (a guarded verdict update that
       // matched no row, or a re-copy of identical findings): an empty tick, and null counters say

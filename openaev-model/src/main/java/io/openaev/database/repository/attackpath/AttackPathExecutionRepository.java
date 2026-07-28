@@ -44,6 +44,17 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Transactional
   @Query(
       "UPDATE AttackPathExecution e "
+          + "SET e.terminalOutput = :terminalOutput "
+          + "WHERE e.id =:id AND e.tenant.id = :tenantId")
+  int updateTerminalViewByExecutionIndex(
+      @Param("id") String id,
+      @Param("terminalOutput") String terminalOutput,
+      @Param("tenantId") String tenantId);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Transactional
+  @Query(
+      "UPDATE AttackPathExecution e "
           + "SET e.preventionStatus = :status, e.rowVersion = :version "
           + "WHERE e.stepId = :stepId AND e.agentId = :agentId AND e.tenant.id = :tenantId "
           + "AND (e.preventionStatus IS NULL OR e.preventionStatus <> :status)")
@@ -166,6 +177,27 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
       @Param("status") String status,
       @Param("tenantId") String tenantId,
       @Param("version") long version);
+
+  /**
+   * Verdicts written per execution row rather than per (step, target): the terminal/expectations
+   * path resolves the row by id and writes all three columns at once. Unlike the nine guarded
+   * updates above it carries no version stamp, so it must run AFTER them — see the call order in
+   * {@code InjectExecutionStep.update}.
+   */
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Transactional
+  @Query(
+      "UPDATE AttackPathExecution e "
+          + "SET e.preventionStatus = :preventionStatus "
+          + ", e.detectionStatus = :detectionStatus "
+          + ", e.vulnerabilityStatus = :vulnerabilityStatus "
+          + "WHERE e.id =:id AND e.tenant.id = :tenantId")
+  int updateExpectationStatusByExecutionId(
+      @Param("id") String id,
+      @Param("preventionStatus") String preventionStatus,
+      @Param("detectionStatus") String detectionStatus,
+      @Param("vulnerabilityStatus") String vulnerabilityStatus,
+      @Param("tenantId") String tenantId);
 
   /**
    * Result &amp; Terminal drawer (issue 5048): one execution's full row by id, scoped to its
@@ -347,11 +379,11 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow("
-          + "e.sourceKind, e.sourceInjector, e.sourceAssetId, "
+          + "e.sourceKind, e.sourceInjector, e.sourceAssetId, e.contractExternalId, "
           + "max(e.sourceHostname), max(e.sourceIp), max(e.sourcePlatform), "
           + "e.targetKey, count(e)) "
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId "
-          + "GROUP BY e.sourceKind, e.sourceInjector, e.sourceAssetId, e.targetKey")
+          + "GROUP BY e.sourceKind, e.sourceInjector, e.sourceAssetId, e.contractExternalId, e.targetKey")
   List<AttackPathEdgeGroupRow> findEdgeGroups(@Param("simulationId") String simulationId);
 
   /**

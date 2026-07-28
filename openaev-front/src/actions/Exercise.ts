@@ -24,6 +24,11 @@ export const fetchExercisesById = (exerciseIds: string[]) => (dispatch: AppDispa
 
 export const searchExercises = (paginationInput: SearchPaginationInput) => simplePostCall('/api/exercises/search', paginationInput);
 
+// Resolve simulations by id to their full search projection (name + start date...),
+// as a plain promise (no redux). Used where an option label needs the start date
+// to disambiguate same-named simulations.
+export const searchExercisesByIds = (exerciseIds: string[]) => simplePostCall('/api/exercises/search-by-id', { exercise_ids: exerciseIds }, undefined, false);
+
 export const bulkDeleteExercises = (input: ExerciseBulkProcessingInput) => simpleDelCall('/api/exercises', { data: input });
 
 export const fetchExercise = (exerciseId: string) => (dispatch: AppDispatch) => getReferential(schema.exercise, `/api/exercises/${exerciseId}`)(dispatch);

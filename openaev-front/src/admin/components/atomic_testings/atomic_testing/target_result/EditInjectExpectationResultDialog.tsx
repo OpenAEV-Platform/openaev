@@ -144,7 +144,7 @@ const EditInjectExpectationResultDialog = ({ open, injectExpectation, sourceIds,
         )}
         {isManualExpectation(expectationType)
           && <ManualExpectationsValidationForm expectation={injectExpectation} onUpdate={onUpdate} withSummary={false} hideActions />}
-        {['DETECTION', 'PREVENTION'].includes(expectationType)
+        {['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(expectationType)
           && (
             <DetectionPreventionExpectationsValidationForm
               expectation={injectExpectation}

@@ -109,9 +109,25 @@ class AttackPathFindingsListTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("an unknown category (e.g. ports, not a product widget) yields an empty page")
-  void unknownCategoryYieldsEmptyPage() {
-    AttackPathFindingPageDTO page = graphService.listFindings(SIM, "ports", PageRequest.of(0, 10));
+  @DisplayName("a raw finding type category (e.g. text) lists its findings")
+  void rawFindingTypeCategoryListsItsFindings() {
+    // The front's data-driven cards open the drawer with the finding type itself as the category
+    // (e.g. "text" for the "Text fields" card). It must list those findings, not an empty page.
+    linkedFinding("host-x", "text", "some captured text", executionId);
+    entityManager.flush();
+
+    AttackPathFindingPageDTO page = graphService.listFindings(SIM, "text", PageRequest.of(0, 10));
+
+    assertThat(page.total()).isEqualTo(1);
+    assertThat(page.items().get(0).type()).isEqualTo("text");
+    assertThat(page.items().get(0).value()).isEqualTo("some captured text");
+  }
+
+  @Test
+  @DisplayName("a category matching no finding type yields an empty page")
+  void nonMatchingCategoryYieldsEmptyPage() {
+    AttackPathFindingPageDTO page =
+        graphService.listFindings(SIM, "not-a-type", PageRequest.of(0, 10));
 
     assertThat(page.total()).isZero();
     assertThat(page.items()).isEmpty();

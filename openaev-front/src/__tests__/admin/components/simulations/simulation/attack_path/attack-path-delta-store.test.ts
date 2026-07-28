@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { applyDelta, fromSnapshot, toCollapsedDto, toFullDto, withFullSnapshot } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-delta-store';
-import type { AttackPathDTO } from '../../../../../../utils/api-types';
-import type { AttackPathDeltaDTO, AttackPathSnapshotDTO } from '../../../../../../utils/api-types-custom';
+import type { AttackPathDeltaDTO, AttackPathDTO } from '../../../../../../utils/api-types';
 
 // The backend record ships every entity list (empty, never null), so a fixture only states the fields
 // the case is about and this fills in the rest — exactly what the wire carries.
@@ -160,7 +159,7 @@ describe('attack-path delta store', () => {
   describe('fromSnapshot', () => {
     it('given_aSnapshotCarryingItsGraphVersion_should_seedTheCursorFromIt', () => {
       // Arrange: the snapshot read reports the version it reflects.
-      const snapshot: AttackPathSnapshotDTO = {
+      const snapshot: AttackPathDTO = {
         ...snapshotV1,
         graphVersion: 41,
       };

@@ -7,6 +7,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.expectations.dto.InjectExpectationOutput;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
@@ -21,9 +22,11 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RequiredArgsConstructor
 @RestController
 public class ExpectationApi extends RestBehavior {
@@ -39,9 +42,17 @@ public class ExpectationApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @PutMapping({EXPECTATIONS_URI + "/{expectationId}", TENANT_EXPECTATIONS_URI + "/{expectationId}"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
+  // TxCtx scopes the transaction so the collectors table (v2-activated) is visible.
   public InjectExpectationOutput updateInjectExpectation(
+      TxCtx ctx,
       @PathVariable @NotBlank final String expectationId,
       @Valid @RequestBody final ExpectationUpdateInput input) {
+    log.debug(
+        "PUT expectation {} with source={} ({}), score={}",
+        expectationId,
+        input.getSourceId(),
+        input.getSourceName(),
+        input.getScore());
     return toOutput(injectExpectationService.updateInjectExpectation(expectationId, input));
   }
 
@@ -178,9 +189,16 @@ public class ExpectationApi extends RestBehavior {
   public List<InjectExpectationOutput> getInjectPreventionExpectationsNotFilledForSource(
       @PathVariable String sourceId) {
     String tenantId = TenantContext.getCurrentTenant();
-    return toOutputs(
-        injectExpectationService.preventionExpectationsNotFill(tenantId, sourceId).stream()
-            .toList());
+    List<InjectExpectationOutput> results =
+        toOutputs(
+            injectExpectationService.preventionExpectationsNotFill(tenantId, sourceId).stream()
+                .toList());
+    log.debug(
+        "GET prevention expectations for source {} (tenant {}): {} pending",
+        sourceId,
+        tenantId,
+        results.size());
+    return results;
   }
 
   @GetMapping({
@@ -208,9 +226,16 @@ public class ExpectationApi extends RestBehavior {
   public List<InjectExpectationOutput> getInjectDetectionExpectationsNotFilledForSource(
       @PathVariable String sourceId) {
     String tenantId = TenantContext.getCurrentTenant();
-    return toOutputs(
-        injectExpectationService.detectionExpectationsNotFill(tenantId, sourceId).stream()
-            .toList());
+    List<InjectExpectationOutput> results =
+        toOutputs(
+            injectExpectationService.detectionExpectationsNotFill(tenantId, sourceId).stream()
+                .toList());
+    log.debug(
+        "GET detection expectations for source {} (tenant {}): {} pending",
+        sourceId,
+        tenantId,
+        results.size());
+    return results;
   }
 
   @Operation(
@@ -238,7 +263,9 @@ public class ExpectationApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
+  // TxCtx scopes the transaction so the collectors table (v2-activated) is visible.
   public InjectExpectationOutput updateInjectExpectation(
+      TxCtx ctx,
       @PathVariable @NotBlank final String expectationId,
       @Valid @RequestBody @NotNull InjectExpectationUpdateInput input) {
     return toOutput(injectExpectationService.updateInjectExpectation(expectationId, input));
@@ -250,8 +277,9 @@ public class ExpectationApi extends RestBehavior {
   @PutMapping({INJECTS_EXPECTATIONS_URI + "/bulk", TENANT_INJECTS_EXPECTATIONS_URI + "/bulk"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
+  // TxCtx scopes the transaction so the collectors table (v2-activated) is visible.
   public void updateInjectExpectation(
-      @Valid @RequestBody @NotNull InjectExpectationBulkUpdateInput inputs) {
+      TxCtx ctx, @Valid @RequestBody @NotNull InjectExpectationBulkUpdateInput inputs) {
     injectExpectationService.bulkUpdateInjectExpectation(inputs.getInputs());
   }
 }

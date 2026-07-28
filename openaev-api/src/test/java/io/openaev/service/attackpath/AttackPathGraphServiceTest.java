@@ -3,6 +3,7 @@ package io.openaev.service.attackpath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
@@ -21,6 +22,7 @@ import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import java.time.Instant;
+import java.util.Map;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
@@ -289,8 +291,51 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("An injector running several contracts shows the union of their techniques")
-  void injector_node_unions_techniques_across_contracts() {
+  @DisplayName(
+      "Collapsed mode splits the injector node per contract, with its own techniques, label and edges")
+  void collapsed_injector_node_splits_per_contract() {
+    seedContractWithPattern("C-CA", "T1003");
+    // A second contract with BOTH an attack pattern and a resolvable label (FR4 in collapsed).
+    InjectorContract cb =
+        InjectorContractFixture.createDefaultInjectorContractWithExternalId("C-CB");
+    cb.setLabels(Map.of("en", "Kerberoasting"));
+    injectorContractComposer
+        .forInjectorContract(cb)
+        .withAttackPattern(
+            attackPatternComposer.forAttackPattern(
+                AttackPatternFixture.createAttackPatternsWithExternalId("T1004")))
+        .persist();
+    // Same injector "COLLSPLIT", two contracts on two targets.
+    seedInjectorRun("COLLSPLIT", "cg-a", "CG-A", "C-CA", "openaev_impl", at(41));
+    seedInjectorRun("COLLSPLIT", "cg-b", "CG-B", "C-CB", "openaev_impl", at(42));
+    entityManager.flush();
+
+    AttackPathDTO dto = service.buildGraph(SIM, "collapsed");
+    AttackPathNodeDTO nodeA = nodeById(dto, AttackPathIds.injectorNode("COLLSPLIT", "C-CA"));
+    AttackPathNodeDTO nodeB = nodeById(dto, AttackPathIds.injectorNode("COLLSPLIT", "C-CB"));
+    // Each per-contract node shows only its own contract's technique.
+    assertThat(nodeA.getAttackPatterns())
+        .extracting(AttackPathAttackPatternDTO::externalId)
+        .containsExactly("T1003");
+    assertThat(nodeB.getAttackPatterns())
+        .extracting(AttackPathAttackPatternDTO::externalId)
+        .containsExactly("T1004");
+    // FR4 label in collapsed: the labelled contract's name; the label-less one falls back.
+    assertThat(nodeB.getLabel()).isEqualTo("Kerberoasting");
+    assertThat(nodeA.getLabel()).isEqualTo("COLLSPLIT");
+    // The grouped edges attach to the per-contract sources.
+    assertThat(dto.attackPathEdges())
+        .extracting(AttackPathEdges::getEdgeSourceId)
+        .contains(
+            AttackPathIds.injectorNode("COLLSPLIT", "C-CA"),
+            AttackPathIds.injectorNode("COLLSPLIT", "C-CB"));
+  }
+
+  @Test
+  @DisplayName(
+      "An injector running several contracts renders one node per contract, each with its own"
+          + " technique")
+  void injector_node_splits_per_contract() {
     seedContractWithPattern("C-A", "T1001");
     seedContractWithPattern("C-B", "T1002");
     // Same injector "SPRAY", two runs under two different contracts.
@@ -298,15 +343,76 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     seedInjectorRun("SPRAY", "h-b", "H-B", "C-B", "openaev_impl", at(13));
     entityManager.flush();
 
-    AttackPathNodeDTO injectorNode =
-        service.buildGraph(SIM).attackPathNodes().stream()
-            .filter(n -> "INJECTOR".equals(n.getType()) && "SPRAY".equals(n.getLabel()))
-            .findFirst()
-            .orElseThrow();
-
-    assertThat(injectorNode.getAttackPatterns())
+    AttackPathDTO dto = service.buildGraph(SIM);
+    // Two distinct injector nodes, one per contract (not one merged node). Selected by id, since
+    // the
+    // label-less fixture contracts make both nodes fall back to the injector name "SPRAY".
+    AttackPathNodeDTO nodeA = nodeById(dto, AttackPathIds.injectorNode("SPRAY", "C-A"));
+    AttackPathNodeDTO nodeB = nodeById(dto, AttackPathIds.injectorNode("SPRAY", "C-B"));
+    assertThat(nodeA.getType()).isEqualTo("INJECTOR");
+    assertThat(nodeB.getType()).isEqualTo("INJECTOR");
+    // Each node shows only its own contract's technique, not the union across the injector.
+    assertThat(nodeA.getAttackPatterns())
         .extracting(AttackPathAttackPatternDTO::externalId)
-        .containsExactlyInAnyOrder("T1001", "T1002");
+        .containsExactly("T1001");
+    assertThat(nodeB.getAttackPatterns())
+        .extracting(AttackPathAttackPatternDTO::externalId)
+        .containsExactly("T1002");
+  }
+
+  @Test
+  @DisplayName("The injector node label is its contract's name (fallback to the injector name)")
+  void injector_node_label_is_contract_name() {
+    // The default fixture contract carries no labels; set one so the node can present the contract
+    // name instead of the injector name.
+    InjectorContract labelled =
+        InjectorContractFixture.createDefaultInjectorContractWithExternalId("C-LABEL");
+    labelled.setLabels(Map.of("en", "Share Listing"));
+    injectorContractComposer.forInjectorContract(labelled).persist();
+    seedInjectorRun("NETEXEC", "srv-9", "SRV-9", "C-LABEL", "openaev_netexec", at(14));
+    entityManager.flush();
+
+    AttackPathNodeDTO node =
+        nodeById(service.buildGraph(SIM), AttackPathIds.injectorNode("NETEXEC", "C-LABEL"));
+    assertThat(node.getLabel()).isEqualTo("Share Listing");
+  }
+
+  @Test
+  @DisplayName(
+      "A contractless injector keeps the 2-segment per-injector id and injector-name label, full and"
+          + " collapsed")
+  void contractless_injector_falls_back_to_per_injector_id() {
+    // The @BeforeEach NMAP runs carry no contract, so their node is the 2-segment per-injector id,
+    // byte-identical to the pre-split form, and its label falls back to the injector name.
+    String id = AttackPathIds.injectorNode("NMAP");
+    assertThat(id).isEqualTo("NODE_INJECTOR|NMAP");
+
+    AttackPathNodeDTO full = nodeById(service.buildGraph(SIM), id);
+    assertThat(full.getType()).isEqualTo("INJECTOR");
+    assertThat(full.getLabel()).isEqualTo("NMAP");
+
+    AttackPathNodeDTO collapsed = nodeById(service.buildGraph(SIM, "collapsed"), id);
+    assertThat(collapsed.getType()).isEqualTo("INJECTOR");
+    assertThat(collapsed.getLabel()).isEqualTo("NMAP");
+  }
+
+  @Test
+  @DisplayName(
+      "An injector with both a contract run and a contractless run renders both a per-contract and a"
+          + " per-injector node")
+  void injector_with_mixed_contract_renders_both_nodes() {
+    seedContractWithPattern("C-MIX", "T1005");
+    // Same injector "MIXED": one run under a contract, one run with no contract.
+    seedInjectorRun("MIXED", "mx-a", "MX-A", "C-MIX", "openaev_impl", at(43));
+    injectorExecution("MIXED", "mx-b", "MX-B", "Prevented", "Not Detected", "Scan", at(44));
+    entityManager.flush();
+
+    AttackPathDTO dto = service.buildGraph(SIM);
+    // The contract run is a 3-segment per-contract node; the contractless run is the 2-segment
+    // node.
+    assertThat(nodeById(dto, AttackPathIds.injectorNode("MIXED", "C-MIX")).getType())
+        .isEqualTo("INJECTOR");
+    assertThat(nodeById(dto, AttackPathIds.injectorNode("MIXED")).getType()).isEqualTo("INJECTOR");
   }
 
   @Test
@@ -423,6 +529,24 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     AttackPathEdges edge = dto.edges().get(0);
     assertThat(edge.getCount()).isEqualTo(2);
     assertThat(edge.getExecutionIds()).containsExactlyInAnyOrder(exec1Id, exec2Id);
+  }
+
+  @Test
+  @DisplayName(
+      "Endpoint relations expose the same per-contract injector source id as the full graph")
+  void relations_use_per_contract_injector_source_id() {
+    // The front correlates /graph and /endpoint/relations by edgeSourceId string-equality, so both
+    // must emit the SAME per-contract id for a given (injector, contract).
+    seedContractWithPattern("C-REL", "T1210");
+    seedInjectorRun("WINRM", "ep-rel", "EP-REL", "C-REL", "openaev_impl", at(40));
+    entityManager.flush();
+
+    String expectedSource = AttackPathIds.injectorNode("WINRM", "C-REL");
+    AttackPathEndpointRelationsDTO relations = service.endpointRelations(SIM, "ep-rel");
+    assertThat(relations.edges())
+        .singleElement()
+        .satisfies(e -> assertThat(e.getEdgeSourceId()).isEqualTo(expectedSource));
+    assertThat(nodeById(service.buildGraph(SIM), expectedSource).getType()).isEqualTo("INJECTOR");
   }
 
   @Test

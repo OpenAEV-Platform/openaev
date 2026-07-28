@@ -45,6 +45,7 @@ import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
+import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
 import ExerciseDatePopover from './ExerciseDatePopover';
 import ExercisePopover, { type ExerciseActionPopover } from './ExercisePopover';
@@ -319,7 +320,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
 
   const actions: ExerciseActionPopover[] = isSimulationChaining
     ? ['Update', 'Export', 'Delete']
-    : ['Update', 'Duplicate', 'Export', 'Delete', 'Access reports'];
+    : ['Update', 'Duplicate', 'Export', 'Delete'];
 
   // Headline stats surfaced right in the hero so they are visible on every
   // tab. The hero adapts to how the simulation is actually built: injects are
@@ -445,6 +446,13 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                   </IconButton>
                 </Tooltip>
               )}
+              {/* Entity-scoped reports - self-hides without the reporting
+                  access capability. */}
+              <EntityReportsPanel
+                contextType="SIMULATION"
+                contextId={exercise.exercise_id}
+                entityName={exercise.exercise_name}
+              />
               {permissions.canManage && (
                 <>
                   <Tooltip title={t('Modify the scheduling')}>
@@ -470,7 +478,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                 isLoading={isLoading}
                 isScopeMissing={isScopeMissing}
               />
-              {/* CRUD + reports in one overflow menu. */}
+              {/* CRUD actions in one overflow menu. */}
               <ExercisePopover
                 exercise={exercise}
                 actions={actions}

@@ -12,7 +12,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Tag;
@@ -294,7 +293,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
     // asset_external_reference is still set: the list comes back empty, so the UI
     // re-enables update / delete. Same delete path as CollectorService#deleteCollector
     // (entity-based delete() is a silent no-op on the detached composite-id entity).
-    collectorRepository.deleteByIdAndTenantId(collector.getId(), TenantContext.getCurrentTenant());
+    collectorRepository.deleteByCollectorId(collector.getId());
     entityManager.flush();
     entityManager.clear();
 

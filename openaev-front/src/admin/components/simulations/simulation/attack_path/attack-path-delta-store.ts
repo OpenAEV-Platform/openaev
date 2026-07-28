@@ -1,5 +1,4 @@
-import type { AttackPathCounters, AttackPathDTO, AttackPathEdges, AttackPathNodeDTO } from '../../../../../utils/api-types';
-import type { AttackPathDeltaDTO, AttackPathSnapshotDTO } from '../../../../../utils/api-types-custom';
+import type { AttackPathCounters, AttackPathDeltaDTO, AttackPathDTO, AttackPathEdges, AttackPathNodeDTO } from '../../../../../utils/api-types';
 
 // Accumulated attack-path graph (issue 6647). A run keeps discovering endpoints, executions and
 // findings, so the view is fed by ONE initial snapshot plus versioned deltas instead of re-reading the
@@ -214,7 +213,7 @@ const unchangedResult = (store: AttackPathGraphStore, version: number): AttackPa
  * snapshot without a version (0) still works — the first delta simply replays everything, idempotently.
  */
 export const fromSnapshot = (
-  dto: AttackPathSnapshotDTO | null | undefined,
+  dto: AttackPathDTO | null | undefined,
   version = dto?.graphVersion ?? 0,
 ): AttackPathGraphStore => {
   const store = emptyStore();
