@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildKillChainMeta, maskFindingValue } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildKillChainMeta, friendlyNodeId, maskFindingValue } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 // Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
@@ -154,6 +154,24 @@ describe('applyFindingFilter', () => {
   it('dims every node when no node matches the filter', () => {
     const { nodes } = applyFindingFilter(base.nodes, base.edges, ['cve']);
     expect(nodes.every(n => n.data.dimmed === true)).toBe(true);
+  });
+});
+
+describe('friendlyNodeId', () => {
+  it('shows just the injector name for a per-contract injector id (drops the contract uuid)', () => {
+    expect(friendlyNodeId('NODE_INJECTOR|NetExec|8f3c-contract-uuid')).toBe('NetExec');
+  });
+
+  it('keeps the plain injector name for a contractless (2-segment) injector id', () => {
+    expect(friendlyNodeId('NODE_INJECTOR|Nmap')).toBe('Nmap');
+  });
+
+  it('keeps the full key for non-injector nodes (endpoints)', () => {
+    expect(friendlyNodeId('NODE_ENDPOINT|10.0.0.1')).toBe('10.0.0.1');
+  });
+
+  it('returns an empty string for an undefined id', () => {
+    expect(friendlyNodeId(undefined)).toBe('');
   });
 });
 

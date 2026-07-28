@@ -694,7 +694,16 @@ export interface PathFinding {
 // A node's internal id (e.g. "NODE_ENDPOINT|<uuid>") must never surface as a user-facing label. When a
 // node can't be resolved to a real name, strip the "NODE_*|" prefix so the worst case is a bare ref,
 // not the internal id the analyst has no use for.
-export const friendlyNodeId = (raw?: string): string => (raw ?? '').replace(/^NODE_[A-Z_]+\|/, '');
+export const friendlyNodeId = (raw?: string): string => {
+  const stripped = (raw ?? '').replace(/^NODE_[A-Z_]+\|/, '');
+  // A per-contract injector id (#6981) is `NODE_INJECTOR|<injector>|<contractExternalId>`, where the
+  // trailing segment is a non-human-readable uuid. This is only a fallback label (the node normally
+  // carries the contract name), so show just the injector name; other node kinds keep their full key.
+  if ((raw ?? '').startsWith('NODE_INJECTOR|')) {
+    return stripped.split('|')[0];
+  }
+  return stripped;
+};
 
 // Human-readable plural noun for a finding type, used to give contextual cluster edges a label with
 // meaning (e.g. "6 credentials" instead of a bare "6+"). Mixed clusters fall back to "findings".
