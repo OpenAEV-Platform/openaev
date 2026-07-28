@@ -121,7 +121,7 @@ public class ProvidingFilterSpecificationBuilder {
       var lowerContent = cb.lower(root.get("content"));
       Predicate contentMatch;
       if (expectedOutputTypes == null || expectedOutputTypes.isEmpty()) {
-        contentMatch = cb.and(noPayload, cb.like(lowerContent, "%\"outputs\"%\"type\"%"));
+        contentMatch = cb.and(noPayload, cb.like(lowerContent, "%\"outputs\"%[%{%\"type\"%"));
       } else {
         Set<String> expectedLabels =
             expectedOutputTypes.stream()
@@ -134,7 +134,7 @@ public class ProvidingFilterSpecificationBuilder {
                   noPayload,
                   cb.like(
                       lowerContent,
-                      "%\"outputs\"%\"type\"%\"" + label.toLowerCase(Locale.ROOT) + "\"%")));
+                      "%\"outputs\"%[%{%\"type\"%\"" + label.toLowerCase(Locale.ROOT) + "\"%")));
         }
         contentMatch =
             contentPredicates.isEmpty()
@@ -168,7 +168,8 @@ public class ProvidingFilterSpecificationBuilder {
     }
 
     for (ContractOutputType candidate : ContractOutputType.values()) {
-      if (normalizedLabels.contains(candidate.getLabel().toLowerCase(Locale.ROOT))) {
+      if (normalizedLabels.contains(candidate.getLabel().toLowerCase(Locale.ROOT))
+          || normalizedLabels.contains(candidate.name().toLowerCase(Locale.ROOT))) {
         resolvedTypes.add(candidate);
         continue;
       }
