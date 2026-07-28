@@ -416,10 +416,10 @@ OpenCTI and OpenAEV, for the shared Figma backlog with Thibault.
 | Concept | OpenAEV usage | OpenCTI usage | Common value today | Suggested token name |
 |---|---|---|---|---|
 | Tinted "accent" background (distinct from the base accent/code color) | `background.accent` (light only), `#d3eaff` — `ItemCopy.tsx`, `AttackPatternBox.tsx` ×2 | No direct equivalent — closest is `designSystem.background.bg1`-`bg4`, also untokenized on their side | Different per product — genuinely no shared value yet | `--color-elevation-background-tint` (working name) |
-| Multi-tier elevation background (beyond default/paper/accent) | `designSystem.background.{bg1,bg2,bg3,bg4,disabled}` — **no longer fully dead**: #6813 added the first live consumer, `.bg2` (a menu separator border in `LeftMenu.tsx`) — the other 4 sub-keys remain unconsumed | `designSystem.background.{bg1,bg2,bg3,bg4,disabled}` — **live**, 0 confident FDS match either (their own report, §6/"Tokens à créer") | n/a (both hardcoded, no shared value) | `--color-elevation-background-layer-{1..4}` extension, or a dedicated `bg-tint-*` scale |
-| Severity `none`/`default` (neutral/unset state) | `palette.severity.default`, `#004C66` fallback in `Tag.tsx` | `severity.none`/`.default` — explicitly left untouched, "no feedback-family equivalent" | Different per product | `--color-feedback-neutral-*` (new family — neither product has a "neutral" feedback tier today) |
-| Raw blue hue scale gap | `designSystem.tertiary.blue.{500,900}` (`#0099CC`/`#003242`) — now **live** as of #6813/§8.6, same 2 residual values, still no FDS match | `designSystem.tertiary.blue` (`#0099CC`/`#003242`) — no FDS match at all, closest is `blue-500` which is a completely different, much brighter color | **Now shared** — identical hardcoded values on both products (was OpenCTI-only) | `--color-blue-{step}` scale extension |
-| Generic "border" concept | `designSystem.border.{main,border1,border2}` — now **live** as of #6813/§8.6, identical values to OpenCTI's (`#D2D2D2`/`#C2C2C2`/`#999797` light) | `designSystem.border.{main,border1,border2}` — no FDS "border" concept exists today | **Now shared** — identical hardcoded values (was OpenCTI-only) | `--color-border-*` (new family) |
+| Multi-tier elevation background (beyond default/paper/accent) | `designSystem.background.{bg1,bg2,bg3,bg4,disabled}` — **RESOLVED on OpenAEV as of § 9** (reused existing `--bg-elevation-default-layer-{0-3}`/`--bg-elevation-disabled`, not a new token). `.bg2`'s live consumer (`LeftMenu.tsx`) confirmed zero/imperceptible delta | `designSystem.background.{bg1,bg2,bg3,bg4,disabled}` — **live**, 0 confident FDS match either (their own report, §6/"Tokens à créer") — unchanged, still open on their side | n/a (both hardcoded, no shared value) | `--color-elevation-background-layer-{1..4}` extension, or a dedicated `bg-tint-*` scale — **may no longer be needed for OpenAEV** if OpenCTI adopts the same existing-token reuse; still useful if a purpose-built tint scale is wanted later |
+| Severity `none`/`default` (neutral/unset state) | `palette.severity.default`, `#004C66` fallback in `Tag.tsx` — **RESOLVED on OpenAEV as of § 9** (reused existing `--color-feedback-neutral-primary`, both keys collapse to the same value) | `severity.none`/`.default` — explicitly left untouched, "no feedback-family equivalent" — unchanged, still open on their side | Different per product | `--color-feedback-neutral-*` (new family) — **may no longer be needed** now that OpenAEV reuses an existing token; kept for OpenCTI's side |
+| Raw blue hue scale gap | `designSystem.tertiary.blue.{500,900}` (`#0099CC`/`#003242`) — **RESOLVED on OpenAEV as of § 9**, but via reuse of `--color-feedback-info-secondary-transparency` (a semi-transparent alpha token) — **not** a new opaque blue-scale token; both products' dormant `.500`/`.900` are 0-consumer, see § 9.3's semantic-change caveat before ever wiring a real consumer to this | `designSystem.tertiary.blue` (`#0099CC`/`#003242`) — no FDS match at all — unchanged, still open on their side | **Was shared** — now diverges (OpenAEV reused an unrelated alpha token, OpenCTI still hardcoded) | `--color-blue-{step}` scale extension — still relevant if a real opaque-blue consumer ever appears on either product |
+| Generic "border" concept | `designSystem.border.{main,border1,border2}` — **RESOLVED on OpenAEV as of § 9** (reused existing `--border-elevation-default`/`--border-elevation-subtle`; `border1`/`border2` collapse to the same subtle value) | `designSystem.border.{main,border1,border2}` — no FDS "border" concept exists today — unchanged, still open on their side | **Was shared** — now diverges (OpenAEV resolved via reuse, OpenCTI still hardcoded) | `--color-border-*` (new family) — may no longer be needed for OpenAEV; kept for OpenCTI's side |
 | Light-mode tonic sub-shades | `designSystem.secondary.{light,dark}` (light mode only) — now **live** as of #6813/§8.7; only `.main` was retokenized this pass, `.light`/`.dark` share OpenCTI's exact residual gap | `designSystem.secondary.{light,dark}` (light mode only) — old values don't match `tonic-secondary`/`tonic-tertiary` the way dark mode's did | **Now shared** — same residual gap on both products (was OpenCTI-only) | Possibly a light-mode-specific tonic sub-shade pair |
 | Dialog/modal background (distinct from generic paper elevation) | `MuiDialog.styleOverrides.paper` hardcoded: `#0F1D34` (dark) / `#FFFFFF` (light) — now **live** as of #6813/§8.10, still unwired | `MuiDialog.styleOverrides.paper` hardcoded: `#0F1D34` (dark, distinct from paper `#0d172b`) / `#FFFFFF` (light, = paper `#ffffff`) — already self-flagged "no confident FDS match" in OpenCTI's own `TOKEN-MAPPING.md` (`THEME_DARK_DIALOG_BACKGROUND`/`THEME_LIGHT_DIALOG_BACKGROUND`) | **Now shared** — identical hardcoded pattern and values on both products (was OpenCTI-only) | `--color-elevation-background-dialog` (working name) — added following the 2026-07-13 cross-product comparison, see `reports/tokens-visual-validation.md` annex |
 
@@ -437,15 +437,17 @@ products, 100% resolved from `theme.css`. Every color-bearing property in
 `mui-inventory` scanner can check convergence by counting bucket (a) vs
 (b)+(c).
 
-> **Superseded by §8.** This section originally *predicted* wave 2 (written
-> before #6813 landed). #6813's merge forced wave 2 to happen now — §8 is
-> the executed record. The buckets below are updated to reflect what
-> actually shipped vs. what's still open; where §7's original prediction
-> and §8's actual execution differ (rare — mostly root-level `warn`/
-> `warning`/`success`/`dangerZone`, see the note at the end of bucket (b)),
-> that's called out explicitly rather than silently reconciled.
+> **Superseded by §8, extended by §9.** This section originally *predicted*
+> wave 2 (written before #6813 landed). #6813's merge forced wave 2 to happen
+> now — §8 is the executed record. Wave 3 (§9) then closed §8.6's 5
+> "confirmed true gaps" once the lib's mapping guide caught up (lib#52). The
+> buckets below are updated to reflect what actually shipped vs. what's
+> still open; where §7's original prediction and §8's actual execution
+> differ (rare — mostly root-level `warn`/`warning`/`success`/`dangerZone`,
+> see the note at the end of bucket (b)), that's called out explicitly
+> rather than silently reconciled.
 
-- **(a) Wired to an existing FDS token — waves 1+2, both modes unless noted**:
+- **(a) Wired to an existing FDS token — waves 1+2+3, both modes unless noted**:
   `primary`, `secondary`, `EE_COLOR`, `gradient.main`, `xtmhub.main`,
   `accent`, `paper`, `background.default`, `background.secondary` (dark
   `nav` for free) — **wave 1, 9 fields** — plus, newly wired this pass
@@ -462,12 +464,12 @@ products, 100% resolved from `theme.css`. Every color-bearing property in
   `designSystem.gradient.ia`/`.focus`, plus the `THEME_LIGHT_DEFAULT_PRIMARY`
   bug fix (rule 5). **~20 additional field families, both modes** (some
   single-value, some 3-tier `.main/.light/.dark`) — full detail in §8.1–8.5.
-- **(b) Hardcoded, DURABLE, awaiting a Figma token — remaining after wave 2**:
-  - **Confirmed true gaps (5, §8.6)**: `severity.none`/`.default`,
-    `designSystem.tertiary.blue.{500,900}`,
-    `designSystem.background.{bg1-4,disabled}`, `designSystem.border.{main,
-    border1,border2}`, `primary.light` (**dark mode only** — light is now
-    wired).
+  Plus, newly wired in **wave 3 (§9, lib#52 gap-fix)**: `severity.none/
+  .default`, `designSystem.tertiary.blue.500/900`, `designSystem.background.
+  {bg1-4,disabled}`, `designSystem.border.{main,border1,border2}`,
+  `primary.light` (**dark mode, closing the last mode-gap** — light was
+  already wired in wave 2). **5 field families, both modes.**
+- **(b) Hardcoded, DURABLE, awaiting a Figma token — remaining after wave 3**:
   - **Residual light-mode-only gap (§8.7)**: `designSystem.secondary.{light,
     dark}` — only `.main` retokenized, matches OpenCTI's own identical gap.
   - **Bridge-shape gap, not a value gap (§8.7)**: `designSystem.gradient.
@@ -496,6 +498,10 @@ products, 100% resolved from `theme.css`. Every color-bearing property in
   - `MuiDialog` background — component-level override, not a `palette.*`
     key. Now hardcoded on **both** products with matching values (§8.10,
     §6's updated row) — parity reached, still no FDS token exists.
+  - **`ThemeLight.ts` root `border.main`/`.secondary`** — found in §9.4:
+    still hardcoded (`#D2D2D2`/`#C2C2C2`) while `ThemeDark.ts`'s root
+    `border.main`/`.secondary` are already wired — an asymmetry on the same
+    guide-mapped property, flagged not fixed (not in Sandy's named 5).
 - **(c) Hardcoded, JETABLE (dies with component migration) — wave 3**: none
   identified in this lot's 6 named properties, and none of the wave-2 items
   above either (all classified DURABLE — cross-cutting platform colors, not
@@ -710,6 +716,112 @@ openaev --write-to-product`, run from `filigran-design-system`) is a
 separate cross-repo action, not authorized by this pass — flagged, not
 actioned. All other 11 conformity checks pass (bridge-integrity, wiring ×2,
 forbidden-pattern ×8).
+
+---
+
+## 9. Wave 3 — the 5 confirmed gaps resolved (lib #52 mapping-guide update)
+
+Trigger: `filigran-design-system` PR #52 (merged) completed
+`TOKEN-MIGRATION-GUIDE.md` with confident mappings for the 5 gaps §8.6 left
+hardcoded ("Option A — no FDS token exists"). Re-read the updated guide,
+re-confirmed each mapping against the current, already-committed
+`fds-tokens.generated.ts` (no bridge regeneration needed or performed — see
+§9.4), and wired all 5 in both `ThemeDark.ts`/`ThemeLight.ts`. This is a
+**value change**, not a pure rename (unlike the lib#32 pass) — deltas are
+small for 3 of 5 and exactly zero for 1 sub-case, detailed below.
+
+### 9.1 Before/after — dark mode
+
+| Property | Old (hardcoded) | New token | Resolves to | Delta |
+|---|---|---|---|---|
+| `severity.none` | `#424242` | `--color-feedback-neutral-primary` | `#7a9cd6` | notable (was neutral grey, now a blue-tinted neutral — collapses with `.default`, see 9.3) |
+| `severity.default` | `#1C2F49` | `--color-feedback-neutral-primary` | `#7a9cd6` | notable |
+| `designSystem.background.bg1` | `#0C1524` | `--bg-elevation-default-layer-0` | `#070d18` | minor |
+| `designSystem.background.bg2` | `#0D182A` | `--bg-elevation-default-layer-1` | `#0d172b` | minor — **live consumer**, see 9.2 |
+| `designSystem.background.bg3` | `#253348` | `--bg-elevation-default-layer-2` | `#13213e` | minor |
+| `designSystem.background.bg4` | `#1C2F49` | `--bg-elevation-default-layer-3` | `#1f3965` | minor |
+| `designSystem.background.disabled` | `#363B46` | `--bg-elevation-disabled` | `#18191b` | minor |
+| `designSystem.border.main` | `#2B3447` | `--border-elevation-default` | `#3665b4` | notable (0 consumers, inert) |
+| `designSystem.border.border1` | `#424751` | `--border-elevation-subtle` | `#1f3965` | notable — collapses with `border2` (0 consumers, inert) |
+| `designSystem.border.border2` | `#1C253A` | `--border-elevation-subtle` | `#1f3965` | minor (0 consumers, inert) |
+| `designSystem.tertiary.blue.500` | `#0099CC` (opaque) | `--color-feedback-info-secondary-transparency` | `#0079a84d` (≈30% alpha) | notable, **semantic** — see 9.3 (0 consumers, inert) |
+| `designSystem.tertiary.blue.900` | `#003242` (opaque) | `--color-feedback-info-secondary-transparency` | `#0079a84d` (≈30% alpha) | notable, **semantic** — see 9.3 (0 consumers, inert) |
+| `primary.light` (root, dark only) | `#B2ECFF` | `--color-filigran-brand-secondary` | `#a8e7ff` | minor, **≈approximate per the guide** (0 consumers, inert) |
+
+### 9.2 Before/after — light mode
+
+| Property | Old (hardcoded) | New token | Resolves to | Delta |
+|---|---|---|---|---|
+| `severity.none` | `#424242` | `--color-feedback-neutral-primary` | `#afb0b6` | notable (collapses with `.default`) |
+| `severity.default` | `#DDE1FE` | `--color-feedback-neutral-primary` | `#afb0b6` | notable |
+| `designSystem.background.bg1` | `#F7F7F7` | `--bg-elevation-default-layer-0` | `#f2f2f3` | minor |
+| `designSystem.background.bg2` | `#FFFFFF` | `--bg-elevation-default-layer-1` | `#ffffff` | **none — byte-identical**, live consumer (below) |
+| `designSystem.background.bg3` | `#E4E4E4` | `--bg-elevation-default-layer-2` | `#f4f4f6` | minor |
+| `designSystem.background.bg4` | `#DDE1FE` | `--bg-elevation-default-layer-3` | `#e4e5e7` | minor |
+| `designSystem.background.disabled` | `#DFDFDF` | `--bg-elevation-disabled` | `#c8d6ee` | notable (0 consumers, inert) |
+| `designSystem.border.main` | `#D2D2D2` | `--border-elevation-default` | `#7a7c85` | notable (0 consumers, inert) |
+| `designSystem.border.border1` | `#C2C2C2` | `--border-elevation-subtle` | `#cacbce` | minor — collapses with `border2` (0 consumers, inert) |
+| `designSystem.border.border2` | `#999797` | `--border-elevation-subtle` | `#cacbce` | minor (0 consumers, inert) |
+| `designSystem.tertiary.blue.500` | `#0099CC` (opaque) | `--color-feedback-info-secondary-transparency` | `#42caff4d` (≈30% alpha) | notable, **semantic** — see 9.3 (0 consumers, inert) |
+| `designSystem.tertiary.blue.900` | `#003242` (opaque) | `--color-feedback-info-secondary-transparency` | `#42caff4d` (≈30% alpha) | notable, **semantic** — see 9.3 (0 consumers, inert) |
+| `primary.light` (root, light) | *(unchanged — already wired, `FDS.scalars['--darkblue-300']` = `--color-filigran-brand-secondary` exactly)* | — | `#7587ff` | none — comment updated only (was stale re: the dark gap) |
+
+**Consumer re-check (grepped fresh this pass, matches §8.6's baseline):** every
+property above has **zero consumers** in `openaev-front/src`, **except**
+`designSystem.background.bg2` — still only `LeftMenu.tsx:42`
+(`theme.palette.designSystem.background.bg2` as a separator `borderColor`).
+Dark: `#0D182A`→`#0d172b`, a ~1-unit-per-channel shift, imperceptible.
+Light: `#FFFFFF`→`#ffffff`, exactly identical. No other new consumers
+appeared anywhere in the namespace since §8.6.
+
+### 9.3 Two caveats worth flagging even though currently inert
+
+- **`tertiary.blue.500`/`.900` — opaque → semi-transparent is a semantic
+  change, not just a hue shift.** The guide's best-fit maps both to
+  `--color-feedback-info-secondary-transparency`, an alpha-blended overlay
+  token (`color-mix(... 30%, transparent)` in `theme.css`), collapsing two
+  visually distinct *opaque* colors (bright cyan `#0099CC` vs. dark navy
+  `#003242`) into one *translucent* value. Zero consumers today (grepped,
+  both before and after), so nothing renders differently — but if either key
+  is ever consumed in the future, this is not a drop-in equivalent of the old
+  opaque color. Flagging prominently per the guide's own dormancy warning on
+  `.900`; this pass extends the same warning to `.500`.
+- **`primary.light` (dark) is an approximate match, not exact.** The guide
+  itself marks `--color-filigran-brand-secondary` as "≈" for this slot:
+  `#B2ECFF` → `#A8E7FF` (R 178→168, G 236→231, B unchanged, ~4% darker on two
+  channels). 0 consumers confirmed, so inert today; noting for the record in
+  case this is ever consumed and someone diffs against the pre-wave-3 value.
+
+### 9.4 Scope confirmations
+
+- **No bridge regeneration performed or required.** All 6 target tokens
+  (`--color-feedback-neutral-primary`, `--bg-elevation-default-layer-{0-3}`,
+  `--bg-elevation-disabled`, `--border-elevation-default`,
+  `--border-elevation-subtle`, `--color-feedback-info-secondary-transparency`,
+  `--color-filigran-brand-secondary`) already existed with correct values in
+  the currently-committed `fds-tokens.generated.ts` — confirmed by direct
+  grep. §8.11's bridge-staleness flag is unrelated: the lib commits that
+  postdate this bridge's generation (#37 Button rework, #40 Tooltip/
+  IconButton, #41 SearchField, #43 Navbar, #49/#50 overlay+blur tokens) touch
+  shadow/overlay/component tokens, not any of the 6 above — confirmed via
+  `git log`/`grep` on the lib's `theme.css`, not just inferred from commit
+  titles. Still flagged, still not actioned (unchanged from §8.11).
+- **Adjacent, NOT touched**: `ThemeLight.ts`'s **root** `border.main`
+  (`#D2D2D2`)/`.secondary` (`#C2C2C2`) are still hardcoded, while
+  `ThemeDark.ts`'s root `border.main`/`.secondary` are already wired to
+  `--border-elevation-default` (§1) — a real asymmetry on the exact same
+  guide-mapped property, found while investigating the `designSystem.border`
+  gap (a different property) but not in Sandy's named 5, so left alone and
+  flagged here rather than silently fixed.
+- **Conformity**: `node fds-migration/scripts/check-fds-conformity.mjs --warn`
+  gives an **identical** result before and after this pass — 12 checks, 1
+  issue (the pre-existing §8.11 bridge staleness, unchanged), all 4
+  forbidden-pattern checks per file still `OK`, both wiring checks still
+  `OK`. Zero regression.
+- **Gates**: `tsc --noEmit` (check-ts) clean; targeted `eslint` on both
+  changed files, 0 errors/warnings; `vite build` succeeds (pre-existing
+  chunk-size/dynamic-import warnings only, unrelated files, unchanged from
+  before this pass).
 
 ---
 
