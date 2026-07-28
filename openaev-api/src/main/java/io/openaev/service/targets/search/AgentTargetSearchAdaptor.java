@@ -74,6 +74,9 @@ public class AgentTargetSearchAdaptor extends SearchAdaptorBase {
 
     Specification<Agent> tagsSpec = specificationUtils.compileSpecificationForTags(input, joinPath);
 
+    Specification<Agent> hasExecutorSpec =
+        (root, query, cb) -> cb.isNotNull(root.get("executor").get("id"));
+
     SearchPaginationInput translatedInput = this.translate(input, scopedInject);
 
     Page<Agent> eps =
@@ -84,21 +87,20 @@ public class AgentTargetSearchAdaptor extends SearchAdaptorBase {
                 if (tagsSpec != null) {
                   finalSpec = tagsSpec.and(finalSpec);
                 }
-                return this.agentRepository.findAll(finalSpec, pageable);
+                return this.agentRepository.findAll(finalSpec.and(hasExecutorSpec), pageable);
               }
               Specification<Agent> finalSpec =
                   memberOfAssetGroupSpec.or(specification.and(memberOfAnyTargetGroupSpec));
               if (tagsSpec != null) {
                 finalSpec = tagsSpec.or(finalSpec);
               }
-              return this.agentRepository.findAll(finalSpec, pageable);
+              return this.agentRepository.findAll(finalSpec.and(hasExecutorSpec), pageable);
             },
             translatedInput,
             Agent.class);
 
     var content =
         eps.getContent().stream()
-            .filter(agent -> agent.getExecutor() != null)
             .map(endpoint -> convertFromAgent(endpoint, scopedInject))
             .toList();
     return new PageImpl<>(content, eps.getPageable(), eps.getTotalElements());
