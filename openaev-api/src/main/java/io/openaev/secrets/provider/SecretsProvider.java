@@ -12,8 +12,6 @@ public abstract class SecretsProvider extends BaseConnectorEntity implements Ten
 
   public static final String SERVICE_NAME = "secrets-provider";
 
-  public static final String SERVICE_NAME = "secrets-provider";
-
   @JsonProperty("secrets_provider_id")
   @Getter
   @Setter
