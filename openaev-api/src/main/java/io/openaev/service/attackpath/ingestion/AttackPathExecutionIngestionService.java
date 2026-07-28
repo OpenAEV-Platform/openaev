@@ -85,30 +85,50 @@ public class AttackPathExecutionIngestionService {
    * by their index. For each list, selects the {@link InjectExpectationResult} whose {@code result}
    * label has the highest priority (success > partial > pending > failure) according to the
    * corresponding {@link ExpectationType} labels, then persists that label as the status value.
+   *
+   * <p>This is the only path that writes verdicts onto the projection (#6647, spec 002, FR5), and
+   * it carries the two properties the real-time delta depends on. The simulation's attack-path
+   * version is bumped once per step event and stamped on every row the updates touch — without that
+   * stamp a changed verdict never reaches a polling client, which is the whole point of the
+   * feature. And the update itself is guarded on the three status columns, so replaying the same
+   * expectation result — which the chaining engine does on every execution event, by design —
+   * matches zero rows and tells no client anything changed.
+   *
+   * <p>Like the other ingestion writers, the bump and the updates share one {@code executeNew}
+   * transaction, so a version a client can observe is never ahead of the rows backing it. An empty
+   * result set never opens it: nothing written, nothing to version.
    */
   public void updateExpectationByExecutionIndex(
       Inject inject, Map<String, ExecutionExpectationResults> expectationResults) {
+    if (expectationResults.isEmpty() || inject.getExercise() == null) {
+      return; // nothing to write, so nothing to version; and the projection is simulation-scoped
+    }
+    String simulationId = inject.getExercise().getId();
+    String tenantId = inject.getTenant().getId();
     tenantTx.executeNew(
-        TxCtx.forTenant(inject.getTenant().getId()),
-        () ->
-            expectationResults.forEach(
-                (index, expectation) -> {
-                  String preventionStatus =
-                      resolveHighestPriorityResult(
-                          expectation.prevention(), ExpectationType.PREVENTION);
-                  String detectionStatus =
-                      resolveHighestPriorityResult(
-                          expectation.detection(), ExpectationType.DETECTION);
-                  String vulnerabilityStatus =
-                      resolveHighestPriorityResult(
-                          expectation.vulnerability(), ExpectationType.VULNERABILITY);
-                  executionRepository.updateExpectationStatusByExecutionId(
-                      index,
-                      preventionStatus,
-                      detectionStatus,
-                      vulnerabilityStatus,
-                      inject.getTenant().getId());
-                }));
+        TxCtx.forTenant(tenantId),
+        () -> {
+          long version = versionService.bump(simulationId, tenantId);
+          expectationResults.forEach(
+              (index, expectation) -> {
+                String preventionStatus =
+                    resolveHighestPriorityResult(
+                        expectation.prevention(), ExpectationType.PREVENTION);
+                String detectionStatus =
+                    resolveHighestPriorityResult(
+                        expectation.detection(), ExpectationType.DETECTION);
+                String vulnerabilityStatus =
+                    resolveHighestPriorityResult(
+                        expectation.vulnerability(), ExpectationType.VULNERABILITY);
+                executionRepository.updateExpectationStatusByExecutionId(
+                    index,
+                    preventionStatus,
+                    detectionStatus,
+                    vulnerabilityStatus,
+                    tenantId,
+                    version);
+              });
+        });
   }
 
   /**

@@ -18,28 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 public interface AttackPathExecutionRepository extends CrudRepository<AttackPathExecution, String> {
 
-  /*
-   * Verdict sync (#6647, spec 002). The nine updates below share one shape, and each part of it
-   * carries weight:
-   *
-   *  - "SET ... rowVersion = :version" stamps the simulation's freshly bumped attack-path version on
-   *    every row the update touches, so a polling client finds the changed verdict as a delta. A
-   *    verdict written without the stamp would sit in the projection unseen until an unrelated write
-   *    happened to bump past it.
-   *  - the trailing "AND (status IS NULL OR status <> :status)" makes the write idempotent: replaying
-   *    the same expectation result matches zero rows, so it neither re-stamps a version nor reports a
-   *    change. The returned count is therefore "did anything actually change", not "did the statement
-   *    run". Callers must never pass a null status — with one, the guard degenerates into "update the
-   *    rows that are already null".
-   *  - "e.tenant.id = :tenantId" is explicit because these run off the request thread, under a
-   *    background tenant scope.
-   *
-   * Three key shapes, one per granularity an expectation resolves to: the agent, a set of target
-   * assets, or a discovered target key. The asset variants take a COLLECTION on purpose — an
-   * expectation on an asset group resolves to every member, and one statement per member turned a
-   * single step event into as many UPDATEs as the group has assets.
-   */
-
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Transactional
   @Query(
@@ -51,138 +29,26 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
       @Param("terminalOutput") String terminalOutput,
       @Param("tenantId") String tenantId);
 
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.preventionStatus = :status, e.rowVersion = :version "
-          + "WHERE e.stepId = :stepId AND e.agentId = :agentId AND e.tenant.id = :tenantId "
-          + "AND (e.preventionStatus IS NULL OR e.preventionStatus <> :status)")
-  int updatePreventionStatusByStepIdAndAgentId(
-      @Param("stepId") String stepId,
-      @Param("agentId") String agentId,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId,
-      @Param("version") long version);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.preventionStatus = :status, e.rowVersion = :version "
-          + "WHERE e.stepId = :stepId AND e.targetAssetId IN :assetIds "
-          + "AND e.tenant.id = :tenantId "
-          + "AND (e.preventionStatus IS NULL OR e.preventionStatus <> :status)")
-  int updatePreventionStatusByStepIdAndTargetAssetIds(
-      @Param("stepId") String stepId,
-      @Param("assetIds") Collection<String> assetIds,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId,
-      @Param("version") long version);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.preventionStatus = :status, e.rowVersion = :version "
-          + "WHERE e.stepId = :stepId AND e.targetKey = :targetKey AND e.tenant.id = :tenantId "
-          + "AND (e.preventionStatus IS NULL OR e.preventionStatus <> :status)")
-  int updatePreventionStatusByStepIdAndTargetKey(
-      @Param("stepId") String stepId,
-      @Param("targetKey") String targetKey,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId,
-      @Param("version") long version);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.detectionStatus = :status, e.rowVersion = :version "
-          + "WHERE e.stepId = :stepId AND e.agentId = :agentId AND e.tenant.id = :tenantId "
-          + "AND (e.detectionStatus IS NULL OR e.detectionStatus <> :status)")
-  int updateDetectionStatusByStepIdAndAgentId(
-      @Param("stepId") String stepId,
-      @Param("agentId") String agentId,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId,
-      @Param("version") long version);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.detectionStatus = :status, e.rowVersion = :version "
-          + "WHERE e.stepId = :stepId AND e.targetAssetId IN :assetIds AND e.tenant.id = :tenantId "
-          + "AND (e.detectionStatus IS NULL OR e.detectionStatus <> :status)")
-  int updateDetectionStatusByStepIdAndTargetAssetIds(
-      @Param("stepId") String stepId,
-      @Param("assetIds") Collection<String> assetIds,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId,
-      @Param("version") long version);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.detectionStatus = :status, e.rowVersion = :version "
-          + "WHERE e.stepId = :stepId AND e.targetKey = :targetKey AND e.tenant.id = :tenantId "
-          + "AND (e.detectionStatus IS NULL OR e.detectionStatus <> :status)")
-  int updateDetectionStatusByStepIdAndTargetKey(
-      @Param("stepId") String stepId,
-      @Param("targetKey") String targetKey,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId,
-      @Param("version") long version);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.vulnerabilityStatus = :status, e.rowVersion = :version "
-          + "WHERE e.stepId = :stepId AND e.agentId = :agentId AND e.tenant.id = :tenantId "
-          + "AND (e.vulnerabilityStatus IS NULL OR e.vulnerabilityStatus <> :status)")
-  int updateVulnerabilityStatusByStepIdAndAgentId(
-      @Param("stepId") String stepId,
-      @Param("agentId") String agentId,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId,
-      @Param("version") long version);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.vulnerabilityStatus = :status, e.rowVersion = :version "
-          + "WHERE e.stepId = :stepId AND e.targetAssetId IN :assetIds AND e.tenant.id = :tenantId "
-          + "AND (e.vulnerabilityStatus IS NULL OR e.vulnerabilityStatus <> :status)")
-  int updateVulnerabilityStatusByStepIdAndTargetAssetIds(
-      @Param("stepId") String stepId,
-      @Param("assetIds") Collection<String> assetIds,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId,
-      @Param("version") long version);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(
-      "UPDATE AttackPathExecution e "
-          + "SET e.vulnerabilityStatus = :status, e.rowVersion = :version "
-          + "WHERE e.stepId = :stepId AND e.targetKey = :targetKey AND e.tenant.id = :tenantId "
-          + "AND (e.vulnerabilityStatus IS NULL OR e.vulnerabilityStatus <> :status)")
-  int updateVulnerabilityStatusByStepIdAndTargetKey(
-      @Param("stepId") String stepId,
-      @Param("targetKey") String targetKey,
-      @Param("status") String status,
-      @Param("tenantId") String tenantId,
-      @Param("version") long version);
-
   /**
-   * Verdicts written per execution row rather than per (step, target): the terminal/expectations
-   * path resolves the row by id and writes all three columns at once. Unlike the nine guarded
-   * updates above it carries no version stamp, so it must run AFTER them — see the call order in
-   * {@code InjectExecutionStep.update}.
+   * The single write path for expectation verdicts on the projection (#6647, spec 002, FR5). One
+   * statement per execution row, resolved by the row's own deterministic id, writing all three
+   * status columns together.
+   *
+   * <p>{@code e.rowVersion = :version} stamps the simulation's freshly bumped attack-path version
+   * on every row touched, and that stamp is what makes a verdict reach the delta read: a verdict
+   * written without it would sit in the projection unseen until some unrelated write happened to
+   * bump past it, which is exactly the frozen-at-pending failure this feature exists to remove.
+   *
+   * <p>The trailing guard is what makes a replayed step event a no-op. Execution events are
+   * replayed by design, so an identical result must match zero rows — neither re-stamping a version
+   * nor telling any client something changed. The comparison is per column and OR-ed, so a partial
+   * change (a detection verdict landing after a prevention one) still updates, while an identical
+   * replay does not. {@code coalesce(..., '')} keeps it null-safe in both directions: a null status
+   * is a real value here (pending), and {@code <>} against a null parameter would be UNKNOWN, never
+   * true.
+   *
+   * <p>{@code e.tenant.id = :tenantId} is explicit because this runs off the request thread, under
+   * a background tenant scope.
    */
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Transactional
@@ -191,13 +57,18 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "SET e.preventionStatus = :preventionStatus "
           + ", e.detectionStatus = :detectionStatus "
           + ", e.vulnerabilityStatus = :vulnerabilityStatus "
-          + "WHERE e.id =:id AND e.tenant.id = :tenantId")
+          + ", e.rowVersion = :version "
+          + "WHERE e.id =:id AND e.tenant.id = :tenantId "
+          + "AND (coalesce(e.preventionStatus, '') <> coalesce(:preventionStatus, '') "
+          + "OR coalesce(e.detectionStatus, '') <> coalesce(:detectionStatus, '') "
+          + "OR coalesce(e.vulnerabilityStatus, '') <> coalesce(:vulnerabilityStatus, ''))")
   int updateExpectationStatusByExecutionId(
       @Param("id") String id,
       @Param("preventionStatus") String preventionStatus,
       @Param("detectionStatus") String detectionStatus,
       @Param("vulnerabilityStatus") String vulnerabilityStatus,
-      @Param("tenantId") String tenantId);
+      @Param("tenantId") String tenantId,
+      @Param("version") long version);
 
   /**
    * Result &amp; Terminal drawer (issue 5048): one execution's full row by id, scoped to its
@@ -295,12 +166,12 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow("
-          + "e.sourceKind, e.sourceInjector, e.sourceAssetId, "
+          + "e.sourceKind, e.sourceInjector, e.sourceAssetId, e.contractExternalId, "
           + "max(e.sourceHostname), max(e.sourceIp), max(e.sourcePlatform), "
           + "e.targetKey, count(e)) "
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId "
           + "AND e.targetKey IN :targetKeys "
-          + "GROUP BY e.sourceKind, e.sourceInjector, e.sourceAssetId, e.targetKey")
+          + "GROUP BY e.sourceKind, e.sourceInjector, e.sourceAssetId, e.contractExternalId, e.targetKey")
   List<AttackPathEdgeGroupRow> findEdgeGroupsByTargetKeys(
       @Param("simulationId") String simulationId,
       @Param("targetKeys") Collection<String> targetKeys);

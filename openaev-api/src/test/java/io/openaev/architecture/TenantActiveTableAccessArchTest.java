@@ -45,7 +45,6 @@ import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
-import io.openaev.service.attackpath.ingestion.AttackPathVerdictSyncService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
@@ -243,11 +242,7 @@ class TenantActiveTableAccessArchTest {
               // Scoped reader: reads the step's execution rows inside its own executeNew (the
               // inject's tenant) with an explicit tenantId predicate, to attribute copied findings.
               // Pinned by AttackPathFindingIngestionServiceTest:
-              AttackPathFindingIngestionService.class,
-              // Scoped writer: pushes expectation verdicts onto the projection inside its own
-              // executeNew (the inject's tenant), with an explicit tenantId predicate on every
-              // guarded update. Pinned by AttackPathVerdictSyncTest:
-              AttackPathVerdictSyncService.class)
+              AttackPathFindingIngestionService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(AttackPathExecutionRepository.class)
