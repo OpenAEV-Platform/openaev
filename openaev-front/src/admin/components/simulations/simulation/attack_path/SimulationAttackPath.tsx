@@ -8,6 +8,7 @@ import { useNavigate, useParams } from 'react-router';
 import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchExecutionDetail, fetchFindingsByCategory, fetchSimulationsMetaById } from '../../../../../actions/attack-path/attack-path-actions';
 import { createRunningExerciseFromScenario } from '../../../../../actions/scenarios/scenario-actions';
 import Drawer from '../../../../../components/common/Drawer';
+import { criticalityColor } from '../../../../../components/criticalityColor';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { SIMULATION_BASE_URL } from '../../../../../constants/BaseUrls';
@@ -2469,8 +2470,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                         width: 18,
                         height: 18,
                         borderRadius: '50%',
-                        background: chokepointColor,
-                        color: theme.palette.getContrastText(chokepointColor),
+                        background: criticalityColor(c.criticality),
+                        color: theme.palette.getContrastText(criticalityColor(c.criticality)),
                         fontSize: 10,
                         fontWeight: 700,
                         display: 'flex',
@@ -2495,7 +2496,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                         variant="body2"
                         sx={{
                           fontWeight: 700,
-                          color: chokepointColor,
+                          color: criticalityColor(c.criticality),
                         }}
                       >
                         {c.score}
@@ -2517,7 +2518,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                         <Box sx={{
                           width: `${Math.min(100, Math.max(6, ((c.score ?? 0) / (chokepoints[0]?.score || 1)) * 100))}%`,
                           height: '100%',
-                          background: chokepointColor,
+                          background: criticalityColor(c.criticality),
                         }}
                         />
                       </Box>
