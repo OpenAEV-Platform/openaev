@@ -2073,6 +2073,7 @@
   "No alert linked": "No alert linked",
   "No alerts have been reported by this security platform.": "No alerts have been reported by this security platform.",
   "No asset added yet.": "No asset added yet.",
+  "No asset group": "No asset group",
   "No asset in this asset group.": "No asset in this asset group.",
   "No asset selected. Add asset manually by typing IPs, CIDRs or hostnames or select some in the asset list.": "No asset selected. Add asset manually by typing IPs, CIDRs or hostnames or select some in the asset list.",
   "No asset selected. Add asset manually or select some in the asset list.": "No asset selected. Add asset manually or select some in the asset list.",

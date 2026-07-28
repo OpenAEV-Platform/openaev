@@ -2073,6 +2073,7 @@
   "No alert linked": "연결된 경고 없음",
   "No alerts have been reported by this security platform.": "이 보안 플랫폼에서 보고된 경고가 없습니다.",
   "No asset added yet.": "아직 추가된 자산이 없습니다.",
+  "No asset group": "자산 그룹 없음",
   "No asset in this asset group.": "No asset in this asset group.",
   "No asset selected. Add asset manually by typing IPs, CIDRs or hostnames or select some in the asset list.": "선택한 자산이 없습니다. IP, CIDR 또는 호스트 이름을 입력하여 자산을 수동으로 추가하거나 자산 목록에서 일부를 선택하세요.",
   "No asset selected. Add asset manually or select some in the asset list.": "선택한 에셋이 없습니다. 자산을 수동으로 추가하거나 자산 목록에서 일부 자산을 선택하세요.",

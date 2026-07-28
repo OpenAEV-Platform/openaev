@@ -2073,6 +2073,7 @@
   "No alert linked": "Nessuna allerta collegata",
   "No alerts have been reported by this security platform.": "Nessun avviso è stato segnalato da questa piattaforma di sicurezza.",
   "No asset added yet.": "Nessuna risorsa ancora aggiunta.",
+  "No asset group": "Nessun gruppo di attività",
   "No asset in this asset group.": "No asset in this asset group.",
   "No asset selected. Add asset manually by typing IPs, CIDRs or hostnames or select some in the asset list.": "Non è stato selezionato alcun asset. Aggiungere un asset manualmente digitando IP, CIDR o nomi di host o selezionarne alcuni nell'elenco degli asset.",
   "No asset selected. Add asset manually or select some in the asset list.": "Nessuna risorsa selezionata. Aggiungere una risorsa manualmente o selezionarne una nell'elenco delle risorse.",
