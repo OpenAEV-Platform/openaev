@@ -52,7 +52,7 @@ const CVSSBadge: FunctionComponent<CvssBadgeProps> = ({ score, variant }) => {
     <Tooltip title={`${t('CVSS score')}: ${score.toFixed(1)}`}>
       <Chip
         classes={{ root: variant === 'inList' ? classes.chipInList : classes.chip }}
-        style={{
+        sx={{
           backgroundColor: hexToRGB(color, 0.08),
           color,
         }}

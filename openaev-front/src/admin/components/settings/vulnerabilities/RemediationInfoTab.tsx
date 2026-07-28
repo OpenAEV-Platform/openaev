@@ -14,7 +14,7 @@ const RemediationInfoTab = ({ vulnerability }: Props) => {
 
   if (!remediation) {
     return (
-      <Alert severity="info" variant="outlined" style={{ marginTop: theme.spacing(2) }}>
+      <Alert severity="info" variant="outlined" sx={{ marginTop: 2 }}>
         {t('There is no information yet on a vulnerability remediation for this vulnerability.')}
       </Alert>
     );

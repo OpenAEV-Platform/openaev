@@ -30,16 +30,34 @@ public class V6_20260728100000000__Fix_execution_tracking_timestamp_columns
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
       statement.execute("SET LOCAL TimeZone = 'UTC'");
-      statement.execute(
-          "ALTER TABLE injects_statuses"
-              + " ALTER COLUMN tracking_end_date TYPE timestamp with time zone");
-      statement.execute(
-          "ALTER TABLE injects_tests_statuses"
-              + " ALTER COLUMN tracking_sent_date TYPE timestamp with time zone,"
-              + " ALTER COLUMN tracking_end_date TYPE timestamp with time zone");
-      statement.execute(
-          "ALTER TABLE execution_traces"
-              + " ALTER COLUMN execution_time TYPE timestamp with time zone");
+      convertToTimestamptz(statement, "injects_statuses", "tracking_end_date");
+      convertToTimestamptz(statement, "injects_tests_statuses", "tracking_sent_date");
+      convertToTimestamptz(statement, "injects_tests_statuses", "tracking_end_date");
+      convertToTimestamptz(statement, "execution_traces", "execution_time");
     }
+  }
+
+  /**
+   * Converts the column to {@code timestamptz} only when it is still a naive {@code timestamp}, so
+   * the migration is idempotent / re-runnable (already-converted databases skip the ALTER
+   * entirely).
+   */
+  private void convertToTimestamptz(Statement statement, String table, String column)
+      throws Exception {
+    statement.execute(
+        "DO $$ BEGIN "
+            + "IF EXISTS (SELECT 1 FROM information_schema.columns "
+            + "WHERE table_name = '"
+            + table
+            + "' AND column_name = '"
+            + column
+            + "' AND data_type = 'timestamp without time zone') THEN "
+            + "ALTER TABLE "
+            + table
+            + " ALTER COLUMN "
+            + column
+            + " TYPE timestamp with time zone; "
+            + "END IF; "
+            + "END $$;");
   }
 }
