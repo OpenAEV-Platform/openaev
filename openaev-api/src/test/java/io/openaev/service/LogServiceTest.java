@@ -43,7 +43,6 @@ class LogServiceTest {
   @Mock private AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private LicenseCacheManager licenseCacheManager;
-  @Mock private PreviewFeatureService previewFeatureService;
 
   private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -689,7 +688,6 @@ class LogServiceTest {
     @DisplayName("given_systemOriginEvent_should_nullifyUserMetadata")
     void given_systemOriginEvent_should_nullifyUserMetadata() {
       // Arrange
-      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
       when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
 
       AuditEvent event =
@@ -733,7 +731,6 @@ class LogServiceTest {
     @DisplayName("given_dispatchThrowsException_should_returnFalse")
     void given_dispatchThrowsException_should_returnFalse() {
       // Arrange
-      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
       when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any()))
           .thenThrow(new RuntimeException("transport failure"));
 
@@ -781,7 +778,6 @@ class LogServiceTest {
     @DisplayName("given_dispatchReturnsFalse_should_returnFalse")
     void given_dispatchReturnsFalse_should_returnFalse() {
       // Arrange
-      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
       when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(false);
 
       AuditEvent event =
