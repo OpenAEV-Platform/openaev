@@ -1,5 +1,5 @@
 import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, FullscreenExitOutlined, FullscreenOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LabelOutlined, LocalFireDepartment, PlayArrowOutlined, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
-import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, IconButton, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, IconButton, Pagination, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -2728,30 +2728,21 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               </Box>
             );
           })}
-          {!findingsLoading && drawerFilteredItems.length > DRAWER_PAGE_SIZE && (
+          {!findingsLoading && drawerPageCount > 1 && (
             <Box sx={{
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'center',
               pt: 1.5,
             }}
             >
-              <Chip
+              {/* Standard MUI pagination (clickable page numbers), consistent with the rest of the app —
+                  replaces the previous custom Prev/Next chips whose page number was not clickable. */}
+              <Pagination
+                count={drawerPageCount}
+                page={drawerSafePage + 1}
+                onChange={(_, p) => setDrawerPage(p - 1)}
                 size="small"
-                variant="outlined"
-                label={t('Previous')}
-                disabled={drawerSafePage <= 0}
-                onClick={() => setDrawerPage(p => Math.max(0, p - 1))}
-              />
-              <Typography variant="caption" color="text.secondary">
-                {`${drawerSafePage + 1} / ${drawerPageCount}`}
-              </Typography>
-              <Chip
-                size="small"
-                variant="outlined"
-                label={t('Next')}
-                disabled={drawerSafePage >= drawerPageCount - 1}
-                onClick={() => setDrawerPage(p => Math.min(drawerPageCount - 1, p + 1))}
+                color="primary"
               />
             </Box>
           )}
