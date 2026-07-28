@@ -1,5 +1,3 @@
-import { Add } from '@mui/icons-material';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   addEdge,
@@ -45,9 +43,10 @@ import nodeTypes from './nodes';
 interface LogicFlowProps {
   workflowId: string;
   reloadTrigger?: number;
-  onAddComponent: () => void;
   onEditStep?: (stepId: string, meta: ActionMeta) => void;
   onEditEvent?: (eventId: string, meta: EventMeta) => void;
+  /** Called after each graph refresh so the parent can drive the warning banner. */
+  onEventMetasChange?: (metas: Record<string, EventMeta>) => void;
 }
 
 const proOptions = {
@@ -60,7 +59,7 @@ const proOptions = {
  * grouped into MITRE tactic columns. Supports connecting events to actions, editing,
  * deleting nodes, and adding new components.
  */
-const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep, onEditEvent }: LogicFlowProps) => {
+const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEventMetasChange }: LogicFlowProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const { setProviders: setContextProviders } = useOutputProviders();
@@ -159,6 +158,7 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep, onEd
     setActionMetas(enrichedActionMetas);
     setContextProviders(buildOutputProvidersMap(enrichedActionMetas));
     setEventMetas(eventMetas);
+    onEventMetasChange?.(eventMetas);
     setNodes([...groupNodes, ...positionedEventNodes, ...actionNodes]);
     setEdges(edgesData);
     setLoading(false);
@@ -388,20 +388,6 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep, onEd
               nodeColor={theme.palette.primary.main}
             />
           </ReactFlow>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<Add />}
-            onClick={onAddComponent}
-            sx={{
-              position: 'absolute',
-              top: 10,
-              right: 10,
-              zIndex: 5,
-            }}
-          >
-            {t('Add component')}
-          </Button>
         </>
       )}
       <DialogDelete
