@@ -37,6 +37,7 @@ public class ExpectationUtils {
     return switch (expectationType) {
       case DETECTION -> ExpectationType.DETECTION.failureLabel;
       case PREVENTION -> ExpectationType.PREVENTION.failureLabel;
+      case VULNERABILITY -> ExpectationType.VULNERABILITY.failureLabel;
       default -> ExpectationType.HUMAN_RESPONSE.failureLabel;
     };
   }

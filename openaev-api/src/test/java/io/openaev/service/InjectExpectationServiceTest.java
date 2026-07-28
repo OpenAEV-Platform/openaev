@@ -444,6 +444,38 @@ class InjectExpectationServiceTest {
 
   @Test
   @DisplayName(
+      "Reset/relaunch fallback: an explicit empty expectations list is respected, never overridden")
+  void given_contentWithExplicitlyEmptyExpectations_should_notFallBackToContractExpectations()
+      throws Exception {
+    // The user deliberately removed every expectation from the inject: the stored content carries
+    // an explicit empty "expectations" array (that is what the inject form persists on removal).
+    // Execution must respect that customization instead of forcing the contract's predefined
+    // expectations back on every launch - drift realignment is the opt-in way to restore them.
+    ObjectNode storedContent = mapper.createObjectNode();
+    storedContent.putArray("expectations");
+    inject.setContent(storedContent);
+    inject.setInjectorContract(mock(InjectorContract.class));
+
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    endpoint.setId("asset-id");
+    endpoint.setAgents(List.of());
+
+    ExecutableInject executableInject = mock(ExecutableInject.class);
+    Injection injection = mock(Injection.class);
+    when(executableInject.getInjection()).thenReturn(injection);
+    when(injection.getInject()).thenReturn(inject);
+    when(executableInject.getAssetGroups()).thenReturn(List.of());
+
+    injectExpectationService.computeAndSaveExpectations(
+        executableInject, inject, "implant", List.of(new AssetToExecute(endpoint)));
+
+    // No contract fallback and no expectation persisted: the empty list is the user's choice.
+    verify(injectorContractContentUtils, never()).setExpectations(any(), any());
+    verify(injectExpectationRepository, never()).saveAll(any());
+  }
+
+  @Test
+  @DisplayName(
       "Should create one asset group expectation per supported type when at least one asset matches")
   void given_matchingAssetExpectations_should_createAssetGroupExpectationsForAllSupportedTypes()
       throws Exception {

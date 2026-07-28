@@ -3282,6 +3282,8 @@ export interface EndpointOverviewOutput {
    * @uniqueItems true
    */
   asset_agents: AgentOutput[];
+  /** Asset groups the asset belongs to (static or dynamic membership) */
+  asset_asset_groups?: AssetGroupSimple[];
   /** Asset category */
   asset_category?:
     | "HOST"

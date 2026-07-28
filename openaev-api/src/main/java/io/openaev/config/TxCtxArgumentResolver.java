@@ -51,14 +51,37 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
       NativeWebRequest webRequest,
       WebDataBinderFactory binderFactory) {
     Set<String> selector = extractSelector(webRequest);
-    if (selector.isEmpty() && parameter.hasParameterAnnotation(RequireTenantSelector.class)) {
-      throw new TenantSelectorRequiredException();
-    }
     Set<String> authorized =
         tenantService.findTenantsByUserId(SessionHelper.currentUser().getId()).stream()
             .map(Tenant::getId)
             .collect(Collectors.toSet());
+    if (selector.isEmpty() && parameter.hasParameterAnnotation(RequireTenantSelector.class)) {
+      selector = fallbackSelector(authorized);
+    }
     return scopeResolver.resolve(selector, authorized);
+  }
+
+  /**
+   * Fallback scope for single-tenant endpoints (composite-PK lookups, row attribution) when the
+   * request carries no selector. An explicit selector is never mandatory: tenant-unaware API
+   * clients (collectors, injectors, plain scripts) must keep working. A caller authorized on a
+   * single tenant (every Community Edition deployment, single-tenant users in EE) is unambiguous
+   * as-is; a multi-tenant caller falls back to the default tenant, mirroring the platform-wide
+   * convention for requests without an explicit tenant context (see {@link
+   * io.openaev.context.TenantContext#getCurrentTenant()}, issues #6331 / #6332). Only a
+   * multi-tenant caller without access to the default tenant remains genuinely ambiguous and is
+   * refused (400), since silently picking one of its tenants could read or write the wrong one.
+   */
+  private static Set<String> fallbackSelector(Set<String> authorized) {
+    if (authorized.size() <= 1) {
+      // resolve() maps an empty selector to the caller's full allowed set, which is already a
+      // single-tenant (or fail-closed empty) scope here.
+      return Set.of();
+    }
+    if (authorized.contains(Tenant.DEFAULT_TENANT_UUID)) {
+      return Set.of(Tenant.DEFAULT_TENANT_UUID);
+    }
+    throw new TenantSelectorRequiredException();
   }
 
   private Set<String> extractSelector(NativeWebRequest webRequest) {
