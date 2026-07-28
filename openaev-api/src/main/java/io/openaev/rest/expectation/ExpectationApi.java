@@ -248,8 +248,11 @@ public class ExpectationApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
+  // TxCtx scopes the transaction so the collectors table (v2-activated) is visible: the feed's
+  // expected-security-platforms guard reads collectors natively, and without a scope the guard is
+  // fail-closed empty, silently dropping every platform-restricted expectation (#7014).
   public List<InjectExpectationOutput> getAiDefenseExpectationsNotFilledForSource(
-      @PathVariable String sourceId) {
+      TxCtx ctx, @PathVariable String sourceId) {
     String tenantId = TenantContext.getCurrentTenant();
     return toOutputs(injectExpectationService.aiDefenseExpectationsNotFill(tenantId, sourceId));
   }

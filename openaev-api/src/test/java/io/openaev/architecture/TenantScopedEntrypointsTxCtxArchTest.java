@@ -104,7 +104,12 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.inject.ScenarioInjectApi#updateInjectForScenario",
           // health-check streams: runChecks -> securityPlatformCollectors
           "io.openaev.rest.scenario.ScenarioApi#streamHealthChecks",
-          "io.openaev.rest.exercise.ExerciseApi#streamHealthChecks");
+          "io.openaev.rest.exercise.ExerciseApi#streamHealthChecks",
+          // expectations: the AI feed reads collectors natively (expected-security-platforms
+          // guard, #7014); the update endpoints attach collector-sourced results. Both overloads
+          // of updateInjectExpectation are covered by the single name entry.
+          "io.openaev.rest.expectation.ExpectationApi#getAiDefenseExpectationsNotFilledForSource",
+          "io.openaev.rest.expectation.ExpectationApi#updateInjectExpectation");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =
