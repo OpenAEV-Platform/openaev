@@ -69,6 +69,7 @@
   "a": "a",
   "A chained scenario requires a defined scope.": "Un scénario chaîné nécessite un champ d'application défini.",
   "A chained simulation requires a defined scope.": "Une simulation chaînée nécessite un champ d'application défini.",
+  "A chokepoint is the endpoint where fixing findings closes the most attack paths. The score weights an endpoint's findings by its business criticality, so a critical host outranks a noisier but less important one.": "Un point de blocage est l'endpoint où corriger les résultats ferme le plus de chemins d'attaque. Le score pondère les résultats d'un endpoint par sa criticité métier : un hôte critique passe devant un hôte plus bruyant mais moins important.",
   "A dashboard ( {existingDashboardName} ) is already set as {defaultTypeName} default": "Un tableau de bord ( {existingDashboardName} ) est déjà défini comme {defaultTypeName} par défaut",
   "A document used as a security platform logo can't be deleted.": "Un document utilisé comme logo d'une plateforme de sécurité ne peut pas être supprimé.",
   "A document used in a payload can't be deleted.": "Un document utilisé dans une charge utile ne peut pas être supprimé.",

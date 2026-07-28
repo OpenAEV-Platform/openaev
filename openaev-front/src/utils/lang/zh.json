@@ -69,6 +69,7 @@
   "a": "a",
   "A chained scenario requires a defined scope.": "连锁方案需要一个已定义的范围。",
   "A chained simulation requires a defined scope.": "连锁模拟需要一个已定义的范围。",
+  "A chokepoint is the endpoint where fixing findings closes the most attack paths. The score weights an endpoint's findings by its business criticality, so a critical host outranks a noisier but less important one.": "“瓶颈点”是指修复该端点的检测结果能阻断最多攻击路径的终端。该评分机制会根据业务关键性对终端的检测结果进行加权，因此关键主机比噪声较大但重要性较低的主机优先级更高。",
   "A dashboard ( {existingDashboardName} ) is already set as {defaultTypeName} default": "仪表板 ( {existingDashboardName} ) 已设置为 {defaultTypeName} 默认值",
   "A document used as a security platform logo can't be deleted.": "用作安全平台徽标的文件不能删除。",
   "A document used in a payload can't be deleted.": "有效载荷中使用的文件不能删除。",

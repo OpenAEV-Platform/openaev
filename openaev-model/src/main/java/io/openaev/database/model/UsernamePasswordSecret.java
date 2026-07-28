@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import static io.openaev.database.model.Secret.SECRET_TYPE.USERNAME_PASSWORD_VALUE;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.Column;
@@ -23,7 +24,7 @@ public class UsernamePasswordSecret extends Secret {
   private String username;
 
   @Column(name = "secret_password")
-  @JsonProperty("secret_password")
+  @JsonIgnore
   @NotBlank
   private String password;
 }

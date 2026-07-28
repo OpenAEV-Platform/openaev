@@ -241,18 +241,23 @@ public abstract class AbstractConnectorService<
    * @return connector instance ID and catalog connector ID if available, null values if not found
    */
   public ConnectorIds getConnectorRelationsId(String connectorId) {
+    T connector = getConnectorById(connectorId);
+
     ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
         connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
             this.connectorType.getIdKeyName(), connectorId);
     if (relatedIds != null) {
-      boolean registered = getConnectorById(connectorId) != null;
+      boolean registered = connector != null;
       return catalogConnectorMapper.toConnectorIds(
           relatedIds.getCatalogConnectorId(), relatedIds.getConnectorInstanceId(), registered);
     }
 
+    if (connector == null) {
+      return catalogConnectorMapper.toConnectorIds(null, null, false);
+    }
+
     // Connector already deployed without catalog, we will try to search matching catalog comparing
     // connectorType and catalogSlug
-    T connector = getConnectorById(connectorId);
     CatalogConnector catalogConnector =
         catalogConnectorService.findBySlug(connector.getType()).orElse(null);
     if (catalogConnector != null) {

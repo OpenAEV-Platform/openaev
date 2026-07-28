@@ -7,7 +7,6 @@ import io.openaev.api.secrets_providers.form.SecretsProviderOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.secrets.provider.SecretsProvider;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +18,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -63,15 +63,14 @@ public class SecretsProviderApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SECRET_PROVIDER)
   public SecretsProvider getSecretsProvider(@PathVariable String secretsProviderId) {
-    try {
-      return secretsProviderService.getConnectorById(secretsProviderId);
-    } catch (ElementNotFoundException e) {
+    SecretsProvider secretsProvider = secretsProviderService.getConnectorById(secretsProviderId);
+    if (secretsProvider == null) {
       log.warn(
           "Secrets provider with id {} not found - This may be because the integration has never been started yet",
           secretsProviderId);
-      throw new ResponseStatusException(
-          org.springframework.http.HttpStatus.NOT_FOUND, "Secrets provider not found");
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Secrets provider not found");
     }
+    return secretsProvider;
   }
 
   @GetMapping("/{secretsProviderId}/related-ids")
@@ -81,7 +80,7 @@ public class SecretsProviderApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SECRET_PROVIDER)
   @Operation(summary = "Retrieve secrets provider related ids")
-  public ConnectorIds getExecutorRelatedIds(@PathVariable String secretsProviderId) {
+  public ConnectorIds getSecretsProviderRelatedIds(@PathVariable String secretsProviderId) {
     return secretsProviderService.getSecretsProviderRelationsId(secretsProviderId);
   }
 }
