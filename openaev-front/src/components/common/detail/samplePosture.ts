@@ -3,25 +3,20 @@ import { type ExpectationResultsByType } from '../../../utils/api-types';
 // Illustrative posture used by the scenario / simulation overviews when no run
 // has produced results yet, so the page previews the exact insights a real run
 // yields (greyed "Sample" preview) instead of an empty placeholder. The
-// distribution labels map through getStatusColor to success/partial/failed/pending.
+// distribution labels map through getStatusColor to success/failed/pending.
 const SAMPLE_POSTURE: ExpectationResultsByType[] = [
   {
     type: 'PREVENTION',
-    avgResult: 'SUCCESS',
+    avgResult: 'FAILED',
     distribution: [
       {
-        id: 'PREVENTED',
+        id: 'SUCCESS',
         label: 'Prevented',
         value: 34,
       },
       {
-        id: 'PARTIAL',
-        label: 'Partially prevented',
-        value: 5,
-      },
-      {
         id: 'FAILED',
-        label: 'Failed',
+        label: 'Not Prevented',
         value: 9,
       },
     ],
@@ -60,7 +55,7 @@ const SAMPLE_POSTURE: ExpectationResultsByType[] = [
   },
   {
     type: 'HUMAN_RESPONSE',
-    avgResult: 'PARTIAL',
+    avgResult: 'FAILED',
     distribution: [
       {
         id: 'SUCCESS',

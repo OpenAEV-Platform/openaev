@@ -15,11 +15,6 @@ const injectExpectationMap = {
     DETECTION: 'Not Detected',
     VULNERABILITY: 'Vulnerable',
   },
-  PARTIAL: {
-    PREVENTION: 'Partially Prevented',
-    DETECTION: 'Partially Detected',
-    VULNERABILITY: 'Partially Vulnerable',
-  },
   PENDING: {
     PREVENTION: 'Pending',
     DETECTION: 'Pending',
@@ -95,8 +90,6 @@ export const computeStatusStyle = (status: string | undefined | null) => {
     'NOT PREVENTED': colorStyles.red,
     'NOT DETECTED': colorStyles.red,
     'VULNERABLE': colorStyles.red,
-    'PARTIALLY PREVENTED': colorStyles.orange,
-    'PARTIALLY DETECTED': colorStyles.orange,
     'PREVENTED': colorStyles.green,
     'DETECTED': colorStyles.green,
     'NOT VULNERABLE': colorStyles.green,
@@ -155,9 +148,6 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
     'successful': theme.palette.success.main,
     '100': theme.palette.success.main,
     'ok': theme.palette.success.main,
-    // Partial
-    'partially prevented': theme.palette.warning.main,
-    'partially detected': theme.palette.warning.main,
     'executed_with_cleanup_failure': theme.palette.warning.main,
     // Failed
     'failed': theme.palette.error.main,

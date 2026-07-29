@@ -28,7 +28,7 @@ import io.openaev.database.audit.IndexEvent;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
-import io.openaev.database.raw.RawInjectExpectationIndexing;
+import io.openaev.database.raw.RawGlobalScoreExpectation;
 import io.openaev.database.raw.RawSimulationIndexing;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.LessonsAnswerSpecification;
@@ -994,7 +994,7 @@ public class ExerciseService {
     Set<String> exerciseIds = getExerciseIds(exercises);
     MappingsByExerciseIds mappingsByExerciseIds = getResultsByExerciseIds(exerciseIds);
 
-    Map<String, List<RawInjectExpectationIndexing>> expectationsByExerciseIds =
+    Map<String, List<RawGlobalScoreExpectation>> expectationsByExerciseIds =
         getExpectationsByExerciseId(exerciseIds);
 
     for (ExerciseSimple exercise : exercises) {
@@ -1071,19 +1071,19 @@ public class ExerciseService {
       Map<String, List<Object[]>> aiTargetsByExerciseIds,
       Map<String, List<Object[]>> manualTargetsByExerciseIds) {}
 
-  private Map<String, List<RawInjectExpectationIndexing>> getExpectationsByExerciseId(
+  private Map<String, List<RawGlobalScoreExpectation>> getExpectationsByExerciseId(
       Set<String> exerciseIds) {
     return ofNullable(injectExpectationRepository.rawForComputeGlobalByExerciseIds(exerciseIds))
         .orElse(emptyList())
         .stream()
         .filter(Objects::nonNull)
-        .collect(Collectors.groupingBy(RawInjectExpectationIndexing::getExercise_id));
+        .collect(Collectors.groupingBy(RawGlobalScoreExpectation::getExercise_id));
   }
 
   private void setGlobalScore(
       ExerciseSimple exercise,
-      Map<String, List<RawInjectExpectationIndexing>> expectationsByExerciseIds) {
-    List<RawInjectExpectationIndexing> expectations =
+      Map<String, List<RawGlobalScoreExpectation>> expectationsByExerciseIds) {
+    List<RawGlobalScoreExpectation> expectations =
         expectationsByExerciseIds.getOrDefault(exercise.getId(), emptyList());
     HashSet<String> injectIds = new HashSet<>(Arrays.asList(exercise.getInjectIds()));
 

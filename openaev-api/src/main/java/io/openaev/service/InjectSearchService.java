@@ -10,7 +10,7 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawInjectExpectationIndexing;
+import io.openaev.database.raw.RawGlobalScoreExpectation;
 import io.openaev.database.repository.AiTargetRepository;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.AssetRepository;
@@ -474,7 +474,8 @@ public class InjectSearchService {
       Map<String, List<Object[]>> assetGroupMap = fetchRelatedTargets(injectIds, "assetGroups");
       Map<String, List<Object[]>> manualMap = buildManualTargetMap(injects);
       Map<String, List<Object[]>> aiTargetMap = buildAiTargetMap(injects);
-      Map<String, List<RawInjectExpectationIndexing>> expectationMap = fetchExpectations(injectIds);
+      Map<String, List<RawGlobalScoreExpectation>> expectationMap =
+          fetchGlobalScoresByInjectId(injectIds);
 
       // Map results to InjectResultOutput and set targets
       mapResultsToInjects(
@@ -511,7 +512,8 @@ public class InjectSearchService {
         .collect(Collectors.groupingBy(row -> (String) row[0]));
   }
 
-  private Map<String, List<RawInjectExpectationIndexing>> fetchExpectations(Set<String> injectIds) {
+  private Map<String, List<RawGlobalScoreExpectation>> fetchGlobalScoresByInjectId(
+      Set<String> injectIds) {
     if (injectIds == null || injectIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -520,7 +522,7 @@ public class InjectSearchService {
         .orElse(emptyList())
         .stream()
         .filter(Objects::nonNull)
-        .collect(Collectors.groupingBy(RawInjectExpectationIndexing::getInject_id));
+        .collect(Collectors.groupingBy(RawGlobalScoreExpectation::getInject_id));
   }
 
   private Map<String, List<Object[]>> buildManualTargetMap(List<InjectResultOutput> injects) {
@@ -592,7 +594,7 @@ public class InjectSearchService {
       Map<String, List<Object[]>> assetGroupMap,
       Map<String, List<Object[]>> manualMap,
       Map<String, List<Object[]>> aiTargetMap,
-      Map<String, List<RawInjectExpectationIndexing>> expectationMap) {
+      Map<String, List<RawGlobalScoreExpectation>> expectationMap) {
 
     for (InjectResultOutput inject : injects) {
       if (inject.getId() != null) {

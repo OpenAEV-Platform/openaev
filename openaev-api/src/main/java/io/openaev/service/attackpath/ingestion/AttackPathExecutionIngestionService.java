@@ -121,17 +121,14 @@ public class AttackPathExecutionIngestionService {
   }
 
   /**
-   * Maps a result label to a numeric priority so that success beats partial, partial beats pending,
-   * and pending beats failure. Unknown labels fall back to the lowest priority (0).
+   * Maps a result label to a numeric priority so that success beats pending, and pending beats
+   * failure. Unknown labels fall back to the lowest priority (0).
    */
   private static int resultPriority(String result, ExpectationType type) {
     if (result == null) {
       return 0;
     }
     if (result.equals(type.successLabel)) {
-      return 3;
-    }
-    if (result.equals(type.partialLabel)) {
       return 2;
     }
     if (result.equals(type.pendingLabel)) {

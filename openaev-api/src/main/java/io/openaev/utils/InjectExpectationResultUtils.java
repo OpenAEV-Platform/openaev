@@ -3,8 +3,7 @@ package io.openaev.utils;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
-import io.openaev.database.model.TableTopInjectExpectation;
-import io.openaev.database.raw.RawInjectExpectationIndexing;
+import io.openaev.database.raw.RawGlobalScoreExpectation;
 import io.openaev.expectation.ExpectationType;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
@@ -21,8 +20,7 @@ import java.util.function.BiFunction;
  *
  * <ul>
  *   <li>1.0 = Success (score meets or exceeds expected score)
- *   <li>0.5 = Partial success (non-zero score below expected, for non-team expectations)
- *   <li>0.0 = Failure (zero score or below expected for team expectations)
+ *   <li>0.0 = Failure (score below expected)
  *   <li>null = Pending (expectation not yet evaluated)
  * </ul>
  *
@@ -41,8 +39,7 @@ public class InjectExpectationResultUtils {
    * <p>Uses the provided score extraction function to calculate normalized scores for each
    * expectation type category (Prevention, Detection, Vulnerability, Human Response).
    *
-   * @param <T> the type of expectation objects (BaseInjectExpectation or
-   *     RawInjectExpectationIndexing)
+   * @param <T> the type of expectation objects (BaseInjectExpectation or RawGlobalScoreExpectation)
    * @param expectations the list of expectations to process
    * @param getScores function to extract normalized scores for given expectation types
    * @return a list of expectation results grouped by type with aggregated scores
@@ -105,39 +102,24 @@ public class InjectExpectationResultUtils {
    * Extracts and normalizes scores from raw expectation data.
    *
    * <p>Filters expectations by the specified types and converts their scores to normalized values
-   * (0.0, 0.5, 1.0, or null). Team expectations use binary scoring (0.0 or 1.0), while non-team
-   * expectations can have partial scores (0.5).
+   * (0.0, 1.0, or null).
    *
    * @param types the expectation types to filter by
    * @param expectations the raw expectation data from database queries
    * @return a list of normalized score values
    */
   public static List<Double> getScoresFromRaw(
-      List<EXPECTATION_TYPE> types, List<RawInjectExpectationIndexing> expectations) {
+      List<EXPECTATION_TYPE> types, List<RawGlobalScoreExpectation> expectations) {
     return expectations.stream()
         .filter(e -> types.contains(EXPECTATION_TYPE.valueOf(e.getInject_expectation_type())))
         .map(
-            rawInjectExpectation -> {
-              if (rawInjectExpectation.getInject_expectation_score() == null) {
+            raw -> {
+              if (raw.getInject_expectation_score() == null) {
                 return null;
               }
-              if (rawInjectExpectation.getTeam_id() != null) {
-                if (rawInjectExpectation.getInject_expectation_score()
-                    >= rawInjectExpectation.getInject_expectation_expected_score()) {
-                  return 1.0;
-                } else {
-                  return 0.0;
-                }
-              } else {
-                if (rawInjectExpectation.getInject_expectation_score()
-                    >= rawInjectExpectation.getInject_expectation_expected_score()) {
-                  return 1.0;
-                }
-                if (rawInjectExpectation.getInject_expectation_score() == 0) {
-                  return 0.0;
-                }
-                return 0.5;
-              }
+              return raw.getInject_expectation_score() >= raw.getInject_expectation_expected_score()
+                  ? 1.0
+                  : 0.0;
             })
         .toList();
   }
@@ -149,8 +131,8 @@ public class InjectExpectationResultUtils {
    * The normalization rules differ based on whether the expectation is team-based:
    *
    * <ul>
-   *   <li>Team expectations: 1.0 if score >= expected, otherwise 0.0
-   *   <li>Non-team expectations: 1.0 if score >= expected, 0.5 if partial, 0.0 if zero
+   *   <li>1.0 if score >= expected
+   *   <li>0.0 if score < expected
    * </ul>
    *
    * @param types the expectation types to filter by
@@ -166,22 +148,9 @@ public class InjectExpectationResultUtils {
               if (injectExpectation.getScore() == null) {
                 return null;
               }
-              if (injectExpectation instanceof TableTopInjectExpectation tableTopExpectation
-                  && tableTopExpectation.getTeam() != null) {
-                if (injectExpectation.getScore() >= injectExpectation.getExpectedScore()) {
-                  return 1.0;
-                } else {
-                  return 0.0;
-                }
-              } else {
-                if (injectExpectation.getScore() >= injectExpectation.getExpectedScore()) {
-                  return 1.0;
-                }
-                if (injectExpectation.getScore() == 0) {
-                  return 0.0;
-                }
-                return 0.5;
-              }
+              return injectExpectation.getScore() >= injectExpectation.getExpectedScore()
+                  ? 1.0
+                  : 0.0;
             })
         .toList();
   }
@@ -191,7 +160,7 @@ public class InjectExpectationResultUtils {
    *
    * <p>Calculates the aggregate status and distribution of results for the given expectation type.
    * Returns UNKNOWN status if the scores list is empty, PENDING if all scores are null, otherwise
-   * calculates SUCCESS, PARTIAL, or FAILED based on the average.
+   * calculates SUCCESS or FAILED based on the average.
    *
    * @param type the expectation type category
    * @param scores the list of normalized scores (may contain nulls for pending expectations)
@@ -216,12 +185,9 @@ public class InjectExpectationResultUtils {
   }
 
   public static BaseInjectExpectation.EXPECTATION_STATUS getResult(final OptionalDouble avg) {
-    Double avgAsDouble = avg.getAsDouble();
-    return avgAsDouble == 0.0
-        ? BaseInjectExpectation.EXPECTATION_STATUS.FAILED
-        : (avgAsDouble == 1.0
-            ? BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS
-            : BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL);
+    return avg.getAsDouble() == 1.0
+        ? BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS
+        : BaseInjectExpectation.EXPECTATION_STATUS.FAILED;
   }
 
   /**
@@ -253,14 +219,12 @@ public class InjectExpectationResultUtils {
   public static List<ResultDistribution> getResultDetail(
       final ExpectationType type, final List<Double> normalizedScores) {
     long successCount = normalizedScores.stream().filter(s -> s != null && s.equals(1.0)).count();
-    long partialCount = normalizedScores.stream().filter(s -> s != null && s.equals(0.5)).count();
     long pendingCount = normalizedScores.stream().filter(Objects::isNull).count();
     long failureCount = normalizedScores.stream().filter(s -> s != null && s.equals(0.0)).count();
 
     return List.of(
         new ResultDistribution(ExpectationType.SUCCESS_ID, type.successLabel, (int) successCount),
         new ResultDistribution(ExpectationType.PENDING_ID, type.pendingLabel, (int) pendingCount),
-        new ResultDistribution(ExpectationType.PARTIAL_ID, type.partialLabel, (int) partialCount),
         new ResultDistribution(ExpectationType.FAILED_ID, type.failureLabel, (int) failureCount));
   }
 

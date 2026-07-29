@@ -96,10 +96,10 @@ public final class AttackPathFindingVerdicts {
       return Verdict.SUCCESS;
     }
     if (eq(value, type.failureLabel)
-        || eq(value, type.partialLabel)
-        || eq(value, ExpectationType.HUMAN_RESPONSE.partialLabel) // "Partial"
         || eq(value, ExpectationType.FAILED_ID) // legacy "FAILED" / "Failed" (case-insensitive)
-        || eq(value, EXPIRED)) {
+        || eq(value, EXPIRED)
+        || value.toLowerCase().startsWith("partially") // legacy partial labels
+        || eq(value, "Partial")) {
       return Verdict.FAILED;
     }
     return Verdict.UNKNOWN; // pendingLabel, null already handled, and any unrecognized string

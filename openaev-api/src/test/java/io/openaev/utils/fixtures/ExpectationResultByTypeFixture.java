@@ -14,7 +14,6 @@ public class ExpectationResultByTypeFixture {
       BaseInjectExpectation.EXPECTATION_STATUS avgResult,
       int successCount,
       int pendingCount,
-      int partialCount,
       int failureCount) {
     return new ExpectationResultsByType(
         type,
@@ -22,7 +21,6 @@ public class ExpectationResultByTypeFixture {
         List.of(
             new ResultDistribution(SUCCESS_ID, type.successLabel, successCount),
             new ResultDistribution(PENDING_ID, type.pendingLabel, pendingCount),
-            new ResultDistribution(PARTIAL_ID, type.partialLabel, partialCount),
             new ResultDistribution(FAILED_ID, type.failureLabel, failureCount)));
   }
 }

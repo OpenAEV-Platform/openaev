@@ -485,7 +485,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 agent1Wrapper.get().getAsset().getId(),
                 agent1Wrapper.get().getExecutor().getType());
         expectedTarget1.setTargetDetectionStatus(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
-        expectedTarget1.setTargetPreventionStatus(BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL);
+        expectedTarget1.setTargetPreventionStatus(BaseInjectExpectation.EXPECTATION_STATUS.FAILED);
         AgentTarget expectedTarget2 =
             new AgentTarget(
                 agent2Wrapper.get().getId(),
@@ -494,7 +494,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 agent2Wrapper.get().getAsset().getId(),
                 agent2Wrapper.get().getExecutor().getType());
         expectedTarget2.setTargetDetectionStatus(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
-        expectedTarget2.setTargetPreventionStatus(BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL);
+        expectedTarget2.setTargetPreventionStatus(BaseInjectExpectation.EXPECTATION_STATUS.FAILED);
         // expect two out of three endpoints in the resultset, i.e. not the extra one
         List<AgentTarget> expected = List.of(expectedTarget1, expectedTarget2);
 
@@ -1734,10 +1734,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
 
         EndpointTarget expectedTarget1 = expectedEndpointTarget(ep1Wrapper);
         expectedTarget1.setTargetDetectionStatus(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
-        expectedTarget1.setTargetPreventionStatus(BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL);
+        expectedTarget1.setTargetPreventionStatus(BaseInjectExpectation.EXPECTATION_STATUS.FAILED);
         EndpointTarget expectedTarget2 = expectedEndpointTarget(ep2Wrapper);
         expectedTarget2.setTargetDetectionStatus(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
-        expectedTarget2.setTargetPreventionStatus(BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL);
+        expectedTarget2.setTargetPreventionStatus(BaseInjectExpectation.EXPECTATION_STATUS.FAILED);
         // expect two out of three endpoints in the resultset, i.e. not the extra one
         List<EndpointTarget> expected = List.of(expectedTarget1, expectedTarget2);
 

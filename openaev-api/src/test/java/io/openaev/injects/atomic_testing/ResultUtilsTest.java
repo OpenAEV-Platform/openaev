@@ -12,7 +12,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.BaseInjectExpectation;
-import io.openaev.database.raw.RawInjectExpectationIndexing;
+import io.openaev.database.raw.RawGlobalScoreExpectation;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
@@ -54,7 +54,7 @@ class ResultUtilsTest extends IntegrationTest {
 
     Set<String> injectIds = Set.of(injectId1, injectId2);
 
-    List<RawInjectExpectationIndexing> expectations =
+    List<RawGlobalScoreExpectation> expectations =
         List.of(
             createDefaultInjectExpectation(
                 BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.toString(), 100.0, 100.0),
@@ -87,16 +87,16 @@ class ResultUtilsTest extends IntegrationTest {
 
     ExpectationResultsByType expectedPreventionResult =
         createDefaultExpectationResultsByType(
-            PREVENTION, BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL, 1, 0, 1, 1);
+            PREVENTION, BaseInjectExpectation.EXPECTATION_STATUS.FAILED, 1, 0, 2);
     ExpectationResultsByType expectedDetectionResult =
         createDefaultExpectationResultsByType(
-            DETECTION, BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS, 3, 0, 0, 0);
+            DETECTION, BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS, 3, 0, 0);
     ExpectationResultsByType expectedVulnerabilityResult =
         createDefaultExpectationResultsByType(
-            VULNERABILITY, BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS, 3, 0, 0, 0);
+            VULNERABILITY, BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS, 3, 0, 0);
     ExpectationResultsByType expectedHumanResponseResult =
         createDefaultExpectationResultsByType(
-            HUMAN_RESPONSE, BaseInjectExpectation.EXPECTATION_STATUS.FAILED, 0, 0, 0, 3);
+            HUMAN_RESPONSE, BaseInjectExpectation.EXPECTATION_STATUS.FAILED, 0, 0, 3);
 
     List<ExpectationResultsByType> expectedPreventionResult1 =
         List.of(

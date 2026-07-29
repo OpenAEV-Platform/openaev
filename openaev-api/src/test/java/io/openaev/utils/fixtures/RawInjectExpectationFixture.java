@@ -1,67 +1,30 @@
 package io.openaev.utils.fixtures;
 
-import io.openaev.database.raw.RawInjectExpectationIndexing;
-import java.time.Instant;
-import java.util.Set;
+import io.openaev.database.raw.RawGlobalScoreExpectation;
 
 public class RawInjectExpectationFixture {
 
-  private record TestableRawInjectExpectation(
-      String injectExpectationId,
-      String injectExpectationName,
-      String injectTitle,
-      String injectExpectationDescription,
-      String expectationType,
-      String expectationResults,
-      Double expectationScore,
-      Double expectationExpectedScore,
-      Long injectExpirationTime,
-      Boolean expectationGroup,
-      Instant createdAt,
-      Instant updatedAt,
-      String exerciseId,
+  private record TestableRawGlobalScoreExpectation(
       String injectId,
-      String userId,
-      String teamId,
-      String agentId,
-      String assetId,
-      String assetGroupId,
-      Set<String> attackPatternIds,
-      String scenarioId,
-      Set<String> securityPlatformIds,
-      Set<String> domainIds,
-      Instant trackingSentDate,
-      String tenantId)
-      implements RawInjectExpectationIndexing {
+      String exerciseId,
+      String expectationType,
+      Double expectationScore,
+      Double expectationExpectedScore)
+      implements RawGlobalScoreExpectation {
 
     @Override
-    public String getInject_expectation_id() {
-      return injectExpectationId;
+    public String getInject_id() {
+      return injectId;
     }
 
     @Override
-    public String getInject_expectation_name() {
-      return injectExpectationName;
-    }
-
-    @Override
-    public String getInject_title() {
-      return injectExpectationName;
-    }
-
-    @Override
-    public String getInject_expectation_description() {
-      return injectExpectationDescription;
+    public String getExercise_id() {
+      return exerciseId;
     }
 
     @Override
     public String getInject_expectation_type() {
       return expectationType;
-    }
-
-    @Override
-    public String getInject_expectation_results() {
-      return expectationResults;
     }
 
     @Override
@@ -73,119 +36,11 @@ public class RawInjectExpectationFixture {
     public Double getInject_expectation_expected_score() {
       return expectationExpectedScore;
     }
-
-    @Override
-    public Long getInject_expiration_time() {
-      return injectExpirationTime;
-    }
-
-    @Override
-    public Boolean getInject_expectation_group() {
-      return expectationGroup;
-    }
-
-    @Override
-    public Instant getInject_expectation_created_at() {
-      return createdAt;
-    }
-
-    @Override
-    public Instant getInject_expectation_updated_at() {
-      return updatedAt;
-    }
-
-    @Override
-    public String getExercise_id() {
-      return exerciseId;
-    }
-
-    @Override
-    public String getInject_id() {
-      return injectId;
-    }
-
-    @Override
-    public String getUser_id() {
-      return userId;
-    }
-
-    @Override
-    public String getTeam_id() {
-      return teamId;
-    }
-
-    @Override
-    public String getAgent_id() {
-      return "";
-    }
-
-    @Override
-    public String getAsset_id() {
-      return assetId;
-    }
-
-    @Override
-    public String getAsset_group_id() {
-      return assetGroupId;
-    }
-
-    @Override
-    public Set<String> getAttack_pattern_ids() {
-      return attackPatternIds;
-    }
-
-    @Override
-    public Set<String> getSecurity_platform_ids() {
-      return securityPlatformIds;
-    }
-
-    @Override
-    public Set<String> getDomain_ids() {
-      return domainIds;
-    }
-
-    @Override
-    public String getScenario_id() {
-      return scenarioId;
-    }
-
-    @Override
-    public Instant getTracking_sent_date() {
-      return trackingSentDate;
-    }
-
-    public String getTenant_id() {
-      return tenantId;
-    }
   }
 
-  public static RawInjectExpectationIndexing createDefaultInjectExpectation(
+  public static RawGlobalScoreExpectation createDefaultInjectExpectation(
       String expectationType, Double expectationScore, Double expectationExpectedScore) {
-    return new TestableRawInjectExpectation(
-        null,
-        null,
-        null,
-        null,
-        expectationType,
-        null,
-        expectationScore,
-        expectationExpectedScore,
-        null,
-        false,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null);
+    return new TestableRawGlobalScoreExpectation(
+        null, null, expectationType, expectationScore, expectationExpectedScore);
   }
 }

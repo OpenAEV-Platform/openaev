@@ -66,7 +66,7 @@ export const getRemainingItemsCount = <T>(
   return (items && visibleItems && items.length - visibleItems.length) || null;
 };
 
-export type ExpectationStatus = 'PENDING' | 'SUCCESS' | 'PARTIAL' | 'FAILED';
+export type ExpectationStatus = 'PENDING' | 'SUCCESS' | 'FAILED';
 
 // Compute label for status
 export const computeLabel = (status: ExpectationStatus | string | undefined): string => {
@@ -75,9 +75,6 @@ export const computeLabel = (status: ExpectationStatus | string | undefined): st
   }
   if (status === 'SUCCESS') {
     return 'Success';
-  }
-  if (status === 'PARTIAL') {
-    return 'Partial';
   }
   return 'Failed';
 };

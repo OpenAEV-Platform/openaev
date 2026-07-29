@@ -64,7 +64,7 @@ const MitreCoverageMatrix: FunctionComponent<Props> = ({ widgetId, injectResults
         (inject.results ?? []).forEach(result =>
           (result.distribution ?? []).forEach((slice) => {
             if (slice.id === 'SUCCESS') successCount += slice.value ?? 0;
-            else if (slice.id === 'FAILED' || slice.id === 'PARTIAL') failureCount += slice.value ?? 0;
+            else if (slice.id === 'FAILED') failureCount += slice.value ?? 0;
           }),
         ),
       );

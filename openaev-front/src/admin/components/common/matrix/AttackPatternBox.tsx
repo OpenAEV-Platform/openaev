@@ -82,12 +82,9 @@ const AttackPatternBox: FunctionComponent<AttackPatternBoxProps> = ({
     setOpen(true);
     setAnchorEl(event.currentTarget);
   };
-  const lowestSelector = (aggregation: (('FAILED' | 'PENDING' | 'PARTIAL' | 'UNKNOWN' | 'SUCCESS' | undefined)[])): 'FAILED' | 'PENDING' | 'PARTIAL' | 'UNKNOWN' | 'SUCCESS' => {
-    if (aggregation.includes('FAILED')) {
+  const lowestSelector = (aggregation: ((string | undefined)[])): 'FAILED' | 'PENDING' | 'UNKNOWN' | 'SUCCESS' => {
+    if (aggregation.includes('FAILED') || aggregation.includes('PARTIAL')) {
       return 'FAILED';
-    }
-    if (aggregation.includes('PARTIAL')) {
-      return 'PARTIAL';
     }
     if (aggregation.includes('PENDING')) {
       return 'PENDING';

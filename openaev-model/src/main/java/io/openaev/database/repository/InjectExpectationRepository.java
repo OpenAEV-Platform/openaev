@@ -4,6 +4,7 @@ import io.openaev.database.model.ArticleInjectExpectation;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.ChallengeInjectExpectation;
 import io.openaev.database.model.TechnicalInjectExpectation;
+import io.openaev.database.raw.RawGlobalScoreExpectation;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -341,56 +342,50 @@ public interface InjectExpectationRepository
 
   @Query(
       value =
-          "SELECT "
-              + "i.inject_expectation_id AS inject_expectation_id, "
-              + "i.inject_id AS inject_id, "
-              + "i.exercise_id AS exercise_id, "
-              + "i.team_id AS team_id, "
-              + "i.agent_id AS agent_id, "
-              + "i.asset_id AS asset_id, "
-              + "i.asset_group_id AS asset_group_id, "
-              + "i.inject_expectation_type AS inject_expectation_type, "
-              + "i.user_id AS user_id, "
-              + "i.inject_expectation_score AS inject_expectation_score, "
-              + "i.inject_expectation_results AS inject_expectation_results, "
-              + "i.inject_expectation_expected_score AS inject_expectation_expected_score, "
-              + "i.inject_expectation_group AS inject_expectation_group "
+          "SELECT i.inject_id, i.exercise_id, "
+              + "i.inject_expectation_type, i.inject_expectation_score, "
+              + "i.inject_expectation_expected_score "
               + "FROM injects_expectations i "
               + "WHERE i.inject_id IN (:injectIds) "
-              + "AND i.user_id is null "
-              + "AND i.agent_id is null ;",
+              + "AND i.user_id IS NULL AND i.agent_id IS NULL "
+              + "AND (i.asset_group_id IS NOT NULL "
+              + "  OR (i.asset_id IS NOT NULL AND i.asset_id IN ("
+              + "    SELECT ia.asset_id FROM injects_assets ia WHERE ia.inject_id = i.inject_id)) "
+              + "  OR (i.asset_id IS NULL AND i.asset_group_id IS NULL))",
       nativeQuery = true)
-  // We don't include expectations for players, only for the team, neither for agents, if applicable
-  List<RawInjectExpectationIndexing> rawForComputeGlobalByInjectIds(
+  // Only primary expectations: asset-group, directly-targeted assets, and team-level.
+  // Asset expectations that exist only because the asset belongs to a targeted group are excluded.
+  List<RawGlobalScoreExpectation> rawForComputeGlobalByInjectIds(
       @Param("injectIds") Set<String> injectIds);
 
   @Query(
       value =
-          "SELECT "
-              + "i.inject_expectation_id AS inject_expectation_id, "
-              + "i.inject_id AS inject_id, "
-              + "i.exercise_id AS exercise_id, "
-              + "i.team_id AS team_id, "
-              + "i.agent_id AS agent_id, "
-              + "i.asset_id AS asset_id, "
-              + "i.asset_group_id AS asset_group_id, "
-              + "i.inject_expectation_type AS inject_expectation_type, "
-              + "i.user_id AS user_id, "
-              + "i.inject_expectation_score AS inject_expectation_score, "
-              + "i.inject_expectation_expected_score AS inject_expectation_expected_score, "
-              + "i.inject_expectation_group AS inject_expectation_group "
+          "SELECT i.inject_id, i.exercise_id, "
+              + "i.inject_expectation_type, i.inject_expectation_score, "
+              + "i.inject_expectation_expected_score "
               + "FROM injects_expectations i "
               + "WHERE i.exercise_id IN (:exerciseIds) "
-              + "AND i.user_id is null "
-              + "AND i.agent_id is null ;",
+              + "AND i.user_id IS NULL AND i.agent_id IS NULL "
+              + "AND (i.asset_group_id IS NOT NULL "
+              + "  OR (i.asset_id IS NOT NULL AND i.asset_id IN ("
+              + "    SELECT ia.asset_id FROM injects_assets ia WHERE ia.inject_id = i.inject_id)) "
+              + "  OR (i.asset_id IS NULL AND i.asset_group_id IS NULL))",
       nativeQuery = true)
-  // We don't include expectations for players, only for the team, if applicable
-  List<RawInjectExpectationIndexing> rawForComputeGlobalByExerciseIds(
+  // Only primary expectations: asset-group, directly-targeted assets, and team-level.
+  List<RawGlobalScoreExpectation> rawForComputeGlobalByExerciseIds(
       @Param("exerciseIds") Set<String> exerciseIds);
 
   @Query(
       value =
-          "select i from InjectExpectation i where i.inject.id in :injectIds and i.agent is null and i.user is null")
+          "SELECT i FROM InjectExpectation i WHERE i.inject.id IN :injectIds"
+              + " AND i.agent IS NULL AND i.user IS NULL"
+              + " AND ("
+              + "   i.assetGroup IS NOT NULL"
+              + "   OR (i.asset IS NOT NULL AND i.asset.id IN ("
+              + "     SELECT a.id FROM Inject inj JOIN inj.assets a WHERE inj.id = i.inject.id"
+              + "   ))"
+              + "   OR (i.asset IS NULL AND i.assetGroup IS NULL)"
+              + " )")
   List<BaseInjectExpectation> findAllForGlobalScoreByInjects(
       @Param("injectIds") Set<String> injectIds);
 

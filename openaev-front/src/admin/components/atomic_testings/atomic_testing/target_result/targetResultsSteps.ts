@@ -52,9 +52,6 @@ export const getStatus = (status: string[]): string => {
   if (status.includes('PENDING')) {
     return 'PENDING';
   }
-  if (status.includes('PARTIAL')) {
-    return 'PARTIAL';
-  }
   if (status.includes('FAILED')) {
     return 'FAILED';
   }
@@ -64,7 +61,7 @@ export const getStatus = (status: string[]): string => {
 interface ComputeStepsInput {
   targetResultsByType: Record<string, InjectExpectationsStore[]>;
   injectStatusName?: string;
-  /** Per-target execution outcome (SUCCESS | FAILED | PARTIAL | PENDING | UNKNOWN). */
+  /** Per-target execution outcome (SUCCESS | FAILED | PENDING | UNKNOWN). */
   targetExecutionStatus?: string;
   lastExecutionStartDate: string;
   lastExecutionEndDate: string;

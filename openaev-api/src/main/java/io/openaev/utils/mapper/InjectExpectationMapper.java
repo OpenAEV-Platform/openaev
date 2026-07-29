@@ -12,7 +12,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Inject;
-import io.openaev.database.raw.RawInjectExpectationIndexing;
+import io.openaev.database.raw.RawGlobalScoreExpectation;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
@@ -157,7 +157,7 @@ public class InjectExpectationMapper {
    * @return List of ExpectationResultsByType
    */
   public List<ExpectationResultsByType> extractExpectationResultByTypesFromRaw(
-      Set<String> injectIds, List<RawInjectExpectationIndexing> expectations) {
+      Set<String> injectIds, List<RawGlobalScoreExpectation> expectations) {
 
     if (expectations != null && !expectations.isEmpty()) {
       return getExpectationResultByTypes(
