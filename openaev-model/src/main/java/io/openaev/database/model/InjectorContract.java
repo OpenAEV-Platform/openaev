@@ -528,7 +528,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
         .toList();
   }
 
-  @JsonProperty("injector_contract_providing")
+  @JsonProperty(value = "injector_contract_providing", access = JsonProperty.Access.READ_ONLY)
   @Queryable(
       filterable = true,
       searchable = true,
