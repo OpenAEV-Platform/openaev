@@ -7,6 +7,7 @@ import io.openaev.database.repository.AgentRepository;
 import io.openaev.service.targets.search.specifications.SearchSpecificationUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.criteria.JoinType;
 import java.util.List;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
@@ -75,7 +76,7 @@ public class AgentTargetSearchAdaptor extends SearchAdaptorBase {
     Specification<Agent> tagsSpec = specificationUtils.compileSpecificationForTags(input, joinPath);
 
     Specification<Agent> hasExecutorSpec =
-        (root, query, cb) -> cb.isNotNull(root.get("executor").get("id"));
+        (root, query, cb) -> cb.isNotNull(root.join("executor", JoinType.LEFT).get("id"));
 
     SearchPaginationInput translatedInput = this.translate(input, scopedInject);
 
@@ -129,7 +130,7 @@ public class AgentTargetSearchAdaptor extends SearchAdaptorBase {
                 agent.getExecutedByUser(),
                 Set.of(),
                 agent.getAsset().getId(),
-                agent.getExecutor().getType()),
+                agent.getExecutor() != null ? agent.getExecutor().getType() : null),
         true);
   }
 }

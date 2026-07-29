@@ -38,11 +38,12 @@ public class InjectExecutionResultService {
       @NotBlank final String injectId,
       @NotBlank final String targetId,
       @NotNull final TargetType targetType) {
-    InjectStatus injectStatus = this.injectStatusService.findInjectStatusByInjectId(injectId);
+    Optional<InjectStatus> injectStatus =
+        this.injectStatusService.findInjectStatusByInjectIdOptional(injectId);
     InjectResultPayloadExecutionOutputBuilder output =
         InjectResultPayloadExecutionOutput.builder()
             .payloadCommandBlocks(
-                Optional.of(injectStatus)
+                injectStatus
                     .map(InjectStatus::getPayloadOutput)
                     .map(StatusPayload::getPayloadCommandBlocks)
                     .orElse(new ArrayList<>()));
