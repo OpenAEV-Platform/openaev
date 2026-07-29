@@ -1,5 +1,7 @@
 package io.openaev.service.attackpath.dto;
 
+import java.util.List;
+
 /**
  * One finding key a kill-chain step consumes as input (issue 5048).
  *
@@ -12,6 +14,27 @@ package io.openaev.service.attackpath.dto;
  * <p>{@code eventName} is the name of the root filter condition (the event) this key belongs to, so
  * the front can tell the analyst which event the consuming action was triggered by (e.g. "SMB UP")
  * rather than only the raw key match. Null when the event has no name.
+ *
+ * <p>{@code matchedFindingIds} are the finding-node ids ({@code NODE_FINDING|type|value}) this key
+ * matched, resolved by the backend (spec 011, back-authoritative). The front anchors the causal
+ * edge on these instead of re-matching. Empty until resolved, or when nothing matched.
  */
 public record ConsumedFindingKeyDTO(
-    String keyType, String operator, String value, String eventName) {}
+    String keyType,
+    String operator,
+    String value,
+    String eventName,
+    List<String> matchedFindingIds) {
+
+  /**
+   * Built from a condition; the matched producing findings are resolved later (empty until then).
+   */
+  public ConsumedFindingKeyDTO(String keyType, String operator, String value, String eventName) {
+    this(keyType, operator, value, eventName, List.of());
+  }
+
+  /** A copy carrying the finding-node ids this key matched. */
+  public ConsumedFindingKeyDTO withMatchedFindingIds(List<String> ids) {
+    return new ConsumedFindingKeyDTO(keyType, operator, value, eventName, ids);
+  }
+}

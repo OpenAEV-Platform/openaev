@@ -1061,23 +1061,38 @@ public class AttackPathGraphService {
         continue;
       }
       Set<String> producerSteps = new LinkedHashSet<>();
+      List<ConsumedFindingKeyDTO> resolvedKeys = new ArrayList<>();
       for (ConsumedFindingKeyDTO key : node.getConsumedFindingKeys()) {
-        for (AttackPathFindingRow f :
-            findingsByType.getOrDefault(
-                AttackPathKeyMatcher.reconciledType(key.keyType()), List.of())) {
-          if (!AttackPathKeyMatcher.matches(f, key)) {
-            continue;
-          }
-          AttackPathExecutionRow producer = executionById.get(f.executionId());
-          if (producer != null
-              && producer.stepTemplateId() != null
-              && producer.executedAt() != null
-              && producer.executedAt().isBefore(consumer.executedAt())
-              && !producer.stepTemplateId().equals(consumer.stepTemplateId())) {
-            producerSteps.add(producer.stepTemplateId());
+        // The finding-node ids this key matched (back-authoritative, spec 011): the front anchors
+        // the
+        // causal edge on these instead of re-matching.
+        Set<String> matchedNodeIds = new LinkedHashSet<>();
+        // A primitive key can be satisfied by its own type OR by a complex finding that carries it
+        // as a sub-field (e.g. `port` by a `portscan`), so scan every candidate bucket, not just
+        // the
+        // reconciled one.
+        for (String findingType : AttackPathKeyMatcher.candidateFindingTypes(key.keyType())) {
+          for (AttackPathFindingRow f : findingsByType.getOrDefault(findingType, List.of())) {
+            if (!AttackPathKeyMatcher.matches(f, key)) {
+              continue;
+            }
+            AttackPathExecutionRow producer = executionById.get(f.executionId());
+            if (producer != null
+                && producer.stepTemplateId() != null
+                && producer.executedAt() != null
+                && producer.executedAt().isBefore(consumer.executedAt())
+                && !producer.stepTemplateId().equals(consumer.stepTemplateId())) {
+              producerSteps.add(producer.stepTemplateId());
+              matchedNodeIds.add(AttackPathIds.findingNode(f.type(), f.value()));
+            }
           }
         }
+        resolvedKeys.add(
+            matchedNodeIds.isEmpty()
+                ? key
+                : key.withMatchedFindingIds(List.copyOf(matchedNodeIds)));
       }
+      node.setConsumedFindingKeys(resolvedKeys);
       if (!producerSteps.isEmpty()) {
         List<String> dependsOn =
             new ArrayList<>(node.getDependsOn() == null ? List.of() : node.getDependsOn());
