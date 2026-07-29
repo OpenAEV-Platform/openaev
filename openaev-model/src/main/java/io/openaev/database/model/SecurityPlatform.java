@@ -112,6 +112,25 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
   @ToString.Exclude
   private List<Collector> collectors = new ArrayList<>();
 
+  /**
+   * Injectors currently declaring this security platform as theirs (e.g. Nuclei registering itself
+   * as a VULNERABILITY_SCANNER at startup). Same lifecycle contract as {@link #collectors}: the FK
+   * is {@code ON DELETE SET NULL}, so this list empties when the injector is deleted from the
+   * catalog, and the UI combines both lists into its "managed, keep read-only" signal (#7063).
+   */
+  @ArraySchema(
+      schema =
+          @Schema(
+              description = "IDs of the injectors currently managing this security platform",
+              implementation = String.class))
+  @OneToMany(mappedBy = "securityPlatform", fetch = FetchType.LAZY)
+  @BatchSize(size = 1000)
+  @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonProperty("security_platform_injectors")
+  @EqualsAndHashCode.Exclude
+  @ToString.Exclude
+  private List<Injector> injectors = new ArrayList<>();
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "security_platform_logo_light")
   @JsonSerialize(using = MonoIdSerializer.class)

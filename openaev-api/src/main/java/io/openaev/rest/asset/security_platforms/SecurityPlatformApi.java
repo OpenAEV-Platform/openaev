@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
@@ -44,6 +45,7 @@ public class SecurityPlatformApi {
   private final DocumentRepository documentRepository;
   private final TagRepository tagRepository;
   private final DocumentService documentService;
+  private final InjectorRepository injectorRepository;
 
   /**
    * The {@code collectors} table is v2 tenant-active: any read of it in a transaction without a
@@ -55,12 +57,18 @@ public class SecurityPlatformApi {
    * writes it into the scope) AND initialize the association inside that scoped transaction through
    * this helper, or every platform silently unlocks in the UI (issue #7025).
    *
+   * <p>{@code security_platform_injectors} (injector-registered platforms such as Nuclei, #7063)
+   * feeds the same UI signal and is initialized here for the same reason: {@code injectors} is not
+   * v2 tenant-active yet, but the association is lazy and rendered open-in-view, so it must load
+   * inside the scoped transaction to stay correct when that table is activated.
+   *
    * <p>Create and upsert are exempt: create returns a brand-new entity whose empty in-memory
-   * association serializes without a database load, and upsert is the collector-facing registration
+   * associations serialize without a database load, and upsert is the connector-facing registration
    * endpoint whose response the UI never consumes.
    */
-  private static SecurityPlatform withCollectorsInitialized(SecurityPlatform securityPlatform) {
+  private static SecurityPlatform withManagerLinksInitialized(SecurityPlatform securityPlatform) {
     Hibernate.initialize(securityPlatform.getCollectors());
+    Hibernate.initialize(securityPlatform.getInjectors());
     return securityPlatform;
   }
 
@@ -68,10 +76,10 @@ public class SecurityPlatformApi {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SECURITY_PLATFORM)
   // TxCtx scopes the transaction to the caller's tenants so the collectors association loads
-  // (fail-closed empty otherwise); see withCollectorsInitialized.
+  // (fail-closed empty otherwise); see withManagerLinksInitialized.
   public Iterable<SecurityPlatform> securityPlatforms(TxCtx ctx) {
     return fromIterable(securityPlatformRepository.findAll()).stream()
-        .map(SecurityPlatformApi::withCollectorsInitialized)
+        .map(SecurityPlatformApi::withManagerLinksInitialized)
         .toList();
   }
 
@@ -128,7 +136,33 @@ public class SecurityPlatformApi {
       securityPlatform.setLogoLight(null);
     }
     securityPlatform.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
-    return this.securityPlatformRepository.save(securityPlatform);
+    SecurityPlatform saved = this.securityPlatformRepository.save(securityPlatform);
+    linkRegisteringInjector(saved, input.getExternalReference());
+    return saved;
+  }
+
+  /**
+   * An injector that declares itself as a security platform (e.g. Nuclei registering as a
+   * VULNERABILITY_SCANNER) upserts the platform keyed on its own injector type as the external
+   * reference — that is the documented contract of the registration call. Restore the injector ->
+   * platform link here so the platform stays read-only in the UI while the injector lives, and so a
+   * redeployed injector self-heals the link its previous deployment lost when it was deleted from
+   * the catalog (FK is ON DELETE SET NULL). Collector external references are collector ids and
+   * never match an injector type, so collector registrations are unaffected (#7063).
+   */
+  private void linkRegisteringInjector(
+      SecurityPlatform securityPlatform, String externalReference) {
+    if (externalReference == null || externalReference.isBlank()) {
+      return;
+    }
+    injectorRepository
+        .findByTypeAndTenantId(externalReference, TenantContext.getCurrentTenant())
+        .filter(injector -> injector.getSecurityPlatform() == null)
+        .ifPresent(
+            injector -> {
+              injector.setSecurityPlatform(securityPlatform);
+              injectorRepository.save(injector);
+            });
   }
 
   @GetMapping({
@@ -141,12 +175,12 @@ public class SecurityPlatformApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SECURITY_PLATFORM)
   // TxCtx scopes the transaction so the collectors association loads; see
-  // withCollectorsInitialized.
+  // withManagerLinksInitialized.
   public SecurityPlatform securityPlatform(
       TxCtx ctx, @PathVariable @NotBlank final String securityPlatformId) {
     return this.securityPlatformRepository
         .findById(securityPlatformId)
-        .map(SecurityPlatformApi::withCollectorsInitialized)
+        .map(SecurityPlatformApi::withManagerLinksInitialized)
         .orElseThrow(ElementNotFoundException::new);
   }
 
@@ -154,12 +188,12 @@ public class SecurityPlatformApi {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
   // TxCtx scopes the transaction so the collectors association loads; see
-  // withCollectorsInitialized.
+  // withManagerLinksInitialized.
   public Page<SecurityPlatform> securityPlatforms(
       TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
             this.securityPlatformRepository::findAll, searchPaginationInput, SecurityPlatform.class)
-        .map(SecurityPlatformApi::withCollectorsInitialized);
+        .map(SecurityPlatformApi::withManagerLinksInitialized);
   }
 
   @PutMapping({
@@ -172,7 +206,7 @@ public class SecurityPlatformApi {
       resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
   // TxCtx scopes the transaction so the response's collectors association loads (the UI replaces
-  // its local state with this payload); see withCollectorsInitialized.
+  // its local state with this payload); see withManagerLinksInitialized.
   public SecurityPlatform updateSecurityPlatform(
       TxCtx ctx,
       @PathVariable @NotBlank final String securityPlatformId,
@@ -191,7 +225,7 @@ public class SecurityPlatformApi {
       securityPlatform.setLogoLight(null);
     }
     securityPlatform.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
-    return withCollectorsInitialized(this.securityPlatformRepository.save(securityPlatform));
+    return withManagerLinksInitialized(this.securityPlatformRepository.save(securityPlatform));
   }
 
   @DeleteMapping({

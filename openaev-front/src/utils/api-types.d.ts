@@ -5751,6 +5751,7 @@ export interface Injector {
   /** @minLength 1 */
   injector_name: string;
   injector_payloads?: boolean;
+  injector_security_platform?: string;
   /** @minLength 1 */
   injector_type: string;
   /** @format date-time */
@@ -9737,6 +9738,7 @@ export interface SecurityPlatform {
   asset_url?: string;
   listened?: boolean;
   security_platform_collectors?: string[];
+  security_platform_injectors?: string[];
   security_platform_logo_dark?: string;
   security_platform_logo_light?: string;
   security_platform_traces?: InjectExpectationTrace[];
