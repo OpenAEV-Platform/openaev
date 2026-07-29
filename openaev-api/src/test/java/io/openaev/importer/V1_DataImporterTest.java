@@ -510,7 +510,7 @@ class V1_DataImporterTest extends IntegrationTest {
 
   @Test
   @Transactional
-  void given_scenarioWithWorkflowContainingAssetScopeRules_should_importOnlyNonAssetScopeRules()
+  void given_scenarioWithWorkflowContainingAssetScopeRules_should_importAssetScopeRulesWithMappedIds()
       throws Exception {
     // -- Arrange --
     ObjectMapper objectMapper = new ObjectMapper();
@@ -535,9 +535,15 @@ class V1_DataImporterTest extends IntegrationTest {
     assetGroupRule.put("workflow_scope_rule_value_type", "ASSET_GROUP_ID");
     scopeRules.add(assetGroupRule);
 
+    String importedAssetId = UUID.randomUUID().toString();
+    String importedAssetGroupId = UUID.randomUUID().toString();
+    Map<String, Base> baseIds = new HashMap<>();
+    baseIds.put("asset-id-1", new TestBase(importedAssetId));
+    baseIds.put("asset-group-id-1", new TestBase(importedAssetGroupId));
+
     // -- Act --
     this.importer.importData(
-        workflowImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        workflowImport, baseIds, null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
@@ -551,13 +557,21 @@ class V1_DataImporterTest extends IntegrationTest {
             .findByScenario_IdAndStatus(scenario.getId(), WorkflowStatus.TEMPLATE)
             .getFirst();
 
-    assertEquals(1, workflow.getWorkflowScopeRules().size());
+    assertEquals(3, workflow.getWorkflowScopeRules().size());
     assertTrue(
         workflow.getWorkflowScopeRules().stream()
-            .noneMatch(
+            .anyMatch(
                 rule ->
                     ScopeRuleSource.ASSET.equals(rule.getRuleSource())
-                        || ScopeRuleSource.ASSET_GROUP.equals(rule.getRuleSource())));
+                        && ScopeRuleValueType.ASSET_ID.equals(rule.getValueType())
+                        && importedAssetId.equals(rule.getRuleValue())));
+    assertTrue(
+        workflow.getWorkflowScopeRules().stream()
+            .anyMatch(
+                rule ->
+                    ScopeRuleSource.ASSET_GROUP.equals(rule.getRuleSource())
+                        && ScopeRuleValueType.ASSET_GROUP_ID.equals(rule.getValueType())
+                        && importedAssetGroupId.equals(rule.getRuleValue())));
   }
 
   @Test
@@ -1179,5 +1193,23 @@ class V1_DataImporterTest extends IntegrationTest {
 
   private static Specification<Exercise> exerciseByName(@NotNull final String name) {
     return (root, query, cb) -> cb.equal(root.get("name"), name);
+  }
+
+  private static final class TestBase implements Base {
+    private String id;
+
+    private TestBase(String id) {
+      this.id = id;
+    }
+
+    @Override
+    public String getId() {
+      return id;
+    }
+
+    @Override
+    public void setId(String id) {
+      this.id = id;
+    }
   }
 }

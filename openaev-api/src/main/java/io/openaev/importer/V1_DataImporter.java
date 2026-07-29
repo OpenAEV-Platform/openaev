@@ -1925,8 +1925,20 @@ public class V1_DataImporter implements Importer {
                   ? ScopeRuleValueType.valueOf(
                       ruleNode.get("workflow_scope_rule_value_type").asText())
                   : null;
+          String ruleValue =
+              ruleNode.has("workflow_scope_rule_value")
+                  ? ruleNode.get("workflow_scope_rule_value").asText()
+                  : null;
           if (WorkflowScopeRuleUtils.isAssetScopeRule(ruleSource, ruleValueType)) {
-            continue;
+            Base mappedRuleValue = hasText(ruleValue) ? baseIds.get(ruleValue) : null;
+            if (mappedRuleValue == null || !hasText(mappedRuleValue.getId())) {
+              log.warn(
+                  "Skipping workflow scope rule '{}' because referenced asset value '{}' was not imported",
+                  ruleValueType,
+                  ruleValue);
+              continue;
+            }
+            ruleValue = mappedRuleValue.getId();
           }
           WorkflowScopeRule rule =
               WorkflowScopeRule.builder()
@@ -1937,10 +1949,7 @@ public class V1_DataImporter implements Importer {
                               ruleNode.get("workflow_scope_rule_selected_mode").asText())
                           : null)
                   .ruleSource(ruleSource)
-                  .ruleValue(
-                      ruleNode.has("workflow_scope_rule_value")
-                          ? ruleNode.get("workflow_scope_rule_value").asText()
-                          : null)
+                  .ruleValue(ruleValue)
                   .valueType(ruleValueType)
                   .workflow(workflow)
                   .build();
@@ -2241,7 +2250,7 @@ public class V1_DataImporter implements Importer {
     String alreadyResolved = resolvedContracts.get(injectorContractId);
     if (alreadyResolved != null) {
       if (!updateContractIdInStepData(dataJson, alreadyResolved)) {
-        return stepDataRaw;
+        return sanitizateStepData(dataJson, stepDataRaw, baseIds, workflow);
       }
       return sanitizateStepData(dataJson, stepDataRaw, baseIds, workflow);
     }
@@ -2269,7 +2278,7 @@ public class V1_DataImporter implements Importer {
     if (newContractId != null) {
       resolvedContracts.put(injectorContractId, newContractId);
       if (!updateContractIdInStepData(dataJson, newContractId)) {
-        return stepDataRaw;
+        return sanitizateStepData(dataJson, stepDataRaw, baseIds, workflow);
       }
       return sanitizateStepData(dataJson, stepDataRaw, baseIds, workflow);
     }
