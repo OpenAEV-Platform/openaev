@@ -13,6 +13,7 @@ import io.openaev.expectation.*;
 import io.openaev.utils.StringUtils;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -291,6 +292,11 @@ public class InjectExpectationUtils {
           // triggering result (an expiration "Not vulnerable") would contradict the verdict the
           // parent just kept: skip it, the genuine platform row already explains the score.
           if (addResult != null && Objects.equals(reconciledScore, score)) {
+            // An expectation that never received any result can carry a null results list (see
+            // expireEmptyResults): initialize it before inspecting / mutating it below.
+            if (expectation.getResults() == null) {
+              expectation.setResults(new ArrayList<>());
+            }
             InjectExpectationResult newResultToAdd = addResult.apply(score);
             boolean isExpirationManagerResult =
                 ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(

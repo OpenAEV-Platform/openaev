@@ -708,13 +708,13 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
           injectExpectationRepository
               .findAllByInjectAndAsset(savedInject.getId(), savedEndpoint.getId())
               .getFirst();
-      assetExpectation.setResults(List.of(nucleiVerdict));
+      assetExpectation.setResults(new ArrayList<>(List.of(nucleiVerdict)));
       assetExpectation.setScore(0.0);
       BaseInjectExpectation assetGroupExpectation =
           injectExpectationRepository
               .findAllByInjectAndAssetGroup(savedInject.getId(), savedAssetGroup.getId())
               .getFirst();
-      assetGroupExpectation.setResults(List.of(nucleiVerdict));
+      assetGroupExpectation.setResults(new ArrayList<>(List.of(nucleiVerdict)));
       assetGroupExpectation.setScore(0.0);
       injectExpectationRepository.saveAll(List.of(assetExpectation, assetGroupExpectation));
 
@@ -801,13 +801,13 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
           injectExpectationRepository
               .findAllByInjectAndAsset(savedInject.getId(), savedEndpoint.getId())
               .getFirst();
-      assetExpectation.setResults(List.of(nucleiVerdict));
+      assetExpectation.setResults(new ArrayList<>(List.of(nucleiVerdict)));
       assetExpectation.setScore(100.0);
       BaseInjectExpectation assetGroupExpectation =
           injectExpectationRepository
               .findAllByInjectAndAssetGroup(savedInject.getId(), savedAssetGroup.getId())
               .getFirst();
-      assetGroupExpectation.setResults(List.of(nucleiVerdict));
+      assetGroupExpectation.setResults(new ArrayList<>(List.of(nucleiVerdict)));
       assetGroupExpectation.setScore(100.0);
       injectExpectationRepository.saveAll(List.of(assetExpectation, assetGroupExpectation));
 
