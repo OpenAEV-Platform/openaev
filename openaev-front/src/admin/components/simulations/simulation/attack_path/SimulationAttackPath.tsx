@@ -370,6 +370,17 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // Bumped whenever a side panel/drawer opens so the graph legend folds away (reopenable by the user).
   const [legendCollapseNonce, setLegendCollapseNonce] = useState(0);
 
+  // Live growth reframe: nodes a delta introduces land outside a panned/zoomed viewport, so re-frame
+  // the graph whenever the shape moved. Keyed on structuralNonce, so an attribute-only tick (a verdict
+  // flip) never moves the camera; the focused finding-path view frames itself through its own bumps.
+  const lastStructuralFit = useRef(0);
+  useEffect(() => {
+    if (structuralNonce > 0 && structuralNonce !== lastStructuralFit.current && !pathFinding) {
+      lastStructuralFit.current = structuralNonce;
+      setFitNonce(n => n + 1);
+    }
+  }, [structuralNonce, pathFinding]);
+
   // The finding details panel only lives inside the focused view; close it whenever the focus ends.
   useEffect(() => {
     if (!pathFinding) {
