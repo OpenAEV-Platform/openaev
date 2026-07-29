@@ -13,6 +13,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.utils.constants.Constants;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
@@ -373,6 +374,67 @@ class V1_DataImporterTest extends IntegrationTest {
     assertTrue(
         prerequisites == null || prerequisites.isEmpty(),
         "Prerequisites should be empty when field is explicit null in JSON");
+  }
+
+  @Test
+  @Transactional
+  void
+      given_payloadWithoutDomainsAndForeignContractDomainIds_when_buildingPayloadInput_should_resolveDomainsFromConvertedContent() {
+    // -- Arrange --
+    Domain networkDomain =
+        domainRepository
+            .findByName("Network")
+            .orElseGet(
+                () -> {
+                  Domain domain = new Domain();
+                  domain.setName("Network");
+                  domain.setColor("#009933");
+                  domain.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+                  return domainRepository.save(domain);
+                });
+    Domain toClassify =
+        domainRepository.findByName(PresetDomain.getToClassify().getName()).orElseThrow();
+
+    String foreignDomainId = UUID.randomUUID().toString();
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode payloadNode = objectMapper.createObjectNode();
+    payloadNode.put("payload_type", "Command");
+    payloadNode.put("payload_name", "netstat");
+    payloadNode.put("payload_source", "MANUAL");
+    payloadNode.put("payload_status", "VERIFIED");
+    payloadNode.set("payload_platforms", objectMapper.createArrayNode().add("Windows"));
+    payloadNode.set(
+        "payload_expectations",
+        objectMapper.createArrayNode().add("DETECTION").add("PREVENTION"));
+    payloadNode.set("payload_arguments", objectMapper.createArrayNode());
+    payloadNode.set("payload_prerequisites", objectMapper.createArrayNode());
+    payloadNode.set("payload_output_parsers", objectMapper.createArrayNode());
+
+    ObjectNode injectorContractNode = objectMapper.createObjectNode();
+    injectorContractNode.set(
+        "injector_contract_domains", objectMapper.createArrayNode().add(foreignDomainId));
+    ObjectNode convertedContent = objectMapper.createObjectNode();
+    convertedContent.set(
+        "domains",
+        objectMapper
+            .createArrayNode()
+            .add(
+                objectMapper
+                    .createObjectNode()
+                    .put("domain_id", foreignDomainId)
+                    .put("domain_name", "Network")
+                    .put("domain_color", "#009933")));
+    injectorContractNode.set("convertedContent", convertedContent);
+
+    // -- Act --
+    PayloadCreateInput payloadCreateInput =
+        ReflectionTestUtils.invokeMethod(
+            importer, "buildPayloadCreateInput", new HashMap<>(), payloadNode, injectorContractNode);
+
+    // -- Assert --
+    assertNotNull(payloadCreateInput);
+    assertTrue(payloadCreateInput.getDomainIds().contains(networkDomain.getId()));
+    assertFalse(payloadCreateInput.getDomainIds().contains(toClassify.getId()));
   }
 
   @Test

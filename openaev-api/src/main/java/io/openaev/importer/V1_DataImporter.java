@@ -1605,6 +1605,23 @@ public class V1_DataImporter implements Importer {
     // Domains — merge from payload and injector contract nodes, fallback to ToClassify
     Set<Domain> domains =
         mergeDomains(baseIds, payloadNode, "payload_", injectorContractNode, "injector_contract_");
+    // Chaining step_data exports can carry foreign domain IDs in injector_contract_domains while the
+    // resolved local names/colors are stored in injector contract convertedContent.domains.
+    // If we can resolve from converted content, enrich/override the fallback set.
+    if (injectorContractNode instanceof ObjectNode injectorContractObject) {
+      JsonNode convertedContentNode = injectorContractObject.get("convertedContent");
+      if (convertedContentNode != null && !convertedContentNode.isNull()) {
+        Set<Domain> convertedDomains = new LinkedHashSet<>(importDomains(convertedContentNode, "", baseIds));
+        if (!convertedDomains.isEmpty()) {
+          domains.addAll(convertedDomains);
+          if (domains.size() > 1) {
+            domainService
+                .findOptionalByName(PresetDomain.getToClassify().getName())
+                .ifPresent(domains::remove);
+          }
+        }
+      }
+    }
     payloadCreateInput.setDomainIds(
         domains.stream().map(Domain::getId).collect(Collectors.toList()));
 
