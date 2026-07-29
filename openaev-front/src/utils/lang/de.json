@@ -3518,5 +3518,5 @@
   "Unknown platform": "Unbekannte Plattform",
   "Partially Prevented": "Teilweise verhindert",
   "Partially Detected": "Teilweise erkannt",
-  "Showing the first {count}": "Die ersten {count} werden angezeigt"
+  "Showing the first {count} of {total}": "Die ersten {count} von {total} werden angezeigt"
 }

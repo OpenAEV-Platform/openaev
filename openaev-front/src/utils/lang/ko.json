@@ -3518,5 +3518,5 @@
   "Unknown platform": "알 수 없는 플랫폼",
   "Partially Prevented": "부분적으로 차단됨",
   "Partially Detected": "부분적으로 탐지됨",
-  "Showing the first {count}": "처음 {count}개 표시"
+  "Showing the first {count} of {total}": "{total}개 중 처음 {count}개 표시"
 }

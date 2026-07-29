@@ -3518,5 +3518,5 @@
   "Unknown platform": "Неизвестная платформа",
   "Partially Prevented": "Частично предотвращено",
   "Partially Detected": "Частично обнаружено",
-  "Showing the first {count}": "Показаны первые {count}"
+  "Showing the first {count} of {total}": "Показаны первые {count} из {total}"
 }

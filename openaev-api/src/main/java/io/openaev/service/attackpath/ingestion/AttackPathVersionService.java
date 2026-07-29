@@ -56,15 +56,16 @@ public class AttackPathVersionService {
    *
    * <p>Separate from {@link #bump} on purpose: the chaining engine replays an execution event's
    * expectation results by design, and a replay bumps (the caller cannot know the row counts before
-   * taking the version it stamps) while writing nothing. Publishing there too would put one event per
-   * replay on the stream's shared executor, whose bounded queue discards its oldest entries — evicting
-   * other features' events and, worst of all, the 1 s ping every client's health check depends on. A
-   * flood of nudges would therefore make clients decide the stream is dead and fall back to the very
-   * cadence this feature removes. So callers publish only when their write touched rows.
+   * taking the version it stamps) while writing nothing. Publishing there too would put one event
+   * per replay on the stream's shared executor, whose bounded queue discards its oldest entries —
+   * evicting other features' events and, worst of all, the 1 s ping every client's health check
+   * depends on. A flood of nudges would therefore make clients decide the stream is dead and fall
+   * back to the very cadence this feature removes. So callers publish only when their write touched
+   * rows.
    *
    * <p>Published inside the writer's transaction; the stream's {@code @TransactionalEventListener}
-   * defers delivery to commit, so a client fetching on the nudge never observes a version lower than
-   * the announced one.
+   * defers delivery to commit, so a client fetching on the nudge never observes a version lower
+   * than the announced one.
    */
   public void publishChanged(String simulationId, String tenantId, long version) {
     eventPublisher.publishEvent(new AttackPathVersionEvent(simulationId, tenantId, version));

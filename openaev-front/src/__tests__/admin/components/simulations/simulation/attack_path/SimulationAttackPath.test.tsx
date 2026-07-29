@@ -1,13 +1,12 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
-
-import { type AppAbility } from '../../../../../../utils/permissions/ability';
-import { AbilityContext } from '../../../../../../utils/permissions/permissionsContext';
 import type * as ReactRouter from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SimulationAttackPath from '../../../../../../admin/components/simulations/simulation/attack_path/SimulationAttackPath';
+import { type AppAbility } from '../../../../../../utils/permissions/ability';
+import { AbilityContext } from '../../../../../../utils/permissions/permissionsContext';
 
 type FlowProps = {
   focusRequest?: { nodeId: string };
@@ -129,8 +128,13 @@ vi.mock('../../../../../../utils/hooks/useEnterpriseEdition', () => ({
 }));
 
 // The shared EE chip reads `theme.palette.ee`, which the bare test theme does not carry; it has its
-// own coverage, so stand it in by a marker and assert the panel renders it.
-vi.mock('../../../../../../admin/components/common/entreprise_edition/EEChip', () => ({ default: () => <span data-testid="ee-chip" /> }));
+// own coverage, so stand it in by a marker that exposes `clickable` — that prop is the permission
+// decision under test (a non-admin must get an informational chip, not a dead click).
+vi.mock('../../../../../../admin/components/common/entreprise_edition/EEChip', () => ({
+  default: ({ clickable }: { clickable?: boolean }) => (
+    <span data-testid="ee-chip" data-clickable={String(!!clickable)} />
+  ),
+}));
 
 // The app always provides an ability (the context default is an empty object), and the Result panel
 // asks whether the user could act on the Enterprise dialog. Answer no: the interesting case is the
@@ -317,7 +321,8 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
 
     // Assert: the Enterprise affordance for the section, and never the plain "none" wording.
     expect(await screen.findByText('Prevented by')).toBeTruthy();
-    expect(screen.getByTestId('ee-chip')).toBeTruthy();
+    // A non-admin cannot act on the licence dialog, so the chip must be informational only.
+    expect(screen.getByTestId('ee-chip').getAttribute('data-clickable')).toBe('false');
     expect(screen.getAllByText('Platform attribution requires Enterprise Edition').length).toBe(2);
     expect(screen.queryByText('No platform attribution available')).toBeNull();
     // The verdicts themselves still come from the run — the licence gates attribution, not results.

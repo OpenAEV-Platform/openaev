@@ -230,7 +230,10 @@ const EndpointDetailPanel = ({
                     pt: 1,
                   }}
                 >
-                  {`${t('Showing the first {count}', { count: executions.length })} / ${totalExecutions}`}
+                  {t('Showing the first {count} of {total}', {
+                    count: executions.length,
+                    total: totalExecutions,
+                  })}
                 </Typography>
               )
         )}

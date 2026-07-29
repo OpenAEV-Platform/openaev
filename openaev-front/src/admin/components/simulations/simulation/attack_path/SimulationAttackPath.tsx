@@ -2888,8 +2888,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                 textAlign: 'center',
               }}
             >
-              {t('Showing the first {count}', { count: (findingsPage?.items ?? []).length })}
-              {` / ${findingsPage?.total}`}
+              {t('Showing the first {count} of {total}', {
+                count: (findingsPage?.items ?? []).length,
+                total: findingsPage?.total,
+              })}
             </Typography>
           )}
           {!findingsLoading && drawerPageCount > 1 && (

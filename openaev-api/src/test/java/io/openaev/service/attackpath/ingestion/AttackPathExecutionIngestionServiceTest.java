@@ -35,10 +35,14 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
  * Phase A create (issue 5048, #203): at RUN, one EXECUTION row per resolved edge, tenant-attributed
@@ -48,6 +52,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path Phase A: create EXECUTION rows")
+@Import(AttackPathExecutionIngestionServiceTest.NudgeRecorder.class)
 class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
 
   /**
@@ -63,6 +68,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   @Autowired private ExecutorFixture executorFixture;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private DataSource dataSource;
+  @Autowired private NudgeRecorder nudgeRecorder;
 
   /** Set by the verdict tests, whose tenant and rows are COMMITTED (they run untransacted). */
   private String verdictTenantId;
@@ -76,6 +82,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
       jdbc.update("DELETE FROM tenants WHERE tenant_id = ?", verdictTenantId);
       verdictTenantId = null;
     }
+    nudgeRecorder.clear();
     TenantContext.clearCurrentTenant();
   }
 
@@ -319,6 +326,34 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
 
   @Test
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  @DisplayName("only a write that changed rows nudges a client")
+  void onlyAChangedWriteNudges() {
+    // The nudge is what tells an open view to fetch its delta now. The engine replays an execution
+    // event's expectation results by design, so publishing on a replay would put one event per replay
+    // on the stream's shared executor — whose bounded queue drops its oldest entries, including the
+    // ping every client's health check reads. Hence: no rows changed, no nudge.
+    Tenant tenant = verdictTenant("ap-expectation-nudge");
+    String executionId = "exec-nudge-1";
+    executionRepository.save(createExecutionRow(executionId, tenant));
+
+    updateExpectations(tenant, executionId, prevention("Prevented"));
+    assertThat(publishedNudges(tenant))
+        .as("the first write changed the verdict, so it announces itself")
+        .isEqualTo(1);
+
+    updateExpectations(tenant, executionId, prevention("Prevented"));
+    assertThat(publishedNudges(tenant))
+        .as("the replay matched zero rows: still one nudge in total")
+        .isEqualTo(1);
+
+    updateExpectations(tenant, executionId, prevention("Not Prevented"));
+    assertThat(publishedNudges(tenant))
+        .as("a real change announces itself again")
+        .isEqualTo(2);
+  }
+
+  @Test
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @DisplayName("no expectation result writes nothing and does not bump the version")
   void anEmptyResultSetIsNotVersioned() {
     Tenant tenant = verdictTenant("ap-expectation-empty");
@@ -336,6 +371,38 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   }
 
   // -- verdict helpers --
+
+  /**
+   * How many nudges this tenant's simulation has published so far. Counted through a listener rather
+   * than a mock so the assertion covers the real path: the event must survive the transaction's
+   * commit to be delivered at all.
+   */
+  private int publishedNudges(Tenant tenant) {
+    return (int)
+        nudgeRecorder.events().stream()
+            .filter(e -> SIM_EXPECTATION.equals(e.simulationId()))
+            .filter(e -> tenant.getId().equals(e.tenantId()))
+            .count();
+  }
+
+  /** Records the nudges published during a test, after commit, exactly as the stream receives them. */
+  @Component
+  static class NudgeRecorder {
+    private final List<AttackPathVersionEvent> events = new CopyOnWriteArrayList<>();
+
+    @TransactionalEventListener
+    void onNudge(AttackPathVersionEvent event) {
+      events.add(event);
+    }
+
+    List<AttackPathVersionEvent> events() {
+      return events;
+    }
+
+    void clear() {
+      events.clear();
+    }
+  }
 
   /**
    * Calls the service the way the chaining engine does: from inside an ambient tenant-scoped

@@ -110,7 +110,8 @@ public class AttackPathExecutionIngestionService {
         () -> {
           long version = versionService.bump(simulationId, tenantId);
           int changed = 0;
-          for (Map.Entry<String, ExecutionExpectationResults> entry : expectationResults.entrySet()) {
+          for (Map.Entry<String, ExecutionExpectationResults> entry :
+              expectationResults.entrySet()) {
             ExecutionExpectationResults expectation = entry.getValue();
             String preventionStatus =
                 resolveHighestPriorityResult(expectation.prevention(), ExpectationType.PREVENTION);
@@ -128,8 +129,10 @@ public class AttackPathExecutionIngestionService {
                     tenantId,
                     version);
           }
-          // Only a write that touched rows is worth telling a client about. The engine replays these
-          // results on every execution event, so nudging on a replay would flood the stream's shared
+          // Only a write that touched rows is worth telling a client about. The engine replays
+          // these
+          // results on every execution event, so nudging on a replay would flood the stream's
+          // shared
           // executor for nothing — see AttackPathVersionService#publishChanged.
           if (changed > 0) {
             versionService.publishChanged(simulationId, tenantId, version);
