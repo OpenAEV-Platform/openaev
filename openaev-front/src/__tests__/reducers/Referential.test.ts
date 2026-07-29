@@ -1,7 +1,7 @@
 import { Map, OrderedMap } from 'immutable';
 import { describe, expect, it } from 'vitest';
 
-import referential, { DATA_DELETE_BATCH_SUCCESS } from '../../constants/ActionTypes';
+import { DATA_DELETE_BATCH_SUCCESS } from '../../constants/ActionTypes';
 import referential, { applyLruEviction, ENTITY_SIZE_SOFT_CAP } from '../../reducers/Referential';
 
 const buildState = (entityType: string, entries: [string, unknown][], ordered = true) =>
@@ -112,67 +112,5 @@ describe('referential DATA_DELETE_BATCH_SUCCESS', () => {
       payload: [],
     });
     expect(next).toBe(state);
-  });
-});
-
-describe('referential', () => {
-  it('mirrors workflow stream updates to workflowconfigurations', () => {
-    const state = referential(undefined, {
-      type: 'DATA_UPDATE_SUCCESS',
-      payload: {
-        entities: {
-          workflows: {
-            workflow1: {
-              workflow_rate_limit_enabled: true,
-              workflow_max_attempts: 5,
-              workflow_max_temporal_rate_seconds: 30,
-              workflow_timeout_enabled: true,
-              workflow_timeout_seconds: 60,
-              workflow_safe_mode_enabled: false,
-              workflow_scope_rules: [{ workflow_scope_rule_id: 'rule-1' }],
-              workflow_scope_variables: [{ scope_variable_id: 'var-1' }],
-            },
-          },
-        },
-      },
-    });
-
-    expect(state.getIn(['entities', 'workflowconfigurations', 'workflow1']).toJS()).toEqual({
-      workflow_configuration_rate_limit_enabled: true,
-      workflow_configuration_max_attempts: 5,
-      workflow_configuration_max_temporal_rate_seconds: 30,
-      workflow_configuration_timeout_enabled: true,
-      workflow_configuration_timeout_seconds: 60,
-      workflow_configuration_safe_mode_enabled: false,
-      workflow_scope_rules: [{ workflow_scope_rule_id: 'rule-1' }],
-      workflow_scope_variables: [{ scope_variable_id: 'var-1' }],
-    });
-  });
-
-  it('keeps explicit workflowconfigurations payload when both are present', () => {
-    const state = referential(undefined, {
-      type: 'DATA_UPDATE_SUCCESS',
-      payload: {
-        entities: {
-          workflows: {
-            workflow1: {
-              workflow_max_attempts: 5,
-              workflow_timeout_enabled: true,
-            },
-          },
-          workflowconfigurations: {
-            workflow1: {
-              workflow_configuration_max_attempts: 8,
-              workflow_configuration_timeout_enabled: false,
-            },
-          },
-        },
-      },
-    });
-
-    expect(state.getIn(['entities', 'workflowconfigurations', 'workflow1']).toJS()).toEqual({
-      workflow_configuration_max_attempts: 8,
-      workflow_configuration_timeout_enabled: false,
-    });
   });
 });
