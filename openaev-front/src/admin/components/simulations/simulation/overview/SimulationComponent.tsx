@@ -7,6 +7,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults, searchExerciseInjects } from '../../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
+import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
 import { SectionBlock } from '../../../../../components/common/detail/EntityDetailCommon';
 import PostureGauges from '../../../../../components/common/detail/PostureGauges';
 import SAMPLE_POSTURE from '../../../../../components/common/detail/samplePosture';
@@ -16,7 +17,7 @@ import { useQueryableWithLocalStorage } from '../../../../../components/common/q
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { useHelper } from '../../../../../store';
-import { type Exercise, type ExpectationResultsByType, type InjectExpectationResultsByAttackPattern } from '../../../../../utils/api-types';
+import { type Exercise, type ExpectationResultsByType, type Inject, type InjectExpectationResultsByAttackPattern } from '../../../../../utils/api-types';
 import InjectResultList from '../../../atomic_testings/InjectResultList';
 import MitreCoverageMatrix from '../../../common/matrix/MitreCoverageMatrix';
 import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../../../workspaces/custom_dashboards/results/contextualWidgets';
@@ -58,6 +59,11 @@ const OverviewPlaceholder = ({ message }: { message: string }) => {
   );
 };
 
+type InjectCollectionLike = {
+  length?: number;
+  size?: number;
+};
+
 const SimulationComponent = () => {
   // Standard hooks
   const theme = useTheme();
@@ -69,14 +75,28 @@ const SimulationComponent = () => {
   // We do not use the traditional anchor (`#`) as the pagination hook overrides it
   const anchor = searchParams.get('anchor');
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
-  const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
+  const { exercise, injects } = useHelper((helper: ExercisesHelper & InjectHelper) => ({
+    exercise: helper.getExercise(exerciseId),
+    injects: helper.getExerciseInjects(exerciseId) as Inject[],
+  }));
   const [results, setResults] = useState<ExpectationResultsByType[] | null>(null);
   const [injectResults, setInjectResults] = useState<InjectExpectationResultsByAttackPattern[] | null>(null);
+  const [injectListReloadCount, setInjectListReloadCount] = useState(0);
+  const injectsCount = (injects as unknown as InjectCollectionLike)?.length
+    ?? (injects as unknown as InjectCollectionLike)?.size
+    ?? 0;
 
   useEffect(() => {
     fetchExerciseExpectationResult(exerciseId).then((result: { data: ExpectationResultsByType[] }) => setResults(result.data));
     fetchExerciseInjectExpectationResults(exerciseId).then((result: { data: InjectExpectationResultsByAttackPattern[] }) => setInjectResults(result.data));
   }, [exerciseId]);
+
+  // The inject hero counter is fed by referential/SSE updates; when its backing
+  // collection changes, force the paginated results list to refetch so new
+  // executions appear without a full page reload.
+  useEffect(() => {
+    setInjectListReloadCount(prev => prev + 1);
+  }, [exerciseId, injectsCount]);
 
   let resultAttackPatternIds = [];
   if (injectResults) {
@@ -196,6 +216,7 @@ const SimulationComponent = () => {
                   goTo={injectId => `/admin/simulations/${exerciseId}/injects/${injectId}`}
                   queryableHelpers={queryableHelpers}
                   searchPaginationInput={searchPaginationInput}
+                  reloadContentCount={injectListReloadCount}
                   contextId={exercise.exercise_id}
                   // The simulation has been launched (this branch excludes SCHEDULED):
                   // injects without a status are waiting for dispatch, not drafts.
