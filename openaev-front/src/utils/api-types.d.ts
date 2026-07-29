@@ -195,7 +195,7 @@ export interface AggregatedFindingOutput {
   finding_id: string;
   /**
    * Represents the data type being extracted.
-   * @example "text, action_output, number, port, portscan, ipv4, ipv6, credentials, cve"
+   * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
    */
   finding_type:
     | "text"
@@ -5797,6 +5797,7 @@ export interface InjectorContract {
   )[];
   injector_contract_providing?: (
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -8864,7 +8865,7 @@ export interface RelatedFindingOutput {
   finding_simulation?: ExerciseSimple;
   /**
    * Represents the data type being extracted.
-   * @example "text, action_output, number, port, portscan, ipv4, ipv6, credentials, cve"
+   * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
    */
   finding_type:
     | "text"
