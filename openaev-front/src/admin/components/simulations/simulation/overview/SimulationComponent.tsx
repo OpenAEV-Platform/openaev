@@ -2,7 +2,7 @@ import { InsightsOutlined } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults, searchExerciseInjects } from '../../../../../actions/exercises/exercise-action';
@@ -64,6 +64,11 @@ type InjectCollectionLike = {
   size?: number;
 };
 
+type InjectCollectionSnapshot = {
+  exerciseId: string;
+  injectsCount: number;
+};
+
 const SimulationComponent = () => {
   // Standard hooks
   const theme = useTheme();
@@ -82,6 +87,7 @@ const SimulationComponent = () => {
   const [results, setResults] = useState<ExpectationResultsByType[] | null>(null);
   const [injectResults, setInjectResults] = useState<InjectExpectationResultsByAttackPattern[] | null>(null);
   const [injectListReloadCount, setInjectListReloadCount] = useState(0);
+  const previousInjectCollectionRef = useRef<InjectCollectionSnapshot | null>(null);
   const injectsCount = (injects as unknown as InjectCollectionLike)?.length
     ?? (injects as unknown as InjectCollectionLike)?.size
     ?? 0;
@@ -92,10 +98,32 @@ const SimulationComponent = () => {
   }, [exerciseId]);
 
   // The inject hero counter is fed by referential/SSE updates; when its backing
-  // collection changes, force the paginated results list to refetch so new
-  // executions appear without a full page reload.
+  // collection changes for the CURRENT simulation, force the paginated results
+  // list to refetch so new executions appear without a full page reload. Skip
+  // mount and simulation switches to avoid an extra duplicate fetch.
   useEffect(() => {
-    setInjectListReloadCount(prev => prev + 1);
+    const previous = previousInjectCollectionRef.current;
+    if (!previous) {
+      previousInjectCollectionRef.current = {
+        exerciseId,
+        injectsCount,
+      };
+      return;
+    }
+    if (previous.exerciseId !== exerciseId) {
+      previousInjectCollectionRef.current = {
+        exerciseId,
+        injectsCount,
+      };
+      return;
+    }
+    if (previous.injectsCount !== injectsCount) {
+      previousInjectCollectionRef.current = {
+        exerciseId,
+        injectsCount,
+      };
+      setInjectListReloadCount(prev => prev + 1);
+    }
   }, [exerciseId, injectsCount]);
 
   let resultAttackPatternIds = [];
