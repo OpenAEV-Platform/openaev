@@ -615,6 +615,7 @@ const ThreatArsenal = () => {
               ? Object.keys(deSelectedElements).length === totalElements - 1
               : numberOfSelectedElements === 1
           }
+          selectionCount={numberOfSelectedElements}
           selectedElements={selectedElements}
           deSelectedElements={deSelectedElements}
           searchPaginationInput={searchPaginationInput}
@@ -639,6 +640,7 @@ const ThreatArsenal = () => {
       <ThreatArsenalSelectionBar
         count={numberOfSelectedElements}
         totalElements={totalElements}
+        hidden={isRunTestDrawerOpened}
         onClear={handleClearSelectedElements}
         onRunTest={() => setRunTestDrawerOpened(true)}
         onDelete={
