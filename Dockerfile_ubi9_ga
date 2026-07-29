@@ -5,8 +5,10 @@ USER root
 # Fixed world-readable browser path so any runtime UID finds the Chromium bundle (reporting)
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
+# Apply all available RHEL9 security errata (libacl, glib2, python3, openssl-libs, ...) so the
+# runtime image ships with the current fixes at build time (CVE-2026-54369/54370/15308/58016 et al.)
 RUN set -eux; \
-    microdnf upgrade -y --refresh openssl-libs; \
+    microdnf upgrade -y --refresh; \
     curl -L -o /usr/bin/tini https://github.com/krallin/tini/releases/download/v0.19.0/tini; \
     echo "93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c /usr/bin/tini" | sha256sum -c -; \
     chmod +x /usr/bin/tini; \
