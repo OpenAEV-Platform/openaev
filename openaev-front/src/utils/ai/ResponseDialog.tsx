@@ -226,19 +226,6 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
           multiline={true}
           onChange={event => setContent(event.target.value)}
           fullWidth={true}
-          InputProps={isLegacyMode ? {
-            endAdornment: (
-              <TextFieldAskAI
-                currentValue={content}
-                setFieldValue={(val: string) => {
-                  setContent(val);
-                }}
-                format="text"
-                variant="text"
-                disabled={isDisabled}
-              />
-            ),
-          } : undefined}
         />
       )}
       {format === 'html' && (
@@ -359,6 +346,7 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
                   value={tone}
                   onChange={event => setTone(event.target.value)}
                   size="small"
+                  disabled={effectiveDisabled}
                 >
                   <MenuItem value="formal">{t('Formal')}</MenuItem>
                   <MenuItem value="informal">{t('Informal')}</MenuItem>
