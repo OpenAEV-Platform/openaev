@@ -264,7 +264,7 @@ class EndpointApiTest extends IntegrationTest {
         });
     endpointRepository.save(endpoint);
 
-    String newName = "new-hostname";
+    String newName = "New-hostname";
     registerInput.setHostname(newName);
 
     Mockito.doReturn("command")
