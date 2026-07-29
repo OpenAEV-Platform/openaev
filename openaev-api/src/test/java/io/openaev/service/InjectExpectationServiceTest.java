@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
@@ -1086,6 +1087,84 @@ class InjectExpectationServiceTest {
       assertEquals(List.of(collectorResult), merged.get(0).getResults());
       // The enrichment must stay display-only: the persistent entity is untouched.
       assertTrue(assetExpectation.getResults().isEmpty());
+    }
+
+    @Test
+    @DisplayName(
+        "Vulnerability display merge drops the expiration manager row when a platform answered")
+    void vulnerabilityDisplayMergeDropsExpirationManagerRowWhenPlatformAnswered() {
+      // Regression: the asset target-results view unions the agent children's collector results
+      // onto the asset expectation. The agents legitimately expire to the vulnerability default
+      // "Not vulnerable" (an agentless scanner never fills them), so the union displayed a
+      // redundant - or contradictory - "Expectations Expiration Manager" row next to the genuine
+      // scan verdict persisted on the asset row.
+      VulnerabilityInjectExpectation assetExpectation = new VulnerabilityInjectExpectation();
+      assetExpectation.setId("asset-expectation");
+      InjectExpectationResult nucleiResult =
+          InjectExpectationResult.builder()
+              .sourceId("nuclei-security-platform")
+              .sourceType("security-platform")
+              .sourceName("Nuclei")
+              .result("Not vulnerable")
+              .score(100.0)
+              .build();
+      assetExpectation.setResults(new ArrayList<>(List.of(nucleiResult)));
+      VulnerabilityInjectExpectation agentExpectation = new VulnerabilityInjectExpectation();
+      agentExpectation.setId("agent-expectation");
+      InjectExpectationResult managerResult =
+          InjectExpectationResult.builder()
+              .sourceId(ExpectationsExpirationManagerConfig.COLLECTOR_ID)
+              .sourceType("collector")
+              .sourceName("Expectations Expiration Manager")
+              .result("Not vulnerable")
+              .score(100.0)
+              .build();
+      agentExpectation.setResults(new ArrayList<>(List.of(managerResult)));
+      when(injectExpectationRepository.findAllByInjectAndAsset("inject-id", "asset-id"))
+          .thenReturn(List.of(assetExpectation));
+      when(injectExpectationRepository.findAllAgentExpectationsByInjectAndAsset(
+              "inject-id", "asset-id"))
+          .thenReturn(List.of(agentExpectation));
+
+      List<? extends BaseInjectExpectation> merged =
+          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "parent-id", "ASSETS");
+
+      assertEquals(1, merged.size());
+      assertEquals(List.of(nucleiResult), merged.get(0).getResults());
+    }
+
+    @Test
+    @DisplayName(
+        "Vulnerability display merge keeps the expiration manager row when nothing answered")
+    void vulnerabilityDisplayMergeKeepsExpirationManagerRowWhenNothingAnswered() {
+      // When no platform ever answered, the expiration manager row IS the verdict
+      // ("Not vulnerable" by silence) and must stay visible on the asset view.
+      VulnerabilityInjectExpectation assetExpectation = new VulnerabilityInjectExpectation();
+      assetExpectation.setId("asset-expectation");
+      VulnerabilityInjectExpectation agentExpectation = new VulnerabilityInjectExpectation();
+      agentExpectation.setId("agent-expectation");
+      InjectExpectationResult managerResult =
+          InjectExpectationResult.builder()
+              .sourceId(ExpectationsExpirationManagerConfig.COLLECTOR_ID)
+              .sourceType("collector")
+              .sourceName("Expectations Expiration Manager")
+              .result("Not vulnerable")
+              .score(100.0)
+              .build();
+      agentExpectation.setResults(new ArrayList<>(List.of(managerResult)));
+      when(injectExpectationRepository.findAllByInjectAndAsset("inject-id", "asset-id"))
+          .thenReturn(List.of(assetExpectation));
+      when(injectExpectationRepository.findAllAgentExpectationsByInjectAndAsset(
+              "inject-id", "asset-id"))
+          .thenReturn(List.of(agentExpectation));
+
+      List<? extends BaseInjectExpectation> merged =
+          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "parent-id", "ASSETS");
+
+      assertEquals(1, merged.size());
+      assertEquals(List.of(managerResult), merged.get(0).getResults());
     }
 
     @Test
