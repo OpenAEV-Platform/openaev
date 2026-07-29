@@ -59,8 +59,7 @@ class AttackPathShareTypeApiTest extends IntegrationTest {
                 .param("ref", ENDPOINT))
         .andExpect(status().isOk())
         .andExpect(
-            jsonPath("$.findings[?(@.typeFindings=='share')].value")
-                .value(hasItem(SHARE_VALUE)));
+            jsonPath("$.findings[?(@.typeFindings=='share')].value").value(hasItem(SHARE_VALUE)));
   }
 
   @Test
@@ -97,8 +96,7 @@ class AttackPathShareTypeApiTest extends IntegrationTest {
             get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/execution")
                 .param("ref", executionId))
         .andExpect(status().isOk())
-        .andExpect(
-            jsonPath("$.findings[?(@.type=='share')].value").value(hasItem(SHARE_VALUE)));
+        .andExpect(jsonPath("$.findings[?(@.type=='share')].value").value(hasItem(SHARE_VALUE)));
   }
 
   /**
