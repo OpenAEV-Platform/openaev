@@ -683,7 +683,7 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   @Transactional
   void
-      given_stepDataWithProviding_when_resolvingMappedContract_should_preserveProvidingForChainingLogic() {
+      given_stepDataWithPayloadOutputParsers_when_resolvingMappedContract_should_preservePayloadOutputParsersForChainingLogic() {
     // -- Arrange --
     String oldContractId = UUID.randomUUID().toString();
     String newContractId = UUID.randomUUID().toString();
@@ -695,7 +695,15 @@ class V1_DataImporterTest extends IntegrationTest {
         {
           "inject_injector_contract": {
             "injector_contract_id": "%s",
-            "injector_contract_providing": ["portscan"]
+            "injector_contract_payload": {
+              "payload_output_parsers": [
+                {
+                  "output_parser_contract_output_elements": [
+                    {"contract_output_element_type":"portscan"}
+                  ]
+                }
+              ]
+            }
           }
         }
         """
@@ -715,13 +723,17 @@ class V1_DataImporterTest extends IntegrationTest {
     assertEquals(
         newContractId,
         resolvedJson.get("inject_injector_contract").get("injector_contract_id").asText());
-    assertTrue(resolvedJson.get("inject_injector_contract").has("injector_contract_providing"));
+    assertFalse(resolvedJson.get("inject_injector_contract").has("injector_contract_providing"));
     assertEquals(
         "portscan",
         resolvedJson
             .get("inject_injector_contract")
-            .get("injector_contract_providing")
+            .get("injector_contract_payload")
+            .get("payload_output_parsers")
             .get(0)
+            .get("output_parser_contract_output_elements")
+            .get(0)
+            .get("contract_output_element_type")
             .asText());
   }
 

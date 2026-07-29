@@ -2412,10 +2412,16 @@ public class V1_DataImporter implements Importer {
         normalizedContract.set("injector_contract_tags", tagsArray);
       }
 
-      // Preserve computed providing hints for chaining logic-map compatibility.
-      JsonNode providing = embeddedContract.get("injector_contract_providing");
-      if (providing != null && providing.isArray() && !providing.isEmpty()) {
-        normalizedContract.set("injector_contract_providing", providing.deepCopy());
+      // Keep output parser metadata so StepMapper can still infer output types for chaining UI
+      // without relying on injector_contract_providing (setterless/read-only on deserialization).
+      JsonNode payloadNode = embeddedContract.get("injector_contract_payload");
+      if (payloadNode instanceof ObjectNode payloadObject) {
+        JsonNode outputParsers = payloadObject.get("payload_output_parsers");
+        if (outputParsers != null && outputParsers.isArray() && !outputParsers.isEmpty()) {
+          ObjectNode normalizedPayload = mapper.createObjectNode();
+          normalizedPayload.set("payload_output_parsers", outputParsers.deepCopy());
+          normalizedContract.set("injector_contract_payload", normalizedPayload);
+        }
       }
     }
 
