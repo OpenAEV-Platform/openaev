@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -23,6 +24,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,11 +45,30 @@ public class SecurityPlatformApi {
   private final TagRepository tagRepository;
   private final DocumentService documentService;
 
+  /**
+   * The {@code collectors} table is v2 tenant-active: any read of it in a transaction without a
+   * tenant scope is fail-closed EMPTY. {@code security_platform_collectors} is what the UI uses to
+   * keep a collector-managed platform read-only, and it is rendered from the lazy {@code
+   * collectors} association during JSON serialization — after the transaction (open-in-view), where
+   * the transaction-local scope is gone. Every endpoint that serializes a {@link SecurityPlatform}
+   * must therefore declare a {@link TxCtx} (the transaction aspect writes it into the scope) AND
+   * initialize the association inside that scoped transaction through this helper, or every
+   * platform silently unlocks in the UI (issue #7025).
+   */
+  private static SecurityPlatform withCollectorsInitialized(SecurityPlatform securityPlatform) {
+    Hibernate.initialize(securityPlatform.getCollectors());
+    return securityPlatform;
+  }
+
   @GetMapping({SECURITY_PLATFORM_URI, TENANT_SECURITY_PLATFORM_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SECURITY_PLATFORM)
-  public Iterable<SecurityPlatform> securityPlatforms() {
-    return securityPlatformRepository.findAll();
+  // TxCtx scopes the transaction to the caller's tenants so the collectors association loads
+  // (fail-closed empty otherwise); see withCollectorsInitialized.
+  public Iterable<SecurityPlatform> securityPlatforms(TxCtx ctx) {
+    return fromIterable(securityPlatformRepository.findAll()).stream()
+        .map(SecurityPlatformApi::withCollectorsInitialized)
+        .toList();
   }
 
   @PostMapping({SECURITY_PLATFORM_URI, TENANT_SECURITY_PLATFORM_URI})
@@ -115,20 +136,26 @@ public class SecurityPlatformApi {
       resourceId = "#securityPlatformId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SECURITY_PLATFORM)
+  // TxCtx scopes the transaction so the collectors association loads; see
+  // withCollectorsInitialized.
   public SecurityPlatform securityPlatform(
-      @PathVariable @NotBlank final String securityPlatformId) {
+      TxCtx ctx, @PathVariable @NotBlank final String securityPlatformId) {
     return this.securityPlatformRepository
         .findById(securityPlatformId)
+        .map(SecurityPlatformApi::withCollectorsInitialized)
         .orElseThrow(ElementNotFoundException::new);
   }
 
   @PostMapping({SECURITY_PLATFORM_URI + "/search", TENANT_SECURITY_PLATFORM_URI + "/search"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
+  // TxCtx scopes the transaction so the collectors association loads; see
+  // withCollectorsInitialized.
   public Page<SecurityPlatform> securityPlatforms(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
-        this.securityPlatformRepository::findAll, searchPaginationInput, SecurityPlatform.class);
+            this.securityPlatformRepository::findAll, searchPaginationInput, SecurityPlatform.class)
+        .map(SecurityPlatformApi::withCollectorsInitialized);
   }
 
   @PutMapping({
@@ -140,7 +167,10 @@ public class SecurityPlatformApi {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
+  // TxCtx scopes the transaction so the response's collectors association loads (the UI replaces
+  // its local state with this payload); see withCollectorsInitialized.
   public SecurityPlatform updateSecurityPlatform(
+      TxCtx ctx,
       @PathVariable @NotBlank final String securityPlatformId,
       @Valid @RequestBody final SecurityPlatformInput input) {
     SecurityPlatform securityPlatform =
@@ -157,7 +187,7 @@ public class SecurityPlatformApi {
       securityPlatform.setLogoLight(null);
     }
     securityPlatform.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
-    return this.securityPlatformRepository.save(securityPlatform);
+    return withCollectorsInitialized(this.securityPlatformRepository.save(securityPlatform));
   }
 
   @DeleteMapping({
