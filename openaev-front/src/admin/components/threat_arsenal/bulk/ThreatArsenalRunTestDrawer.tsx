@@ -1,5 +1,5 @@
 import { PlaylistAddOutlined, RouteOutlined } from '@mui/icons-material';
-import { Box, Chip, Step, StepLabel, Stepper, Typography } from '@mui/material';
+import { Box, Chip, Step, StepButton, StepLabel, Stepper, Typography } from '@mui/material';
 import { Target } from 'mdi-material-ui';
 import { type FunctionComponent, useState } from 'react';
 
@@ -103,12 +103,11 @@ const ThreatArsenalRunTestDrawer: FunctionComponent<Props> = ({
       >
         <Stepper activeStep={activeStep}>
           <Step completed={activeStep > 0}>
-            <StepLabel
-              onClick={activeStep > 0 ? handleBack : undefined}
-              sx={{ cursor: activeStep > 0 ? 'pointer' : 'default' }}
-            >
+            {/* StepButton (not a bare StepLabel onClick) so going back is focusable
+                and keyboard-activatable. */}
+            <StepButton onClick={handleBack} disabled={activeStep === 0}>
               {t('Execution mode')}
-            </StepLabel>
+            </StepButton>
           </Step>
           <Step>
             <StepLabel>{modeStepLabels[selectedExecutionMode]}</StepLabel>

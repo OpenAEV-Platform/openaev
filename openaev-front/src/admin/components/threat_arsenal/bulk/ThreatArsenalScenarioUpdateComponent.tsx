@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type AxiosResponse } from 'axios';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { searchScenarios, updateScenariosWithInjectorContracts } from '../../../../actions/scenarios/scenario-actions';
@@ -61,8 +61,13 @@ const ThreatArsenalScenarioUpdateComponent = ({
   const [isLoadingMore, setLoadingMore] = useState(false);
   const [selectedScenarios, setSelectedScenarios] = useState<RawPaginationScenario[]>([]);
   const [isSubmitting, setSubmitting] = useState(false);
+  // Requests can resolve out of order (debounced searches, "show more" racing a
+  // new search): only the latest request is allowed to touch the list state.
+  const requestIdRef = useRef(0);
 
   const fetchPage = (pageToLoad: number, search: string, append: boolean) => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
     const input = buildSearchPagination({
       page: pageToLoad,
       size: PAGE_SIZE,
@@ -72,19 +77,26 @@ const ThreatArsenalScenarioUpdateComponent = ({
         direction: 'DESC',
       }],
     });
-    return searchScenarios(input).then((response: AxiosResponse<PageRawPaginationScenario>) => {
-      const content = response.data.content ?? [];
-      setScenarios(prev => (append ? [...prev, ...content] : content));
-      setTotalElements(response.data.totalElements ?? 0);
-      setHasMore(!(response.data.last ?? true));
-    });
+    return searchScenarios(input)
+      .then((response: AxiosResponse<PageRawPaginationScenario>) => {
+        if (requestId !== requestIdRef.current) return;
+        const content = response.data.content ?? [];
+        setScenarios(prev => (append ? [...prev, ...content] : content));
+        setTotalElements(response.data.totalElements ?? 0);
+        setHasMore(!(response.data.last ?? true));
+      })
+      .finally(() => {
+        if (requestId !== requestIdRef.current) return;
+        setLoading(false);
+        setLoadingMore(false);
+      });
   };
 
   useEffect(() => {
     setLoading(true);
     const handler = setTimeout(() => {
       setPage(0);
-      fetchPage(0, textSearch, false).finally(() => setLoading(false));
+      fetchPage(0, textSearch, false);
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handler);
   }, [textSearch]);
@@ -93,7 +105,7 @@ const ThreatArsenalScenarioUpdateComponent = ({
     const nextPage = page + 1;
     setPage(nextPage);
     setLoadingMore(true);
-    fetchPage(nextPage, textSearch, true).finally(() => setLoadingMore(false));
+    fetchPage(nextPage, textSearch, true);
   };
 
   const isSelected = (scenario: RawPaginationScenario) =>
@@ -111,7 +123,9 @@ const ThreatArsenalScenarioUpdateComponent = ({
     setSubmitting(true);
     const inputs: ScenarioIdsAndInjectorContractsInputs = {
       locale: locale,
-      scenario_ids: selectedScenarios.map(scenario => scenario.scenario_id ?? ''),
+      scenario_ids: selectedScenarios
+        .map(scenario => scenario.scenario_id)
+        .filter((id): id is string => !!id),
       injector_contract_search_pagination_input: {
         ...searchPaginationInput,
         injector_contract_ids_to_process: isExclusionMode ? [] : Object.keys(selectedElements),
