@@ -570,19 +570,32 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
-   * Expands condition batches into per-target batches by resolving scope assets and IPs.
+   * Expands condition batches into per-target batches by resolving scope assets and, optionally, IPs.
    *
-   * <p>Each original batch is duplicated once per in-scope asset and once per in-scope IP. The
-   * target is embedded in the batch {@code inputString} under {@code "_target"} so that {@link
-   * #ready} can bake it into the step data for {@link #run} to consume.
+   * <p>Each original batch is duplicated once per in-scope asset and, when {@code
+   * includeManualTargets} is {@code true}, once per in-scope IP. The target is embedded in the batch
+   * {@code inputString} under {@code "_target"} so that {@link #ready} can bake it into the step data
+   * for {@link #run} to consume.
+   *
+   * <p>Manual (IP) targets only make sense for external injectors, which can target a raw IP.
+   * Payload-based injects run on an agent/endpoint, so callers pass {@code includeManualTargets =
+   * false} to expand per asset only.
+   *
+   * @param batches original condition batches to expand
+   * @param workflowRun the running workflow (provides the scope)
+   * @param includeManualTargets whether to also produce one batch per in-scope manual IP target
    */
   public List<ConditionService.ExecutionBatch> expandTargetBatches(
-      List<ConditionService.ExecutionBatch> batches, Workflow workflowRun) {
+      List<ConditionService.ExecutionBatch> batches,
+      Workflow workflowRun,
+      boolean includeManualTargets) {
 
     String workflowId = workflowRun.getId();
     List<Asset> validAssets = scopeService.getValidAssets(workflowId);
     List<String> validManualTargets =
-        scopeService.getValidManualTargetsFromScopeAndGlobalState(workflowId);
+        includeManualTargets
+            ? scopeService.getValidManualTargetsFromScopeAndGlobalState(workflowId)
+            : List.of();
 
     if (validAssets.isEmpty() && validManualTargets.isEmpty()) {
       return batches;
@@ -940,10 +953,9 @@ public class InjectExecutionStep implements ActionStep {
       inject.setContent(contentWithExpectations);
 
       // Apply the per-target info baked in by ready() (asset or IP from scope).
-      // For injector-based steps, expansion set _chaining_target → one asset per step.
-      // For payload-based steps (no expansion), fall back to all scope assets so the
-      // executor can distribute the payload across every scoped endpoint — same behavior
-      // as before expandTargetBatches was introduced.
+      // Expansion sets _chaining_target → one asset per step (external injectors also expand per
+      // manual IP target). If no target was baked in (e.g. no assets in scope), fall back to all
+      // scope assets so the executor can still distribute across every scoped endpoint.
       boolean targetApplied =
           applyChainingTarget(inject, step.getData(), injectorContract.getPayload() == null);
       if (!targetApplied && step.getWorkflow() != null) {

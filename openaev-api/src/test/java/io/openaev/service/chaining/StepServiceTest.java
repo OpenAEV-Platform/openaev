@@ -2,6 +2,7 @@ package io.openaev.service.chaining;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -417,7 +418,7 @@ class StepServiceTest {
 
         when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
             .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers, null)));
-        when(injectExecutionStep.expandTargetBatches(any(), any()))
+        when(injectExecutionStep.expandTargetBatches(any(), any(), anyBoolean()))
             .thenAnswer(invocation -> invocation.getArgument(0));
 
         Step stepReady = mock(Step.class);
@@ -478,7 +479,7 @@ class StepServiceTest {
 
         when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
             .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers, null)));
-        when(injectExecutionStep.expandTargetBatches(any(), any()))
+        when(injectExecutionStep.expandTargetBatches(any(), any(), anyBoolean()))
             .thenAnswer(invocation -> invocation.getArgument(0));
 
         Step stepReady = mock(Step.class);
