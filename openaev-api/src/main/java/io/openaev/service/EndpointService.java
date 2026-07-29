@@ -38,7 +38,6 @@ import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.BufferedInputStream;
