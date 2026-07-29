@@ -39,6 +39,8 @@ public class V20260708_Dynamic_injectors_base_url extends DataPack {
     this.injectorRepository = injectorRepository;
   }
 
+  // Runs inside the tenant-scoped transaction opened by MigrationProcessor — no scope of its own
+  // needed here.
   @Override
   protected boolean doProcess() {
     List<Injector> injectors = injectorRepository.findAll();
