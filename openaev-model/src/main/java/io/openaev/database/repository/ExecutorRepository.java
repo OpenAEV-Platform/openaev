@@ -19,6 +19,6 @@ public interface ExecutorRepository extends CrudRepository<Executor, ConnectorCo
   Optional<Executor> findByType(@NotNull String type);
 
   @Modifying
-  @Query(nativeQuery = true, value = "DELETE FROM executors WHERE executor_id = :id")
+  @Query("DELETE FROM Executor e WHERE e.id = :id")
   void deleteByExecutorId(@Param("id") String id);
 }
