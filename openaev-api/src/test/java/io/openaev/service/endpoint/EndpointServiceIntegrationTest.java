@@ -358,7 +358,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
       @Test
       @DisplayName("When creating an agentless endpoint, bad hostname is rejected")
-      void whenCreatingAgentlessEndpoint_hostnameIsNormalised() throws Exception {
+      void whenCreatingAgentlessEndpoint_badHostnameIsRejected() throws Exception {
         String maliciousStringInput = "1; \"evil command\".dot-com";
         executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
         EndpointInput input = EndpointRegisterInputFixture.getDefaultEndpointInput();
@@ -377,7 +377,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
       @Test
       @DisplayName("When upserting an agentless endpoint, bad hostname is rejected")
-      void whenUpsertingAgentlessEndpoint_hostnameIsNormalised() throws Exception {
+      void whenUpsertingAgentlessEndpoint_hostnameIsRejected() throws Exception {
         String maliciousStringInput = "1; \"evil command\".dot-com";
         executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
         EndpointInput input = EndpointRegisterInputFixture.getDefaultEndpointInput();

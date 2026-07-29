@@ -109,7 +109,7 @@ public class EndpointFixture {
   public static Endpoint createEndpointOnlyWithHostname() {
     Endpoint endpoint = baseEndpoint("Hostname", Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setIps(NO_LOCAL_IPS);
-    endpoint.setHostname("Linux Hostname");
+    endpoint.setHostname("Linux-Hostname");
     endpoint.setSeenIp(Strings.EMPTY);
     return endpoint;
   }
