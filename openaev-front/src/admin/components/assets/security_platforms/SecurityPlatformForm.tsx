@@ -58,7 +58,7 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
   });
 
   return (
-    <form id="securityPlatformForm" onSubmit={e => e.preventDefault()}>
+    <form id="securityPlatformForm" onSubmit={handleSubmit(onSubmit)}>
       <TextField
         variant="standard"
         fullWidth
@@ -172,8 +172,8 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
         <Button
           variant="contained"
           color="primary"
-          disabled={!editing && !isDirty}
-          onClick={handleSubmit(onSubmit)}
+          type="submit"
+          disabled={!isDirty || isSubmitting}
         >
           {editing ? t('Update') : t('Create')}
         </Button>
