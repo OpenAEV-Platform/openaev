@@ -827,8 +827,8 @@ public class WorkflowService {
   }
 
   /**
-   * Starts workflow evaluation: seeds global state from allowlist scope rules, evaluates step
-   * progress, and saves the workflow run.
+   * Starts workflow evaluation: seeds global state from allowlist scope rules and scope variables,
+   * evaluates step progress, and saves the workflow run.
    *
    * @param workflowRun the workflow run to start
    */
@@ -849,19 +849,44 @@ public class WorkflowService {
     saveWorkflowRun(workflowRun);
   }
 
+  /**
+   * Builds the initial global state seed for a workflow run from two sources:
+   *
+   * <ul>
+   *   <li>Scope allowlist rules (asset/IP/subnet/domain) restricting execution targets.
+   *   <li>Scope variables (e.g. a default "Username") manually defined on the Scope page.
+   * </ul>
+   *
+   * <p>Both sources are merged under the same key convention (the {@link PrimitiveType} name) so
+   * that a MAPPER condition looking for a GLOBAL value of a given type (e.g. {@code Username}) can
+   * be satisfied by either an allowlist rule or a scope variable. Without this, steps whose first
+   * condition requires a GLOBAL value that is only ever provided via a scope variable (there is no
+   * other producer for it) could never become READY.
+   */
   private ScopeStateSeed extractScopeStateSeed(Workflow workflowRun) {
-    if (workflowRun.getAllowlist() == null || workflowRun.getAllowlist().isEmpty()) {
-      return new ScopeStateSeed(Collections.emptyMap(), Collections.emptyMap());
-    }
-
     Map<String, List<String>> scopeData = new HashMap<>();
     Map<String, ChainingMappedType> typeMappings = new HashMap<>();
-    for (WorkflowScopeRule rule : workflowRun.getAllowlist()) {
-      String key = rule.getValueType().name();
-      scopeData.computeIfAbsent(key, ignored -> new ArrayList<>()).add(rule.getRuleValue());
-      typeMappings.putIfAbsent(
-          key, ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(rule.getValueType()));
+
+    if (workflowRun.getAllowlist() != null) {
+      for (WorkflowScopeRule rule : workflowRun.getAllowlist()) {
+        String key = rule.getValueType().name();
+        scopeData.computeIfAbsent(key, ignored -> new ArrayList<>()).add(rule.getRuleValue());
+        typeMappings.putIfAbsent(
+            key, ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(rule.getValueType()));
+      }
     }
+
+    if (workflowRun.getWorkflowScopeVariables() != null) {
+      for (ScopeVariable variable : workflowRun.getWorkflowScopeVariables()) {
+        if (variable.getValue() == null || variable.getValue().isBlank()) {
+          continue;
+        }
+        String key = variable.getType().name();
+        scopeData.computeIfAbsent(key, ignored -> new ArrayList<>()).add(variable.getValue());
+        typeMappings.putIfAbsent(key, ChainingMappedType.primitive(variable.getType()));
+      }
+    }
+
     return new ScopeStateSeed(scopeData, typeMappings);
   }
 
