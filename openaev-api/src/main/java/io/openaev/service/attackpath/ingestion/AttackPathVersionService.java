@@ -4,6 +4,7 @@ import io.openaev.database.repository.attackpath.AttackPathGraphVersionRepositor
 import java.util.Collection;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 /**
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 public class AttackPathVersionService {
 
   private final AttackPathGraphVersionRepository versionRepository;
+  private final ApplicationEventPublisher eventPublisher;
 
   /**
    * Takes the simulation's next version and returns it, to stamp on the rows of the same write. One
@@ -45,6 +47,12 @@ public class AttackPathVersionService {
               + simulationId
               + "; refusing to stamp rows with an unknown version");
     }
+    // The nudge (spec 003, FR1): published inside the writer's transaction, delivered after commit
+    // by the stream's @TransactionalEventListener, so a client fetching on it never observes a
+    // version lower than the announced one. Every projection writer bumps here, so this single
+    // point covers them all. Several bumps in one transaction yield several nudges, which is
+    // harmless: the delta fetch is cursor-idempotent and the client debounces bursts.
+    eventPublisher.publishEvent(new AttackPathVersionEvent(simulationId, tenantId, version));
     return version;
   }
 
