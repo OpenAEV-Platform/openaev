@@ -132,7 +132,7 @@ public class EndpointService implements AuditLoggedService {
   private final ApplicationEventPublisher eventPublisher;
 
   // -- CRUD --
-  public Endpoint createEndpoint(@Valid @NotNull final Endpoint endpoint) {
+  public Endpoint createEndpoint(@NotNull final Endpoint endpoint) {
     return this.endpointRepository.save(endpoint);
   }
 
