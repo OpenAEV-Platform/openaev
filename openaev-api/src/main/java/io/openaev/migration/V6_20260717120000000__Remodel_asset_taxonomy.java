@@ -6,9 +6,9 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 /**
- * Remodels the asset taxonomy so a single concrete {@code Asset} is the target concept driven by
- * {@code asset_category}, with {@code Endpoint} the only agent-capable subtype and {@code
- * SecurityPlatform} a separate detection-source concept.
+ * Remodels the asset taxonomy so a single concrete {@code Asset} is the base concept driven by
+ * {@code asset_category}, with {@code Endpoint} the executable-target subtype (agent-based or
+ * agentless) and {@code SecurityPlatform} a separate detection-source concept.
  *
  * <p>All steps are idempotent and either metadata-only or targeted updates (no table rewrite):
  *
@@ -16,14 +16,13 @@ import org.springframework.stereotype.Component;
  *   <li>Rename the target-relevant network columns {@code endpoint_* -> asset_*} - they now live on
  *       the {@code Asset} base since they are relevant to more than agent hosts (web / cloud /
  *       network categories).
- *   <li>Re-discriminate rows: former {@code AiTarget} rows and non-host {@code Endpoint} rows
- *       without agents become the base {@code Asset} type ({@code asset_type = 'Asset'}); {@code
- *       SecurityPlatform} rows are left untouched. The category column continues to carry the
- *       product taxonomy.
+ *   <li>Re-discriminate rows: former {@code AiTarget} rows become the base {@code Asset} type
+ *       ({@code asset_type = 'Asset'}); {@code Endpoint} and {@code SecurityPlatform} rows are left
+ *       untouched. The category column continues to carry the product taxonomy.
  *   <li>Backfill {@code asset_category = 'HOST'} on legacy endpoints with a NULL category.
  *   <li>Rewrite stored dynamic asset-group filter keys to the renamed properties.
- *   <li>Reset the indexing status of the endpoint-derived ES indexes so stale documents of demoted
- *       rows are rebuilt away.
+ *   <li>Reset the indexing status of the endpoint-derived ES indexes so stale documents of
+ *       re-discriminated rows are rebuilt away.
  * </ol>
  */
 @Component
@@ -41,18 +40,14 @@ public class V6_20260717120000000__Remodel_asset_taxonomy extends BaseJavaMigrat
 
       // -- 2. Re-discriminate to the concrete Asset base --
       // Former AI targets: AI is now a category, not an entity type.
+      // NOTE: an earlier revision of this migration also demoted agentless non-host Endpoint rows
+      // (CLOUD_RESOURCE / WEB_APPLICATION / ... / GENERIC_ASSET) to the base Asset type. That
+      // demotion was reverted: the edit flow (GET/PUT /api/endpoints/{id}) and the inject target
+      // picker (POST /api/endpoints/search) are Endpoint-typed, so demoted rows 404ed on edit and
+      // vanished from target selection, while creation still persists every non-AI category as an
+      // agentless Endpoint. Platforms that already ran the demoting revision are repaired by
+      // V6_20260729120000000__Restore_demoted_endpoint_assets.
       statement.execute("UPDATE assets SET asset_type = 'Asset' WHERE asset_type = 'AiTarget';");
-      // Non-host endpoints become generic assets; agent-capable host categories stay Endpoint.
-      // Rows that carry agents are never demoted regardless of category: agents only exist on
-      // Endpoint, so demoting an agent-bearing row (e.g. a host a user categorized as
-      // CLOUD_RESOURCE, or a legacy platform bucketed into GENERIC_ASSET) would orphan its agents
-      // and silently break execution on that host.
-      statement.execute(
-          "UPDATE assets SET asset_type = 'Asset' "
-              + "WHERE asset_type = 'Endpoint' AND asset_category IN ("
-              + "'CLOUD_RESOURCE','WEB_APPLICATION','NETWORK_DEVICE','IOT_OT_DEVICE',"
-              + "'IDENTITY','SAAS_APPLICATION','GENERIC_ASSET') "
-              + "AND NOT EXISTS (SELECT 1 FROM agents ag WHERE ag.agent_asset = assets.asset_id);");
 
       // -- 3. Backfill the category on legacy endpoints that predate the asset_category column --
       // These rows carry a NULL category, so the inventory shows an empty "Category" cell. Endpoint
@@ -89,7 +84,7 @@ public class V6_20260717120000000__Remodel_asset_taxonomy extends BaseJavaMigrat
       }
 
       // -- 5. Rebuild the endpoint-derived ES indexes --
-      // Demoted rows (former AI targets / non-host endpoints) leave stale documents behind in
+      // Re-discriminated rows (former AI targets) leave stale documents behind in
       // the endpoint index (re-discrimination is an UPDATE, not a DELETE, so the incremental
       // indexer never removes them). Dropping the indexing status makes the engine recreate and
       // fully reindex these indexes at startup. Idempotent by nature.
