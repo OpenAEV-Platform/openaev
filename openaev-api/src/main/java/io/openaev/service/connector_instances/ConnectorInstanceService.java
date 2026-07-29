@@ -417,7 +417,7 @@ public class ConnectorInstanceService {
           endpointService.removeSourceTagsForExecutor(connectorId, tenantId);
           executorRepository.deleteByExecutorId(connectorId);
         }
-        case INJECTOR -> injectorRepository.deleteByIdAndTenantId(connectorId, tenantId);
+        case INJECTOR -> injectorRepository.deleteByInjectorId(connectorId);
         case COLLECTOR -> collectorRepository.deleteByCollectorId(connectorId);
       }
     }

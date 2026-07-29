@@ -5,7 +5,6 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.rest.connector_instance.dto.*;
@@ -55,7 +54,8 @@ public class ConnectorInstanceApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Successfully created connector instance")
       })
   public ConnectorInstancePersisted createConnectorInstance(
-      @Valid @RequestBody CreateConnectorInstanceInput input) {
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody CreateConnectorInstanceInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     // --- /!\ --- SECURITY START : Encrypt sensitive values before any LOGGING or processing
     ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap =
         this.orchestrationService.getCatalogConnectorWithConfigurationsMap(
@@ -67,7 +67,7 @@ public class ConnectorInstanceApi extends RestBehavior {
 
     // only instance managed by XTM Composer can be created through this API
     return orchestrationService.createConnectorInstance(
-        catalogConnectorWithConfigMap, safeInput, TenantContext.getCurrentTenant());
+        catalogConnectorWithConfigMap, safeInput, tenantId);
   }
 
   @GetMapping(

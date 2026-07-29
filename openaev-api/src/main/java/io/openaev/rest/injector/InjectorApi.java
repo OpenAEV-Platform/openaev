@@ -8,7 +8,9 @@ import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.ResourceType;
@@ -65,6 +67,7 @@ public class InjectorApi extends RestBehavior {
   private final InjectStatusService injectStatusService;
   private final InjectorService injectorService;
   private final FileService fileService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @Value("${info.app.version:unknown}")
   String version;
@@ -89,6 +92,7 @@ public class InjectorApi extends RestBehavior {
               mediaType = "application/json",
               array = @ArraySchema(schema = @Schema(implementation = InjectorOutput.class))))
   public Iterable<InjectorOutput> injectors(
+      TxCtx ctx,
       @Parameter(
               name = "includeNext",
               description = "Include injectors pending deployment",
@@ -107,11 +111,9 @@ public class InjectorApi extends RestBehavior {
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR)
-  public Collection<JsonNode> injectorInjectTypes(@PathVariable String injectorId) {
+  public Collection<JsonNode> injectorInjectTypes(TxCtx ctx, @PathVariable String injectorId) {
     Injector injector =
-        injectorRepository
-            .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        injectorRepository.findByInjectorId(injectorId).orElseThrow(ElementNotFoundException::new);
     return fromIterable(injectorContractRepository.findByInjectorsContaining(injector)).stream()
         .map(
             contract -> {
@@ -131,11 +133,12 @@ public class InjectorApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR)
   public Injector updateInjector(
-      @PathVariable String injectorId, @Valid @RequestBody InjectorUpdateInput input) {
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String injectorId,
+      @Valid @RequestBody InjectorUpdateInput input) {
+    writeScopeResolver.tenantForWrite(ctx, null);
     Injector injector =
-        injectorRepository
-            .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        injectorRepository.findByInjectorId(injectorId).orElseThrow(ElementNotFoundException::new);
     return injectorService.updateExistingExternalInjector(
         injector,
         injector.getType(),
@@ -157,7 +160,7 @@ public class InjectorApi extends RestBehavior {
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR)
-  public InjectorOutput injector(@PathVariable String injectorId) {
+  public InjectorOutput injector(TxCtx ctx, @PathVariable String injectorId) {
     return injectorService.injectorOutput(injectorId);
   }
 
@@ -171,7 +174,7 @@ public class InjectorApi extends RestBehavior {
       resourceType = ResourceType.INJECTOR)
   @Operation(summary = "Retrieve injector related ids")
   @Transactional
-  public ConnectorIds getInjectorRelatedIds(@PathVariable String injectorId) {
+  public ConnectorIds getInjectorRelatedIds(TxCtx ctx, @PathVariable String injectorId) {
     return injectorService.getInjectorRelationsId(injectorId);
   }
 
@@ -211,7 +214,9 @@ public class InjectorApi extends RestBehavior {
               + " an active injector re-registers on its next heartbeat. The implant injector is"
               + " the platform's own execution path and cannot be removed.")
   @Transactional(rollbackFor = Exception.class)
-  public void deleteInjector(@PathVariable String injectorId) throws ConnectorStatusException {
+  public void deleteInjector(@RequireTenantSelector TxCtx ctx, @PathVariable String injectorId)
+      throws ConnectorStatusException {
+    writeScopeResolver.tenantForWrite(ctx, null);
     injectorService.deleteInjector(injectorId);
   }
 
@@ -222,9 +227,11 @@ public class InjectorApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR)
   @Transactional(rollbackFor = Exception.class)
   public InjectorRegistration registerInjector(
+      @RequireTenantSelector TxCtx ctx,
       @Valid @RequestPart("input") InjectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {
-    return injectorService.registerExternalInjector(input, file);
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return injectorService.registerExternalInjector(input, file, tenantId);
   }
 
   // Public API
@@ -289,6 +296,7 @@ public class InjectorApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   public List<FilterUtilsJpa.Option> optionsByName(
+      TxCtx ctx,
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId) {
     return fromIterable(
@@ -303,8 +311,10 @@ public class InjectorApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   public List<FilterUtilsJpa.Option> optionsById(
-      @RequestBody final List<String> ids, @RequestParam(required = false) final String sourceId) {
-    return injectorService.findAllByIds(ids, TenantContext.getCurrentTenant()).stream()
+      TxCtx ctx,
+      @RequestBody final List<String> ids,
+      @RequestParam(required = false) final String sourceId) {
+    return injectorService.findAllByIds(ids).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
   }

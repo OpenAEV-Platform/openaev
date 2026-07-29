@@ -615,8 +615,10 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
-  public Exercise createRunningExerciseFromScenario(@PathVariable @NotBlank final String scenarioId)
-      throws ChainingException {
+  public Exercise createRunningExerciseFromScenario(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope for this write (toExercise clones injects, reading Inject#getInjector()).
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     Exercise simulation;
 

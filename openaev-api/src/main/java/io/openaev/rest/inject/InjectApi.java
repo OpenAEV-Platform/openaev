@@ -278,6 +278,9 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public Page<InjectTarget> injectTargetSearch(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope for this read (searchTargets reads InjectorContract#getInjectors()).
+      TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetType,
       @Valid @RequestBody SearchPaginationInput input) {

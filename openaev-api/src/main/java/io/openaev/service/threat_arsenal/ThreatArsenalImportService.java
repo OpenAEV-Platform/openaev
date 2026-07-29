@@ -67,9 +67,7 @@ public class ThreatArsenalImportService {
               // disabled). Re-link payload-based contracts to the payload-supporting
               // injectors, as synchroniseInjectorContractBasedOnPayload does on creation.
               if (contract.getPayload() != null) {
-                contract.addInjectors(
-                    injectorRepository.findAllByPayloadsAndTenantId(
-                        true, TenantContext.getCurrentTenant()));
+                contract.addInjectors(injectorRepository.findAllByPayloads(true));
               }
               InjectorContractMigrationUtils.migratePredefinedExpectations(contract);
               return contract;
