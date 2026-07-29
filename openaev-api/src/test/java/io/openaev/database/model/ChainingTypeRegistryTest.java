@@ -18,7 +18,7 @@ class ChainingTypeRegistryTest {
         .isEqualTo(ChainingTypeKind.PRIMITIVE);
     assertThat(
             ChainingTypeRegistry.getMappedTypeForContractOutputType(
-                    ContractOutputType.OutputExecution)
+                    ContractOutputType.ActionOutput)
                 .kind())
         .isEqualTo(ChainingTypeKind.PRIMITIVE);
     assertThat(
@@ -44,7 +44,7 @@ class ChainingTypeRegistryTest {
             PrimitiveType.IpSubnet,
             PrimitiveType.TargetedAsset,
             PrimitiveType.Document,
-            PrimitiveType.OutputExecution,
+            PrimitiveType.ActionOutput,
             PrimitiveType.AssetId,
             PrimitiveType.AssetGroupId);
   }

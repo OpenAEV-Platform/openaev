@@ -32,8 +32,8 @@ class OutputProcessorIntegrationTest extends IntegrationTest {
     assertThat(registry.getProcessor(ContractOutputType.Text).get())
         .isInstanceOf(TextOutputProcessor.class);
 
-    assertThat(registry.getProcessor(ContractOutputType.OutputExecution).get())
-        .isInstanceOf(OutputExecutionOutputProcessor.class);
+    assertThat(registry.getProcessor(ContractOutputType.ActionOutput).get())
+        .isInstanceOf(ActionOutputOutputProcessor.class);
 
     assertThat(registry.getProcessor(ContractOutputType.PortsScan).get())
         .isInstanceOf(PortScanOutputProcessor.class);

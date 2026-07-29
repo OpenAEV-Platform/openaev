@@ -9,11 +9,11 @@ import io.openaev.rest.finding.FindingService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-class OutputExecutionOutputProcessorTest {
+class ActionOutputOutputProcessorTest {
 
   private final FindingService findingService = mock(FindingService.class);
-  private final OutputExecutionOutputProcessor processor =
-      new OutputExecutionOutputProcessor(findingService);
+  private final ActionOutputOutputProcessor processor =
+      new ActionOutputOutputProcessor(findingService);
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Test

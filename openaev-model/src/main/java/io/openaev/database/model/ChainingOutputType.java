@@ -20,7 +20,7 @@ public record ChainingOutputType(
 
   static {
     registerPrimitive(ContractOutputType.Text, PrimitiveType.Text);
-    registerPrimitive(ContractOutputType.OutputExecution, PrimitiveType.OutputExecution);
+    registerPrimitive(ContractOutputType.ActionOutput, PrimitiveType.ActionOutput);
     registerPrimitive(ContractOutputType.Number, PrimitiveType.Number);
     registerPrimitive(ContractOutputType.Port, PrimitiveType.Port);
     registerPrimitive(ContractOutputType.IPv4, PrimitiveType.IPv4);

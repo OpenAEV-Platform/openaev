@@ -195,11 +195,11 @@ export interface AggregatedFindingOutput {
   finding_id: string;
   /**
    * Represents the data type being extracted.
-   * @example "text, output_execution, number, port, portscan, ipv4, ipv6, credentials, cve"
+   * @example "text, action_output, number, port, portscan, ipv4, ipv6, credentials, cve"
    */
   finding_type:
     | "text"
-    | "output_execution"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -2042,7 +2042,7 @@ export interface ConditionCreateInput {
     | "kerberoastable_account"
     | "key"
     | "number"
-    | "output_execution"
+    | "action_output"
     | "password"
     | "permissions"
     | "port"
@@ -2111,7 +2111,7 @@ export interface ConditionOutput {
     | "kerberoastable_account"
     | "key"
     | "number"
-    | "output_execution"
+    | "action_output"
     | "password"
     | "permissions"
     | "port"
@@ -2264,7 +2264,7 @@ export interface ContractOutputElement {
   contract_output_element_tags?: string[];
   contract_output_element_type:
     | "text"
-    | "output_execution"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -2317,10 +2317,10 @@ export interface ContractOutputElementInput {
   contract_output_element_rule: string;
   /** List of tags */
   contract_output_element_tags?: string[];
-  /** Contract Output element type, can be: text, output_execution, number, port, IPV6, IPV4, portscan, credentials */
+  /** Contract Output element type, can be: text, action_output, number, port, IPV6, IPV4, portscan, credentials */
   contract_output_element_type:
     | "text"
-    | "output_execution"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -2368,11 +2368,11 @@ export interface ContractOutputElementSimple {
   contract_output_element_tags?: string[];
   /**
    * Represents the data type being extracted.
-   * @example "text, output_execution, number, port, portscan, ipv4, ipv6, credentials"
+   * @example "text, action_output, number, port, portscan, ipv4, ipv6, credentials"
    */
   contract_output_element_type:
     | "text"
-    | "output_execution"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -4747,7 +4747,7 @@ export interface Finding {
   finding_teams?: string[];
   finding_type:
     | "text"
-    | "output_execution"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -4784,7 +4784,7 @@ export interface FindingInput {
   finding_labels?: string[];
   finding_type:
     | "text"
-    | "output_execution"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -6550,7 +6550,7 @@ export interface MapperConditionOutput {
     | "kerberoastable_account"
     | "key"
     | "number"
-    | "output_execution"
+    | "action_output"
     | "password"
     | "permissions"
     | "port"
@@ -7899,7 +7899,7 @@ export interface PayloadArgument {
     | "kerberoastable_account"
     | "key"
     | "number"
-    | "output_execution"
+    | "action_output"
     | "password"
     | "permissions"
     | "port"
@@ -8864,11 +8864,11 @@ export interface RelatedFindingOutput {
   finding_simulation?: ExerciseSimple;
   /**
    * Represents the data type being extracted.
-   * @example "text, output_execution, number, port, portscan, ipv4, ipv6, credentials, cve"
+   * @example "text, action_output, number, port, portscan, ipv4, ipv6, credentials, cve"
    */
   finding_type:
     | "text"
-    | "output_execution"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -9492,7 +9492,7 @@ export interface ScopeVariableInput {
     | "kerberoastable_account"
     | "key"
     | "number"
-    | "output_execution"
+    | "action_output"
     | "password"
     | "permissions"
     | "port"
@@ -9544,7 +9544,7 @@ export interface ScopeVariableOutput {
     | "kerberoastable_account"
     | "key"
     | "number"
-    | "output_execution"
+    | "action_output"
     | "password"
     | "permissions"
     | "port"
@@ -10050,7 +10050,7 @@ export interface StepOutput {
     | "kerberoastable_account"
     | "key"
     | "number"
-    | "output_execution"
+    | "action_output"
     | "password"
     | "permissions"
     | "port"

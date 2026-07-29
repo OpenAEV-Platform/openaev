@@ -8,11 +8,11 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class OutputExecutionOutputProcessor extends FindingCapableOutputProcessor {
+public class ActionOutputOutputProcessor extends FindingCapableOutputProcessor {
 
-  public OutputExecutionOutputProcessor(FindingService findingService) {
+  public ActionOutputOutputProcessor(FindingService findingService) {
     super(
-        ContractOutputType.OutputExecution,
+        ContractOutputType.ActionOutput,
         ContractOutputTechnicalType.Text,
         List.of(),
         findingService);
