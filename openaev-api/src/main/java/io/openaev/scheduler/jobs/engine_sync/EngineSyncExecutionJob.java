@@ -5,6 +5,7 @@ import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
 import static org.quartz.TriggerBuilder.newTrigger;
 
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.config.EngineConfig;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EngineService;
 import io.openaev.engine.EsModel;
@@ -12,6 +13,7 @@ import io.openaev.engine.model.EsBase;
 import io.openaev.scheduler.SelfConfiguredPlatformJob;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Semaphore;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.*;
@@ -24,10 +26,35 @@ import org.springframework.stereotype.Component;
 public class EngineSyncExecutionJob extends SelfConfiguredPlatformJob {
   private static final String MODEL_NAME_KEY = "modelName";
 
+  /**
+   * Caps how many model syncs may run at the same time. Every sync pass holds a database connection
+   * for the whole duration of its fetch query; during a full reindex (indexing cursors reset to
+   * epoch by a migration) these queries re-rank entire tables and can run for a long time. Without
+   * a cap, up to {@code org.quartz.threadPool.threadCount} syncs run concurrently and, together
+   * with the regular jobs and HTTP traffic, exhaust the HikariCP pool - starving the whole platform
+   * until the rebuild completes. A pass that does not get a permit is simply skipped: the 15-second
+   * trigger retries it shortly after, so no work is lost.
+   */
+  private final Semaphore concurrentSyncs;
+
   protected EngineSyncExecutionJob(
-      Scheduler scheduler, EngineService engineService, EngineContext engineContext)
+      Scheduler scheduler,
+      EngineService engineService,
+      EngineContext engineContext,
+      EngineConfig engineConfig)
       throws SchedulerException {
     super(scheduler, engineService, engineContext);
+    // Clamp to at least 1: zero (or negative) permits would silently disable engine sync
+    // altogether, which is never what a tuning knob should do.
+    int maxConcurrentModels = engineConfig.getIndexingMaxConcurrentModels();
+    if (maxConcurrentModels < 1) {
+      log.warn(
+          "engine.indexing-max-concurrent-models is set to {}, which would disable engine sync"
+              + " entirely; clamping to 1",
+          maxConcurrentModels);
+      maxConcurrentModels = 1;
+    }
+    this.concurrentSyncs = new Semaphore(maxConcurrentModels);
   }
 
   @DisallowConcurrentExecution
@@ -48,8 +75,19 @@ public class EngineSyncExecutionJob extends SelfConfiguredPlatformJob {
                 .formatted(requestedModelName));
       }
 
-      log.info("Executing engine sync for model {}", model.get().getName());
-      engineService.bulkProcessing(Stream.of(model.get()));
+      if (!concurrentSyncs.tryAcquire()) {
+        log.debug(
+            "Skipping engine sync for model {}: concurrency cap reached"
+                + " (engine.indexing-max-concurrent-models), will retry at the next trigger",
+            model.get().getName());
+        return;
+      }
+      try {
+        log.info("Executing engine sync for model {}", model.get().getName());
+        engineService.bulkProcessing(Stream.of(model.get()));
+      } finally {
+        concurrentSyncs.release();
+      }
     }
   }
 

@@ -1580,7 +1580,10 @@ public class InjectService {
             : injectorContractFullOutput.getLabels().get("en"));
     injectInput.setDependsDuration(0L);
     injectInput.setInjectorContract(injectorContractFullOutput.getId());
-    injectInput.setContent(convertContent(injectorContractFullOutput.getContent()));
+    // Content is intentionally left null: buildInject then derives it from the contract's
+    // dynamic field defaults, which includes the predefined (default) expectations. Setting
+    // the raw contract definition here instead used to pollute the inject content and drop
+    // the default expectations (#6820).
     return injectInput;
   }
 

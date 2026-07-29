@@ -106,4 +106,117 @@ class AttackPathKeyMatcherTest {
     assertThat(AttackPathKeyMatcher.matches(finding("port", "445"), key("port", null, "445")))
         .isFalse();
   }
+
+  @Test
+  @DisplayName("a port key reaches the port sub-field of a portscan finding (host:port (service))")
+  void matches_portscan_port_subfield() {
+    // A portscan value is the formatted "host:port (service)"
+    // (PortScanOutputProcessor.toFindingValue),
+    // one finding per host+port. A `port` key must reach the port sub-field, not compare the whole
+    // value.
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("portscan", "10.0.3.11:445 (SMB)"), key("port", "EQ", "445")))
+        .isTrue();
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("portscan", "10.0.3.11:445 (SMB)"), key("port", "EQ", "22")))
+        .isFalse();
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("portscan", "10.0.3.11:445 (SMB)"), key("port", "IN", "139,445,3389")))
+        .isTrue();
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("portscan", "10.0.3.11:445 (SMB)"), key("port", "IS_NOT_NULL", null)))
+        .isTrue();
+    // Pitfall: an IPv6 host contains ':'; the port is the numeric token before the optional "
+    // (service)",
+    // not split(':')[1].
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("portscan", "2001:db8::1:445 (SMB)"), key("port", "EQ", "445")))
+        .isTrue();
+    // Pitfall: no " (service)" segment.
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("portscan", "10.0.3.11:445"), key("port", "EQ", "445")))
+        .isTrue();
+  }
+
+  @Test
+  @DisplayName("username/password keys reach the sub-fields of a credentials finding (user:pass)")
+  void matches_credentials_subfields() {
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("credentials", "admin:secret"), key("username", "EQ", "admin")))
+        .isTrue();
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("credentials", "admin:secret"), key("password", "EQ", "secret")))
+        .isTrue();
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("credentials", "admin:secret"), key("password", "EQ", "admin")))
+        .isFalse();
+    // A password containing ':' splits on the FIRST separator (the username has none).
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("credentials", "svc:p:ss"), key("password", "EQ", "p:ss")))
+        .isTrue();
+  }
+
+  @Test
+  @DisplayName("a share_name key reaches the share sub-field of a share-presented-as-file finding")
+  void matches_share_as_file_subfields() {
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("file", "\\\\host\\NETLOGON (RW)"), key("share_name", "EQ", "NETLOGON")))
+        .isTrue();
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("file", "\\\\host\\NETLOGON"), key("share_name", "EQ", "SYSVOL")))
+        .isFalse();
+  }
+
+  @Test
+  @DisplayName("username/domain keys reach the sub-fields of a username finding (domain\\user)")
+  void matches_username_finding_subfields() {
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("username", "CORP\\jdoe"), key("username", "EQ", "jdoe")))
+        .isTrue();
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("username", "CORP\\jdoe"), key("domain", "EQ", "CORP")))
+        .isTrue();
+  }
+
+  @Test
+  @DisplayName("an unparsable complex value never matches and never throws")
+  void unparsable_complex_value_never_matches() {
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("portscan", "host-no-colon"), key("port", "EQ", "445")))
+        .isFalse();
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("credentials", "no-colon"), key("password", "IS_NOT_NULL", null)))
+        .isFalse();
+  }
+
+  @Test
+  @DisplayName(
+      "candidate finding types = the identity type plus every complex type with the key as a"
+          + " sub-field")
+  void candidate_finding_types() {
+    // A `port` key can be satisfied by a primitive port finding OR a complex portscan finding.
+    assertThat(AttackPathKeyMatcher.candidateFindingTypes("port"))
+        .containsExactlyInAnyOrder("port", "portscan");
+    assertThat(AttackPathKeyMatcher.candidateFindingTypes("username"))
+        .containsExactlyInAnyOrder("username", "credentials");
+    assertThat(AttackPathKeyMatcher.candidateFindingTypes("share_name")).containsExactly("file");
+    assertThat(AttackPathKeyMatcher.candidateFindingTypes("cve")).containsExactly("cve");
+    assertThat(AttackPathKeyMatcher.candidateFindingTypes(null)).isEmpty();
+  }
 }

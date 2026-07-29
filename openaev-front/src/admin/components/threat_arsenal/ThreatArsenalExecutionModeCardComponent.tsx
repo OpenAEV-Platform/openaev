@@ -1,5 +1,6 @@
-import { Card, CardActionArea, CardContent, Stack, Tooltip, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { ChevronRightOutlined } from '@mui/icons-material';
+import { Box, Card, CardActionArea, Tooltip, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import { type ReactElement } from 'react';
 
 interface Props {
@@ -15,48 +16,84 @@ interface Props {
 
 const ThreatArsenalExecutionModeCardComponent = ({ executionMode }: Props) => {
   const theme = useTheme();
+  const accent = theme.palette.primary.main;
+  const { disabled } = executionMode;
+  const frameColor = disabled ? theme.palette.text.disabled : accent;
 
   return (
-    <Tooltip title={executionMode.tooltip}>
+    <Tooltip title={executionMode.tooltip ?? ''}>
       <Card
-        style={{ borderBottomColor: theme.palette.border?.pagination }}
+        variant="outlined"
+        data-testid="threat-arsenal-execution-mode-card"
         sx={{
-          borderRadius: 0,
-          boxShadow: 'none',
-          backgroundImage: 'none',
-          backgroundColor: 'inherit',
-          borderBottomStyle: 'solid',
-          borderBottomWidth: 1,
+          borderRadius: 1,
+          borderColor: theme.palette.divider,
+          backgroundColor: theme.palette.background.paper,
+          transition: theme.transitions.create(
+            ['border-color', 'box-shadow', 'transform'],
+            { duration: theme.transitions.duration.shorter },
+          ),
+          // Signature marketplace hover, same as the Threat Arsenal cards.
+          ...(!disabled && {
+            '&:hover': {
+              borderColor: alpha(accent, 0.3),
+              boxShadow: `0 0 30px ${alpha(accent, 0.12)}`,
+              transform: 'translateY(-2px)',
+            },
+          }),
         }}
       >
-        <CardActionArea
-          onClick={executionMode.onClick}
-          disabled={executionMode.disabled}
-        >
-          <CardContent
+        <CardActionArea onClick={executionMode.onClick} disabled={disabled}>
+          <Box
             sx={{
               display: 'flex',
-              flexDirection: 'row',
               alignItems: 'center',
-              padding: theme.spacing(2),
+              gap: 2,
+              padding: 2,
             }}
           >
-            <div style={{ marginRight: theme.spacing(2) }}>{executionMode.icon}</div>
-            <Stack flexDirection="column">
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 1.5,
+                border: `1px solid ${alpha(frameColor, 0.4)}`,
+                backgroundColor: alpha(frameColor, 0.08),
+              }}
+            >
+              {executionMode.icon}
+            </Box>
+            <Box sx={{
+              flex: 1,
+              minWidth: 0,
+            }}
+            >
               <Typography
-                style={{ color: executionMode.disabled ? theme.palette.text?.disabled : 'inherit' }}
-                sx={{ fontSize: 14 }}
+                sx={{
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  lineHeight: 1.35,
+                  color: disabled ? theme.palette.text.disabled : theme.palette.text.primary,
+                }}
               >
                 {executionMode.title}
               </Typography>
               <Typography
-                style={{ color: executionMode.disabled ? theme.palette.text?.disabled : 'inherit' }}
-                sx={{ fontSize: 12 }}
+                variant="caption"
+                sx={{ color: disabled ? theme.palette.text.disabled : theme.palette.text.secondary }}
               >
                 {executionMode.description}
               </Typography>
-            </Stack>
-          </CardContent>
+            </Box>
+            <ChevronRightOutlined
+              fontSize="small"
+              sx={{ color: disabled ? theme.palette.text.disabled : theme.palette.text.secondary }}
+            />
+          </Box>
         </CardActionArea>
       </Card>
     </Tooltip>

@@ -2247,6 +2247,7 @@ export interface ConnectorInstancePersisted {
 export interface ConsumedFindingKeyDTO {
   eventName?: string;
   keyType?: string;
+  matchedFindingIds?: string[];
   operator?: string;
   value?: string;
 }

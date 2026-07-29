@@ -9,7 +9,9 @@ import {
   type ConditionKeyType,
   createEmptyCondition,
   createEmptyGroup,
-  type EventCondition, generateId,
+  type EventCondition,
+  formatConditionKeyLabel,
+  generateId,
   type LogicalOperator,
 } from './events/event-types';
 import type { ActionMeta, EventMeta } from './types';
@@ -493,4 +495,122 @@ export const buildEdges = (
     }
   }
   return edges;
+};
+
+// -- Informational data-flow visualization (selected event) --
+
+/** Recursively collect every leaf-condition field referenced by an event's condition tree. */
+export const collectEventFields = (group: ConditionGroup): string[] => [
+  ...group.conditions.map(c => c.field),
+  ...group.subGroups.flatMap(collectEventFields),
+];
+
+/**
+ * Build the read-only dotted arrows from every provider action into the currently selected
+ * event. One arrow per provider action, carrying the matching output type(s) as label data.
+ * These are informational only — they are never persisted and do not represent a real link.
+ *
+ * @param selectedEventId the currently selected event id (or null → no arrows)
+ * @param eventMetas all events keyed by id
+ * @param outputProviders inverted map "output type → provider actions"
+ * @param arrowColor the stroke/marker color (resolved from the theme by the caller)
+ */
+export const buildInformationalEdges = (
+  selectedEventId: string | null,
+  eventMetas: Record<string, EventMeta>,
+  outputProviders: Record<string, OutputProviderEntry[]>,
+  arrowColor: string,
+): Edge[] => {
+  if (!selectedEventId) return [];
+  const meta = eventMetas[selectedEventId];
+  if (!meta) return [];
+
+  // All distinct condition fields referenced by the event.
+  const fields = new Set(meta.formData.conditionGroups.flatMap(collectEventFields).filter(Boolean));
+
+  // Aggregate, per provider action, the set of matching output types it feeds.
+  const typesByAction = new Map<string, Set<string>>();
+  for (const field of fields) {
+    for (const provider of outputProviders[field] ?? []) {
+      const current = typesByAction.get(provider.stepId) ?? new Set<string>();
+      current.add(field);
+      typesByAction.set(provider.stepId, current);
+    }
+  }
+
+  return Array.from(typesByAction.entries()).map(([stepId, types]) => ({
+    id: `info-${stepId}-${selectedEventId}`,
+    source: stepId,
+    sourceHandle: 'action-source-right',
+    target: selectedEventId,
+    targetHandle: 'event-target',
+    type: 'informational',
+    selectable: false,
+    deletable: false,
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      color: arrowColor,
+    },
+    data: { outputLabel: Array.from(types).map(formatConditionKeyLabel).join(', ') },
+  }));
+};
+
+export interface EventPath {
+  /** Ids of every step (provider or consumer) involved in the selected event's data flow. */
+  highlightedStepIds: Set<string>;
+  /** 1-based badge index per step id. */
+  stepPathIndex: Record<string, number>;
+  /** 1-based badge index of the event itself (sits between providers and consumers). */
+  eventPathIndex: number | undefined;
+}
+
+/**
+ * Compute the data-flow path for the selected event: provider steps (which produce outputs
+ * feeding the event) first, then the event itself, then consumer steps (which use the event
+ * as an execution condition). Each element gets a 1-based index rendered as a numbered badge
+ * (e.g. provider = 1, event = 2, consumer step = 3).
+ *
+ * @param selectedEventId the currently selected event id (or null → empty path)
+ * @param informationalEdges the informational edges produced by {@link buildInformationalEdges}
+ * @param actionMetas all steps keyed by id
+ */
+export const buildEventPath = (
+  selectedEventId: string | null,
+  informationalEdges: Edge[],
+  actionMetas: Record<string, ActionMeta>,
+): EventPath => {
+  if (!selectedEventId) {
+    return {
+      highlightedStepIds: new Set<string>(),
+      stepPathIndex: {},
+      eventPathIndex: undefined,
+    };
+  }
+
+  // Provider steps: actions producing an output matching one of the event's condition fields.
+  const providerIds = Array.from(new Set(informationalEdges.map(e => e.source)));
+  // Consumer steps: actions using this event as an execution condition (real link).
+  const consumerIds = Object.entries(actionMetas)
+    .filter(([, meta]) => meta.step_condition_ids.includes(selectedEventId))
+    .map(([stepId]) => stepId);
+
+  const index: Record<string, number> = {};
+  let counter = 0;
+
+  // 1..n — provider steps come first.
+  for (const id of providerIds) {
+    if (!(id in index)) index[id] = ++counter;
+  }
+  // n+1 — the event sits between producers and consumers.
+  const eventPathIndex = ++counter;
+  // n+2.. — consumer steps (skip any already counted as a provider).
+  for (const id of consumerIds) {
+    if (!(id in index)) index[id] = ++counter;
+  }
+
+  return {
+    highlightedStepIds: new Set(Object.keys(index)),
+    stepPathIndex: index,
+    eventPathIndex,
+  };
 };
