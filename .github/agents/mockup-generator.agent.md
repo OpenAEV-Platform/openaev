@@ -48,6 +48,11 @@ before any spec is written. Phase 0 of the Feature Workflow
    - Skim 2–3 existing pages similar to the target (list page, right drawer, detail
      page) to mirror real layout: app bar height, left-nav width, breadcrumbs,
      hand-rolled `List` rows (OpenAEV uses no DataGrid), the shared `Drawer`.
+   - **Render the full app chrome, don't simplify it away** — the tenant/context
+     switcher (`LeftBarTenantSwitcher`, shown when the user has >1 tenant) and the
+     complete top-bar action cluster (`AskArianeButton`, `CtemCommandCenterButton`,
+     alarms, notifications, install-agents, account). Missing chrome is the single
+     most common fidelity gap in a mockup.
 
 ## Interactions (required)
 
@@ -75,7 +80,11 @@ around, not that the JS is production-grade.
    with **realistic OpenAEV domain data** (simulations, injects, assets, findings…),
    never lorem ipsum. Annotate non-obvious interactions with small numbered callouts.
 3. **Self-check fidelity**: if a real screenshot is available, diff against it —
-   logo, icons, spacing, column set, chip styles. Fix mismatches before showing.
+   logo, icons, spacing, column set, chip styles, and the chrome above. Fix
+   mismatches before showing. Note: `theme.logo` and palette tokens can be
+   **overridden per install**, so a logo/color diff against a live slot may be an
+   instance override, not a codebase mismatch — extract from the branch the
+   reviewer targets and call out drift rather than guessing.
 4. **Iterate** — apply the user's feedback in place; one file per screen, version via
    a changelog block in `handoff.md`, not file copies.
 5. **Handoff** — once the user validates, write `specs/NNN-slug/mockup/handoff.md`:
