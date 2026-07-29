@@ -221,6 +221,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
           disabled={permissions.readOnly}
           handleClose={handleCloseEdit}
           edit
+          isChaining={!!(exercise as unknown as { exercise_workflow_id?: string }).exercise_workflow_id}
         />
 
       </Drawer>

@@ -10,6 +10,7 @@ import type {
 import AddComponentButton, { type LogicContext } from './AddComponentButton';
 import ChainingFlowConfiguration, { type DrawerView } from './chaining_flow/ChainingFlowConfiguration';
 import LogicFlow from './chaining_flow/LogicFlow';
+import LogicTopBar from './LogicTopBar';
 import OutputProvidersProvider from './OutputProvidersContext';
 import type { ActionMeta, EventMeta } from './types';
 
@@ -34,12 +35,17 @@ const Logic = ({ workflowId, context }: LogicProps) => {
     stepId: string;
     meta: ActionMeta;
   } | null>(null);
+    // Output type required by the "Add Compatible Action" banner (pre-filters the action list)
+  const [compatibleActionFilter, setCompatibleActionFilter] = useState<string | undefined>();
 
   // Event currently being edited
   const [editingEvent, setEditingEvent] = useState<{
     eventId: string;
     meta: EventMeta;
   } | null>(null);
+
+  // Latest event metas
+  const [eventMetas, setEventMetas] = useState<Record<string, EventMeta>>({});
 
   useEffect(() => {
     if (workflowId) {
@@ -75,7 +81,14 @@ const Logic = ({ workflowId, context }: LogicProps) => {
   }, []);
 
   const handleOpenDrawer = useCallback(() => {
+    setCompatibleActionFilter(undefined);
     setDrawerView('choose');
+  }, []);
+
+  // Opens the action list directly, optionally pre-filtered by output type
+  const handleOpenActionDrawer = useCallback((field?: string) => {
+    setCompatibleActionFilter(field);
+    setDrawerView('action');
   }, []);
 
   const handleEditStep = useCallback((stepId: string, meta: ActionMeta) => {
@@ -101,25 +114,43 @@ const Logic = ({ workflowId, context }: LogicProps) => {
 
   return (
     <OutputProvidersProvider>
-      <div style={{
-        width: '100%',
-        height: 'calc(100vh - 230px)',
-        position: 'relative',
-      }}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: 'calc(100vh - 230px)',
+          position: 'relative',
+          width: '100%',
+        }}
       >
-        {hasExistingData && workflowId
-          ? (
-              <LogicFlow
-                reloadTrigger={refreshKey}
-                workflowId={workflowId}
-                onAddComponent={handleOpenDrawer}
-                onEditStep={handleEditStep}
-                onEditEvent={handleEditEvent}
-              />
-            )
-          : (
-              <AddComponentButton nodeCount={0} context={context} onClick={handleOpenDrawer} />
-            )}
+        <div
+          style={{
+            flex: 1,
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+        >
+          {hasExistingData && workflowId
+            ? (
+                <>
+                  <LogicFlow
+                    reloadTrigger={refreshKey}
+                    workflowId={workflowId}
+                    onEditStep={handleEditStep}
+                    onEditEvent={handleEditEvent}
+                    onEventMetasChange={setEventMetas}
+                  />
+                  <LogicTopBar
+                    eventMetas={eventMetas}
+                    onAddCompatibleAction={handleOpenActionDrawer}
+                    onAddComponent={handleOpenDrawer}
+                  />
+                </>
+              )
+            : (
+                <AddComponentButton nodeCount={0} context={context} onClick={handleOpenDrawer} />
+              )}
+        </div>
         <ChainingFlowConfiguration
           workflowId={workflowId}
           validAssets={validAssets}
@@ -132,6 +163,7 @@ const Logic = ({ workflowId, context }: LogicProps) => {
           onStepCreated={handleStepCreated}
           onEventCreated={handleEventCreated}
           eventCount={eventCount}
+          compatibleActionFilter={compatibleActionFilter}
         />
       </div>
     </OutputProvidersProvider>

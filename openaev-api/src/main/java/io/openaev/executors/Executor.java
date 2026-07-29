@@ -84,7 +84,9 @@ public class Executor {
     InjectStatus injectStatus =
         this.injectStatusRepository.findByInjectId(inject.getId()).orElseThrow();
     InjectStatus completeStatus = injectStatusService.fromExecution(execution, injectStatus);
-    return injectStatusRepository.save(completeStatus);
+    // Save + stream: internal injectors reach their terminal status here without any listened
+    // entity update, so the execution board would otherwise only move on a page reload.
+    return injectStatusService.saveAndStreamInject(completeStatus);
   }
 
   public InjectStatus execute(ExecutableInject executableInject) throws Exception {

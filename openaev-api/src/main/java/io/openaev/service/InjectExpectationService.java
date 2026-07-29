@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import static io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService.EXPIRED;
 import static io.openaev.collectors.expectations_vulnerability_manager.ExpectationsVulnerabilityManagerCollector.EXPECTATIONS_VULNERABILITY_COLLECTOR_ID;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAssetGroup;
@@ -24,6 +25,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.WorkflowUpdateEvent;
+import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
@@ -641,8 +643,13 @@ public class InjectExpectationService {
       throw new IllegalArgumentException("Updates are only supported for technical expectations");
     }
     addResult(technicalExpectation, input, securityPlatform);
+    // Same combination contract as the collector path (computeInjectExpectationForAgentOrAsset
+    // Agentless): a direct write on a parent row must not clobber - nor be clobbered by - the
+    // children-derived verdict.
     technicalExpectation.setScore(
-        computeScore(technicalExpectation.getResults(), technicalExpectation));
+        combineWithChildrenVerdict(
+            technicalExpectation,
+            computeScore(technicalExpectation.getResults(), technicalExpectation)));
     TechnicalInjectExpectation updated =
         this.injectExpectationRepository.save(technicalExpectation);
     // Same propagation contract as computeTechnicalExpectation: agentless expectations only
@@ -844,9 +851,19 @@ public class InjectExpectationService {
    * check with "Not Detected") must never overwrite that rollup with a score computed from the
    * parent's own results only.
    *
-   * <p>Combination rule: a direct success is definitive (any security platform succeeding counts);
-   * otherwise the children verdict wins - including staying pending (null) while the agents are
-   * still unanswered, so a direct failure never cements a wrong verdict early.
+   * <p>For DETECTION / PREVENTION a direct SUCCESS wins (any security platform proving
+   * prevention/detection counts) and anything else defers to the children - including staying
+   * pending (null) while the agents are unanswered, so a direct absence-of-signal answer never
+   * cements a wrong verdict early.
+   *
+   * <p>VULNERABILITY is decided on its own row instead, in BOTH directions, because the verdict
+   * comes from scanning the asset itself: "Not vulnerable" is a real answer there, not the absence
+   * of one. Deferring it to the children would hang the row until expiry, since an agentless
+   * injector never fills the agent expectations - those exist only because the endpoint happens to
+   * run an agent. A proven VULNERABLE result still wins over a "Not vulnerable" one from another
+   * source (worst case wins, hence {@code reconcileWithDirectVulnerableVerdict} rather than the
+   * max-based own score), and a child that reports a finding later still overrides the row through
+   * the rollup path, which only pins direct VULNERABLE verdicts.
    *
    * @param expectation the expectation whose score was just computed from its own results
    * @param ownScore the score computed from the expectation's own results
@@ -854,15 +871,47 @@ public class InjectExpectationService {
    */
   private Double combineWithChildrenVerdict(
       @NotNull final TechnicalInjectExpectation expectation, @Nullable final Double ownScore) {
-    if (expectation.getAgent() != null || expectation.getAsset() == null) {
-      return ownScore; // agent leaf or asset-group level: no children rollup to protect
+    if (expectation.getAgent() != null) {
+      return ownScore; // agent leaf: no children rollup to protect
+    }
+    if (expectation.getAsset() == null) {
+      // Asset-group level: no children rollup to protect here (propagation recomputes it from
+      // the asset children), but a direct VULNERABLE verdict written on the group row itself
+      // (e.g. by Nuclei) must survive the own-results max: the results list may also carry
+      // success-polarity rows ("Expired" placeholders, legacy expiration-manager stamps) that
+      // would otherwise win the max and flip the group to "Not vulnerable".
+      if (BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.equals(expectation.getType())) {
+        Double directVulnerable =
+            InjectExpectationUtils.reconcileWithDirectVulnerableVerdict(expectation, null);
+        if (directVulnerable != null) {
+          return directVulnerable;
+        }
+      }
+      return ownScore;
     }
     List<TechnicalInjectExpectation> agentChildren = getAgentsExpectationsForAsset(expectation);
     if (agentChildren.isEmpty()) {
       return ownScore; // true agentless leaf (AI target, agentless endpoint)
     }
     Double expectedScore = expectation.getExpectedScore();
-    if (expectedScore == null || (ownScore != null && ownScore >= expectedScore)) {
+    if (expectedScore == null) {
+      return ownScore;
+    }
+    if (BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.equals(expectation.getType())) {
+      Double directVulnerable =
+          InjectExpectationUtils.reconcileWithDirectVulnerableVerdict(expectation, null);
+      if (directVulnerable != null) {
+        return directVulnerable;
+      }
+      // No finding: conclude only once every expected source has answered - ownScore is null while
+      // one is still missing, which is exactly the pending state to keep.
+      if (ownScore != null) {
+        return ownScore;
+      }
+      return InjectExpectationUtils.computeChildrenScore(
+          expectation.isExpectationGroup(), expectedScore, agentChildren);
+    }
+    if (ownScore != null && ownScore >= expectedScore) {
       return ownScore;
     }
     return InjectExpectationUtils.computeChildrenScore(
@@ -1299,6 +1348,32 @@ public class InjectExpectationService {
                                   // Prefer an answered result over a pending one for the same
                                   // source.
                                   existing.getResult() != null ? existing : candidate));
+              // A VULNERABILITY row a genuine platform already answered needs no expiration entry
+              // in the merged display either: the union pulls the agents' expiration rows (the
+              // vulnerability default "Not vulnerable") onto the asset view, where they render as
+              // redundant - or contradictory - entries next to the real scan verdict. Same rule as
+              // the write path (InjectExpectationUtils.computeScores): the expiration default is
+              // the absence-of-signal fallback, a real answer supersedes it.
+              if (BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.equals(
+                  expectation.getType())) {
+                boolean hasGenuineAnswer =
+                    bySource.values().stream()
+                        .anyMatch(
+                            r ->
+                                !ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(
+                                        r.getSourceId())
+                                    && r.getResult() != null
+                                    && !r.getResult().isBlank()
+                                    && !EXPIRED.equals(r.getResult()));
+                if (hasGenuineAnswer) {
+                  bySource
+                      .values()
+                      .removeIf(
+                          r ->
+                              ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(
+                                  r.getSourceId()));
+                }
+              }
               clone.setResults(new ArrayList<>(bySource.values()));
               return clone;
             })
@@ -2136,11 +2211,16 @@ public class InjectExpectationService {
     BaseInjectContent content = contentConvert(injection, BaseInjectContent.class);
 
     // Execution-time fallback: injects created before their contract declared predefined
-    // expectations (e.g. Nuclei injects in existing simulations) carry no expectations in their
-    // stored content, so resetting and relaunching the simulation would silently create none.
-    // Read the predefined expectations from the injector contract instead, exactly like inject
-    // creation and the chaining engine do.
-    if (content.getExpectations().isEmpty() && inject.getInjectorContract().isPresent()) {
+    // expectations (e.g. Nuclei injects in existing simulations) carry no expectations FIELD in
+    // their stored content, so resetting and relaunching the simulation would silently create
+    // none. Read the predefined expectations from the injector contract instead, exactly like
+    // inject creation and the chaining engine do. An EXPLICIT empty list is a different thing:
+    // it means the user deliberately removed every expectation from the inject, and that choice
+    // is never overridden here - expectation drift realignment is the opt-in way to restore the
+    // contract template.
+    if (content.getExpectations().isEmpty()
+        && contentNeverCarriedExpectations(inject)
+        && inject.getInjectorContract().isPresent()) {
       ObjectNode storedContent = inject.getContent();
       ObjectNode enrichedContent =
           injectorContractContentUtils.setExpectations(
@@ -2165,6 +2245,23 @@ public class InjectExpectationService {
             computeExpectationsForAssetGroup(expectations, resolvedContent, assetGroup)));
 
     doBuildAndSaveInjectExpectations(injection, expectations);
+  }
+
+  /**
+   * Whether the stored inject content never carried the expectations field at all: the inject was
+   * created before its injector contract declared predefined expectations, so it follows the
+   * contract template dynamically at execution time (same semantics as the expectation drift
+   * detection). An explicit empty array is NOT "never carried": it means the user deliberately
+   * removed every expectation from the inject, and that customization must be respected.
+   */
+  private static boolean contentNeverCarriedExpectations(@NotNull final Inject inject) {
+    ObjectNode storedContent = inject.getContent();
+    if (storedContent == null) {
+      return true;
+    }
+    JsonNode expectationsNode =
+        storedContent.get(InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS);
+    return expectationsNode == null || expectationsNode.isNull();
   }
 
   /** In case of direct assetToExecute, we have an individual expectation for the assetToExecute */

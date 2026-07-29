@@ -4,6 +4,7 @@ import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.ThreatArsenalFilterUtils.ACTION_TO_ENTITY_FIELDS;
 import static io.openaev.utils.ThreatArsenalFilterUtils.ENTITY_TO_ACTION_FIELDS;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.threat_arsenal.dto.*;
 import io.openaev.database.model.Injector;
@@ -50,6 +51,7 @@ public class ThreatArsenalService {
   private final ThreatArsenalMapper threatArsenalMapper;
   private final DetectionRemediationService detectionRemediationService;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+  private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
 
   /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
   public static final List<String> TABLETOP_INJECTOR_TYPES =
@@ -333,16 +335,22 @@ public class ThreatArsenalService {
    */
   public Page<? extends InjectorContractBaseOutput> searchInjectorContracts(
       InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
+    SearchPaginationInput searchInput =
+        handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
+    ProvidingFilterSpecificationBuilder.ProvidingFilterContext providingFilterContext =
+        providingFilterSpecificationBuilder.extractProvidingFilter(searchInput);
+    Specification<InjectorContract> searchSpecification =
+        computeSearchJpa(searchInput.getTextSearch());
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                spec,
-                specCount,
+                combineWithProvidingSpec(spec, providingFilterContext, searchSpecification),
+                combineWithProvidingSpec(specCount, providingFilterContext, searchSpecification),
                 pageable,
                 mode,
                 input.getInjectorContractIdsToIgnore(),
                 input.getInjectorContractIdsToProcess()),
-        handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input)),
+        providingFilterContext.searchInput(),
         InjectorContract.class);
   }
 
@@ -357,6 +365,12 @@ public class ThreatArsenalService {
    */
   public Page<? extends InjectorContractBaseOutput> searchNonTabletopInjectorContracts(
       InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
+    SearchPaginationInput searchInput =
+        handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
+    ProvidingFilterSpecificationBuilder.ProvidingFilterContext providingFilterContext =
+        providingFilterSpecificationBuilder.extractProvidingFilter(searchInput);
+    Specification<InjectorContract> searchSpecification =
+        computeSearchJpa(searchInput.getTextSearch());
     Specification<InjectorContract> excludeTabletop =
         (root, query, cb) -> {
           Join<?, Injector> injectorJoin = root.join("injectorLinks").join("injector");
@@ -366,14 +380,30 @@ public class ThreatArsenalService {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                spec.and(excludeTabletop),
-                specCount.and(excludeTabletop),
+                combineWithProvidingSpec(
+                    spec.and(excludeTabletop), providingFilterContext, searchSpecification),
+                combineWithProvidingSpec(
+                    specCount.and(excludeTabletop), providingFilterContext, searchSpecification),
                 pageable,
                 mode,
                 input.getInjectorContractIdsToIgnore(),
                 input.getInjectorContractIdsToProcess()),
-        handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input)),
+        providingFilterContext.searchInput(),
         InjectorContract.class);
+  }
+
+  private Specification<InjectorContract> combineWithProvidingSpec(
+      Specification<InjectorContract> baseSpecification,
+      ProvidingFilterSpecificationBuilder.ProvidingFilterContext providingFilterContext,
+      Specification<InjectorContract> searchSpecification) {
+    if (!providingFilterContext.hasProvidingFilters()) {
+      return baseSpecification;
+    }
+    if (providingFilterContext.mode() == io.openaev.database.model.Filters.FilterMode.or
+        && providingFilterContext.hasRemainingFilters()) {
+      return baseSpecification.or(providingFilterContext.specification().and(searchSpecification));
+    }
+    return baseSpecification.and(providingFilterContext.specification());
   }
 
   /**
