@@ -7,6 +7,8 @@ import {
   IconButton,
   InputLabel,
   MenuItem,
+  Paper,
+  Popper,
   Select,
   Switch,
   TextField,
@@ -59,7 +61,8 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const { argumentTypes } = useArgumentTypes();
 
-  const [isTypeSelectorOpen, setIsTypeSelectorOpen] = useState(false);
+  const [typeSelectorAnchorEl, setTypeSelectorAnchorEl] = useState<HTMLElement | null>(null);
+  const isTypeSelectorOpen = Boolean(typeSelectorAnchorEl);
 
   const menuItems = useMemo(
     () => (argumentTypes.length > 0 ? argumentTypes : ['text']),
@@ -71,8 +74,8 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
     return link.outputTypes ?? [];
   }, [link]);
 
-  const openTypeSelector = () => setIsTypeSelectorOpen(prev => !prev);
-  const closeTypeSelector = () => setIsTypeSelectorOpen(false);
+  const openTypeSelector = (anchor: HTMLElement) => setTypeSelectorAnchorEl(anchor);
+  const closeTypeSelector = () => setTypeSelectorAnchorEl(null);
 
   const handleOutputTypesChange = (nextOutputTypes: string[]) => {
     if (nextOutputTypes.length === 0) {
@@ -154,7 +157,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
                   variant="text"
                   color="primary"
                   endIcon={<KeyboardArrowDown />}
-                  onClick={openTypeSelector}
+                  onClick={event => openTypeSelector(event.currentTarget)}
                 >
                   {t('Edit links')}
                 </Button>
@@ -217,7 +220,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
               variant="text"
               color="primary"
               endIcon={<KeyboardArrowDown />}
-              onClick={openTypeSelector}
+              onClick={event => openTypeSelector(event.currentTarget)}
               sx={{
                 whiteSpace: 'nowrap',
                 textTransform: 'none',
@@ -230,17 +233,19 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
         </Box>
       )}
 
-      {isTypeSelectorOpen && (
+      <Popper
+        open={isTypeSelectorOpen}
+        anchorEl={typeSelectorAnchorEl}
+        placement="bottom-end"
+        sx={{
+          zIndex: 1300,
+          width: 320,
+        }}
+      >
         <ClickAwayListener onClickAway={closeTypeSelector}>
-          <Box
-            sx={{
-              width: 320,
-              px: 1.5,
-              py: 1,
-              ml: 'auto',
-            }}
-          >
+          <Paper elevation={4} sx={{ p: 1.5 }}>
             <AutocompleteField
+              open={isTypeSelectorOpen}
               label={t('Primitive types')}
               variant="standard"
               multiple
@@ -260,9 +265,9 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
                 closeTypeSelector();
               }}
             />
-          </Box>
+          </Paper>
         </ClickAwayListener>
-      )}
+      </Popper>
     </Box>
   );
 };
