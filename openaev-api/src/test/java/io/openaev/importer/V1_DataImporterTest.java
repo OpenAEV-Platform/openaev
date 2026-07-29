@@ -617,6 +617,107 @@ class V1_DataImporterTest extends IntegrationTest {
 
   @Test
   @Transactional
+  void
+      given_stepDataWithProviding_when_resolvingMappedContract_should_preserveProvidingForChainingLogic() {
+    // -- Arrange --
+    String oldContractId = UUID.randomUUID().toString();
+    String newContractId = UUID.randomUUID().toString();
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode stepNode = objectMapper.createObjectNode();
+    stepNode.put(
+        "step_data",
+        """
+        {
+          "inject_injector_contract": {
+            "injector_contract_id": "%s",
+            "injector_contract_providing": ["portscan"]
+          }
+        }
+        """
+            .formatted(oldContractId));
+    Map<String, String> resolvedContracts = Map.of(oldContractId, newContractId);
+    Exercise simulation = new Exercise();
+    simulation.setId("sim-test");
+    Workflow workflow = Workflow.builder().simulation(simulation).build();
+
+    // -- Act --
+    String resolvedStepData =
+        ReflectionTestUtils.invokeMethod(
+            importer, "resolveStepData", stepNode, resolvedContracts, new HashMap<>(), workflow);
+    JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
+
+    // -- Assert --
+    assertEquals(
+        newContractId,
+        resolvedJson.get("inject_injector_contract").get("injector_contract_id").asText());
+    assertTrue(resolvedJson.get("inject_injector_contract").has("injector_contract_providing"));
+    assertEquals(
+        "portscan",
+        resolvedJson
+            .get("inject_injector_contract")
+            .get("injector_contract_providing")
+            .get(0)
+            .asText());
+  }
+
+  @Test
+  @Transactional
+  void
+      given_stepDataWithForeignDomainIdsAndConvertedContent_when_resolvingMappedContract_should_resolveDomainByName() {
+    // -- Arrange --
+    Domain savedDomain =
+        domainRepository
+            .findByName("Network")
+            .orElseGet(
+                () -> {
+                  Domain networkDomain = new Domain();
+                  networkDomain.setName("Network");
+                  networkDomain.setColor("#009933");
+                  networkDomain.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+                  return domainRepository.save(networkDomain);
+                });
+
+    String oldContractId = UUID.randomUUID().toString();
+    String newContractId = UUID.randomUUID().toString();
+    String foreignDomainId = UUID.randomUUID().toString();
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode stepNode = objectMapper.createObjectNode();
+    stepNode.put(
+        "step_data",
+        """
+        {
+          "inject_injector_contract": {
+            "injector_contract_id": "%s",
+            "injector_contract_domains": ["%s"],
+            "convertedContent": {
+              "domains": [
+                {"domain_id":"%s","domain_name":"Network","domain_color":"#009933"}
+              ]
+            }
+          }
+        }
+        """
+            .formatted(oldContractId, foreignDomainId, foreignDomainId));
+    Map<String, String> resolvedContracts = Map.of(oldContractId, newContractId);
+    Exercise simulation = new Exercise();
+    simulation.setId("sim-test");
+    Workflow workflow = Workflow.builder().simulation(simulation).build();
+
+    // -- Act --
+    String resolvedStepData =
+        ReflectionTestUtils.invokeMethod(
+            importer, "resolveStepData", stepNode, resolvedContracts, new HashMap<>(), workflow);
+    JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
+
+    // -- Assert --
+    JsonNode domains = resolvedJson.get("inject_injector_contract").get("injector_contract_domains");
+    assertTrue(domains.isArray());
+    assertEquals(1, domains.size());
+    assertEquals(savedDomain.getId(), domains.get(0).get("domain_id").asText());
+  }
+
+  @Test
+  @Transactional
   void given_stepDataWithRuntimeReferences_when_resolvingStepData_should_preserveRuntimeFields() {
     // -- Arrange --
     String contractId = UUID.randomUUID().toString();

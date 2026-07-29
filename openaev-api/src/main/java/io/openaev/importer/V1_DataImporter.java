@@ -2359,6 +2359,14 @@ public class V1_DataImporter implements Importer {
     if (injectContractNode instanceof ObjectNode embeddedContract) {
       // Reuse importDomains: resolves by ID then by name, caches in baseIds
       List<Domain> resolvedDomains = importDomains(embeddedContract, "injector_contract_", baseIds);
+      // Fallback for chaining exports: contract domain IDs can be foreign, but convertedContent keeps
+      // full domain objects (id/name/color) and allows name-based resolution.
+      if (resolvedDomains.isEmpty()) {
+        JsonNode convertedContentNode = embeddedContract.get("convertedContent");
+        if (convertedContentNode != null && !convertedContentNode.isNull()) {
+          resolvedDomains = importDomains(convertedContentNode, "", baseIds);
+        }
+      }
       if (!resolvedDomains.isEmpty()) {
         ArrayNode domainsArray = mapper.createArrayNode();
         resolvedDomains.forEach(d -> domainsArray.addObject().put("domain_id", d.getId()));
@@ -2382,6 +2390,12 @@ public class V1_DataImporter implements Importer {
               });
       if (tagsArray.size() > 0) {
         normalizedContract.set("injector_contract_tags", tagsArray);
+      }
+
+      // Preserve computed providing hints for chaining logic-map compatibility.
+      JsonNode providing = embeddedContract.get("injector_contract_providing");
+      if (providing != null && providing.isArray() && !providing.isEmpty()) {
+        normalizedContract.set("injector_contract_providing", providing.deepCopy());
       }
     }
 
