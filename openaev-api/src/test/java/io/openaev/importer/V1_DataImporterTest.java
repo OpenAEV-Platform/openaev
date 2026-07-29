@@ -404,8 +404,7 @@ class V1_DataImporterTest extends IntegrationTest {
     payloadNode.put("payload_status", "VERIFIED");
     payloadNode.set("payload_platforms", objectMapper.createArrayNode().add("Windows"));
     payloadNode.set(
-        "payload_expectations",
-        objectMapper.createArrayNode().add("DETECTION").add("PREVENTION"));
+        "payload_expectations", objectMapper.createArrayNode().add("DETECTION").add("PREVENTION"));
     payloadNode.set("payload_arguments", objectMapper.createArrayNode());
     payloadNode.set("payload_prerequisites", objectMapper.createArrayNode());
     payloadNode.set("payload_output_parsers", objectMapper.createArrayNode());
@@ -429,7 +428,11 @@ class V1_DataImporterTest extends IntegrationTest {
     // -- Act --
     PayloadCreateInput payloadCreateInput =
         ReflectionTestUtils.invokeMethod(
-            importer, "buildPayloadCreateInput", new HashMap<>(), payloadNode, injectorContractNode);
+            importer,
+            "buildPayloadCreateInput",
+            new HashMap<>(),
+            payloadNode,
+            injectorContractNode);
 
     // -- Assert --
     assertNotNull(payloadCreateInput);
@@ -772,10 +775,11 @@ class V1_DataImporterTest extends IntegrationTest {
     JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
 
     // -- Assert --
-    JsonNode domains = resolvedJson.get("inject_injector_contract").get("injector_contract_domains");
+    JsonNode domains =
+        resolvedJson.get("inject_injector_contract").get("injector_contract_domains");
     assertTrue(domains.isArray());
     assertEquals(1, domains.size());
-    assertEquals(savedDomain.getId(), domains.get(0).get("domain_id").asText());
+    assertEquals(savedDomain.getId(), domains.get(0).asText());
   }
 
   @Test
