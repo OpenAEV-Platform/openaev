@@ -22,6 +22,11 @@ before any spec is written. Phase 0 of the Feature Workflow
 - **Everything inlined**: CSS in a `<style>`, JS in a `<script>`, every asset as a
   `data:` URI. If it doesn't render from `file://` with the network off, it's wrong.
 - Interactive: see *Interactions* below — a static screenshot is not enough.
+- **Hand it back as a clickable link, always.** When you show the mockup — first
+  render and every iteration — give a clickable `file://` link to the `.html`
+  (e.g. `[findings.html](file:///C:/…/specs/NNN-slug/mockup/findings.html)`), never
+  a bare path and never a screenshot in place of the link. One clickable link per
+  screen. The reviewer opens it locally; the link is the deliverable.
 
 ## Context Loading
 

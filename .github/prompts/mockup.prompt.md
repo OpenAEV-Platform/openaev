@@ -20,8 +20,9 @@ Key beats, in order:
    local-only `.html`** files (open by double-click, no CDN, no Claude Artifact —
    the team is on GitHub Copilot). Inline the **real** logo asset and **real** icon
    SVGs from the codebase; wire the screen's key interactions in vanilla JS.
-3. Show the result (give the `file://` path to open) and **iterate on feedback**
-   until the user validates.
+3. Show the result as a **clickable `file://` link** to the `.html` (never a bare
+   path, never a screenshot instead of the link) and **iterate on feedback** until
+   the user validates.
 4. On validation, write `mockup/handoff.md` and tell the user the mockup is
    frozen as the spec handoff — next step `/specify` (or continue if running
    under `/feature`).
