@@ -1596,19 +1596,15 @@ public class V1_DataImporter implements Importer {
         buildOutputParsersFromPayloadJsonNode(payloadNode, baseIds));
     payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
 
-    // Tags — merge from payload and injector contract nodes
+    // Import tags
     Set<Tag> tags =
         mergeTagIds(
             baseIds, payloadNode, "payload_tags", injectorContractNode, "injector_contract_tags");
     payloadCreateInput.setTagIds(tags.stream().map(Tag::getId).collect(Collectors.toList()));
 
-    // Domains — merge from payload and injector contract nodes, fallback to ToClassify
+    // Import domains
     Set<Domain> domains =
         mergeDomains(baseIds, payloadNode, "payload_", injectorContractNode, "injector_contract_");
-    // Chaining step_data exports can carry foreign domain IDs in injector_contract_domains while
-    // the
-    // resolved local names/colors are stored in injector contract convertedContent.domains.
-    // If we can resolve from converted content, enrich/override the fallback set.
     if (injectorContractNode instanceof ObjectNode injectorContractObject) {
       JsonNode convertedContentNode = injectorContractObject.get("convertedContent");
       if (convertedContentNode != null && !convertedContentNode.isNull()) {
@@ -1627,7 +1623,7 @@ public class V1_DataImporter implements Importer {
     payloadCreateInput.setDomainIds(
         domains.stream().map(Domain::getId).collect(Collectors.toList()));
 
-    // Attack patterns — merge from payload and injector contract nodes
+    // Import attack paths
     Set<AttackPattern> attackPatterns =
         mergeAttackPatterns(
             baseIds, payloadNode, "payload_", injectorContractNode, "injector_contract_");
@@ -2361,11 +2357,7 @@ public class V1_DataImporter implements Importer {
 
   /**
    * Normalizes the {@code inject_injector_contract} node in step_data by resolving embedded domain
-   * and tag references to their local platform IDs, then stripping all other embedded contract
-   * metadata (payload, etc.) that would cause stale-reference failures at execution time.
-   *
-   * <p>Reuses {@link #importDomains} and {@link #importTags} — the same resolution logic used
-   * during normal inject import — so behaviour is consistent.
+   * and tag references to their local platform IDs.
    */
   private void normalizeInjectorContractReference(
       ObjectNode dataObject, Map<String, Base> baseIds) {
@@ -2382,8 +2374,7 @@ public class V1_DataImporter implements Importer {
       // Reuse importDomains: resolves by ID then by name, caches in baseIds
       List<Domain> resolvedDomains = importDomains(embeddedContract, "injector_contract_", baseIds);
       // Fallback for chaining exports: contract domain IDs can be foreign, but convertedContent
-      // keeps
-      // full domain objects (id/name/color) and allows name-based resolution.
+      // keeps full domain objects (id/name/color) and allows name-based resolution.
       if (resolvedDomains.isEmpty()) {
         JsonNode convertedContentNode = embeddedContract.get("convertedContent");
         if (convertedContentNode != null && !convertedContentNode.isNull()) {
@@ -2415,8 +2406,7 @@ public class V1_DataImporter implements Importer {
         normalizedContract.set("injector_contract_tags", tagsArray);
       }
 
-      // Keep output parser metadata so StepMapper can still infer output types for chaining UI
-      // without relying on injector_contract_providing (setterless/read-only on deserialization).
+      // Import data used for injector_contract_providing
       JsonNode payloadNode = embeddedContract.get("injector_contract_payload");
       if (payloadNode instanceof ObjectNode payloadObject) {
         JsonNode outputParsers = payloadObject.get("payload_output_parsers");
