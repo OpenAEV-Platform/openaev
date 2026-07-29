@@ -70,6 +70,9 @@ public enum PrimitiveType {
   @JsonProperty("number")
   Number("number"),
 
+  @JsonProperty("output_execution")
+  OutputExecution("output_execution"),
+
   @JsonProperty("password")
   Password("password"),
 

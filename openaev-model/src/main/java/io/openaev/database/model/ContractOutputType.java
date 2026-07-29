@@ -7,6 +7,9 @@ public enum ContractOutputType {
   @JsonProperty("text")
   Text("text"),
 
+  @JsonProperty("output_execution")
+  OutputExecution("output_execution"),
+
   @JsonProperty("number")
   Number("number"),
 
