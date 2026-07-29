@@ -50,7 +50,8 @@ public class Executor {
   public static final String CMD = "cmd";
   public static final String PSH = "psh";
 
-  private InjectStatus executeExternal(ExecutableInject executableInject, Injector injector)
+  private InjectStatus executeExternal(
+      ExecutableInject executableInject, Injector injector, List<AssetToExecute> assetToExecutes)
       throws Exception {
     Inject inject = executableInject.getInjection().getInject();
     String jsonInject =
@@ -59,7 +60,6 @@ public class Executor {
     InjectStatus injectStatus =
         this.injectStatusRepository.findByInjectId(inject.getId()).orElseThrow();
 
-    List<AssetToExecute> assetToExecutes = this.injectService.resolveAllAssetsToExecute(inject);
     injectExpectationService.computeAndSaveExpectations(
         executableInject, inject, injector.getType(), assetToExecutes);
 
@@ -90,6 +90,11 @@ public class Executor {
   }
 
   public InjectStatus execute(ExecutableInject executableInject) throws Exception {
+    return execute(executableInject, null);
+  }
+
+  public InjectStatus execute(
+      ExecutableInject executableInject, List<AssetToExecute> preResolvedAssets) throws Exception {
     Inject inject = executableInject.getInjection().getInject();
     InjectorContract injectorContract =
         inject
@@ -130,7 +135,11 @@ public class Executor {
       this.executionExecutorService.launchExecutorContext(inject);
     }
     if (injector.isExternal()) {
-      return executeExternal(executableInject, injector);
+      List<AssetToExecute> assetToExecutes =
+          preResolvedAssets != null
+              ? preResolvedAssets
+              : this.injectService.resolveAllAssetsToExecute(inject);
+      return executeExternal(executableInject, injector, assetToExecutes);
     } else {
       return executeInternal(executableInject, injector);
     }
