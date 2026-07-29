@@ -31,11 +31,11 @@ import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import java.util.concurrent.CopyOnWriteArrayList;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -329,7 +329,8 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   @DisplayName("only a write that changed rows nudges a client")
   void onlyAChangedWriteNudges() {
     // The nudge is what tells an open view to fetch its delta now. The engine replays an execution
-    // event's expectation results by design, so publishing on a replay would put one event per replay
+    // event's expectation results by design, so publishing on a replay would put one event per
+    // replay
     // on the stream's shared executor — whose bounded queue drops its oldest entries, including the
     // ping every client's health check reads. Hence: no rows changed, no nudge.
     Tenant tenant = verdictTenant("ap-expectation-nudge");
@@ -347,9 +348,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
         .isEqualTo(1);
 
     updateExpectations(tenant, executionId, prevention("Not Prevented"));
-    assertThat(publishedNudges(tenant))
-        .as("a real change announces itself again")
-        .isEqualTo(2);
+    assertThat(publishedNudges(tenant)).as("a real change announces itself again").isEqualTo(2);
   }
 
   @Test
@@ -373,9 +372,9 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   // -- verdict helpers --
 
   /**
-   * How many nudges this tenant's simulation has published so far. Counted through a listener rather
-   * than a mock so the assertion covers the real path: the event must survive the transaction's
-   * commit to be delivered at all.
+   * How many nudges this tenant's simulation has published so far. Counted through a listener
+   * rather than a mock so the assertion covers the real path: the event must survive the
+   * transaction's commit to be delivered at all.
    */
   private int publishedNudges(Tenant tenant) {
     return (int)
@@ -385,7 +384,9 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
             .count();
   }
 
-  /** Records the nudges published during a test, after commit, exactly as the stream receives them. */
+  /**
+   * Records the nudges published during a test, after commit, exactly as the stream receives them.
+   */
   @Component
   static class NudgeRecorder {
     private final List<AttackPathVersionEvent> events = new CopyOnWriteArrayList<>();
