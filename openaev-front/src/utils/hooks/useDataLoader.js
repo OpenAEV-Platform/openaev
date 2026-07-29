@@ -27,6 +27,27 @@ const listeners = new Map();
 // Feature-scoped subscribers to named stream event types, keyed by type. Kept at module level
 // alongside the single EventSource so they survive — and are re-attached to — every reconnection.
 const streamEventSubscribers = new Map();
+// One stable listener per type, so a type is attached at most once per connection (attaching per
+// subscriber would deliver an event twice to a type that already had one). It reads the subscriber
+// set at event time rather than closing over it, so subscribing and unsubscribing mid-connection
+// take effect immediately.
+const streamEventDispatchers = new Map();
+const dispatcherFor = (type) => {
+  let dispatcher = streamEventDispatchers.get(type);
+  if (dispatcher === undefined) {
+    dispatcher = (event) => {
+      streamEventSubscribers.get(type)?.forEach((handler) => {
+        try {
+          handler(event);
+        } catch {
+          // A subscriber must never break the SSE processing of this tab.
+        }
+      });
+    };
+    streamEventDispatchers.set(type, dispatcher);
+  }
+  return dispatcher;
+};
 
 const SSE_BATCH_INTERVAL = 200;
 const IDLE_CALLBACK_TIMEOUT = 1000;
@@ -252,18 +273,10 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
         }
       }
     });
-    // Feature-scoped stream events (see subscribeStreamEvent): re-attached on every reconnection,
-    // so a subscriber never has to know the connection was recycled.
+    // Feature-scoped stream events (see subscribeStreamEvent): one dispatcher per type, re-attached
+    // to every new connection, so a subscriber never has to know the connection was recycled.
     streamEventSubscribers.forEach((handlers, type) => {
-      sseClient.addEventListener(type, (event) => {
-        handlers.forEach((handler) => {
-          try {
-            handler(event);
-          } catch {
-            // A subscriber must never break the SSE processing of this tab.
-          }
-        });
-      });
+      sseClient.addEventListener(type, dispatcherFor(type));
     });
     sseClient.addEventListener('ping', () => {
       lastPingDate = new Date().getTime();
@@ -327,20 +340,18 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
  */
 export const subscribeStreamEvent = (type, handler) => {
   const handlers = streamEventSubscribers.get(type) ?? new Set();
+  const isFirstOfType = handlers.size === 0;
   handlers.add(handler);
   streamEventSubscribers.set(type, handlers);
-  if (sseClient !== undefined) {
-    // Live connection: attach now, the reconnect path covers every later one.
-    sseClient.addEventListener(type, handler);
+  if (sseClient !== undefined && isFirstOfType) {
+    // Live connection, first subscriber of this type: attach the dispatcher once. Later subscribers
+    // ride the same one, and the reconnect path attaches it to every subsequent connection.
+    sseClient.addEventListener(type, dispatcherFor(type));
   }
   return () => {
     handlers.delete(handler);
-    if (handlers.size === 0) {
-      streamEventSubscribers.delete(type);
-    }
-    if (sseClient !== undefined) {
-      sseClient.removeEventListener(type, handler);
-    }
+    // The dispatcher stays attached: it is a no-op with no subscribers, and keeping it means the next
+    // subscriber of this type is reached on the current connection without re-attaching.
   };
 };
 

@@ -3515,5 +3515,7 @@
   "Platform attribution requires Enterprise Edition": "플랫폼 귀속에는 Enterprise Edition이 필요합니다",
   "No platform attribution available": "사용 가능한 플랫폼 귀속이 없습니다",
   "Security platform attribution": "보안 플랫폼 귀속",
-  "Unknown platform": "알 수 없는 플랫폼"
+  "Unknown platform": "알 수 없는 플랫폼",
+  "Partially Prevented": "부분적으로 차단됨",
+  "Partially Detected": "부분적으로 탐지됨"
 }

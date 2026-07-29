@@ -3515,5 +3515,7 @@
   "Platform attribution requires Enterprise Edition": "Die Plattformzuordnung erfordert die Enterprise Edition",
   "No platform attribution available": "Keine Plattformzuordnung verfügbar",
   "Security platform attribution": "Zuordnung der Sicherheitsplattform",
-  "Unknown platform": "Unbekannte Plattform"
+  "Unknown platform": "Unbekannte Plattform",
+  "Partially Prevented": "Teilweise verhindert",
+  "Partially Detected": "Teilweise erkannt"
 }

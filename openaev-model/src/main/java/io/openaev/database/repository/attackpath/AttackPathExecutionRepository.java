@@ -10,6 +10,7 @@ import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -189,6 +190,37 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.targetKey = :targetKey")
   List<AttackPathExecutionRow> findByTarget(
+      @Param("simulationId") String simulationId, @Param("targetKey") String targetKey);
+
+  /**
+   * One page of an endpoint's executions, for the side panel's feed. Same indexed read as {@link
+   * #findByTarget}, ordered so paging is stable while a run keeps inserting: {@code executedAt} is
+   * the user-meaningful order and {@code id} breaks its ties (executions of one step share a
+   * timestamp), so no row is ever shown twice or skipped between two pages.
+   *
+   * <p>Only the executions are paged: the caller keeps returning the grouped edges whole, since they
+   * are bounded by the endpoint's in-degree rather than by execution count, and they reference
+   * execution ids across page boundaries.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathExecutionRow("
+          + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
+          + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
+          + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
+          + "FROM AttackPathExecution e "
+          + "WHERE e.simulationId = :simulationId AND e.targetKey = :targetKey "
+          + "ORDER BY e.executedAt, e.id")
+  List<AttackPathExecutionRow> findPageByTarget(
+      @Param("simulationId") String simulationId,
+      @Param("targetKey") String targetKey,
+      Pageable pageable);
+
+  /** How many executions target one endpoint — the page read's total. */
+  @Query(
+      "SELECT count(e) FROM AttackPathExecution e "
+          + "WHERE e.simulationId = :simulationId AND e.targetKey = :targetKey")
+  long countByTarget(
       @Param("simulationId") String simulationId, @Param("targetKey") String targetKey);
 
   /**

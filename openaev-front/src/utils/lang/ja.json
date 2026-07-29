@@ -3515,5 +3515,7 @@
   "Platform attribution requires Enterprise Edition": "プラットフォームの帰属には Enterprise Edition が必要です",
   "No platform attribution available": "利用可能なプラットフォームの帰属はありません",
   "Security platform attribution": "セキュリティプラットフォームの帰属",
-  "Unknown platform": "不明なプラットフォーム"
+  "Unknown platform": "不明なプラットフォーム",
+  "Partially Prevented": "部分的にブロック",
+  "Partially Detected": "部分的に検出"
 }

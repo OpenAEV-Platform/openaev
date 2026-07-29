@@ -526,24 +526,35 @@ public class AttackPathGraphService {
    * it, from a single indexed read. {@code targetKey} is the asset id or the raw value.
    */
   @Transactional(readOnly = true)
-  public AttackPathEndpointRelationsDTO endpointRelations(String simulationId, String targetKey) {
-    List<AttackPathExecutionRow> executions =
+  public AttackPathEndpointRelationsDTO endpointRelations(
+      String simulationId, String targetKey, Pageable pageable) {
+    // The edges come from every execution, the feed from one page of them: an endpoint's in-degree
+    // is small and its edges reference execution ids across page boundaries, so paging them would
+    // hand the client edges pointing at rows it has not fetched.
+    List<AttackPathExecutionRow> allExecutions =
         executionRepository.findByTarget(simulationId, targetKey);
     String targetNodeId = AttackPathIds.endpointNode(targetKey);
     Map<String, AttackPathEdges> edges = new LinkedHashMap<>();
-    Map<String, AttackPathNodeDTO> feedByExecutionId = new LinkedHashMap<>();
-    for (AttackPathExecutionRow e : executions) {
+    for (AttackPathExecutionRow e : allExecutions) {
       String sourceNodeId = sourceNodeId(e);
       String edgeId = AttackPathIds.executionsEdge(sourceNodeId, targetNodeId);
       AttackPathEdges edge =
           edges.computeIfAbsent(edgeId, id -> executionEdge(id, sourceNodeId, targetNodeId));
       edge.setCount(edge.getCount() + 1);
       edge.getExecutionIds().add(e.id());
+    }
+
+    List<AttackPathExecutionRow> page =
+        executionRepository.findPageByTarget(simulationId, targetKey, pageable);
+    Map<String, AttackPathNodeDTO> feedByExecutionId = new LinkedHashMap<>();
+    for (AttackPathExecutionRow e : page) {
       feedByExecutionId.put(e.id(), executionFeedNode(e));
     }
-    applyContractNames(executions, feedByExecutionId);
+    applyContractNames(page, feedByExecutionId);
     return new AttackPathEndpointRelationsDTO(
-        new ArrayList<>(feedByExecutionId.values()), new ArrayList<>(edges.values()));
+        new ArrayList<>(feedByExecutionId.values()),
+        new ArrayList<>(edges.values()),
+        executionRepository.countByTarget(simulationId, targetKey));
   }
 
   /**

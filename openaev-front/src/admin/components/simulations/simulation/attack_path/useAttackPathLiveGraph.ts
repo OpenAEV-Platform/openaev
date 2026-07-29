@@ -115,6 +115,10 @@ const useAttackPathLiveGraph = ({
   // A (re)seed is in flight. The delta poll is suspended for its duration: a tick fired against the
   // pre-seed cursor could answer `resyncRequired` again and start a resync→reseed storm.
   const [seeding, setSeeding] = useState(false);
+  // Read by `poll`, which must see the current value from a timer callback rather than the one
+  // captured when the callback was created.
+  const seedingRef = useRef(seeding);
+  seedingRef.current = seeding;
   const [error, setError] = useState(false);
   const [forbidden, setForbidden] = useState(false);
   const [degraded, setDegraded] = useState(false);
@@ -242,6 +246,15 @@ const useAttackPathLiveGraph = ({
   const pollRef = useRef<() => Promise<void>>(async () => {});
   const poll = useCallback(async () => {
     if (!simulationId) {
+      return;
+    }
+    // A (re)seed in flight has not published its cursor yet, so a read here would ask from a cursor
+    // the seed is about to replace — and on a large run the backend answers `resyncRequired`, which
+    // triggers another reseed: a loop that never seeds. The check lives here rather than in each
+    // caller's effect because all three (nudge, cadence timer, visibility catch-up) can fire inside
+    // that window, timers included. A cursor of 0 is NOT excluded: a simulation that has produced
+    // nothing yet legitimately sits there, and it must still see its first rows arrive.
+    if (seedingRef.current) {
       return;
     }
     if (inFlight.current) {
@@ -374,9 +387,22 @@ const useAttackPathLiveGraph = ({
     if (!simulationId || forbidden || terminal) {
       return undefined;
     }
-    let debounce: number | undefined;
+    let trailing: number | undefined;
+    let lastFetchAt = 0;
+    // Throttle, not a plain debounce: a hot run bumps faster than the window, and re-arming a
+    // trailing-only timer on every nudge would never fire — the graph would go stalest exactly when
+    // the run is busiest. So the first nudge of a quiet period reads immediately and the ones inside
+    // the window collapse into a single trailing read. Overlap is impossible anyway: `poll` keeps one
+    // read in flight with at most one queued follow-up.
+    const fetchNow = () => {
+      lastFetchAt = Date.now();
+      void pollRef.current();
+    };
     const unsubscribe = subscribeStreamEvent(ATTACK_PATH_VERSION_EVENT, (event: MessageEvent) => {
-      let payload: { simulation_id?: string };
+      let payload: {
+        simulation_id?: string;
+        version?: number;
+      };
       try {
         payload = JSON.parse(event.data);
       } catch {
@@ -385,11 +411,25 @@ const useAttackPathLiveGraph = ({
       if (payload.simulation_id !== simulationId) {
         return;
       }
-      window.clearTimeout(debounce);
-      debounce = window.setTimeout(() => void pollRef.current(), NUDGE_DEBOUNCE_MS);
+      // Already caught up past this version (a poll got there first): nothing to fetch.
+      if (typeof payload.version === 'number' && payload.version <= versionRef.current) {
+        return;
+      }
+      if (Date.now() - lastFetchAt >= NUDGE_DEBOUNCE_MS) {
+        window.clearTimeout(trailing);
+        trailing = undefined;
+        fetchNow();
+        return;
+      }
+      if (trailing === undefined) {
+        trailing = window.setTimeout(() => {
+          trailing = undefined;
+          fetchNow();
+        }, NUDGE_DEBOUNCE_MS);
+      }
     });
     return () => {
-      window.clearTimeout(debounce);
+      window.clearTimeout(trailing);
       unsubscribe();
     };
   }, [simulationId, forbidden, terminal]);

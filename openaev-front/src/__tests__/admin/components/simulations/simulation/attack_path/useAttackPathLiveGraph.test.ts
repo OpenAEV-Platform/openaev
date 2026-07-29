@@ -1,17 +1,48 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import useAttackPathLiveGraph, { BATCH_TTL_MS, DELTA_POLL_MS } from '../../../../../../admin/components/simulations/simulation/attack_path/useAttackPathLiveGraph';
+import useAttackPathLiveGraph, { ATTACK_PATH_VERSION_EVENT, BATCH_TTL_MS, DELTA_POLL_MS, DELTA_SAFETY_NET_MS, NUDGE_DEBOUNCE_MS } from '../../../../../../admin/components/simulations/simulation/attack_path/useAttackPathLiveGraph';
 
 const mocks = vi.hoisted(() => ({
   fetchAttackPathGraph: vi.fn(),
   fetchAttackPathGraphDelta: vi.fn(),
+  // The shared stream, reduced to what the hook uses: a subscription and a health verdict. The
+  // handler the hook registers is captured so a test can push a nudge through it.
+  streamHandlers: new Map<string, (event: MessageEvent) => void>(),
+  streamHealthy: false,
+  unsubscribed: 0,
 }));
 
 vi.mock('../../../../../../actions/attack-path/attack-path-actions', () => ({
   fetchAttackPathGraph: mocks.fetchAttackPathGraph,
   fetchAttackPathGraphDelta: mocks.fetchAttackPathGraphDelta,
 }));
+
+vi.mock('../../../../../../utils/hooks/useDataLoader', () => ({
+  default: vi.fn(),
+  subscribeStreamEvent: (type: string, handler: (event: MessageEvent) => void) => {
+    mocks.streamHandlers.set(type, handler);
+    return () => {
+      mocks.streamHandlers.delete(type);
+      mocks.unsubscribed += 1;
+    };
+  },
+  isStreamHealthy: () => mocks.streamHealthy,
+}));
+
+/** Pushes a nudge for the given simulation through the hook's stream subscription. */
+const pushNudge = async (simulationId: string, version = 99) => {
+  const handler = mocks.streamHandlers.get(ATTACK_PATH_VERSION_EVENT);
+  await act(async () => {
+    handler?.({
+      data: JSON.stringify({
+        simulation_id: simulationId,
+        version,
+      }),
+    } as MessageEvent);
+    await vi.advanceTimersByTimeAsync(NUDGE_DEBOUNCE_MS);
+  });
+};
 
 const INJECTOR = 'NODE_INJECTOR|nmap';
 const HOST_X = 'NODE_ENDPOINT|host-x';
@@ -157,6 +188,9 @@ describe('useAttackPathLiveGraph', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+    mocks.streamHandlers.clear();
+    mocks.streamHealthy = false;
+    mocks.unsubscribed = 0;
   });
 
   it('given_aSnapshotWithAGraphVersion_should_pollTheDeltaFromThatCursor', async () => {
@@ -336,5 +370,142 @@ describe('useAttackPathLiveGraph', () => {
     expect(result.current.dto?.attackPathNodes?.some(n => n.id === HOST_Y)).toBe(true);
     await tick();
     expect(mocks.fetchAttackPathGraphDelta).toHaveBeenLastCalledWith('sim-1', 42);
+  });
+
+  // -- The stream nudge (spec 003) --
+
+  it('given_aNudgeForThisSimulation_should_fetchTheDeltaImmediately', async () => {
+    // Arrange: the view is up and its cadence timer has not fired yet.
+    renderLive();
+    await flush();
+    const callsBefore = mocks.fetchAttackPathGraphDelta.mock.calls.length;
+
+    // Act
+    await pushNudge('sim-1');
+
+    // Assert: the nudge, not the timer, produced the read.
+    expect(mocks.fetchAttackPathGraphDelta.mock.calls.length).toBe(callsBefore + 1);
+  });
+
+  it('given_aNudgeForAnotherSimulation_should_beIgnored', async () => {
+    // Arrange: the scenario picker means other simulations' nudges reach this client too.
+    renderLive();
+    await flush();
+    const callsBefore = mocks.fetchAttackPathGraphDelta.mock.calls.length;
+
+    // Act
+    await pushNudge('sim-other');
+
+    // Assert
+    expect(mocks.fetchAttackPathGraphDelta.mock.calls.length).toBe(callsBefore);
+  });
+
+  it('given_aBurstOfNudges_should_coalesceIntoALeadingAndOneTrailingRead', async () => {
+    // Arrange: versions ABOVE the snapshot's cursor (41), otherwise they are legitimately skipped as
+    // already caught up.
+    renderLive();
+    await flush();
+    const callsBefore = mocks.fetchAttackPathGraphDelta.mock.calls.length;
+    const handler = mocks.streamHandlers.get(ATTACK_PATH_VERSION_EVENT);
+
+    // Act: several bumps land inside one throttle window, as a hot run produces them.
+    await act(async () => {
+      [42, 43, 44].forEach(v => handler?.({
+        data: JSON.stringify({
+          simulation_id: 'sim-1',
+          version: v,
+        }),
+      } as MessageEvent));
+      await vi.advanceTimersByTimeAsync(NUDGE_DEBOUNCE_MS);
+    });
+
+    // Assert: the first nudge reads at once (a busy run must not go stale waiting for a quiet gap),
+    // the rest collapse into one trailing read — two, never three.
+    expect(mocks.fetchAttackPathGraphDelta.mock.calls.length).toBe(callsBefore + 2);
+  });
+
+  it('given_aNudgeBelowTheCursor_should_notFetch', async () => {
+    // Arrange: a poll already advanced the cursor past this version.
+    renderLive();
+    await flush();
+    const callsBefore = mocks.fetchAttackPathGraphDelta.mock.calls.length;
+
+    // Act
+    await pushNudge('sim-1', 1);
+
+    // Assert
+    expect(mocks.fetchAttackPathGraphDelta.mock.calls.length).toBe(callsBefore);
+  });
+
+  it('given_aHealthyStream_should_pollOnlyAsASafetyNet', async () => {
+    // Arrange: the stream delivers, so the timer is the net rather than the mechanism.
+    mocks.streamHealthy = true;
+    renderLive();
+    await flush();
+    const callsBefore = mocks.fetchAttackPathGraphDelta.mock.calls.length;
+
+    // Act: well past the 3 s cadence, still short of the safety net.
+    await tick(DELTA_POLL_MS * 3);
+
+    // Assert: nothing yet; the net fires later.
+    expect(mocks.fetchAttackPathGraphDelta.mock.calls.length).toBe(callsBefore);
+    await tick(DELTA_SAFETY_NET_MS);
+    expect(mocks.fetchAttackPathGraphDelta.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  it('given_aDeadStream_should_restoreTheThreeSecondCadence', async () => {
+    // Arrange: no stream (a stripping proxy, or an environment without EventSource at all).
+    mocks.streamHealthy = false;
+    renderLive();
+    await flush();
+    const callsBefore = mocks.fetchAttackPathGraphDelta.mock.calls.length;
+
+    // Act
+    await tick(DELTA_POLL_MS);
+
+    // Assert: the shipped cadence is back, so a dead stream never means "no updates".
+    expect(mocks.fetchAttackPathGraphDelta.mock.calls.length).toBe(callsBefore + 1);
+  });
+
+  it('given_aNudgeDuringAFetch_should_scheduleExactlyOneFollowUp', async () => {
+    // Arrange: a slow delta read, and a nudge that lands while it is still in flight.
+    renderLive();
+    await flush();
+    let release: (value: unknown) => void = () => {};
+    mocks.fetchAttackPathGraphDelta.mockImplementationOnce(
+      () => new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
+    await pushNudge('sim-1');
+    const callsDuring = mocks.fetchAttackPathGraphDelta.mock.calls.length;
+
+    // Act: two more nudges while the first read hangs, then it completes.
+    await pushNudge('sim-1');
+    await pushNudge('sim-1');
+    expect(mocks.fetchAttackPathGraphDelta.mock.calls.length).toBe(callsDuring);
+    await act(async () => {
+      release(emptyDelta(41));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Assert: the queued nudges collapsed into a single follow-up read, so the same batch is never
+    // applied twice (which would replay the entrance animation).
+    expect(mocks.fetchAttackPathGraphDelta.mock.calls.length).toBe(callsDuring + 1);
+  });
+
+  it('given_unmount_should_dropTheSubscription', async () => {
+    // Arrange
+    const { unmount } = renderLive();
+    await flush();
+    expect(mocks.streamHandlers.has(ATTACK_PATH_VERSION_EVENT)).toBe(true);
+
+    // Act
+    unmount();
+
+    // Assert: no handler is left holding a reference to the unmounted view.
+    expect(mocks.streamHandlers.has(ATTACK_PATH_VERSION_EVENT)).toBe(false);
+    expect(mocks.unsubscribed).toBeGreaterThan(0);
   });
 });

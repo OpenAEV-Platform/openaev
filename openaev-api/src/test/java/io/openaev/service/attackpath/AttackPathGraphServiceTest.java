@@ -29,6 +29,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -521,7 +522,8 @@ class AttackPathGraphServiceTest extends IntegrationTest {
         entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
     stats.setStatisticsEnabled(true);
     stats.clear();
-    AttackPathEndpointRelationsDTO dto = service.endpointRelations(SIM, "dc-01");
+    AttackPathEndpointRelationsDTO dto =
+        service.endpointRelations(SIM, "dc-01", PageRequest.of(0, 50));
     assertThat(stats.getPrepareStatementCount()).isEqualTo(1);
 
     assertThat(dto.executions()).hasSize(2);
@@ -542,7 +544,8 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     entityManager.flush();
 
     String expectedSource = AttackPathIds.injectorNode("WINRM", "C-REL");
-    AttackPathEndpointRelationsDTO relations = service.endpointRelations(SIM, "ep-rel");
+    AttackPathEndpointRelationsDTO relations =
+        service.endpointRelations(SIM, "ep-rel", PageRequest.of(0, 50));
     assertThat(relations.edges())
         .singleElement()
         .satisfies(e -> assertThat(e.getEdgeSourceId()).isEqualTo(expectedSource));
@@ -573,7 +576,8 @@ class AttackPathGraphServiceTest extends IntegrationTest {
         .extracting(AttackPathNodeDTO::getValue)
         .containsExactly("CVE-2024-9");
 
-    AttackPathEndpointRelationsDTO relations = service.endpointRelations(SIM, raw);
+    AttackPathEndpointRelationsDTO relations =
+        service.endpointRelations(SIM, raw, PageRequest.of(0, 50));
     assertThat(relations.executions()).hasSize(1);
     assertThat(relations.edges()).hasSize(1);
   }

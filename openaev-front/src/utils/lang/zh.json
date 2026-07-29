@@ -3515,5 +3515,7 @@
   "Platform attribution requires Enterprise Edition": "平台归因需要企业版",
   "No platform attribution available": "没有可用的平台归因",
   "Security platform attribution": "安全平台归因",
-  "Unknown platform": "未知平台"
+  "Unknown platform": "未知平台",
+  "Partially Prevented": "部分阻止",
+  "Partially Detected": "部分检测"
 }

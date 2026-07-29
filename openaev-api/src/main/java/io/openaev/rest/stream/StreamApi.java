@@ -97,8 +97,22 @@ public class StreamApi extends RestBehavior {
 
   private record CachedUser(User user, Instant fetchedAt) {}
 
+  /**
+   * A cached decision. {@code checkId} identifies the predicate that produced it, so two listeners
+   * asking different questions about the same resource can never reuse each other's answer: the
+   * attack-path gate accepts synthetic seed ids unconditionally, and without this discriminator
+   * that "yes" could be replayed by the generic entity path, which delivers the full serialized
+   * entity.
+   */
   private record PermissionCacheKey(
-      String principalId, String resourceId, ResourceType resourceType, String tenantId) {}
+      String principalId,
+      String resourceId,
+      ResourceType resourceType,
+      String tenantId,
+      String checkId) {}
+
+  private static final String CHECK_ENTITY_EVENT = "entity-event";
+  private static final String CHECK_ATTACK_PATH = "attack-path";
 
   /**
    * Resolves the per-event READ permission through the short-lived decision cache. Must be called
@@ -111,6 +125,7 @@ public class StreamApi extends RestBehavior {
         consumer,
         event.getInstance().getId(),
         event.getInstance().getResourceType(),
+        CHECK_ENTITY_EVENT,
         () ->
             permissionService.hasPermission(
                 user,
@@ -130,10 +145,11 @@ public class StreamApi extends RestBehavior {
       StreamConsumer consumer,
       String resourceId,
       ResourceType resourceType,
+      String checkId,
       java.util.function.BooleanSupplier check) {
     PermissionCacheKey key =
         new PermissionCacheKey(
-            consumer.principal().getId(), resourceId, resourceType, consumer.tenantId());
+            consumer.principal().getId(), resourceId, resourceType, consumer.tenantId(), checkId);
     Boolean cached = permissionDecisionCache.getIfPresent(key);
     if (cached != null) {
       return cached;
@@ -323,8 +339,12 @@ public class StreamApi extends RestBehavior {
    * <p>The gate is explicit, in this order: strict tenant equality (fail closed — a consumer whose
    * tenant cannot be matched gets nothing, deliberately stricter than the bulk-operation clause),
    * then the delta read's own predicate through {@link AttackPathAccessControl#canRead}, resolved
-   * via the shared decision cache. Calling that predicate rather than re-implementing it is what
-   * keeps the nudge's audience equal to the read's, seed simulations included.
+   * via the shared decision cache under its own {@code checkId} so its seed exception can never be
+   * replayed by the generic entity path. Calling that predicate rather than re-implementing it is
+   * what keeps the nudge's audience equal to the read's, seed simulations included.
+   *
+   * <p>A bump published with no transaction bound is dropped ({@code fallbackExecution} is false),
+   * which is the safe direction: no nudge, and the client converges on its safety-net poll.
    */
   @Async("streamExecutor")
   @TransactionalEventListener
@@ -339,13 +359,16 @@ public class StreamApi extends RestBehavior {
           if (!event.tenantId().equals(consumer.tenantId())) {
             return;
           }
-          User user = resolveUser(consumer.principal().getId());
           TenantContext.setCurrentTenant(consumer.tenantId());
           try {
+            // Resolved inside the tenant scope: the user's filtered collections must not load under
+            // the default-tenant fallback.
+            User user = resolveUser(consumer.principal().getId());
             if (hasReadPermission(
                 consumer,
                 event.simulationId(),
                 ResourceType.SIMULATION,
+                CHECK_ATTACK_PATH,
                 () -> attackPathAccessControl.canRead(user, event.simulationId()))) {
               consumer.fluxSink().next(message);
             }

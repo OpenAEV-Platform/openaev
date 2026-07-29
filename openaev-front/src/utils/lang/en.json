@@ -3515,5 +3515,7 @@
   "Platform attribution requires Enterprise Edition": "Platform attribution requires Enterprise Edition",
   "No platform attribution available": "No platform attribution available",
   "Security platform attribution": "Security platform attribution",
-  "Unknown platform": "Unknown platform"
+  "Unknown platform": "Unknown platform",
+  "Partially Prevented": "Partially Prevented",
+  "Partially Detected": "Partially Detected"
 }

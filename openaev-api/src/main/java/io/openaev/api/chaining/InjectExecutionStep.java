@@ -239,6 +239,31 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
+   * Pushes the step's expectation verdicts onto the attack-path projection: flag-gated and
+   * non-fatal, like the two ingestion hooks around it. The write opens its own tenant-scoped
+   * REQUIRES_NEW transaction, so a failure here is caught and logged and can never roll the step
+   * update back. Runs on every execution event; the updates are guarded, so replaying the same
+   * results changes nothing — and therefore nudges no client.
+   *
+   * <p>The flag gate matters beyond the write: the version bump this triggers publishes the
+   * real-time nudge, so an environment with {@code ATTACK_PATH} off must not emit attack-path
+   * events at all (spec 003, FR3).
+   */
+  private void syncAttackPathVerdicts(Inject inject, List<BaseInjectExpectation> expectations) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
+      return;
+    }
+    try {
+      Map<String, AttackPathExecutionIngestionService.ExecutionExpectationResults>
+          expectationResults =
+              attackPathIngestion.getExpectationByEndpointIndex(inject, expectations);
+      attackPathIngestion.updateExpectationByExecutionIndex(inject, expectationResults);
+    } catch (Exception e) {
+      log.warn("Attack-path verdict sync skipped for inject {} (non-fatal)", inject.getId(), e);
+    }
+  }
+
+  /**
    * Copies the inject's findings onto the attack-path snapshot: flag-gated and non-fatal. The copy
    * opens its own tenant-scoped REQUIRES_NEW transaction, so a failure here is caught and logged
    * and can never roll the step update back. Runs on every execution event; the copy is idempotent.
@@ -316,10 +341,7 @@ public class InjectExecutionStep implements ActionStep {
 
     // SYNC the same verdicts onto the attack-path projection, keyed by execution row: per event,
     // guarded (a replay writes nothing) and version-stamped so the change reaches the delta read.
-    Map<String, AttackPathExecutionIngestionService.ExecutionExpectationResults>
-        expectationResults =
-            attackPathIngestion.getExpectationByEndpointIndex(inject, expectations);
-    attackPathIngestion.updateExpectationByExecutionIndex(inject, expectationResults);
+    syncAttackPathVerdicts(inject, expectations);
 
     // UPDATE step output
     if (!output.isEmpty()) {

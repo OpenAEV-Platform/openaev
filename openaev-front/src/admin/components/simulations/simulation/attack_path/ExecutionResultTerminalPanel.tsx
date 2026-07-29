@@ -47,7 +47,6 @@ interface PlatformAlert {
   id: string;
   title: string;
   date?: string | null;
-  link?: string;
 }
 interface SecurityPlatform {
   /** The platform's collector type, when known — drives its catalog logo. */
@@ -332,7 +331,6 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
           id: a.id ?? `${p.platformName}-${a.title}`,
           title: a.title ?? '',
           date: a.date ?? p.detectedAt,
-          link: a.link ?? undefined,
         })),
       }));
   const preventedBy = platformsByBucket('prevention');
@@ -356,8 +354,8 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
     const hasExpectation = !!status && status.trim().length > 0;
     const statusColor = hasExpectation ? getStatusColor(theme, status) : theme.palette.text.disabled;
     const statusLabel = hasExpectation
-      ? status
-      : t('No expectation for {type}').replace('{type}', t(expectationType));
+      ? t(status)
+      : t('No expectation for {type}', { type: t(expectationType === 'prevention' ? 'Prevention' : 'Detection') });
     return (
       <div>
         <div style={{
@@ -369,14 +367,11 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
         >
           {expectationIconByType(expectationType, { color: statusColor })}
           <Typography variant="subtitle2">{heading}</Typography>
-          <Typography variant="caption" style={{ color: statusColor }}>{t(statusLabel)}</Typography>
-          {/* Enterprise gate on the attribution itself, not on the verdict: the chip offers the
-              upsell path instead of leaving a dead-end sentence in the panel. */}
-          {attributionUnavailable && <EEChip clickable featureDetectedInfo={t('Security platform attribution')} />}
+          <Typography variant="caption" sx={{ color: statusColor }}>{statusLabel}</Typography>
         </div>
         {platforms.length === 0
           ? (
-              <Typography variant="caption" style={{ color: theme.palette.text.disabled }}>
+              <Typography variant="caption" sx={{ color: theme.palette.text.disabled }}>
                 {attributionUnavailable
                   ? t('Platform attribution requires Enterprise Edition')
                   : t('No platform attribution available')}
@@ -389,8 +384,12 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 flexWrap: 'wrap',
               }}
               >
-                {platforms.map(p => (
-                  <SecurityPlatformItem key={p.platform.label} platform={p.platform} alerts={p.alerts} />
+                {platforms.map((p, index) => (
+                  <SecurityPlatformItem
+                    key={`${p.platform.type ?? 'unknown'}-${p.platform.label}-${index}`}
+                    platform={p.platform}
+                    alerts={p.alerts}
+                  />
                 ))}
               </div>
             )}
@@ -539,6 +538,11 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                       consistent with the graph node; fall back to the IP only when no name is known. */}
                   <Typography variant="subtitle2">{endpointLabel || detail.targetHostname || detail.targetIp || detail.endpointKey}</Typography>
                 </div>
+                {/* Enterprise gate on the attribution itself, not on the verdicts: one chip for the
+                    section, offering the upsell path instead of a dead-end sentence per row. */}
+                {attributionUnavailable && (
+                  <EEChip clickable featureDetectedInfo={t('Security platform attribution')} />
+                )}
                 {renderExpectationRow('prevention', t('Prevented by'), detail?.preventionStatus, preventedBy)}
                 {renderExpectationRow('detection', t('Detected by'), detail?.detectionStatus, detectedBy)}
                 {/* Jump to the originating inject for the full action definition (pending backend id). */}

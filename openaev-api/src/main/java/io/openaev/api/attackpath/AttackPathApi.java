@@ -155,17 +155,25 @@ public class AttackPathApi extends RestBehavior {
   }
 
   /**
-   * An endpoint's relations: its executions and the grouped edges into it, from a single indexed
-   * read. {@code ref} is the endpoint key (asset id or raw value), URL-encoded.
+   * An endpoint's relations: one page of the executions targeting it plus the grouped edges into
+   * it, whole. {@code ref} is the endpoint key (asset id or raw value), URL-encoded. The page is
+   * size-capped ({@value #MAX_FINDINGS_PAGE_SIZE}) and clamped rather than rejected, like the
+   * findings read next to it, so an over-sized request from an older client still answers.
    */
   @GetMapping("/simulations/{simulationId}/endpoint/relations")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
   public AttackPathEndpointRelationsDTO relations(
-      TxCtx ctx, @PathVariable String simulationId, @RequestParam String ref) {
+      TxCtx ctx,
+      @PathVariable String simulationId,
+      @RequestParam String ref,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "50") int size) {
     requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
-    return graphService.endpointRelations(simulationId, ref);
+    int safePage = Math.max(page, 0);
+    int safeSize = Math.min(Math.max(size, 1), MAX_FINDINGS_PAGE_SIZE);
+    return graphService.endpointRelations(simulationId, ref, PageRequest.of(safePage, safeSize));
   }
 
   /**

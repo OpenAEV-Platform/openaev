@@ -3515,5 +3515,7 @@
   "Platform attribution requires Enterprise Edition": "Для атрибуции платформы требуется Enterprise Edition",
   "No platform attribution available": "Атрибуция платформы недоступна",
   "Security platform attribution": "Атрибуция платформы безопасности",
-  "Unknown platform": "Неизвестная платформа"
+  "Unknown platform": "Неизвестная платформа",
+  "Partially Prevented": "Частично предотвращено",
+  "Partially Detected": "Частично обнаружено"
 }

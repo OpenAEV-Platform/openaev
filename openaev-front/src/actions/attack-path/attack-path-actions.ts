@@ -46,12 +46,15 @@ export const fetchEndpointFindings = (
 ): Promise<{ data: AttackPathExpandDTO }> =>
   simpleCall(`${simulationUri(simulationId)}/endpoint/findings?ref=${encodeURIComponent(ref)}`, undefined, false);
 
-// An endpoint's relations: the executions targeting it and the grouped edges into it.
+// An endpoint's relations: one page of the executions targeting it (with the total), plus the
+// grouped edges into it, whole — the edges reference execution ids across page boundaries.
 export const fetchEndpointRelations = (
   simulationId: string,
   ref: string,
+  page = 0,
+  size = 50,
 ): Promise<{ data: AttackPathEndpointRelationsDTO }> =>
-  simpleCall(`${simulationUri(simulationId)}/endpoint/relations?ref=${encodeURIComponent(ref)}`, undefined, false);
+  simpleCall(`${simulationUri(simulationId)}/endpoint/relations?ref=${encodeURIComponent(ref)}&page=${page}&size=${size}`, undefined, false);
 
 // A page of a widget category's findings for the drawer (issue 5048).
 // category is one of credentials | users | files | cves; the value is masked server-side for credentials.

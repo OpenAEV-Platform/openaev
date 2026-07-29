@@ -25,6 +25,8 @@ const mocks = vi.hoisted(() => ({
   fetchFindingsByCategory: vi.fn(),
   fetchExecutionDetail: vi.fn(),
   flowProps: { current: null as FlowProps | null },
+  // Read by the useEnterpriseEdition mock below; a test flips it to exercise the unlicensed path.
+  licenceValidated: true,
 }));
 
 vi.mock('../../../../../../actions/attack-path/attack-path-actions', () => ({
@@ -113,16 +115,19 @@ const graphDto = {
   staticAttackPathFindings: [],
 };
 
-// The Result panel gates platform attribution on the Enterprise licence; these tests are about the
-// panel's content, not the licence, so run them as a licensed platform (the unlicensed affordance is
-// covered by its own test below).
+// The Result panel gates platform attribution on the Enterprise licence. Most tests are about the
+// panel's content, so they run licensed; the unlicensed affordance flips this flag in its own test.
 vi.mock('../../../../../../utils/hooks/useEnterpriseEdition', () => ({
   default: () => ({
-    isValidated: true,
+    isValidated: mocks.licenceValidated,
     openDialog: vi.fn(),
     setEEFeatureDetectedInfo: vi.fn(),
   }),
 }));
+
+// The shared EE chip reads `theme.palette.ee`, which the bare test theme does not carry; it has its
+// own coverage, so stand it in by a marker and assert the panel renders it.
+vi.mock('../../../../../../admin/components/common/entreprise_edition/EEChip', () => ({ default: () => <span data-testid="ee-chip" /> }));
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <ThemeProvider theme={createTheme()}>{children}</ThemeProvider>
@@ -215,6 +220,7 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     cleanup();
     vi.clearAllMocks();
     mocks.flowProps.current = null;
+    mocks.licenceValidated = true;
   });
 
   it('opens a category drawer, lists the findings, and shows the finding attack path on item click', async () => {
@@ -270,6 +276,41 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Terminal view' }));
     expect(await screen.findByText('$ nmap -p 445 host-x -u admin -p ••••')).toBeTruthy();
     expect(screen.getByText('open')).toBeTruthy();
+  });
+
+  it('says platform attribution needs Enterprise instead of implying nothing was detected', async () => {
+    // Arrange: no Enterprise licence, so the backend resolves no platform at all. The panel must not
+    // let that read as "no platform prevented or detected this".
+    mocks.licenceValidated = false;
+    setup();
+    // Without a licence the backend resolves no platform at all — that is the shape to render.
+    mocks.fetchExecutionDetail.mockResolvedValue({
+      data: {
+        payloadName: 'nmap',
+        agentName: 'agent-x',
+        agentPrivilege: 'user',
+        endpointKey: 'host-x',
+        preventionStatus: 'FAILED',
+        detectionStatus: 'DETECTED',
+        securityPlatforms: [],
+        command: 'nmap -p 445 host-x',
+        terminalOutput: 'open',
+      },
+    });
+    await screen.findByTestId('attack-path-flow');
+    await act(async () => {
+      mocks.flowProps.current?.onEndpointClick?.(ENDPOINT_NODE, 'host-x', 'CORP-HOST');
+    });
+    fireEvent.click(await screen.findByText('nmap'));
+    await waitFor(() => expect(mocks.fetchExecutionDetail).toHaveBeenCalled());
+
+    // Assert: the Enterprise affordance for the section, and never the plain "none" wording.
+    expect(await screen.findByText('Prevented by')).toBeTruthy();
+    expect(screen.getByTestId('ee-chip')).toBeTruthy();
+    expect(screen.getAllByText('Platform attribution requires Enterprise Edition').length).toBe(2);
+    expect(screen.queryByText('No platform attribution available')).toBeNull();
+    // The verdicts themselves still come from the run — the licence gates attribution, not results.
+    expect(screen.getByText('DETECTED')).toBeTruthy();
   });
 
   it('opens the injector panel listing its own executions, one click from the execution detail', async () => {
