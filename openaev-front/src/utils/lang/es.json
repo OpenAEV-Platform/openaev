@@ -3505,11 +3505,15 @@
   "YYYY": "AAAA",
   "Zoom in": "Acercar",
   "Zoom out": "Alejar",
-  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all.",
   "Fullscreen": "Fullscreen",
   "Exit fullscreen": "Exit fullscreen",
   "criticality weight": "criticality weight",
   "Criticality weights": "Criticality weights",
   "{label} is the most exposed endpoint — fixing its findings closes the most attack paths.": "{label} is the most exposed endpoint — fixing its findings closes the most attack paths.",
-  "Weighs this endpoint's findings ×{weight} in the score.": "Weighs this endpoint's findings ×{weight} in the score."
+  "Weighs this endpoint's findings ×{weight} in the score.": "Weighs this endpoint's findings ×{weight} in the score.",
+  "Show more": "Mostrar más",
+  "Platform attribution requires Enterprise Edition": "La atribución de plataforma requiere Enterprise Edition",
+  "No platform attribution available": "No hay atribución de plataforma disponible",
+  "Security platform attribution": "Atribución de plataforma de seguridad",
+  "Unknown platform": "Plataforma desconocida"
 }

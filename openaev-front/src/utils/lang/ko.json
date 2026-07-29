@@ -3505,11 +3505,15 @@
   "YYYY": "YYYY",
   "Zoom in": "확대",
   "Zoom out": "축소",
-  "Showing {shown} of {total} findings — open the inject to see them all.": "Showing {shown} of {total} findings — open the inject to see them all.",
   "Fullscreen": "Fullscreen",
   "Exit fullscreen": "Exit fullscreen",
   "criticality weight": "criticality weight",
   "Criticality weights": "Criticality weights",
   "{label} is the most exposed endpoint — fixing its findings closes the most attack paths.": "{label} is the most exposed endpoint — fixing its findings closes the most attack paths.",
-  "Weighs this endpoint's findings ×{weight} in the score.": "Weighs this endpoint's findings ×{weight} in the score."
+  "Weighs this endpoint's findings ×{weight} in the score.": "Weighs this endpoint's findings ×{weight} in the score.",
+  "Show more": "더 보기",
+  "Platform attribution requires Enterprise Edition": "플랫폼 귀속에는 Enterprise Edition이 필요합니다",
+  "No platform attribution available": "사용 가능한 플랫폼 귀속이 없습니다",
+  "Security platform attribution": "보안 플랫폼 귀속",
+  "Unknown platform": "알 수 없는 플랫폼"
 }

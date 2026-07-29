@@ -1,5 +1,5 @@
 import { Close } from '@mui/icons-material';
-import { Box, IconButton, Paper, Typography } from '@mui/material';
+import { Box, Button, IconButton, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../../components/i18n';
@@ -18,7 +18,10 @@ interface Props {
   findingsLoading: boolean;
   findingGroups: FindingGroup[];
   executions: AttackPathNodeDTO[];
-  execDisplayCap: number;
+  /** How many executions are currently revealed; the rest are one "Show more" away. */
+  shownCount: number;
+  /** Reveals the next page of executions (absent = the caller shows everything it has). */
+  onShowMore?: () => void;
   highlightedExecutionIds: Set<string>;
   // Registers the DOM node of an execution row so the page can scroll the highlighted one into view.
   registerRow: (id: string, el: HTMLDivElement | null) => void;
@@ -40,7 +43,8 @@ const EndpointDetailPanel = ({
   findingsLoading,
   findingGroups,
   executions,
-  execDisplayCap,
+  shownCount,
+  onShowMore,
   highlightedExecutionIds,
   registerRow,
   onSelectExecution,
@@ -131,7 +135,7 @@ const EndpointDetailPanel = ({
         <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: hideFindings ? 0 : 1 }}>
           {`${t('Executions')} (${executions.length})`}
         </Typography>
-        {executions.slice(0, execDisplayCap).map((e) => {
+        {executions.slice(0, shownCount).map((e) => {
           const status = execStatusLabel(e.status);
           const highlighted = !!e.ref && highlightedExecutionIds.has(e.ref);
           return (
@@ -191,17 +195,20 @@ const EndpointDetailPanel = ({
             </Box>
           );
         })}
-        {executions.length > execDisplayCap && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
+        {/* The list is bounded, so reaching the rest must be an action rather than a dead caption:
+            same slot, a text button that reveals the next page (See More precedent). */}
+        {executions.length > shownCount && (
+          <Button
+            size="small"
+            variant="text"
+            onClick={() => onShowMore?.()}
             sx={{
-              display: 'block',
-              pt: 1,
+              mt: 1,
+              textTransform: 'none',
             }}
           >
-            {`+${executions.length - execDisplayCap} ${t('more')}`}
-          </Typography>
+            {`${t('Show more')} (${executions.length - shownCount})`}
+          </Button>
         )}
       </div>
     </Paper>

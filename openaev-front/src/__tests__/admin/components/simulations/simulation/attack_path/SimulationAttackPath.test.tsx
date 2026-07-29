@@ -113,6 +113,17 @@ const graphDto = {
   staticAttackPathFindings: [],
 };
 
+// The Result panel gates platform attribution on the Enterprise licence; these tests are about the
+// panel's content, not the licence, so run them as a licensed platform (the unlicensed affordance is
+// covered by its own test below).
+vi.mock('../../../../../../utils/hooks/useEnterpriseEdition', () => ({
+  default: () => ({
+    isValidated: true,
+    openDialog: vi.fn(),
+    setEEFeatureDetectedInfo: vi.fn(),
+  }),
+}));
+
 const wrapper = ({ children }: { children: ReactNode }) => (
   <ThemeProvider theme={createTheme()}>{children}</ThemeProvider>
 );
@@ -176,6 +187,18 @@ const setup = () => {
       targetPlatform: 'Linux',
       preventionStatus: 'FAILED',
       detectionStatus: 'DETECTED',
+      // The platforms that actually acted, as the backend resolves them from the inject's
+      // expectations — the panel renders these, it never fabricates a platform row.
+      securityPlatforms: [{
+        platformName: 'CrowdStrike',
+        platformType: 'openaev_crowdstrike',
+        bucket: 'detection',
+        status: 'SUCCESS',
+        alerts: [{
+          id: 'alert-1',
+          title: 'Suspicious activity flagged',
+        }],
+      }],
       findings: [{
         type: 'credentials',
         value: 'admin:••••',
@@ -232,13 +255,16 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     await waitFor(() => expect(mocks.fetchExecutionDetail).toHaveBeenCalledWith('sim-1', 'exec-1'));
 
     // Header (agent · privilege) + both tabs render; the Result tab shows the prevented/detected-by
-    // security platforms (detection succeeded in the mock, so CrowdStrike & Splunk appear).
+    // rows, each carrying the expectation's own verdict and the platforms the run actually recorded
+    // (detection by CrowdStrike here; prevention has no platform, so it says so instead of inventing
+    // one).
     expect(await screen.findByText('agent-x · user')).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Result' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Terminal view' })).toBeTruthy();
     expect(screen.getByText('Prevented by')).toBeTruthy();
     expect(screen.getByText('Detected by')).toBeTruthy();
     expect(screen.getByText('CrowdStrike')).toBeTruthy();
+    expect(screen.getByText('No platform attribution available')).toBeTruthy();
 
     // The Terminal tab shows the masked command and output via the shared Terminal.
     fireEvent.click(screen.getByRole('tab', { name: 'Terminal view' }));

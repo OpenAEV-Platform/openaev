@@ -27,7 +27,9 @@ import useAttackPathLiveGraph from './useAttackPathLiveGraph';
 
 // A hot endpoint can have many executions; the read is bounded to the one endpoint, but the side
 // panel still renders a list, so cap it (the backend /relations read would be paginated in prod).
-const EXEC_DISPLAY_CAP = 100;
+// How many executions a panel reveals at once; the rest are one "Show more" away, so a hot endpoint's
+// list is bounded on screen without ever hiding data (spec 003, FR9/FR11).
+const EXEC_PAGE_SIZE = 50;
 
 // The causal overlay needs the per-execution kill-chain fields, which the backend only emits in the
 // full graph. We fetch that full graph solely to derive the meta, gated on the run's execution count so
@@ -314,6 +316,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   const [findingsByCluster, setFindingsByCluster] = useState<Map<string, AttackPathNodeDTO[]>>(new Map());
   const [findingBatch, setFindingBatch] = useState<Map<string, number>>(new Map());
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  // How many executions each panel currently reveals. Reset when the panel switches subject, so a
+  // new endpoint always opens on its first page; a live merge never shrinks what is already shown.
+  const [endpointExecShown, setEndpointExecShown] = useState(EXEC_PAGE_SIZE);
+  const [injectorExecShown, setInjectorExecShown] = useState(EXEC_PAGE_SIZE);
   const [selectedLabel, setSelectedLabel] = useState<string>('');
   // A clicked leaf finding whose full path (injector -> endpoint cluster -> finding cluster -> finding)
   // is highlighted in blue.
@@ -387,6 +393,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       setFindingDetail(null);
     }
   }, [pathFinding]);
+
+  // A panel switching subject opens on its first page again.
+  useEffect(() => setEndpointExecShown(EXEC_PAGE_SIZE), [selectedNodeId]);
+  useEffect(() => setInjectorExecShown(EXEC_PAGE_SIZE), [selectedInjectorId]);
 
   // Execution Result & Terminal drawer: clicking a feed entry loads and opens its detail.
   const [detailExecutionId, setDetailExecutionId] = useState<string | null>(null);
@@ -2657,7 +2667,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                       findingsLoading={endpointFindingsLoading}
                       findingGroups={endpointFindingGroups}
                       executions={executions}
-                      execDisplayCap={EXEC_DISPLAY_CAP}
+                      shownCount={endpointExecShown}
+                      onShowMore={() => setEndpointExecShown(n => n + EXEC_PAGE_SIZE)}
                       highlightedExecutionIds={highlightedExecutionIds}
                       registerRow={(id, el) => {
                         if (el) {
@@ -2684,7 +2695,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                       findingsLoading={injectorFindingsLoading}
                       findingGroups={injectorFindingGroups}
                       executions={injectorExecutions}
-                      execDisplayCap={EXEC_DISPLAY_CAP}
+                      shownCount={injectorExecShown}
+                      onShowMore={() => setInjectorExecShown(n => n + EXEC_PAGE_SIZE)}
                       highlightedExecutionIds={highlightedExecutionIds}
                       registerRow={() => {}}
                       onSelectExecution={openExecutionDetail}
