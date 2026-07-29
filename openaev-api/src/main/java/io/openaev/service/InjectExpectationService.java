@@ -869,8 +869,23 @@ public class InjectExpectationService {
    */
   private Double combineWithChildrenVerdict(
       @NotNull final TechnicalInjectExpectation expectation, @Nullable final Double ownScore) {
-    if (expectation.getAgent() != null || expectation.getAsset() == null) {
-      return ownScore; // agent leaf or asset-group level: no children rollup to protect
+    if (expectation.getAgent() != null) {
+      return ownScore; // agent leaf: no children rollup to protect
+    }
+    if (expectation.getAsset() == null) {
+      // Asset-group level: no children rollup to protect here (propagation recomputes it from
+      // the asset children), but a direct VULNERABLE verdict written on the group row itself
+      // (e.g. by Nuclei) must survive the own-results max: the results list may also carry
+      // success-polarity rows ("Expired" placeholders, legacy expiration-manager stamps) that
+      // would otherwise win the max and flip the group to "Not vulnerable".
+      if (BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.equals(expectation.getType())) {
+        Double directVulnerable =
+            InjectExpectationUtils.reconcileWithDirectVulnerableVerdict(expectation, null);
+        if (directVulnerable != null) {
+          return directVulnerable;
+        }
+      }
+      return ownScore;
     }
     List<TechnicalInjectExpectation> agentChildren = getAgentsExpectationsForAsset(expectation);
     if (agentChildren.isEmpty()) {
