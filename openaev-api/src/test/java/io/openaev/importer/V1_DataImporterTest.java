@@ -570,6 +570,53 @@ class V1_DataImporterTest extends IntegrationTest {
 
   @Test
   @Transactional
+  void
+      given_stepDataWithTextualContractTags_when_resolvingMappedContract_should_notThrowAndKeepContractId() {
+    // -- Arrange --
+    String oldContractId = UUID.randomUUID().toString();
+    String newContractId = UUID.randomUUID().toString();
+    String sourceTagId = UUID.randomUUID().toString();
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode stepNode = objectMapper.createObjectNode();
+    stepNode.put(
+        "step_data",
+        """
+        {
+          "inject_injector_contract": {
+            "injector_contract_id": "%s",
+            "injector_contract_tags": ["%s"]
+          }
+        }
+        """
+            .formatted(oldContractId, sourceTagId));
+    Map<String, String> resolvedContracts = Map.of(oldContractId, newContractId);
+    Exercise simulation = new Exercise();
+    simulation.setId("sim-test");
+    Workflow workflow = Workflow.builder().simulation(simulation).build();
+
+    // -- Act --
+    String resolvedStepData =
+        assertDoesNotThrow(
+            () ->
+                ReflectionTestUtils.invokeMethod(
+                    importer,
+                    "resolveStepData",
+                    stepNode,
+                    resolvedContracts,
+                    new HashMap<>(),
+                    workflow));
+    JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
+
+    // -- Assert --
+    assertTrue(resolvedJson.get("inject_injector_contract").isObject());
+    assertEquals(
+        newContractId,
+        resolvedJson.get("inject_injector_contract").get("injector_contract_id").asText());
+    assertFalse(resolvedJson.get("inject_injector_contract").has("injector_contract_tags"));
+  }
+
+  @Test
+  @Transactional
   void given_stepDataWithRuntimeReferences_when_resolvingStepData_should_preserveRuntimeFields() {
     // -- Arrange --
     String contractId = UUID.randomUUID().toString();

@@ -264,12 +264,23 @@ public class V1_DataImporter implements Importer {
     resolveJsonElements(importNode, prefix + "tags")
         .forEach(
             nodeTag -> {
-              String id = nodeTag.get("tag_id").textValue();
-              if (baseIds.get(id) != null) {
-                // Already import
+              String id =
+                  nodeTag.isTextual()
+                      ? nodeTag.asText()
+                      : ofNullable(nodeTag.get("tag_id")).map(JsonNode::textValue).orElse(null);
+              if (!hasText(id) || baseIds.get(id) != null) {
                 return;
               }
-              String name = nodeTag.get("tag_name").textValue();
+
+              if (nodeTag.isTextual()) {
+                this.tagRepository.findById(id).ifPresent(tag -> baseIds.put(id, tag));
+                return;
+              }
+              String name =
+                  ofNullable(nodeTag.get("tag_name")).map(JsonNode::textValue).orElse(null);
+              if (!hasText(name)) {
+                return;
+              }
 
               List<Tag> existingTags = this.tagRepository.findByNameIgnoreCase(name);
               if (!existingTags.isEmpty()) {
