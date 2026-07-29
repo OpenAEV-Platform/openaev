@@ -358,9 +358,16 @@ public interface InjectExpectationRepository
               + "FROM injects_expectations i "
               + "WHERE i.inject_id IN (:injectIds) "
               + "AND i.user_id is null "
-              + "AND i.agent_id is null ;",
+              + "AND i.agent_id is null "
+              + "AND (i.asset_id IS NULL OR i.asset_group_id IS NULL "
+              + "  OR i.asset_id IN (SELECT ia.asset_id FROM injects_assets ia WHERE ia.inject_id = i.inject_id)) ;",
       nativeQuery = true)
-  // We don't include expectations for players, only for the team, neither for agents, if applicable
+  // Global score aggregates primary (target-level) expectations only: team rows, asset-group
+  // parent rows and directly-targeted asset rows. Player and agent rows are excluded, and so are
+  // the per-asset children of a targeted asset group (asset_id and asset_group_id both set,
+  // asset not a direct inject target): their verdict is already rolled up into the group parent
+  // row according to the configured validation mode (all assets / at least one asset), so
+  // counting them again dilutes a failed group into a PARTIAL global score.
   List<RawInjectExpectationIndexing> rawForComputeGlobalByInjectIds(
       @Param("injectIds") Set<String> injectIds);
 
@@ -382,15 +389,21 @@ public interface InjectExpectationRepository
               + "FROM injects_expectations i "
               + "WHERE i.exercise_id IN (:exerciseIds) "
               + "AND i.user_id is null "
-              + "AND i.agent_id is null ;",
+              + "AND i.agent_id is null "
+              + "AND (i.asset_id IS NULL OR i.asset_group_id IS NULL "
+              + "  OR i.asset_id IN (SELECT ia.asset_id FROM injects_assets ia WHERE ia.inject_id = i.inject_id)) ;",
       nativeQuery = true)
-  // We don't include expectations for players, only for the team, if applicable
+  // Same primary-expectation filtering as rawForComputeGlobalByInjectIds (see comment there).
   List<RawInjectExpectationIndexing> rawForComputeGlobalByExerciseIds(
       @Param("exerciseIds") Set<String> exerciseIds);
 
   @Query(
       value =
-          "select i from InjectExpectation i where i.inject.id in :injectIds and i.agent is null and i.user is null")
+          "select i from InjectExpectation i where i.inject.id in :injectIds"
+              + " and i.agent is null and i.user is null"
+              + " and (i.asset is null or i.assetGroup is null"
+              + "   or i.asset.id in (select a.id from Inject inj join inj.assets a where inj.id = i.inject.id))")
+  // Same primary-expectation filtering as rawForComputeGlobalByInjectIds (see comment there).
   List<BaseInjectExpectation> findAllForGlobalScoreByInjects(
       @Param("injectIds") Set<String> injectIds);
 
