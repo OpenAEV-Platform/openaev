@@ -154,3 +154,10 @@ cd openaev-front && yarn eslint src && yarn tsc --noEmit
   every stored finding and doubles the counters until re-ingestion.
 - **Treating a complex type as a primitive.** Its finding value is the formatted whole (e.g.
   `\\host\share (READ,WRITE)`), so an `EQ` on a sub-field never matches.
+- **Declaring an output type is not the same as producing findings.** Adding the type to the
+  registry only makes the `ContractOutputElement` appear on the contract; a finding is created only
+  if an extractor/parser actually populates that field's list. netexec's `text` output, for
+  instance, is declared on almost every contract but has no extractor in `_DISPATCHERS`, so it never
+  yields `text` findings — the raw stdout surfaces in the execution result, not as findings. Land
+  the type AND its extractor together, or the card/counter stays empty even though the contract
+  advertises the type.
