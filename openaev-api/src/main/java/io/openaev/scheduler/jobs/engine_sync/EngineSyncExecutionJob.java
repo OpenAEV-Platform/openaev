@@ -44,7 +44,17 @@ public class EngineSyncExecutionJob extends SelfConfiguredPlatformJob {
       EngineConfig engineConfig)
       throws SchedulerException {
     super(scheduler, engineService, engineContext);
-    this.concurrentSyncs = new Semaphore(engineConfig.getIndexingMaxConcurrentModels());
+    // Clamp to at least 1: zero (or negative) permits would silently disable engine sync
+    // altogether, which is never what a tuning knob should do.
+    int maxConcurrentModels = engineConfig.getIndexingMaxConcurrentModels();
+    if (maxConcurrentModels < 1) {
+      log.warn(
+          "engine.indexing-max-concurrent-models is set to {}, which would disable engine sync"
+              + " entirely; clamping to 1",
+          maxConcurrentModels);
+      maxConcurrentModels = 1;
+    }
+    this.concurrentSyncs = new Semaphore(maxConcurrentModels);
   }
 
   @DisallowConcurrentExecution
