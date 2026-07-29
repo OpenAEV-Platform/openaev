@@ -3,7 +3,7 @@ package io.openaev.executors.crowdstrike.service;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -14,10 +14,12 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
+import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeDevice;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeHostGroup;
 import io.openaev.executors.crowdstrike.model.ResourcesGroups;
 import io.openaev.executors.model.AgentRegisterInput;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -26,6 +28,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,6 +55,7 @@ public class CrowdstrikeExecutorServiceTest {
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
   @Mock private OpenAEVConfig openAEVConfig;
+  @Mock private InjectStatusService injectStatusService;
 
   @InjectMocks private CrowdStrikeExecutorService crowdStrikeExecutorService;
 
@@ -179,5 +185,44 @@ public class CrowdstrikeExecutorServiceTest {
 
     // Assert
     verify(client).executeAction(any(), any(), any());
+  }
+
+  @Test
+  @DisplayName("given CrowdStrike execute action error, should add implant error trace for agent")
+  void given_executeActionError_should_setImplantErrorTrace() {
+    // Arrange
+    crowdStrikeExecutorContextService.scheduledExecutorService = immediateScheduler();
+    when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
+    doThrow(new RuntimeException("CrowdStrike API error"))
+        .when(client)
+        .executeAction(any(), any(), any());
+
+    CrowdStrikeAction action = new CrowdStrikeAction();
+    action.setInjectId("inject-id");
+    action.setAgentId("agent-id");
+    action.setAgentExternalReference("agent-ext-ref");
+    action.setScriptName("script-name");
+    action.setCommandEncoded("encoded-command");
+
+    // Act
+    crowdStrikeExecutorContextService.executeActions(List.of(action));
+
+    // Assert
+    verify(injectStatusService)
+        .setImplantErrorTrace(
+            eq("inject-id"), eq("agent-id"), contains("CrowdStrike API execute action failed"));
+  }
+
+  private ScheduledExecutorService immediateScheduler() {
+    ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
+    doAnswer(
+            invocation -> {
+              Runnable runnable = invocation.getArgument(0);
+              runnable.run();
+              return mock(ScheduledFuture.class);
+            })
+        .when(scheduler)
+        .schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+    return scheduler;
   }
 }

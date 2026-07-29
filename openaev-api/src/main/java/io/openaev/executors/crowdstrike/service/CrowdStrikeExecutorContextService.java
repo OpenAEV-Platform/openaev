@@ -14,6 +14,7 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
+import io.openaev.rest.inject.service.InjectStatusService;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -38,6 +39,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
   private final OpenAEVConfig openAEVConfig;
+  private final InjectStatusService injectStatusService;
 
   ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
@@ -105,11 +107,27 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       scheduledExecutorService.schedule(
           () ->
               batchActions.forEach(
-                  action ->
+                  action -> {
+                    try {
                       this.crowdStrikeExecutorClient.executeAction(
                           action.getAgentExternalReference(),
                           action.getScriptName(),
-                          action.getCommandEncoded())),
+                          action.getCommandEncoded());
+                    } catch (Exception e) {
+                      log.error(
+                          "CrowdStrike execute action failed for inject {} and agent {}",
+                          action.getInjectId(),
+                          action.getAgentId(),
+                          e);
+                      String message =
+                          "CrowdStrike API execute action failed for agent "
+                              + action.getAgentExternalReference()
+                              + ": "
+                              + e.getMessage();
+                      injectStatusService.setImplantErrorTrace(
+                          action.getInjectId(), action.getAgentId(), message);
+                    }
+                  }),
           batchIndex * 5L,
           TimeUnit.SECONDS);
     }
@@ -161,6 +179,8 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       actionWindows.setCommandEncoded(
           Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_16LE)));
       actionWindows.setAgentExternalReference(agent.getExternalReference());
+      actionWindows.setAgentId(agent.getId());
+      actionWindows.setInjectId(inject.getId());
       actions.add(actionWindows);
     }
     return actions;
@@ -175,6 +195,8 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       actionLinux.setCommandEncoded(
           getUnixCommand(Endpoint.PLATFORM_TYPE.Linux, injector, inject, agent, token));
       actionLinux.setAgentExternalReference(agent.getExternalReference());
+      actionLinux.setAgentId(agent.getId());
+      actionLinux.setInjectId(inject.getId());
       actions.add(actionLinux);
     }
     return actions;
@@ -189,6 +211,8 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       actionMac.setCommandEncoded(
           getUnixCommand(Endpoint.PLATFORM_TYPE.MacOS, injector, inject, agent, token));
       actionMac.setAgentExternalReference(agent.getExternalReference());
+      actionMac.setAgentId(agent.getId());
+      actionMac.setInjectId(inject.getId());
       actions.add(actionMac);
     }
     return actions;

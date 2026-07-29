@@ -26,6 +26,7 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -66,6 +67,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   private final OpenAEVConfig openAEVConfig;
+  private final InjectStatusService injectStatusService;
 
   public CrowdStrikeExecutorIntegration(
       ConnectorInstance connectorInstance,
@@ -80,7 +82,8 @@ public class CrowdStrikeExecutorIntegration extends Integration {
       ThreadPoolTaskScheduler taskScheduler,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory,
-      OpenAEVConfig openAEVConfig) {
+      OpenAEVConfig openAEVConfig,
+      InjectStatusService injectStatusService) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.taskScheduler = taskScheduler;
     this.endpointService = endpointService;
@@ -93,6 +96,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
     this.openAEVConfig = openAEVConfig;
+    this.injectStatusService = injectStatusService;
 
     // Refresh the context to get the config
     try {
@@ -143,7 +147,8 @@ public class CrowdStrikeExecutorIntegration extends Integration {
             enterpriseEditionService,
             licenseCacheManager,
             executorService,
-            openAEVConfig);
+            openAEVConfig,
+            injectStatusService);
     crowdStrikeExecutorService =
         new CrowdStrikeExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);

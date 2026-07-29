@@ -10,4 +10,5 @@ public class ResourcesSession {
 
   private List<CrowdStrikeSession> resources;
   private List<CrowdstrikeError> errors;
+  private CrowdstrikeMeta meta;
 }

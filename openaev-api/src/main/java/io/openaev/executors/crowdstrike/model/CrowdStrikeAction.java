@@ -8,6 +8,8 @@ import lombok.Data;
 public class CrowdStrikeAction {
 
   private String agentExternalReference;
+  private String agentId;
+  private String injectId;
   private String scriptName;
   private String commandEncoded;
 }

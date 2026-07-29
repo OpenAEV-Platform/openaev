@@ -22,6 +22,7 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -46,6 +47,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   private final OpenAEVConfig openAEVConfig;
+  private final InjectStatusService injectStatusService;
 
   public CrowdStrikeExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -62,7 +64,8 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory,
-      OpenAEVConfig openAEVConfig) {
+      OpenAEVConfig openAEVConfig,
+      InjectStatusService injectStatusService) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.endpointService = endpointService;
     this.agentService = agentService;
@@ -78,6 +81,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
     this.openAEVConfig = openAEVConfig;
+    this.injectStatusService = injectStatusService;
   }
 
   @Override
@@ -143,6 +147,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
         taskScheduler,
         baseIntegrationConfigurationBuilder,
         httpClientFactory,
-        openAEVConfig);
+        openAEVConfig,
+        injectStatusService);
   }
 }

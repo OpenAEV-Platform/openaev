@@ -32,7 +32,6 @@ import org.apache.hc.core5.http.NameValuePair;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.message.BasicNameValuePair;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
@@ -155,6 +154,15 @@ public class CrowdStrikeExecutorClient {
       String jsonSessionResponse = this.postSync(SESSION_URI, bodySession);
       ResourcesSession sessions =
           this.objectMapper.readValue(jsonSessionResponse, new TypeReference<>() {});
+      throwIfCrowdStrikeErrors(
+          "open_session",
+          "deviceId=" + deviceId,
+          sessions.getErrors(),
+          sessions.getMeta() == null ? null : sessions.getMeta().getTraceId());
+      if (sessions.getResources() == null || sessions.getResources().isEmpty()) {
+        throw new ExecutorException(
+            "Cannot get the session on the selected device", CROWDSTRIKE_EXECUTOR_NAME);
+      }
       CrowdStrikeSession session = sessions.getResources().getFirst();
       if (session == null) {
         log.error("Cannot get the session on the selected device");
@@ -172,7 +180,14 @@ public class CrowdStrikeExecutorClient {
               + "\"  -CommandLine=```'{\"command\":\""
               + command
               + "\"}'```");
-      this.postAsync(REAL_TIME_RESPONSE_URI, bodyCommand);
+      String jsonCommandResponse = this.postSync(REAL_TIME_RESPONSE_URI, bodyCommand);
+      ResourcesSession commandResponse =
+          this.objectMapper.readValue(jsonCommandResponse, new TypeReference<>() {});
+      throwIfCrowdStrikeErrors(
+          "execute_action",
+          "deviceId=" + deviceId,
+          commandResponse.getErrors(),
+          commandResponse.getMeta() == null ? null : commandResponse.getMeta().getTraceId());
     } catch (IOException e) {
       throw new ExecutorException(e, e.getMessage(), CROWDSTRIKE_EXECUTOR_NAME);
     }
@@ -216,12 +231,6 @@ public class CrowdStrikeExecutorClient {
   private String postSync(@NotBlank final String uri, @NotNull final Map<String, Object> body)
       throws IOException {
     return post(uri, body);
-  }
-
-  @Async
-  protected void postAsync(@NotBlank final String uri, @NotNull final Map<String, Object> body)
-      throws IOException {
-    post(uri, body);
   }
 
   private void authenticate() throws IOException {

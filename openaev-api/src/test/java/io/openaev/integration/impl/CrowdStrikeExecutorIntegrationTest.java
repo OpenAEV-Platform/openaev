@@ -31,6 +31,7 @@ import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.utils.mockConfig.executors.WithMockCrowdstrikeConfig;
 import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -79,6 +80,7 @@ public class CrowdStrikeExecutorIntegrationTest {
   @Autowired private HttpClientFactory httpClientFactory;
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   @Autowired private OpenAEVConfig openAEVConfig;
+  @Autowired private InjectStatusService injectStatusService;
 
   @Autowired
   private CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
@@ -101,7 +103,8 @@ public class CrowdStrikeExecutorIntegrationTest {
         fileService,
         baseIntegrationConfigurationBuilder,
         httpClientFactory,
-        openAEVConfig);
+        openAEVConfig,
+        injectStatusService);
   }
 
   @Test
@@ -245,7 +248,8 @@ public class CrowdStrikeExecutorIntegrationTest {
                     taskScheduler,
                     null,
                     httpClientFactory,
-                    openAEVConfig))
+                    openAEVConfig,
+                    injectStatusService))
         .isInstanceOf(ExecutorException.class)
         .hasMessageContaining("Error during initialization of the Executor");
   }
