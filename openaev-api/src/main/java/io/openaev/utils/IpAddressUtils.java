@@ -179,6 +179,7 @@ public class IpAddressUtils {
     if (!(isIpv4Subnet(cidr) || isIpv6Subnet(cidr))) {
       return List.of();
     }
+
     try {
       int slashIndex = cidr.lastIndexOf('/');
       String subnetAddress = cidr.substring(0, slashIndex);
@@ -244,6 +245,27 @@ public class IpAddressUtils {
       return List.of();
     }
   }
+
+  /**
+   * Expands a CIDR subnet and splits the resulting hosts by IP family.
+   *
+   * @param cidr subnet in CIDR notation
+   * @return expanded hosts partitioned as IPv4 and IPv6
+   */
+  public static ExpandedSubnetHosts expandSubnetToHostsByFamily(String cidr) {
+    List<String> ipv4Hosts = new ArrayList<>();
+    List<String> ipv6Hosts = new ArrayList<>();
+    for (String expandedIp : expandSubnetToHostIps(cidr)) {
+      if (isIpv4Address(expandedIp)) {
+        ipv4Hosts.add(expandedIp);
+      } else if (isIpv6Address(expandedIp)) {
+        ipv6Hosts.add(expandedIp);
+      }
+    }
+    return new ExpandedSubnetHosts(ipv4Hosts, ipv6Hosts);
+  }
+
+  public record ExpandedSubnetHosts(List<String> ipv4Hosts, List<String> ipv6Hosts) {}
 
   private static byte[] toFixedLengthBytes(BigInteger value, int length) {
     byte[] raw = value.toByteArray();
