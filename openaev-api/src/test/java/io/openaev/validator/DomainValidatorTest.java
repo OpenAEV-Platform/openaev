@@ -59,6 +59,18 @@ public class DomainValidatorTest {
   }
 
   @Test
+  @DisplayName("Valid: only dots in path")
+  void valid_onlyDotsInPath() {
+    assertThat(VALIDATOR.isValid("hostname.invalid", null)).isTrue();
+  }
+
+  @Test
+  @DisplayName("Valid: short, dot only paths")
+  void valid_shortDotsOnlyPath() {
+    assertThat(VALIDATOR.isValid("d.e", null)).isTrue();
+  }
+
+  @Test
   @DisplayName("Invalid: starting with hyphen")
   void invalid_startingWithHyphen() {
     assertThat(VALIDATOR.isValid("-hostname.invalid", null)).isFalse();
