@@ -45,6 +45,7 @@ interface Props {
 }
 
 const regexMacAddress = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
+const regexDomainName = /^([A-Za-z0-9\\-]+\.)*[A-Za-z0-9\\-]+$/;
 
 const buildSchema = (def: AssetCategoryDef, t: (s: string) => string) => {
   const ipItem = z.union([
@@ -67,7 +68,7 @@ const buildSchema = (def: AssetCategoryDef, t: (s: string) => string) => {
       def.fields.platform === 'required' ? requiredString : z.string().optional().nullable(),
     endpoint_arch:
       def.fields.arch === 'required' ? requiredString : z.string().optional().nullable(),
-    asset_hostname: z.string().optional().nullable(),
+    asset_hostname: z.string().regex(regexDomainName, 'Invalid domain name').optional().nullable(),
     asset_url: def.fields.url === 'required' ? requiredString : z.string().optional().nullable(),
     asset_ips:
       def.fields.ips === 'required'
