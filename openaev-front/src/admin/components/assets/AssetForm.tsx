@@ -45,7 +45,7 @@ interface Props {
 }
 
 const regexMacAddress = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
-const regexDomainName = /^((([A-Za-z0-9]([A-Za-z0-9-]+[A-Za-z0-9])*)\.)*([A-Za-z0-9]([A-Za-z0-9-]+[A-Za-z0-9])*)+)?$/;
+const regexDomainName = /^((?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)*(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?))?$/;
 
 const buildSchema = (def: AssetCategoryDef, t: (s: string) => string) => {
   const ipItem = z.union([
