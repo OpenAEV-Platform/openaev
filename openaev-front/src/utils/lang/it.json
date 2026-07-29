@@ -1693,6 +1693,7 @@
   "INTERRUPTED": "Interrotto",
   "Interval": "Intervallo",
   "Interval (hours)": "Intervallo (ore)",
+  "Invalid domain name": "Nome di dominio non valido",
   "Invalid input. Please use only letters or underscores, and ensure the field is not empty.": "Inserimento non valido. Utilizzare solo lettere o trattini bassi e assicurarsi che il campo non sia vuoto.",
   "Invalid Ip Address": "Indirizzo IP non valido",
   "Invalid IP addresses": "Indirizzi IP non validi",

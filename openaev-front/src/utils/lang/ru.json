@@ -1693,6 +1693,7 @@
   "INTERRUPTED": "Прервано",
   "Interval": "Интервал",
   "Interval (hours)": "Интервал (часы)",
+  "Invalid domain name": "Недопустимое доменное имя",
   "Invalid input. Please use only letters or underscores, and ensure the field is not empty.": "Неверный ввод. Пожалуйста, используйте только буквы или символы подчеркивания и убедитесь, что поле не пустое.",
   "Invalid Ip Address": "Неверный Ip-адрес",
   "Invalid IP addresses": "Недействительные IP-адреса",
