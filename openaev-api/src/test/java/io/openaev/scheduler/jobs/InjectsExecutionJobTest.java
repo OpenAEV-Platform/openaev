@@ -1,6 +1,8 @@
 package io.openaev.scheduler.jobs;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static io.openaev.aop.audit_log.AuditEventScope.SCHEDULED_LAUNCH;
+import static io.openaev.aop.audit_log.AuditEventScope.TARGET_RESOLUTION;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -8,12 +10,17 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import io.openaev.IntegrationTest;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.database.model.*;
+import io.openaev.database.model.EventType;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.SecurityCoverageSendJobRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.helper.InjectHelper;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exercise.service.ExerciseService;
@@ -24,8 +31,11 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,20 +44,26 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestPropertySource(properties = {"openaev.audit-logs.transports=console"})
 class InjectsExecutionJobTest extends IntegrationTest {
 
   @Autowired private InjectsExecutionJob job;
 
   @Autowired private ExerciseService exerciseService;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private InjectHelper injectHelper;
 
   @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private InjectComposer injectComposer;
+  @Autowired private TeamComposer teamComposer;
+  @Autowired private UserComposer userComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AgentComposer agentComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
@@ -61,10 +77,17 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private InjectorContractFixture injectorContractFixture;
   @MockitoSpyBean private ManagerFactory managerFactory;
+  @MockitoSpyBean private AuditLogger auditLogger;
+  @MockitoSpyBean private HealthCheckUtils healthCheckUtils;
+
+  @BeforeEach
+  void setUpAuditLogger() {
+    doNothing().when(auditLogger).logEvent(any(AuditEvent.class));
+  }
 
   @AfterEach
   void resetMocks() {
-    Mockito.reset(managerFactory);
+    Mockito.reset(managerFactory, auditLogger, healthCheckUtils);
   }
 
   @DisplayName("Not start children injects at the same time as parent injects")
@@ -139,8 +162,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
   @Test
   @DisplayName("When auto closing of stix-created simulation, trigger stix coverage job")
-  public void whenAutoClosingStixCreatedSimulation_TriggerStixCoverageJob()
-      throws JobExecutionException {
+  void whenAutoClosingStixCreatedSimulation_TriggerStixCoverageJob() throws JobExecutionException {
     ExerciseComposer.Composer exerciseWrapper =
         exerciseComposer
             .forExercise(ExerciseFixture.createDefaultExercise())
@@ -171,15 +193,15 @@ class InjectsExecutionJobTest extends IntegrationTest {
     entityManager.clear();
 
     // assert
-    Optional<SecurityCoverageSendJob> job =
+    Optional<SecurityCoverageSendJob> coverageSendJob =
         securityCoverageSendJobRepository.findBySimulation(exerciseWrapper.get());
-    assertThat(job).isNotEmpty();
+    assertThat(coverageSendJob).isNotEmpty();
   }
 
   @Test
   @DisplayName(
       "When auto closing of NON stix-created simulation, DOES NOT trigger stix coverage job")
-  public void whenAutoClosingNONStixCreatedSimulation_DoesNotTriggerStixCoverageJob()
+  void whenAutoClosingNONStixCreatedSimulation_DoesNotTriggerStixCoverageJob()
       throws JobExecutionException {
     ExerciseComposer.Composer exerciseWrapper =
         exerciseComposer
@@ -208,9 +230,9 @@ class InjectsExecutionJobTest extends IntegrationTest {
     entityManager.clear();
 
     // assert
-    Optional<SecurityCoverageSendJob> job =
+    Optional<SecurityCoverageSendJob> coverageSendJob =
         securityCoverageSendJobRepository.findBySimulation(exerciseWrapper.get());
-    assertThat(job).isEmpty();
+    assertThat(coverageSendJob).isEmpty();
   }
 
   @Test
@@ -263,6 +285,225 @@ class InjectsExecutionJobTest extends IntegrationTest {
     assertNotNull(
         emailInject.getInjectorContract().orElse(null), "Injector contract should be set");
     assertNotNull(emailInject.getInjector(), "Injector should be set from the email contract");
+  }
+
+  @Nested
+  @DisplayName("Audit logging for scheduled simulations and inject target resolution")
+  class AuditLoggingTest {
+
+    @Test
+    @DisplayName(
+        "given scheduled simulation from scenario should log SCHEDULED_LAUNCH with scenario context")
+    void given_scheduledSimulationFromScenario_should_logScheduledLaunchWithScenarioContext() {
+      // Arrange
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+              .persist()
+              .get();
+      Exercise exercise =
+          ExerciseFixture.createDefaultIncidentResponseExercise(Instant.now().minusSeconds(60));
+      exercise.setScenario(scenario);
+      exerciseComposer.forExercise(exercise).persist();
+      entityManager.flush();
+      clearInvocations(auditLogger);
+
+      // Act
+      job.handleAutoStartExercises();
+
+      // Assert
+      ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+      verify(auditLogger, atLeastOnce()).logEvent(eventCaptor.capture());
+      AuditEvent event =
+          eventCaptor.getAllValues().stream()
+              .filter(e -> e.getEventScope() == SCHEDULED_LAUNCH)
+              .findFirst()
+              .orElseThrow();
+
+      assertThat(event.getEventType()).isEqualTo(EventType.SYSTEM);
+      assertThat(event.getResourceId()).isEqualTo(exercise.getId());
+      assertThat(event.getContextData())
+          .containsEntry("simulation_id", exercise.getId())
+          .containsEntry("initiator", "scheduler")
+          .containsEntry("scenario_id", scenario.getId())
+          .containsEntry("scenario_name", scenario.getName());
+    }
+
+    @Test
+    @DisplayName(
+        "given scheduled simulation without scenario should log SCHEDULED_LAUNCH without scenario context")
+    void
+        given_scheduledSimulationWithoutScenario_should_logScheduledLaunchWithoutScenarioContext() {
+      // Arrange
+      Exercise exercise =
+          ExerciseFixture.createDefaultIncidentResponseExercise(Instant.now().minusSeconds(60));
+      exerciseComposer.forExercise(exercise).persist();
+      entityManager.flush();
+      clearInvocations(auditLogger);
+
+      // Act
+      job.handleAutoStartExercises();
+
+      // Assert
+      ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+      verify(auditLogger, atLeastOnce()).logEvent(eventCaptor.capture());
+      AuditEvent event =
+          eventCaptor.getAllValues().stream()
+              .filter(e -> e.getEventScope() == SCHEDULED_LAUNCH)
+              .findFirst()
+              .orElseThrow();
+
+      assertThat(event.getContextData())
+          .containsEntry("simulation_id", exercise.getId())
+          .containsEntry("initiator", "scheduler");
+      assertThat(event.getContextData()).doesNotContainKeys("scenario_id", "scenario_name");
+    }
+
+    @Test
+    @DisplayName("given inject targets should log TARGET_RESOLUTION with endpoint agent statuses")
+    @SuppressWarnings("unchecked")
+    void given_injectTargets_should_logTargetResolutionWithEndpointStatuses() throws Exception {
+      // Arrange
+      Exercise savedExercise =
+          exerciseComposer
+              .forExercise(
+                  ExerciseFixture.createRunningAttackExercise(
+                      Instant.now().minus(1, ChronoUnit.MINUTES)))
+              .persist()
+              .get();
+
+      AgentComposer.Composer activeAgentComposer =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      activeAgentComposer.get().setLastSeen(Instant.now());
+      AgentComposer.Composer inactiveAgentComposer =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentSession());
+      inactiveAgentComposer.get().setLastSeen(Instant.now().minus(2, ChronoUnit.HOURS));
+
+      EndpointComposer.Composer endpointWithoutAgentComposer =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      EndpointComposer.Composer endpointWithAgentsComposer =
+          endpointComposer
+              .forEndpoint(EndpointFixture.createEndpoint())
+              .withAgent(activeAgentComposer)
+              .withAgent(inactiveAgentComposer);
+
+      InjectorContract injectorContract =
+          injectorContractFixture.getWellKnownSingleManualContract();
+
+      Inject inject =
+          injectComposer
+              .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
+              .withEndpoint(endpointWithoutAgentComposer)
+              .withEndpoint(endpointWithAgentsComposer)
+              .persist()
+              .get();
+
+      inject.setExercise(savedExercise);
+      injectRepository.save(inject);
+      entityManager.flush();
+      clearInvocations(auditLogger);
+      doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
+
+      // Act
+      job.executeInject(getExecutableInject(inject.getId()));
+
+      // Assert
+      AuditEvent targetResolutionEvent = captureTargetResolutionEvent(inject.getId());
+
+      assertThat(targetResolutionEvent.getEventType()).isEqualTo(EventType.EXECUTION);
+      assertThat(targetResolutionEvent.getContextData())
+          .containsEntry("inject_id", inject.getId())
+          .containsEntry("total_endpoints", 2);
+
+      List<Map<String, Object>> endpoints =
+          (List<Map<String, Object>>) targetResolutionEvent.getContextData().get("endpoints");
+      String endpointWithoutAgentId = endpointWithoutAgentComposer.get().getId();
+      String endpointWithAgentsId = endpointWithAgentsComposer.get().getId();
+
+      Map<String, Object> agentlessEndpoint =
+          endpoints.stream()
+              .filter(endpoint -> endpointWithoutAgentId.equals(endpoint.get("endpoint_id")))
+              .findFirst()
+              .orElseThrow();
+      assertThat(agentlessEndpoint).containsEntry("status", "ASSET_AGENTLESS");
+
+      Map<String, Object> endpointWithAgents =
+          endpoints.stream()
+              .filter(endpoint -> endpointWithAgentsId.equals(endpoint.get("endpoint_id")))
+              .findFirst()
+              .orElseThrow();
+      List<Map<String, Object>> agents =
+          (List<Map<String, Object>>) endpointWithAgents.get("agents");
+      Set<String> statuses =
+          agents.stream()
+              .map(agent -> String.valueOf(agent.get("status")))
+              .collect(java.util.stream.Collectors.toSet());
+
+      assertThat(statuses).containsExactlyInAnyOrder("AGENT_ACTIVE", "AGENT_INACTIVE");
+    }
+
+    @Test
+    @DisplayName(
+        "given inject team and player should log TARGET_RESOLUTION with team_ids and player_ids")
+    @SuppressWarnings("unchecked")
+    void given_injectTeamAndPlayer_should_logTargetResolutionWithTeamAndPlayerIds()
+        throws Exception {
+      // Arrange
+      UserComposer.Composer userComposerRef =
+          userComposer.forUser(UserFixture.getUserWithDefaultEmail());
+      TeamComposer.Composer teamComposerRef =
+          teamComposer.forTeam(TeamFixture.getDefaultTeam()).withUser(userComposerRef);
+
+      Exercise exercise =
+          exerciseComposer
+              .forExercise(
+                  ExerciseFixture.createRunningAttackExercise(
+                      Instant.now().minus(1, ChronoUnit.MINUTES)))
+              .withTeam(teamComposerRef)
+              .withTeamUsers()
+              .persist()
+              .get();
+
+      InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
+      Inject inject =
+          injectComposer
+              .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
+              .withTeam(teamComposerRef)
+              .persist()
+              .get();
+      inject.setExercise(exercise);
+      injectRepository.save(inject);
+
+      entityManager.flush();
+      clearInvocations(auditLogger);
+      doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
+
+      // Act
+      job.executeInject(getExecutableInject(inject.getId()));
+
+      // Assert
+      AuditEvent targetResolutionEvent = captureTargetResolutionEvent(inject.getId());
+
+      List<String> teamIds = (List<String>) targetResolutionEvent.getContextData().get("team_ids");
+      assertThat(teamIds).contains(teamComposerRef.get().getId());
+    }
+
+    private AuditEvent captureTargetResolutionEvent(String injectId) {
+      ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+      verify(auditLogger, atLeastOnce()).logEvent(eventCaptor.capture());
+      return eventCaptor.getAllValues().stream()
+          .filter(e -> e.getEventScope() == TARGET_RESOLUTION)
+          .filter(e -> injectId.equals(e.getResourceId()))
+          .findFirst()
+          .orElseThrow();
+    }
+
+    private ExecutableInject getExecutableInject(String injectId) {
+      return injectHelper.getInjectsToRun().stream()
+          .filter(execInject -> injectId.equals(execInject.getInjection().getInject().getId()))
+          .findFirst()
+          .orElseThrow();
+    }
   }
 
   @Nested
