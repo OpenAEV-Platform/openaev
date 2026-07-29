@@ -58,7 +58,7 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
   });
 
   return (
-    <form id="securityPlatformForm" onSubmit={handleSubmit(onSubmit)}>
+    <form id="securityPlatformForm" onSubmit={e => e.preventDefault()}>
       <TextField
         variant="standard"
         fullWidth
@@ -72,18 +72,17 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
       <Controller
         control={control}
         name="security_platform_type"
-        rules={{ required: true }}
-        render={({ field }) => (
+        render={({ field: { ref, ...fieldProps } }) => (
           <TextField
             select
             variant="standard"
             fullWidth
-            value={field.value}
+            {...fieldProps}
+            inputRef={ref}
             label={t('Platform')}
             style={{ marginTop: 20 }}
             error={!!errors.security_platform_type}
             helperText={errors.security_platform_type?.message}
-            {...register('security_platform_type')}
             required
           >
             <MenuItem value="EDR">{t('EDR')}</MenuItem>
@@ -173,8 +172,8 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
         <Button
           variant="contained"
           color="primary"
-          type="submit"
-          disabled={!isDirty || isSubmitting}
+          disabled={!editing && !isDirty}
+          onClick={handleSubmit(onSubmit)}
         >
           {editing ? t('Update') : t('Create')}
         </Button>
