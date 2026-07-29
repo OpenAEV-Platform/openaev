@@ -132,15 +132,12 @@ public class StepService {
     }
 
     // Expand each condition batch into one batch per scope target so that each READY step handles
-    // exactly one inject → one execution unit.
-    //  - External injectors (no payload): one batch per asset AND one per manual IP target.
-    //  - Payload-based injects: one batch per asset only (payloads run on an agent/endpoint, not on
-    //    a raw IP), so we exclude manual targets.
+    // exactly one inject → one execution unit. The injector-vs-payload targeting policy (external
+    // injectors also expand per manual IP target) is owned by expandTargetBatches, so StepService
+    // stays agnostic here.
     if (StepActionClass.INJECT_EXECUTION.equals(persistedTemplate.getStepAction())) {
-      boolean includeManualTargets = !injectExecutionStep.hasPayload(persistedTemplate);
       executionBatches =
-          injectExecutionStep.expandTargetBatches(
-              executionBatches, workflowRun, includeManualTargets);
+          injectExecutionStep.expandTargetBatches(executionBatches, workflowRun, persistedTemplate);
       if (executionBatches.isEmpty()) {
         return List.of();
       }

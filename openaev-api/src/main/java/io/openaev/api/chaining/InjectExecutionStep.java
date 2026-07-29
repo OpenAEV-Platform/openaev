@@ -570,32 +570,35 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
-   * Expands condition batches into per-target batches by resolving scope assets and, optionally, IPs.
+   * Expands condition batches into per-target batches by resolving scope assets and, for external
+   * injectors, IPs.
    *
-   * <p>Each original batch is duplicated once per in-scope asset and, when {@code
-   * includeManualTargets} is {@code true}, once per in-scope IP. The target is embedded in the batch
-   * {@code inputString} under {@code "_target"} so that {@link #ready} can bake it into the step data
-   * for {@link #run} to consume.
+   * <p>Each original batch is duplicated once per in-scope asset and, for external injectors, once
+   * per in-scope manual target (raw IP, including IPv4/IPv6 produced by upstream actions). The
+   * target is embedded in the batch {@code inputString} under {@code "_target"} so that {@link
+   * #ready} can bake it into the step data for {@link #run} to consume.
    *
    * <p>Manual (IP) targets only make sense for external injectors, which can target a raw IP.
-   * Payload-based injects run on an agent/endpoint, so callers pass {@code includeManualTargets =
-   * false} to expand per asset only.
+   * Payload-based injects run on an agent/endpoint, so they are expanded per asset only. This
+   * injector-vs-payload decision is owned here (via {@link #hasPayload(Step)}) so callers stay
+   * agnostic.
    *
    * @param batches original condition batches to expand
    * @param workflowRun the running workflow (provides the scope)
-   * @param includeManualTargets whether to also produce one batch per in-scope manual IP target
+   * @param stepTemplate the step template being expanded (used to detect payload vs injector)
    */
   public List<ConditionService.ExecutionBatch> expandTargetBatches(
-      List<ConditionService.ExecutionBatch> batches,
-      Workflow workflowRun,
-      boolean includeManualTargets) {
+      List<ConditionService.ExecutionBatch> batches, Workflow workflowRun, Step stepTemplate) {
 
     String workflowId = workflowRun.getId();
     List<Asset> validAssets = scopeService.getValidAssets(workflowId);
+
+    // Manual (raw IP) targets — including IPv4/IPv6 produced by upstream actions — only apply to
+    // external injectors. Payload-based injects run on an agent/endpoint, so expand per asset only.
     List<String> validManualTargets =
-        includeManualTargets
-            ? scopeService.getValidManualTargetsFromScopeAndGlobalState(workflowId)
-            : List.of();
+        hasPayload(stepTemplate)
+            ? List.of()
+            : scopeService.getValidManualTargetsFromScopeAndGlobalState(workflowId);
 
     if (validAssets.isEmpty() && validManualTargets.isEmpty()) {
       return batches;
