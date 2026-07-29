@@ -92,8 +92,8 @@ public final class PrimitiveValueValidator {
   }
 
   /**
-   * Returns {@code true} if the IP is excluded by the scope denylist, either by an exact IP match or
-   * by falling inside a denied subnet. Unlike {@link #isIpAllowedByScope}, this ignores the
+   * Returns {@code true} if the IP is excluded by the scope denylist, either by an exact IP match
+   * or by falling inside a denied subnet. Unlike {@link #isIpAllowedByScope}, this ignores the
    * allowlist: it only enforces denylist exclusion.
    */
   static boolean isIpDeniedByScope(String ip, PrimitiveValidationContext context) {
