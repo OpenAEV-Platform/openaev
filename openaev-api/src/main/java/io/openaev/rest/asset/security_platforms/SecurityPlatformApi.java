@@ -50,10 +50,14 @@ public class SecurityPlatformApi {
    * tenant scope is fail-closed EMPTY. {@code security_platform_collectors} is what the UI uses to
    * keep a collector-managed platform read-only, and it is rendered from the lazy {@code
    * collectors} association during JSON serialization — after the transaction (open-in-view), where
-   * the transaction-local scope is gone. Every endpoint that serializes a {@link SecurityPlatform}
-   * must therefore declare a {@link TxCtx} (the transaction aspect writes it into the scope) AND
-   * initialize the association inside that scoped transaction through this helper, or every
-   * platform silently unlocks in the UI (issue #7025).
+   * the transaction-local scope is gone. Every endpoint feeding that UI signal (GET list, GET by
+   * id, POST search, PUT update) must therefore declare a {@link TxCtx} (the transaction aspect
+   * writes it into the scope) AND initialize the association inside that scoped transaction through
+   * this helper, or every platform silently unlocks in the UI (issue #7025).
+   *
+   * <p>Create and upsert are exempt: create returns a brand-new entity whose empty in-memory
+   * association serializes without a database load, and upsert is the collector-facing registration
+   * endpoint whose response the UI never consumes.
    */
   private static SecurityPlatform withCollectorsInitialized(SecurityPlatform securityPlatform) {
     Hibernate.initialize(securityPlatform.getCollectors());
