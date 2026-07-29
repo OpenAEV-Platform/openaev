@@ -17,8 +17,7 @@ class ChainingTypeRegistryTest {
             ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.IPv4).kind())
         .isEqualTo(ChainingTypeKind.PRIMITIVE);
     assertThat(
-            ChainingTypeRegistry.getMappedTypeForContractOutputType(
-                    ContractOutputType.ActionOutput)
+            ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.ActionOutput)
                 .kind())
         .isEqualTo(ChainingTypeKind.PRIMITIVE);
     assertThat(

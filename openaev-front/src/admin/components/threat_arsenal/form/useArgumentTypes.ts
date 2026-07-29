@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import fetchArgumentTypes from '../../../../actions/payloads/payload-argument-actions';
+import { fetchArgumentTypes } from '../../../../actions/chaining/chaining-actions';
 
 type UseArgumentTypesResult = {
   argumentTypes: string[];
