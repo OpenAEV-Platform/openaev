@@ -2137,6 +2137,12 @@ public class V1_DataImporter implements Importer {
           continue;
         }
 
+        MappingType mappingType =
+            condNode.has("condition_mapping_type") && !condNode.get("condition_mapping_type").isNull()
+                ? MappingType.valueOf(condNode.get("condition_mapping_type").asText())
+                : null;
+        mappingType = migrateLegacyMapperMappingType(workflow, conditionType, mappingType, stepFromId);
+
         Condition condition =
             Condition.builder()
                 .workflowId(workflow.getId())
@@ -2151,11 +2157,7 @@ public class V1_DataImporter implements Importer {
                             condNode.get("condition_key_type").asText(), PrimitiveType.class)
                         : null)
                 .type(conditionType)
-                .mappingType(
-                    condNode.has("condition_mapping_type")
-                            && !condNode.get("condition_mapping_type").isNull()
-                        ? MappingType.valueOf(condNode.get("condition_mapping_type").asText())
-                        : null)
+                .mappingType(mappingType)
                 .value(
                     condNode.has("condition_value") && !condNode.get("condition_value").isNull()
                         ? condNode.get("condition_value").asText()
@@ -2191,6 +2193,29 @@ public class V1_DataImporter implements Importer {
           "Skipped {} condition(s) during import because parent condition was unresolved",
           pendingNodes.size());
     }
+  }
+
+  /**
+   * Legacy chaining exports (workflow version 0/1) may carry mapper conditions as GLOBAL while
+   * missing step_from. That shape explodes execution batches after import. These mappers are
+   * migrated to LOCAL during import to preserve pre-v2 runtime behavior.
+   */
+  private MappingType migrateLegacyMapperMappingType(
+      Workflow workflow, ConditionType conditionType, MappingType mappingType, String stepFromId) {
+    if (!ConditionType.MAPPER.equals(conditionType)) {
+      return mappingType;
+    }
+    if (mappingType != MappingType.GLOBAL) {
+      return mappingType;
+    }
+    if (stepFromId != null && !stepFromId.isBlank()) {
+      return mappingType;
+    }
+    int workflowVersion = workflow.getVersion() != null ? workflow.getVersion() : 1;
+    if (workflowVersion >= 2) {
+      return mappingType;
+    }
+    return MappingType.LOCAL;
   }
 
   private String getNodeValue(JsonNode importNode) {

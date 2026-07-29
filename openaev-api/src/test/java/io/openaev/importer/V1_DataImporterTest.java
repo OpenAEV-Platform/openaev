@@ -1090,6 +1090,65 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   @Transactional
   void
+      given_legacyWorkflowWithGlobalMapperWithoutStepFrom_when_importing_should_migrateMapperToLocal()
+          throws Exception {
+    // -- Arrange --
+    ObjectMapper objectMapper = new ObjectMapper();
+    JsonNode workflowImport =
+        objectMapper.readTree(
+            Files.readAllBytes(
+                Paths.get("src/test/resources/importer-v1/import-scenario-with-workflow.json")));
+    ObjectNode workflowNode = (ObjectNode) workflowImport.get("scenario_workflow");
+    workflowNode.put("workflow_version", 0);
+
+    ArrayNode workflowSteps = (ArrayNode) workflowNode.get("workflow_steps");
+    ObjectNode firstStep = (ObjectNode) workflowSteps.get(0);
+    ArrayNode stepConditions = (ArrayNode) firstStep.get("step_conditions");
+
+    ObjectNode globalMapper = objectMapper.createObjectNode();
+    globalMapper.put("condition_id", "cond-legacy-mapper");
+    globalMapper.put("condition_type", "MAPPER");
+    globalMapper.put("condition_mapping_type", "GLOBAL");
+    globalMapper.put("condition_key_type", "host");
+    globalMapper.put("condition_value", "$.output.parsed.host");
+    globalMapper.put("condition_is_root", true);
+    stepConditions.add(globalMapper);
+
+    // -- Act --
+    this.importer.importData(
+        workflowImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    Scenario scenario =
+        scenarioRepository.findAll().stream()
+            .filter(s -> expectedName.equals(s.getName()))
+            .findFirst()
+            .orElseThrow();
+    Workflow workflow =
+        workflowRepository
+            .findByScenario_IdAndStatus(scenario.getId(), WorkflowStatus.TEMPLATE)
+            .getFirst();
+    Step firstImportedStep =
+        stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(workflow.getId()).stream()
+            .filter(step -> "{\"cmd\": \"nmap\"}".equals(step.getInput()))
+            .findFirst()
+            .orElseThrow();
+
+    Condition importedMapper =
+        conditionRepository.findAllLinkedToStepId(firstImportedStep.getId()).stream()
+            .filter(condition -> condition.getType() == ConditionType.MAPPER)
+            .filter(condition -> condition.getKeyType() == PrimitiveType.Host)
+            .findFirst()
+            .orElseThrow();
+
+    assertEquals(MappingType.LOCAL, importedMapper.getMappingType());
+    assertNull(importedMapper.getStepFrom());
+  }
+
+  @Test
+  @Transactional
+  void
       given_existingContractWithoutOutputParsers_andStepDataWithOutputParsers_when_resolvingWorkflowStepData_should_forceContractResolution()
           throws Exception {
     // -- Arrange --

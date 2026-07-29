@@ -106,47 +106,18 @@ public final class StepMapper {
     }
 
     JsonNode parsers = contract.path("injector_contract_payload").path("payload_output_parsers");
-    if (parsers.isArray()) {
-      List<String> result = new java.util.ArrayList<>();
-      for (JsonNode parser : parsers) {
-        JsonNode elements = parser.path("output_parser_contract_output_elements");
-        if (!elements.isArray()) continue;
-        for (JsonNode el : elements) {
-          String type = el.path("contract_output_element_type").asText(null);
-          if (type != null && !type.isBlank()) result.add(type);
-        }
-      }
-      if (!result.isEmpty()) {
-        return expandToPrimitiveLabels(result);
+    if (!parsers.isArray()) return List.of();
+
+    List<String> result = new java.util.ArrayList<>();
+    for (JsonNode parser : parsers) {
+      JsonNode elements = parser.path("output_parser_contract_output_elements");
+      if (!elements.isArray()) continue;
+      for (JsonNode el : elements) {
+        String type = el.path("contract_output_element_type").asText(null);
+        if (type != null && !type.isBlank()) result.add(type);
       }
     }
-    return extractOutputTypesFromInjectorContractContent(contract);
-  }
-
-  private static List<String> extractOutputTypesFromInjectorContractContent(JsonNode contract) {
-    String rawContent = contract.path("injector_contract_content").asText(null);
-    if (rawContent == null || rawContent.isBlank()) {
-      return List.of();
-    }
-
-    try {
-      JsonNode content = OBJECT_MAPPER.readTree(rawContent);
-      JsonNode outputs = content.path("outputs");
-      if (!outputs.isArray()) {
-        return List.of();
-      }
-
-      List<String> result = new java.util.ArrayList<>();
-      for (JsonNode output : outputs) {
-        String type = output.path("type").asText(null);
-        if (type != null && !type.isBlank()) {
-          result.add(type);
-        }
-      }
-      return expandToPrimitiveLabels(result);
-    } catch (JsonProcessingException e) {
-      return List.of();
-    }
+    return expandToPrimitiveLabels(result);
   }
 
   private static List<String> expandToPrimitiveLabels(List<String> outputTypes) {
