@@ -415,6 +415,107 @@ Model: `openaev-api/src/main/java/io/openaev/rest/mapper/MapperApi.java`.
 Re-run the test class after each endpoint. Read tests go green one by one.
 Do not move to writes until all reads are green.
 
+### Phase 3b — Every direct or indirect link to the table, everywhere
+
+Phase 1 finds code that reads `{table}` through `{EntityRepository}` or a
+literal string match. It does NOT reliably find another aggregate's
+association pointing at `{Entity}` (`@OneToMany`, `@ManyToMany`,
+`@ManyToOne`) that some UNRELATED API lazy-loads and serializes — that
+association never mentions `{table}` or `{EntityRepository}` by name, so
+neither Phase 1 grep sees it. This is exactly what #7026 shipped to
+production for the `collectors` activation, months after go-live: model it.
+
+Root cause of #7026, read it before running this phase — it is the failure
+mode you are hunting for: `security_platform_collectors` was always
+serialized as an empty array because `SecurityPlatform#collectors` is a lazy
+association, serialized by `MultiIdListSerializer` AFTER the controller's
+`@Transactional` method returned (open-in-view). By then
+`TenantScopeTransactionAspect`'s scope was gone. `SecurityPlatformApi`'s
+endpoints carried no `TxCtx` at all (nobody had reason to add one — that API
+does not read `collectors` directly, it reads `SecurityPlatform`), so
+`app.current_tenants` was never set, and the fail-closed
+`TenantStatementInspector` rewrote the lazy collectors query to
+`can_access_tenant(...) = false` for every row. The endpoint kept returning
+200 with an empty list, not an error — so nothing failed loudly, and CI never
+saw it either: the test profile ships an EMPTY `active-tables`, so the
+inspector never fires (the same gap #7007 already names). The frontend then
+silently mis-derived `isCollectorManaged()` from that empty array and unlocked
+Update/Delete on a platform whose collector was still running.
+
+This phase runs at go-live AND belongs in the permanent Definition of Done for
+every activation, not just once: a NEW association to `{Entity}` can be added
+by an unrelated PR at any time after `{table}` is already active, and nothing
+today stops it from shipping unscoped. Re-run this phase's greps whenever a
+new `@OneToMany`/`@ManyToMany`/`@ManyToOne` targeting `{Entity}` appears
+in review (the `{table}` entry in `TenantActiveTableAccessArchTest` from
+Phase 6 is what makes a future miss fail the build instead of shipping silently).
+
+**3b.1 — find every association pointing at the entity, anywhere, not just its own aggregate:**
+
+```bash
+# every field typed as {Entity} or a collection of it, in ANY entity
+grep -rn "{Entity}>\|{Entity} " openaev-model/src/main/java/io/openaev/database/model --include="*.java" | grep -i "@OneToMany\|@ManyToMany\|@ManyToOne\|@OneToOne" -A1 -B1
+# faster two-step: list the annotation lines, then check the next line's type
+grep -rln "@OneToMany\|@ManyToMany\|@ManyToOne\|@OneToOne" openaev-model/src/main/java/io/openaev/database/model --include="*.java" \
+  | xargs grep -B1 -n "{Entity}" 
+```
+
+Read every hit's owning entity (`{OwningEntity}`), not just `{Entity}` itself
+— the collectors bug lived on `SecurityPlatform`, an entity that has nothing
+else to do with the collectors activation.
+
+**3b.2 — for every `{OwningEntity}` found, find every accessor call across the whole codebase, including serialization:**
+
+```bash
+grep -rn "\.get{Entities}()\|\.get{Entity}()" openaev-api/src/main/java openaev-model/src/main/java --include="*.java"
+```
+
+Classify each call site:
+- inside an explicit query (`JOIN FETCH`, a `@Query` projecting the
+  association) → already eagerly resolved inside the query's own
+  transaction; check that query's controller/service carries `TxCtx`
+  (same rule as Phase 1/5).
+- a lazy getter called directly in a `@Transactional` method body → resolves
+  inside that transaction; the CALLER method needs `TxCtx` (Phase 5 if it is
+  not the table's own API).
+- a lazy getter reached ONLY through JSON serialization (a custom serializer
+  like `MultiIdListSerializer`, a DTO mapper invoked by Jackson, a
+  `@JsonSerialize` field) → **the dangerous case**. With open-in-view or any
+  serialization step that runs after the controller method returns, the
+  association resolves OUTSIDE the transaction the aspect scoped. Fix per the
+  #7026 pattern: force-initialize the association INSIDE the scoped
+  transaction, before the method returns, with a documented helper
+  (`Hibernate.initialize(owning.get{Entities}())`, or eager-fetch it in the
+  query that loaded `{OwningEntity}`), and make sure that controller method
+  itself carries `TxCtx` — a lazy association resolved eagerly under no scope
+  still reads zero rows. Model: `SecurityPlatformApi`'s
+  `withCollectorsInitialized` helper (PR #7026).
+- no controller ever serializes it, only used inside a background job → treat
+  as Phase 5b (background reader), not this phase.
+
+**3b.3 — pin every fixed accessor with an ArchUnit rule and a scoped test:**
+
+- Add every `{OwningEntity}#get{Entities}` caller found above to the
+  association-accessor allowlist rule in
+  `TenantActiveTableAccessArchTest` (same rule described in Phase 6, step 5), even
+  for `{OwningEntity}`s that are not the table's own aggregate. A new,
+  un-allowlisted caller must fail the build.
+- Add every serializing entrypoint from 3b.2 to
+  `TenantScopedEntrypointsTxCtxArchTest` (`TX_SCOPED_ENTRYPOINTS`), same as
+  any other `TxCtx`-bearing entrypoint.
+- Write one test per fixed entrypoint, modeled on
+  `SecurityPlatformCollectorsTenantScopeTest` (PR #7026): run with
+  `@TestPropertySource(properties = "openaev.tenant.active-tables={table}")`
+  (production-like, inspector active — the default test profile's empty
+  allowlist is exactly what let #7026 through) and assert the association
+  serializes the live link for an in-scope row, and comes back empty only
+  once the linked `{Entity}` row is genuinely gone (not merely
+  out-of-scope).
+
+Do not defer this phase to "later regression pass" — an association missed
+here degrades silently (200 OK, empty array) exactly like #7026, so nothing
+in Phase 8's regression run will catch it unless the new test from 3b.3 exists.
+
 ### Phase 4 — RED then GREEN: write attribution
 
 The inspector cannot attribute `INSERT ... VALUES`. Attribution is application
@@ -871,6 +972,9 @@ Before marking the issue done, write down:
   (`forEachTenant` / `forTenant` / `allTenants`) and the reason, and its
   isolation test
 - the v1 remnant audit table from Phase 7 (hits found, actions taken, reported-only items)
+- every direct or indirect association to the entity found in Phase 3b: its
+  owning entity, whether it was lazy-loaded outside the transaction (the #7026
+  shape) or already safe, the fix applied, and its scoped test
 - background readers left degraded (from Phase 0/1), each with a one-line impact
 - child tables and how they are covered
 - client impact: writes now require a single-tenant scope. Calls using the tenant path
@@ -890,6 +994,11 @@ Before marking the issue done, write down:
 - [ ] writes: attribution asserted at the SQL level, no selector → 400;
       upsert of the same business key from two tenants yields two rows
 - [ ] other APIs from the inventory wired and tested
+- [ ] every association (direct or indirect, lazy or eager) pointing at the
+      entity from ANY other aggregate found (Phase 3b); every lazy accessor
+      reached through serialization (custom serializer, DTO mapper) force-
+      initialized inside a scoped transaction; each fixed entrypoint pinned in
+      both arch tests and covered by a production-like scoped test
 - [ ] background writers converted to the primitive (no `@Transactional`, no raw
       plumbing), each with a per-tenant or `allTenants` scope and a green
       background isolation test (Phase 5b)
