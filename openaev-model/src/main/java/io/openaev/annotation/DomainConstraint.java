@@ -1,22 +1,20 @@
 package io.openaev.annotation;
 
+import static java.lang.annotation.ElementType.FIELD;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
 import io.openaev.validator.DomainValidator;
-import io.openaev.validator.Ipv4OrIpv6Validator;
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;
 import jakarta.validation.ReportAsSingleViolation;
-
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
-
-import static java.lang.annotation.ElementType.FIELD;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
  * Validation constraint annotation that ensures a field contains a valid RFC 1034 domain name.
  *
- * <p>This constraint uses {@link DomainValidator} to validate that the annotated field contains
- * a properly formatted RFC 1034 domain name format.
+ * <p>This constraint uses {@link DomainValidator} to validate that the annotated field contains a
+ * properly formatted RFC 1034 domain name format.
  *
  * <p>Example usage:
  *
