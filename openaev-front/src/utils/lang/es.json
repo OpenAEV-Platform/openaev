@@ -2659,6 +2659,7 @@
   "Scope": "Alcance",
   "Scope definition": "Definición del alcance",
   "Score": "Puntuación",
+  "score": "puntuación",
   "score = breached validations / total validations x 100": "score = breached validations / total validations x 100",
   "score = findings × criticality weight": "puntuación = findings × peso de criticidad",
   "Score degradation": "Degradacion de la puntuacion",

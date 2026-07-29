@@ -2659,6 +2659,7 @@
   "Scope": "スコープ",
   "Scope definition": "スコープ定義",
   "Score": "スコア",
+  "score": "スコア",
   "score = breached validations / total validations x 100": "score = breached validations / total validations x 100",
   "score = findings × criticality weight": "スコア = ファインディング × クリティカリティ重み",
   "Score degradation": "スコア低下",

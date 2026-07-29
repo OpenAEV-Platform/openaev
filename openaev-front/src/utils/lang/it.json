@@ -2659,6 +2659,7 @@
   "Scope": "Ambito di applicazione",
   "Scope definition": "Definizione dello scope",
   "Score": "Punteggio",
+  "score": "punteggio",
   "score = breached validations / total validations x 100": "score = breached validations / total validations x 100",
   "score = findings × criticality weight": "punteggio = finding × peso di criticità",
   "Score degradation": "Degrado del punteggio",

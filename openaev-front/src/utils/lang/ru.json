@@ -2659,6 +2659,7 @@
   "Scope": "Сфера деятельности",
   "Scope definition": "Определение области применения",
   "Score": "Оценка",
+  "score": "результат",
   "score = breached validations / total validations x 100": "score = breached validations / total validations x 100",
   "score = findings × criticality weight": "оценка = находки × вес критичности",
   "Score degradation": "Снижение оценки",

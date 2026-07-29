@@ -2659,6 +2659,7 @@
   "Scope": "范围",
   "Scope definition": "范围定义",
   "Score": "分数",
+  "score": "得分",
   "score = breached validations / total validations x 100": "score = breached validations / total validations x 100",
   "score = findings × criticality weight": "评分 = 发现项 × 重要性权重",
   "Score degradation": "评分下降",

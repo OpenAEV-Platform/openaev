@@ -2659,6 +2659,7 @@
   "Scope": "Umfang",
   "Scope definition": "Definition des Anwendungsbereichs",
   "Score": "Ergebnis",
+  "score": "Ergebnis",
   "score = breached validations / total validations x 100": "score = breached validations / total validations x 100",
   "score = findings × criticality weight": "Score = Findings × Kritikalitätsgewicht",
   "Score degradation": "Score-Verschlechterung",
