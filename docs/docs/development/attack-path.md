@@ -242,7 +242,7 @@ All endpoints live under `/api/attack-path` (and the tenant-prefixed
 | `GET /simulations/{id}/endpoint/findings?ref=` | one endpoint's finding-type and finding nodes |
 | `GET /simulations/{id}/endpoint/relations?ref=` | one endpoint's executions (feed) and grouped edges |
 | `GET /simulations/{id}/findings?category=&page=&size=` | a page of a widget category's findings for the drawer (credentials masked) |
-| `GET /simulations/{id}/executions/{executionId}` | one execution's Result & Terminal detail (command + output, credentials masked); 404 if not in the caller's simulation |
+| `GET /simulations/{id}/executions/{executionId}` | one execution's Result & Terminal detail: command + output (credentials masked), ATT&CK techniques, payload detection remediations, and `securityPlatforms` — the platforms that prevented/detected it, with their per-platform status and linked alerts, resolved live from the inject's expectations. **Enterprise-gated**: without an active licence the list comes back empty, which the panel renders as "attribution requires Enterprise Edition", never as an evaluated-negative verdict (see [Enterprise Edition](../administration/enterprise.md)). 404 if not in the caller's simulation |
 | `POST /seed` | admin-only; generates synthetic data (see §8) |
 
 `ref` is an endpoint's `target_key` (asset id or raw value); the front reads it off the asset node's
@@ -263,11 +263,23 @@ flowchart LR
     S --> D --> A --> D
 ```
 
-- The front loads one snapshot, then polls the delta every **3 s** (`DELTA_POLL_MS`), applying
-  upserts keyed by stable id. Aggregates (endpoint `findingCounts`, edge `count`) are shipped whole,
-  never as increments, so a replayed delta converges: `snapshot(v) + delta(v→w)` equals `snapshot(w)`.
-  A single accumulated graph feeds both render modes — the old duplicated 10 s full refresh of the
-  collapsed and full DTOs is gone.
+- The front loads one snapshot, then applies deltas as upserts keyed by stable id. Aggregates
+  (endpoint `findingCounts`, edge `count`) are shipped whole, never as increments, so a replayed
+  delta converges: `snapshot(v) + delta(v→w)` equals `snapshot(w)`. A single accumulated graph feeds
+  both render modes — the old duplicated 10 s full refresh of the collapsed and full DTOs is gone.
+- **What triggers a delta read.** Every version bump publishes an `attack-path-version` event on the
+  platform's shared SSE stream (`/api/stream`, the one long-lived connection the whole app already
+  holds through `useDataLoader`), carrying `{simulation_id, version}` and nothing else. The view
+  fetches on that nudge, debounced 300 ms so a burst of bumps costs one read. The timer that used to
+  *be* the mechanism is now only a safety net: **45 s ± 10 %** while the stream delivers, back to
+  **3 s** (`DELTA_POLL_MS`) when it does not — a proxy that strips streaming, or any environment
+  without `EventSource`, therefore keeps exactly the pre-nudge behaviour. Only one delta read is ever
+  in flight; a nudge arriving during one queues a single follow-up.
+- **The nudge is a nudge, never data.** It carries no graph state, so a lost, duplicated or reordered
+  event cannot corrupt the client — the delta read remains the only source of truth, and two cases
+  drop events silently by design (published outside a transaction, or suppressed during a bulk
+  operation), which the safety net absorbs. Delivery waits for the ingestion commit, so a client
+  fetching on a nudge never observes a version lower than the announced one.
 - Applying a delta preserves everything the user owns: pan/zoom, selection, highlights, expanded
   clusters, table sort, drawer search/page/scroll. Layout is recomputed only when the graph's shape
   moves.
@@ -281,9 +293,13 @@ flowchart LR
   `resyncRequired`, and the client silently reloads the snapshot; never a partial graph. The same
   happens when a delta would exceed `openaev.attackpath.delta-max-rows` (default 5000): past that
   size, assembling the delta costs more than the reload the client would do anyway.
-- Authorization is **per request** (same `assertCanReadSimulation` and `TxCtx` tenant scoping as the
-  snapshot read), so there is no long-lived channel holding a stale permission decision: a permission
-  lost between two polls takes effect on the next one.
+- **Authorization.** Every byte of graph data still comes from the per-request delta read (same
+  `assertCanReadSimulation` and `TxCtx` tenant scoping as the snapshot), so a revoked permission stops
+  the data at the next fetch. The nudge travels on the shared long-lived channel instead, where each
+  event is filtered per consumer on strict tenant equality plus the read's own predicate
+  (`AttackPathAccessControl.canRead`, seed ids included) resolved through the stream's cached
+  decisions — so a nudge may still arrive within that cache's TTL after a permission is lost, and it
+  is a notification the client cannot act on.
 
 !!! note "Upgrading an environment that already has attack-path data"
 
