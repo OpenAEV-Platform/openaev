@@ -93,6 +93,43 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.executor.ExecutorApi#updateExecutor",
           "io.openaev.rest.executor.ExecutorApi#deleteExecutor",
           "io.openaev.rest.executor.ExecutorApi#registerExecutor",
+          // injectors: all read/write endpoints wired with TxCtx
+          "io.openaev.rest.injector.InjectorApi#injectors",
+          "io.openaev.rest.injector.InjectorApi#injectorInjectTypes",
+          "io.openaev.rest.injector.InjectorApi#updateInjector",
+          "io.openaev.rest.injector.InjectorApi#injector",
+          "io.openaev.rest.injector.InjectorApi#getInjectorRelatedIds",
+          "io.openaev.rest.injector.InjectorApi#deleteInjector",
+          "io.openaev.rest.injector.InjectorApi#registerInjector",
+          "io.openaev.rest.injector.InjectorApi#optionsByName",
+          "io.openaev.rest.injector.InjectorApi#optionsById",
+          // injector reads through connector-instance and injector-contract paths
+          "io.openaev.rest.connector_instance.ConnectorInstanceApi#createConnectorInstance",
+          // injector_contracts: eager injectorLinks -> injector fetch on every load, found by the
+          // Phase 3b association scan (#7026-class gap: reads were missed when only the create
+          // endpoint had been wired)
+          "io.openaev.rest.injector_contract.InjectorContractApi#injectContracts",
+          "io.openaev.rest.injector_contract.InjectorContractApi#injectorContracts",
+          "io.openaev.rest.injector_contract.InjectorContractApi#injectorContract",
+          "io.openaev.rest.injector_contract.InjectorContractApi#createInjectorContract",
+          "io.openaev.rest.injector_contract.InjectorContractApi#updateInjectorContract",
+          "io.openaev.rest.injector_contract.InjectorContractApi#updateInjectorContractMapping",
+          "io.openaev.rest.injector_contract.InjectorContractApi#deleteInjectorContract",
+          // Phase 3b association scan on `injectors`: real HTTP entrypoints reading
+          // Inject#getInjector() / InjectorContract#getFirstInjector() / #getInjectors() without
+          // any TxCtx at all (#7026-class gap, confirmed by tracing each caller back to its
+          // controller method)
+          "io.openaev.rest.atomic_testing.AtomicTestingApi#atomicTestingImport",
+          "io.openaev.rest.inject_test_status.ScenarioInjectTestApi#testInject",
+          "io.openaev.rest.inject_test_status.ScenarioInjectTestApi#bulkTestInject",
+          "io.openaev.rest.inject_test_status.SimulationInjectTestApi#testInject",
+          "io.openaev.rest.inject_test_status.SimulationInjectTestApi#bulkTestInject",
+          "io.openaev.rest.scenario.ScenarioApi#createRunningExerciseFromScenario",
+          "io.openaev.rest.inject.InjectApi#injectTargetSearch",
+          "io.openaev.rest.scenario.ScenarioImportApi#injectsImport",
+          "io.openaev.rest.exercise.ExerciseImportApi#injectsImport",
+          "io.openaev.rest.mapper.MapperApi#testImportXLSFile",
+          "io.openaev.api.threat_arsenal.ThreatArsenalApiImporter#importJson",
           "io.openaev.rest.asset.endpoint.EndpointApi#upsertEndpoint",
           "io.openaev.rest.connector_instance.ConnectorInstanceApi#deleteConnectorInstance",
           // payload: upsert reads collectors via PayloadUpsertService; collectorsFromPayload reads
