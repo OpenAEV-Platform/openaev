@@ -7,6 +7,7 @@ import { useFormatter } from '../../../../../../../components/i18n';
 import { SECURITY_PLATFORM_TYPE_COLORS } from '../../../../../../../components/securityPlatformType';
 import useCountUp from '../../../../../../../utils/hooks/useCountUp';
 import useSvgVisibilityPause from '../../../../../../../utils/hooks/useSvgVisibilityPause';
+import { compactNumber } from '../../../../../../../utils/number';
 
 interface OrbitPlatform {
   id: string;
@@ -457,7 +458,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
             {(() => {
               if (gaps === 0 && validations === 0) return t('No validations yet');
               if (gaps === 0) return t('All controls holding');
-              return t('{count} gaps to remediate', { count: gaps });
+              return t('{count} gaps to remediate', { count: compactNumber(gaps) });
             })()}
           </Typography>
         </Box>
@@ -516,8 +517,8 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
                 {validations === 0
                   ? t('No validations have run yet.')
                   : t('{gaps} of {validations} validations breached your controls.', {
-                      gaps,
-                      validations,
+                      gaps: gaps.toLocaleString(),
+                      validations: validations.toLocaleString(),
                     })}
               </Typography>
             </Box>
@@ -541,9 +542,9 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
           >
             {t('exposure')}
             {' = '}
-            <Box component="span" sx={{ color: theme.palette.error.main }}>{`${gaps} ${t('breached')}`}</Box>
+            <Box component="span" sx={{ color: theme.palette.error.main }}>{`${compactNumber(gaps)} ${t('breached')}`}</Box>
             {' / '}
-            <Box component="span">{`${validations} ${t('total')}`}</Box>
+            <Box component="span">{`${compactNumber(validations)} ${t('total')}`}</Box>
             {` x 100 = `}
             <Box
               component="span"
@@ -578,15 +579,15 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {t('{failed} / {total} breached ({pct}%)', {
-                          failed: p.failed,
-                          total: p.total,
+                          failed: compactNumber(p.failed),
+                          total: compactNumber(p.total),
                           pct: breachPct,
                         })}
                       </Typography>
                     </Box>
                     <Tooltip title={t('{stopped} stopped - {breached} breached', {
-                      stopped: p.success,
-                      breached: p.failed,
+                      stopped: p.success.toLocaleString(),
+                      breached: p.failed.toLocaleString(),
                     })}
                     >
                       <Box sx={{

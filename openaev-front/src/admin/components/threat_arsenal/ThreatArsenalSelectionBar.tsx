@@ -8,6 +8,8 @@ import { useFormatter } from '../../../components/i18n';
 interface Props {
   count: number;
   totalElements: number;
+  /** Hides the bar while keeping the selection (e.g. when the run-test drawer is open). */
+  hidden?: boolean;
   onClear: () => void;
   onRunTest: () => void;
   /** When provided, shows a mass-delete button in the selection bar. */
@@ -17,13 +19,14 @@ interface Props {
 const ThreatArsenalSelectionBar: FunctionComponent<Props> = ({
   count,
   totalElements,
+  hidden = false,
   onClear,
   onRunTest,
   onDelete,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const open = count > 0;
+  const open = count > 0 && !hidden;
 
   return (
     <Slide direction="up" in={open} mountOnEnter unmountOnExit>

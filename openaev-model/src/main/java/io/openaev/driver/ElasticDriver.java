@@ -74,7 +74,19 @@ public class ElasticDriver {
 
   private ElasticsearchClient getElasticClient() {
     RestClientBuilder restClientBuilder = RestClient.builder(HttpHost.create(config.getUrl()));
+    // The library defaults (1s connect / 30s socket timeout, 10 connections per route) are too
+    // tight for this platform: during bulk indexing (full reindex after a migration) the async
+    // client saturates and cancels pending requests, surfacing as "Request execution cancelled"
+    // in dashboard queries and engine jobs. Configure explicit limits instead.
+    restClientBuilder.setRequestConfigCallback(
+        requestConfig ->
+            requestConfig
+                .setConnectTimeout(config.getConnectTimeoutMs())
+                .setSocketTimeout(config.getSocketTimeoutMs()));
     HttpAsyncClientBuilder clientBuilder = HttpAsyncClientBuilder.create();
+    clientBuilder
+        .setMaxConnTotal(config.getMaxConnections())
+        .setMaxConnPerRoute(config.getMaxConnections());
     if (config.getUsername() != null) {
       BasicCredentialsProvider credsProv = new BasicCredentialsProvider();
       credsProv.setCredentials(
