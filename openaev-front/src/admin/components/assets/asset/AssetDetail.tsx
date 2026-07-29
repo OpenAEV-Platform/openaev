@@ -42,6 +42,7 @@ import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import AssetPopover, { type AssetPopoverProps } from '../endpoints/AssetPopover';
 import AgentList from '../endpoints/endpoint/AgentList';
+import ExpectationList from '../ExpectationList';
 import PostureScore from '../PostureScore';
 import InjectsPlayedOverTimeChart from '../statistics/InjectsPlayedOverTimeChart';
 import PostureScoreOverTimeChart from '../statistics/PostureScoreOverTimeChart';
@@ -405,6 +406,17 @@ const AssetDetail = () => {
               filterLocalStorageKey="endpoint-findings"
               searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindingsOnEndpoint(id, input)}
               contextId={id}
+            />
+          </SectionBlock>
+
+          <SectionBlock title={t('Expectations')}>
+            {/* Every expectation evaluated against this asset - same scope as
+                the posture score and the hero counter, so the KPIs and the
+                list stay consistent. */}
+            <ExpectationList
+              filterLocalStorageKey="asset-expectations"
+              scopeField="base_asset_side"
+              entityId={id}
             />
           </SectionBlock>
 
