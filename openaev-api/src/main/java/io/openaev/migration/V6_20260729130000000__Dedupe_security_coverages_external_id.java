@@ -35,7 +35,10 @@ public class V6_20260729130000000__Dedupe_security_coverages_external_id extends
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
       // Map every duplicate coverage to the best row sharing its external id: prefer the row
-      // already linked to a scenario, then the most recently updated one.
+      // already linked to a scenario, then the most recently updated one. The migration runs in
+      // a transaction (a failure rolls the temp table back too), but drop any leftover from a
+      // reused session so the statement is unconditionally re-runnable.
+      statement.execute("DROP TABLE IF EXISTS tmp_sc_duplicates;");
       statement.execute(
           """
           CREATE TEMPORARY TABLE tmp_sc_duplicates ON COMMIT DROP AS
@@ -67,6 +70,8 @@ public class V6_20260729130000000__Dedupe_security_coverages_external_id extends
             IF NOT EXISTS (
               SELECT 1 FROM pg_constraint
               WHERE conname = 'security_coverages_external_id_unique'
+                AND conrelid = 'security_coverages'::regclass
+                AND contype = 'u'
             ) THEN
               ALTER TABLE security_coverages
                 ADD CONSTRAINT security_coverages_external_id_unique
