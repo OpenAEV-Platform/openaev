@@ -116,7 +116,8 @@ public class StepService {
     // If no condition mapper and step already executed, we skip the step to avoid to execute it
     // again
     if (!conditionService.hasConditionMapper(persistedTemplate)
-        && isStepAlreadyExecutedOnce(persistedTemplate.getId(), workflowRun.getId())) {
+        && isStepAlreadyExecutedOnce(persistedTemplate.getId(), workflowRun.getId())
+        && injectExecutionStep.hasPayload(persistedTemplate)) {
       return List.of();
     }
 
@@ -139,6 +140,23 @@ public class StepService {
       executionBatches = injectExecutionStep.expandTargetBatches(executionBatches, workflowRun);
       if (executionBatches.isEmpty()) {
         return List.of();
+      }
+
+      // Per-target deduplication: expanded batches carry a per-target hash (combo + target).
+      // The combo-level dedup in prepareInputsForStepExecution runs BEFORE expansion and only
+      // knows the combo hash, so it cannot skip individual targets already executed. Load the
+      // committed hashes once and drop batches whose target was already turned into a READY step,
+      // preventing the same inject from being re-executed on every scheduling cycle.
+      Set<String> committedTargetHashes =
+          conditionService.getCommittedHashes(persistedTemplate, workflowRun);
+      if (!committedTargetHashes.isEmpty()) {
+        executionBatches =
+            executionBatches.stream()
+                .filter(batch -> !committedTargetHashes.contains(batch.hash()))
+                .toList();
+        if (executionBatches.isEmpty()) {
+          return List.of();
+        }
       }
     }
     List<Step> stepReadys = new ArrayList<>();
