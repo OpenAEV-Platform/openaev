@@ -973,6 +973,26 @@ public class ConditionService {
   }
 
   /**
+   * Returns the set of execution hashes already committed in the local workflow state for the given
+   * step template. These are the input combinations (or per-target combinations) that have already
+   * been turned into READY steps and must not be executed again.
+   *
+   * @param stepTemplate the step template whose local state stores the hash set
+   * @param workflowRun the running workflow
+   * @return the committed hash set, or an empty set if no local state exists yet
+   */
+  public Set<String> getCommittedHashes(Step stepTemplate, Workflow workflowRun) {
+    WorkflowState localState =
+        workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun);
+    if (localState == null) {
+      return Set.of();
+    }
+    WorkflowStateEntries entries = deserializeEntries(localState.getEntries());
+    Set<String> hashExecution = entries.getHashExecution();
+    return hashExecution != null ? hashExecution : Set.of();
+  }
+
+  /**
    * Commits the given execution hashes into the local workflow state for the step template,
    * preventing those input combinations from being re-executed in the future.
    *

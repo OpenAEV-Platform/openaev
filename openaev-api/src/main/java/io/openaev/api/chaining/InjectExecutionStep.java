@@ -581,7 +581,8 @@ public class InjectExecutionStep implements ActionStep {
 
     String workflowId = workflowRun.getId();
     List<Asset> validAssets = scopeService.getValidAssets(workflowId);
-    List<String> validManualTargets = scopeService.getValidManualTargetsFromScope(workflowId);
+    List<String> validManualTargets =
+        scopeService.getValidManualTargetsFromScopeAndGlobalState(workflowId);
 
     if (validAssets.isEmpty() && validManualTargets.isEmpty()) {
       return batches;
@@ -604,7 +605,9 @@ public class InjectExecutionStep implements ActionStep {
         target.addProperty("assetId", asset.getId());
         expanded.add(
             new ConditionService.ExecutionBatch(
-                addTargetToInput(batch.inputString(), target), batch.usedMappers(), null));
+                addTargetToInput(batch.inputString(), target),
+                batch.usedMappers(),
+                perTargetHash(batch.hash(), asset.getId())));
       }
 
       // One batch per manual data
@@ -615,10 +618,27 @@ public class InjectExecutionStep implements ActionStep {
         target.addProperty("manual", manualTarget);
         expanded.add(
             new ConditionService.ExecutionBatch(
-                addTargetToInput(batch.inputString(), target), batch.usedMappers(), null));
+                addTargetToInput(batch.inputString(), target),
+                batch.usedMappers(),
+                perTargetHash(batch.hash(), manualTarget)));
       }
     }
     return expanded;
+  }
+
+  /**
+   * Builds a deterministic per-target deduplication hash for an expanded batch by combining the
+   * original combo hash (nullable, for non-mapper batches) with the target identifier (asset ID or
+   * manual target value). This keeps each (mapper combo, target) pair uniquely deduplicated so an
+   * already-executed target is never re-created, while a delayed (rate-limited) sibling target can
+   * still be retried independently.
+   *
+   * @param comboHash original batch hash (may be {@code null} when the batch has no mapper)
+   * @param targetId the target identifier this expanded batch is bound to
+   * @return a non-null hash unique to the (combo, target) pair
+   */
+  private String perTargetHash(String comboHash, String targetId) {
+    return (comboHash != null ? comboHash : "") + ":" + targetId;
   }
 
   /**

@@ -116,7 +116,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // Mock scope service: return the saved asset so that hasAssetTargets = true in run()
     doReturn(List.of(savedAsset)).when(scopeService).getValidAssets(any());
     doReturn(List.of()).when(scopeService).getValidAssetGroupsFromScope(any());
-    doReturn(List.of()).when(scopeService).getValidManualTargetsFromScope(any());
+    doReturn(List.of()).when(scopeService).getValidManualTargetsFromScopeAndGlobalState(any());
 
     injectInputJson =
         """
