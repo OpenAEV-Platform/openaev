@@ -23,39 +23,6 @@ public class ScopeService {
   private final WorkflowStateService workflowStateService;
 
   /**
-   * Returns the asset groups (ASSET_GROUP_ID allowlist rules) that are not explicitly denied as a
-   * whole group. Used at inject execution time to populate inject.assetGroups.
-   */
-  public List<AssetGroup> getValidAssetGroupsFromScope(String workflowId) {
-    List<WorkflowScopeRule> allRules = workflowScopeRuleRepository.findAllByWorkflowId(workflowId);
-
-    PrimitiveValidationContext context =
-        new PrimitiveValidationContext(
-            collectRuleValues(
-                allRules, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.ASSET_GROUP_ID),
-            Set.of(),
-            Set.of(),
-            Set.of(),
-            Set.of(),
-            collectRuleValues(
-                allRules, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.ASSET_GROUP_ID),
-            Set.of(),
-            Set.of(),
-            Set.of(),
-            Set.of());
-
-    List<String> allowedGroupIds =
-        allRules.stream()
-            .filter(r -> ScopeRuleSelectedMode.ALLOWLIST.equals(r.getSelectedMode()))
-            .filter(r -> ScopeRuleValueType.ASSET_GROUP_ID.equals(r.getValueType()))
-            .map(WorkflowScopeRule::getRuleValue)
-            .filter(id -> PrimitiveValueValidator.isAssetGroupIdAllowedByScope(id, context))
-            .toList();
-
-    return allowedGroupIds.isEmpty() ? List.of() : assetGroupService.assetGroups(allowedGroupIds);
-  }
-
-  /**
    * Returns the assets that are in scope for the given workflow and that are not denied by a value
    * in the denylist
    *
