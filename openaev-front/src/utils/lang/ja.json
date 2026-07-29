@@ -3517,5 +3517,6 @@
   "Security platform attribution": "セキュリティプラットフォームの帰属",
   "Unknown platform": "不明なプラットフォーム",
   "Partially Prevented": "部分的にブロック",
-  "Partially Detected": "部分的に検出"
+  "Partially Detected": "部分的に検出",
+  "Showing the first {count}": "最初の{count}件を表示"
 }

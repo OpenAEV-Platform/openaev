@@ -3,7 +3,7 @@ import { Button, IconButton, Paper, Popover, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 
 import { searchDistinctFindingsForInjects } from '../../../../../actions/findings/finding-actions';
 import { getInjectStatusWithGlobalExecutionTraces, searchTargets } from '../../../../../actions/injects/inject-action';
@@ -15,6 +15,8 @@ import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import type { AttackPathExecutionDetailDTO, InjectStatusOutput, InjectTarget } from '../../../../../utils/api-types';
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
+import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { getStatusColor } from '../../../../../utils/statusUtils';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import EEChip from '../../../common/entreprise_edition/EEChip';
@@ -269,6 +271,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
   const theme = useTheme();
   const { t } = useFormatter();
   const { isValidated } = useEnterpriseEdition();
+  const ability = useContext(AbilityContext);
   const { currentTab, handleChangeTab } = useTabs(RESULT_TAB);
   // Detection remediations (per security platform) for this action, resolved from the execution's
   // payload's detection remediations by the backend (empty when the payload has none).
@@ -539,9 +542,15 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                   <Typography variant="subtitle2">{endpointLabel || detail.targetHostname || detail.targetIp || detail.endpointKey}</Typography>
                 </div>
                 {/* Enterprise gate on the attribution itself, not on the verdicts: one chip for the
-                    section, offering the upsell path instead of a dead-end sentence per row. */}
+                    section, offering the upsell path instead of a dead-end sentence per row. Only
+                    clickable for a user who could act on the dialog — the licence form it opens
+                    requires platform settings, so for anyone else the chip stays informational
+                    rather than a dead click (EETooltip's nuance). */}
                 {attributionUnavailable && (
-                  <EEChip clickable featureDetectedInfo={t('Security platform attribution')} />
+                  <EEChip
+                    clickable={ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+                    featureDetectedInfo={t('Security platform attribution')}
+                  />
                 )}
                 {renderExpectationRow('prevention', t('Prevented by'), detail?.preventionStatus, preventedBy)}
                 {renderExpectationRow('detection', t('Detected by'), detail?.detectionStatus, detectedBy)}

@@ -3517,5 +3517,6 @@
   "Security platform attribution": "Zuordnung der Sicherheitsplattform",
   "Unknown platform": "Unbekannte Plattform",
   "Partially Prevented": "Teilweise verhindert",
-  "Partially Detected": "Teilweise erkannt"
+  "Partially Detected": "Teilweise erkannt",
+  "Showing the first {count}": "Die ersten {count} werden angezeigt"
 }

@@ -3517,5 +3517,6 @@
   "Security platform attribution": "보안 플랫폼 귀속",
   "Unknown platform": "알 수 없는 플랫폼",
   "Partially Prevented": "부분적으로 차단됨",
-  "Partially Detected": "부분적으로 탐지됨"
+  "Partially Detected": "부분적으로 탐지됨",
+  "Showing the first {count}": "처음 {count}개 표시"
 }

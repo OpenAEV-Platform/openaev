@@ -109,25 +109,31 @@ public class AttackPathExecutionIngestionService {
         TxCtx.forTenant(tenantId),
         () -> {
           long version = versionService.bump(simulationId, tenantId);
-          expectationResults.forEach(
-              (index, expectation) -> {
-                String preventionStatus =
-                    resolveHighestPriorityResult(
-                        expectation.prevention(), ExpectationType.PREVENTION);
-                String detectionStatus =
-                    resolveHighestPriorityResult(
-                        expectation.detection(), ExpectationType.DETECTION);
-                String vulnerabilityStatus =
-                    resolveHighestPriorityResult(
-                        expectation.vulnerability(), ExpectationType.VULNERABILITY);
+          int changed = 0;
+          for (Map.Entry<String, ExecutionExpectationResults> entry : expectationResults.entrySet()) {
+            ExecutionExpectationResults expectation = entry.getValue();
+            String preventionStatus =
+                resolveHighestPriorityResult(expectation.prevention(), ExpectationType.PREVENTION);
+            String detectionStatus =
+                resolveHighestPriorityResult(expectation.detection(), ExpectationType.DETECTION);
+            String vulnerabilityStatus =
+                resolveHighestPriorityResult(
+                    expectation.vulnerability(), ExpectationType.VULNERABILITY);
+            changed +=
                 executionRepository.updateExpectationStatusByExecutionId(
-                    index,
+                    entry.getKey(),
                     preventionStatus,
                     detectionStatus,
                     vulnerabilityStatus,
                     tenantId,
                     version);
-              });
+          }
+          // Only a write that touched rows is worth telling a client about. The engine replays these
+          // results on every execution event, so nudging on a replay would flood the stream's shared
+          // executor for nothing — see AttackPathVersionService#publishChanged.
+          if (changed > 0) {
+            versionService.publishChanged(simulationId, tenantId, version);
+          }
         });
   }
 
@@ -202,6 +208,8 @@ public class AttackPathExecutionIngestionService {
           long version = versionService.bump(simulationId, tenantId);
           rows.forEach(row -> row.setRowVersion(version));
           persistExecution(rows);
+          // New rows always change the graph, so this one always nudges.
+          versionService.publishChanged(simulationId, tenantId, version);
         });
   }
 

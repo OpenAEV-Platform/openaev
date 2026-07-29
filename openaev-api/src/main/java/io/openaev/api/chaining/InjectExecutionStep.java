@@ -243,7 +243,7 @@ public class InjectExecutionStep implements ActionStep {
    * non-fatal, like the two ingestion hooks around it. The write opens its own tenant-scoped
    * REQUIRES_NEW transaction, so a failure here is caught and logged and can never roll the step
    * update back. Runs on every execution event; the updates are guarded, so replaying the same
-   * results changes nothing — and therefore nudges no client.
+   * results matches zero rows — and a write that touched nothing publishes no nudge.
    *
    * <p>The flag gate matters beyond the write: the version bump this triggers publishes the
    * real-time nudge, so an environment with {@code ATTACK_PATH} off must not emit attack-path

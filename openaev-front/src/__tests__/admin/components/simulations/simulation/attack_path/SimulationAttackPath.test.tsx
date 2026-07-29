@@ -1,6 +1,9 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
+
+import { type AppAbility } from '../../../../../../utils/permissions/ability';
+import { AbilityContext } from '../../../../../../utils/permissions/permissionsContext';
 import type * as ReactRouter from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -129,8 +132,15 @@ vi.mock('../../../../../../utils/hooks/useEnterpriseEdition', () => ({
 // own coverage, so stand it in by a marker and assert the panel renders it.
 vi.mock('../../../../../../admin/components/common/entreprise_edition/EEChip', () => ({ default: () => <span data-testid="ee-chip" /> }));
 
+// The app always provides an ability (the context default is an empty object), and the Result panel
+// asks whether the user could act on the Enterprise dialog. Answer no: the interesting case is the
+// non-admin one, where the EE chip must stay informational rather than a dead click.
+const ability = { can: () => false } as unknown as AppAbility;
+
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <ThemeProvider theme={createTheme()}>{children}</ThemeProvider>
+  <ThemeProvider theme={createTheme()}>
+    <AbilityContext.Provider value={ability}>{children}</AbilityContext.Provider>
+  </ThemeProvider>
 );
 
 // One steady-state graph read plus a delta poll that reports "nothing changed": the default the tests

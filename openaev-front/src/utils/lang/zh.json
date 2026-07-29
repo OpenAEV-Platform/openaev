@@ -3517,5 +3517,6 @@
   "Security platform attribution": "安全平台归因",
   "Unknown platform": "未知平台",
   "Partially Prevented": "部分阻止",
-  "Partially Detected": "部分检测"
+  "Partially Detected": "部分检测",
+  "Showing the first {count}": "显示前 {count} 个"
 }

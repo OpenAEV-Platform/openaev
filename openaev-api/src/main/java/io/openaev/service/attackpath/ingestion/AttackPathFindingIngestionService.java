@@ -116,6 +116,9 @@ public class AttackPathFindingIngestionService {
     long version = versionService.bump(simulationId, tenantId);
     findingWriter.insertFindings(findingRows, version);
     findingWriter.insertLinks(links);
+    // A re-copied finding is re-stamped and a new link is inserted, so this batch did change the
+    // graph: worth a nudge (an empty batch returned above, before the bump).
+    versionService.publishChanged(simulationId, tenantId, version);
   }
 
   /**

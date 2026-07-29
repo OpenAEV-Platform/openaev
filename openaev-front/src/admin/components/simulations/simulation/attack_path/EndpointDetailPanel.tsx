@@ -202,20 +202,37 @@ const EndpointDetailPanel = ({
           );
         })}
         {/* The list holds one page, so reaching the rest must be an action rather than a dead caption:
-            same slot, a text button that fetches the next page (See More precedent). */}
+            same slot, a text button that fetches the next page (See More precedent). Where the caller
+            cannot fetch more (the injector panel reads a bounded set in one go), say what is not shown
+            rather than truncate silently. */}
         {(totalExecutions ?? 0) > executions.length && (
-          <Button
-            size="small"
-            variant="text"
-            disabled={loadingMore}
-            onClick={() => onShowMore?.()}
-            sx={{
-              mt: 1,
-              textTransform: 'none',
-            }}
-          >
-            {`${t('Show more')} (${(totalExecutions ?? 0) - executions.length})`}
-          </Button>
+          onShowMore
+            ? (
+                <Button
+                  size="small"
+                  variant="text"
+                  disabled={loadingMore}
+                  onClick={() => onShowMore()}
+                  sx={{
+                    mt: 1,
+                    textTransform: 'none',
+                  }}
+                >
+                  {`${t('Show more')} (${(totalExecutions ?? 0) - executions.length})`}
+                </Button>
+              )
+            : (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{
+                    display: 'block',
+                    pt: 1,
+                  }}
+                >
+                  {`${t('Showing the first {count}', { count: executions.length })} / ${totalExecutions}`}
+                </Typography>
+              )
         )}
       </div>
     </Paper>

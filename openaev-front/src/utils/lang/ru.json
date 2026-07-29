@@ -3517,5 +3517,6 @@
   "Security platform attribution": "Атрибуция платформы безопасности",
   "Unknown platform": "Неизвестная платформа",
   "Partially Prevented": "Частично предотвращено",
-  "Partially Detected": "Частично обнаружено"
+  "Partially Detected": "Частично обнаружено",
+  "Showing the first {count}": "Показаны первые {count}"
 }

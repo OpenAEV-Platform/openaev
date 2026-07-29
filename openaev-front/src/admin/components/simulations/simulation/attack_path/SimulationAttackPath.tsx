@@ -340,6 +340,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // The clicked injector's own executions (its contracts across every endpoint it reached), listed in
   // the injector panel — the action-side mirror of the endpoint panel. Label = the injector's name.
   const [injectorExecutions, setInjectorExecutions] = useState<AttackPathNodeDTO[]>([]);
+  // How many executions this injector ran in total; the list can hold fewer when a page cut in.
+  const [injectorExecTotal, setInjectorExecTotal] = useState(0);
   const [injectorPanelLabel, setInjectorPanelLabel] = useState<string>('');
   // The clicked injector's findings, grouped by type — attributed to THIS injector (findings produced by
   // its own executions), shown in the injector panel's Findings section like an endpoint's.
@@ -1445,20 +1447,31 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               .filter(e => e.edgeSourceId === injectorId)
               .flatMap(e => e.executionIds ?? []),
           );
-          return (r.data.executions ?? []).filter(e => !!e.ref && owned.has(e.ref));
+          // The edges are whole, so `owned` is this injector's true count on that endpoint even when
+          // the executions came back as one page — that is what the panel states it is showing.
+          return {
+            page: (r.data.executions ?? []).filter(e => !!e.ref && owned.has(e.ref)),
+            total: owned.size,
+          };
         })
-        .catch(() => [] as AttackPathNodeDTO[])),
+        .catch(() => ({
+          page: [] as AttackPathNodeDTO[],
+          total: 0,
+        }))),
     )
-      .then((lists) => {
+      .then((results) => {
         const seen = new Set<string>();
         const execs: AttackPathNodeDTO[] = [];
-        for (const e of lists.flat()) {
+        for (const e of results.flatMap(r => r.page)) {
           if (e.ref && !seen.has(e.ref)) {
             seen.add(e.ref);
             execs.push(e);
           }
         }
         setInjectorExecutions(execs);
+        // What this injector actually ran, across every endpoint it reached: when a page cut some of
+        // them off, the panel says so instead of truncating silently.
+        setInjectorExecTotal(results.reduce((sum, r) => sum + r.total, 0));
         // Attribute findings to this injector via its own execution refs.
         loadInjectorFindings(new Set(execs.map(e => e.ref).filter((r): r is string => !!r)));
       });
@@ -2734,6 +2747,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                       findingsLoading={injectorFindingsLoading}
                       findingGroups={injectorFindingGroups}
                       executions={injectorExecutions}
+                      totalExecutions={injectorExecTotal}
                       highlightedExecutionIds={highlightedExecutionIds}
                       registerRow={() => {}}
                       onSelectExecution={openExecutionDetail}
@@ -2861,6 +2875,23 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               </Box>
             );
           })}
+          {/* The drawer holds one server page (clamped to 200) and searches within it, so when the
+              category has more, say so rather than let the pager imply it holds everything —
+              full-set search is a tracked follow-up (spec 003, FR10). */}
+          {!findingsLoading && (findingsPage?.total ?? 0) > (findingsPage?.items ?? []).length && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{
+                display: 'block',
+                pt: 1.5,
+                textAlign: 'center',
+              }}
+            >
+              {t('Showing the first {count}', { count: (findingsPage?.items ?? []).length })}
+              {` / ${findingsPage?.total}`}
+            </Typography>
+          )}
           {!findingsLoading && drawerPageCount > 1 && (
             <Box sx={{
               display: 'flex',

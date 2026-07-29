@@ -47,13 +47,27 @@ public class AttackPathVersionService {
               + simulationId
               + "; refusing to stamp rows with an unknown version");
     }
-    // The nudge (spec 003, FR1): published inside the writer's transaction, delivered after commit
-    // by the stream's @TransactionalEventListener, so a client fetching on it never observes a
-    // version lower than the announced one. Every projection writer bumps here, so this single
-    // point covers them all. Several bumps in one transaction yield several nudges, which is
-    // harmless: the delta fetch is cursor-idempotent and the client debounces bursts.
-    eventPublisher.publishEvent(new AttackPathVersionEvent(simulationId, tenantId, version));
     return version;
+  }
+
+  /**
+   * Announces that the simulation's graph actually changed (spec 003, FR1), so an open view fetches
+   * its delta now instead of waiting for its safety-net poll.
+   *
+   * <p>Separate from {@link #bump} on purpose: the chaining engine replays an execution event's
+   * expectation results by design, and a replay bumps (the caller cannot know the row counts before
+   * taking the version it stamps) while writing nothing. Publishing there too would put one event per
+   * replay on the stream's shared executor, whose bounded queue discards its oldest entries — evicting
+   * other features' events and, worst of all, the 1 s ping every client's health check depends on. A
+   * flood of nudges would therefore make clients decide the stream is dead and fall back to the very
+   * cadence this feature removes. So callers publish only when their write touched rows.
+   *
+   * <p>Published inside the writer's transaction; the stream's {@code @TransactionalEventListener}
+   * defers delivery to commit, so a client fetching on the nudge never observes a version lower than
+   * the announced one.
+   */
+  public void publishChanged(String simulationId, String tenantId, long version) {
+    eventPublisher.publishEvent(new AttackPathVersionEvent(simulationId, tenantId, version));
   }
 
   /**

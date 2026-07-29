@@ -3517,5 +3517,6 @@
   "Security platform attribution": "Security platform attribution",
   "Unknown platform": "Unknown platform",
   "Partially Prevented": "Partially Prevented",
-  "Partially Detected": "Partially Detected"
+  "Partially Detected": "Partially Detected",
+  "Showing the first {count}": "Showing the first {count}"
 }
