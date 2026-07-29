@@ -740,6 +740,57 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   @Transactional
   void
+      given_stepDataWithInjectorContractContent_when_resolvingMappedContract_should_preserveContentForChainingOutputInference() {
+    // -- Arrange --
+    String oldContractId = UUID.randomUUID().toString();
+    String newContractId = UUID.randomUUID().toString();
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode stepNode = objectMapper.createObjectNode();
+    stepNode.put(
+        "step_data",
+        """
+        {
+          "inject_injector_contract": {
+            "injector_contract_id": "%s",
+            "injector_contract_content": "{\\"outputs\\":[{\\"type\\":\\"portscan\\"}]}"
+          }
+        }
+        """
+            .formatted(oldContractId));
+    Map<String, String> resolvedContracts = Map.of(oldContractId, newContractId);
+    Exercise simulation = new Exercise();
+    simulation.setId("sim-test");
+    Workflow workflow = Workflow.builder().simulation(simulation).build();
+
+    // -- Act --
+    String resolvedStepData =
+        ReflectionTestUtils.invokeMethod(
+            importer, "resolveStepData", stepNode, resolvedContracts, new HashMap<>(), workflow);
+    JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
+
+    // -- Assert --
+    assertEquals(
+        newContractId,
+        resolvedJson.get("inject_injector_contract").get("injector_contract_id").asText());
+    assertEquals(
+        "portscan",
+        assertDoesNotThrow(
+            () ->
+                objectMapper
+                    .readTree(
+                        resolvedJson
+                            .get("inject_injector_contract")
+                            .get("injector_contract_content")
+                            .asText())
+                    .get("outputs")
+                    .get(0)
+                    .get("type")
+                    .asText()));
+  }
+
+  @Test
+  @Transactional
+  void
       given_stepDataWithForeignDomainIdsAndConvertedContent_when_resolvingMappedContract_should_resolveDomainByName() {
     // -- Arrange --
     Domain savedDomain =
@@ -849,6 +900,52 @@ class V1_DataImporterTest extends IntegrationTest {
     assertEquals(
         contractId,
         resolvedJson.get("inject_injector_contract").get("injector_contract_id").asText());
+  }
+
+  @Test
+  @Transactional
+  void
+      given_stepDataWithForeignInjectorId_when_resolvingStepData_should_replaceWithLocalInjectorId() {
+    // -- Arrange --
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    InjectorContract localContract =
+        injectorContractRepository.findAll().stream()
+            .filter(contract -> !contract.getInjectors().isEmpty())
+            .findFirst()
+            .orElseThrow();
+    String localInjectorId = localContract.getInjectors().getFirst().getId();
+
+    String oldContractId = UUID.randomUUID().toString();
+    String foreignInjectorId = UUID.randomUUID().toString();
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode stepNode = objectMapper.createObjectNode();
+    stepNode.put(
+        "step_data",
+        """
+        {
+          "inject_injector": "%s",
+          "inject_injector_contract": {
+            "injector_contract_id": "%s"
+          }
+        }
+        """
+            .formatted(foreignInjectorId, oldContractId));
+    Map<String, String> resolvedContracts = Map.of(oldContractId, localContract.getId());
+    Exercise simulation = new Exercise();
+    simulation.setId("sim-test");
+    Workflow workflow = Workflow.builder().simulation(simulation).build();
+
+    // -- Act --
+    String resolvedStepData =
+        ReflectionTestUtils.invokeMethod(
+            importer, "resolveStepData", stepNode, resolvedContracts, new HashMap<>(), workflow);
+    JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
+
+    // -- Assert --
+    assertEquals(
+        localContract.getId(),
+        resolvedJson.path("inject_injector_contract").path("injector_contract_id").asText());
+    assertEquals(localInjectorId, resolvedJson.path("inject_injector").asText());
   }
 
   @Test

@@ -2338,6 +2338,7 @@ public class V1_DataImporter implements Importer {
       return fallback;
     }
     normalizeInjectorContractReference(dataObject, baseIds);
+    normalizeInjectorReference(dataObject);
     dataObject.remove("inject_assets");
     dataObject.remove("inject_asset_groups");
     dataObject.remove("inject_user");
@@ -2356,6 +2357,41 @@ public class V1_DataImporter implements Importer {
   }
 
   /**
+   * Ensures step_data references a local injector for the resolved injector contract. Imported
+   * exports can carry a foreign inject_injector ID that does not exist on the target tenant and
+   * breaks inject creation at runtime.
+   */
+  private void normalizeInjectorReference(ObjectNode dataObject) {
+    JsonNode contractNode = dataObject.get("inject_injector_contract");
+    String contractId = extractInjectorContractId(contractNode);
+    if (!hasText(contractId)) {
+      return;
+    }
+
+    Optional<InjectorContract> contractOpt = injectorContractRepository.findById(contractId);
+    if (contractOpt.isEmpty()) {
+      return;
+    }
+
+    List<String> localInjectorIds =
+        contractOpt.get().getInjectors().stream()
+            .map(Injector::getId)
+            .filter(Objects::nonNull)
+            .toList();
+    if (localInjectorIds.isEmpty()) {
+      return;
+    }
+
+    JsonNode injectorNode = dataObject.get("inject_injector");
+    String currentInjectorId =
+        injectorNode != null && injectorNode.isTextual() ? injectorNode.asText() : null;
+
+    if (!hasText(currentInjectorId) || !localInjectorIds.contains(currentInjectorId)) {
+      dataObject.put("inject_injector", localInjectorIds.getFirst());
+    }
+  }
+
+  /**
    * Normalizes the {@code inject_injector_contract} node in step_data by resolving embedded domain
    * and tag references to their local platform IDs.
    */
@@ -2369,6 +2405,8 @@ public class V1_DataImporter implements Importer {
 
     ObjectNode normalizedContract = mapper.createObjectNode();
     normalizedContract.put("injector_contract_id", injectorContractId);
+    Optional<InjectorContract> existingContract =
+        injectorContractRepository.findById(injectorContractId);
 
     if (injectContractNode instanceof ObjectNode embeddedContract) {
       // Reuse importDomains: resolves by ID then by name, caches in baseIds
@@ -2406,19 +2444,96 @@ public class V1_DataImporter implements Importer {
         normalizedContract.set("injector_contract_tags", tagsArray);
       }
 
-      // Import data used for injector_contract_providing
-      JsonNode payloadNode = embeddedContract.get("injector_contract_payload");
-      if (payloadNode instanceof ObjectNode payloadObject) {
-        JsonNode outputParsers = payloadObject.get("payload_output_parsers");
-        if (outputParsers != null && outputParsers.isArray() && !outputParsers.isEmpty()) {
-          ObjectNode normalizedPayload = mapper.createObjectNode();
-          normalizedPayload.set("payload_output_parsers", outputParsers.deepCopy());
-          normalizedContract.set("injector_contract_payload", normalizedPayload);
-        }
+      String contractContent = readContractContent(embeddedContract);
+      if (!hasText(contractContent)) {
+        contractContent = existingContract.map(InjectorContract::getContent).orElse(null);
+      }
+      if (hasText(contractContent)) {
+        normalizedContract.put("injector_contract_content", contractContent);
+      }
+
+      JsonNode outputParsers = readOutputParsers(embeddedContract, existingContract.orElse(null));
+      if (outputParsers != null && outputParsers.isArray() && !outputParsers.isEmpty()) {
+        ObjectNode normalizedPayload = mapper.createObjectNode();
+        normalizedPayload.set("payload_output_parsers", outputParsers);
+        normalizedContract.set("injector_contract_payload", normalizedPayload);
+      }
+    } else {
+      String contractContent = existingContract.map(InjectorContract::getContent).orElse(null);
+      if (hasText(contractContent)) {
+        normalizedContract.put("injector_contract_content", contractContent);
+      }
+
+      JsonNode outputParsers = readOutputParsers(null, existingContract.orElse(null));
+      if (outputParsers != null && outputParsers.isArray() && !outputParsers.isEmpty()) {
+        ObjectNode normalizedPayload = mapper.createObjectNode();
+        normalizedPayload.set("payload_output_parsers", outputParsers);
+        normalizedContract.set("injector_contract_payload", normalizedPayload);
       }
     }
 
     dataObject.set("inject_injector_contract", normalizedContract);
+  }
+
+  private String readContractContent(ObjectNode embeddedContract) {
+    JsonNode contractContentNode = embeddedContract.get("injector_contract_content");
+    if (contractContentNode != null && contractContentNode.isTextual()) {
+      return contractContentNode.asText();
+    }
+    JsonNode convertedContentNode = embeddedContract.get("convertedContent");
+    if (convertedContentNode != null && convertedContentNode.isObject()) {
+      try {
+        return mapper.writeValueAsString(convertedContentNode);
+      } catch (Exception e) {
+        log.debug("Unable to serialize convertedContent for step_data contract fallback", e);
+      }
+    }
+    return null;
+  }
+
+  private JsonNode readOutputParsers(
+      @Nullable ObjectNode embeddedContract, @Nullable InjectorContract existingContract) {
+    if (embeddedContract != null) {
+      JsonNode payloadNode = embeddedContract.get("injector_contract_payload");
+      if (payloadNode instanceof ObjectNode payloadObject) {
+        JsonNode outputParsers = payloadObject.get("payload_output_parsers");
+        if (outputParsers != null && outputParsers.isArray() && !outputParsers.isEmpty()) {
+          return outputParsers.deepCopy();
+        }
+      }
+    }
+
+    if (existingContract == null || existingContract.getPayload() == null) {
+      return null;
+    }
+
+    ArrayNode outputParsers = mapper.createArrayNode();
+    Set<OutputParser> contractOutputParsers = existingContract.getPayload().getOutputParsers();
+    if (contractOutputParsers == null || contractOutputParsers.isEmpty()) {
+      return outputParsers;
+    }
+
+    for (OutputParser parser : contractOutputParsers) {
+      if (parser == null || parser.getContractOutputElements() == null) {
+        continue;
+      }
+      ArrayNode elementsArray = mapper.createArrayNode();
+      for (ContractOutputElement element : parser.getContractOutputElements()) {
+        if (element == null || element.getType() == null) {
+          continue;
+        }
+        ObjectNode elementNode = mapper.createObjectNode();
+        elementNode.put("contract_output_element_type", element.getType().getLabel());
+        elementsArray.add(elementNode);
+      }
+      if (elementsArray.isEmpty()) {
+        continue;
+      }
+      ObjectNode parserNode = mapper.createObjectNode();
+      parserNode.set("output_parser_contract_output_elements", elementsArray);
+      outputParsers.add(parserNode);
+    }
+    return outputParsers;
   }
 
   private static String extractInjectorContractId(JsonNode injectContractNode) {
