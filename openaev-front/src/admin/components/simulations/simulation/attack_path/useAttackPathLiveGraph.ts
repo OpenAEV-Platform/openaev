@@ -2,12 +2,26 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { fetchAttackPathGraph, fetchAttackPathGraphDelta } from '../../../../../actions/attack-path/attack-path-actions';
 import type { AttackPathDTO, AttackPathNodeDTO } from '../../../../../utils/api-types';
+import { isStreamHealthy, subscribeStreamEvent } from '../../../../../utils/hooks/useDataLoader';
 import { applyDelta, type AttackPathGraphStore, emptyStore, fromSnapshot, toCollapsedDto, toFullDto, withFullSnapshot } from './attack-path-delta-store';
 
-// Delta cadence (issue 6647). Product commits to a committed backend change being visible within 3 s
-// p95 during a run; each tick is one indexed point read when nothing changed, so the cost of polling
-// this fast is a version comparison, not a graph rebuild.
+// Delta cadence when the stream cannot nudge us (issue 6647). Product commits to a committed backend
+// change being visible within 3 s p95 during a run; each tick is one indexed point read when nothing
+// changed, so the cost of polling this fast is a version comparison, not a graph rebuild.
 export const DELTA_POLL_MS = 3000;
+
+// Cadence while the stream IS delivering (spec 003, FR6): the nudge carries the latency, so polling
+// is only a safety net for the events the stream can silently drop (published outside a transaction,
+// suppressed during a bulk operation). Jittered so many open views do not converge on the same tick.
+export const DELTA_SAFETY_NET_MS = 45000;
+export const DELTA_SAFETY_NET_JITTER = 0.1;
+
+// Burst coalescing for the nudge: one ingestion commit can bump several times, and a hot run bumps
+// per step event. Debouncing keeps that to one delta read without adding perceptible latency.
+export const NUDGE_DEBOUNCE_MS = 300;
+
+// The stream event type the backend publishes on every version bump (StreamApi).
+export const ATTACK_PATH_VERSION_EVENT = 'attack-path-version';
 
 // How long a delta batch stays "new" for the caller: slightly above the 420 ms entrance animation, so
 // the affordance completes and is then dropped. Without this the last batch would linger forever — a
@@ -217,10 +231,24 @@ const useAttackPathLiveGraph = ({
   }, [simulationId, fullEligible, seeded, store.hasFull]);
 
   // The delta tick: patch the store, or resync when the backend cannot answer our cursor.
+  // Never runs twice concurrently: the nudge, the cadence timer and the visibility catch-up all call
+  // in here, and two overlapping reads would fetch from the same cursor and re-emit the same batch —
+  // replaying the entrance animation and re-announcing the live region. A call arriving during a read
+  // sets `pollQueued`, which the in-flight one drains exactly once.
+  const inFlight = useRef(false);
+  const pollQueued = useRef(false);
+  // Declared before `poll` so the drain at the end of a read can call the latest one without a
+  // use-before-define cycle; kept in sync by the effect below.
+  const pollRef = useRef<() => Promise<void>>(async () => {});
   const poll = useCallback(async () => {
     if (!simulationId) {
       return;
     }
+    if (inFlight.current) {
+      pollQueued.current = true;
+      return;
+    }
+    inFlight.current = true;
     const current = seq.current;
     try {
       const { data } = await fetchAttackPathGraphDelta(simulationId, versionRef.current);
@@ -264,11 +292,16 @@ const useAttackPathLiveGraph = ({
       }
       // Keep the last good graph and say so; the next tick retries.
       setDegraded(true);
+    } finally {
+      inFlight.current = false;
+      if (pollQueued.current) {
+        pollQueued.current = false;
+        void pollRef.current();
+      }
     }
   }, [simulationId, reseed]);
-  // The interval calls through a ref so the timer is not torn down and rebuilt whenever `poll` is
+  // The interval calls through the ref so the timer is not torn down and rebuilt whenever `poll` is
   // rebuilt; the ref is synced in an effect rather than during render.
-  const pollRef = useRef(poll);
   useEffect(() => {
     pollRef.current = poll;
   }, [poll]);
@@ -287,14 +320,30 @@ const useAttackPathLiveGraph = ({
       return undefined;
     }
     let timer: number | undefined;
+    // The cadence follows the stream: a healthy stream nudges us, so the timer is only the safety net
+    // for the drops it cannot signal; a dead stream (or an environment with no EventSource at all)
+    // restores the 3 s cadence, which is the shipped behaviour of spec 002.
+    const period = () => {
+      if (!isStreamHealthy()) {
+        return DELTA_POLL_MS;
+      }
+      const jitter = 1 + (Math.random() * 2 - 1) * DELTA_SAFETY_NET_JITTER;
+      return Math.round(DELTA_SAFETY_NET_MS * jitter);
+    };
     const start = () => {
       if (timer === undefined) {
-        timer = window.setInterval(() => void pollRef.current(), DELTA_POLL_MS);
+        // setTimeout rather than setInterval: the period is re-evaluated on every tick, so a stream
+        // that dies mid-run tightens the net without waiting for a 45 s interval to elapse.
+        const tick = () => {
+          void pollRef.current();
+          timer = window.setTimeout(tick, period());
+        };
+        timer = window.setTimeout(tick, period());
       }
     };
     const stop = () => {
       if (timer !== undefined) {
-        window.clearInterval(timer);
+        window.clearTimeout(timer);
         timer = undefined;
       }
     };
@@ -315,6 +364,35 @@ const useAttackPathLiveGraph = ({
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [simulationId, terminal, forbidden, seeding]);
+
+  // The nudge (spec 003, FR1/FR2): the backend announces that this simulation's version moved, and we
+  // fetch the delta immediately instead of waiting for the safety net. The event carries no graph
+  // data, so a lost, duplicated or reordered one is harmless — the cursor makes the fetch idempotent.
+  // Only this simulation's events matter, which is also what makes the scenario picker work: switching
+  // simulation re-runs this effect and the filter follows.
+  useEffect(() => {
+    if (!simulationId || forbidden || terminal) {
+      return undefined;
+    }
+    let debounce: number | undefined;
+    const unsubscribe = subscribeStreamEvent(ATTACK_PATH_VERSION_EVENT, (event: MessageEvent) => {
+      let payload: { simulation_id?: string };
+      try {
+        payload = JSON.parse(event.data);
+      } catch {
+        return; // a malformed nudge costs nothing: the safety net still runs
+      }
+      if (payload.simulation_id !== simulationId) {
+        return;
+      }
+      window.clearTimeout(debounce);
+      debounce = window.setTimeout(() => void pollRef.current(), NUDGE_DEBOUNCE_MS);
+    });
+    return () => {
+      window.clearTimeout(debounce);
+      unsubscribe();
+    };
+  }, [simulationId, forbidden, terminal]);
 
   // A batch is transient: it drives a one-shot entrance animation and a one-shot announcement, so it is
   // dropped once both have had time to play. Cancelled by the next batch and on unmount.
