@@ -30,6 +30,9 @@ import useAttackPathLiveGraph from './useAttackPathLiveGraph';
 // How many executions a panel reveals at once; the rest are one "Show more" away, so a hot endpoint's
 // list is bounded on screen without ever hiding data (spec 003, FR9/FR11).
 const EXEC_PAGE_SIZE = 50;
+// The injector panel reads each reached endpoint's relations to scope the injector's own executions;
+// it needs the whole set rather than a feed page, and the server caps this at 200 anyway.
+const INJECTOR_RELATIONS_PAGE_SIZE = 200;
 
 // The causal overlay needs the per-execution kill-chain fields, which the backend only emits in the
 // full graph. We fetch that full graph solely to derive the meta, gated on the run's execution count so
@@ -316,10 +319,6 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   const [findingsByCluster, setFindingsByCluster] = useState<Map<string, AttackPathNodeDTO[]>>(new Map());
   const [findingBatch, setFindingBatch] = useState<Map<string, number>>(new Map());
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  // How many executions each panel currently reveals. Reset when the panel switches subject, so a
-  // new endpoint always opens on its first page; a live merge never shrinks what is already shown.
-  const [endpointExecShown, setEndpointExecShown] = useState(EXEC_PAGE_SIZE);
-  const [injectorExecShown, setInjectorExecShown] = useState(EXEC_PAGE_SIZE);
   const [selectedLabel, setSelectedLabel] = useState<string>('');
   // A clicked leaf finding whose full path (injector -> endpoint cluster -> finding cluster -> finding)
   // is highlighted in blue.
@@ -350,6 +349,11 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   }[]>([]);
   const [injectorFindingsLoading, setInjectorFindingsLoading] = useState(false);
   const [endpointRelationEdges, setEndpointRelationEdges] = useState<AttackPathEdges[]>([]);
+  // The selected endpoint's key, and how many executions target it in total: the panel holds one page
+  // and asks for the next, so it needs the total to know whether there is one.
+  const [selectedEndpointRef, setSelectedEndpointRef] = useState<string | null>(null);
+  const [endpointExecTotal, setEndpointExecTotal] = useState(0);
+  const [endpointExecLoadingMore, setEndpointExecLoadingMore] = useState(false);
   // The clicked endpoint's own findings (deduplicated by type+value), shown in the side panel.
   const [endpointFindings, setEndpointFindings] = useState<AttackPathNodeDTO[]>([]);
   const [endpointFindingsLoading, setEndpointFindingsLoading] = useState(false);
@@ -393,10 +397,6 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       setFindingDetail(null);
     }
   }, [pathFinding]);
-
-  // A panel switching subject opens on its first page again.
-  useEffect(() => setEndpointExecShown(EXEC_PAGE_SIZE), [selectedNodeId]);
-  useEffect(() => setInjectorExecShown(EXEC_PAGE_SIZE), [selectedInjectorId]);
 
   // Execution Result & Terminal drawer: clicking a feed entry loads and opens its detail.
   const [detailExecutionId, setDetailExecutionId] = useState<string | null>(null);
@@ -544,6 +544,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     setExecutions([]);
     setEndpointRelationEdges([]);
     setEndpointFindings([]);
+    setEndpointExecTotal(0);
+    setSelectedEndpointRef(ref ?? null);
     // A plain node click focuses no specific execution; a finding-item click sets these after.
     setHighlightedExecutionIds(new Set());
     if (!ref) {
@@ -580,20 +582,54 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           setEndpointFindingsLoading(false);
         }
       });
-    fetchEndpointRelations(simulationId, ref)
+    // First page only: a hot endpoint can carry thousands of executions, and the panel reveals them
+    // a page at a time. The edges come back whole, so the graph side is complete on this one read.
+    fetchEndpointRelations(simulationId, ref, 0, EXEC_PAGE_SIZE)
       .then((r) => {
         if (seq === endpointSeq.current) {
           setExecutions(r.data.executions ?? []);
           setEndpointRelationEdges(r.data.edges ?? []);
+          setEndpointExecTotal(r.data.totalExecutions ?? (r.data.executions ?? []).length);
         }
       })
       .catch(() => {
         if (seq === endpointSeq.current) {
           setExecutions([]);
           setEndpointRelationEdges([]);
+          setEndpointExecTotal(0);
         }
       });
   }, [simulationId]);
+
+  /**
+   * Appends the next page of the selected endpoint's executions. Guarded against overlap so a double
+   * click cannot fetch the same page twice, and it dedupes by id: a live merge may already have
+   * inserted a row this page also carries.
+   */
+  const loadMoreEndpointExecutions = useCallback(() => {
+    if (!simulationId || !selectedEndpointRef || endpointExecLoadingMore) {
+      return;
+    }
+    const seq = endpointSeq.current;
+    setEndpointExecLoadingMore(true);
+    const nextPage = Math.floor(executions.length / EXEC_PAGE_SIZE);
+    fetchEndpointRelations(simulationId, selectedEndpointRef, nextPage, EXEC_PAGE_SIZE)
+      .then((r) => {
+        if (seq !== endpointSeq.current) {
+          return;
+        }
+        setExecutions((current) => {
+          const seen = new Set(current.map(e => e.id));
+          return [...current, ...(r.data.executions ?? []).filter(e => !seen.has(e.id))];
+        });
+        setEndpointExecTotal(r.data.totalExecutions ?? executions.length);
+      })
+      .finally(() => {
+        if (seq === endpointSeq.current) {
+          setEndpointExecLoadingMore(false);
+        }
+      });
+  }, [simulationId, selectedEndpointRef, endpointExecLoadingMore, executions]);
 
   // Focused view: expand the endpoint's finding clusters BY DEFAULT so the analyst sees the actual findings
   // without a click. The endpoint's findings are already loaded (endpointFindings), and the focus layout
@@ -1400,7 +1436,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     // The collapsed graph edges carry no executionIds, so scope per endpoint using the endpoint-relations
     // edges (which do): keep only the executions this injector ran on each endpoint.
     Promise.all(
-      refs.map(ref => fetchEndpointRelations(simulationId, ref)
+      // The injector panel lists its own contracts, a bounded set, so one large page per endpoint is
+      // enough here — it is not the per-endpoint feed that needs paging.
+      refs.map(ref => fetchEndpointRelations(simulationId, ref, 0, INJECTOR_RELATIONS_PAGE_SIZE)
         .then((r) => {
           const owned = new Set(
             (r.data.edges ?? [])
@@ -2667,8 +2705,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                       findingsLoading={endpointFindingsLoading}
                       findingGroups={endpointFindingGroups}
                       executions={executions}
-                      shownCount={endpointExecShown}
-                      onShowMore={() => setEndpointExecShown(n => n + EXEC_PAGE_SIZE)}
+                      totalExecutions={endpointExecTotal}
+                      onShowMore={loadMoreEndpointExecutions}
+                      loadingMore={endpointExecLoadingMore}
                       highlightedExecutionIds={highlightedExecutionIds}
                       registerRow={(id, el) => {
                         if (el) {
@@ -2695,8 +2734,6 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                       findingsLoading={injectorFindingsLoading}
                       findingGroups={injectorFindingGroups}
                       executions={injectorExecutions}
-                      shownCount={injectorExecShown}
-                      onShowMore={() => setInjectorExecShown(n => n + EXEC_PAGE_SIZE)}
                       highlightedExecutionIds={highlightedExecutionIds}
                       registerRow={() => {}}
                       onSelectExecution={openExecutionDetail}

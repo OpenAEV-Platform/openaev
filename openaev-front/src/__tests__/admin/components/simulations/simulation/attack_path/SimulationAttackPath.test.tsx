@@ -238,7 +238,8 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     // Clicking the finding refocuses the map on its attack path (fit requested) and loads the
     // endpoint's feed for detail.
     await waitFor(() => {
-      expect(mocks.fetchEndpointRelations).toHaveBeenCalledWith('sim-1', 'host-x');
+      // First page of the endpoint's feed; the edges come back whole regardless.
+      expect(mocks.fetchEndpointRelations).toHaveBeenCalledWith('sim-1', 'host-x', 0, 50);
       expect(mocks.flowProps.current?.fitRequest ?? 0).toBeGreaterThan(0);
     });
 

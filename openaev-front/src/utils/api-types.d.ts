@@ -1004,6 +1004,8 @@ export interface AttackPathEdges {
 export interface AttackPathEndpointRelationsDTO {
   edges?: AttackPathEdges[];
   executions?: AttackPathNodeDTO[];
+  /** @format int64 */
+  totalExecutions?: number;
 }
 
 export interface AttackPathExecutionDetailDTO {

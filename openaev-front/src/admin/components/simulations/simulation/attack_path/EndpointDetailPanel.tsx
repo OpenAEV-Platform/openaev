@@ -18,10 +18,15 @@ interface Props {
   findingsLoading: boolean;
   findingGroups: FindingGroup[];
   executions: AttackPathNodeDTO[];
-  /** How many executions are currently revealed; the rest are one "Show more" away. */
-  shownCount: number;
-  /** Reveals the next page of executions (absent = the caller shows everything it has). */
+  /**
+   * How many executions target this endpoint in total — the list holds one page of them. Absent (or
+   * not greater than what is loaded) means there is nothing more to fetch.
+   */
+  totalExecutions?: number;
+  /** Fetches the next page of executions. */
   onShowMore?: () => void;
+  /** A page is in flight, so the button reads as busy and cannot be clicked twice. */
+  loadingMore?: boolean;
   highlightedExecutionIds: Set<string>;
   // Registers the DOM node of an execution row so the page can scroll the highlighted one into view.
   registerRow: (id: string, el: HTMLDivElement | null) => void;
@@ -43,8 +48,9 @@ const EndpointDetailPanel = ({
   findingsLoading,
   findingGroups,
   executions,
-  shownCount,
+  totalExecutions,
   onShowMore,
+  loadingMore = false,
   highlightedExecutionIds,
   registerRow,
   onSelectExecution,
@@ -135,7 +141,7 @@ const EndpointDetailPanel = ({
         <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: hideFindings ? 0 : 1 }}>
           {`${t('Executions')} (${executions.length})`}
         </Typography>
-        {executions.slice(0, shownCount).map((e) => {
+        {executions.map((e) => {
           const status = execStatusLabel(e.status);
           const highlighted = !!e.ref && highlightedExecutionIds.has(e.ref);
           return (
@@ -195,19 +201,20 @@ const EndpointDetailPanel = ({
             </Box>
           );
         })}
-        {/* The list is bounded, so reaching the rest must be an action rather than a dead caption:
-            same slot, a text button that reveals the next page (See More precedent). */}
-        {executions.length > shownCount && (
+        {/* The list holds one page, so reaching the rest must be an action rather than a dead caption:
+            same slot, a text button that fetches the next page (See More precedent). */}
+        {(totalExecutions ?? 0) > executions.length && (
           <Button
             size="small"
             variant="text"
+            disabled={loadingMore}
             onClick={() => onShowMore?.()}
             sx={{
               mt: 1,
               textTransform: 'none',
             }}
           >
-            {`${t('Show more')} (${executions.length - shownCount})`}
+            {`${t('Show more')} (${(totalExecutions ?? 0) - executions.length})`}
           </Button>
         )}
       </div>
