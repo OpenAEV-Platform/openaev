@@ -231,7 +231,7 @@ const ENTITY_LIST_CONFIGS: Record<string, EntityListConfig> = {
       },
       {
         field: 'execution_date',
-        label: 'Execution date',
+        label: 'Start time',
         isSortable: true,
         width: 16,
       },
