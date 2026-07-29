@@ -198,8 +198,8 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
    * the user-meaningful order and {@code id} breaks its ties (executions of one step share a
    * timestamp), so no row is ever shown twice or skipped between two pages.
    *
-   * <p>Only the executions are paged: the caller keeps returning the grouped edges whole, since they
-   * are bounded by the endpoint's in-degree rather than by execution count, and they reference
+   * <p>Only the executions are paged: the caller keeps returning the grouped edges whole, since
+   * they are bounded by the endpoint's in-degree rather than by execution count, and they reference
    * execution ids across page boundaries.
    */
   @Query(
