@@ -96,9 +96,7 @@ public class ChainingApi extends RestBehavior {
     if (!previewFeatureService.isFeatureEnabled(INJECT_CHAINING)) {
       return List.of(PrimitiveType.Text, PrimitiveType.Document, PrimitiveType.TargetedAsset);
     }
-    return ChainingTypeRegistry.getPrimitiveTypes().stream()
-        .filter(type -> type != PrimitiveType.ActionOutput)
-        .toList();
+    return ChainingTypeRegistry.getPrimitiveTypes();
   }
 
   // CREATE SIMULATION

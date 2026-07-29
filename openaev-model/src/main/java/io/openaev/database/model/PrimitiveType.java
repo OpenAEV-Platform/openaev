@@ -10,6 +10,9 @@ public enum PrimitiveType {
   @JsonProperty("account_with_password_not_required")
   AccountWithPasswordNotRequired("account_with_password_not_required"),
 
+  @JsonProperty("action_output")
+  ActionOutput("action_output"),
+
   @JsonProperty("admin_username")
   AdminUsername("admin_username"),
 
@@ -69,9 +72,6 @@ public enum PrimitiveType {
 
   @JsonProperty("number")
   Number("number"),
-
-  @JsonProperty("action_output")
-  ActionOutput("action_output"),
 
   @JsonProperty("password")
   Password("password"),

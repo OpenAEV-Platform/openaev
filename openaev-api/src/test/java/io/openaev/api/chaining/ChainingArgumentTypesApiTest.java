@@ -14,7 +14,6 @@ import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
-import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,18 +50,13 @@ class ChainingArgumentTypesApiTest {
   }
 
   @Test
-  @DisplayName("Should return all argument types except action output when chaining is enabled")
+  @DisplayName("Should return all argument types when chaining is enabled")
   void given_chainingEnabled_should_returnAllTypes() {
     when(previewFeatureService.isFeatureEnabled(INJECT_CHAINING)).thenReturn(true);
 
     List<PrimitiveType> types = chainingApi.getArgumentTypes();
 
-    assertThat(types)
-        .containsExactly(
-            Arrays.stream(PrimitiveType.values())
-                .filter(type -> type != PrimitiveType.ActionOutput)
-                .toArray(PrimitiveType[]::new));
+    assertThat(types).containsExactly(PrimitiveType.values());
     assertThat(types).contains(PrimitiveType.AssetId, PrimitiveType.AssetGroupId);
-    assertThat(types).doesNotContain(PrimitiveType.ActionOutput);
   }
 }

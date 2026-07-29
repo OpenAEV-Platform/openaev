@@ -50,9 +50,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const theme = useTheme();
   const { argumentTypes, isLoading: isLoadingArgumentTypes, error: argumentTypesError } = useArgumentTypes();
-  const conditionKeyTypes = argumentTypes.includes('action_output')
-    ? argumentTypes
-    : [...argumentTypes, 'action_output'];
+  const conditionKeyTypes = argumentTypes;
   const isArgumentTypesUnavailable = isLoadingArgumentTypes || !!argumentTypesError || conditionKeyTypes.length === 0;
   const { providers } = useOutputProviders();
 
