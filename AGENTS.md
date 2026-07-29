@@ -42,6 +42,8 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | **Testing** (unit, integration, coverage)                         | [testing.instructions.md](.github/instructions/testing.instructions.md) | `**/*Test.java`, `**/*.test.tsx` |
 | **Code Review** (review checklist)                                | [code-review.instructions.md](.github/instructions/code-review.instructions.md) | All files |
 | **Chaining Engine** (steps, conditions, queues, state, workflows) | [chaining-engine.instructions.md](.github/instructions/chaining-engine.instructions.md) | `**/chaining/**`, `**/QueueChainingJob.java`, `**/WorkflowTimeoutJob.java` |
+| **Constitution** (governing engineering principles)               | [constitution.instructions.md](.github/instructions/constitution.instructions.md) | All files |
+| **Feature Workflow** (mockup handoff, spec & review gate boards)  | [feature-workflow.instructions.md](.github/instructions/feature-workflow.instructions.md) | `specs/**` |
 
 
 ## Skills (step-by-step procedures)
@@ -75,6 +77,12 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | [Test Specialist](.github/agents/test-specialist.agent.md) | Write/improve tests, check coverage | `AGENTS.md` → `copilot-instructions.md` → `testing.instructions.md` | `add-test` skill |
 | [Chaining Engine Reviewer](.github/agents/chaining-engine-reviewer.agent.md) | Audit chaining engine: steps, conditions, queues, state, scope, timeout | `AGENTS.md` → `chaining-engine.instructions.md` | `review-chaining-engine` skill |
 | [Docs Reviewer](.github/agents/docs-reviewer.agent.md) | Detect functional changes missing documentation updates in `docs/` | `AGENTS.md` → `copilot-instructions.md` | `review-docs` skill |
+| [Mockup Generator](.github/agents/mockup-generator.agent.md) | Feature Workflow phase 0: interview, then hi-fi HTML mockup from the design system | `AGENTS.md` → `frontend.instructions.md` → theme in `openaev-front/src` | `feature-workflow.instructions.md` |
+| [Product Gate](.github/agents/product-gate.agent.md) | Gate: acceptance criteria & Gherkin (spec board) / AC verified (delivery review) | `feature-workflow.instructions.md` → `specs/NNN-slug/*` | blocker protocol |
+| [Design Gate](.github/agents/design-gate.agent.md) | Gate: design-system conformity of mockup+spec / implemented UI matches mockup | `feature-workflow.instructions.md` → `frontend.instructions.md` | blocker protocol |
+| [Staff Gate](.github/agents/staff-gate.agent.md) | Gate: implementability & chunking / everything planned was delivered | `feature-workflow.instructions.md` → `constitution.instructions.md` | blocker protocol |
+| [Security Gate](.github/agents/security-gate.agent.md) | Gate: secure-by-design plan / delivered code audit with CVSS protocol | `feature-workflow.instructions.md` → `security.instructions.md` | `review-security` skill + CVSS protocol |
+| [Docs Gate](.github/agents/docs-gate.agent.md) | Gate: doc updates planned as tasks / docs actually updated | `feature-workflow.instructions.md` → `docs-reviewer.agent.md` | blocker protocol |
 
 ## When to Use Which Agent
 
@@ -91,6 +99,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | PR touches chaining (steps, conditions, workflows, queues, scope, WorkflowState) | **Chaining Engine Reviewer** |
 | PR has functional changes but no `docs/` updates | **Docs Reviewer** (auto-triggered on PR open via `/review docs` command) |
 | Critical PR (new entities, migrations, auth changes) | **Code Reviewer** + all relevant specialists |
+| Building a feature end-to-end (mockup → spec → implement → review) | **`/feature` workflow**: Mockup Generator, then the five gates (product, design, staff, security, docs) on both boards |
 
 ### Composition Rules
 
