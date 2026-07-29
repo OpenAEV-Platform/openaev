@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import static io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService.EXPIRED;
 import static io.openaev.collectors.expectations_vulnerability_manager.ExpectationsVulnerabilityManagerCollector.EXPECTATIONS_VULNERABILITY_COLLECTOR_ID;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAssetGroup;
@@ -24,6 +25,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.WorkflowUpdateEvent;
+import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
@@ -1346,6 +1348,32 @@ public class InjectExpectationService {
                                   // Prefer an answered result over a pending one for the same
                                   // source.
                                   existing.getResult() != null ? existing : candidate));
+              // A VULNERABILITY row a genuine platform already answered needs no expiration entry
+              // in the merged display either: the union pulls the agents' expiration rows (the
+              // vulnerability default "Not vulnerable") onto the asset view, where they render as
+              // redundant - or contradictory - entries next to the real scan verdict. Same rule as
+              // the write path (InjectExpectationUtils.computeScores): the expiration default is
+              // the absence-of-signal fallback, a real answer supersedes it.
+              if (BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.equals(
+                  expectation.getType())) {
+                boolean hasGenuineAnswer =
+                    bySource.values().stream()
+                        .anyMatch(
+                            r ->
+                                !ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(
+                                        r.getSourceId())
+                                    && r.getResult() != null
+                                    && !r.getResult().isBlank()
+                                    && !EXPIRED.equals(r.getResult()));
+                if (hasGenuineAnswer) {
+                  bySource
+                      .values()
+                      .removeIf(
+                          r ->
+                              ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(
+                                  r.getSourceId()));
+                }
+              }
               clone.setResults(new ArrayList<>(bySource.values()));
               return clone;
             })
