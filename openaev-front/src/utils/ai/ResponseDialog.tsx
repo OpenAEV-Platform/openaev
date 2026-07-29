@@ -16,6 +16,7 @@ import { isNotEmptyField } from '../utils';
 import { type AgentOption, fetchAgentsForIntent } from './agentApi';
 import AgentSelector from './AgentSelector';
 import useAgentStream from './useAgentStream';
+import { AgentAction } from "../../admin/components/common/form/TextFieldAskAI";
 
 export interface AgentMode {
   intent: string;
