@@ -15,6 +15,7 @@ import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdSetSerializer;
+import io.openaev.utils.sanitisation.DomainSanitiser;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -218,6 +219,15 @@ public class Asset implements TenantBase {
   @JsonProperty("asset_hostname")
   private String hostname;
 
+  public void setHostname(String hostname) {
+    // Locale.ROOT keeps hostname normalisation stable regardless of the JVM default locale
+    // (e.g. the Turkish dotless-i), since hostnames are not locale-specific text.
+    this.hostname =
+        (hostname == null)
+            ? null
+            : new DomainSanitiser().sanitise(hostname.toLowerCase(Locale.ROOT));
+  }
+
   /** URL of the target for URL-based categories (web applications, cloud endpoints, ...). */
   @Queryable(filterable = true, sortable = true)
   @Column(name = "asset_url")
@@ -228,12 +238,6 @@ public class Asset implements TenantBase {
   @Column(name = "asset_mac_addresses")
   @JsonProperty("asset_mac_addresses")
   private String[] macAddresses;
-
-  public void setHostname(String hostname) {
-    // Locale.ROOT keeps hostname normalization stable regardless of the JVM default locale
-    // (e.g. the Turkish dotless-i), since hostnames are not locale-specific text.
-    this.hostname = (hostname == null) ? null : hostname.toLowerCase(Locale.ROOT);
-  }
 
   // -- AI TARGET (category = AI_TARGET) --
   // Nullable, category-scoped connection attributes for AI targets. Validated by category at the

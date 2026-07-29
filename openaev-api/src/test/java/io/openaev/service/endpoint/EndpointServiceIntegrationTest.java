@@ -3,6 +3,7 @@ package io.openaev.service.endpoint;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.utils.fixtures.EndpointRegisterInputFixture.DEFAULT_ENDPOINT_AGENT_VERSION;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -12,7 +13,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetAgentJob;
+import io.openaev.database.model.Endpoint;
 import io.openaev.database.repository.AssetAgentJobRepository;
+import io.openaev.database.repository.EndpointRepository;
+import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -22,6 +26,7 @@ import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
+import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.*;
@@ -41,6 +46,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
   @Autowired private AssetAgentJobRepository assetAgentJobRepository;
   @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private EndpointRepository endpointRepository;
 
   @BeforeEach
   void setUp() {
@@ -322,6 +328,137 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           assertThat(jobs).isEmpty();
         }
+      }
+    }
+
+    @Nested
+    @DisplayName("Input sanitisation")
+    class InputSanitisation {
+      @Test
+      @DisplayName("When registering an endpoint, hostname is normalised")
+      void whenRegisteringAnEndpoint_hostnameIsNormalised() throws Exception {
+        String maliciousStringInput = "1; \"evil command\".dot-com";
+        String sanitisedStringInput = "1evilcommand.dot-com";
+        executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+        EndpointRegisterInput input =
+            EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
+        input.setHostname(maliciousStringInput);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc
+            .perform(
+                post(ENDPOINT_URI + "/register")
+                    .content(mapper.writeValueAsString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().isOk());
+
+        List<Endpoint> endpoints = fromIterable(endpointRepository.findAll());
+
+        assertThat(endpoints)
+            .satisfiesOnlyOnce(ep -> assertThat(ep.getHostname()).isEqualTo(sanitisedStringInput));
+      }
+
+      @Test
+      @DisplayName("When creating an agentless endpoint, hostname is normalised")
+      void whenCreatingAgentlessEndpoint_hostnameIsNormalised() throws Exception {
+        String maliciousStringInput = "1; \"evil command\".dot-com";
+        String sanitisedStringInput = "1evilcommand.dot-com";
+        executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+        EndpointInput input = EndpointRegisterInputFixture.getDefaultEndpointInput();
+        input.setHostname(maliciousStringInput);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc
+            .perform(
+                post(ENDPOINT_URI + "/agentless")
+                    .content(mapper.writeValueAsString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().isOk());
+
+        List<Endpoint> endpoints = fromIterable(endpointRepository.findAll());
+
+        assertThat(endpoints)
+            .satisfiesOnlyOnce(ep -> assertThat(ep.getHostname()).isEqualTo(sanitisedStringInput));
+      }
+
+      @Test
+      @DisplayName("When upserting an agentless endpoint, hostname is normalised")
+      void whenUpsertingAgentlessEndpoint_hostnameIsNormalised() throws Exception {
+        String maliciousStringInput = "1; \"evil command\".dot-com";
+        String sanitisedStringInput = "1evilcommand.dot-com";
+        executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+        EndpointInput input = EndpointRegisterInputFixture.getDefaultEndpointInput();
+        input.setHostname(maliciousStringInput);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc
+            .perform(
+                post(ENDPOINT_URI + "/agentless/upsert")
+                    .content(mapper.writeValueAsString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().isOk());
+
+        List<Endpoint> endpoints = fromIterable(endpointRepository.findAll());
+
+        assertThat(endpoints)
+            .satisfiesOnlyOnce(ep -> assertThat(ep.getHostname()).isEqualTo(sanitisedStringInput));
+      }
+
+      @Test
+      @DisplayName("When setting IP addresses, invalid format is rejected")
+      void invalidIpFormatIsRejected() throws Exception {
+        String badIp = "bad IP address";
+        executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+        EndpointRegisterInput input =
+            EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
+        input.setIps(List.of(badIp).toArray(new String[0]));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThatThrownBy(
+                () ->
+                    mockMvc.perform(
+                        post(ENDPOINT_URI + "/register")
+                            .content(mapper.writeValueAsString(input))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .with(csrf())))
+            .hasCauseInstanceOf(ConstraintViolationException.class);
+      }
+
+      @Test
+      @DisplayName("When setting seen IP address, input is overwritten")
+      void invalidSeenIpInputOverwritten() throws Exception {
+        String badIp = "bad IP address";
+        executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+        EndpointRegisterInput input =
+            EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
+        input.setSeenIp(badIp);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc
+            .perform(
+                post(ENDPOINT_URI + "/register")
+                    .content(mapper.writeValueAsString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().isOk());
+
+        List<Endpoint> endpoints = fromIterable(endpointRepository.findAll());
+
+        assertThat(endpoints)
+            .satisfiesOnlyOnce(ep -> assertThat(ep.getSeenIp()).isEqualTo("127.0.0.1"));
       }
     }
   }

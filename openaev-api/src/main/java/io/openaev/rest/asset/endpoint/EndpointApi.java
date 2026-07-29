@@ -32,6 +32,7 @@ import io.openaev.utils.InputFilterOptions;
 import io.openaev.utils.mapper.AssetGroupMapper;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -82,6 +83,13 @@ public class EndpointApi extends RestBehavior {
 
   @PostMapping({ENDPOINT_URI + "/agentless", TENANT_ENDPOINT_URI + "/agentless"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
+  @Operation(
+      description =
+          """
+    Creates an agentless Endpoint Asset.
+
+    Note: the hostname will be normalised after the specification in RFC 1034 section 3.
+    """)
   @Transactional(rollbackFor = Exception.class)
   public Endpoint createEndpoint(@Valid @RequestBody final EndpointInput input) {
     return this.endpointService.createEndpoint(input, TenantContext.getCurrentTenant());
@@ -89,6 +97,13 @@ public class EndpointApi extends RestBehavior {
 
   @PostMapping({ENDPOINT_URI + "/agentless/upsert", TENANT_ENDPOINT_URI + "/agentless/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
+  @Operation(
+      description =
+          """
+    Creates or updates an agentless Endpoint Asset.
+
+    Note: the hostname will be normalised after the specification in RFC 1034 section 3.
+    """)
   @Transactional(rollbackFor = Exception.class)
   public Endpoint upsertAgentLessEndpoint(@Valid @RequestBody final EndpointInput input) {
     return this.endpointService.upsertEndpoint(input, TenantContext.getCurrentTenant());
@@ -96,6 +111,13 @@ public class EndpointApi extends RestBehavior {
 
   @PostMapping({ENDPOINT_URI + "/register", TENANT_ENDPOINT_URI + "/register"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.AGENT)
+  @Operation(
+      description =
+          """
+    Creates or updates an Endpoint Asset. This API endpoint is typically used by running agents on a host.
+
+    Note: the hostname will be normalised after the specification in RFC 1034 section 3.
+    """)
   @Transactional(rollbackFor = Exception.class)
   public Endpoint upsertEndpoint(@Valid @RequestBody final EndpointRegisterInput input)
       throws IOException {
