@@ -59,8 +59,8 @@ class AttackPathShareTypeApiTest extends IntegrationTest {
                 .param("ref", ENDPOINT))
         .andExpect(status().isOk())
         .andExpect(
-            jsonPath("$.findings[?(@.value=='" + SHARE_VALUE + "')].typeFindings")
-                .value(hasItem("share")));
+            jsonPath("$.findings[?(@.typeFindings=='share')].value")
+                .value(hasItem(SHARE_VALUE)));
   }
 
   @Test
@@ -74,8 +74,8 @@ class AttackPathShareTypeApiTest extends IntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.counters.shares").value(1))
         .andExpect(
-            jsonPath("$.attackPathNodes[?(@.value=='" + SHARE_VALUE + "')].typeFindings")
-                .value(hasItem("share")));
+            jsonPath("$.attackPathNodes[?(@.typeFindings=='share')].value")
+                .value(hasItem(SHARE_VALUE)));
 
     mvc.perform(
             get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/graph")
@@ -98,7 +98,7 @@ class AttackPathShareTypeApiTest extends IntegrationTest {
                 .param("ref", executionId))
         .andExpect(status().isOk())
         .andExpect(
-            jsonPath("$.findings[?(@.value=='" + SHARE_VALUE + "')].type").value(hasItem("share")));
+            jsonPath("$.findings[?(@.type=='share')].value").value(hasItem(SHARE_VALUE)));
   }
 
   /**
@@ -148,8 +148,8 @@ class AttackPathShareTypeApiTest extends IntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.counters.files").value(1))
         .andExpect(
-            jsonPath("$.attackPathNodes[?(@.value=='" + fileValue + "')].typeFindings")
-                .value(hasItem("file")));
+            jsonPath("$.attackPathNodes[?(@.typeFindings=='file')].value")
+                .value(hasItem(fileValue)));
 
     mvc.perform(
             get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/graph")
