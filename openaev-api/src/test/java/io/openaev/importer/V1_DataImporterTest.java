@@ -806,8 +806,11 @@ class V1_DataImporterTest extends IntegrationTest {
         """
         {
           "inject_id": "old-inject-id",
+          "inject_user": "legacy-user-id",
           "inject_status": "old-status-id",
           "inject_depends_on": ["old-parent-id"],
+          "inject_created_at": "2026-07-24T08:08:27.922361156Z",
+          "inject_updated_at": "2026-07-24T08:08:27.955850143Z",
           "inject_exercise": "old-exercise-id",
           "inject_scenario": "old-scenario-id",
           "inject_assets": ["old-asset-id"],
@@ -836,6 +839,9 @@ class V1_DataImporterTest extends IntegrationTest {
     assertEquals("old-inject-id", resolvedJson.get("inject_id").asText());
     assertEquals("old-status-id", resolvedJson.get("inject_status").asText());
     assertEquals("old-parent-id", resolvedJson.get("inject_depends_on").get(0).asText());
+    assertFalse(resolvedJson.has("inject_user"));
+    assertFalse(resolvedJson.has("inject_created_at"));
+    assertFalse(resolvedJson.has("inject_updated_at"));
     assertEquals("sim-test", resolvedJson.get("inject_exercise").asText());
     assertTrue(resolvedJson.get("inject_scenario").isNull());
     assertFalse(resolvedJson.has("inject_assets"));

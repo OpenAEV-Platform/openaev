@@ -2344,6 +2344,9 @@ public class V1_DataImporter implements Importer {
     normalizeInjectorContractReference(dataObject, baseIds);
     dataObject.remove("inject_assets");
     dataObject.remove("inject_asset_groups");
+    dataObject.remove("inject_user");
+    dataObject.remove("inject_created_at");
+    dataObject.remove("inject_updated_at");
     dataObject.remove("inject_exercise");
     dataObject.remove("inject_scenario");
     if (workflow.getSimulation() != null) {
