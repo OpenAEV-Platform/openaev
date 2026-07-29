@@ -6,6 +6,9 @@ import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.attackpath.AttackPathExecution;
+import io.openaev.database.model.attackpath.AttackPathExecutionRemediation;
+import io.openaev.database.repository.DetectionRemediationRepository;
+import io.openaev.database.repository.attackpath.AttackPathExecutionRemediationRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.expectation.ExpectationType;
@@ -33,6 +36,8 @@ public class AttackPathExecutionIngestionService {
 
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathFindingRepository findingRepository;
+  private final AttackPathExecutionRemediationRepository executionRemediationRepository;
+  private final DetectionRemediationRepository detectionRemediationRepository;
   private final AttackPathSourceTargetResolver resolver;
   private final InjectService injectService;
   private final EndpointService endpointService;
@@ -52,6 +57,7 @@ public class AttackPathExecutionIngestionService {
     tenantTx.executeNew(
         TxCtx.forTenant(tenantId),
         () -> {
+          executionRemediationRepository.deleteAllBySimulationId(simulationId);
           executionRepository.deleteAllBySimulationId(simulationId);
           findingRepository.deleteAllBySimulationId(simulationId);
         });
@@ -163,7 +169,41 @@ public class AttackPathExecutionIngestionService {
     }
     tenantTx.executeNew(
         TxCtx.forTenant(inject.getTenant().getId()),
-        () -> persistExecution(getAttackPathExecution(inject, step, command)));
+        () -> {
+          persistExecution(getAttackPathExecution(inject, step, command));
+          persistExecutionRemediations(inject, step);
+        });
+  }
+
+  private void persistExecutionRemediations(Inject inject, Step step) {
+    if (step.getId() == null || inject.getPayload().isEmpty()) {
+      return;
+    }
+
+    List<DetectionRemediationRepository.SnapshotRow> remediationRows =
+        detectionRemediationRepository.findSnapshotRowsByPayloadId(
+            inject.getPayload().get().getId());
+    if (remediationRows.isEmpty()) {
+      return;
+    }
+
+    List<AttackPathExecutionRemediation> snapshots =
+        remediationRows.stream().map(row -> toExecutionRemediation(step.getId(), row)).toList();
+    executionRemediationRepository.saveAll(snapshots);
+  }
+
+  private static AttackPathExecutionRemediation toExecutionRemediation(
+      String stepId, DetectionRemediationRepository.SnapshotRow row) {
+    AttackPathExecutionRemediation remediation = new AttackPathExecutionRemediation();
+    remediation.setId(
+        AttackPathIds.executionRemediationRow(
+            stepId, row.getCollectorType(), row.getSecurityPlatformId()));
+    remediation.setStepId(stepId);
+    remediation.setValues(row.getValues());
+    remediation.setAuthorRule(row.getAuthorRule());
+    remediation.setCollectorType(row.getCollectorType());
+    remediation.setSecurityPlatformId(row.getSecurityPlatformId());
+    return remediation;
   }
 
   public void persistExecution(List<AttackPathExecution> attackPathExecutions) {

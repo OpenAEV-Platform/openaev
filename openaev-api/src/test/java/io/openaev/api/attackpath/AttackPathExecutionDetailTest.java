@@ -103,8 +103,8 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
     e.setTenant(tenant);
     e.setSimulationId(SIM);
     e.setStepId("step-detail-1");
-    // A real payload carrying a detection remediation: the read resolves the remediations from the
-    // payload that actually ran (the frozen payload id), for the drawer's Remediation tab.
+    // A real payload carrying a detection remediation: its values are snapshotted at step execution
+    // and later served from the attack-path remediation store.
     Payload payload =
         payloadComposer
             .forPayload(PayloadFixture.createDefaultCommand())
