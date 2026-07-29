@@ -8,6 +8,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CweRepository;
@@ -19,6 +20,7 @@ import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.executors.ExecutorService;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
+import io.openaev.rest.asset.security_platforms.SecurityPlatformApi;
 import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.collector.CollectorApi;
 import io.openaev.rest.collector.service.CollectorService;
@@ -252,6 +254,23 @@ class TenantActiveTableAccessArchTest {
           .because(
               "executors is tenant-active: an accessor without a tenant scope silently reads zero"
                   + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule collectors_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Initializes the association inside its TxCtx-scoped transactions before the
+              // open-in-view JSON rendering (pinned by TenantScopedEntrypointsTxCtxArchTest and
+              // SecurityPlatformCollectorsTenantScopeTest, #7025):
+              SecurityPlatformApi.class)
+          .should()
+          .callMethod(SecurityPlatform.class, "getCollectors")
+          .because(
+              "collectors is reached through SecurityPlatform's association WITHOUT touching the"
+                  + " repository: a lazy getCollectors() in an unscoped context silently loads zero"
+                  + " rows, which unlocks collector-managed platforms in the UI. New callers must"
+                  + " run inside a scoped transaction and be allowlisted here");
 
   @ArchTest
   static final ArchRule attackpath_execution_repository_access_is_reviewed =

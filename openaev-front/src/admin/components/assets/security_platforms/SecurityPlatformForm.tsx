@@ -72,18 +72,17 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
       <Controller
         control={control}
         name="security_platform_type"
-        rules={{ required: true }}
-        render={({ field }) => (
+        render={({ field: { ref, ...fieldProps } }) => (
           <TextField
             select
             variant="standard"
             fullWidth
-            value={field.value}
+            {...fieldProps}
+            inputRef={ref}
             label={t('Platform')}
             style={{ marginTop: 20 }}
             error={!!errors.security_platform_type}
             helperText={errors.security_platform_type?.message}
-            {...register('security_platform_type')}
             required
           >
             <MenuItem value="EDR">{t('EDR')}</MenuItem>
