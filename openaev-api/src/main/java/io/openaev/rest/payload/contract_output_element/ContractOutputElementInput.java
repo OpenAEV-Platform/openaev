@@ -47,7 +47,7 @@ public class ContractOutputElementInput {
   @JsonProperty("contract_output_element_type")
   @Schema(
       description =
-          "Contract Output element type, can be: text, number, port, IPV6, IPV4, portscan, credentials")
+          "Contract Output element type, can be: text, action_output, number, port, IPV6, IPV4, portscan, credentials")
   @NotNull
   private ContractOutputType type;
 

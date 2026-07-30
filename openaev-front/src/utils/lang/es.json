@@ -3005,6 +3005,7 @@
   "Tests": "Pruebas",
   "text": "Campos de texto",
   "Text": "Texto",
+  "action_output": "Action output",
   "Text (case-sensitive)": "Texto (distingue mayúsculas de minúsculas)",
   "Text color": "Text color",
   "textarea": "Área de texto",

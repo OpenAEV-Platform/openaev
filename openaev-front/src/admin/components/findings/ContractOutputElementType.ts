@@ -18,6 +18,7 @@ enum ContractOutputElementType {
   share = 'Share',
   sid = 'Sid',
   text = 'Text',
+  action_output = 'action_output',
   username = 'Username',
   vulnerability = 'Vulnerability',
   expectation_signature = 'expectation_signature',

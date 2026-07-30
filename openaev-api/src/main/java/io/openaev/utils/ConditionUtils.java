@@ -4,6 +4,7 @@ import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -101,11 +102,15 @@ public class ConditionUtils {
         if (actualValue == null || target == null) {
           return false;
         }
-        List<String> targetList = Arrays.asList(target.split("\\s*,\\s*"));
-        boolean contains =
-            caseSensitive
-                ? targetList.stream().anyMatch(actualValue::equals)
-                : targetList.stream().anyMatch(actualValue::equalsIgnoreCase);
+        String normalizedActualValue =
+            caseSensitive ? actualValue : actualValue.toLowerCase(Locale.ROOT);
+        List<String> normalizedTargets =
+            Arrays.stream(target.split(","))
+                .map(String::trim)
+                .filter(candidate -> !candidate.isBlank())
+                .map(candidate -> caseSensitive ? candidate : candidate.toLowerCase(Locale.ROOT))
+                .toList();
+        boolean contains = normalizedTargets.stream().anyMatch(normalizedActualValue::contains);
         return (type == ConditionType.IN) == contains;
       case GT, GTE, LT, LTE:
         return handleNumericComparison(actualValue, target, type);

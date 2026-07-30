@@ -3005,6 +3005,7 @@
   "Tests": "Test",
   "text": "Campi di testo",
   "Text": "Testo",
+  "action_output": "Action output",
   "Text (case-sensitive)": "Testo (sensibile alle maiuscole)",
   "Text color": "Text color",
   "textarea": "Area di testo",

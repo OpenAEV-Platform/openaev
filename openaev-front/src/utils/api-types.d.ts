@@ -201,6 +201,7 @@ export interface AggregatedFindingOutput {
    */
   finding_type:
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -2023,6 +2024,7 @@ export interface ConditionCreateInput {
   /** Paths to values in the output of the step from */
   condition_key_types?: (
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -2091,6 +2093,7 @@ export interface ConditionOutput {
   condition_key?: string;
   condition_key_types?: (
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -2263,6 +2266,7 @@ export interface ContractOutputElement {
   contract_output_element_tags?: string[];
   contract_output_element_type:
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -2315,9 +2319,10 @@ export interface ContractOutputElementInput {
   contract_output_element_rule: string;
   /** List of tags */
   contract_output_element_tags?: string[];
-  /** Contract Output element type, can be: text, number, port, IPV6, IPV4, portscan, credentials */
+  /** Contract Output element type, can be: text, action_output, number, port, IPV6, IPV4, portscan, credentials */
   contract_output_element_type:
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -2365,10 +2370,11 @@ export interface ContractOutputElementSimple {
   contract_output_element_tags?: string[];
   /**
    * Represents the data type being extracted.
-   * @example "text, number, port, portscan, ipv4, ipv6, credentials"
+   * @example "text, action_output, number, port, portscan, ipv4, ipv6, credentials"
    */
   contract_output_element_type:
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -4743,6 +4749,7 @@ export interface Finding {
   finding_teams?: string[];
   finding_type:
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -4779,6 +4786,7 @@ export interface FindingInput {
   finding_labels?: string[];
   finding_type:
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -5791,6 +5799,7 @@ export interface InjectorContract {
   )[];
   injector_contract_providing?: (
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -6524,6 +6533,7 @@ export interface MapperConditionOutput {
   condition_key?: string;
   condition_key_types?: (
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -7872,6 +7882,7 @@ export interface PayloadArgument {
   separator?: string | null;
   type:
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -8860,6 +8871,7 @@ export interface RelatedFindingOutput {
    */
   finding_type:
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -9463,6 +9475,7 @@ export interface ScopeVariableInput {
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type:
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -9514,6 +9527,7 @@ export interface ScopeVariableOutput {
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type?:
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -10019,6 +10033,7 @@ export interface StepOutput {
   step_condition_ids?: string[];
   step_condition_key_types?: (
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
