@@ -16,7 +16,9 @@ import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Step;
+import io.openaev.database.model.StepStatus;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionRemediation;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRemediationRepository;
@@ -26,16 +28,21 @@ import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.DetectionRemediationFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
+import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.StepFixture;
+import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.DetectionRemediationComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
+import io.openaev.utils.fixtures.composers.StepComposer;
+import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
@@ -67,6 +74,9 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private ExecutorFixture executorFixture;
   @Autowired private TenantScopedTransaction tenantTx;
+  @Autowired private WorkflowComposer workflowComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private StepComposer stepComposer;
 
   @AfterEach
   void clearTenant() {
@@ -74,6 +84,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   }
 
   @Test
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @DisplayName("onRun persists remediation snapshots with plain text/HTML values")
   void onRunPersistsRemediationSnapshotsWithTextValues() {
     // Arrange
@@ -130,17 +141,32 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     inject.setInjectorContract(contract);
     inject.setAssets(List.of(endpoint));
 
-    Step stepTemplate = StepFixture.getDefaultStepTemplate();
-    stepTemplate.setId("tmpl-rem-1");
-    Step step = StepFixture.getDefaultStepTemplate();
-    step.setId("step-rem-1");
-    step.setStepTemplate(stepTemplate);
+    // Persist the step (within a workflow) before onRun so the remediation FK on steps(step_id)
+    // is satisfied. step_workflow_id is NOT NULL, so the step must belong to a persisted workflow,
+    // and the execution row freezes step.getStepTemplate().getId(), so link a template step too.
+    StepComposer.Composer templateComposer =
+        stepComposer.forStep(StepFixture.getDefaultStepTemplate());
+    Step step = StepFixture.getDefaultStepExecution(StepStatus.RUN);
+    workflowComposer
+        .forWorkflow(WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN))
+        .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withStep(templateComposer)
+        .withStep(stepComposer.forStep(step).withStepTemplate(templateComposer))
+        .persist();
 
     // Act / Assert
-    assertThatCode(() -> ingestionService.onRun(inject, step, "cme")).doesNotThrowAnyException();
+    // onRun nests a REQUIRES_NEW transaction via tenantTx.executeNew, which requires an active
+    // ambient transaction; open one with execute(). The setup above is already committed
+    // (NOT_SUPPORTED), so the nested transaction sees the tenant/steps.
+    assertThatCode(
+            () ->
+                tenantTx.execute(
+                    TxCtx.forTenant(tenant.getId()),
+                    () -> ingestionService.onRun(inject, step, "cme")))
+        .doesNotThrowAnyException();
 
     List<AttackPathExecutionRemediation> snapshots =
-        executionRemediationRepository.findByStepId("step-rem-1");
+        executionRemediationRepository.findByStepId(step.getId());
     assertThat(snapshots).hasSize(2);
     assertThat(snapshots)
         .extracting(AttackPathExecutionRemediation::getValues)
