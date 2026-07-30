@@ -42,6 +42,7 @@ public class V6_20260727154533443__Add_secrets_provider_connector_type_and_secre
                       secret_reference_id                       VARCHAR(255) NOT NULL CONSTRAINT secret_references_pkey PRIMARY KEY,
                       secret_reference_type                     VARCHAR(255) NOT NULL,
                       secret_reference_name                     VARCHAR(255) NOT NULL,
+                      secret_reference_description              TEXT,
                       secret_reference_connector_instance_id    VARCHAR(255) NOT NULL,
                       secret_reference_location                 VARCHAR(255),
                       secret_reference_status                   VARCHAR(255) NOT NULL DEFAULT 'ACTIVE',
