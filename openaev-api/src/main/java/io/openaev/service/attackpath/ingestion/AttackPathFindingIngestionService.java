@@ -40,6 +40,7 @@ public class AttackPathFindingIngestionService {
   private final AttackPathExecutionRepository executionRepository;
   private final FindingRepository findingRepository;
   private final AttackPathFindingWriter findingWriter;
+  private final AttackPathVersionService versionService;
 
   public void copyFindings(Inject inject, Step step) {
     if (inject.getExercise() == null) {
@@ -104,8 +105,20 @@ public class AttackPathFindingIngestionService {
       }
     }
 
-    findingWriter.insertFindings(findingRows);
+    if (findingRows.isEmpty() && links.isEmpty()) {
+      return; // nothing to write, so nothing to version: never bump on an empty copy
+    }
+    // Every row is prepared above, before the bump: the counter's row lock is held until this
+    // transaction commits, so the less work between the bump and the commit, the shorter concurrent
+    // writers on the same simulation block. Bumping and stamping inside the transaction is what
+    // keeps a client from holding a version whose rows it has not been sent (#6647, spec 002); a
+    // re-copied finding is re-stamped, so a newly added link reaches the next delta.
+    long version = versionService.bump(simulationId, tenantId);
+    findingWriter.insertFindings(findingRows, version);
     findingWriter.insertLinks(links);
+    // A re-copied finding is re-stamped and a new link is inserted, so this batch did change the
+    // graph: worth a nudge (an empty batch returned above, before the bump).
+    versionService.publishChanged(simulationId, tenantId, version);
   }
 
   /**

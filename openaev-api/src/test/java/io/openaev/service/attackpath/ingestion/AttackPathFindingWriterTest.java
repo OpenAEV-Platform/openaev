@@ -23,8 +23,10 @@ import org.springframework.test.context.TestPropertySource;
 /**
  * The batched snapshot inserts are idempotent. A finding row is deduped on its natural key
  * (simulation, type, field, value, endpoint_key), not only on its id, so replaying a copy with a
- * different id resolution still writes no duplicate; a link is deduped on its composite key. Read
- * back through raw JDBC; not {@code @Transactional} (the inserts are asserted after they commit).
+ * different id resolution still writes no duplicate; a link is deduped on its composite key. What a
+ * replay does change is the row version, and only that: it is what lets a re-discovered finding's
+ * new link reach a polling client. Read back through raw JDBC; not {@code @Transactional} (the
+ * inserts are asserted after they commit).
  */
 @TestPropertySource(
     properties = {
@@ -79,6 +81,21 @@ class AttackPathFindingWriterTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("a re-copied finding keeps its identity but takes the new row version")
+  void aRecopiedFindingIsRestamped() {
+    String id = AttackPathIds.findingRow(SIM, "cve", "text_field", "CVE-2", "asset-1");
+    insertFinding(id, "cve", "text_field", "CVE-2", "asset-1", 3L);
+
+    // A later execution rediscovers the same value: no new row, but the row must carry the new
+    // version. Otherwise the link that copy adds next is unreachable by every delta — the link is
+    // only ever read through its finding row.
+    insertFinding(id, "cve", "text_field", "CVE-2", "asset-1", 7L);
+
+    assertThat(findingCount()).isEqualTo(1);
+    assertThat(rowVersion(id)).isEqualTo(7L);
+  }
+
+  @Test
   @DisplayName("a link is deduped on its (execution, finding) composite key")
   void linkInsertIsIdempotent() {
     String findingId = AttackPathIds.findingRow(SIM, "cve", "text_field", "CVE-9", "asset-1");
@@ -93,10 +110,24 @@ class AttackPathFindingWriterTest extends IntegrationTest {
 
   private void insertFinding(
       String id, String type, String field, String value, String endpointKey) {
+    insertFinding(id, type, field, value, endpointKey, 1L);
+  }
+
+  private void insertFinding(
+      String id, String type, String field, String value, String endpointKey, long rowVersion) {
     findingWriter.insertFindings(
         List.of(
             new FindingRow(
-                id, tenant.getId(), SIM, type, field, value, endpointKey, null, endpointKey)));
+                id, tenant.getId(), SIM, type, field, value, endpointKey, null, endpointKey)),
+        rowVersion);
+  }
+
+  private long rowVersion(String findingId) {
+    return jdbc.queryForObject(
+        "SELECT attackpath_finding_row_version FROM attackpath_finding"
+            + " WHERE attackpath_finding_id = ?",
+        Long.class,
+        findingId);
   }
 
   private void seedExecutionRow(String executionId) {

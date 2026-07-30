@@ -3,7 +3,7 @@ import { Button, IconButton, Paper, Popover, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 
 import { searchDistinctFindingsForInjects } from '../../../../../actions/findings/finding-actions';
 import { getInjectStatusWithGlobalExecutionTraces, searchTargets } from '../../../../../actions/injects/inject-action';
@@ -14,7 +14,12 @@ import Terminal, { type TerminalLine } from '../../../../../components/common/te
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import type { AttackPathExecutionDetailDTO, InjectStatusOutput, InjectTarget } from '../../../../../utils/api-types';
+import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
+import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import { getStatusColor } from '../../../../../utils/statusUtils';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
+import EEChip from '../../../common/entreprise_edition/EEChip';
 import expectationIconByType from '../../../common/ExpectationIconByType';
 import GlobalExecutionTraces from '../../../common/injects/status/traces/GlobalExecutionTraces';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
@@ -40,24 +45,21 @@ const TERMINAL_TAB = 'terminal';
 const FINDINGS_TAB = 'findings';
 const REMEDIATION_TAB = 'remediation';
 
-// Collector logo types for the illustrative prevented-by / detected-by chips below (the execution
-// detail does not yet carry the actual platform list, so these are display placeholders).
-const CROWDSTRIKE_LOGO_TYPE = 'openaev_crowdstrike';
-const SPLUNK_LOGO_TYPE = 'openaev_splunk_es';
-
 interface PlatformAlert {
   id: string;
   title: string;
   date?: string | null;
 }
 interface SecurityPlatform {
-  type: string;
+  /** The platform's collector type, when known — drives its catalog logo. */
+  type?: string;
   label: string;
 }
-
-// An expectation verdict is a success when the platform prevented or detected the action.
-const statusSucceeded = (status?: string | null): boolean =>
-  ['prevented', 'detected', 'success'].includes((status ?? '').toLowerCase());
+/** A platform that acted on the execution, with the alerts it raised. */
+interface SecurityPlatformWithAlerts {
+  platform: SecurityPlatform;
+  alerts: PlatformAlert[];
+}
 
 // The platform's catalog logo (collectors brick) with a graceful fallback: on dev, a platform that
 // isn't installed 404s its image, so we swap in a generic shield icon instead of a broken image.
@@ -135,7 +137,7 @@ const SecurityPlatformItem = ({ platform, alerts }: {
           border: `1px solid ${theme.palette.divider}`,
         }}
       >
-        <PlatformLogo type={platform.type} label={platform.label} />
+        <PlatformLogo type={platform.type ?? ''} label={platform.label} />
         <Typography variant="body2">{platform.label}</Typography>
         {/* Blue, link-styled CTA showing how many alerts the platform raised; opens the same popover. */}
         <Typography
@@ -268,6 +270,8 @@ const InjectorExecutionTraces = ({ injectId }: { injectId: string }) => {
 const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpenInject, endpointLabel }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  const { isValidated } = useEnterpriseEdition();
+  const ability = useContext(AbilityContext);
   const { currentTab, handleChangeTab } = useTabs(RESULT_TAB);
   // Detection remediations (per security platform) for this action, resolved from the execution's
   // payload's detection remediations by the backend (empty when the payload has none).
@@ -315,53 +319,46 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
     });
   });
 
-  // TODO(#6647): replace this placeholder with the real per-security-platform expectation results
-  // (source platform, status, detection time, linked alerts) once the backend exposes them on the
-  // execution detail. For now we surface the aggregate prevention/detection verdict against the
-  // platforms wired on this environment (CrowdStrike for prevention & detection, Splunk for detection).
-  const buildAlerts = (label: string): PlatformAlert[] => [
-    {
-      id: `${label}-1`,
-      title: t('Suspicious activity flagged'),
-      date: detail?.executedAt,
-    },
-    {
-      id: `${label}-2`,
-      title: t('Endpoint telemetry correlated'),
-      date: detail?.executedAt,
-    },
-  ];
-  const preventedBy: SecurityPlatform[] = statusSucceeded(detail?.preventionStatus)
-    ? [{
-        type: CROWDSTRIKE_LOGO_TYPE,
-        label: 'CrowdStrike',
-      }]
-    : [];
-  // A prevented action is necessarily detected too (you cannot block what you did not see), so a
-  // successful prevention implies detection.
-  const isDetected = statusSucceeded(detail?.detectionStatus) || statusSucceeded(detail?.preventionStatus);
-  const detectedBy: SecurityPlatform[] = isDetected
-    ? [{
-        type: CROWDSTRIKE_LOGO_TYPE,
-        label: 'CrowdStrike',
-      }, {
-        type: SPLUNK_LOGO_TYPE,
-        label: 'Splunk',
-      }]
-    : [];
+  // The platforms that actually acted on this execution, resolved by the backend from the inject's
+  // expectations with their linked alerts (`securityPlatforms`, one entry per platform per bucket).
+  // Nothing is fabricated here: an execution no platform evaluated shows no platform.
+  const platformsByBucket = (bucket: 'prevention' | 'detection'): SecurityPlatformWithAlerts[] =>
+    (detail?.securityPlatforms ?? [])
+      .filter(p => p.bucket === bucket)
+      .map(p => ({
+        platform: {
+          type: p.platformType ?? undefined,
+          label: p.platformName ?? t('Unknown platform'),
+        },
+        alerts: (p.alerts ?? []).map(a => ({
+          id: a.id ?? `${p.platformName}-${a.title}`,
+          title: a.title ?? '',
+          date: a.date ?? p.detectedAt,
+        })),
+      }));
+  const preventedBy = platformsByBucket('prevention');
+  const detectedBy = platformsByBucket('detection');
+  // Platform attribution is Enterprise-gated: the resolver returns nothing without an active licence,
+  // which must never read as "no platform prevented this". Same treatment, minus the Enterprise
+  // wording, for any other reason attribution can be absent (a run not yet committed, a target with
+  // neither agent nor asset).
+  const attributionUnavailable = !isValidated;
 
   const renderExpectationRow = (
     expectationType: 'prevention' | 'detection',
     heading: string,
-    emptyLabel: string,
-    platforms: SecurityPlatform[],
+    status: string | null | undefined,
+    platforms: SecurityPlatformWithAlerts[],
   ) => {
-    // Colour the verdict: prevention succeeds green, detection succeeds orange, neither is red.
-    const succeeded = platforms.length > 0;
-    let iconColor = theme.palette.error.main;
-    if (succeeded) {
-      iconColor = expectationType === 'prevention' ? theme.palette.success.main : theme.palette.warning.main;
-    }
+    // The verdict comes from the expectation status, never from "did any platform answer": a pending
+    // expectation reads pending (grey), an expiration-stamped one is a real negative (red), and an
+    // undeclared expectation says so. Colours come from the shared status vocabulary, which already
+    // maps the expectation display labels this projection stores.
+    const hasExpectation = !!status && status.trim().length > 0;
+    const statusColor = hasExpectation ? getStatusColor(theme, status) : theme.palette.text.disabled;
+    const statusLabel = hasExpectation
+      ? t(status)
+      : t('No expectation for {type}', { type: t(expectationType === 'prevention' ? 'Prevention' : 'Detection') });
     return (
       <div>
         <div style={{
@@ -371,11 +368,18 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
           marginBottom: 6,
         }}
         >
-          {expectationIconByType(expectationType, { color: iconColor })}
+          {expectationIconByType(expectationType, { color: statusColor })}
           <Typography variant="subtitle2">{heading}</Typography>
+          <Typography variant="caption" sx={{ color: statusColor }}>{statusLabel}</Typography>
         </div>
         {platforms.length === 0
-          ? <Typography variant="caption" style={{ color: theme.palette.error.main }}>{emptyLabel}</Typography>
+          ? (
+              <Typography variant="caption" sx={{ color: theme.palette.text.disabled }}>
+                {attributionUnavailable
+                  ? t('Platform attribution requires Enterprise Edition')
+                  : t('No platform attribution available')}
+              </Typography>
+            )
           : (
               <div style={{
                 display: 'flex',
@@ -383,8 +387,12 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 flexWrap: 'wrap',
               }}
               >
-                {platforms.map(p => (
-                  <SecurityPlatformItem key={p.type} platform={p} alerts={buildAlerts(p.label)} />
+                {platforms.map((p, index) => (
+                  <SecurityPlatformItem
+                    key={`${p.platform.type ?? 'unknown'}-${p.platform.label}-${index}`}
+                    platform={p.platform}
+                    alerts={p.alerts}
+                  />
                 ))}
               </div>
             )}
@@ -533,8 +541,19 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                       consistent with the graph node; fall back to the IP only when no name is known. */}
                   <Typography variant="subtitle2">{endpointLabel || detail.targetHostname || detail.targetIp || detail.endpointKey}</Typography>
                 </div>
-                {renderExpectationRow('prevention', t('Prevented by'), t('Not Prevented'), preventedBy)}
-                {renderExpectationRow('detection', t('Detected by'), t('Not Detected'), detectedBy)}
+                {/* Enterprise gate on the attribution itself, not on the verdicts: one chip for the
+                    section, offering the upsell path instead of a dead-end sentence per row. Only
+                    clickable for a user who could act on the dialog — the licence form it opens
+                    requires platform settings, so for anyone else the chip stays informational
+                    rather than a dead click (EETooltip's nuance). */}
+                {attributionUnavailable && (
+                  <EEChip
+                    clickable={ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+                    featureDetectedInfo={t('Security platform attribution')}
+                  />
+                )}
+                {renderExpectationRow('prevention', t('Prevented by'), detail?.preventionStatus, preventedBy)}
+                {renderExpectationRow('detection', t('Detected by'), detail?.detectionStatus, detectedBy)}
                 {/* Jump to the originating inject for the full action definition (pending backend id). */}
                 {onOpenInject && (
                   <Button

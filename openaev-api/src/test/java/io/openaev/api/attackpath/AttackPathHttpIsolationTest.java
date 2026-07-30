@@ -2,6 +2,7 @@ package io.openaev.api.attackpath;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -33,6 +34,12 @@ import org.springframework.transaction.annotation.Transactional;
  * rather than the mere presence of a guard. It is the HTTP-layer complement to the inspector's own
  * SQL-layer tests.
  *
+ * <p>The version counter is covered here too, and it is the one attack-path table the inspector
+ * does NOT filter: its bump is an {@code INSERT ... ON CONFLICT}, so the table is keyed by
+ * (simulation, tenant) and every statement carries the tenant instead. A foreign tenant must
+ * therefore read no counter at all — version 0, and a cursor answered by a resync — not the owner's
+ * number.
+ *
  * <p>Each test stays on a single tenant path: the per-request scope is set once and the aspect
  * refuses to redefine it within one transaction.
  */
@@ -54,6 +61,7 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   private static final String PLAIN = AttackPathApi.ATTACK_PATH_URI;
 
   private static final String GRAPH = SCOPED + "/simulations/{simulationId}/graph";
+  private static final String DELTA = SCOPED + "/simulations/{simulationId}/graph/delta";
   private static final String EXPAND = SCOPED + "/simulations/{simulationId}/endpoint/findings";
   private static final String RELATIONS = SCOPED + "/simulations/{simulationId}/endpoint/relations";
   private static final String LIST = SCOPED + "/simulations";
@@ -80,6 +88,66 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
     executionId = seedExecution(tenantA);
     findingId = seedFinding(tenantA);
     linkExecutionFinding(executionId, findingId);
+    seedGraphVersion(tenantA);
+  }
+
+  @Test
+  @DisplayName("under the owner tenant's path: the delta from version 0 carries the graph")
+  void deltaUnderOwnerTenantIsVisible() throws Exception {
+    mvc.perform(get(DELTA, tenantA, SIM).param("since", "0"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.resyncRequired").value(false))
+        .andExpect(jsonPath("$.attackPathNodes").isNotEmpty())
+        .andExpect(jsonPath("$.attackPathEdges").isNotEmpty());
+  }
+
+  @Test
+  @DisplayName("under another tenant's path: the delta carries none of the owner's rows")
+  void deltaUnderOtherTenantIsHidden() throws Exception {
+    // The delta is a second, polled path into the same projection, so it needs its own proof: the
+    // cursor reads and the affected-endpoint aggregations are all separate queries from the
+    // snapshot's. The version counter is tenant-scoped too (its table is keyed by (simulation,
+    // tenant) and every statement carries the tenant), so the foreign tenant reads no counter at
+    // all: version 0, no rows, and no counters to recompute.
+    mvc.perform(get(DELTA, tenantB, SIM).param("since", "0"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.resyncRequired").value(false))
+        .andExpect(jsonPath("$.newVersion").value(0))
+        .andExpect(jsonPath("$.attackPathNodes").isEmpty())
+        .andExpect(jsonPath("$.attackPathEdges").isEmpty())
+        .andExpect(jsonPath("$.attackPathExecutions").isEmpty())
+        .andExpect(jsonPath("$.staticAttackPathFindings").isEmpty())
+        .andExpect(jsonPath("$.counters").value(nullValue()));
+  }
+
+  @Test
+  @DisplayName(
+      "under another tenant's path: a cursor on the owner's counter is answered by a resync")
+  void deltaUnderOtherTenantWithACursorResyncs() throws Exception {
+    // The owner's counter sits at 1. A foreign tenant claiming that cursor must not be told that
+    // nothing changed since 1: from its own scope the simulation has no attack-path data at all, so
+    // the only answerable reply is a resync, and a resync carries no rows.
+    mvc.perform(get(DELTA, tenantB, SIM).param("since", "1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.resyncRequired").value(true))
+        .andExpect(jsonPath("$.newVersion").value(0))
+        .andExpect(jsonPath("$.attackPathNodes").isEmpty());
+  }
+
+  @Test
+  @DisplayName("under another tenant's path: the graph carries no version of the owner's counter")
+  void graphUnderOtherTenantCarriesNoVersion() throws Exception {
+    mvc.perform(get(GRAPH, tenantB, SIM))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.graphVersion").value(0));
+  }
+
+  @Test
+  @DisplayName("under the owner tenant's path: the graph is labelled with the owner's version")
+  void graphUnderOwnerTenantCarriesItsVersion() throws Exception {
+    mvc.perform(get(GRAPH, tenantA, SIM))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.graphVersion").value(1));
   }
 
   @Test
@@ -277,9 +345,10 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
                 + " attackpath_execution_source_injector, attackpath_execution_target_kind,"
                 + " attackpath_execution_target_asset_id, attackpath_execution_target_key,"
                 + " attackpath_execution_target_hostname, attackpath_execution_executed_at,"
-                + " attackpath_execution_prevention_status) VALUES (:id, :tenant, :sim, 'INJECTOR',"
+                + " attackpath_execution_prevention_status, attackpath_execution_row_version)"
+                + " VALUES (:id, :tenant, :sim, 'INJECTOR',"
                 + " 'NMAP', 'ASSET', :ep, :ep, 'CORP-DC-01', TIMESTAMP '2026-06-18 08:00:00',"
-                + " 'Prevented')")
+                + " 'Prevented', 1)")
         .setParameter("id", id)
         .setParameter("tenant", tenantId)
         .setParameter("sim", SIM)
@@ -295,14 +364,28 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
             "INSERT INTO attackpath_finding (attackpath_finding_id, tenant_id,"
                 + " attackpath_finding_simulation_id, attackpath_finding_type,"
                 + " attackpath_finding_value, attackpath_finding_endpoint_id,"
-                + " attackpath_finding_endpoint_key) VALUES (:id, :tenant, :sim, 'credentials',"
-                + " 'admin:secret', :ep, :ep)")
+                + " attackpath_finding_endpoint_key, attackpath_finding_row_version)"
+                + " VALUES (:id, :tenant, :sim, 'credentials', 'admin:secret', :ep, :ep, 1)")
         .setParameter("id", id)
         .setParameter("tenant", tenantId)
         .setParameter("sim", SIM)
         .setParameter("ep", ENDPOINT_KEY)
         .executeUpdate();
     return id;
+  }
+
+  /**
+   * The simulation's version counter, as a writer would have left it after stamping the seeded rows
+   * at version 1. Without it the delta read has nothing to compare a cursor against.
+   */
+  private void seedGraphVersion(String tenantId) {
+    entityManager
+        .createNativeQuery(
+            "INSERT INTO attackpath_graph_version (attackpath_graph_version_simulation_id,"
+                + " tenant_id, attackpath_graph_version_value) VALUES (:sim, :tenant, 1)")
+        .setParameter("sim", SIM)
+        .setParameter("tenant", tenantId)
+        .executeUpdate();
   }
 
   private void linkExecutionFinding(String executionId, String findingId) {

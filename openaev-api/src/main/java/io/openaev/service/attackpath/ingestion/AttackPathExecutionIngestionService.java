@@ -43,6 +43,7 @@ public class AttackPathExecutionIngestionService {
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
   private final TenantScopedTransaction tenantTx;
+  private final AttackPathVersionService versionService;
   private final ObjectMapper objectMapper;
 
   /**
@@ -52,6 +53,11 @@ public class AttackPathExecutionIngestionService {
    * (the callers run inside their own tx), so the delete runs under a real scope instead of
    * fail-closing to zero rows. The {@code attackpath_execution_finding} links ride the ON DELETE
    * CASCADE from both parents, so deleting executions and findings clears the links too.
+   *
+   * <p>The simulation's version counter goes with the rows (#6647, spec 002): a client still
+   * polling with an old {@code since} then finds no counter, and the delta read answers that with a
+   * resync, which is how the contract expresses a deletion. Keeping the counter instead would leave
+   * the client convinced it was up to date on an emptied graph.
    */
   public void deleteAllBySimulationId(@NotBlank String simulationId, @NotBlank String tenantId) {
     tenantTx.executeNew(
@@ -60,6 +66,7 @@ public class AttackPathExecutionIngestionService {
           executionRemediationRepository.deleteAllBySimulationId(simulationId);
           executionRepository.deleteAllBySimulationId(simulationId);
           findingRepository.deleteAllBySimulationId(simulationId);
+          versionService.deleteBySimulationId(simulationId, tenantId);
         });
   }
 
@@ -84,30 +91,59 @@ public class AttackPathExecutionIngestionService {
    * by their index. For each list, selects the {@link InjectExpectationResult} whose {@code result}
    * label has the highest priority (success > partial > pending > failure) according to the
    * corresponding {@link ExpectationType} labels, then persists that label as the status value.
+   *
+   * <p>This is the only path that writes verdicts onto the projection (#6647, spec 002, FR5), and
+   * it carries the two properties the real-time delta depends on. The simulation's attack-path
+   * version is bumped once per step event and stamped on every row the updates touch — without that
+   * stamp a changed verdict never reaches a polling client, which is the whole point of the
+   * feature. And the update itself is guarded on the three status columns, so replaying the same
+   * expectation result — which the chaining engine does on every execution event, by design —
+   * matches zero rows and tells no client anything changed.
+   *
+   * <p>Like the other ingestion writers, the bump and the updates share one {@code executeNew}
+   * transaction, so a version a client can observe is never ahead of the rows backing it. An empty
+   * result set never opens it: nothing written, nothing to version.
    */
   public void updateExpectationByExecutionIndex(
       Inject inject, Map<String, ExecutionExpectationResults> expectationResults) {
+    if (expectationResults.isEmpty() || inject.getExercise() == null) {
+      return; // nothing to write, so nothing to version; and the projection is simulation-scoped
+    }
+    String simulationId = inject.getExercise().getId();
+    String tenantId = inject.getTenant().getId();
     tenantTx.executeNew(
-        TxCtx.forTenant(inject.getTenant().getId()),
-        () ->
-            expectationResults.forEach(
-                (index, expectation) -> {
-                  String preventionStatus =
-                      resolveHighestPriorityResult(
-                          expectation.prevention(), ExpectationType.PREVENTION);
-                  String detectionStatus =
-                      resolveHighestPriorityResult(
-                          expectation.detection(), ExpectationType.DETECTION);
-                  String vulnerabilityStatus =
-                      resolveHighestPriorityResult(
-                          expectation.vulnerability(), ExpectationType.VULNERABILITY);
-                  executionRepository.updateExpectationStatusByExecutionId(
-                      index,
-                      preventionStatus,
-                      detectionStatus,
-                      vulnerabilityStatus,
-                      inject.getTenant().getId());
-                }));
+        TxCtx.forTenant(tenantId),
+        () -> {
+          long version = versionService.bump(simulationId, tenantId);
+          int changed = 0;
+          for (Map.Entry<String, ExecutionExpectationResults> entry :
+              expectationResults.entrySet()) {
+            ExecutionExpectationResults expectation = entry.getValue();
+            String preventionStatus =
+                resolveHighestPriorityResult(expectation.prevention(), ExpectationType.PREVENTION);
+            String detectionStatus =
+                resolveHighestPriorityResult(expectation.detection(), ExpectationType.DETECTION);
+            String vulnerabilityStatus =
+                resolveHighestPriorityResult(
+                    expectation.vulnerability(), ExpectationType.VULNERABILITY);
+            changed +=
+                executionRepository.updateExpectationStatusByExecutionId(
+                    entry.getKey(),
+                    preventionStatus,
+                    detectionStatus,
+                    vulnerabilityStatus,
+                    tenantId,
+                    version);
+          }
+          // Only a write that touched rows is worth telling a client about. The engine replays
+          // these
+          // results on every execution event, so nudging on a replay would flood the stream's
+          // shared
+          // executor for nothing — see AttackPathVersionService#publishChanged.
+          if (changed > 0) {
+            versionService.publishChanged(simulationId, tenantId, version);
+          }
+        });
   }
 
   /**
@@ -167,11 +203,26 @@ public class AttackPathExecutionIngestionService {
     if (inject.getExercise() == null) {
       return; // the attack path is simulation-scoped: no simulation, nothing to record
     }
+    String simulationId = inject.getExercise().getId();
+    String tenantId = inject.getTenant().getId();
     tenantTx.executeNew(
-        TxCtx.forTenant(inject.getTenant().getId()),
+        TxCtx.forTenant(tenantId),
         () -> {
-          persistExecution(getAttackPathExecution(inject, step, command));
+          // The remediation snapshot rides the same transaction but never bumps the graph
+          // version: it only writes to the separate snapshot table, which the delta contract
+          // does not observe (#6647, spec 002).
           persistExecutionRemediations(inject, step);
+          List<AttackPathExecution> rows = getAttackPathExecution(inject, step, command);
+          if (rows.isEmpty()) {
+            return; // nothing written, so nothing to version: never bump on an empty write
+          }
+          // Bump and stamp inside this transaction, so the version a client can observe is never
+          // ahead of the rows backing it (#6647, spec 002).
+          long version = versionService.bump(simulationId, tenantId);
+          rows.forEach(row -> row.setRowVersion(version));
+          persistExecution(rows);
+          // New rows always change the graph, so this one always nudges.
+          versionService.publishChanged(simulationId, tenantId, version);
         });
   }
 

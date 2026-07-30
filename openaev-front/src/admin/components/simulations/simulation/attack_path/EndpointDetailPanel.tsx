@@ -1,5 +1,5 @@
 import { Close } from '@mui/icons-material';
-import { Box, IconButton, Paper, Typography } from '@mui/material';
+import { Box, Button, IconButton, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../../components/i18n';
@@ -18,7 +18,15 @@ interface Props {
   findingsLoading: boolean;
   findingGroups: FindingGroup[];
   executions: AttackPathNodeDTO[];
-  execDisplayCap: number;
+  /**
+   * How many executions target this endpoint in total — the list holds one page of them. Absent (or
+   * not greater than what is loaded) means there is nothing more to fetch.
+   */
+  totalExecutions?: number;
+  /** Fetches the next page of executions. */
+  onShowMore?: () => void;
+  /** A page is in flight, so the button reads as busy and cannot be clicked twice. */
+  loadingMore?: boolean;
   highlightedExecutionIds: Set<string>;
   // Registers the DOM node of an execution row so the page can scroll the highlighted one into view.
   registerRow: (id: string, el: HTMLDivElement | null) => void;
@@ -40,7 +48,9 @@ const EndpointDetailPanel = ({
   findingsLoading,
   findingGroups,
   executions,
-  execDisplayCap,
+  totalExecutions,
+  onShowMore,
+  loadingMore = false,
   highlightedExecutionIds,
   registerRow,
   onSelectExecution,
@@ -131,7 +141,7 @@ const EndpointDetailPanel = ({
         <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: hideFindings ? 0 : 1 }}>
           {`${t('Executions')} (${executions.length})`}
         </Typography>
-        {executions.slice(0, execDisplayCap).map((e) => {
+        {executions.map((e) => {
           const status = execStatusLabel(e.status);
           const highlighted = !!e.ref && highlightedExecutionIds.has(e.ref);
           return (
@@ -191,17 +201,41 @@ const EndpointDetailPanel = ({
             </Box>
           );
         })}
-        {executions.length > execDisplayCap && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{
-              display: 'block',
-              pt: 1,
-            }}
-          >
-            {`+${executions.length - execDisplayCap} ${t('more')}`}
-          </Typography>
+        {/* The list holds one page, so reaching the rest must be an action rather than a dead caption:
+            same slot, a text button that fetches the next page (See More precedent). Where the caller
+            cannot fetch more (the injector panel reads a bounded set in one go), say what is not shown
+            rather than truncate silently. */}
+        {(totalExecutions ?? 0) > executions.length && (
+          onShowMore
+            ? (
+                <Button
+                  size="small"
+                  variant="text"
+                  disabled={loadingMore}
+                  onClick={() => onShowMore()}
+                  sx={{
+                    mt: 1,
+                    textTransform: 'none',
+                  }}
+                >
+                  {`${t('Show more')} (${(totalExecutions ?? 0) - executions.length})`}
+                </Button>
+              )
+            : (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{
+                    display: 'block',
+                    pt: 1,
+                  }}
+                >
+                  {t('Showing the first {count} of {total}', {
+                    count: executions.length,
+                    total: totalExecutions,
+                  })}
+                </Typography>
+              )
         )}
       </div>
     </Paper>

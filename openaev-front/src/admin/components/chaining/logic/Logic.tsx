@@ -38,6 +38,9 @@ const Logic = ({ workflowId, context }: LogicProps) => {
     // Output type required by the "Add Compatible Action" banner (pre-filters the action list)
   const [compatibleActionFilter, setCompatibleActionFilter] = useState<string | undefined>();
 
+  // Event to link a newly created action to (set when adding an action via the event node "+")
+  const [linkToEventId, setLinkToEventId] = useState<string | undefined>();
+
   // Event currently being edited
   const [editingEvent, setEditingEvent] = useState<{
     eventId: string;
@@ -82,12 +85,21 @@ const Logic = ({ workflowId, context }: LogicProps) => {
 
   const handleOpenDrawer = useCallback(() => {
     setCompatibleActionFilter(undefined);
+    setLinkToEventId(undefined);
     setDrawerView('choose');
   }, []);
 
   // Opens the action list directly, optionally pre-filtered by output type
   const handleOpenActionDrawer = useCallback((field?: string) => {
     setCompatibleActionFilter(field);
+    setLinkToEventId(undefined);
+    setDrawerView('action');
+  }, []);
+
+  // Opens the action list from an event node "+", linking created actions to that event
+  const handleAddActionToEvent = useCallback((eventId: string) => {
+    setCompatibleActionFilter(undefined);
+    setLinkToEventId(eventId);
     setDrawerView('action');
   }, []);
 
@@ -116,56 +128,49 @@ const Logic = ({ workflowId, context }: LogicProps) => {
     <OutputProvidersProvider>
       <div
         style={{
-          display: 'flex',
-          flexDirection: 'column',
-          height: 'calc(100vh - 230px)',
           position: 'relative',
           width: '100%',
+          height: 'calc(100vh - 340px)',
+          overflow: 'hidden',
         }}
       >
-        <div
-          style={{
-            flex: 1,
-            overflow: 'hidden',
-            position: 'relative',
-          }}
-        >
-          {hasExistingData && workflowId
-            ? (
-                <>
-                  <LogicFlow
-                    reloadTrigger={refreshKey}
-                    workflowId={workflowId}
-                    onEditStep={handleEditStep}
-                    onEditEvent={handleEditEvent}
-                    onEventMetasChange={setEventMetas}
-                  />
-                  <LogicTopBar
-                    eventMetas={eventMetas}
-                    onAddCompatibleAction={handleOpenActionDrawer}
-                    onAddComponent={handleOpenDrawer}
-                  />
-                </>
-              )
-            : (
-                <AddComponentButton nodeCount={0} context={context} onClick={handleOpenDrawer} />
-              )}
-        </div>
-        <ChainingFlowConfiguration
-          workflowId={workflowId}
-          validAssets={validAssets}
-          drawerView={drawerView}
-          onDrawerViewChange={setDrawerView}
-          editingStep={editingStep}
-          onEditingStepChange={setEditingStep}
-          editingEvent={editingEvent}
-          onEditingEventChange={setEditingEvent}
-          onStepCreated={handleStepCreated}
-          onEventCreated={handleEventCreated}
-          eventCount={eventCount}
-          compatibleActionFilter={compatibleActionFilter}
-        />
+        {hasExistingData && workflowId
+          ? (
+              <>
+                <LogicFlow
+                  reloadTrigger={refreshKey}
+                  workflowId={workflowId}
+                  onEditStep={handleEditStep}
+                  onEditEvent={handleEditEvent}
+                  onAddActionToEvent={handleAddActionToEvent}
+                  onEventMetasChange={setEventMetas}
+                />
+                <LogicTopBar
+                  eventMetas={eventMetas}
+                  onAddCompatibleAction={handleOpenActionDrawer}
+                  onAddComponent={handleOpenDrawer}
+                />
+              </>
+            )
+          : (
+              <AddComponentButton nodeCount={0} context={context} onClick={handleOpenDrawer} />
+            )}
       </div>
+      <ChainingFlowConfiguration
+        workflowId={workflowId}
+        validAssets={validAssets}
+        drawerView={drawerView}
+        onDrawerViewChange={setDrawerView}
+        editingStep={editingStep}
+        onEditingStepChange={setEditingStep}
+        editingEvent={editingEvent}
+        onEditingEventChange={setEditingEvent}
+        onStepCreated={handleStepCreated}
+        onEventCreated={handleEventCreated}
+        eventCount={eventCount}
+        compatibleActionFilter={compatibleActionFilter}
+        linkToEventId={linkToEventId}
+      />
     </OutputProvidersProvider>
   );
 };

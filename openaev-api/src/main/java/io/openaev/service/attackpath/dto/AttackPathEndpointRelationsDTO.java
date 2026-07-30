@@ -12,4 +12,10 @@ import java.util.List;
  * graph when it clicks an endpoint.
  */
 public record AttackPathEndpointRelationsDTO(
-    List<AttackPathNodeDTO> executions, List<AttackPathEdges> edges) {}
+    List<AttackPathNodeDTO> executions,
+    List<AttackPathEdges> edges,
+    /**
+     * How many executions target this endpoint in total. The {@code executions} list is one page of
+     * them; the edges are always whole, so the client knows how much is left without a second read.
+     */
+    long totalExecutions) {}

@@ -38,10 +38,12 @@ describe('attack path POC actions', () => {
     expect(simpleCall).toHaveBeenCalledWith('/api/attack-path/simulations/SIM-1/endpoint/findings?ref=asset%2F01', undefined, false);
   });
 
-  it('fetchEndpointRelations encodes the endpoint ref', async () => {
+  it('fetchEndpointRelations encodes the endpoint ref and asks for the first page', async () => {
     const { fetchEndpointRelations } = await importActions();
     await fetchEndpointRelations('SIM-1', '10.0.0.1');
-    expect(simpleCall).toHaveBeenCalledWith('/api/attack-path/simulations/SIM-1/endpoint/relations?ref=10.0.0.1', undefined, false);
+    // The executions are paged (the edges always come back whole), so the read carries a page cursor
+    // even when the caller does not pick one.
+    expect(simpleCall).toHaveBeenCalledWith('/api/attack-path/simulations/SIM-1/endpoint/relations?ref=10.0.0.1&page=0&size=50', undefined, false);
   });
 
   it('fetchAttackPathSimulations hits the simulations list endpoint', async () => {
