@@ -628,7 +628,7 @@ public class AttackPathExecutionIngestionService {
               row.setSourceAssetId(result.getSourceAssetId());
               row.setResultStatusLabel(statusLabel);
               row.setDetectionTime(result.getDate());
-              row.setAlerts(buildAlertsJson(expectation.getId(), result));
+              row.setAlerts(buildAlertsNode(expectation.getId(), result));
               row.setResultScore(result.getScore());
               row.setResultDate(result.getDate());
               rows.add(row);
@@ -701,12 +701,12 @@ public class AttackPathExecutionIngestionService {
     return null;
   }
 
-  private String buildAlertsJson(String expectationId, InjectExpectationResult result) {
+  private JsonNode buildAlertsNode(String expectationId, InjectExpectationResult result) {
     List<AttackPathAlertDTO> alerts = extractAlerts(expectationId, result);
     try {
-      return objectMapper.writeValueAsString(alerts);
+      return objectMapper.valueToTree(alerts);
     } catch (Exception e) {
-      return "[]";
+      return objectMapper.createArrayNode();
     }
   }
 

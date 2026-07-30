@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
@@ -57,6 +60,7 @@ import org.springframework.transaction.annotation.Transactional;
 class AttackPathSecurityPlatformsTest extends IntegrationTest {
 
   private static final String SIM = "SIM-SP";
+  private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
   @Autowired private AttackPathGraphService graphService;
   @Autowired private AttackPathExecutionRepository executionRepository;
@@ -128,10 +132,18 @@ class AttackPathSecurityPlatformsTest extends IntegrationTest {
     row.setSourceAssetId(siem.getId());
     row.setResultStatusLabel(status);
     row.setDetectionTime(Instant.parse("2026-06-18T08:00:00Z").toString());
-    row.setAlerts(alertsJson);
+    row.setAlerts(toJsonNode(alertsJson));
     row.setResultScore(score);
     row.setResultDate(Instant.parse("2026-06-18T08:00:00Z").toString());
     executionCollectorRepository.save(row);
+  }
+
+  private JsonNode toJsonNode(String rawJson) {
+    try {
+      return JSON_MAPPER.readTree(rawJson);
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException("Invalid test alerts JSON: " + rawJson, e);
+    }
   }
 
   private AttackPathExecutionDetailDTO executionDetailForCurrentTenant(String executionId) {

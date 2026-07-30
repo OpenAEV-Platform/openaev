@@ -1,6 +1,7 @@
 package io.openaev.database.model.attackpath;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.database.audit.TenantBaseListener;
@@ -70,7 +71,7 @@ public class AttackPathExecutionCollector implements TenantBase {
 
   @Type(JsonType.class)
   @Column(name = "attackpath_execution_collector_alerts", columnDefinition = "jsonb")
-  private String alerts;
+  private JsonNode alerts;
 
   @Column(name = "attackpath_execution_collector_result_score")
   private Double resultScore;

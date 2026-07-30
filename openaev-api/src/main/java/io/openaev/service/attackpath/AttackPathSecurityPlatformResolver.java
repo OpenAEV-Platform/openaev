@@ -1,7 +1,6 @@
 package io.openaev.service.attackpath;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.AssetType;
 import io.openaev.database.model.BaseInjectExpectation;
@@ -39,7 +38,6 @@ public class AttackPathSecurityPlatformResolver {
   private final AttackPathExecutionCollectorRepository executionCollectorRepository;
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
-  private final ObjectMapper objectMapper;
 
   public List<AttackPathSecurityPlatformDTO> resolve(String executionId, String tenantId) {
     if (!enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
@@ -137,32 +135,24 @@ public class AttackPathSecurityPlatformResolver {
         alerts);
   }
 
-  private List<AttackPathAlertDTO> parseAlerts(String rawAlerts) {
-    if (rawAlerts == null || rawAlerts.isBlank()) {
+  private List<AttackPathAlertDTO> parseAlerts(JsonNode rawAlerts) {
+    if (rawAlerts == null || !rawAlerts.isArray()) {
       return List.of();
     }
-    try {
-      JsonNode root = objectMapper.readTree(rawAlerts);
-      if (!root.isArray()) {
-        return List.of();
+    List<AttackPathAlertDTO> alerts = new ArrayList<>();
+    for (JsonNode node : rawAlerts) {
+      if (!node.isObject()) {
+        continue;
       }
-      List<AttackPathAlertDTO> alerts = new ArrayList<>();
-      for (JsonNode node : root) {
-        if (!node.isObject()) {
-          continue;
-        }
-        String id = textOrNull(node, "id");
-        String title = textOrNull(node, "title");
-        if (id == null || title == null) {
-          continue;
-        }
-        alerts.add(
-            new AttackPathAlertDTO(id, title, textOrNull(node, "date"), textOrNull(node, "link")));
+      String id = textOrNull(node, "id");
+      String title = textOrNull(node, "title");
+      if (id == null || title == null) {
+        continue;
       }
-      return alerts;
-    } catch (Exception e) {
-      return List.of();
+      alerts.add(
+          new AttackPathAlertDTO(id, title, textOrNull(node, "date"), textOrNull(node, "link")));
     }
+    return alerts;
   }
 
   private String textOrNull(JsonNode node, String fieldName) {

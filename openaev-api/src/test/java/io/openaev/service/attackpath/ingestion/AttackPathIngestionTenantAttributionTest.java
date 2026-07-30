@@ -287,6 +287,20 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
             executionId,
             tenant.getId());
     assertThat(alertsJson).contains("Trace Alert A").contains("trace-a");
+    // Guard against double-encoding: the column must hold a real jsonb array, not a jsonb
+    // string wrapping the serialized alerts payload.
+    String alertsJsonbType =
+        jdbc.queryForObject(
+            "SELECT jsonb_typeof(attackpath_execution_collector_alerts) "
+                + "FROM attackpath_execution_collector "
+                + "WHERE attackpath_execution_collector_simulation_id = ? "
+                + "AND attackpath_execution_id = ? AND tenant_id = ? "
+                + "AND attackpath_execution_collector_expectation_type = 'PREVENTION'",
+            String.class,
+            SIM,
+            executionId,
+            tenant.getId());
+    assertThat(alertsJsonbType).isEqualTo("array");
   }
 
   @Test
