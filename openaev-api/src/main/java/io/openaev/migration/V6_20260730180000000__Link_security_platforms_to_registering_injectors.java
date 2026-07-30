@@ -18,17 +18,25 @@ import org.springframework.stereotype.Component;
  *       NULL}: deleting the injector from the catalog releases the platform (and its logos) for
  *       manual cleanup, and a redeployed injector relinks it through the security platform upsert
  *       it performs at startup.
+ *   <li>A partial composite index supports the FK: {@code ON DELETE SET NULL} makes PostgreSQL look
+ *       up {@code injectors} by the referenced asset on every platform deletion, which without an
+ *       index is a sequential scan per deleted row - the class of issue that crash-looped the
+ *       platform in #6780 (see {@code V6_20260718110000000__Add_injects_injector_fk_index}).
  *   <li>Backfill: an injector-registered platform carries the registering injector's type in {@code
  *       asset_external_reference} (that is the documented upsert key), so live links are restored
  *       by matching it against {@code injector_type} within the same tenant. Collector external
  *       references are collector ids and never collide with injector types.
  * </ul>
  *
- * <p>Idempotent: the column and constraint are guarded with IF NOT EXISTS, and the backfill only
- * touches rows whose link is still unset.
+ * <p>Idempotent: the column, constraint and index are guarded with IF NOT EXISTS, and the backfill
+ * only touches rows whose link is still unset.
+ *
+ * <p>Re-dated from V6_20260729170000000 before merge: main gained migrations up to
+ * V6_20260730150000000 in the meantime, and Flyway runs with out-of-order disabled, so a version
+ * sorting below the latest released one would silently never apply on already-migrated instances.
  */
 @Component
-public class V6_20260729170000000__Link_security_platforms_to_registering_injectors
+public class V6_20260730180000000__Link_security_platforms_to_registering_injectors
     extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
@@ -50,6 +58,12 @@ public class V6_20260729170000000__Link_security_platforms_to_registering_inject
                 ON DELETE SET NULL;
             END IF;
           END $$;
+          """);
+      statement.execute(
+          """
+          CREATE INDEX IF NOT EXISTS idx_injectors_security_platform
+            ON injectors (injector_security_platform, tenant_id)
+            WHERE injector_security_platform IS NOT NULL;
           """);
       statement.executeUpdate(
           """

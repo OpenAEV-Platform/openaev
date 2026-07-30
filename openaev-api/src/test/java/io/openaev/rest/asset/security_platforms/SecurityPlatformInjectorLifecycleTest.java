@@ -3,6 +3,7 @@ package io.openaev.rest.asset.security_platforms;
 import static io.openaev.rest.asset.security_platforms.SecurityPlatformApi.SECURITY_PLATFORM_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -14,8 +15,11 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.rest.asset.security_platforms.form.SecurityPlatformUpsertInput;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.UUID;
@@ -49,6 +53,8 @@ class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private InjectorRepository injectorRepository;
+  @Autowired private SecurityPlatformRepository securityPlatformRepository;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
 
   private Injector injector;
 
@@ -145,5 +151,35 @@ class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
                 .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.security_platform_injectors").isEmpty());
+  }
+
+  /**
+   * The injector lookup must be scoped by the tenant of the platform row the upsert actually
+   * touched, not by {@code TenantContext} (which falls back to the default tenant when unset). When
+   * the upsert resolves a platform belonging to another tenant, the caller tenant's injector of the
+   * same type must not be linked to it - that would be a cross-tenant link.
+   */
+  @Test
+  @DisplayName("an upsert touching another tenant's platform does not link this tenant's injector")
+  void upsertOnAForeignTenantPlatformLinksNoInjector() throws Exception {
+    Tenant otherTenant = tenantIsolationTestHelper.createTenant("injector-lifecycle-other");
+    SecurityPlatform foreignPlatform = new SecurityPlatform();
+    foreignPlatform.setName("NucleiLifecyclePlatform");
+    foreignPlatform.setSecurityPlatformType(
+        SecurityPlatform.SECURITY_PLATFORM_TYPE.VULNERABILITY_SCANNER);
+    foreignPlatform.setExternalReference(INJECTOR_TYPE);
+    foreignPlatform.setTenant(otherTenant);
+    foreignPlatform = securityPlatformRepository.save(foreignPlatform);
+    entityManager.flush();
+    entityManager.clear();
+
+    String platformId = upsertPlatform(INJECTOR_TYPE);
+
+    assertEquals(foreignPlatform.getId(), platformId);
+    Injector reloaded =
+        injectorRepository
+            .findByTypeAndTenantId(INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .orElseThrow();
+    assertNull(reloaded.getSecurityPlatform());
   }
 }

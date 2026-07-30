@@ -149,6 +149,10 @@ public class SecurityPlatformApi {
    * redeployed injector self-heals the link its previous deployment lost when it was deleted from
    * the catalog (FK is ON DELETE SET NULL). Collector external references are collector ids and
    * never match an injector type, so collector registrations are unaffected (#7063).
+   *
+   * <p>The lookup is scoped by the persisted platform row's tenant, not {@link TenantContext}: the
+   * thread-local falls back to the default tenant when unset (e.g. a call on the non-tenant URI),
+   * which could link the default tenant's injector to another tenant's platform.
    */
   private void linkRegisteringInjector(
       SecurityPlatform securityPlatform, String externalReference) {
@@ -156,7 +160,7 @@ public class SecurityPlatformApi {
       return;
     }
     injectorRepository
-        .findByTypeAndTenantId(externalReference, TenantContext.getCurrentTenant())
+        .findByTypeAndTenantId(externalReference, securityPlatform.getTenant().getId())
         .filter(injector -> injector.getSecurityPlatform() == null)
         .ifPresent(
             injector -> {
