@@ -107,6 +107,9 @@ const DefaultHomeDashboard = () => {
     const params = new URLSearchParams();
     params.set('widget_id', conf.widgetId);
     params.set('series_index', (conf.series_index ?? '').toString());
+    // Totals spanning several series carry every contributing index, so the
+    // drilled list resolves to exactly the documents the tile counted.
+    (conf.series_indexes ?? []).forEach(index => params.append('series_indexes', index.toString()));
     if (conf.filter_values_map) {
       // One URL param per value: comma-joining would corrupt values containing commas,
       // and empty arrays must not produce an empty-string filter value.

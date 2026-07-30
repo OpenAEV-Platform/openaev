@@ -10,6 +10,7 @@ import MDEditor, { commands } from '@uiw/react-md-editor/nohighlight';
 // @ts-ignore
 import { type FunctionComponent, useEffect, useRef, useState } from 'react';
 
+import { type AgentAction } from '../../admin/components/common/form/TextFieldAskAI';
 // eslint-disable-next-line import/no-cycle
 import { useFormatter } from '../../components/i18n';
 import { isNotEmptyField } from '../utils';

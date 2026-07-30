@@ -7,6 +7,9 @@ public enum ContractOutputType {
   @JsonProperty("text")
   Text("text"),
 
+  @JsonProperty("action_output")
+  ActionOutput("action_output"),
+
   @JsonProperty("number")
   Number("number"),
 
@@ -33,6 +36,9 @@ public enum ContractOutputType {
 
   @JsonProperty("share")
   Share("share"),
+
+  @JsonProperty("file")
+  File("file"),
 
   @JsonProperty("admin_username")
   AdminUsername("admin_username"),

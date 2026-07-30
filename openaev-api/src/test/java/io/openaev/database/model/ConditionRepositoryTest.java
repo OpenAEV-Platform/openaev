@@ -13,6 +13,7 @@ import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,7 +66,13 @@ class ConditionRepositoryTest extends IntegrationTest {
     Assertions.assertEquals(2, conditions.size());
 
     Set<PrimitiveType> keys =
-        conditions.stream().map(Condition::getKeyType).collect(Collectors.toSet());
+        conditions.stream()
+            .flatMap(
+                condition ->
+                    condition.getKeyTypes() == null
+                        ? Stream.empty()
+                        : condition.getKeyTypes().stream())
+            .collect(Collectors.toSet());
     Assertions.assertEquals(Set.of(PrimitiveType.IPv4), keys);
 
     Set<String> values = conditions.stream().map(Condition::getValue).collect(Collectors.toSet());

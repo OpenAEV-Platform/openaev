@@ -36,6 +36,7 @@ import io.openaev.service.ImportEntry;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.CollectorTypeHumanizer;
+import io.openaev.utils.ConditionKeyTypesUtils;
 import io.openaev.utils.WorkflowScopeRuleUtils;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
@@ -2102,6 +2103,11 @@ public class V1_DataImporter implements Importer {
           continue;
         }
 
+        MappingType conditionMappingType =
+            condNode.has("condition_mapping_type")
+                    && !condNode.get("condition_mapping_type").isNull()
+                ? MappingType.valueOf(condNode.get("condition_mapping_type").asText())
+                : null;
         Condition condition =
             Condition.builder()
                 .workflowId(workflow.getId())
@@ -2109,18 +2115,28 @@ public class V1_DataImporter implements Importer {
                     condNode.has("condition_key") && !condNode.get("condition_key").isNull()
                         ? condNode.get("condition_key").asText()
                         : null)
-                .keyType(
-                    condNode.has("condition_key_type")
-                            && !condNode.get("condition_key_type").isNull()
-                        ? mapper.convertValue(
-                            condNode.get("condition_key_type").asText(), PrimitiveType.class)
-                        : null)
+                .keyTypes(
+                    ConditionKeyTypesUtils.normalizeForConditionType(
+                        condNode.has("condition_key_types")
+                                && condNode.get("condition_key_types").isArray()
+                            ? StreamSupport.stream(
+                                    condNode.get("condition_key_types").spliterator(), false)
+                                .filter(Objects::nonNull)
+                                .filter(node -> !node.isNull())
+                                .map(
+                                    node -> mapper.convertValue(node.asText(), PrimitiveType.class))
+                                .toList()
+                            : condNode.has("condition_key_type")
+                                    && !condNode.get("condition_key_type").isNull()
+                                ? List.of(
+                                    mapper.convertValue(
+                                        condNode.get("condition_key_type").asText(),
+                                        PrimitiveType.class))
+                                : List.of(),
+                        conditionType,
+                        conditionMappingType))
                 .type(conditionType)
-                .mappingType(
-                    condNode.has("condition_mapping_type")
-                            && !condNode.get("condition_mapping_type").isNull()
-                        ? MappingType.valueOf(condNode.get("condition_mapping_type").asText())
-                        : null)
+                .mappingType(conditionMappingType)
                 .value(
                     condNode.has("condition_value") && !condNode.get("condition_value").isNull()
                         ? condNode.get("condition_value").asText()

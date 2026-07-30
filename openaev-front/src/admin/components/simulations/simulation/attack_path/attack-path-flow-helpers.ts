@@ -770,6 +770,8 @@ export const findingCategoryNoun = (typeFindings?: string): string => {
       return 'open ports';
     case 'hash':
       return 'hashes';
+    case 'share':
+      return 'shares';
     case 'file':
       return 'files';
     case 'password_policy':
@@ -1015,7 +1017,8 @@ export const SENSITIVE_FINDING_TYPES = new Set(['credentials', 'password_policy'
 
 // Mask a finding value for display (rendered as text by the callers — never as HTML). Credentials
 // keep the username visible but mask the secret ("user:pass" -> "user : ••••••"); other secret types
-// (sid, password_policy) are fully masked; everything else is shown as-is.
+// (sid, password_policy) are fully masked; a `file` value is the full location but displays as its
+// basename (the full path stays available in the detail panel); everything else is shown as-is.
 export const maskFindingValue = (typeFindings?: string, value?: string): string => {
   if (!value) {
     return '';
@@ -1030,13 +1033,20 @@ export const maskFindingValue = (typeFindings?: string, value?: string): string 
   if (SENSITIVE_FINDING_TYPES.has(typeFindings ?? '')) {
     return '••••••••';
   }
+  if (typeFindings === 'file') {
+    // The stored value is the full location (e.g. \\host\SYSVOL\dir\secret.ps1); show only the
+    // basename so nodes/cards stay legible. The full path is kept in the finding detail panel.
+    const segments = value.split(/[\\/]/).filter(Boolean);
+    return segments.length > 0 ? segments[segments.length - 1] : value;
+  }
   return value;
 };
 
-// Card filter -> the finding-type values it focuses (issue 6647). "files" maps to `file` (the backend
-// presents SMB `share` findings as `file`, an interim stand-in until a native file finding type
-// exists); "users" also includes admin usernames per product decision.
+// Card filter -> the finding-type values it focuses (issue 6647). "shares" maps to `share`, "files" to
+// the native `file` type (files discovered on shares or listed on a host); "users" also includes admin
+// usernames per product decision.
 export const FILTER_TO_FINDING_TYPES: Record<Exclude<AttackPathFindingFilter, 'endpoints'>, string[]> = {
+  shares: ['share'],
   files: ['file'],
   credentials: ['credentials'],
   users: ['username', 'admin_username'],
@@ -1155,6 +1165,11 @@ export interface CausalConsumedKey {
   // Name of the event (root filter condition) this key belongs to, so the causal edge can read
   // "Triggered <event>" rather than the raw "<key> = <value>". Optional (older/nameless events).
   eventName?: string;
+  // Finding-node ids (NODE_FINDING|type|value) this key matched, resolved by the backend (spec 011,
+  // back-authoritative). The causal edge is anchored on these ids instead of the front re-deriving the
+  // match — the backend reconciles the complex→primitive type (e.g. `port`→`portscan`) and reaches into
+  // the sub-field, which a value-string comparison on the front cannot. Empty until resolved / no match.
+  matchedFindingIds?: string[];
 }
 
 export interface CausalStepMeta {
@@ -1230,6 +1245,7 @@ export const buildKillChainMeta = (dto: AttackPathDTO | null | undefined): Map<s
             operator: key.operator ?? 'EQ',
             value: key.value ?? '',
             eventName: key.eventName,
+            matchedFindingIds: key.matchedFindingIds ?? [],
           });
         }
       }
@@ -1245,25 +1261,6 @@ export const buildKillChainMeta = (dto: AttackPathDTO | null | undefined): Map<s
   return byInjector;
 };
 
-// Read a finding node's produced value (stored on data.label for finding leaf nodes, with an optional
-// data.value mirror), as a string for comparison against a consumed finding key.
-const findingNodeValue = (node: AttackPathFlowNode): string => {
-  const raw = node.data.value ?? node.data.label;
-  return typeof raw === 'string' ? raw : '';
-};
-
-// A consumed key uses the raw PrimitiveType vocabulary (e.g. `share_name`, `password`) while finding
-// nodes use the finding-type vocabulary (`file`, `credentials`). Reconcile the known complex sub-field
-// keys to their finding type here. Primitives that already match a finding type 1:1 (`port`, `cve`,
-// `ipv4`, `username`, `hostname`, `hash`…) are left untouched (identity). NOTE: reconciling the VALUE of
-// a complex finding (reaching into its sub-field, e.g. a share's `share_name`) is the front-side complex
-// matching still to come — today only the TYPE is reconciled and value comparison stays direct, which is
-// correct for primitives; complex value-matching is a follow-up (see backend requirements topo).
-const KEYTYPE_TO_FINDING_TYPE: Record<string, string> = {
-  share_name: 'file',
-  password: 'credentials',
-};
-
 // Label for a causal (finding → consuming action) edge. When the backend named the event (the root
 // filter condition the key belongs to), read it as "Triggered <event>" so the analyst sees WHY the next
 // action ran (its event matched); otherwise fall back to the raw "<key> = <masked value>" match.
@@ -1271,48 +1268,6 @@ const causalKeyLabel = (key: CausalConsumedKey, t: ApTranslate): string =>
   (key.eventName && key.eventName.trim()
     ? t('Triggered {event}', { event: key.eventName })
     : `${key.keyType} = ${maskFindingValue(key.keyType, key.value)}`);
-
-// Does a produced finding node satisfy a consumed finding key?
-//   - the finding's type (data.typeFindings) must equal the reconciled key type, and
-//   - EQ => the finding value equals key.value exactly;
-//   - IN => the finding value is one of key.value's comma-separated members (a small, explicit list
-//     semantics; trimmed). Falls back to substring containment for a single-token key.
-//   - IS_NOT_NULL => any produced finding of the reconciled type matches (presence, not value).
-// EQ, IN and IS_NOT_NULL are handled. SKIPPED operators (no edge emitted, no silent cap): NEQ, GT, GTE,
-// LT, LTE, CONTAINS, REGEX, and any other — add them here when the backend needs them.
-// The type/value core of the match, shared by the flow-node matcher and the logical-finding matcher used
-// by the chain layout (where a finding may be collapsed into a cluster and so has no leaf flow node).
-const matchesKeyValue = (typeFindings: string, value: string, key: CausalConsumedKey): boolean => {
-  const reconciledType = KEYTYPE_TO_FINDING_TYPE[key.keyType] ?? key.keyType;
-  if (typeFindings !== reconciledType) {
-    return false;
-  }
-  // IS_NOT_NULL matches on presence, not value (e.g. "triggered when any share is found"); its key.value is
-  // null, so handle it before the string guard below.
-  if (key.operator === 'IS_NOT_NULL') {
-    return value.length > 0;
-  }
-  // Guard the real DTO field (the mock is always a string, but the backend value may be null/undefined).
-  if (typeof key.value !== 'string') {
-    return false;
-  }
-  if (key.operator === 'EQ') {
-    return value === key.value;
-  }
-  if (key.operator === 'IN') {
-    const members = key.value.split(',').map(s => s.trim()).filter(Boolean);
-    if (members.length > 1) {
-      return members.includes(value);
-    }
-    return value.includes(key.value);
-  }
-  // Unsupported operator (see list above): ignore, emit nothing.
-  return false;
-};
-
-const findingMatchesKey = (node: AttackPathFlowNode, key: CausalConsumedKey): boolean =>
-  node.type === AP_FLOW_NODE_TYPE.finding
-  && matchesKeyValue(node.data.typeFindings ?? '', findingNodeValue(node), key);
 
 /**
  * Build the additive kill-chain causal edges for a set of flow nodes (issue 6647).
@@ -1376,8 +1331,12 @@ export const buildCausalEdges = (
     }
     let matchedAnyFinding = false;
     for (const key of meta.consumedFindingKeys ?? []) {
+      // Backend-authoritative: anchor the edge on the finding-node ids the backend matched for this key
+      // (spec 011). No front re-derivation — the backend already reconciled the complex→primitive type
+      // (e.g. `port`→`portscan`) and reached into the sub-field, which a value-string compare cannot.
+      const matched = new Set(key.matchedFindingIds ?? []);
       for (const finding of findingNodes) {
-        if (!findingMatchesKey(finding, key)) {
+        if (!matched.has(finding.id)) {
           continue;
         }
         matchedAnyFinding = true;
@@ -1556,6 +1515,7 @@ export const buildCausalChainFlow = (
           operator: k.operator ?? 'EQ',
           value: k.value ?? '',
           eventName: k.eventName,
+          matchedFindingIds: k.matchedFindingIds ?? [],
         });
       }
     }
@@ -1894,10 +1854,10 @@ export const buildCausalChainFlow = (
     let matched = false;
     const injY = nodeById.get(injId)?.position.y ?? 0;
     for (const key of s.consumed) {
-      const allFids = [...producersByFinding.keys()].filter((fid) => {
-        const f = findingById.get(fid);
-        return !!f && matchesKeyValue(f.typeFindings ?? '', (f.value ?? f.label ?? ''), key);
-      });
+      // Backend-authoritative: the finding-node ids this key matched (spec 011), intersected with the
+      // findings actually produced in this graph. No front re-derivation of the type/value match.
+      const matchedIds = new Set(key.matchedFindingIds ?? []);
+      const allFids = [...producersByFinding.keys()].filter(fid => matchedIds.has(fid));
       // Prefer findings produced by this consumer's resolved dependency (#6985 populates dependsOn with the
       // real producer step), so the fan-in stays on the real producer's findings and never reaches a
       // same-typed finding from an unrelated injector. Fall back to every match when no dependency resolved.

@@ -80,7 +80,7 @@
           {
             "condition_id": "cond-0001",
             "condition_key": "status",
-            "condition_key_type": "text",
+            "condition_key_types": ["text"],
             "condition_type": "EQ",
             "condition_value": "SUCCESS",
             "condition_name": "root",
@@ -89,7 +89,7 @@
           {
             "condition_id": "cond-0002",
             "condition_key": "port",
-            "condition_key_type": "port",
+            "condition_key_types": ["port"],
             "condition_type": "GT",
             "condition_value": "80",
             "condition_name": "child",
@@ -107,7 +107,7 @@
           {
             "condition_id": "cond-0003",
             "condition_key": "status",
-            "condition_key_type": "text",
+            "condition_key_types": ["text"],
             "condition_type": "EQ",
             "condition_value": "READY",
             "condition_name": "dep",

@@ -962,7 +962,8 @@ class DashboardApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Given Structural Endpoint Histogram breakdown by platform, should return list of windows endpoint")
+        "Given Structural Endpoint Histogram breakdown by platform, should return list of windows"
+            + " endpoint")
     void given_structuralEndpointHistogram_should_returnListOfWindowsEndpoint() throws Exception {
       createEndpoint(
           EndpointFixture.createEndpointWithPlatform("Endpoint A", Endpoint.PLATFORM_TYPE.Windows));
@@ -1110,9 +1111,228 @@ class DashboardApiTest extends IntegrationTest {
       assertThatJson(response).node("es_entities.total").isEqualTo(6);
     }
 
+    /** Sums every bucket of every charted series - what the tile actually renders. */
+    private int tileTotal(Widget widget) throws Exception {
+      String response =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/series/" + widget.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(new HashMap<String, String>()))
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      List<Integer> bucketValues = JsonPath.read(response, "$..data[*].value");
+      return bucketValues.stream().mapToInt(Integer::intValue).sum();
+    }
+
+    private WidgetToEntitiesInput seriesDrillDown(List<Integer> seriesIndexes) {
+      WidgetToEntitiesInput input = new WidgetToEntitiesInput();
+      input.setSeriesIndexes(seriesIndexes);
+      input.setParameters(new HashMap<>());
+      return input;
+    }
+
+    /**
+     * Guards the invariant behind #7079: a tile's number and the list you reach by clicking it must
+     * describe the same documents. The command center's ADVERSARY node totals several series at
+     * once, which a single {@code series_index} cannot express - the drill-down used to restate the
+     * scope as literal status values instead, and silently drifted from the widget definition
+     * (showing 747 while the list returned 795 in production). Naming the aggregated series makes
+     * both read one definition.
+     *
+     * <p>The same data is charted by two widgets so the drilled list is shown to follow the
+     * declared series rather than simply returning everything: a resolved-only widget must leave
+     * the pending expectations out. Only SUCCESS / FAILED / PENDING are exercised because no other
+     * status is reachable - {@code computeStatus} never returns PARTIAL, and returns UNKNOWN only
+     * for a null expected score, which migration V3_36 forbids.
+     */
+    @Test
+    @DisplayName("Given a total spanning several series, drilling it returns exactly that total")
+    void given_totalSpanningSeveralSeries_should_returnExactlyThatTotal() throws Exception {
+      createTechnicalInject(
+          null,
+          null,
+          List.of(
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.FAILED),
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.FAILED),
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.PENDING),
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.PENDING)));
+
+      Widget attempted =
+          createWidgetWithDashboard(
+              WidgetFixture.createExpectationStatusSeriesWidget(
+                  ALL_TIME,
+                  "base_created_at",
+                  List.of(
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                      BaseInjectExpectation.EXPECTATION_STATUS.FAILED,
+                      BaseInjectExpectation.EXPECTATION_STATUS.PENDING)));
+      Widget resolvedOnly =
+          createWidgetWithDashboard(
+              WidgetFixture.createExpectationStatusSeriesWidget(
+                  ALL_TIME,
+                  "base_created_at",
+                  List.of(
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                      BaseInjectExpectation.EXPECTATION_STATUS.FAILED)));
+
+      flushAndProcessElastic();
+
+      // Every attempted validation: the tile counts 5 and the list must hold those same 5.
+      assertThat(tileTotal(attempted)).isEqualTo(5);
+      assertThatJson(
+              performWidgetEntitiesRuntimeRequest(attempted, seriesDrillDown(List.of(0, 1, 2))))
+          .node("es_entities.total")
+          .isEqualTo(tileTotal(attempted));
+
+      // Same data, fewer declared series: the drill-down stays bounded by them and drops
+      // the two pending expectations instead of returning everything.
+      assertThat(tileTotal(resolvedOnly)).isEqualTo(3);
+      assertThatJson(
+              performWidgetEntitiesRuntimeRequest(resolvedOnly, seriesDrillDown(List.of(0, 1))))
+          .node("es_entities.total")
+          .isEqualTo(tileTotal(resolvedOnly));
+
+      // A single index still scopes to that one series.
+      assertThatJson(performWidgetEntitiesRuntimeRequest(attempted, seriesDrillDown(List.of(0))))
+          .node("es_entities.total")
+          .isEqualTo(1);
+    }
+
+    /**
+     * The flat per-key union that collapses a multi-series OR is only equivalent to it when the
+     * series diverge on exactly one key. Here they diverge on two (and the second series' types are
+     * a subset of the first's, so the union of that key does not even grow), which would admit a
+     * DETECTION/FAILED document matching neither series - reject instead of over-counting.
+     */
+    @Test
+    @DisplayName("Given series diverging on two keys, drilling them together is rejected")
+    void given_seriesDivergingOnTwoKeys_should_rejectTheDrillDown() throws Exception {
+      Widget widget =
+          createWidgetWithDashboard(
+              WidgetFixture.createDivergentSeriesWidget(ALL_TIME, "base_created_at"));
+
+      flushAndProcessElastic();
+
+      mvc.perform(
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(seriesDrillDown(List.of(0, 1))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * The series indexes travel as client-controlled URL parameters, so one the widget does not
+     * declare has to answer 400 - even alongside valid indexes, since silently dropping it would
+     * detach the drilled list from the number the caller believes it is expanding. Resolving to an
+     * empty series instead would carry a null filter list - Lombok drops the initializer under
+     * {@code @Builder.Default}, which is why {@link io.openaev.database.model.Filters} null-guards
+     * it everywhere - and surface as an opaque 500.
+     */
+    @Test
+    @DisplayName("Given a series index the widget does not declare, the drill-down is rejected")
+    void given_unknownSeriesIndex_should_rejectTheDrillDown() throws Exception {
+      Widget widget =
+          createWidgetWithDashboard(
+              WidgetFixture.createExpectationStatusSeriesWidget(
+                  ALL_TIME,
+                  "base_created_at",
+                  List.of(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+
+      flushAndProcessElastic();
+
+      mvc.perform(
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(seriesDrillDown(List.of(99))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+
+      // A valid index does not excuse an unknown one riding along with it.
+      mvc.perform(
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(seriesDrillDown(List.of(0, 99))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * The per-key value union that collapses a multi-series OR presumes both series select
+     * documents the same way on that key. Series using different operators (here eq vs not_eq on
+     * the same status values) have no such collapse - the merged filter would keep one operator and
+     * mean something neither series said - so the drill-down must reject the shape.
+     */
+    @Test
+    @DisplayName("Given series using different operators on a key, drilling them is rejected")
+    void given_seriesWithDifferentOperators_should_rejectTheDrillDown() throws Exception {
+      Widget widget =
+          createWidgetWithDashboard(
+              WidgetFixture.createStatusSeriesWidgetWithOperators(
+                  ALL_TIME,
+                  "base_created_at",
+                  Filters.FilterOperator.eq,
+                  List.of(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS.name()),
+                  Filters.FilterOperator.not_eq,
+                  List.of(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS.name())));
+
+      flushAndProcessElastic();
+
+      mvc.perform(
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(seriesDrillDown(List.of(0, 1))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * Negated operators never union soundly: the engine turns every not_eq value into a must-not
+     * clause - a conjunction of exclusions - so {@code NOT SUCCESS} unioned with {@code NOT FAILED}
+     * would exclude both statuses when the OR of the series excludes neither everywhere. The
+     * drill-down must reject the divergence instead of quietly narrowing the list.
+     */
+    @Test
+    @DisplayName("Given series diverging under a negated operator, drilling them is rejected")
+    void given_seriesDivergingUnderNegatedOperator_should_rejectTheDrillDown() throws Exception {
+      Widget widget =
+          createWidgetWithDashboard(
+              WidgetFixture.createStatusSeriesWidgetWithOperators(
+                  ALL_TIME,
+                  "base_created_at",
+                  Filters.FilterOperator.not_eq,
+                  List.of(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS.name()),
+                  Filters.FilterOperator.not_eq,
+                  List.of(BaseInjectExpectation.EXPECTATION_STATUS.FAILED.name())));
+
+      flushAndProcessElastic();
+
+      mvc.perform(
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(seriesDrillDown(List.of(0, 1))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
     @Test
     @DisplayName(
-        "Given security domain widget should return list of expectation filtered by domain, type and status")
+        "Given security domain widget should return list of expectation filtered by domain, type"
+            + " and status")
     void given_securityDomainWidget_should_returnListOfExpectationFilteredByDomain()
         throws Exception {
       Domain networkDomain = createDomain("Network-test", "red");

@@ -20,6 +20,7 @@ public record ChainingOutputType(
 
   static {
     registerPrimitive(ContractOutputType.Text, PrimitiveType.Text);
+    registerPrimitive(ContractOutputType.ActionOutput, PrimitiveType.ActionOutput);
     registerPrimitive(ContractOutputType.Number, PrimitiveType.Number);
     registerPrimitive(ContractOutputType.Port, PrimitiveType.Port);
     registerPrimitive(ContractOutputType.IPv4, PrimitiveType.IPv4);
@@ -28,6 +29,7 @@ public record ChainingOutputType(
     registerComplex(ContractOutputType.Credentials, ComplexType.Credentials);
     registerComplex(ContractOutputType.PortsScan, ComplexType.PortsScan);
     registerComplex(ContractOutputType.Share, ComplexType.Share);
+    registerComplex(ContractOutputType.File, ComplexType.File);
     registerComplex(ContractOutputType.Vulnerability, ComplexType.Vulnerability);
     registerComplex(ContractOutputType.AsreproastableAccount, ComplexType.AsreproastableAccount);
     registerComplex(ContractOutputType.KerberoastableAccount, ComplexType.KerberoastableAccount);

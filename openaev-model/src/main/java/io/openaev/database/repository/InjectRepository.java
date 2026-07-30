@@ -61,6 +61,18 @@ public interface InjectRepository
   @Transactional
   int updateUpdatedAt(@Param("id") @NotNull String id, @Param("updatedAt") Instant updatedAt);
 
+  /**
+   * Resolves the owning tenant of each given inject in one native, filter-exempt query, for
+   * background consumers that group a cross-tenant batch by tenant without an ambient {@code
+   * TenantContext} (mirrors {@code StepRepository.findTenantIdByStepId}, #6904). A native query is
+   * not rewritten by the Hibernate tenant {@code @Filter}, so the result is context-free. Each row
+   * is {@code [inject_id, tenant_id]}; an unknown inject is simply absent from the result.
+   */
+  @Query(
+      value = "SELECT i.inject_id, i.tenant_id FROM injects i WHERE i.inject_id IN :injectIds",
+      nativeQuery = true)
+  List<Object[]> findTenantIdsByInjectIds(@Param("injectIds") Collection<String> injectIds);
+
   // -- SIMULATION --
 
   List<Inject> findByExerciseId(@NotNull String exerciseId);
