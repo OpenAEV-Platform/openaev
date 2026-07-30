@@ -26,7 +26,7 @@ export interface MapperConditionRow {
 
 // Layout design tokens for tactic groups (px)
 const TACTIC_WIDTH = 280; // Width of each tactic column
-const TACTIC_GAP = 80; // Horizontal gap between tactic columns
+const TACTIC_GAP = 260; // Horizontal gap between tactic columns (wide enough to host an event lane on the left of each column)
 const ACTION_WIDTH = 248; // Width of a single action node
 const ACTION_HEIGHT = 70; // Height of a single action node
 const ACTION_GAP = 12; // Vertical gap between action nodes
@@ -457,21 +457,121 @@ export const buildTacticNodes = (
 };
 
 // Layout design tokens for event column (px)
-const EVENT_NODE_HEIGHT = 70;
-const EVENT_GAP = 20;
+const EVENT_NODE_HEIGHT = 100; // Approx. rendered height of an event node (bolt icon + box + "+" button)
+const EVENT_GAP = 40;
+const EVENT_WIDTH = 180; // Width of an event node
+const EVENT_TO_GROUP_GAP = 50; // Horizontal gap between an event and the tactic column it feeds
+
+/** Placement hint for an event: the tactic column it sits left of, and the Y of its target step. */
+export interface EventPlacement {
+  groupX: number;
+  anchorY: number;
+}
 
 /**
- * Position event nodes to the left of the first tactic group.
+ * Resolve, for each event, where it should sit:
+ * - `groupX`: X of the tactic group (column) it should be placed to the left of. An event is
+ *   linked to a step (via the step's `step_condition_ids`); that step belongs to a tactic column.
+ *   When an event feeds several tactics, the leftmost (earliest) one wins.
+ * - `anchorY`: the absolute vertical center of the linked step, used to align the event with its
+ *   target so the connecting arrow stays horizontal (fewer crossings).
  */
-export const positionEventNodes = (eventNodes: Node[]): Node[] =>
-  eventNodes.map((en, i) => ({
-    ...en,
-    position: {
-      x: -300,
-      y: 50 + i * (EVENT_NODE_HEIGHT + EVENT_GAP),
-    },
-    style: { width: 180 },
-  }));
+export const buildEventToGroupX = (
+  actionMetas: Record<string, ActionMeta>,
+  groupNodes: Node[],
+  actionNodes: Node[],
+): Record<string, EventPlacement> => {
+  const groupXById: Record<string, number> = {};
+  const groupYById: Record<string, number> = {};
+  for (const g of groupNodes) {
+    groupXById[g.id] = g.position.x;
+    groupYById[g.id] = g.position.y;
+  }
+
+  const stepToGroupX: Record<string, number> = {};
+  const stepToY: Record<string, number> = {};
+  for (const a of actionNodes) {
+    if (a.parentId && groupXById[a.parentId] !== undefined) {
+      stepToGroupX[a.id] = groupXById[a.parentId];
+      // Absolute vertical center of the step (parent group Y + relative Y + half node height),
+      // so events can be aligned to it regardless of the group's own Y offset.
+      stepToY[a.id] = (groupYById[a.parentId] ?? 0) + a.position.y + ACTION_HEIGHT / 2;
+    }
+  }
+
+  const placement: Record<string, EventPlacement> = {};
+  for (const [stepId, meta] of Object.entries(actionMetas)) {
+    const gx = stepToGroupX[stepId];
+    if (gx === undefined) continue;
+    const y = stepToY[stepId] ?? 0;
+    for (const eventId of meta.step_condition_ids) {
+      const current = placement[eventId];
+      // Prefer the leftmost column; within the same column, keep the topmost step as anchor.
+      if (!current || gx < current.groupX || (gx === current.groupX && y < current.anchorY)) {
+        placement[eventId] = {
+          groupX: gx,
+          anchorY: y,
+        };
+      }
+    }
+  }
+
+  return placement;
+};
+
+/**
+ * Position event nodes to the left of the tactic group they feed.
+ *
+ * <p>Each event is placed at its target step's vertical center so the event→step arrow is
+ * horizontal. Events feeding the same column are processed top-to-bottom by anchor; when two would
+ * overlap, the lower one is pushed down by the minimum gap ("align, then de-overlap"). Events not
+ * linked to any step fall back to the far-left lane (X = 0) and are appended below the anchored ones.
+ */
+export const positionEventNodes = (
+  eventNodes: Node[],
+  placement: Record<string, EventPlacement> = {},
+): Node[] => {
+  // Bucket events per lane (column X). Each event remembers the absolute center of the step it
+  // feeds (anchorY); orphan events (no linked step) carry a null anchor and sink to the bottom.
+  const lanes: Record<number, {
+    node: Node;
+    anchorY: number | null;
+  }[]> = {};
+  for (const en of eventNodes) {
+    const p = placement[en.id];
+    const x = (p?.groupX ?? 0) - EVENT_WIDTH - EVENT_TO_GROUP_GAP;
+    (lanes[x] ??= []).push({
+      node: en,
+      anchorY: p?.anchorY ?? null,
+    });
+  }
+
+  const positioned: Node[] = [];
+  for (const [x, items] of Object.entries(lanes)) {
+    // Order by the target step's center, so arrows keep their vertical order; orphans go last.
+    items.sort(
+      (a, b) => (a.anchorY ?? Number.POSITIVE_INFINITY) - (b.anchorY ?? Number.POSITIVE_INFINITY),
+    );
+
+    // Align each event to its step's center, cascading down only to resolve overlaps. `cursor` is
+    // the lowest Y still available; it starts at the top padding, so events never rise above it.
+    let cursor = GROUP_PADDING_TOP;
+    for (const { node, anchorY } of items) {
+      const desiredTop = anchorY === null ? cursor : anchorY - EVENT_NODE_HEIGHT / 2;
+      const y = Math.max(desiredTop, cursor);
+      positioned.push({
+        ...node,
+        position: {
+          x: Number(x),
+          y,
+        },
+        style: { width: EVENT_WIDTH },
+      });
+      cursor = y + EVENT_NODE_HEIGHT + EVENT_GAP;
+    }
+  }
+  return positioned;
+};
 
 /**
  * Reconstruct edges from step_condition_ids linking events to actions.

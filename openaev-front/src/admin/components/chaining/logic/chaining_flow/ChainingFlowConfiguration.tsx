@@ -53,6 +53,8 @@ interface ChainingFlowConfigurationProps {
   eventCount: number;
   /** When set, the action list opens pre-filtered to actions that produce this output type. */
   compatibleActionFilter?: string;
+  /** When set, newly created actions are linked to this event (added via the event node "+"). */
+  linkToEventId?: string;
 }
 
 const ChainingFlowConfiguration = ({
@@ -68,6 +70,7 @@ const ChainingFlowConfiguration = ({
   onEventCreated,
   eventCount,
   compatibleActionFilter,
+  linkToEventId,
 }: ChainingFlowConfigurationProps) => {
   const { t } = useFormatter();
 
@@ -155,6 +158,7 @@ const ChainingFlowConfiguration = ({
       return createStep({
         step_workflow_id: workflowId,
         step_action: 'INJECT_EXECUTION' as const,
+        step_condition_ids: linkToEventId ? [linkToEventId] : [],
         step_data_step: {
           inject_title: title,
           inject_injector_contract: action.injector_contract_id,
@@ -211,7 +215,7 @@ const ChainingFlowConfiguration = ({
     const stepPayload = {
       step_workflow_id: workflowId,
       step_action: 'INJECT_EXECUTION' as const,
-      step_condition_ids: editingStep?.meta.step_condition_ids ?? [],
+      step_condition_ids: editingStep?.meta.step_condition_ids ?? (linkToEventId ? [linkToEventId] : []),
       step_conditions: stepConditions.length > 0 ? stepConditions : undefined,
       step_data_step: {
         inject_title: data.inject_title,
