@@ -1235,6 +1235,100 @@ class DashboardApiTest extends IntegrationTest {
           .andExpect(status().isBadRequest());
     }
 
+    /**
+     * The series indexes travel as client-controlled URL parameters, so one the widget does not
+     * declare has to answer 400 - even alongside valid indexes, since silently dropping it would
+     * detach the drilled list from the number the caller believes it is expanding. Resolving to an
+     * empty series instead would carry a null filter list - Lombok drops the initializer under
+     * {@code @Builder.Default}, which is why {@link io.openaev.database.model.Filters} null-guards
+     * it everywhere - and surface as an opaque 500.
+     */
+    @Test
+    @DisplayName("Given a series index the widget does not declare, the drill-down is rejected")
+    void given_unknownSeriesIndex_should_rejectTheDrillDown() throws Exception {
+      Widget widget =
+          createWidgetWithDashboard(
+              WidgetFixture.createExpectationStatusSeriesWidget(
+                  ALL_TIME,
+                  "base_created_at",
+                  List.of(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+
+      flushAndProcessElastic();
+
+      mvc.perform(
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(seriesDrillDown(List.of(99))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+
+      // A valid index does not excuse an unknown one riding along with it.
+      mvc.perform(
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(seriesDrillDown(List.of(0, 99))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * The per-key value union that collapses a multi-series OR presumes both series select
+     * documents the same way on that key. Series using different operators (here eq vs not_eq on
+     * the same status values) have no such collapse - the merged filter would keep one operator and
+     * mean something neither series said - so the drill-down must reject the shape.
+     */
+    @Test
+    @DisplayName("Given series using different operators on a key, drilling them is rejected")
+    void given_seriesWithDifferentOperators_should_rejectTheDrillDown() throws Exception {
+      Widget widget =
+          createWidgetWithDashboard(
+              WidgetFixture.createStatusSeriesWidgetWithOperators(
+                  ALL_TIME,
+                  "base_created_at",
+                  Filters.FilterOperator.eq,
+                  List.of(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS.name()),
+                  Filters.FilterOperator.not_eq,
+                  List.of(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS.name())));
+
+      flushAndProcessElastic();
+
+      mvc.perform(
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(seriesDrillDown(List.of(0, 1))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * Negated operators never union soundly: the engine turns every not_eq value into a must-not
+     * clause - a conjunction of exclusions - so {@code NOT SUCCESS} unioned with {@code NOT FAILED}
+     * would exclude both statuses when the OR of the series excludes neither everywhere. The
+     * drill-down must reject the divergence instead of quietly narrowing the list.
+     */
+    @Test
+    @DisplayName("Given series diverging under a negated operator, drilling them is rejected")
+    void given_seriesDivergingUnderNegatedOperator_should_rejectTheDrillDown() throws Exception {
+      Widget widget =
+          createWidgetWithDashboard(
+              WidgetFixture.createStatusSeriesWidgetWithOperators(
+                  ALL_TIME,
+                  "base_created_at",
+                  Filters.FilterOperator.not_eq,
+                  List.of(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS.name()),
+                  Filters.FilterOperator.not_eq,
+                  List.of(BaseInjectExpectation.EXPECTATION_STATUS.FAILED.name())));
+
+      flushAndProcessElastic();
+
+      mvc.perform(
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(seriesDrillDown(List.of(0, 1))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
     @Test
     @DisplayName(
         "Given security domain widget should return list of expectation filtered by domain, type"

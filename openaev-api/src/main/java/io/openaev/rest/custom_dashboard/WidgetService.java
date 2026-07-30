@@ -100,22 +100,6 @@ public class WidgetService {
   }
 
   /**
-   * Converts a widget configuration to a list configuration for data display. Applies
-   * series-specific filters and handles different widget types (temporal/structural histograms).
-   *
-   * @param widget the source widget containing the configuration to convert
-   * @param seriesIndex the index of the series within the widget to use for conversion
-   * @param filterValues optional filter values to apply (e.g., date ranges for temporal, field
-   *     values for structural histograms)
-   * @return a ListConfiguration object configured based on the widget settings
-   */
-  public ListConfiguration convertWidgetToListConfiguration(
-      Widget widget, Integer seriesIndex, Map<String, List<String>> filterValues) {
-    return convertWidgetToListConfiguration(
-        widget, List.of(seriesIndex == null ? 0 : seriesIndex), filterValues);
-  }
-
-  /**
    * Converts a widget configuration to a list configuration for data display, scoped to every
    * series that produced the clicked number.
    *
@@ -127,7 +111,8 @@ public class WidgetService {
    * changes.
    *
    * @param widget the source widget containing the configuration to convert
-   * @param seriesIndexes the indexes of the series to OR together; out-of-range entries are ignored
+   * @param seriesIndexes the indexes of the series to OR together; every index must name a series
+   *     the widget declares, else the drill-down is rejected
    * @param filterValues optional filter values to apply (e.g., date ranges for temporal, field
    *     values for structural histograms)
    * @return a ListConfiguration object configured based on the widget settings
@@ -191,7 +176,9 @@ public class WidgetService {
    * series over the same entity), and for that shape the OR collapses exactly onto {@code E AND s
    * IN (X, Y)} - a per-key union of values. Series that diverge on more than one key have no such
    * collapse and their union would silently be a superset of the real scope, so that case is
-   * rejected rather than over-counted.
+   * rejected rather than over-counted. The collapse also presumes both series select documents the
+   * same way on the diverging key; {@link #mergeFilter} rejects the shapes where it would not (a
+   * different operator, a negated operator, a multi-value and-mode filter).
    *
    * <p>Filters are deep-copied: the returned group is handed to {@link
    * WidgetUtils#setOrAddFilterByKey} which mutates it in place, and the source belongs to the
@@ -199,19 +186,23 @@ public class WidgetService {
    */
   private WidgetConfigurationWithSeries.Series mergeSeries(
       WidgetConfiguration widgetConfig, List<Integer> seriesIndexes) {
-    if (!(widgetConfig instanceof WidgetConfigurationWithSeries config)) {
-      return new WidgetConfigurationWithSeries.Series();
-    }
-    List<WidgetConfigurationWithSeries.Series> all = config.getSeries();
+    List<WidgetConfigurationWithSeries.Series> all =
+        widgetConfig instanceof WidgetConfigurationWithSeries config && config.getSeries() != null
+            ? config.getSeries()
+            : List.of();
     List<Integer> indexes = seriesIndexes == null ? List.of() : seriesIndexes;
-    List<WidgetConfigurationWithSeries.Series> selected =
-        indexes.stream()
-            .filter(index -> index != null && index >= 0 && index < all.size())
-            .map(all::get)
-            .toList();
-    if (selected.isEmpty()) {
-      return new WidgetConfigurationWithSeries.Series();
+    // These indexes reach us as client-controlled URL parameters, so an unknown one has to
+    // answer 400. Silently dropping it would detach the drilled list from the number the
+    // caller believes it is expanding, and resolving to an empty series instead would carry
+    // a null filter list (Lombok drops the field initializer under @Builder.Default, which
+    // is why Filters null-guards it everywhere) and surface as an opaque 500 further down.
+    if (indexes.isEmpty()
+        || indexes.stream().anyMatch(index -> index == null || index < 0 || index >= all.size())) {
+      throw new IllegalArgumentException(
+          "Cannot drill down into series %s: the widget declares %d series"
+              .formatted(indexes, all.size()));
     }
+    List<WidgetConfigurationWithSeries.Series> selected = indexes.stream().map(all::get).toList();
 
     WidgetConfigurationWithSeries.Series merged = new WidgetConfigurationWithSeries.Series();
     merged.setName(selected.getFirst().getName());
@@ -230,15 +221,7 @@ public class WidgetService {
       }
       for (Filters.Filter filter : otherFilter.getFilters()) {
         Filters.Filter target = merged.getFilter().findByKey(filter.getKey()).orElseThrow();
-        // Divergence is a set difference, not union growth: when one series' values are a
-        // subset of another's the union does not grow, yet the series do differ on that key.
-        // Missing it would let a second diverging key pass the guard below and widen the
-        // scope to documents matching neither original series.
-        if (!valueSet(target).equals(valueSet(filter))) {
-          divergingKeys.add(filter.getKey());
-          target.setValues(unionValues(target.getValues(), filter.getValues()));
-          target.setMode(Filters.FilterMode.or);
-        }
+        mergeFilter(target, filter, divergingKeys);
       }
     }
     if (divergingKeys.size() > 1) {
@@ -246,6 +229,85 @@ public class WidgetService {
           "Cannot drill down into series diverging on more than one filter key: " + divergingKeys);
     }
     return merged;
+  }
+
+  /**
+   * Merges one series' filter into the accumulating drill-down filter for the same key.
+   *
+   * <p>Divergence is a set difference, not union growth: when one series' values are a subset of
+   * another's the union does not grow, yet the series do differ on that key. Missing it would let a
+   * second diverging key pass the guard in {@link #mergeSeries} and widen the scope to documents
+   * matching neither original series.
+   *
+   * <p>The per-key value union stands in for the OR of the series only when both sides select
+   * documents the same way. A different operator makes the merged filter mean something neither
+   * series said, so operators must match. Negated operators never union soundly: the engine turns
+   * every not_eq / not_contains value into a must-not clause - a conjunction of exclusions - so
+   * adding values narrows the match where the OR of the series must widen it. A multi-value
+   * and-mode side has no flat collapse either ({@code (A AND B) OR C} cannot be expressed as one
+   * value list), which also rejects two series carrying the same values under different modes.
+   */
+  private static void mergeFilter(
+      Filters.Filter target, Filters.Filter incoming, Set<String> divergingKeys) {
+    if (effectiveOperator(target) != effectiveOperator(incoming)) {
+      throw new IllegalArgumentException(
+          "Cannot drill down into series using different operators on '%s': %s vs %s"
+              .formatted(
+                  incoming.getKey(), effectiveOperator(target), effectiveOperator(incoming)));
+    }
+    if (valueSet(target).equals(valueSet(incoming))
+        && effectiveMode(target) == effectiveMode(incoming)) {
+      return;
+    }
+    divergingKeys.add(incoming.getKey());
+    if (!UNION_SAFE_OPERATORS.contains(effectiveOperator(incoming))) {
+      throw new IllegalArgumentException(
+          "Cannot drill down into series diverging on '%s': a value union under operator %s does"
+              + " not express the OR of the series"
+                  .formatted(incoming.getKey(), effectiveOperator(incoming)));
+    }
+    if (effectiveMode(target) == Filters.FilterMode.and
+        || effectiveMode(incoming) == Filters.FilterMode.and) {
+      throw new IllegalArgumentException(
+          "Cannot drill down into series diverging on '%s': a series requires all its values at"
+              + " once (and-mode) on that key".formatted(incoming.getKey()));
+    }
+    target.setValues(unionValues(target.getValues(), incoming.getValues()));
+    target.setMode(Filters.FilterMode.or);
+  }
+
+  /**
+   * Operators whose values the query engine combines disjunctively under or-mode, making a per-key
+   * value union equivalent to the OR of the series. Negated operators (not_eq, not_contains)
+   * combine their values as must-not clauses regardless of mode, and empty / not_empty ignore
+   * values entirely.
+   */
+  private static final Set<Filters.FilterOperator> UNION_SAFE_OPERATORS =
+      Set.of(
+          Filters.FilterOperator.eq,
+          Filters.FilterOperator.contains,
+          Filters.FilterOperator.gt,
+          Filters.FilterOperator.gte,
+          Filters.FilterOperator.lt,
+          Filters.FilterOperator.lte);
+
+  /** Null collapses onto {@code eq}, matching {@link Filters.FilterOperator#fromValue}. */
+  private static Filters.FilterOperator effectiveOperator(Filters.Filter filter) {
+    return filter.getOperator() == null ? Filters.FilterOperator.eq : filter.getOperator();
+  }
+
+  /**
+   * The mode as the query engine reads it: only a literal {@code and} conjoins values, anything
+   * else (or, null) is disjunctive. With a single value the distinction has no effect at all, so
+   * such filters are treated as disjunctive to keep them mergeable.
+   */
+  private static Filters.FilterMode effectiveMode(Filters.Filter filter) {
+    if (nullSafe(filter.getValues()).size() <= 1) {
+      return Filters.FilterMode.or;
+    }
+    return filter.getMode() == Filters.FilterMode.and
+        ? Filters.FilterMode.and
+        : Filters.FilterMode.or;
   }
 
   private static Filters.FilterGroup copyFilterGroup(Filters.FilterGroup source) {

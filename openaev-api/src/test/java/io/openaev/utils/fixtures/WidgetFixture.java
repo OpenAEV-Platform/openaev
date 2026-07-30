@@ -235,6 +235,56 @@ public class WidgetFixture {
     return widget;
   }
 
+  /**
+   * Two series over the same entity whose status filters agree on keys yet select documents
+   * differently - each with the given operator and values. A per-key value union of such series
+   * means something neither of them said (and negated operators combine their values as must-not
+   * clauses, so a union narrows instead of widening), so a multi-series drill-down must reject the
+   * shape rather than collapse it.
+   */
+  public static Widget createStatusSeriesWidgetWithOperators(
+      CustomDashboardTimeRange timeRange,
+      String dateAttribute,
+      Filters.FilterOperator firstOperator,
+      List<String> firstValues,
+      Filters.FilterOperator secondOperator,
+      List<String> secondValues) {
+    Widget widget = new Widget();
+    widget.setType(DONUT);
+    StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
+    widgetConfig.setSeries(
+        List.of(
+            createStatusOperatorSerie(firstOperator, firstValues),
+            createStatusOperatorSerie(secondOperator, secondValues)));
+    widgetConfig.setTitle(NAME);
+    widgetConfig.setField("inject_expectation_type");
+    widgetConfig.setDateAttribute(dateAttribute);
+    widgetConfig.setTimeRange(timeRange);
+    widget.setWidgetConfiguration(widgetConfig);
+    widget.setLayout(new WidgetLayout());
+    return widget;
+  }
+
+  private static WidgetConfigurationWithSeries.Series createStatusOperatorSerie(
+      Filters.FilterOperator operator, List<String> values) {
+    WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
+    series.setName(operator.name());
+    Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+    filterGroup.setMode(Filters.FilterMode.and);
+    filterGroup.setFilters(
+        new ArrayList<>(
+            List.of(
+                createFilter(
+                    "base_entity",
+                    Filters.FilterMode.or,
+                    Filters.FilterOperator.eq,
+                    List.of("expectation-inject")),
+                createFilter(
+                    "inject_expectation_status", Filters.FilterMode.or, operator, values))));
+    series.setFilter(filterGroup);
+    return series;
+  }
+
   private static WidgetConfigurationWithSeries.Series createExpectationSerie(
       List<String> types, String status) {
     WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
