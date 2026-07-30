@@ -113,7 +113,6 @@ public class StepService {
     Step persistedTemplate =
         findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
 
-
     ActionStep actionStep =
         factoryAction(persistedTemplate.getStepAction(), persistedTemplate.getId());
 
