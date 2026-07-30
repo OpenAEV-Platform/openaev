@@ -365,7 +365,7 @@ public class WorkflowService {
   }
 
   private boolean hasVariableChanged(ScopeVariable existing, ScopeVariableInput input) {
-    String resolvedValue = resolveScopeVariableValue(existing, input);
+    String resolvedValue = resolveScopeVariableValueForPersistence(existing, input);
     return !Objects.equals(existing.getKey(), input.getKey())
         || !Objects.equals(existing.getType(), input.getType())
         || !Objects.equals(existing.getValue(), resolvedValue)
@@ -375,12 +375,20 @@ public class WorkflowService {
   private void updateScopeVariable(ScopeVariable existing, ScopeVariableInput input) {
     existing.setKey(input.getKey());
     existing.setType(input.getType());
-    existing.setValue(resolveScopeVariableValue(existing, input));
+    existing.setValue(resolveScopeVariableValueForPersistence(existing, input));
     existing.setDescription(input.getDescription());
   }
 
-  private String resolveScopeVariableValue(ScopeVariable existing, ScopeVariableInput input) {
-    if (PrimitiveValueMaskingUtils.isMaskedEcho(
+  /**
+   * Resolves the scope variable value that should be persisted from an update payload.
+   *
+   * <p>When a sensitive value is masked in API responses, the frontend may send this masked
+   * representation back unchanged. In that case we must preserve the existing raw value rather than
+   * overwrite it with the masked string.
+   */
+  private String resolveScopeVariableValueForPersistence(
+      ScopeVariable existing, ScopeVariableInput input) {
+    if (PrimitiveValueMaskingUtils.isMaskedRepresentationOfCurrentValue(
         existing.getType(), existing.getValue(), input.getValue())) {
       return existing.getValue();
     }

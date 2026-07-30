@@ -62,7 +62,7 @@ public class WorkflowConfigurationMapper {
         .id(variable.getId())
         .key(variable.getKey())
         .type(variable.getType())
-        .value(PrimitiveValueMaskingUtils.maskValue(variable.getType(), variable.getValue()))
+        .value(PrimitiveValueMaskingUtils.maskForDisplay(variable.getType(), variable.getValue()))
         .description(variable.getDescription())
         .build();
   }

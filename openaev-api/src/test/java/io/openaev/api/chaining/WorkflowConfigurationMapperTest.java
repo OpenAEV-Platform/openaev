@@ -144,11 +144,7 @@ class WorkflowConfigurationMapperTest {
               .value("ABCDEF123456")
               .build();
       ScopeVariable keyVariable =
-          ScopeVariable.builder()
-              .key("keyVar")
-              .type(PrimitiveType.Key)
-              .value("XYZ987654")
-              .build();
+          ScopeVariable.builder().key("keyVar").type(PrimitiveType.Key).value("XYZ987654").build();
       ScopeVariable textVariable =
           ScopeVariable.builder()
               .key("textVar")

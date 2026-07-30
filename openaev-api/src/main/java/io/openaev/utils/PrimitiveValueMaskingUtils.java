@@ -15,7 +15,7 @@ public final class PrimitiveValueMaskingUtils {
 
   private PrimitiveValueMaskingUtils() {}
 
-  public static String maskValue(PrimitiveType type, String value) {
+  public static String maskForDisplay(PrimitiveType type, String value) {
     if (value == null || type == null) {
       return value;
     }
@@ -32,10 +32,11 @@ public final class PrimitiveValueMaskingUtils {
         + value.substring(value.length() - rule.suffixLength());
   }
 
-  public static boolean isMaskedEcho(PrimitiveType type, String rawValue, String candidateValue) {
+  public static boolean isMaskedRepresentationOfCurrentValue(
+      PrimitiveType type, String rawValue, String candidateValue) {
     if (type == null || rawValue == null || candidateValue == null) {
       return false;
     }
-    return maskValue(type, rawValue).equals(candidateValue);
+    return maskForDisplay(type, rawValue).equals(candidateValue);
   }
 }
