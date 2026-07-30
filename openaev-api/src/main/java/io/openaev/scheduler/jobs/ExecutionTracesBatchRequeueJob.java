@@ -1,6 +1,6 @@
 package io.openaev.scheduler.jobs;
 
-import io.openaev.rest.inject.service.BatchingInjectStatusService;
+import io.openaev.service.inject.BatchingInjectStatusService;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
