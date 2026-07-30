@@ -177,8 +177,6 @@ public class CrowdStrikeExecutorClient {
     } catch (IOException e) {
       logErrorMessage(e.getMessage(), e);
       throw new ExecutorException(e, e.getMessage(), CROWDSTRIKE_EXECUTOR_NAME);
-    } catch (Exception e) {
-      logErrorMessage(e.getMessage(), e);
     }
   }
 
