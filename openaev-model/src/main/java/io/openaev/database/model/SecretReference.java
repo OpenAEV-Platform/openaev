@@ -51,7 +51,6 @@ public class SecretReference implements TenantBase {
 
   @Column(name = "secret_reference_description")
   @JsonProperty("secret_reference_description")
-  @NotBlank
   private String description;
 
   @Column(name = "secret_reference_connector_instance_id")
