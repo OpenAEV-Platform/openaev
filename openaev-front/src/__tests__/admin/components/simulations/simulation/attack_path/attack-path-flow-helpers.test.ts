@@ -416,6 +416,7 @@ const killChainDto: AttackPathDTO = {
         keyType: 'port',
         operator: 'EQ',
         value: '445',
+        matchedFindingIds: ['find-port'],
       }],
       dependsOn: [],
     },
@@ -428,6 +429,7 @@ const killChainDto: AttackPathDTO = {
         keyType: 'share_name',
         operator: 'EQ',
         value: 'ADMIN$',
+        matchedFindingIds: ['find-share'],
       }],
       dependsOn: ['step-A'],
     },
@@ -479,11 +481,13 @@ describe('buildKillChainMeta', () => {
       keyType: 'port',
       operator: 'EQ',
       value: '445',
+      matchedFindingIds: ['find-port'],
     }]);
     expect(meta.get('inj-smb')?.consumedFindingKeys).toEqual([{
       keyType: 'share_name',
       operator: 'EQ',
       value: 'ADMIN$',
+      matchedFindingIds: ['find-share'],
     }]);
   });
 
@@ -506,8 +510,8 @@ describe('buildKillChainMeta', () => {
 });
 
 describe('buildCausalEdges', () => {
-  it('draws a solid finding edge, reconciling the primitive key type (share_name -> share)', () => {
-    // Arrange
+  it('anchors a solid finding edge on the backend-resolved matchedFindingIds', () => {
+    // Arrange: the backend resolved that this consumer's key matched the finding node 'find-share'.
     const meta = buildKillChainMeta(killChainDto);
     const nodes = [injectorNode('inj-smb'), findingNode('find-share', 'share', 'ADMIN$')];
     // Act
@@ -520,8 +524,33 @@ describe('buildCausalEdges', () => {
     expect(edges[0].data?.causalKind).toBe('finding');
   });
 
-  it('emits no edge when no produced finding matches the consumed key', () => {
+  it('links a complex finding the front cannot parse (portscan "host:port (service)") to a primitive port key', () => {
+    // Arrange: a portscan finding whose value is "host:port (service)". The old front matcher could never
+    // derive `port == 445` from that string (wrong type `portscan` != `port`, and no sub-field parse) — but
+    // the backend did, and listed the node id in matchedFindingIds. This is the exact case the migration fixes.
+    const fid = 'NODE_FINDING|portscan|10.0.0.1:445 (microsoft-ds)';
+    const meta = new Map([['inj-nmap', {
+      dependsOn: [],
+      consumedFindingKeys: [{
+        keyType: 'port',
+        operator: 'EQ',
+        value: '445',
+        matchedFindingIds: [fid],
+      }],
+    }]]);
+    const nodes = [injectorNode('inj-nmap'), findingNode(fid, 'portscan', '10.0.0.1:445 (microsoft-ds)')];
+    // Act
+    const edges = buildCausalEdges(nodes, id => (id ? meta.get(id) : undefined), tt);
+    // Assert: the solid causal edge is drawn, driven purely by the backend match.
+    expect(edges).toHaveLength(1);
+    expect(edges[0].source).toBe(fid);
+    expect(edges[0].target).toBe('inj-nmap');
+    expect(edges[0].data?.causalKind).toBe('finding');
+  });
+
+  it('emits no finding edge when the key matched nothing on the backend (node id absent from matchedFindingIds)', () => {
     const meta = buildKillChainMeta(killChainDto);
+    // inj-nmap's key matched 'find-port'; a 'find-cve' node is not in that set, and inj-nmap has no dependsOn.
     const nodes = [injectorNode('inj-nmap'), findingNode('find-cve', 'cve', 'CVE-2024-0001')];
     const edges = buildCausalEdges(nodes, id => (id ? meta.get(id) : undefined), tt);
     expect(edges).toHaveLength(0);
@@ -576,6 +605,7 @@ const chainDto: AttackPathDTO = {
         keyType: 'port',
         operator: 'EQ',
         value: '445',
+        matchedFindingIds: ['NODE_FINDING|port|445'],
       }],
       dependsOn: ['step-A'],
     },
@@ -679,6 +709,7 @@ describe('buildCausalChainFlow', () => {
             operator: 'IS_NOT_NULL',
             value: null as unknown as string,
             eventName: 'PORT FOUND',
+            matchedFindingIds: ['NODE_FINDING|port|445'],
           }],
           dependsOn: [],
         },
@@ -742,6 +773,7 @@ describe('buildCausalChainFlow', () => {
             operator: 'IS_NOT_NULL',
             value: null as unknown as string,
             eventName: 'SHARE',
+            matchedFindingIds: ['NODE_FINDING|share|NETLOGON', 'NODE_FINDING|share|SYSVOL', 'NODE_FINDING|share|CertEnroll'],
           }],
           dependsOn: [],
         },
@@ -806,6 +838,7 @@ describe('buildCausalChainFlow', () => {
             operator: 'IS_NOT_NULL',
             value: null as unknown as string,
             eventName: 'SHARE',
+            matchedFindingIds: fids.map(v => `NODE_FINDING|share|${v}`),
           }],
           dependsOn: ['step-A'],
         },
@@ -920,6 +953,9 @@ describe('buildCausalChainFlow', () => {
             operator: 'IS_NOT_NULL',
             value: null as unknown as string,
             eventName: 'SHARE',
+            // The backend matched BOTH shares (the SHARE event); the front's dependency-preference then
+            // narrows the fan-in to the resolved producer's finding (shareA), never shareB's.
+            matchedFindingIds: ['NODE_FINDING|share|shareA', 'NODE_FINDING|share|shareB'],
           }],
           dependsOn: ['step-A'],
         },
