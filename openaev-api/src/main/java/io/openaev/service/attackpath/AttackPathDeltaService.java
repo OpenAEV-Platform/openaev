@@ -47,9 +47,11 @@ import org.springframework.transaction.annotation.Transactional;
  * finding counts, an edge's execution count — is then recomputed over ALL the rows of the affected
  * endpoints and shipped whole (FR1), which is O(what changed) rather than O(graph).
  *
- * <p>"Changed rows" is closed over one relation before the pass runs: the executions that produced
- * the batch's findings are pulled in even when they did not change, because the pass derives the
- * causal wiring by intersecting the two sides (see {@link #withProducersOf}).
+ * <p>The causal wiring gets the same treatment, in both directions, because the pass derives it by
+ * intersecting the executions and the findings it is handed and a bump only ever carries one side:
+ * the executions that PRODUCED the batch's findings are pulled in before the pass ({@link
+ * #withProducersOf}), and the keys the batch's executions CONSUME are re-resolved after it against
+ * every finding they could match ({@link AttackPathGraphService#recomputeEventDependencies}).
  */
 @Service
 @RequiredArgsConstructor
@@ -119,9 +121,7 @@ public class AttackPathDeltaService {
       String simulationId, long since, long currentVersion, Collection<String> tenantIds) {
     List<AttackPathExecutionRow> changedExecutions =
         executionRepository.findGraphRowsSince(simulationId, since);
-    List<AttackPathFindingRow> findings =
-        AttackPathGraphService.presentGraphRows(
-            findingRepository.findGraphRowsSince(simulationId, since));
+    List<AttackPathFindingRow> findings = findingRepository.findGraphRowsSince(simulationId, since);
     if (changedExecutions.isEmpty() && findings.isEmpty()) {
       // The version moved but nothing this read can see changed (a guarded verdict update that
       // matched no row, or a re-copy of identical findings): an empty tick, and null counters say
@@ -141,6 +141,10 @@ public class AttackPathDeltaService {
     executions.forEach(e -> affectedEndpoints.add(e.targetKey()));
     findings.forEach(f -> affectedEndpoints.add(f.endpointKey()));
     recomputeAggregates(simulationId, affectedEndpoints, nodesById, edgesById);
+    // The other half of the causal closure: a consuming step's keys matched against every finding
+    // they could reach, not just this batch's — the findings a key consumes were written before it.
+    graphService.recomputeEventDependencies(
+        simulationId, executions, partial.attackPathExecutions());
 
     return new AttackPathDeltaDTO(
         since,
@@ -154,16 +158,17 @@ public class AttackPathDeltaService {
   }
 
   /**
-   * Adds the executions that produced this batch's findings, when they are not in the batch already.
+   * Adds the executions that produced this batch's findings, when they are not in the batch
+   * already.
    *
    * <p>This is what makes the delta causally closed, and it is not an optimisation detail: findings
    * are copied in their OWN version bump, after the execution that produced them, so a batch that
-   * carries findings almost never carries their producers. The rebuild pass derives the causal wiring
-   * — an execution's {@code findingsNodeIds}, a finding node's worst-case verdict, the event
+   * carries findings almost never carries their producers. The rebuild pass derives the causal
+   * wiring — an execution's {@code findingsNodeIds}, a finding node's worst-case verdict, the event
    * dependencies between steps — by intersecting the executions and the findings it is handed, so
-   * without the producers it emits finding nodes that no execution claims. The causal chain places a
-   * finding only from its producer's list, so the client accumulated the nodes and rendered none of
-   * them: the whole finding layer of the graph appeared only after a reload, which re-read the
+   * without the producers it emits finding nodes that no execution claims. The causal chain places
+   * a finding only from its producer's list, so the client accumulated the nodes and rendered none
+   * of them: the whole finding layer of the graph appeared only after a reload, which re-read the
    * snapshot over all the rows at once.
    *
    * <p>One primary-key read, bounded by the batch's distinct producers.

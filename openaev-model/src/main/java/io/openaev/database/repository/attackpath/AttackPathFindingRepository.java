@@ -48,6 +48,26 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
       @Param("simulationId") String simulationId, @Param("since") long since);
 
   /**
+   * The same projection as {@link #findGraphRows}, restricted to a set of finding types.
+   *
+   * <p>This is the candidate set a delta needs to resolve one consuming step's event dependencies:
+   * the findings a consumed key can match were produced by an EARLIER bump, so they are never in
+   * the batch, and which findings a key matched is resolved by the backend rather than by the
+   * client. Scoped by type because a consumed key can only ever match its own reconciled type or a
+   * complex type carrying it as a sub-field (see {@code
+   * AttackPathKeyMatcher#candidateFindingTypes}), and only read on the ticks where a consuming
+   * execution actually lands.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingRow("
+          + "f.id, f.type, f.value, f.endpointId, f.endpointRaw, f.endpointKey, ef.executionId) "
+          + "FROM AttackPathFinding f "
+          + "JOIN AttackPathExecutionFinding ef ON ef.findingId = f.id "
+          + "WHERE f.simulationId = :simulationId AND f.type IN :types")
+  List<AttackPathFindingRow> findGraphRowsByTypes(
+      @Param("simulationId") String simulationId, @Param("types") Collection<String> types);
+
+  /**
    * How many rows {@link #findGraphRowsSince} would return, for the delta's resync threshold.
    * Counted over the SAME link join, not over the findings alone: a finding produced by several
    * executions yields one row per producer, so counting bare findings would under-report the
