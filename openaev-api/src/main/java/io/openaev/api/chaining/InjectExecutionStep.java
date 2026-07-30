@@ -260,6 +260,7 @@ public class InjectExecutionStep implements ActionStep {
           expectationResults =
               attackPathIngestion.getExpectationByEndpointIndex(inject, expectations);
       attackPathIngestion.updateExpectationByExecutionIndex(inject, expectationResults);
+      attackPathIngestion.upsertExecutionCollectors(inject, expectations);
     } catch (Exception e) {
       log.warn("Attack-path verdict sync skipped for inject {} (non-fatal)", inject.getId(), e);
     }
@@ -1230,12 +1231,22 @@ public class InjectExecutionStep implements ActionStep {
         injectExpectationService.findAllByInjectId(inject.getId());
     for (BaseInjectExpectation expectation : expectations) {
       for (InjectExpectationResult result : expectation.getResults()) {
+        if (isTechnicalExpectation(expectation)
+            && (result.getResult() == null || result.getResult().isBlank())) {
+          continue;
+        }
         Map<String, JsonElement> map = getExpectationOutput(expectation, result);
         addEndpointContext(inject, expectation, map);
         output.add(map);
       }
     }
     return expectations;
+  }
+
+  private static boolean isTechnicalExpectation(BaseInjectExpectation expectation) {
+    return expectation instanceof PreventionInjectExpectation
+        || expectation instanceof DetectionInjectExpectation
+        || expectation instanceof VulnerabilityInjectExpectation;
   }
 
   /**

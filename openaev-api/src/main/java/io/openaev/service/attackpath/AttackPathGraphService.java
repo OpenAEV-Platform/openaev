@@ -298,7 +298,7 @@ public class AttackPathGraphService {
         e.getVulnerabilityStatus(),
         e.getExecutedAt() == null ? null : e.getExecutedAt().toString(),
         findings,
-        securityPlatformResolver.resolve(injectId, e.getAgentId(), e.getTargetAssetId()),
+        securityPlatformResolver.resolve(e.getId(), e.getTenant().getId()),
         maskSecrets(e.getCommand(), secrets),
         maskSecrets(e.getTerminalOutput(), secrets));
   }

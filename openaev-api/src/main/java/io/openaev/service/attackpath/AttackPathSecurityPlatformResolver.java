@@ -1,236 +1,253 @@
 package io.openaev.service.attackpath;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.database.model.AssetType;
 import io.openaev.database.model.BaseInjectExpectation;
-import io.openaev.database.model.InjectExpectationResult;
-import io.openaev.database.model.InjectExpectationTrace;
-import io.openaev.database.model.SecurityPlatform;
-import io.openaev.database.repository.InjectExpectationRepository;
-import io.openaev.database.repository.InjectExpectationTraceRepository;
-import io.openaev.database.repository.SecurityPlatformRepository;
+import io.openaev.database.model.attackpath.AttackPathExecutionCollector;
+import io.openaev.database.repository.attackpath.AttackPathExecutionCollectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.expectation.ExpectationType;
 import io.openaev.service.attackpath.dto.AttackPathAlertDTO;
 import io.openaev.service.attackpath.dto.AttackPathSecurityPlatformDTO;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Resolves, for one attack-path execution, the security platforms that acted (prevention /
- * detection) and their linked alerts (requirement A1).
- *
- * <p>Live resolution from the execution's inject expectations, scoped to its agent (or asset when
- * the execution has no agent), mirroring how the drawer already resolves ATT&amp;CK techniques and
- * detection remediations live. This is the accepted MVP trade-off: expectation results are more
- * volatile than a frozen snapshot, so a past run renders today's platform verdicts.
- * Enterprise-gated like the detection remediations.
- *
- * <p>Status per platform is the expectation's aggregate status ({@link
- * BaseInjectExpectation#getResponse()}), attributed to each platform (source) in that expectation's
- * results: a per-result score carries no expected score, and this matches the drawer's existing
- * semantics (it lists platforms off the aggregate status). {@code prevented ⇒ detected} is applied
- * once here and is authoritative.
- *
- * <p>Platforms and alert traces are preloaded in two bounded queries (not per result), so the read
- * stays a small fixed number of queries whatever the expectation/result count.
+ * Resolves security-platform rows of one execution from the attack-path collector snapshot table.
  */
 @Component
 @RequiredArgsConstructor
 public class AttackPathSecurityPlatformResolver {
 
-  private static final String PREVENTION = "prevention";
-  private static final String DETECTION = "detection";
   private static final String SUCCESS = BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS.name();
-  private static final char SEP = '\0';
+  private static final String PARTIAL = BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL.name();
+  private static final String PENDING = BaseInjectExpectation.EXPECTATION_STATUS.PENDING.name();
+  private static final String FAILED = BaseInjectExpectation.EXPECTATION_STATUS.FAILED.name();
+  private static final String UNKNOWN = "UNKNOWN";
+  private static final String PREVENTION = BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.name();
+  private static final String DETECTION = BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.name();
 
-  private final InjectExpectationRepository injectExpectationRepository;
-  private final InjectExpectationTraceRepository injectExpectationTraceRepository;
-  private final SecurityPlatformRepository securityPlatformRepository;
+  private static final String VULNERABILITY =
+      BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.name();
+
+  private final AttackPathExecutionCollectorRepository executionCollectorRepository;
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
+  private final ObjectMapper objectMapper;
 
-  public List<AttackPathSecurityPlatformDTO> resolve(
-      String injectId, String agentId, String targetAssetId) {
-    // Enterprise-gated, like the detection remediations: an inactive licence yields an empty list.
+  public List<AttackPathSecurityPlatformDTO> resolve(String executionId, String tenantId) {
     if (!enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return List.of();
     }
-    // Not-yet-committed run (no inject on the step) or a target with neither agent nor asset (raw /
-    // manual): nothing to scope by, so nothing to show.
-    if (injectId == null || (agentId == null && targetAssetId == null)) {
+    if (executionId == null || tenantId == null) {
       return List.of();
     }
-    List<BaseInjectExpectation> expectations =
-        agentId != null
-            ? injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId)
-            : injectExpectationRepository.findAllByInjectAndAsset(injectId, targetAssetId);
 
-    Map<String, SecurityPlatform> platformById = preloadPlatforms(expectations);
-    Map<String, List<AttackPathAlertDTO>> alertsByKey = preloadAlerts(expectations);
-
-    // bucket -> platformKey -> entry, so a platform appears once per bucket even across
-    // expectations.
-    Map<String, Map<String, AttackPathSecurityPlatformDTO>> byBucket = new LinkedHashMap<>();
-    byBucket.put(PREVENTION, new LinkedHashMap<>());
-    byBucket.put(DETECTION, new LinkedHashMap<>());
-
-    for (BaseInjectExpectation expectation : expectations) {
-      String bucket = bucketOf(expectation);
+    List<AttackPathExecutionCollector> rows =
+        executionCollectorRepository.findByExecutionIdAndTenantId(executionId, tenantId);
+    Map<String, AttackPathSecurityPlatformDTO> prevention = new LinkedHashMap<>();
+    Map<String, AttackPathSecurityPlatformDTO> detection = new LinkedHashMap<>();
+    Map<String, AttackPathSecurityPlatformDTO> vulnerability = new LinkedHashMap<>();
+    for (AttackPathExecutionCollector row : rows) {
+      String bucket = expectationBucket(row.getExpectationType());
       if (bucket == null) {
-        continue; // ignore manual / vulnerability / article / challenge expectations
+        continue;
       }
-      String status = expectation.getResponse().name();
-      for (InjectExpectationResult result : expectation.getResults()) {
-        String platformKey = platformKey(result);
-        if (platformKey == null) {
-          continue; // a result with no source platform carries no security-platform signal
-        }
-        byBucket
-            .get(bucket)
-            .putIfAbsent(
-                platformKey, toDto(expectation, result, bucket, status, platformById, alertsByKey));
+      AttackPathSecurityPlatformDTO dto = toDto(row, bucket);
+      if (PREVENTION.equals(bucket)) {
+        putPreferSpecificType(prevention, dto);
+      } else if (DETECTION.equals(bucket)) {
+        putPreferSpecificType(detection, dto);
+      } else {
+        putPreferSpecificType(vulnerability, dto);
       }
     }
 
-    // prevented ⇒ detected: a platform that prevented is authoritatively also detected (you cannot
-    // block what you did not see). Applied once, here. If the platform has no detection entry we
-    // add
-    // one (no detection expectation, so no alerts); if it has a contradictory non-SUCCESS one we
-    // upgrade its status to SUCCESS, keeping its real alerts and date.
-    Map<String, AttackPathSecurityPlatformDTO> detection = byBucket.get(DETECTION);
-    byBucket
-        .get(PREVENTION)
-        .forEach(
-            (platformKey, prevented) -> {
-              if (!SUCCESS.equals(prevented.status())) {
-                return;
-              }
-              AttackPathSecurityPlatformDTO existing = detection.get(platformKey);
-              if (existing == null) {
-                detection.put(
-                    platformKey,
-                    new AttackPathSecurityPlatformDTO(
-                        prevented.platformType(),
-                        prevented.platformName(),
-                        DETECTION,
-                        SUCCESS,
-                        prevented.detectedAt(),
-                        List.of()));
-              } else if (!SUCCESS.equals(existing.status())) {
-                detection.put(
-                    platformKey,
-                    new AttackPathSecurityPlatformDTO(
-                        existing.platformType(),
-                        existing.platformName(),
-                        DETECTION,
-                        SUCCESS,
-                        existing.detectedAt(),
-                        existing.alerts()));
-              }
-            });
+    prevention.forEach(
+        (key, prevented) -> {
+          if (!SUCCESS.equals(prevented.status())) {
+            return;
+          }
+          AttackPathSecurityPlatformDTO existing = detection.get(key);
+          if (existing == null) {
+            detection.put(
+                key,
+                new AttackPathSecurityPlatformDTO(
+                    prevented.sourceId(),
+                    prevented.sourceAssetId(),
+                    prevented.platformType(),
+                    prevented.platformName(),
+                    DETECTION,
+                    SUCCESS,
+                    prevented.detectedAt(),
+                    prevented.resultLabel(),
+                    prevented.score(),
+                    prevented.alertsCount(),
+                    prevented.alerts()));
+            return;
+          }
+          if (!SUCCESS.equals(existing.status())) {
+            detection.put(
+                key,
+                new AttackPathSecurityPlatformDTO(
+                    existing.sourceId(),
+                    existing.sourceAssetId(),
+                    existing.platformType(),
+                    existing.platformName(),
+                    DETECTION,
+                    SUCCESS,
+                    existing.detectedAt(),
+                    existing.resultLabel(),
+                    existing.score(),
+                    existing.alertsCount(),
+                    existing.alerts()));
+          }
+        });
 
     List<AttackPathSecurityPlatformDTO> out = new ArrayList<>();
-    out.addAll(byBucket.get(PREVENTION).values());
-    out.addAll(byBucket.get(DETECTION).values());
+    out.addAll(prevention.values());
+    out.addAll(detection.values());
+    out.addAll(vulnerability.values());
     return out;
   }
 
-  /** One query for every referenced security platform, keyed by id. */
-  private Map<String, SecurityPlatform> preloadPlatforms(List<BaseInjectExpectation> expectations) {
-    Set<String> ids =
-        expectations.stream()
-            .flatMap(e -> e.getResults().stream())
-            .map(InjectExpectationResult::getSourceId)
-            .filter(Objects::nonNull)
-            .collect(Collectors.toSet());
-    if (ids.isEmpty()) {
-      return Map.of();
-    }
-    return securityPlatformRepository.findAllByIds(ids).stream()
-        .collect(Collectors.toMap(SecurityPlatform::getId, p -> p));
+  private AttackPathSecurityPlatformDTO toDto(AttackPathExecutionCollector row, String bucket) {
+    String platformType =
+        row.getSourceType() != null && !row.getSourceType().isBlank()
+            ? row.getSourceType()
+            : AssetType.Values.SECURITY_PLATFORM_TYPE;
+    List<AttackPathAlertDTO> alerts = parseAlerts(row.getAlerts());
+    return new AttackPathSecurityPlatformDTO(
+        row.getSourceId(),
+        row.getSourceAssetId(),
+        platformType,
+        row.getSourceName(),
+        bucket,
+        toStatusId(row.getResultStatusLabel(), row.getExpectationType()),
+        row.getDetectionTime(),
+        row.getResultStatusLabel(),
+        row.getResultScore(),
+        alerts.size(),
+        alerts);
   }
 
-  /** One query for every trace of these expectations, grouped by (expectationId, platformId). */
-  private Map<String, List<AttackPathAlertDTO>> preloadAlerts(
-      List<BaseInjectExpectation> expectations) {
-    List<String> expectationIds = expectations.stream().map(BaseInjectExpectation::getId).toList();
-    if (expectationIds.isEmpty()) {
-      return Map.of();
+  private List<AttackPathAlertDTO> parseAlerts(String rawAlerts) {
+    if (rawAlerts == null || rawAlerts.isBlank()) {
+      return List.of();
     }
-    Map<String, List<AttackPathAlertDTO>> byKey = new HashMap<>();
-    for (InjectExpectationTrace trace :
-        injectExpectationTraceRepository.findByInjectExpectationIdIn(expectationIds)) {
-      if (trace.getInjectExpectation() == null || trace.getSecurityPlatform() == null) {
-        continue;
+    try {
+      JsonNode root = objectMapper.readTree(rawAlerts);
+      if (!root.isArray()) {
+        return List.of();
       }
-      String key = trace.getInjectExpectation().getId() + SEP + trace.getSecurityPlatform().getId();
-      byKey
-          .computeIfAbsent(key, k -> new ArrayList<>())
-          .add(
-              new AttackPathAlertDTO(
-                  trace.getId(),
-                  trace.getAlertName(),
-                  trace.getAlertDate() == null ? null : trace.getAlertDate().toString(),
-                  trace.getAlertLink()));
+      List<AttackPathAlertDTO> alerts = new ArrayList<>();
+      for (JsonNode node : root) {
+        if (!node.isObject()) {
+          continue;
+        }
+        String id = textOrNull(node, "id");
+        String title = textOrNull(node, "title");
+        if (id == null || title == null) {
+          continue;
+        }
+        alerts.add(
+            new AttackPathAlertDTO(id, title, textOrNull(node, "date"), textOrNull(node, "link")));
+      }
+      return alerts;
+    } catch (Exception e) {
+      return List.of();
     }
-    return byKey;
   }
 
-  private static String bucketOf(BaseInjectExpectation expectation) {
-    return switch (expectation.getType()) {
-      case PREVENTION -> PREVENTION;
-      case DETECTION -> DETECTION;
+  private String textOrNull(JsonNode node, String fieldName) {
+    JsonNode value = node.get(fieldName);
+    if (value == null || value.isNull()) {
+      return null;
+    }
+    String text = value.asText(null);
+    return text == null || text.isBlank() ? null : text;
+  }
+
+  private String expectationBucket(String expectationType) {
+    if (expectationType == null) {
+      return null;
+    }
+    return switch (expectationType) {
+      case "PREVENTION" -> PREVENTION;
+      case "DETECTION" -> DETECTION;
+      case "VULNERABILITY" -> VULNERABILITY;
       default -> null;
     };
   }
 
-  /**
-   * The platform identity of a result: its source platform id, else its (type, name) so two
-   * distinct sources that only share a name are not merged. Null when there is no source at all.
-   */
-  private static String platformKey(InjectExpectationResult result) {
-    if (result.getSourceId() != null) {
-      return result.getSourceId();
+  private String platformKey(AttackPathSecurityPlatformDTO dto) {
+    if (dto.sourceId() != null) {
+      return dto.sourceId();
     }
-    if (result.getSourceName() == null) {
-      return null;
+    // Legacy-read compatibility only: historical rows may have no sourceId.
+    if (dto.platformName() == null) {
+      return "unknown";
     }
-    return (result.getSourceType() == null ? "" : result.getSourceType())
-        + SEP
-        + result.getSourceName();
+    return (dto.platformType() == null ? "" : dto.platformType()) + "\0" + dto.platformName();
   }
 
-  private AttackPathSecurityPlatformDTO toDto(
-      BaseInjectExpectation expectation,
-      InjectExpectationResult result,
-      String bucket,
-      String status,
-      Map<String, SecurityPlatform> platformById,
-      Map<String, List<AttackPathAlertDTO>> alertsByKey) {
-    // Prefer the real security platform (its EDR/XDR/SIEM type + name); fall back to the result's
-    // frozen source fields when the platform entity cannot be resolved.
-    String platformType = result.getSourceType();
-    String platformName = result.getSourceName();
-    SecurityPlatform platform =
-        result.getSourceId() == null ? null : platformById.get(result.getSourceId());
-    if (platform != null) {
-      if (platform.getSecurityPlatformType() != null) {
-        platformType = platform.getSecurityPlatformType().name();
-      }
-      platformName = platform.getName();
+  private void putPreferSpecificType(
+      Map<String, AttackPathSecurityPlatformDTO> bucket, AttackPathSecurityPlatformDTO candidate) {
+    String key = platformKey(candidate);
+    AttackPathSecurityPlatformDTO existing = bucket.get(key);
+    if (existing == null) {
+      bucket.put(key, candidate);
+      return;
     }
-    List<AttackPathAlertDTO> alerts =
-        result.getSourceId() == null
-            ? List.of()
-            : alertsByKey.getOrDefault(expectation.getId() + SEP + result.getSourceId(), List.of());
-    return new AttackPathSecurityPlatformDTO(
-        platformType, platformName, bucket, status, result.getDate(), alerts);
+    if (isGenericType(existing.platformType()) && !isGenericType(candidate.platformType())) {
+      bucket.put(key, candidate);
+    }
+  }
+
+  private boolean isGenericType(String type) {
+    if (type == null) {
+      return true;
+    }
+    String normalized = type.trim();
+    if (normalized.isEmpty()) {
+      return true;
+    }
+    return AssetType.Values.SECURITY_PLATFORM_TYPE.equalsIgnoreCase(normalized)
+        || "SECURITY_PLATFORM_TYPE".equalsIgnoreCase(normalized)
+        || "SECURITY_PLATFORM".equalsIgnoreCase(normalized);
+  }
+
+  private String toStatusId(String resultLabel, String expectationType) {
+    if (resultLabel == null || expectationType == null) {
+      return UNKNOWN;
+    }
+    ExpectationType type;
+    try {
+      type = ExpectationType.of(expectationType);
+    } catch (Exception e) {
+      return UNKNOWN;
+    }
+    // Tolerant match: collector outputs may differ from the canonical labels by case or
+    // surrounding whitespace only, and those are still semantically the same result.
+    String normalized = resultLabel.trim();
+    if (normalized.equalsIgnoreCase(type.successLabel)) {
+      return SUCCESS;
+    }
+    if (normalized.equalsIgnoreCase(type.partialLabel)) {
+      return PARTIAL;
+    }
+    if (normalized.equalsIgnoreCase(type.pendingLabel)) {
+      return PENDING;
+    }
+    if (normalized.equalsIgnoreCase(type.failureLabel)) {
+      return FAILED;
+    }
+    return UNKNOWN;
   }
 }

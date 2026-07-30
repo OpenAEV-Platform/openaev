@@ -64,6 +64,11 @@ public final class AttackPathIds {
     return encode("NODE_EXECUTION", executionId, targetKey, agentId);
   }
 
+  /** {@code EXECUTION_COLLECTOR_ROW}: one collector-result snapshot line of an execution. */
+  public static String executionCollectorRow(String executionId, String bucket, String sourceKey) {
+    return encode("EXECUTION_COLLECTOR_ROW", executionId, bucket, sourceKey);
+  }
+
   /** {@code EDGE_EXECUTIONS}: source node to target node; grouped rows share this edge. */
   public static String executionsEdge(String sourceNodeId, String targetNodeId) {
     return encode("EDGE_EXECUTIONS", sourceNodeId, targetNodeId);
