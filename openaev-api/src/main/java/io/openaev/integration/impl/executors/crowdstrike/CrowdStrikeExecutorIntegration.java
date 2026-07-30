@@ -22,7 +22,6 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
-import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -66,7 +65,6 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   private final ConnectorInstanceService connectorInstanceService;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
-  private final InjectStatusService injectStatusService;
   private final OpenAEVConfig openAEVConfig;
 
   public CrowdStrikeExecutorIntegration(
@@ -82,7 +80,6 @@ public class CrowdStrikeExecutorIntegration extends Integration {
       ThreadPoolTaskScheduler taskScheduler,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory,
-      InjectStatusService injectStatusService,
       OpenAEVConfig openAEVConfig) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.taskScheduler = taskScheduler;
@@ -95,7 +92,6 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     this.connectorInstanceService = connectorInstanceService;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
-    this.injectStatusService = injectStatusService;
     this.openAEVConfig = openAEVConfig;
 
     // Refresh the context to get the config
@@ -147,7 +143,6 @@ public class CrowdStrikeExecutorIntegration extends Integration {
             enterpriseEditionService,
             licenseCacheManager,
             executorService,
-            injectStatusService,
             openAEVConfig);
     crowdStrikeExecutorService =
         new CrowdStrikeExecutorService(

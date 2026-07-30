@@ -14,7 +14,6 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
-import io.openaev.rest.inject.service.InjectStatusService;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -38,7 +37,6 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
-  private final InjectStatusService injectStatusService;
   private final OpenAEVConfig openAEVConfig;
 
   ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();

@@ -16,7 +16,6 @@ import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.migration.CrowdStrikeExecutorConfigurationMigration;
-import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -46,7 +45,6 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
   private final CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
-  private final InjectStatusService injectStatusService;
   private final OpenAEVConfig openAEVConfig;
 
   public CrowdStrikeExecutorIntegrationFactory(
@@ -64,7 +62,6 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory,
-      InjectStatusService injectStatusService,
       OpenAEVConfig openAEVConfig) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.endpointService = endpointService;
@@ -80,7 +77,6 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
     this.crowdStrikeExecutorConfigurationMigration = crowdStrikeExecutorConfigurationMigration;
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
-    this.injectStatusService = injectStatusService;
     this.openAEVConfig = openAEVConfig;
   }
 
@@ -147,7 +143,6 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
         taskScheduler,
         baseIntegrationConfigurationBuilder,
         httpClientFactory,
-        injectStatusService,
         openAEVConfig);
   }
 }

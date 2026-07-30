@@ -90,6 +90,7 @@ public class CrowdStrikeExecutorClient {
       }
       return hosts;
     } catch (Exception e) {
+      log.error(String.format("Unexpected error occurred. Error: %s", e.getMessage()), e);
       throw new ExecutorException(e, e.getMessage(), CROWDSTRIKE_EXECUTOR_NAME);
     }
   }
