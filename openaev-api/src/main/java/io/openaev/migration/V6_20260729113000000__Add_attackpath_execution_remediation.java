@@ -27,8 +27,6 @@ public class V6_20260729113000000__Add_attackpath_execution_remediation extends 
               attackpath_execution_remediation_author_rule       author_enum NOT NULL,
               attackpath_execution_remediation_collector_type    varchar(255),
               attackpath_execution_remediation_security_platform varchar(255) NOT NULL
-                  CONSTRAINT attackpath_execution_remediation_security_platform_fk
-                      REFERENCES assets (asset_id) ON DELETE CASCADE
           );
           """);
       statement.execute(
