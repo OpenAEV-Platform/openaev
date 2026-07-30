@@ -373,9 +373,10 @@ public class WorkflowService {
   }
 
   private void updateScopeVariable(ScopeVariable existing, ScopeVariableInput input) {
+    String resolvedValue = resolveScopeVariableValueForPersistence(existing, input);
     existing.setKey(input.getKey());
     existing.setType(input.getType());
-    existing.setValue(resolveScopeVariableValueForPersistence(existing, input));
+    existing.setValue(resolvedValue);
     existing.setDescription(input.getDescription());
   }
 
