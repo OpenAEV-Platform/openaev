@@ -1086,7 +1086,10 @@ public class ElasticService implements EngineService {
                       .size(runtime.getPagination().getSize())
                       .from(runtime.getPagination().getPage() * runtime.getPagination().getSize())
                       .query(finalQuery)
-                      .sort(engineSorts),
+                      .sort(engineSorts)
+                      // By default the engine stops counting at 10,000 and reports it as a lower
+                      // bound, which froze the pagination total of large result sets at "10000".
+                      .trackTotalHits(tth -> tth.enabled(true)),
               getClassForEntity(entityName));
       long total = response.hits().total() != null ? response.hits().total().value() : 0;
       return new EsEntities(

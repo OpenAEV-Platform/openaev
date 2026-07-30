@@ -2,6 +2,7 @@ import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, FullscreenExitOutl
 import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, GlobalStyles, IconButton, Pagination, Paper, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
+import { FolderNetworkOutline } from 'mdi-material-ui';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
@@ -16,7 +17,7 @@ import { SIMULATION_BASE_URL } from '../../../../../constants/BaseUrls';
 import type { AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 import attackPathStatusColor, { attackPathChokepointColor } from './attack-path-colors';
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, type PathFinding, pivotEndpointIds } from './attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, type PathFinding, pivotEndpointIds } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
 import AttackPathTableView, { type AttackPathEndpointRow } from './AttackPathTableView';
@@ -113,12 +114,12 @@ const VISUALLY_HIDDEN = {
 // from metadata resolution and fall back to their raw id in the picker.
 const isSeedId = (id?: string) => !!id && id.startsWith('ap-seed-');
 
-// Finding types already surfaced by the curated summary cards (endpoints/files/credentials/users/cves).
+// Finding types already surfaced by the curated summary cards (endpoints/shares/credentials/users/cves).
 // Every OTHER type present in the data gets an auto-generated card, so a new finding type needs no code.
-const COVERED_FINDING_TYPES = new Set(['file', 'credentials', 'username', 'admin_username', 'cve']);
+const COVERED_FINDING_TYPES = new Set(['share', 'file', 'credentials', 'username', 'admin_username', 'cve']);
 
 // Finding categories fetched (with per-finding executionIds) to attribute findings to an injector.
-const INJECTOR_FINDING_CATEGORIES = ['credentials', 'users', 'cves', 'files'];
+const INJECTOR_FINDING_CATEGORIES = ['credentials', 'users', 'cves', 'shares', 'files'];
 
 // Drawer resize bounds (px).
 const PANEL_MIN_WIDTH = 320;
@@ -181,6 +182,7 @@ const CATEGORY_OF_TYPE: Record<string, string> = {
   username: 'users',
   admin_username: 'users',
   cve: 'cves',
+  share: 'shares',
   file: 'files',
 };
 
@@ -1315,7 +1317,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       // raw never matched the executions' findingsNodeIds → shares showed "no producing action".
       setSelectedFindingId(nodeId);
       // Producing executions come from the full graph's execution→findings links (available for EVERY
-      // finding type, unlike the drawer categories which only cover credentials/users/files/cves), so the
+      // finding type, unlike the drawer categories which only cover credentials/users/shares/cves), so the
       // panel lists only the injector(s) that actually produced this finding — not every injector that
       // merely reached the endpoint.
       const findingNodeId = nodeId;
@@ -1368,8 +1370,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       return;
     }
     // Prefer the full graph: each execution lists EVERY finding type it produced (findingsNodeIds), so
-    // shares surface here — the drawer category endpoint only covers credentials/users/cves/files and maps
-    // "files"→"file", so an injector that only produced shares wrongly read "No findings on this endpoint".
+    // shares surface here — the drawer category endpoint only covers credentials/users/cves/shares, so an
+    // injector that produced another type wrongly read "No findings on this endpoint".
     const findingById = new Map((fullDto?.attackPathNodes ?? [])
       .filter(n => n.type === 'FINDING' && n.id)
       .map(n => [n.id as string, n]));
@@ -1929,10 +1931,12 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     [drawerFilteredItems, drawerSafePage],
   );
 
-  // "Captured Files" reads the real backend files counter. SMB share findings are presented as file
-  // (an interim stand-in), so this is the distinct-share count today, but wired properly.
+  // "Discovered Shares" reads the backend share counter; "Captured Files" the native `file` counter.
+  // Each finding type keeps its own stored type, so shares and files are never folded together.
+  const sharesCount = counters?.shares ?? 0;
   const filesCount = counters?.files ?? 0;
 
+  const focusedSharesCount = focusedEndpoint?.findingCounts?.share ?? 0;
   const focusedFilesCount = focusedEndpoint?.findingCounts?.file ?? 0;
   const effectiveCounters = pathFinding
     ? {
@@ -1955,6 +1959,12 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         label: t('Discovered assets'),
         icon: <DnsOutlined fontSize="small" />,
         count: effectiveCounters.endpoints,
+      },
+      {
+        key: 'shares',
+        label: t('Discovered Shares'),
+        icon: <FolderNetworkOutline fontSize="small" />,
+        count: pathFinding ? focusedSharesCount : sharesCount,
       },
       {
         key: 'files',
@@ -2008,7 +2018,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         };
       });
     return [...base, ...extras];
-  }, [t, effectiveCounters, pathFinding, focusedFilesCount, filesCount, dto, focusedEndpoint]);
+  }, [t, effectiveCounters, pathFinding, focusedSharesCount, sharesCount, focusedFilesCount, filesCount, dto, focusedEndpoint]);
 
   // Click a summary card: focus the graph on that finding type and, for finding categories, open the
   // right drawer listing the (deduplicated, masked) items. Clicking again clears the focus/drawer.
@@ -2094,9 +2104,11 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   const selectedRow: AttackPathSimSummaryRow | null = simulationId
     ? (simulations.find(s => s.simulationId === simulationId) ?? { simulationId })
     : null;
-  const pickerOptions = selectedRow && !simulations.some(s => s.simulationId === selectedRow.simulationId)
-    ? [selectedRow, ...simulations]
-    : simulations;
+  const pickerOptions = orderSimulationPickerOptions(
+    simulations,
+    selectedRow,
+    simId => metaById.get(simId ?? '')?.exercise_start_date ?? '',
+  );
 
   // Chokepoint accent (violet), reserved so it never reads as a prevention/detection verdict.
   const chokepointColor = attackPathChokepointColor(theme);

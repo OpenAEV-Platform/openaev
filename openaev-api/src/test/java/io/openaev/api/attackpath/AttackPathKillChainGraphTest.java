@@ -115,7 +115,7 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
     consumed.setType(ConditionType.IS_NOT_NULL);
     conditionComposer.forCondition(consumed).withStep(stepB).persist();
 
-    // The producer ran earlier and produced a share (presented as file); the consumer ran later.
+    // The producer ran earlier and produced a share; the consumer ran later.
     AttackPathExecution producer =
         saveExecution(tenant, "nmap", "producer-step-tpl", Instant.parse("2026-06-18T08:00:00Z"));
     saveFinding(tenant, "share", "\\\\host\\NETLOGON", producer.getId());
@@ -128,11 +128,10 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
             .findFirst()
             .orElseThrow();
     assertThat(consumerNode.getDependsOn()).contains("producer-step-tpl");
-    // The share is presented as file, so the matched id uses the PRESENTED type (file), matching
-    // the
-    // finding-node id the front renders — otherwise the front could not resolve it.
+    // The matched id uses the finding's native type (share), matching the finding-node id the front
+    // renders — otherwise the front could not resolve it.
     assertThat(consumerNode.getConsumedFindingKeys().get(0).matchedFindingIds())
-        .containsExactly(AttackPathIds.findingNode("file", "\\\\host\\NETLOGON"));
+        .containsExactly(AttackPathIds.findingNode("share", "\\\\host\\NETLOGON"));
   }
 
   @Test
@@ -268,7 +267,7 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
     AttackPathFinding f = new AttackPathFinding();
     f.setTenant(tenant);
     f.setSimulationId(SIM);
-    f.setType(type); // a "share" is presented as the native "file" type at the read boundary
+    f.setType(type);
     f.setValue(value);
     f.setEndpointId("host-x");
     f.setEndpointKey("host-x");

@@ -30,6 +30,7 @@ const ScenarioUpdate: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const permissions = useScenarioPermissions(scenario.scenario_id);
+  const isChaining = !!(scenario as unknown as { scenario_workflow_id?: string }).scenario_workflow_id;
 
   // apply rule dialog
   const [openApplyRule, setOpenApplyRule] = useState(false);
@@ -122,6 +123,7 @@ const ScenarioUpdate: FunctionComponent<Props> = ({
         <ScenarioForm
           initialValues={initialValues}
           editing
+          isChaining={isChaining}
           disabled={permissions.readOnly}
           onSubmit={submitEdit}
           handleClose={handleClose}

@@ -112,6 +112,25 @@ class ChainingTypeRegistryTest {
   }
 
   @Test
+  @DisplayName(
+      "File is a complex type whose sub-fields resolve to primitives, incl. share -> ShareName")
+  void given_file_should_beComplexWithSubFieldPrimitives() {
+    ChainingMappedType mapped =
+        ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.File);
+    assertThat(mapped.kind()).isEqualTo(ChainingTypeKind.COMPLEX);
+    assertThat(mapped.origin()).isEqualTo(ContractOutputType.File);
+
+    assertThat(
+            ChainingTypeRegistry.resolveComplexFieldPrimitive(ContractOutputType.File, "file_name"))
+        .isEqualTo(Optional.of(PrimitiveType.FileName));
+    assertThat(ChainingTypeRegistry.resolveComplexFieldPrimitive(ContractOutputType.File, "path"))
+        .isEqualTo(Optional.of(PrimitiveType.FilePath));
+    // A file discovered on a share exposes its share name as ShareName, so it links to the share.
+    assertThat(ChainingTypeRegistry.resolveComplexFieldPrimitive(ContractOutputType.File, "share"))
+        .isEqualTo(Optional.of(PrimitiveType.ShareName));
+  }
+
+  @Test
   @DisplayName("Primitive type should have empty recipe")
   void given_primitiveType_should_haveEmptyRecipe() {
     ChainingMappedType mapped =
