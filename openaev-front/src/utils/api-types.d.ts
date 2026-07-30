@@ -2022,6 +2022,7 @@ export interface ConditionCreateInput {
   /** Paths to values in the output of the step from */
   condition_key_types?: (
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -2042,7 +2043,6 @@ export interface ConditionCreateInput {
     | "kerberoastable_account"
     | "key"
     | "number"
-    | "action_output"
     | "password"
     | "permissions"
     | "port"
@@ -2091,6 +2091,7 @@ export interface ConditionOutput {
   condition_key?: string;
   condition_key_types?: (
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -2111,7 +2112,6 @@ export interface ConditionOutput {
     | "kerberoastable_account"
     | "key"
     | "number"
-    | "action_output"
     | "password"
     | "permissions"
     | "port"
@@ -6531,6 +6531,7 @@ export interface MapperConditionOutput {
   condition_key?: string;
   condition_key_types?: (
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -6551,7 +6552,6 @@ export interface MapperConditionOutput {
     | "kerberoastable_account"
     | "key"
     | "number"
-    | "action_output"
     | "password"
     | "permissions"
     | "port"
@@ -7880,6 +7880,7 @@ export interface PayloadArgument {
   separator?: string | null;
   type:
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -7900,7 +7901,6 @@ export interface PayloadArgument {
     | "kerberoastable_account"
     | "key"
     | "number"
-    | "action_output"
     | "password"
     | "permissions"
     | "port"
@@ -9473,6 +9473,7 @@ export interface ScopeVariableInput {
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type:
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -9493,7 +9494,6 @@ export interface ScopeVariableInput {
     | "kerberoastable_account"
     | "key"
     | "number"
-    | "action_output"
     | "password"
     | "permissions"
     | "port"
@@ -9525,6 +9525,7 @@ export interface ScopeVariableOutput {
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type?:
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -9545,7 +9546,6 @@ export interface ScopeVariableOutput {
     | "kerberoastable_account"
     | "key"
     | "number"
-    | "action_output"
     | "password"
     | "permissions"
     | "port"
@@ -10031,6 +10031,7 @@ export interface StepOutput {
   step_condition_ids?: string[];
   step_condition_key_types?: (
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -10051,7 +10052,6 @@ export interface StepOutput {
     | "kerberoastable_account"
     | "key"
     | "number"
-    | "action_output"
     | "password"
     | "permissions"
     | "port"
