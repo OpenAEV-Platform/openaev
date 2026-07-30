@@ -9,12 +9,6 @@ const INJECTOR_CONTRACTS_URI = '/api/injector_contracts';
 // -- Injector contracts --
 export const searchInjectorContracts = (searchPaginationInput: object) => simplePostCall(`${INJECTOR_CONTRACTS_URI}/search`, searchPaginationInput);
 
-// -- Argument types --
-export const fetchArgumentTypes = async (): Promise<string[]> => {
-  const result = await simpleCall(`${CHAINING_URI}/argument-types/`);
-  return result.data;
-};
-
 // -- Full chaining --
 export const fetchChaining = (workflowId: string): Promise<{ data: ChainingOutput }> => simpleCall(`${CHAINING_URI}?workflow_id=${workflowId}`);
 

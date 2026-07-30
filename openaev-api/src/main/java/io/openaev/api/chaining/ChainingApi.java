@@ -3,7 +3,6 @@ package io.openaev.api.chaining;
 import static io.openaev.api.chaining.ChainingApi.TENANT_CHAINING_URI;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.iterableToSet;
-import static io.openaev.rest.settings.PreviewFeature.INJECT_CHAINING;
 import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
@@ -23,7 +22,6 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.scenario.form.ScenarioInput;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
@@ -65,7 +63,6 @@ public class ChainingApi extends RestBehavior {
   private final StepService stepService;
   private final TagRepository tagRepository;
   private final ConditionService conditionService;
-  private final PreviewFeatureService previewFeatureService;
 
   // -- READ --
 
@@ -84,19 +81,6 @@ public class ChainingApi extends RestBehavior {
         stepService.findAllStepTemplates().stream().map(StepMapper::toOutput).toList();
 
     return new ChainingOutput(conditions, steps);
-  }
-
-  @Operation(
-      summary = "Get all primitive chaining types",
-      description = "Returns primitive types available for payload arguments.")
-  @GetMapping("/argument-types/")
-  @Transactional
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
-  public List<PrimitiveType> getArgumentTypes() {
-    if (!previewFeatureService.isFeatureEnabled(INJECT_CHAINING)) {
-      return List.of(PrimitiveType.Text, PrimitiveType.Document, PrimitiveType.TargetedAsset);
-    }
-    return ChainingTypeRegistry.getPrimitiveTypes();
   }
 
   // CREATE SIMULATION
