@@ -443,10 +443,12 @@ describe('SimulationAttackPath live delta updates', () => {
     expect(mocks.fetchAttackPathGraphDelta).toHaveBeenLastCalledWith('sim-1', 7);
 
     // The applied delta reached the view: the new endpoint is listed, and the graph was patched, not
-    // re-read (a single snapshot call for the whole run).
+    // re-read. The only two snapshot reads are the seeds — collapsed, then the full projection the
+    // causal overlay merges in (fetched even for a run absent from the summary list, which is how a
+    // view opened before the first execution still gets its chain).
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
     expect(screen.getByText('CORP-OTHER')).toBeTruthy();
-    expect(mocks.fetchAttackPathGraph).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchAttackPathGraph.mock.calls.map(c => c[1])).toEqual(['collapsed', 'full']);
   });
 
   it('re-reads the snapshot when the backend cannot answer the cursor', async () => {
@@ -466,8 +468,10 @@ describe('SimulationAttackPath live delta updates', () => {
     expect(screen.getByTestId('attack-path-flow')).toBeTruthy();
     await mounted();
 
-    // Resync is the full snapshot read, re-seeding the store from scratch.
-    expect(mocks.fetchAttackPathGraph).toHaveBeenCalledTimes(2);
+    // Resync re-seeds the store from scratch: a second collapsed read, and the full projection
+    // merged in again after it.
+    expect(mocks.fetchAttackPathGraph.mock.calls.map(c => c[1]))
+      .toEqual(['collapsed', 'full', 'collapsed', 'full']);
     expect(screen.getByTestId('attack-path-flow')).toBeTruthy();
   });
 

@@ -259,7 +259,12 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // ceiling mid-view keeps its overlay until reselect.
   const fullEligible = useMemo(() => {
     const row = simulations.find(s => s.simulationId === simulationId);
-    return !!row && (row.executionCount ?? 0) <= CAUSAL_META_MAX_EXECUTIONS;
+    // A run ABSENT from the summary list is the smallest possible run, not an ineligible one: that
+    // list is fetched once at mount and only contains simulations that ALREADY have attack-path
+    // rows. Requiring the row meant a view opened before the first execution landed never fetched
+    // the full graph — and since the list never refreshes, it stayed aggregated for the whole
+    // session, so the causal chain only appeared after a page reload.
+    return (row?.executionCount ?? 0) <= CAUSAL_META_MAX_EXECUTIONS;
   }, [simulations, simulationId]);
 
   // One accumulated graph, live (issue 6647): a snapshot then versioned deltas on a single 3 s poll,
@@ -2311,6 +2316,34 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
               variant="outlined"
               label={freshnessLabel}
               color={freshness === 'reconnecting' ? 'warning' : 'default'}
+              // A pulsing dot while the view is updating itself: "Live" alone reads as a static
+              // label, and the whole point is that the graph is following the run. Only on `live` —
+              // a finished run has nothing to pulse about, and `reconnecting` already says it in
+              // words and colour.
+              icon={freshness === 'live'
+                ? (
+                    <Box
+                      component="span"
+                      sx={{
+                        'width': 7,
+                        'height': 7,
+                        'borderRadius': '50%',
+                        'bgcolor': 'success.main',
+                        // `!important` because MUI's `.MuiChip-icon` sets its own margins.
+                        'ml': '8px !important',
+                        'mr': '-2px !important',
+                        'flexShrink': 0,
+                        'animation': 'attackPathLivePulse 1.6s ease-in-out infinite',
+                        // Users who asked the OS for less motion get a steady dot instead.
+                        '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+                        '@keyframes attackPathLivePulse': {
+                          '0%, 100%': { opacity: 1 },
+                          '50%': { opacity: 0.25 },
+                        },
+                      }}
+                    />
+                  )
+                : undefined}
               sx={{
                 // Deliberately quiet: it reports a state, it is not an action.
                 opacity: freshness === 'finished' ? 0.6 : 0.85,
