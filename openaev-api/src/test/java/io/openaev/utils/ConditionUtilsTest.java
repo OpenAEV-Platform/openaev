@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.PrimitiveType;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +22,7 @@ class ConditionUtilsTest {
     Condition condition =
         Condition.builder()
             .type(ConditionType.IN)
-            .keyType(PrimitiveType.ActionOutput)
+            .keyTypes(List.of(PrimitiveType.ActionOutput))
             .value("WINTERFELL")
             .caseSensitive(false)
             .build();
@@ -43,7 +44,7 @@ class ConditionUtilsTest {
     Condition condition =
         Condition.builder()
             .type(ConditionType.NIN)
-            .keyType(PrimitiveType.ActionOutput)
+            .keyTypes(List.of(PrimitiveType.ActionOutput))
             .value("WINTERFELL")
             .caseSensitive(true)
             .build();
@@ -63,7 +64,7 @@ class ConditionUtilsTest {
     Condition condition =
         Condition.builder()
             .type(ConditionType.IN)
-            .keyType(PrimitiveType.Text)
+            .keyTypes(List.of(PrimitiveType.Text))
             .value("WINTERFELL")
             .caseSensitive(false)
             .build();
@@ -83,7 +84,7 @@ class ConditionUtilsTest {
     Condition condition =
         Condition.builder()
             .type(ConditionType.NEQ)
-            .keyType(PrimitiveType.Text)
+            .keyTypes(List.of(PrimitiveType.Text))
             .value("WINTER")
             .caseSensitive(true)
             .build();
