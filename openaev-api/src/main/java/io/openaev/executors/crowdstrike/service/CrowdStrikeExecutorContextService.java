@@ -1,5 +1,9 @@
 package io.openaev.executors.crowdstrike.service;
 
+import static io.openaev.executors.ExecutorHelper.*;
+import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
+
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
@@ -10,24 +14,18 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
-import io.openaev.executors.exception.ExecutorException;
 import io.openaev.rest.inject.service.InjectStatusService;
 import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Hibernate;
-import org.springframework.stereotype.Service;
-
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
-
-import static io.openaev.executors.ExecutorHelper.*;
-import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
-import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service(CrowdStrikeExecutorContextService.SERVICE_NAME)
@@ -91,13 +89,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
         getMacOSActions(
             getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.MacOS), injector, inject, token));
     // Launch payloads with CS API
-    try {
-      executeActions(actions);
-    } catch (ExecutorException exception) {
-      injectStatusService.failInjectStatus(
-          inject.getId(),
-          "Error executing CrowdStrike actions: " + exception.getMessage());
-    }
+    executeActions(actions);
     return csAgents;
   }
 
