@@ -16,6 +16,16 @@ interface Props {
   datas: SerieData[];
 }
 
+/**
+ * The statuses the ring charts, and therefore the only ones its click-through may
+ * drill into - reading one list for both is what keeps the total and the drilled
+ * list in agreement (#7079). UNKNOWN is deliberately absent: computeStatus only
+ * returns it for a null expected score, which the schema forbids since migration
+ * V3_36 made inject_expectation_expected_score NOT NULL, so drilling it widened
+ * the query for a status that cannot exist.
+ */
+const RING_STATUSES = ['SUCCESS', 'FAILED', 'PENDING'];
+
 const SAMPLE = [
   {
     x: 'SUCCESS',
@@ -214,7 +224,7 @@ const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetId, widgetConfi
           <svg
             className="noDrag"
             viewBox={`0 0 ${size} ${size}`}
-            onClick={() => investigate(['SUCCESS', 'FAILED', 'PENDING', 'UNKNOWN'])}
+            onClick={() => investigate(RING_STATUSES)}
             style={{
               maxHeight: '100%',
               maxWidth: '100%',

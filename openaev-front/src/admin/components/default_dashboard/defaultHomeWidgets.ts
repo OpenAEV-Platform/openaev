@@ -173,12 +173,23 @@ const successFailedSeries = (extra: Filter[] = []): Series[] => [
   series('FAILED', ...expectation([filter('inject_expectation_status', ['FAILED']), ...extra])),
 ];
 
+/**
+ * SUCCESS / FAILED / PENDING, in that order - the command center's ADVERSARY node
+ * counts every attempted validation, so the still-unscored ones must be part of the
+ * widget rather than reconstructed at click time. The index order is contractual:
+ * the drill-downs name the series they aggregated (see CommandCenterWidget).
+ */
+const attemptedSeries = (): Series[] => [
+  ...successFailedSeries(),
+  series('PENDING', ...expectation([filter('inject_expectation_status', ['PENDING'])])),
+];
+
 export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange, t: Translate = key => key): Widget[] => [
   // -- HERO: exposure command center --
   widget(
     'default-command-center',
     'command-center',
-    structural(t('Exposure command center'), 'inject_expectation_type', successFailedSeries(), timeRange),
+    structural(t('Exposure command center'), 'inject_expectation_type', attemptedSeries(), timeRange),
     layout(0, 0, 12, 6),
   ),
 
