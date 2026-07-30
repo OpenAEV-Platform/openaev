@@ -3,7 +3,7 @@ package io.openaev.rest.asset.security_platforms;
 import static io.openaev.rest.asset.security_platforms.SecurityPlatformApi.SECURITY_PLATFORM_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -154,13 +154,16 @@ class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
   }
 
   /**
-   * The injector lookup must be scoped by the tenant of the platform row the upsert actually
-   * touched, not by {@code TenantContext} (which falls back to the default tenant when unset). When
-   * the upsert resolves a platform belonging to another tenant, the caller tenant's injector of the
-   * same type must not be linked to it - that would be a cross-tenant link.
+   * The registration upsert must never link across tenants. Its platform lookups run inside the
+   * caller's tenant scope, so an external reference that another tenant's platform also carries
+   * must not resolve that foreign row: the caller gets a platform in their own tenant and the
+   * injector links to that row. The injector lookup itself is scoped by the tenant of the platform
+   * row the upsert actually touched - not the {@code TenantContext} thread-local, whose
+   * default-tenant fallback would be the wrong scope for any caller reaching the upsert without a
+   * request-bound tenant.
    */
   @Test
-  @DisplayName("an upsert touching another tenant's platform does not link this tenant's injector")
+  @DisplayName("an upsert never links across tenants: the foreign platform stays untouched")
   void upsertOnAForeignTenantPlatformLinksNoInjector() throws Exception {
     Tenant otherTenant = tenantIsolationTestHelper.createTenant("injector-lifecycle-other");
     SecurityPlatform foreignPlatform = new SecurityPlatform();
@@ -175,11 +178,13 @@ class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
 
     String platformId = upsertPlatform(INJECTOR_TYPE);
 
-    assertEquals(foreignPlatform.getId(), platformId);
+    // The tenant-scoped lookup must not resolve the foreign tenant's row.
+    assertNotEquals(foreignPlatform.getId(), platformId);
+    // The caller's injector links to the caller-tenant platform, not the foreign one.
     Injector reloaded =
         injectorRepository
             .findByTypeAndTenantId(INJECTOR_TYPE, TenantContext.getCurrentTenant())
             .orElseThrow();
-    assertNull(reloaded.getSecurityPlatform());
+    assertEquals(platformId, reloaded.getSecurityPlatform().getId());
   }
 }
