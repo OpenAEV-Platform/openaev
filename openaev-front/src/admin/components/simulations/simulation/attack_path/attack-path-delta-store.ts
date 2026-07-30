@@ -148,6 +148,29 @@ const mergeEdge = (existing: AttackPathEdges, incoming: AttackPathEdges): Attack
   return merged;
 };
 
+// An execution feed node's `findingsNodeIds` accumulates, for the same reason an edge's
+// `executionIds` does: the backend derives it from the findings present in the batch, so an execution
+// that produced f1 and f2 in an earlier tick and f3 in this one ships `[f3]`. Replacing would drop f1
+// and f2 — and the causal chain places a finding node ONLY from its producer's list, so those
+// findings would vanish from the layout until the next full read. Links are append-only within a run
+// (a re-discovered finding is re-stamped and its links re-inserted, never deleted), so a union is the
+// faithful merge here. An incoming node that carries no list at all leaves the known one alone: the
+// field is omitted rather than nulled when the batch saw none of that execution's findings.
+const mergeExecutionNode = (existing: AttackPathNodeDTO, incoming: AttackPathNodeDTO): AttackPathNodeDTO => {
+  const merged = {
+    ...existing,
+    ...incoming,
+  };
+  const known = existing.findingsNodeIds;
+  if (!known || known.length === 0) {
+    return merged;
+  }
+  const knownSet = new Set(known);
+  const added = (incoming.findingsNodeIds ?? []).filter(id => !knownSet.has(id));
+  merged.findingsNodeIds = added.length > 0 ? [...known, ...added] : known;
+  return merged;
+};
+
 const indexBy = <T>(entries: T[] | undefined, key: (entry: T) => string | undefined): ReadonlyMap<string, T> => {
   const map = new Map<string, T>();
   (entries ?? []).forEach((entry) => {
@@ -318,7 +341,8 @@ export const applyDelta = (
   (delta.attackPathEdges ?? []).forEach(e => track(upsert(edges, e.edgeId, e, mergeEdge)));
   // Feed entries only exist in the full projection; when it was never seeded (run above the size gate)
   // they are still accumulated so a later render-mode switch has them, at no layout cost.
-  (delta.attackPathExecutions ?? []).forEach(e => track(upsert(executions, e.id, e), e.id));
+  (delta.attackPathExecutions ?? []).forEach(e =>
+    track(upsert(executions, e.id, e, mergeExecutionNode), e.id));
   (delta.staticAttackPathFindings ?? []).forEach((f) => {
     upsert(staticFindings, f.id, f);
     track(upsert(nodes, f.id, f), f.id);

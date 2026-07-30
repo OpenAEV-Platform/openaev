@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
@@ -17,6 +18,7 @@ import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
+import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.service.attackpath.dto.AttackPathCounters;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathDeltaDTO;
@@ -27,8 +29,11 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
@@ -122,6 +127,62 @@ class AttackPathDeltaApiTest extends IntegrationTest {
     ClientState atV2 = clientState();
 
     assertThatApplyingEquals(atV1, deltaSince(v1), atV2);
+  }
+
+  @Test
+  @DisplayName(
+      "given findings copied in a bump after their execution's, the delta still links them")
+  void given_findings_written_after_their_producer_should_still_carry_the_causal_wiring() {
+    // The real ingestion sequence, and the one the tests above never reproduced: an execution is
+    // persisted and versioned when its inject runs, and its findings are copied in their OWN later
+    // bump. A delta taken in between therefore carries findings whose PRODUCER did not change — and
+    // the rebuild pass derives an execution's produced-finding ids by intersecting the executions
+    // and
+    // the findings it is handed. Without the producer it emitted orphan finding nodes, and since
+    // the
+    // causal chain places a finding node only from its producer's list, the client accumulated the
+    // whole finding layer and rendered none of it until a reload re-read the snapshot.
+    AttackPathExecution execution = writeReturning(() -> executionOn("dc-01", "nmap", null));
+    long atExecution = currentVersion();
+    ClientState beforeFindings = clientState();
+
+    write(() -> findingOn(execution, "port", "445"));
+
+    AttackPathDeltaDTO delta = deltaSince(atExecution);
+    assertThat(delta.attackPathExecutions())
+        .singleElement()
+        .satisfies(
+            producer ->
+                assertThat(producer.getFindingsNodeIds())
+                    .containsExactly(AttackPathIds.findingNode("port", "445")));
+    assertThatApplyingEquals(beforeFindings, delta, clientState());
+  }
+
+  @Test
+  @DisplayName("given a second batch of findings, the producer keeps the ones it already shipped")
+  void given_a_second_finding_bump_should_accumulate_the_producers_finding_ids() {
+    // Each bump's delta computes the producer's finding ids from the findings THAT BUMP changed, so
+    // the second batch ships `[port 3389]` alone. The client accumulates them (`mergeExecutionNode`
+    // in attack-path-delta-store.ts) rather than replacing, which is what this states: replacing
+    // would silently drop the first port from the chain, and only a reload would bring it back.
+    AttackPathExecution execution = writeReturning(() -> executionOn("dc-01", "nmap", null));
+    long atExecution = currentVersion();
+    ClientState beforeFindings = clientState();
+
+    write(() -> findingOn(execution, "port", "445"));
+    long afterFirstFinding = currentVersion();
+    AttackPathDeltaDTO first = deltaSince(atExecution);
+
+    write(() -> findingOn(execution, "port", "3389"));
+    AttackPathDeltaDTO second = deltaSince(afterFirstFinding);
+
+    assertThat(second.attackPathExecutions())
+        .singleElement()
+        .satisfies(
+            producer ->
+                assertThat(producer.getFindingsNodeIds())
+                    .containsExactly(AttackPathIds.findingNode("port", "3389")));
+    assertThat(apply(beforeFindings, first, second)).isEqualTo(clientState().entities());
   }
 
   @Test
@@ -327,6 +388,17 @@ class AttackPathDeltaApiTest extends IntegrationTest {
     assertThat(delta.counters()).isEqualTo(expected.counters());
   }
 
+  /**
+   * The two list fields the client ACCUMULATES instead of replacing, by entity kind. Both are
+   * per-entity histories the delta can only ever ship a slice of — the executions grouped under an
+   * edge, and the findings one execution produced — because a delta sees the rows of one bump.
+   * Every other field, aggregates included, is shipped whole and replaced (FR1); these two are the
+   * stated exception, and the store's {@code mergeEdge} / {@code mergeExecutionNode} are the code
+   * this mirrors.
+   */
+  private static final Map<String, String> ACCUMULATED_LIST_FIELD =
+      Map.of("edge", "executionIds", "exec", "findingsNodeIds");
+
   private <T> void merge(
       Map<String, JsonNode> state, String kind, List<T> entities, Function<T, String> id) {
     entities.forEach(
@@ -334,10 +406,37 @@ class AttackPathDeltaApiTest extends IntegrationTest {
           String key = kind + '#' + id.apply(entity);
           ObjectNode incoming = objectMapper.valueToTree(entity);
           JsonNode existing = state.get(key);
-          state.put(
-              key,
-              existing == null ? incoming : ((ObjectNode) existing.deepCopy()).setAll(incoming));
+          if (existing == null) {
+            state.put(key, incoming);
+            return;
+          }
+          ObjectNode merged = ((ObjectNode) existing.deepCopy()).setAll(incoming);
+          String accumulated = ACCUMULATED_LIST_FIELD.get(kind);
+          if (accumulated != null) {
+            union(existing.get(accumulated), incoming.get(accumulated))
+                .ifPresent(list -> merged.set(accumulated, list));
+          }
+          state.put(key, merged);
         });
+  }
+
+  /** The known entries then the incoming ones not already there; empty when nothing was known. */
+  private Optional<ArrayNode> union(JsonNode known, JsonNode incoming) {
+    if (known == null || !known.isArray() || known.isEmpty()) {
+      return Optional.empty();
+    }
+    ArrayNode result = known.deepCopy();
+    Set<String> seen = new LinkedHashSet<>();
+    known.forEach(entry -> seen.add(entry.asText()));
+    if (incoming != null && incoming.isArray()) {
+      incoming.forEach(
+          entry -> {
+            if (seen.add(entry.asText())) {
+              result.add(entry);
+            }
+          });
+    }
+    return Optional.of(result);
   }
 
   // -- fixtures: a writer's bump-and-stamp, without the run pipeline --

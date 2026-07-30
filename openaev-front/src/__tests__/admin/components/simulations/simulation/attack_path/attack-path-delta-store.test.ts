@@ -297,6 +297,76 @@ describe('attack-path delta store', () => {
       expect([...next.edges.values()].filter(e => e.type === 'EDGE_FINDINGS_TYPE_FINDING').length).toBe(1);
       expect([...next.edges.values()].filter(e => e.type === 'EDGE_ENDPOINT_FINDINGS_TYPE').length).toBe(1);
     });
+
+    it('given_aSecondBatchOfFindings_should_accumulateTheProducersFindingIds', () => {
+      // Arrange: findings are copied in their own version bump, so each delta recomputes an
+      // execution's produced-finding ids from THAT bump's findings only. Here the same execution
+      // produced one finding in the first batch and another in the second.
+      const EXEC = 'NODE_EXECUTION|exec-2|host-x|agent-1';
+      const producer = {
+        id: EXEC,
+        ref: 'exec-2',
+        type: 'EXECUTION',
+      };
+      const store = applyDelta(withFullSnapshot(fromSnapshot(snapshotV1, 1), {
+        ...snapshotV1,
+        mode: 'full',
+      }), aDelta({
+        sinceVersion: 1,
+        newVersion: 2,
+        attackPathExecutions: [{
+          ...producer,
+          findingsNodeIds: ['NODE_FINDING|port|445'],
+        }],
+      })).store;
+
+      // Act
+      const { store: next } = applyDelta(store, aDelta({
+        sinceVersion: 2,
+        newVersion: 3,
+        attackPathExecutions: [{
+          ...producer,
+          findingsNodeIds: ['NODE_FINDING|port|3389'],
+        }],
+      }));
+
+      // Assert: the causal chain places a finding node only from its producer's list, so replacing it
+      // would drop the first port from the graph until a reload.
+      expect(next.executions.get(EXEC)?.findingsNodeIds)
+        .toEqual(['NODE_FINDING|port|445', 'NODE_FINDING|port|3389']);
+    });
+
+    it('given_aProducerReshippedWithoutFindings_should_keepTheOnesItAlreadyHas', () => {
+      // Arrange: a verdict-only change re-ships the execution with no finding list at all (the field
+      // is omitted, not nulled, when the batch saw none of its findings).
+      const EXEC = 'NODE_EXECUTION|exec-2|host-x|agent-1';
+      const store = applyDelta(fromSnapshot(snapshotV1, 1), aDelta({
+        sinceVersion: 1,
+        newVersion: 2,
+        attackPathExecutions: [{
+          id: EXEC,
+          ref: 'exec-2',
+          type: 'EXECUTION',
+          findingsNodeIds: ['NODE_FINDING|port|445'],
+        }],
+      })).store;
+
+      // Act
+      const { store: next } = applyDelta(store, aDelta({
+        sinceVersion: 2,
+        newVersion: 3,
+        attackPathExecutions: [{
+          id: EXEC,
+          ref: 'exec-2',
+          type: 'EXECUTION',
+          status: 'GREEN',
+        }],
+      }));
+
+      // Assert
+      expect(next.executions.get(EXEC)?.status).toBe('GREEN');
+      expect(next.executions.get(EXEC)?.findingsNodeIds).toEqual(['NODE_FINDING|port|445']);
+    });
   });
 
   describe('projections', () => {

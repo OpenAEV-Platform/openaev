@@ -178,6 +178,26 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
       @Param("targetKeys") Collection<String> targetKeys);
 
   /**
+   * The same projection as {@link #findGraphRowsSince}, for an explicit set of ids. The delta uses
+   * it to pull in the executions that PRODUCED the findings of a batch even when those executions
+   * did not themselves change: findings are written in their own version bump, so a producer is
+   * almost always at a lower version than the findings it produced, and the causal wiring the
+   * rebuild pass derives (an execution's produced-finding ids, the event dependencies) only exists
+   * when both sides are in the same pass. Bounded by the batch's distinct producers, and a
+   * primary-key read.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathExecutionRow("
+          + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
+          + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
+          + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
+          + "FROM AttackPathExecution e "
+          + "WHERE e.simulationId = :simulationId AND e.id IN :ids")
+  List<AttackPathExecutionRow> findGraphRowsByIds(
+      @Param("simulationId") String simulationId, @Param("ids") Collection<String> ids);
+
+  /**
    * An endpoint's relations: the executions targeting it. A single indexed read using {@code
    * idx_ap_exec_sim_targetkey}; {@code targetKey} is the asset id or the raw value.
    */

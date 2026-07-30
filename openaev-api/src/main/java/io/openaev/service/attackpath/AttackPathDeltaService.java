@@ -19,6 +19,7 @@ import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -45,6 +46,10 @@ import org.springframework.transaction.annotation.Transactional;
  * What a subset of rows genuinely cannot compute — an endpoint's worst-case colour, its per-type
  * finding counts, an edge's execution count — is then recomputed over ALL the rows of the affected
  * endpoints and shipped whole (FR1), which is O(what changed) rather than O(graph).
+ *
+ * <p>"Changed rows" is closed over one relation before the pass runs: the executions that produced
+ * the batch's findings are pulled in even when they did not change, because the pass derives the
+ * causal wiring by intersecting the two sides (see {@link #withProducersOf}).
  */
 @Service
 @RequiredArgsConstructor
@@ -112,17 +117,19 @@ public class AttackPathDeltaService {
 
   private AttackPathDeltaDTO assembleDelta(
       String simulationId, long since, long currentVersion, Collection<String> tenantIds) {
-    List<AttackPathExecutionRow> executions =
+    List<AttackPathExecutionRow> changedExecutions =
         executionRepository.findGraphRowsSince(simulationId, since);
     List<AttackPathFindingRow> findings =
         AttackPathGraphService.presentGraphRows(
             findingRepository.findGraphRowsSince(simulationId, since));
-    if (executions.isEmpty() && findings.isEmpty()) {
+    if (changedExecutions.isEmpty() && findings.isEmpty()) {
       // The version moved but nothing this read can see changed (a guarded verdict update that
       // matched no row, or a re-copy of identical findings): an empty tick, and null counters say
       // "keep the ones you have" rather than paying two aggregate queries to confirm them.
       return AttackPathDeltaDTO.empty(since, currentVersion);
     }
+    List<AttackPathExecutionRow> executions =
+        withProducersOf(simulationId, changedExecutions, findings);
 
     AttackPathDTO partial = graphService.assemble(executions, findings, 0);
     Map<String, AttackPathNodeDTO> nodesById = new LinkedHashMap<>();
@@ -144,6 +151,41 @@ public class AttackPathDeltaService {
         new ArrayList<>(nodesById.values()),
         new ArrayList<>(edgesById.values()),
         counters(simulationId, currentVersion, tenantIds));
+  }
+
+  /**
+   * Adds the executions that produced this batch's findings, when they are not in the batch already.
+   *
+   * <p>This is what makes the delta causally closed, and it is not an optimisation detail: findings
+   * are copied in their OWN version bump, after the execution that produced them, so a batch that
+   * carries findings almost never carries their producers. The rebuild pass derives the causal wiring
+   * — an execution's {@code findingsNodeIds}, a finding node's worst-case verdict, the event
+   * dependencies between steps — by intersecting the executions and the findings it is handed, so
+   * without the producers it emits finding nodes that no execution claims. The causal chain places a
+   * finding only from its producer's list, so the client accumulated the nodes and rendered none of
+   * them: the whole finding layer of the graph appeared only after a reload, which re-read the
+   * snapshot over all the rows at once.
+   *
+   * <p>One primary-key read, bounded by the batch's distinct producers.
+   */
+  private List<AttackPathExecutionRow> withProducersOf(
+      String simulationId,
+      List<AttackPathExecutionRow> executions,
+      List<AttackPathFindingRow> findings) {
+    Set<String> present = new HashSet<>();
+    executions.forEach(e -> present.add(e.id()));
+    Set<String> missing = new LinkedHashSet<>();
+    for (AttackPathFindingRow f : findings) {
+      if (f.executionId() != null && !present.contains(f.executionId())) {
+        missing.add(f.executionId());
+      }
+    }
+    if (missing.isEmpty()) {
+      return executions;
+    }
+    List<AttackPathExecutionRow> closed = new ArrayList<>(executions);
+    closed.addAll(executionRepository.findGraphRowsByIds(simulationId, missing));
+    return closed;
   }
 
   /**
