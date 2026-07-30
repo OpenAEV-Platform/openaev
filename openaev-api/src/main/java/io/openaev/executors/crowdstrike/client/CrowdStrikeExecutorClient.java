@@ -1,26 +1,14 @@
 package io.openaev.executors.crowdstrike.client;
 
-import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.*;
-import io.openaev.executors.crowdstrike.model.Authentication;
-import io.openaev.executors.crowdstrike.model.ResourcesHosts;
-import io.openaev.executors.crowdstrike.model.ResourcesSession;
 import io.openaev.executors.exception.ExecutorException;
 import io.openaev.service.EndpointService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.ClientProtocolException;
@@ -34,6 +22,19 @@ import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.message.BasicNameValuePair;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 
 @RequiredArgsConstructor
 @Service
@@ -90,7 +91,7 @@ public class CrowdStrikeExecutorClient {
       }
       return hosts;
     } catch (Exception e) {
-      log.error(String.format("Unexpected error occurred. Error: %s", e.getMessage()), e);
+      logErrorMessage(e.getMessage(), e);
       throw new ExecutorException(e, e.getMessage(), CROWDSTRIKE_EXECUTOR_NAME);
     }
   }
@@ -174,7 +175,10 @@ public class CrowdStrikeExecutorClient {
               + "\"}'```");
       this.postAsync(REAL_TIME_RESPONSE_URI, bodyCommand);
     } catch (IOException e) {
+      logErrorMessage(e.getMessage(), e);
       throw new ExecutorException(e, e.getMessage(), CROWDSTRIKE_EXECUTOR_NAME);
+    } catch (Exception e) {
+      logErrorMessage(e.getMessage(), e);
     }
   }
 
@@ -190,6 +194,7 @@ public class CrowdStrikeExecutorClient {
       httpGet.addHeader("Authorization", "Bearer " + this.token);
       return httpClient.execute(httpGet, response -> EntityUtils.toString(response.getEntity()));
     } catch (IOException e) {
+      logErrorMessage(e.getMessage(), e);
       throw new ClientProtocolException("Unexpected response for request on: " + uri, e);
     }
   }
@@ -209,6 +214,7 @@ public class CrowdStrikeExecutorClient {
       httpPost.setEntity(entity);
       return httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
     } catch (IOException e) {
+      logErrorMessage(e.getMessage(), e);
       throw new ClientProtocolException("Unexpected response", e);
     }
   }
@@ -261,6 +267,7 @@ public class CrowdStrikeExecutorClient {
       this.token = auth.getAccess_token();
       this.lastAuthentication = Instant.now();
     } catch (IOException e) {
+      logErrorMessage(e.getMessage(), e);
       throw new ClientProtocolException("Unexpected response", e);
     }
   }
@@ -289,5 +296,9 @@ public class CrowdStrikeExecutorClient {
           .append(".");
     }
     throw new ExecutorException(message.toString(), CROWDSTRIKE_EXECUTOR_NAME);
+  }
+
+  private void logErrorMessage(String message, Exception exception) {
+    log.error(String.format("Unexpected Crowdstrike error occurred. Error: %s", message), exception);
   }
 }
