@@ -122,4 +122,54 @@ class WorkflowConfigurationMapperTest {
           ScopeRuleSelectedMode.DENYLIST, output.getWorkflowScopeRules().get(1).getSelectedMode());
     }
   }
+
+  @Nested
+  @DisplayName("toOutput — scope variables")
+  class ScopeVariableOutputTests {
+
+    @Test
+    @DisplayName("should mask sensitive scope variable values")
+    void shouldMaskSensitiveScopeVariableValues() {
+      // Arrange
+      ScopeVariable passwordVariable =
+          ScopeVariable.builder()
+              .key("passwordVar")
+              .type(PrimitiveType.Password)
+              .value("Secret123")
+              .build();
+      ScopeVariable hashVariable =
+          ScopeVariable.builder()
+              .key("hashVar")
+              .type(PrimitiveType.Hash)
+              .value("ABCDEF123456")
+              .build();
+      ScopeVariable keyVariable =
+          ScopeVariable.builder()
+              .key("keyVar")
+              .type(PrimitiveType.Key)
+              .value("XYZ987654")
+              .build();
+      ScopeVariable textVariable =
+          ScopeVariable.builder()
+              .key("textVar")
+              .type(PrimitiveType.Text)
+              .value("NotSensitive")
+              .build();
+      Workflow workflow =
+          Workflow.builder()
+              .workflowScopeVariables(
+                  new ArrayList<>(
+                      List.of(passwordVariable, hashVariable, keyVariable, textVariable)))
+              .build();
+
+      // Act
+      WorkflowConfigurationOutput output = toOutput(workflow);
+
+      // Assert
+      assertEquals("S*******3", output.getWorkflowScopeVariables().get(0).getValue());
+      assertEquals("ABC******456", output.getWorkflowScopeVariables().get(1).getValue());
+      assertEquals("XYZ***654", output.getWorkflowScopeVariables().get(2).getValue());
+      assertEquals("NotSensitive", output.getWorkflowScopeVariables().get(3).getValue());
+    }
+  }
 }

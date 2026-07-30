@@ -18,7 +18,6 @@ import {
   type WorkflowConfigurationInput,
   type WorkflowConfigurationOutput,
 } from '../../../utils/api-types';
-import maskPrimitiveValue from '../../../utils/primitive-value-masking';
 import ScopeVariableCreateDialog from './ScopeVariableCreateDialog';
 
 interface ScopeVariablesProps {
@@ -141,7 +140,7 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
                     wordBreak: 'break-all',
                   }}
                 >
-                  {maskPrimitiveValue(variable.scope_variable_type, variable.scope_variable_value) ?? '—'}
+                  {variable.scope_variable_value ?? '—'}
                 </Typography>
                 <Typography
                   key={`desc-${variable.scope_variable_id}`}

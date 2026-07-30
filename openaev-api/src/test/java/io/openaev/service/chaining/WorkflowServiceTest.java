@@ -1022,6 +1022,35 @@ class WorkflowServiceTest {
     }
 
     @Test
+    @DisplayName("should preserve raw sensitive value when update input sends masked echo")
+    void given_maskedEchoForSensitiveVariable_should_preserveRawValue() {
+      // Arrange
+      Workflow workflow = buildTemplate(false);
+      ScopeVariable existing = new ScopeVariable();
+      String varId = UUID.randomUUID().toString();
+      existing.setKey("password_var");
+      existing.setType(PrimitiveType.Password);
+      existing.setValue("TopSecret");
+      existing.setDescription("desc");
+      existing.setWorkflow(workflow);
+      org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
+      workflow.getWorkflowScopeVariables().add(existing);
+
+      ScopeVariableInput input =
+          new ScopeVariableInput(varId, "password_var", PrimitiveType.Password, "T*******t", "desc");
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(List.of(input));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      assertSame(workflow, result);
+      assertEquals("TopSecret", result.getWorkflowScopeVariables().getFirst().getValue());
+      verify(workflowRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("should copy scope variables when launching a workflow simulation")
     void given_templateWithScopeVariables_should_copyThemToRun() {
       // Arrange

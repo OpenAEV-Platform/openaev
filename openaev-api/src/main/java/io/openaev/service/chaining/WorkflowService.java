@@ -16,6 +16,7 @@ import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollecto
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.IpAddressUtils;
+import io.openaev.utils.PrimitiveValueMaskingUtils;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -364,17 +365,27 @@ public class WorkflowService {
   }
 
   private boolean hasVariableChanged(ScopeVariable existing, ScopeVariableInput input) {
+    String resolvedValue = resolveScopeVariableValue(existing, input);
     return !Objects.equals(existing.getKey(), input.getKey())
         || !Objects.equals(existing.getType(), input.getType())
-        || !Objects.equals(existing.getValue(), input.getValue())
+        || !Objects.equals(existing.getValue(), resolvedValue)
         || !Objects.equals(existing.getDescription(), input.getDescription());
   }
 
   private void updateScopeVariable(ScopeVariable existing, ScopeVariableInput input) {
     existing.setKey(input.getKey());
     existing.setType(input.getType());
-    existing.setValue(input.getValue());
+    existing.setValue(resolveScopeVariableValue(existing, input));
     existing.setDescription(input.getDescription());
+  }
+
+  private String resolveScopeVariableValue(ScopeVariable existing, ScopeVariableInput input) {
+    if (PrimitiveValueMaskingUtils.isMaskedEcho(input.getType(), existing.getValue(), input.getValue())
+        || PrimitiveValueMaskingUtils.isMaskedEcho(
+            existing.getType(), existing.getValue(), input.getValue())) {
+      return existing.getValue();
+    }
+    return input.getValue();
   }
 
   private ScopeVariable buildScopeVariable(ScopeVariableInput input, Workflow workflow) {

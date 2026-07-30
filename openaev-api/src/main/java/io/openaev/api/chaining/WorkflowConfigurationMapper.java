@@ -6,6 +6,7 @@ import io.openaev.api.chaining.dto.WorkflowScopeRuleOutput;
 import io.openaev.database.model.ScopeVariable;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowScopeRule;
+import io.openaev.utils.PrimitiveValueMaskingUtils;
 import java.util.List;
 
 public class WorkflowConfigurationMapper {
@@ -61,7 +62,7 @@ public class WorkflowConfigurationMapper {
         .id(variable.getId())
         .key(variable.getKey())
         .type(variable.getType())
-        .value(variable.getValue())
+        .value(PrimitiveValueMaskingUtils.maskValue(variable.getType(), variable.getValue()))
         .description(variable.getDescription())
         .build();
   }
