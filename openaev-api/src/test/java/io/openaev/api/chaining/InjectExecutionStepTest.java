@@ -210,11 +210,13 @@ public class InjectExecutionStepTest extends IntegrationTest {
     doReturn(List.of()).when(scopeService).getValidAssets("workflow-1");
     doReturn(List.of("192.168.10.0/26", "192.168.10.1", "192.168.10.2", "example.org"))
         .when(scopeService)
-        .getValidManualTargetsFromScope("workflow-1");
+        .getValidManualTargetsFromScopeAndGlobalState("workflow-1");
+
+    Step stepTemplate = new Step();
 
     // Act
     List<ConditionService.ExecutionBatch> expanded =
-        injectExecutionStep.expandTargetBatches(batches, workflowRun);
+        injectExecutionStep.expandTargetBatches(batches, workflowRun, stepTemplate);
 
     // Assert
     assertEquals(3, expanded.size());

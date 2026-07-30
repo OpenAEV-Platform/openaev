@@ -223,7 +223,7 @@ class ScopeServiceTest {
     when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
         .thenReturn(List.of(allowlistRule(ScopeRuleValueType.IP_SUBNET, "192.168.10.0/26")));
 
-    List<String> result = scopeService.getValidManualTargetsFromScope(WORKFLOW_ID);
+    List<String> result = scopeService.getValidManualTargetsFromScopeAndGlobalState(WORKFLOW_ID);
 
     assertThat(result).hasSize(62);
     assertThat(result).contains("192.168.10.1", "192.168.10.62");
@@ -236,7 +236,7 @@ class ScopeServiceTest {
     when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
         .thenReturn(List.of(allowlistRule(ScopeRuleValueType.IP_SUBNET, "67.205.128.0/18")));
 
-    List<String> result = scopeService.getValidManualTargetsFromScope(WORKFLOW_ID);
+    List<String> result = scopeService.getValidManualTargetsFromScopeAndGlobalState(WORKFLOW_ID);
 
     assertThat(result).isEmpty();
   }
@@ -250,7 +250,7 @@ class ScopeServiceTest {
                 allowlistRule(ScopeRuleValueType.IP_SUBNET, "192.168.10.0/30"),
                 denylistRule(ScopeRuleValueType.IP, "192.168.10.2")));
 
-    List<String> result = scopeService.getValidManualTargetsFromScope(WORKFLOW_ID);
+    List<String> result = scopeService.getValidManualTargetsFromScopeAndGlobalState(WORKFLOW_ID);
 
     assertThat(result).containsExactly("192.168.10.1");
   }
@@ -264,7 +264,7 @@ class ScopeServiceTest {
                 allowlistRule(ScopeRuleValueType.IP_SUBNET, "192.168.10.0/29"),
                 denylistRule(ScopeRuleValueType.IP_SUBNET, "192.168.10.4/30")));
 
-    List<String> result = scopeService.getValidManualTargetsFromScope(WORKFLOW_ID);
+    List<String> result = scopeService.getValidManualTargetsFromScopeAndGlobalState(WORKFLOW_ID);
 
     assertThat(result).containsExactly("192.168.10.1", "192.168.10.2", "192.168.10.3");
   }
