@@ -116,6 +116,9 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     // Arrange
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-remediation-values"));
     TenantContext.setCurrentTenant(tenant.getId());
+    // This test runs untransacted (NOT_SUPPORTED) so its rows are COMMITTED; register the tenant
+    // for the AfterEach purge (the tenant FK cascade clears the snapshot rows with it).
+    verdictTenantId = tenant.getId();
 
     Endpoint endpoint = EndpointFixture.createEndpoint("corp-dc");
     endpoint.setHostname("corp-dc");

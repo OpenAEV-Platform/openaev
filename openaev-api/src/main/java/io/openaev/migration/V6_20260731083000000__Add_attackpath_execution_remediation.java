@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /** Adds a remediation snapshot table keyed by step execution for attack-path execution detail. */
 @Component
-public class V6_20260730913000000__Add_attackpath_execution_remediation extends BaseJavaMigration {
+public class V6_20260731083000000__Add_attackpath_execution_remediation extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
