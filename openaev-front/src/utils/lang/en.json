@@ -162,6 +162,7 @@
   "Add media pressure": "Add media pressure",
   "Add media pressure in this inject": "Add media pressure in this inject",
   "Add multiple items at once by separating them with commas.": "Add multiple items at once by separating them with commas.",
+  "Subnet expansion is safety-limited /24. Large subnets may not be expanded.": "Subnet expansion is safety-limited /24. Large subnets may not be expanded.",
   "Add parent": "Add parent",
   "Add players in this team": "Add persons in this team",
   "Add schedule": "Add schedule",

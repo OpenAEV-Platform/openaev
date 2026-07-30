@@ -162,6 +162,7 @@
   "Add media pressure": "Mediendruck hinzufügen",
   "Add media pressure in this inject": "Fügen Sie den Mediendruck in dieser Injektion hinzu",
   "Add multiple items at once by separating them with commas.": "Fügen Sie mehrere Elemente auf einmal hinzu, indem Sie sie mit Kommas trennen.",
+  "Subnet expansion is safety-limited /24. Large subnets may not be expanded.": "Die Subnetz-Erweiterung ist fur IPv4 und IPv6 sicherheitsbegrenzt. Grosse Subnetze werden moglicherweise nicht erweitert.",
   "Add parent": "Elternteil hinzufugen",
   "Add players in this team": "Spieler in dieser Mannschaft hinzufügen",
   "Add schedule": "Add schedule",

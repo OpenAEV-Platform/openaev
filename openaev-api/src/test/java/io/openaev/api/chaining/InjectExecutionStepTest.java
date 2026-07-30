@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
@@ -196,6 +197,41 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertNotNull(updated);
     assertEquals("10.10.10.10", updated.get("target_ip").asText());
     assertEquals("script.bat", updated.get("file").asText());
+  }
+
+  @Test
+  void
+      given_scopeWithSubnetAndExpandedValues_whenExpandTargetBatches_thenManualTargetsUseExpandedHosts() {
+    // Arrange
+    Workflow workflowRun = Workflow.builder().id("workflow-1").build();
+    List<ConditionService.ExecutionBatch> batches =
+        List.of(new ConditionService.ExecutionBatch("{}", List.of(), null));
+
+    doReturn(List.of()).when(scopeService).getValidAssets("workflow-1");
+    doReturn(List.of("192.168.10.0/26", "192.168.10.1", "192.168.10.2", "example.org"))
+        .when(scopeService)
+        .getValidManualTargetsFromScopeAndGlobalState("workflow-1");
+
+    Step stepTemplate = new Step();
+
+    // Act
+    List<ConditionService.ExecutionBatch> expanded =
+        injectExecutionStep.expandTargetBatches(batches, workflowRun, stepTemplate);
+
+    // Assert
+    assertEquals(3, expanded.size());
+    List<String> resolvedManualTargets =
+        expanded.stream()
+            .map(ConditionService.ExecutionBatch::inputString)
+            .map(JsonParser::parseString)
+            .map(JsonElement::getAsJsonObject)
+            .map(json -> json.getAsJsonObject("_target"))
+            .map(target -> target.get("manual").getAsString())
+            .toList();
+    assertTrue(resolvedManualTargets.contains("192.168.10.1"));
+    assertTrue(resolvedManualTargets.contains("192.168.10.2"));
+    assertTrue(resolvedManualTargets.contains("example.org"));
+    assertFalse(resolvedManualTargets.contains("192.168.10.0/26"));
   }
 
   @Test

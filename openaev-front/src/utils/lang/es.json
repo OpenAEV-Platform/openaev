@@ -162,6 +162,7 @@
   "Add media pressure": "Añadirmedio de prensa",
   "Add media pressure in this inject": "Añadir medio de prensa en esta inyección",
   "Add multiple items at once by separating them with commas.": "Añada varios elementos a la vez separándolos con comas.",
+  "Subnet expansion is safety-limited /24. Large subnets may not be expanded.": "La expansion de subredes tiene limites de seguridad para IPv4 e IPv6. Las subredes grandes pueden no expandirse.",
   "Add parent": "Anadir padre",
   "Add players in this team": "Añadir jugadores en este equipo",
   "Add schedule": "Add schedule",
