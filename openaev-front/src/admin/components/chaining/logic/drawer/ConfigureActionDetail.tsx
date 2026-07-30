@@ -13,6 +13,7 @@ import type { ContractElement } from '../../../../../utils/api-types-custom';
 import { zodImplement } from '../../../../../utils/Zod';
 import DrawerBreadcrumb from '../../../common/DrawerBreadcrumb';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
+import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 import { type ActionDetailData } from '../types';
 import ActionFormButtons from './ActionFormButtons';
 import ActionInjectData from './ActionInjectData';
@@ -26,6 +27,7 @@ import {
   getAutoLinkedFieldKeys,
   getContractFieldDefaultValue,
   isExpectationInput,
+  normalizeFieldLinks,
 } from './ConfigureActionDetail.utils';
 import { type FieldLink } from './InjectDataFieldItem';
 
@@ -64,6 +66,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   onSave,
 }) => {
   const { t, tPick } = useFormatter();
+  const { argumentWithDefaultValueTypes } = useArgumentTypes();
 
   const isPayload = !!action?.action_payload;
 
@@ -97,7 +100,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
         ?? (action.action_labels ? tPick(action.action_labels) : '');
       reset({ inject_title: label });
       setFieldValues(initialData?.inject_content ?? {});
-      setFieldLinks(initialData?.inject_field_links ?? {});
+      setFieldLinks(normalizeFieldLinks(initialData?.inject_field_links));
       setContractFields(initialData?.contract_fields ?? []);
 
       // Fetch injector contract content
@@ -129,12 +132,12 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     }
   }, [action, initialData]);
 
-  // Auto-link fields with known primitive type mappings (payload injects only).
-  // Extend AUTO_LINK_BY_FIELD_TYPE in ConfigureActionDetail.utils.ts to add more.
+  // Auto-link payload input fields with their default primitive type when available.
+  // Example: field type "port" -> outputTypes ["port"].
   useEffect(() => {
-    if (!isPayload || contractFields.length === 0) return;
-    setFieldLinks(prev => applyAutoLinks(contractFields, prev));
-  }, [isPayload, contractFields]);
+    if (!isPayload || contractFields.length === 0 || initialData) return;
+    setFieldLinks(prev => applyAutoLinks(contractFields, prev, argumentWithDefaultValueTypes));
+  }, [isPayload, contractFields, argumentWithDefaultValueTypes, initialData]);
 
   // Resets all input argument fields to contract defaults.
   // Expectations are explicitly restored from current state because they are not part of this reset.
@@ -279,6 +282,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
           <ActionScopeChips isPayload={isPayload} validAssets={validAssets} />
 
           <ActionInjectData
+            panelOpen={open}
             loading={loadingContract}
             fields={inputArgumentFields}
             fieldValues={fieldValues}

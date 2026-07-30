@@ -131,8 +131,12 @@ public class WorkflowStateService {
     // Find filter conditions in the workflow template that match the output key types
     Set<ConditionType> excludedTypes = Set.of(ConditionType.MAPPER, ConditionType.DEPEND_ON);
     List<Condition> matchingConditions =
-        conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
-            workflowTemplateId, outputKeyTypes, excludedTypes);
+        conditionRepository.findFilterConditionsByWorkflowId(workflowTemplateId, excludedTypes);
+
+    matchingConditions =
+        matchingConditions.stream()
+            .filter(root -> rootHasMatchingLeafKeyTypes(root, outputKeyTypes))
+            .toList();
 
     if (matchingConditions.isEmpty()) {
       return Map.of();
@@ -232,8 +236,7 @@ public class WorkflowStateService {
                     (root.getConditionChildren() != null
                             ? root.getConditionChildren().stream()
                             : java.util.stream.Stream.<Condition>empty())
-                        .filter(child -> child.getKeyType() != null)
-                        .map(child -> child.getKeyType().name()))
+                        .flatMap(child -> getConditionKeyTypeNames(child).stream()))
             .collect(Collectors.toSet());
 
     // Filter output values: keep only those matching interested key types and relevant to the event
@@ -255,6 +258,24 @@ public class WorkflowStateService {
       }
     }
     return valuesToPropagate;
+  }
+
+  private boolean rootHasMatchingLeafKeyTypes(Condition root, Set<PrimitiveType> outputKeyTypes) {
+    if (root.getConditionChildren() == null || root.getConditionChildren().isEmpty()) {
+      return false;
+    }
+    Set<String> outputKeyTypeNames =
+        outputKeyTypes.stream().map(PrimitiveType::name).collect(Collectors.toSet());
+    return root.getConditionChildren().stream()
+        .flatMap(child -> getConditionKeyTypeNames(child).stream())
+        .anyMatch(outputKeyTypeNames::contains);
+  }
+
+  private Set<String> getConditionKeyTypeNames(Condition condition) {
+    if (condition.getKeyTypes() != null && !condition.getKeyTypes().isEmpty()) {
+      return condition.getKeyTypes().stream().map(PrimitiveType::name).collect(Collectors.toSet());
+    }
+    return Set.of();
   }
 
   /**

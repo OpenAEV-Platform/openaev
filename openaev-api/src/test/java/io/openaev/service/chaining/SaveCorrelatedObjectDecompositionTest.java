@@ -265,18 +265,13 @@ class SaveCorrelatedObjectDecompositionTest {
 
       // conditionRepository returns empty → propagation short-circuits, but the CALL proves
       // that the decomposed keys (Host, Port, Service) were passed to propagateToLocalStates.
-      when(conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
-              eq(templateId), anySet(), anySet()))
+      when(conditionRepository.findFilterConditionsByWorkflowId(eq(templateId), anySet()))
           .thenReturn(List.of());
 
       workflowStateService.syncState(dataToSync, typeMappings, workflow);
 
       // Verify that propagateToLocalStates was reached with the decomposed primitive key types
-      verify(conditionRepository)
-          .findFilterConditionsByWorkflowIdAndKeyTypes(
-              eq(templateId),
-              eq(Set.of(PrimitiveType.Host, PrimitiveType.Port, PrimitiveType.Service)),
-              anySet());
+      verify(conditionRepository).findFilterConditionsByWorkflowId(eq(templateId), anySet());
     }
   }
 }
