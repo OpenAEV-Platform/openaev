@@ -102,18 +102,15 @@ public class ConditionUtils {
         if (actualValue == null || target == null) {
           return false;
         }
-        List<String> targetList =
-            Arrays.stream(target.split("\\s*,\\s*"))
-                .filter(candidate -> !candidate.isBlank())
-                .toList();
         String normalizedActualValue =
             caseSensitive ? actualValue : actualValue.toLowerCase(Locale.ROOT);
-        boolean contains =
-            caseSensitive
-                ? targetList.stream().anyMatch(actualValue::contains)
-                : targetList.stream()
-                    .map(candidate -> candidate.toLowerCase(Locale.ROOT))
-                    .anyMatch(normalizedActualValue::contains);
+        List<String> normalizedTargets =
+            Arrays.stream(target.split(","))
+                .map(String::trim)
+                .filter(candidate -> !candidate.isBlank())
+                .map(candidate -> caseSensitive ? candidate : candidate.toLowerCase(Locale.ROOT))
+                .toList();
+        boolean contains = normalizedTargets.stream().anyMatch(normalizedActualValue::contains);
         return (type == ConditionType.IN) == contains;
       case GT, GTE, LT, LTE:
         return handleNumericComparison(actualValue, target, type);

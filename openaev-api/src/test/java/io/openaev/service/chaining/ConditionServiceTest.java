@@ -1738,6 +1738,13 @@ public class ConditionServiceTest {
       }
 
       @Test
+      void in_shouldTrimSingleTargetCandidate() {
+        assertTrue(
+            conditionUtils.isFilterConditionValid(
+                "prefix-admin-suffix", leaf(ConditionType.IN, "  admin  ")));
+      }
+
+      @Test
       void in_shouldBeCaseInsensitive() {
         assertTrue(
             conditionUtils.isFilterConditionValid(
