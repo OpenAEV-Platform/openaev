@@ -29,7 +29,7 @@ import org.springframework.stereotype.Component;
  * idempotent; no Elasticsearch-indexed entity is touched, so no {@code indexing_status} reset.
  */
 @Component
-public class V6_20260730100000000__Add_attackpath_graph_version extends BaseJavaMigration {
+public class V6_20260730213000000__Add_attackpath_graph_version extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
