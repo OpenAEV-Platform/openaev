@@ -12,6 +12,7 @@ interface BaseProps {
   options: AutocompleteOption[];
   onInputChange: (search: string) => void;
   disableCloseOnSelect?: boolean;
+  disableOptionTooltip?: boolean;
   open?: boolean;
   required?: boolean;
   error?: boolean;
@@ -25,6 +26,8 @@ interface BaseProps {
   ) => ReactNode;
   openOnFocus?: boolean;
   selectOnFocus?: boolean;
+  autoFocus?: boolean;
+  disablePortal?: boolean;
 }
 
 interface SingleProps extends BaseProps {
@@ -53,6 +56,9 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
     disabled,
     openOnFocus = true,
     selectOnFocus = true,
+    disableOptionTooltip = false,
+    autoFocus = false,
+    disablePortal = false,
   } = props;
 
   const multiple = props.multiple === true;
@@ -92,34 +98,42 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
       ? value?.includes(option.id)
       : value === option.id;
 
-    return (
-      <Tooltip key={option.id} title={option.label}>
+    const listItem = (itemProps: HTMLAttributes<HTMLLIElement>) => (
+      <Box
+        component="li"
+        {...itemProps}
+        sx={{
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          padding: 0,
+          margin: 0,
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        {multiple && <Checkbox checked={checked} />}
+
         <Box
-          component="li"
-          {...props}
           sx={{
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            padding: 0,
-            margin: 0,
-            display: 'flex',
-            alignItems: 'center',
+            display: 'inline-block',
+            flexGrow: 1,
+            marginLeft: multiple ? theme.spacing(1) : 0,
+            fontStyle: option.italic ? 'italic' : 'normal',
           }}
         >
-          {multiple && <Checkbox checked={checked} />}
-
-          <Box
-            sx={{
-              display: 'inline-block',
-              flexGrow: 1,
-              marginLeft: multiple ? theme.spacing(1) : 0,
-              fontStyle: option.italic ? 'italic' : 'normal',
-            }}
-          >
-            {option.label}
-          </Box>
+          {option.label}
         </Box>
+      </Box>
+    );
+
+    if (disableOptionTooltip) {
+      return listItem({ ...props, key: option.id } as HTMLAttributes<HTMLLIElement>);
+    }
+
+    return (
+      <Tooltip key={option.id} title={option.label}>
+        {listItem(props)}
       </Tooltip>
     );
   };
@@ -134,6 +148,7 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
       selectOnFocus={selectOnFocus}
       openOnFocus={openOnFocus}
       autoHighlight
+      autoFocus={autoFocus}
       disableCloseOnSelect={props.disableCloseOnSelect ?? false}
       noOptionsText={t('No available options')}
       multiple={multiple}
@@ -142,6 +157,7 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
       groupBy={option => ('group' in option ? option.group : '')}
       getOptionLabel={option => option.label ?? ''}
       isOptionEqualToValue={(option, val) => option.id === val.id}
+      slotProps={{ popper: { disablePortal } }}
       onInputChange={(_, search, reason) => {
         if (reason === 'input') {
           onInputChange(search);
