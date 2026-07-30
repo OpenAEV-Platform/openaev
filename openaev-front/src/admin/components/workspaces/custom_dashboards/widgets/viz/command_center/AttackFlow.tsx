@@ -3,6 +3,7 @@ import { type FunctionComponent, type KeyboardEvent, memo, useId, useRef } from 
 
 import { useFormatter } from '../../../../../../../components/i18n';
 import useSvgVisibilityPause from '../../../../../../../utils/hooks/useSvgVisibilityPause';
+import { compactNumber } from '../../../../../../../utils/number';
 import { expectationTypeColor } from '../../../../../common/ExpectationIconByType';
 
 export interface DefenseLayer {
@@ -275,7 +276,9 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
                   fontWeight: 600,
                 }}
               >
-                {layer.success}
+                {/* compact readout (67.6K); the exact count stays on hover */}
+                <title>{layer.success.toLocaleString()}</title>
+                {compactNumber(layer.success)}
               </text>
               <g>
                 <title>{outcomeText}</title>
@@ -361,7 +364,8 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
               fontWeight: 600,
             }}
           >
-            {totalAttacks}
+            <title>{totalAttacks.toLocaleString()}</title>
+            {compactNumber(totalAttacks)}
           </text>
           {/* click-through: every attempted validation */}
           <rect
@@ -414,7 +418,8 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
                   fontWeight: 600,
                 }}
               >
-                {breached}
+                <title>{breached.toLocaleString()}</title>
+                {compactNumber(breached)}
               </text>
               <rect
                 x={ASSETS_X - 34}

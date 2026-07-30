@@ -1,6 +1,6 @@
 {
   "name": "openaev-front",
-  "version": "2.260717.0",
+  "version": "3.260729.0",
   "type": "module",
   "private": true,
   "license": "Apache-2.0",
@@ -44,7 +44,7 @@
     "@fontsource/geologica": "5.3.0",
     "@fontsource/ibm-plex-sans": "5.3.0",
     "@hello-pangea/dnd": "18.0.1",
-    "@hookform/resolvers": "5.5.1",
+    "@hookform/resolvers": "5.5.7",
     "@microsoft/fetch-event-source": "2.0.1",
     "@mui/icons-material": "7.3.11",
     "@mui/lab": "7.0.0-beta.17",

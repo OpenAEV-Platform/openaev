@@ -28,6 +28,7 @@ public record ChainingOutputType(
     registerComplex(ContractOutputType.Credentials, ComplexType.Credentials);
     registerComplex(ContractOutputType.PortsScan, ComplexType.PortsScan);
     registerComplex(ContractOutputType.Share, ComplexType.Share);
+    registerComplex(ContractOutputType.File, ComplexType.File);
     registerComplex(ContractOutputType.Vulnerability, ComplexType.Vulnerability);
     registerComplex(ContractOutputType.AsreproastableAccount, ComplexType.AsreproastableAccount);
     registerComplex(ContractOutputType.KerberoastableAccount, ComplexType.KerberoastableAccount);

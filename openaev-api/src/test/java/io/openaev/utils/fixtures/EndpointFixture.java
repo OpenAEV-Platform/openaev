@@ -15,7 +15,7 @@ public class EndpointFixture {
   public static final String WINDOWS_ASSET_NAME_INPUT = "Windows asset";
   public static final String SEEN_IP = "192.168.12.21";
   public static final String ENDPOINT_DESCRIPTION = "Endpoint description";
-  public static final String WINDOWS_HOSTNAME = "Windows Hostname";
+  public static final String WINDOWS_HOSTNAME = "windows-hostname";
   private static final String[] NO_LOCAL_IPS = new String[0];
 
   private static EndpointInput baseEndpointInput(List<String> tagIds) {
@@ -109,7 +109,7 @@ public class EndpointFixture {
   public static Endpoint createEndpointOnlyWithHostname() {
     Endpoint endpoint = baseEndpoint("Hostname", Endpoint.PLATFORM_TYPE.Linux);
     endpoint.setIps(NO_LOCAL_IPS);
-    endpoint.setHostname("Linux Hostname");
+    endpoint.setHostname("Linux-Hostname");
     endpoint.setSeenIp(Strings.EMPTY);
     return endpoint;
   }

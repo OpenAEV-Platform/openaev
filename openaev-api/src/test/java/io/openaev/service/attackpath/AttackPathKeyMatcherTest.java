@@ -20,11 +20,11 @@ class AttackPathKeyMatcherTest {
 
   @Test
   @DisplayName(
-      "the key type is reconciled to the finding type (share_name -> file, password -> credentials)")
+      "the key type is reconciled to the finding type (share_name -> share, password -> credentials)")
   void reconciles_key_type_to_finding_type() {
     assertThat(
             AttackPathKeyMatcher.matches(
-                finding("file", "\\\\host\\NETLOGON"), key("share_name", "IS_NOT_NULL", null)))
+                finding("share", "\\\\host\\NETLOGON"), key("share_name", "IS_NOT_NULL", null)))
         .isTrue();
     assertThat(
             AttackPathKeyMatcher.matches(
@@ -39,7 +39,7 @@ class AttackPathKeyMatcherTest {
   @Test
   @DisplayName("a type mismatch never matches")
   void type_mismatch_never_matches() {
-    // share_name reconciles to file, which is not the port finding's type.
+    // share_name reconciles to share, which is not the port finding's type.
     assertThat(
             AttackPathKeyMatcher.matches(
                 finding("port", "445"), key("share_name", "IS_NOT_NULL", null)))
@@ -51,15 +51,15 @@ class AttackPathKeyMatcherTest {
   void is_not_null_is_presence() {
     assertThat(
             AttackPathKeyMatcher.matches(
-                finding("file", "\\\\host\\NETLOGON"), key("share_name", "IS_NOT_NULL", null)))
+                finding("share", "\\\\host\\NETLOGON"), key("share_name", "IS_NOT_NULL", null)))
         .isTrue();
     assertThat(
             AttackPathKeyMatcher.matches(
-                finding("file", ""), key("share_name", "IS_NOT_NULL", null)))
+                finding("share", ""), key("share_name", "IS_NOT_NULL", null)))
         .isFalse();
     assertThat(
             AttackPathKeyMatcher.matches(
-                finding("file", null), key("share_name", "IS_NOT_NULL", null)))
+                finding("share", null), key("share_name", "IS_NOT_NULL", null)))
         .isFalse();
   }
 
@@ -86,7 +86,7 @@ class AttackPathKeyMatcherTest {
     // Single token: substring containment (mirrors the front).
     assertThat(
             AttackPathKeyMatcher.matches(
-                finding("file", "\\\\host\\NETLOGON"), key("share_name", "IN", "NETLOGON")))
+                finding("share", "\\\\host\\NETLOGON"), key("share_name", "IN", "NETLOGON")))
         .isTrue();
   }
 
@@ -94,7 +94,7 @@ class AttackPathKeyMatcherTest {
   @DisplayName("a null key type reconciles to null and never matches (no NPE from Map.of)")
   void null_key_type_is_safe() {
     assertThat(AttackPathKeyMatcher.reconciledType(null)).isNull();
-    assertThat(AttackPathKeyMatcher.matches(finding("file", "x"), key(null, "IS_NOT_NULL", null)))
+    assertThat(AttackPathKeyMatcher.matches(finding("share", "x"), key(null, "IS_NOT_NULL", null)))
         .isFalse();
   }
 
@@ -167,15 +167,43 @@ class AttackPathKeyMatcherTest {
   }
 
   @Test
-  @DisplayName("a share_name key reaches the share sub-field of a share-presented-as-file finding")
-  void matches_share_as_file_subfields() {
+  @DisplayName("a share_name key reaches the share_name sub-field of a native share finding")
+  void matches_share_name_subfield() {
     assertThat(
             AttackPathKeyMatcher.matches(
-                finding("file", "\\\\host\\NETLOGON (RW)"), key("share_name", "EQ", "NETLOGON")))
+                finding("share", "\\\\host\\NETLOGON (RW)"), key("share_name", "EQ", "NETLOGON")))
         .isTrue();
     assertThat(
             AttackPathKeyMatcher.matches(
-                finding("file", "\\\\host\\NETLOGON"), key("share_name", "EQ", "SYSVOL")))
+                finding("share", "\\\\host\\NETLOGON"), key("share_name", "EQ", "SYSVOL")))
+        .isFalse();
+  }
+
+  @Test
+  @DisplayName("a file_name key reaches the basename of a native file finding")
+  void matches_file_name_subfield() {
+    // A file value is the full location (FileOutputProcessor.toFindingValue); a file_name key must
+    // reach the basename, not compare the whole path.
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("file", "\\\\host\\SYSVOL\\scripts\\secret.ps1"),
+                key("file_name", "EQ", "secret.ps1")))
+        .isTrue();
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("file", "host:/home/user/config.ini"),
+                key("file_name", "EQ", "config.ini")))
+        .isTrue();
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("file", "\\\\host\\SYSVOL\\scripts\\secret.ps1"),
+                key("file_name", "EQ", "other.ps1")))
+        .isFalse();
+    // A share_name key must NOT match a file finding (a file is not a share): no spurious edge.
+    assertThat(
+            AttackPathKeyMatcher.matches(
+                finding("file", "\\\\host\\SYSVOL\\scripts\\secret.ps1"),
+                key("share_name", "EQ", "SYSVOL")))
         .isFalse();
   }
 
@@ -215,7 +243,8 @@ class AttackPathKeyMatcherTest {
         .containsExactlyInAnyOrder("port", "portscan");
     assertThat(AttackPathKeyMatcher.candidateFindingTypes("username"))
         .containsExactlyInAnyOrder("username", "credentials");
-    assertThat(AttackPathKeyMatcher.candidateFindingTypes("share_name")).containsExactly("file");
+    assertThat(AttackPathKeyMatcher.candidateFindingTypes("share_name")).containsExactly("share");
+    assertThat(AttackPathKeyMatcher.candidateFindingTypes("file_name")).containsExactly("file");
     assertThat(AttackPathKeyMatcher.candidateFindingTypes("cve")).containsExactly("cve");
     assertThat(AttackPathKeyMatcher.candidateFindingTypes(null)).isEmpty();
   }

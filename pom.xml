@@ -10,7 +10,7 @@
 
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>2.260717.0</version>
+    <version>3.260729.0</version>
     <packaging>pom</packaging>
 
     <name>OpenAEV platform</name>

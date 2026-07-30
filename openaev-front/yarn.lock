@@ -900,9 +900,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@hookform/resolvers@npm:5.5.1":
-  version: 5.5.1
-  resolution: "@hookform/resolvers@npm:5.5.1"
+"@hookform/resolvers@npm:5.5.7":
+  version: 5.5.7
+  resolution: "@hookform/resolvers@npm:5.5.7"
   dependencies:
     "@standard-schema/utils": "npm:^0.3.0"
   peerDependencies:
@@ -927,7 +927,7 @@ __metadata:
     react-hook-form: ^7.55.0
     superstruct: ">=0.12.0"
     typanion: ^3.3.2
-    valibot: ^1.0.0 || ^1.0.0-beta.4 || ^1.0.0-rc
+    valibot: ">=0.31.0 || ^1.0.0-beta.4 || ^1.0.0-rc"
     vest: ">=3.0.0"
     yup: ^1.0.0
     zod: ^3.25.0 || ^4.0.0
@@ -980,7 +980,7 @@ __metadata:
       optional: true
     zod:
       optional: true
-  checksum: 10c0/b7e01a97236e41d3c2a1038ef67157870dbaa23615bb3fa5034abf7d777da53819141d97e501c718e317680d9e1a988431c3cef14bb8fb5151f25c11fc81f3e1
+  checksum: 10c0/412663923df939084e6370dcc3107910b12294559799197bebbc57d560ec6f27bd24e14a4fb7a498ee6b01b60d5c5e1b20cafbfe4e9e7ee6879e1479d51f5da0
   languageName: node
   linkType: hard
 
@@ -8605,7 +8605,7 @@ __metadata:
     "@fontsource/geologica": "npm:5.3.0"
     "@fontsource/ibm-plex-sans": "npm:5.3.0"
     "@hello-pangea/dnd": "npm:18.0.1"
-    "@hookform/resolvers": "npm:5.5.1"
+    "@hookform/resolvers": "npm:5.5.7"
     "@microsoft/fetch-event-source": "npm:2.0.1"
     "@mui/icons-material": "npm:7.3.11"
     "@mui/lab": "npm:7.0.0-beta.17"
