@@ -109,13 +109,16 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
   useEffect(() => {
     if (!isTypeSelectorOpen) {
       setSelectorReady(false);
-      return;
+      return undefined;
     }
+    let raf2 = 0;
     const raf1 = requestAnimationFrame(() => {
-      const raf2 = requestAnimationFrame(() => setSelectorReady(true));
-      return () => cancelAnimationFrame(raf2);
+      raf2 = requestAnimationFrame(() => setSelectorReady(true));
     });
-    return () => cancelAnimationFrame(raf1);
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
   }, [isTypeSelectorOpen]);
 
   return (
@@ -266,7 +269,13 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
         }}
       >
         <ClickAwayListener onClickAway={closeTypeSelector}>
-          <Paper elevation={4} sx={{ p: 1.5, minHeight: 56 }}>
+          <Paper
+            elevation={4}
+            sx={{
+              p: 1.5,
+              minHeight: 56,
+            }}
+          >
             {selectorReady && (
               <AutocompleteField
                 autoFocus
@@ -281,9 +290,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
                 }))}
                 value={normalizedLinkOutputTypes.filter(type => menuItems.includes(type))}
                 onInputChange={() => {}}
-                onChange={(nextOutputTypes) => {
-                  handleOutputTypesChange(nextOutputTypes);
-                }}
+                onChange={handleOutputTypesChange}
               />
             )}
           </Paper>
