@@ -198,6 +198,10 @@ class InjectorContratApiTest extends IntegrationTest {
                     .content(asJsonString(searchPaginationInput))
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
+            // "mail" matches all 5 contracts through the searchable "content" path (they all share
+            // the "E-mail Infiltration" domain), so the two email contracts sort first, in
+            // descending order: "Send multi-recipients mail" before "Send individual mails".
+            .andExpect(jsonPath("$.numberOfElements").value(5))
             .andExpect(
                 jsonPath("$.content.[0].injector_contract_labels.en")
                     .value("Send multi-recipients mail"))
@@ -226,11 +230,15 @@ class InjectorContratApiTest extends IntegrationTest {
                     .content(asJsonString(searchPaginationInput))
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
+            // "mail" matches all 5 contracts through the searchable "content" path (they all share
+            // the "E-mail Infiltration" domain), so the two email contracts sort last, in
+            // ascending order: "Send individual mails" before "Send multi-recipients mail".
+            .andExpect(jsonPath("$.numberOfElements").value(5))
             .andExpect(
-                jsonPath("$.content.[0].injector_contract_labels.en")
+                jsonPath("$.content.[3].injector_contract_labels.en")
                     .value("Send individual mails"))
             .andExpect(
-                jsonPath("$.content.[1].injector_contract_labels.en")
+                jsonPath("$.content.[4].injector_contract_labels.en")
                     .value("Send multi-recipients mail"));
       }
     }

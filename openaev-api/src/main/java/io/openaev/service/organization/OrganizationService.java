@@ -1,19 +1,15 @@
 package io.openaev.service.organization;
 
-import static io.openaev.database.specification.OrganizationSpecification.findGrantedFor;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.context.TenantContext;
-import io.openaev.database.model.Capability;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.organization.form.OrganizationBulkProcessingInput;
-import io.openaev.service.UserService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -21,7 +17,6 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -31,8 +26,6 @@ import org.springframework.util.CollectionUtils;
 public class OrganizationService {
 
   private final OrganizationRepository organizationRepository;
-
-  private final UserService userService;
 
   private final BulkDeleteExecutor bulkDeleteExecutor;
 
@@ -92,12 +85,6 @@ public class OrganizationService {
               } else {
                 specification = SpecificationUtils.hasIdIn(input.getOrganizationIdsToProcess());
               }
-              User currentUser = userService.currentUser();
-              if (!currentUser.isAdminOrBypass()
-                  && !currentUser.getCapabilities().contains(Capability.ACCESS_PLATFORM_SETTINGS)) {
-                // Same grant scoping as the list search: the user can only delete what they see.
-                specification = findGrantedFor(currentUser.getId()).and(specification);
-              }
               if (!CollectionUtils.isEmpty(input.getOrganizationIdsToIgnore())) {
                 List<String> idsToIgnore = input.getOrganizationIdsToIgnore();
                 specification =
@@ -115,18 +102,12 @@ public class OrganizationService {
 
   public Page<Organization> organizationPagination(
       @NotNull SearchPaginationInput searchPaginationInput) {
-    User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_PLATFORM_SETTINGS)) {
-      return buildPaginationJPA(
-          this.organizationRepository::findAll, searchPaginationInput, Organization.class);
-    } else {
-      return buildPaginationJPA(
-          (Specification<Organization> specification, Pageable pageable) ->
-              this.organizationRepository.findAll(
-                  findGrantedFor(currentUser.getId()).and(specification), pageable),
-          searchPaginationInput,
-          Organization.class);
-    }
+    // Visibility is capability-gated at the API layer (@AccessControl SEARCH) and tenant-scoped by
+    // the Hibernate tenant filter, like every other organization endpoint (raw list, options,
+    // single read). The former per-group grant scoping joined Organization.groups, a mapping
+    // removed along with the groups_organizations table (V4_38): keeping it made every non-admin
+    // search fail with "Could not resolve attribute 'groups'".
+    return buildPaginationJPA(
+        this.organizationRepository::findAll, searchPaginationInput, Organization.class);
   }
 }

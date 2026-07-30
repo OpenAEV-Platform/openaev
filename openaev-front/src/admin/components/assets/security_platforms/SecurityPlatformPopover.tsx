@@ -46,11 +46,11 @@ const SecurityPlatformPopover: FunctionComponent<Props> = ({
     asset_tags,
   }) => ({
     asset_name,
-    asset_description,
+    asset_description: asset_description ?? undefined,
     security_platform_type,
     security_platform_logo_light,
     security_platform_logo_dark,
-    asset_tags,
+    asset_tags: asset_tags ?? undefined,
   }))(securityPlatform);
 
   // Edition

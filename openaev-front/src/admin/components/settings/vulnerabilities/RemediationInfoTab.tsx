@@ -1,4 +1,4 @@
-import { Typography } from '@mui/material';
+import { Alert, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -10,16 +10,27 @@ const RemediationInfoTab = ({ vulnerability }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
+  const remediation = vulnerability?.vulnerability_remediation;
+
+  if (!remediation) {
+    return (
+      <Alert severity="info" variant="outlined" sx={{ marginTop: 2 }}>
+        {t('There is no information yet on a vulnerability remediation for this vulnerability.')}
+      </Alert>
+    );
+  }
+
   return (
     <div style={{ padding: theme.spacing(2, 1, 0, 0) }}>
-      <Typography variant="subtitle2" gutterBottom>
-        {t('Vulnerability Remediation')}
+      <Typography
+        variant="body2"
+        sx={{
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}
+      >
+        {remediation}
       </Typography>
-      <pre>
-        <Typography variant="body2" gutterBottom>
-          {vulnerability?.vulnerability_remediation ?? t('There is no information yet on a vulnerability remediation for this vulnerability.')}
-        </Typography>
-      </pre>
     </div>
   );
 };

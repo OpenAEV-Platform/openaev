@@ -1,7 +1,7 @@
 import { DevicesOtherOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Alert, AlertTitle, Box, Typography } from '@mui/material';
+import { Alert, AlertTitle, Box, Chip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Binoculars } from 'mdi-material-ui';
+import { Binoculars, SelectGroup } from 'mdi-material-ui';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
@@ -42,6 +42,7 @@ import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import AssetPopover, { type AssetPopoverProps } from '../endpoints/AssetPopover';
 import AgentList from '../endpoints/endpoint/AgentList';
+import ExpectationList from '../ExpectationList';
 import PostureScore from '../PostureScore';
 import InjectsPlayedOverTimeChart from '../statistics/InjectsPlayedOverTimeChart';
 import PostureScoreOverTimeChart from '../statistics/PostureScoreOverTimeChart';
@@ -250,9 +251,12 @@ const AssetDetail = () => {
 
       {currentTab === 'overview' && (
         <>
-          {/* Information + the asset-kind-specific card side by side for a compact,
-          grid-based overview (Network / Cloud / AI target as the second column). */}
-          <DetailSections>
+          {/* Information + the asset-kind-specific card + asset groups side by side for a
+          compact, grid-based overview (Network / Cloud / AI target as the second column).
+          For the standard host layout (information + network + groups) the row uses an
+          explicit 40/40/20 split: the groups column only carries chips and does not need
+          an equal share. Other asset kinds keep the adaptive equal columns. */}
+          <DetailSections columns={!isAiTarget && hasNetwork && !hasCloud ? '2fr 2fr 1fr' : undefined}>
             <InformationGrid title={t('Asset Information')}>
               <Field label={t('Description')}>
                 {asset.asset_description
@@ -358,6 +362,37 @@ const AssetDetail = () => {
                 )}
               </InformationGrid>
             )}
+
+            {/* Groups the asset belongs to, whether by static membership or by matching a
+            dynamic group filter (the backend resolves both). Chips link to the group page. */}
+            <SectionBlock title={t('Asset groups')}>
+              {asset.asset_asset_groups && asset.asset_asset_groups.length > 0
+                ? (
+                    <Box sx={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 1,
+                      alignContent: 'start',
+                    }}
+                    >
+                      {asset.asset_asset_groups.map(assetGroup => (
+                        <Chip
+                          key={assetGroup.asset_group_id}
+                          icon={<SelectGroup fontSize="small" />}
+                          label={assetGroup.asset_group_name}
+                          size="small"
+                          variant="outlined"
+                          onClick={() => navigate(`/admin/asset_groups/${assetGroup.asset_group_id}`)}
+                        />
+                      ))}
+                    </Box>
+                  )
+                : (
+                    <Typography variant="body2" color="text.secondary">
+                      {t('No asset group')}
+                    </Typography>
+                  )}
+            </SectionBlock>
           </DetailSections>
 
           {hasAgents && (
@@ -371,6 +406,17 @@ const AssetDetail = () => {
               filterLocalStorageKey="endpoint-findings"
               searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindingsOnEndpoint(id, input)}
               contextId={id}
+            />
+          </SectionBlock>
+
+          <SectionBlock title={t('Expectations')}>
+            {/* Every expectation evaluated against this asset - same scope as
+                the posture score and the hero counter, so the KPIs and the
+                list stay consistent. */}
+            <ExpectationList
+              filterLocalStorageKey="asset-expectations"
+              scopeField="base_asset_side"
+              entityId={id}
             />
           </SectionBlock>
 

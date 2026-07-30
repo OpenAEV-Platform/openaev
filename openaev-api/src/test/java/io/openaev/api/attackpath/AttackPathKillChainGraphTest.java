@@ -13,6 +13,7 @@ import io.openaev.database.model.attackpath.AttackPathFinding;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.AttackPathGraphService;
+import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
 import io.openaev.service.attackpath.dto.ConsumedFindingKeyDTO;
@@ -127,6 +128,11 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
             .findFirst()
             .orElseThrow();
     assertThat(consumerNode.getDependsOn()).contains("producer-step-tpl");
+    // The share is presented as file, so the matched id uses the PRESENTED type (file), matching
+    // the
+    // finding-node id the front renders — otherwise the front could not resolve it.
+    assertThat(consumerNode.getConsumedFindingKeys().get(0).matchedFindingIds())
+        .containsExactly(AttackPathIds.findingNode("file", "\\\\host\\NETLOGON"));
   }
 
   @Test
@@ -207,6 +213,39 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
     assertThat(nodeForStep(eqStep.get().getId()).getDependsOn()).containsExactly("port-445");
     // IN {139,445,3389} → the 445 producer matches.
     assertThat(nodeForStep(inStep.get().getId()).getDependsOn()).contains("port-445");
+  }
+
+  @Test
+  @DisplayName(
+      "a port key reaches a complex portscan finding (bucket portscan), not only a primitive port")
+  void portKeyReachesPortscanBucket() {
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-eventdep-portscan"));
+    // The nmap scan ingests a COMPLEX portscan finding "host:port (service)", bucket "portscan".
+    AttackPathExecution producer =
+        saveExecution(tenant, "nmap", "portscan-prod", Instant.parse("2026-06-18T08:00:00Z"));
+    saveFinding(tenant, "portscan", "10.0.0.1:445 (microsoft-ds)", producer.getId());
+    // The consumer filters on the PRIMITIVE key `port EQ 445`.
+    StepComposer.Composer consumer = consumerStep(PrimitiveType.Port, ConditionType.EQ, "445");
+    saveExecution(tenant, "netexec", consumer.get().getId(), Instant.parse("2026-06-18T08:05:00Z"));
+    entityManager.flush();
+
+    assertThat(nodeForStep(consumer.get().getId()).getDependsOn()).contains("portscan-prod");
+  }
+
+  @Test
+  @DisplayName("a consumed key carries the finding-node ids it matched (back-authoritative)")
+  void consumerKeyCarriesMatchedFindingIds() {
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-eventdep-matched"));
+    AttackPathExecution producer =
+        saveExecution(tenant, "nmap", "portscan-prod-m", Instant.parse("2026-06-18T08:00:00Z"));
+    saveFinding(tenant, "portscan", "10.0.0.1:445 (microsoft-ds)", producer.getId());
+    StepComposer.Composer consumer = consumerStep(PrimitiveType.Port, ConditionType.EQ, "445");
+    saveExecution(tenant, "netexec", consumer.get().getId(), Instant.parse("2026-06-18T08:05:00Z"));
+    entityManager.flush();
+
+    ConsumedFindingKeyDTO key = nodeForStep(consumer.get().getId()).getConsumedFindingKeys().get(0);
+    assertThat(key.matchedFindingIds())
+        .containsExactly(AttackPathIds.findingNode("portscan", "10.0.0.1:445 (microsoft-ds)"));
   }
 
   private AttackPathExecution saveExecution(

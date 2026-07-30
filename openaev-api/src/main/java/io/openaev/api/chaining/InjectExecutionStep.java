@@ -570,18 +570,35 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
-   * Expands condition batches into per-target batches by resolving scope assets and IPs.
+   * Expands condition batches into per-target batches by resolving scope assets and, for external
+   * injectors, IPs.
    *
-   * <p>Each original batch is duplicated once per in-scope asset and once per in-scope IP. The
+   * <p>Each original batch is duplicated once per in-scope asset and, for external injectors, once
+   * per in-scope manual target (raw IP, including IPv4/IPv6 produced by upstream actions). The
    * target is embedded in the batch {@code inputString} under {@code "_target"} so that {@link
    * #ready} can bake it into the step data for {@link #run} to consume.
+   *
+   * <p>Manual (IP) targets only make sense for external injectors, which can target a raw IP.
+   * Payload-based injects run on an agent/endpoint, so they are expanded per asset only. This
+   * injector-vs-payload decision is owned here (via {@link #hasPayload(Step)}) so callers stay
+   * agnostic.
+   *
+   * @param batches original condition batches to expand
+   * @param workflowRun the running workflow (provides the scope)
+   * @param stepTemplate the step template being expanded (used to detect payload vs injector)
    */
   public List<ConditionService.ExecutionBatch> expandTargetBatches(
-      List<ConditionService.ExecutionBatch> batches, Workflow workflowRun) {
+      List<ConditionService.ExecutionBatch> batches, Workflow workflowRun, Step stepTemplate) {
 
     String workflowId = workflowRun.getId();
     List<Asset> validAssets = scopeService.getValidAssets(workflowId);
-    List<String> validManualTargets = scopeService.getValidManualTargetsFromScope(workflowId);
+
+    // Manual (raw IP) targets — including IPv4/IPv6 produced by upstream actions — only apply to
+    // external injectors. Payload-based injects run on an agent/endpoint, so expand per asset only.
+    List<String> validManualTargets =
+        hasPayload(stepTemplate)
+            ? List.of()
+            : scopeService.getValidManualTargetsFromScopeAndGlobalState(workflowId);
 
     if (validAssets.isEmpty() && validManualTargets.isEmpty()) {
       return batches;
@@ -604,7 +621,9 @@ public class InjectExecutionStep implements ActionStep {
         target.addProperty("assetId", asset.getId());
         expanded.add(
             new ConditionService.ExecutionBatch(
-                addTargetToInput(batch.inputString(), target), batch.usedMappers(), null));
+                addTargetToInput(batch.inputString(), target),
+                batch.usedMappers(),
+                perTargetHash(batch.hash(), asset.getId())));
       }
 
       // One batch per manual data
@@ -615,10 +634,27 @@ public class InjectExecutionStep implements ActionStep {
         target.addProperty("manual", manualTarget);
         expanded.add(
             new ConditionService.ExecutionBatch(
-                addTargetToInput(batch.inputString(), target), batch.usedMappers(), null));
+                addTargetToInput(batch.inputString(), target),
+                batch.usedMappers(),
+                perTargetHash(batch.hash(), manualTarget)));
       }
     }
     return expanded;
+  }
+
+  /**
+   * Builds a deterministic per-target deduplication hash for an expanded batch by combining the
+   * original combo hash (nullable, for non-mapper batches) with the target identifier (asset ID or
+   * manual target value). This keeps each (mapper combo, target) pair uniquely deduplicated so an
+   * already-executed target is never re-created, while a delayed (rate-limited) sibling target can
+   * still be retried independently.
+   *
+   * @param comboHash original batch hash (may be {@code null} when the batch has no mapper)
+   * @param targetId the target identifier this expanded batch is bound to
+   * @return a non-null hash unique to the (combo, target) pair
+   */
+  private String perTargetHash(String comboHash, String targetId) {
+    return (comboHash != null ? comboHash : "") + ":" + targetId;
   }
 
   /**
@@ -920,10 +956,9 @@ public class InjectExecutionStep implements ActionStep {
       inject.setContent(contentWithExpectations);
 
       // Apply the per-target info baked in by ready() (asset or IP from scope).
-      // For injector-based steps, expansion set _chaining_target → one asset per step.
-      // For payload-based steps (no expansion), fall back to all scope assets so the
-      // executor can distribute the payload across every scoped endpoint — same behavior
-      // as before expandTargetBatches was introduced.
+      // Expansion sets _chaining_target → one asset per step (external injectors also expand per
+      // manual IP target). If no target was baked in (e.g. no assets in scope), fall back to all
+      // scope assets so the executor can still distribute across every scoped endpoint.
       boolean targetApplied =
           applyChainingTarget(inject, step.getData(), injectorContract.getPayload() == null);
       if (!targetApplied && step.getWorkflow() != null) {

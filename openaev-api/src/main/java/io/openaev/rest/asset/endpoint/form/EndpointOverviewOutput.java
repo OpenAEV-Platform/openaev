@@ -10,9 +10,11 @@ import io.openaev.database.model.AssetCriticality;
 import io.openaev.database.model.AssetSubCategory;
 import io.openaev.database.model.CloudProvider;
 import io.openaev.database.model.Endpoint;
+import io.openaev.rest.asset_group.form.AssetGroupSimple;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.Builder;
@@ -75,6 +77,10 @@ public class EndpointOverviewOutput {
   @Schema(description = "Tags")
   @JsonProperty("asset_tags")
   private Set<String> tags;
+
+  @Schema(description = "Asset groups the asset belongs to (static or dynamic membership)")
+  @JsonProperty("asset_asset_groups")
+  private List<AssetGroupSimple> assetGroups;
 
   @Schema(description = "Asset category")
   @JsonProperty("asset_category")

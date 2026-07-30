@@ -51,6 +51,8 @@ interface ChainingFlowConfigurationProps {
   onStepCreated: () => void;
   onEventCreated: () => void;
   eventCount: number;
+  /** When set, the action list opens pre-filtered to actions that produce this output type. */
+  compatibleActionFilter?: string;
 }
 
 const ChainingFlowConfiguration = ({
@@ -65,6 +67,7 @@ const ChainingFlowConfiguration = ({
   onStepCreated,
   onEventCreated,
   eventCount,
+  compatibleActionFilter,
 }: ChainingFlowConfigurationProps) => {
   const { t } = useFormatter();
 
@@ -279,11 +282,13 @@ const ChainingFlowConfiguration = ({
         onSelect={handleSelectComponent}
       />
       <AddActionList
+        key={compatibleActionFilter ?? ''}
         open={drawerView === 'action'}
         onClose={handleCloseAll}
         onBack={handleBackToChoose}
         onAddActions={handleAddActions}
         onSelectAction={handleSelectAction}
+        compatibleActionFilter={compatibleActionFilter}
       />
       <ConfigureActionDetail
         open={drawerView === 'actionDetail'}

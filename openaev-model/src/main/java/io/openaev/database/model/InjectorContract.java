@@ -6,6 +6,7 @@ import static java.util.Optional.ofNullable;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -525,6 +526,52 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
         .flatMap(attackPattern -> attackPattern.getKillChainPhases().stream())
         .distinct()
         .toList();
+  }
+
+  @JsonProperty(value = "injector_contract_providing", access = JsonProperty.Access.READ_ONLY)
+  @Queryable(
+      filterable = true,
+      searchable = true,
+      clazz = String.class,
+      refEnumClazz = ContractOutputType.class,
+      paths = {"payload.outputParsers.contractOutputElements.type", "content"})
+  public List<ContractOutputType> getProviding() {
+    if (getPayload() == null) {
+      return getProvidingFromContent();
+    }
+    return getPayload().getOutputParsers().stream()
+        .flatMap(op -> op.getContractOutputElements().stream())
+        .map(ContractOutputElement::getType)
+        .distinct()
+        .toList();
+  }
+
+  /**
+   * Extracts the output types declared directly in the injector contract content (the {@code
+   * "outputs"} array). This is the source of truth for native injectors that expose outputs without
+   * a payload (e.g. a port scanner).
+   */
+  @JsonIgnore
+  private List<ContractOutputType> getProvidingFromContent() {
+    ObjectNode content = getConvertedContent();
+    if (content == null || !content.has("outputs") || !content.get("outputs").isArray()) {
+      return List.of();
+    }
+    Map<String, ContractOutputType> byLabel =
+        Arrays.stream(ContractOutputType.values())
+            .collect(Collectors.toMap(ContractOutputType::getLabel, type -> type));
+    List<ContractOutputType> types = new ArrayList<>();
+    for (JsonNode output : content.get("outputs")) {
+      JsonNode typeNode = output.get("type");
+      if (typeNode == null || !typeNode.isTextual()) {
+        continue;
+      }
+      ContractOutputType type = byLabel.get(typeNode.asText());
+      if (type != null && !types.contains(type)) {
+        types.add(type);
+      }
+    }
+    return types;
   }
 
   @JsonIgnore
