@@ -52,6 +52,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
   private String tenantRegisterUri() {
     return ENDPOINT_URI + "/register";
   }
+
   @Autowired private EndpointRepository endpointRepository;
 
   @BeforeEach
