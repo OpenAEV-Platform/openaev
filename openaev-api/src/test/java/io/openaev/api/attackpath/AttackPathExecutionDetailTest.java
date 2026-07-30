@@ -5,6 +5,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
+import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Step;
@@ -13,6 +15,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
+import io.openaev.database.model.attackpath.AttackPathExecutionRemediation;
 import io.openaev.database.model.attackpath.AttackPathFinding;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
@@ -39,6 +42,7 @@ import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -80,10 +84,24 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
   private Tenant tenant;
   private String executionId;
   private String payloadId;
+  private String stepId;
 
   @BeforeEach
   void seed() {
     tenant = tenantRepository.save(TenantFixture.getTenant("ap-detail-tenant"));
+    // The remediation read is a Spring Data derived query subject to the tenant filter (unlike
+    // findById on the execution). Scope the thread so findByStepId resolves the seeded snapshot.
+    TenantContext.setCurrentTenant(tenant.getId());
+
+    // A real persisted step: the remediation snapshot table has an FK step_id -> steps, and the
+    // read resolves remediations by this step id.
+    Step step = StepFixture.getDefaultStepExecution(StepStatus.READY);
+    workflowComposer
+        .forWorkflow(WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN))
+        .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withStep(stepComposer.forStep(step))
+        .persist();
+    stepId = step.getId();
 
     // A real injector contract carrying an ATT&CK technique, referenced by the row's external id:
     // the read resolves the techniques from it for the drawer's chips.
@@ -102,7 +120,7 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
     AttackPathExecution e = new AttackPathExecution();
     e.setTenant(tenant);
     e.setSimulationId(SIM);
-    e.setStepId("step-detail-1");
+    e.setStepId(stepId);
     // A real payload carrying a detection remediation: its values are snapshotted at step execution
     // and later served from the attack-path remediation store.
     Payload payload =
@@ -139,9 +157,24 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
     e.setTerminalOutput("[+] login: admin  password: secret123\n[+] valid credential found");
     executionId = executionRepository.save(e).getId();
 
+    // The read serves remediations from the snapshot table (findByStepId), not the live payload.
+    AttackPathExecutionRemediation remediation = new AttackPathExecutionRemediation();
+    remediation.setId("apr-detail-1");
+    remediation.setTenant(tenant);
+    remediation.setStepId(stepId);
+    remediation.setValues("remediation values");
+    remediation.setAuthorRule(DetectionRemediation.AUTHOR_RULE.HUMAN);
+    remediation.setSecurityPlatformId("sp-detail-1");
+    entityManager.persist(remediation);
+
     linkFinding("credentials", "admin:secret123");
     linkFinding("cve", "CVE-2026-1");
     entityManager.flush();
+  }
+
+  @AfterEach
+  void clearTenant() {
+    TenantContext.clearCurrentTenant();
   }
 
   private void linkFinding(String type, String value) {
@@ -168,7 +201,7 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
 
     assertThat(d).isNotNull();
     // header
-    assertThat(d.stepId()).isEqualTo("step-detail-1");
+    assertThat(d.stepId()).isEqualTo(stepId);
     assertThat(d.payloadName()).isEqualTo("hydra-payload");
     assertThat(d.payloadId()).isEqualTo(payloadId);
     // the run's contract resolves to its ATT&CK techniques (the drawer's chips)
