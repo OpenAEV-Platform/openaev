@@ -56,7 +56,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @DisplayName(
     "chaining engine reads/writes enforce the simulation grant (tenant isolation via RBAC)")
-class ChainingReadRbacIsolationTest extends IntegrationTest {
+class ChainingRbacIsolationTest extends IntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private WorkflowComposer workflowComposer;
