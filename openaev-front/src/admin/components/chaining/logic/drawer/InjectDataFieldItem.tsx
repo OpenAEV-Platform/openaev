@@ -2,29 +2,33 @@ import { KeyboardArrowDown, LinkOff, LinkOutlined } from '@mui/icons-material';
 import {
   Box,
   Button,
+  ClickAwayListener,
   FormControl,
   IconButton,
   InputLabel,
-  Menu,
   MenuItem,
+  Paper,
+  Popper,
   Select,
   Switch,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
-import { type FunctionComponent, useMemo, useState } from 'react';
+import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 
+import AutocompleteField from '../../../../../components/fields/AutocompleteField';
 import { useFormatter } from '../../../../../components/i18n';
 import { formatPrimitiveTypeLabel } from '../../../../../utils/String';
 import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 
 export interface FieldLink {
-  outputType: string;
+  outputTypes: string[];
   localScope: boolean;
 }
 
 interface Props {
+  panelOpen?: boolean;
   fieldKey: string;
   fieldLabel: string;
   value: string;
@@ -40,6 +44,7 @@ interface Props {
 }
 
 const InjectDataFieldItem: FunctionComponent<Props> = ({
+  panelOpen = true,
   fieldKey,
   fieldLabel,
   value,
@@ -56,24 +61,40 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const { argumentTypes } = useArgumentTypes();
 
-  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [typeSelectorAnchorEl, setTypeSelectorAnchorEl] = useState<HTMLElement | null>(null);
+  const isTypeSelectorOpen = Boolean(typeSelectorAnchorEl);
 
   const menuItems = useMemo(
     () => (argumentTypes.length > 0 ? argumentTypes : ['text']),
     [argumentTypes],
   );
 
-  const handleCloseMenu = () => {
-    setMenuAnchor(null);
+  const normalizedLinkOutputTypes = useMemo(() => {
+    if (!link) return [];
+    return link.outputTypes ?? [];
+  }, [link]);
+
+  const openTypeSelector = (anchor: HTMLElement) => setTypeSelectorAnchorEl(anchor);
+  const closeTypeSelector = () => setTypeSelectorAnchorEl(null);
+
+  const handleOutputTypesChange = (nextOutputTypes: string[]) => {
+    if (nextOutputTypes.length === 0) {
+      closeTypeSelector();
+      onUnlink(fieldKey);
+      return;
+    }
+
+    onLink(fieldKey, {
+      outputTypes: nextOutputTypes,
+      localScope: link?.localScope ?? false,
+    });
   };
 
-  const handleSelectType = (outputType: string) => {
-    onLink(fieldKey, {
-      outputType,
-      localScope: false,
-    });
-    handleCloseMenu();
-  };
+  useEffect(() => {
+    if (!panelOpen) {
+      closeTypeSelector();
+    }
+  }, [panelOpen]);
 
   return (
     <Box
@@ -110,7 +131,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
             <Typography variant="body2" color="text.secondary">-</Typography>
             <LinkOutlined fontSize="small" color="primary" />
             <Typography variant="body2" color="primary">
-              {t(formatPrimitiveTypeLabel(link.outputType))}
+              {normalizedLinkOutputTypes.map(type => t(formatPrimitiveTypeLabel(type))).join(', ')}
             </Typography>
           </Box>
 
@@ -131,6 +152,15 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
                 <Typography variant="caption" color="text.secondary">
                   {t('Limit to Local Scope')}
                 </Typography>
+                <Button
+                  size="small"
+                  variant="text"
+                  color="primary"
+                  endIcon={<KeyboardArrowDown />}
+                  onClick={event => openTypeSelector(event.currentTarget)}
+                >
+                  {t('Edit links')}
+                </Button>
                 <Tooltip title={t('Unlink')}>
                   <IconButton
                     size="small"
@@ -190,7 +220,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
               variant="text"
               color="primary"
               endIcon={<KeyboardArrowDown />}
-              onClick={event => setMenuAnchor(event.currentTarget)}
+              onClick={event => openTypeSelector(event.currentTarget)}
               sx={{
                 whiteSpace: 'nowrap',
                 textTransform: 'none',
@@ -203,23 +233,41 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
         </Box>
       )}
 
-      <Menu
-        anchorEl={menuAnchor}
-        open={Boolean(menuAnchor)}
-        onClose={handleCloseMenu}
+      <Popper
+        open={isTypeSelectorOpen}
+        anchorEl={typeSelectorAnchorEl}
+        placement="bottom-end"
+        sx={{
+          zIndex: 1300,
+          width: 320,
+        }}
       >
-        {menuItems.map(item => (
-          <MenuItem
-            key={item}
-            onClick={() => handleSelectType(item)}
-            dense
-            sx={{ gap: 1 }}
-          >
-            <LinkOutlined fontSize="small" color="primary" />
-            {t(formatPrimitiveTypeLabel(item))}
-          </MenuItem>
-        ))}
-      </Menu>
+        <ClickAwayListener onClickAway={closeTypeSelector}>
+          <Paper elevation={4} sx={{ p: 1.5 }}>
+            <AutocompleteField
+              open={isTypeSelectorOpen}
+              label={t('Primitive types')}
+              variant="standard"
+              multiple
+              options={menuItems.map(type => ({
+                id: type,
+                label: t(formatPrimitiveTypeLabel(type)),
+              }))}
+              value={normalizedLinkOutputTypes.filter(type => menuItems.includes(type))}
+              onInputChange={() => {}}
+              onChange={(nextOutputTypes) => {
+                if (nextOutputTypes.length === 0) {
+                  closeTypeSelector();
+                  onUnlink(fieldKey);
+                  return;
+                }
+                handleOutputTypesChange(nextOutputTypes);
+                closeTypeSelector();
+              }}
+            />
+          </Paper>
+        </ClickAwayListener>
+      </Popper>
     </Box>
   );
 };

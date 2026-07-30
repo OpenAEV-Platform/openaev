@@ -111,7 +111,7 @@ export const conditionGroupsToApi = (
         condition_temporary_id: nextTempId(),
         condition_temporary_id_condition_parent: groupTempId,
         condition_type: cond.operator as ConditionCreateInput['condition_type'],
-        condition_key_type: cond.field as ConditionCreateInput['condition_key_type'],
+        condition_key_types: [cond.field] as ConditionCreateInput['condition_key_types'],
         // Unary operators (IS_NULL / IS_NOT_NULL) need no value
         condition_value: UNARY_OPERATORS.includes(cond.operator) ? undefined : cond.value,
         condition_case_sensitive: cond.caseSensitive,
