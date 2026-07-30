@@ -213,13 +213,14 @@ public class CrowdStrikeExecutorClient {
       ResourcesGroups resourcesGroups =
           this.objectMapper.readValue(responseEntity, new TypeReference<>() {});
       throwIfCrowdStrikeErrors(
-          deviceId,
-          responseEntity,
+          "POST " + uri,
+          "deviceId=" + deviceId,
           resourcesGroups.getErrors(),
           resourcesGroups.getMeta() != null ? resourcesGroups.getMeta().getTraceId() : null);
       return responseEntity;
     } catch (IOException e) {
-      throw new ClientProtocolException("Unexpected response", e);
+      throw new ClientProtocolException(
+          "Unexpected response for request on: " + uri + " (deviceId=" + deviceId + ")", e);
     } catch (ExecutorException e) {
       log.error("Error occurred during Crowdstrike post API request. Error: {}", e.getMessage(), e);
       throw e;
