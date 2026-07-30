@@ -58,6 +58,26 @@ class AttackPathIdsTest {
   }
 
   @Test
+  @DisplayName("A finding row id is deterministic and changes with each component")
+  void finding_row_identity() {
+    String base = AttackPathIds.findingRow("sim-1", "cve", "text_field", "CVE-1", "asset-1");
+    assertThat(base)
+        .isEqualTo(AttackPathIds.findingRow("sim-1", "cve", "text_field", "CVE-1", "asset-1"));
+    // Changing any one component yields a different id.
+    assertThat(base)
+        .isNotEqualTo(AttackPathIds.findingRow("sim-2", "cve", "text_field", "CVE-1", "asset-1"))
+        .isNotEqualTo(
+            AttackPathIds.findingRow("sim-1", "credentials", "text_field", "CVE-1", "asset-1"))
+        .isNotEqualTo(AttackPathIds.findingRow("sim-1", "cve", "other_field", "CVE-1", "asset-1"))
+        .isNotEqualTo(AttackPathIds.findingRow("sim-1", "cve", "text_field", "CVE-2", "asset-1"))
+        .isNotEqualTo(AttackPathIds.findingRow("sim-1", "cve", "text_field", "CVE-1", "asset-2"));
+    // A null field (seed rows) is deterministic and stays distinct from a blank field.
+    assertThat(AttackPathIds.findingRow("sim-1", "cve", null, "CVE-1", "asset-1"))
+        .isEqualTo(AttackPathIds.findingRow("sim-1", "cve", null, "CVE-1", "asset-1"))
+        .isNotEqualTo(AttackPathIds.findingRow("sim-1", "cve", "", "CVE-1", "asset-1"));
+  }
+
+  @Test
   @DisplayName("The delimiter inside a component cannot cause a collision (injective encoding)")
   void delimiter_in_component_is_safe() {
     // Without escaping, both would encode to "NODE_FINDING|a|b|c".
@@ -87,5 +107,35 @@ class AttackPathIdsTest {
     assertThat(AttackPathIds.injectorNode("NMAP")).isEqualTo("NODE_INJECTOR|NMAP");
     assertThat(AttackPathIds.findingNode("credentials", "admin"))
         .isEqualTo("NODE_FINDING|credentials|admin");
+  }
+
+  @Test
+  @DisplayName(
+      "An injector node id is per (injector, contract); a null contract falls back to the per-injector"
+          + " id")
+  void injector_node_per_contract() {
+    // A contract-bearing injector node is a distinct, 3-segment id.
+    assertThat(AttackPathIds.injectorNode("NMAP", "C-1")).isEqualTo("NODE_INJECTOR|NMAP|C-1");
+    // A null contract falls back to the per-injector id (byte-identical to the 1-arg form), so
+    // contractless/seed/legacy injectors keep their current id.
+    assertThat(AttackPathIds.injectorNode("NMAP", null))
+        .isEqualTo(AttackPathIds.injectorNode("NMAP"))
+        .isEqualTo("NODE_INJECTOR|NMAP");
+    // Two contracts of the same injector never collide, and neither collides with the per-injector
+    // id.
+    assertThat(AttackPathIds.injectorNode("NMAP", "C-1"))
+        .isNotEqualTo(AttackPathIds.injectorNode("NMAP", "C-2"))
+        .isNotEqualTo(AttackPathIds.injectorNode("NMAP"));
+  }
+
+  @Test
+  @DisplayName("isSeedId recognises synthetic seed simulation ids, and only those")
+  void is_seed_id() {
+    // A synthetic seed simulation id (the shape AttackPathSeedService builds) is a seed.
+    assertThat(AttackPathIds.isSeedId(AttackPathIds.SEED_ID_PREFIX + "42-sim-0")).isTrue();
+    // A real simulation id (a UUID) and null/blank are not seeds.
+    assertThat(AttackPathIds.isSeedId("02d737db-d12f-40bf-b427-c70ef8bac6e0")).isFalse();
+    assertThat(AttackPathIds.isSeedId(null)).isFalse();
+    assertThat(AttackPathIds.isSeedId("")).isFalse();
   }
 }

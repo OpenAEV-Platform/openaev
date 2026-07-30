@@ -1,5 +1,6 @@
 import { MoreVert } from '@mui/icons-material';
 import {
+  Checkbox,
   IconButton,
   ListItem,
   ListItemButton,
@@ -18,6 +19,13 @@ interface Props {
   Icon: ComponentType<SvgIconProps>;
   height?: number;
   number?: number;
+  /**
+   * Mirrors the leading bulk-selection checkbox column of the real rows so
+   * the skeleton stays perfectly aligned with the header row and the loaded
+   * list. Pass the exact same condition that gates the checkboxes on the
+   * real rows (e.g. `canManage`, `!!entityToggle`).
+   */
+  withCheckbox?: boolean;
 }
 
 const PaginatedListLoader: FunctionComponent<Props> = ({
@@ -26,6 +34,7 @@ const PaginatedListLoader: FunctionComponent<Props> = ({
   Icon,
   height = 50,
   number = 21,
+  withCheckbox = false,
 }) => {
   return (
     [...Array(number)].map((_, key) => (
@@ -48,6 +57,16 @@ const PaginatedListLoader: FunctionComponent<Props> = ({
             pointerEvents: 'none',
           }}
         >
+          {withCheckbox && (
+            <ListItemIcon style={{ minWidth: 40 }}>
+              <Checkbox
+                edge="start"
+                checked={false}
+                disabled
+                disableRipple
+              />
+            </ListItemIcon>
+          )}
           <ListItemIcon>
             <Icon color="disabled" />
           </ListItemIcon>

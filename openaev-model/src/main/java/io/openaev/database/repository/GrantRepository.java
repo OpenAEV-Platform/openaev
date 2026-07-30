@@ -42,6 +42,16 @@ public interface GrantRepository
       @Param("resourceId") String resourceId,
       @Param("grantTypes") List<Grant.GRANT_TYPE> grantTypes);
 
+  @Query(
+      "SELECT DISTINCT g.resourceId "
+          + "FROM Grant g "
+          + "JOIN g.group gr "
+          + "JOIN gr.users u "
+          + "WHERE u.id = :userId "
+          + "AND g.name IN :grantTypes")
+  List<String> resourceIdsByUserIdAndNameIn(
+      @Param("userId") String userId, @Param("grantTypes") List<Grant.GRANT_TYPE> grantTypes);
+
   @Modifying
   @Query(
       "UPDATE Grant g SET g.resourceId = :newId WHERE g.resourceId = :currentId AND g.grantResourceType = :resourceType")

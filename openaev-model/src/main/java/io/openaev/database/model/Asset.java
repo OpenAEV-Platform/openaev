@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
+import io.openaev.annotation.DomainConstraint;
 import io.openaev.annotation.Ipv4OrIpv6Constraint;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditStateIgnore;
@@ -186,7 +187,7 @@ public class Asset implements TenantBase {
    * the user id with a database FK (ON DELETE SET NULL); the link surfaces the physical person
    * behind an identity asset.
    */
-  @Queryable(filterable = true)
+  @Queryable(filterable = true, dynamicValues = true)
   @Column(name = "asset_linked_person")
   @JsonProperty("asset_linked_person")
   private String linkedPerson;
@@ -213,6 +214,7 @@ public class Asset implements TenantBase {
   @JsonProperty("asset_seen_ip")
   private String seenIp;
 
+  @DomainConstraint
   @Queryable(filterable = true, sortable = true)
   @Column(name = "asset_hostname")
   @JsonProperty("asset_hostname")
@@ -338,6 +340,9 @@ public class Asset implements TenantBase {
     this.tags = tags;
   }
 
+  // The schema property name falls back to the field name ("assetGroups"): this filter key backs
+  // the endpoint target picker (/endpoints/targets). It is excluded from user-facing trigger
+  // filters on the frontend side (TECHNICAL_FILTER_KEYS).
   @JsonIgnore
   @ManyToMany(mappedBy = "assets")
   @Queryable(filterable = true, dynamicValues = true, path = "assetGroups.id")

@@ -47,7 +47,8 @@ public class WorkflowTimeoutService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void forceCompleteWorkflow(Workflow workflowRun) {
-    log.info("Timeout expired for workflow run {}. Forcing completion.", workflowRun.getId());
+    log.info(
+        "[Chaining] Timeout expired for workflow run {}. Forcing completion.", workflowRun.getId());
     // Telemetry: the timeout safety policy actually fired (complements the
     // safety_timeout_configured configuration metric).
     resultsMetricCollector.recordWorkflowTimeoutTriggered();
@@ -71,13 +72,13 @@ public class WorkflowTimeoutService {
       simulationService.saveSimulation(simulation);
 
       log.info(
-          "Simulation {} finished due to workflow timeout. {} active inject(s) stopped.",
+          "[Chaining] Simulation {} finished due to workflow timeout. {} active inject(s) stopped.",
           simulation.getId(),
           stoppedInjects);
     }
 
     log.info(
-        "Workflow run {} force-completed. {} active step(s) terminated.",
+        "[Chaining] Workflow run {} force-completed. {} active step(s) terminated.",
         workflowRun.getId(),
         terminatedCount);
   }

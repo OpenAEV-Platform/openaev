@@ -111,12 +111,18 @@ public class EndpointTargetSearchAdaptor extends SearchAdaptorBase {
   private InjectTarget convertFromEndpoint(Endpoint endpoint, Inject inject) {
     return helperTargetSearchAdaptor.buildTargetWithExpectations(
         inject,
-        () ->
-            new EndpointTarget(
-                endpoint.getId(),
-                endpoint.getName(),
-                endpoint.getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                endpoint.getPlatform().name()),
+        () -> {
+          EndpointTarget target =
+              new EndpointTarget(
+                  endpoint.getId(),
+                  endpoint.getName(),
+                  endpoint.getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
+                  endpoint.getPlatform().name());
+          if (endpoint.getCategory() != null) {
+            target.setTargetCategory(endpoint.getCategory().name());
+          }
+          return target;
+        },
         true);
   }
 }

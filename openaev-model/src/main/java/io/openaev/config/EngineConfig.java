@@ -84,6 +84,27 @@ public class EngineConfig {
 
     /** Default maximum number of records fetched per indexing batch. */
     public static final int INDEXING_BATCH_SIZE = 500;
+
+    /**
+     * Default maximum number of models whose indexing sync may run concurrently. Each sync pass
+     * holds a database connection for the duration of its (potentially heavy) fetch query; during a
+     * full reindex these queries can run for a long time, so letting every model sync at once
+     * exhausts the connection pool and starves the rest of the platform.
+     */
+    public static final int INDEXING_MAX_CONCURRENT_MODELS = 3;
+
+    /** Default connect timeout for the search engine client, in milliseconds. */
+    public static final int CONNECT_TIMEOUT_MS = 5_000;
+
+    /** Default socket (response) timeout for the search engine client, in milliseconds. */
+    public static final int SOCKET_TIMEOUT_MS = 60_000;
+
+    /**
+     * Default maximum number of concurrent connections of the search engine client. Applied to both
+     * the per-route and the total limit (the platform talks to a single engine endpoint, so the
+     * per-route limit is the effective cap).
+     */
+    public static final int MAX_CONNECTIONS = 40;
   }
 
   private String engineSelector = Defaults.ENGINE_SELECTOR;
@@ -121,4 +142,26 @@ public class EngineConfig {
   private boolean rejectUnauthorized = Defaults.REJECT_UNAUTHORIZED;
 
   private int indexingBatchSize = Defaults.INDEXING_BATCH_SIZE;
+
+  private int indexingMaxConcurrentModels = Defaults.INDEXING_MAX_CONCURRENT_MODELS;
+
+  private int connectTimeoutMs = Defaults.CONNECT_TIMEOUT_MS;
+
+  private int socketTimeoutMs = Defaults.SOCKET_TIMEOUT_MS;
+
+  private int maxConnections = Defaults.MAX_CONNECTIONS;
+
+  /**
+   * Wildcard pattern matching all indices of this platform and only them.
+   *
+   * <p>Index names are always built as {@code {prefix}_{name}}, so the pattern includes the
+   * underscore separator. Using {@code {prefix}*} instead would also match indices of another
+   * platform whose prefix merely starts with this one (e.g. {@code openaev} matching {@code
+   * openaevci_*} indices), leaking foreign documents into every engine query.
+   *
+   * @return the index wildcard pattern, e.g. {@code openaev_*}
+   */
+  public String getIndexPattern() {
+    return indexPrefix + "_*";
+  }
 }

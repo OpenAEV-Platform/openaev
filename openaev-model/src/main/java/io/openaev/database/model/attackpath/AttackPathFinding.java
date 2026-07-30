@@ -45,6 +45,9 @@ public class AttackPathFinding implements TenantBase {
   @Column(name = "attackpath_finding_type", nullable = false)
   private String type;
 
+  @Column(name = "attackpath_finding_field")
+  private String field;
+
   @Column(name = "attackpath_finding_value", nullable = false)
   private String value;
 

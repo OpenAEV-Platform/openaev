@@ -224,6 +224,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
         open={openMigrateDrawer}
         catalogConnectorId={selectedCatalogConnector ? selectedCatalogConnector.catalog_connector_id : ''}
         catalogConnectorSlug={selectedCatalogConnector ? selectedCatalogConnector.catalog_connector_slug : ''}
+        connectorTitle={selectedCatalogConnector?.catalog_connector_title}
         onClose={() => setOpenMigrateDrawer(false)}
         connectorType={selectedCatalogConnector?.catalog_connector_type}
         disabled={!isXtmComposerUp && selectedCatalogConnector?.catalog_connector_manager_supported}

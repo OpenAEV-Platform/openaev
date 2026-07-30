@@ -1,21 +1,23 @@
 package io.openaev.service.attackpath.ingestion;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
+import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.attackpath.AttackPathIds;
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -36,6 +38,7 @@ public class AttackPathExecutionIngestionService {
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
   private final TenantScopedTransaction tenantTx;
+  private final ObjectMapper objectMapper;
 
   /**
    * Clears a simulation's attack-path rows (on simulation reset and delete). As a writer of a
@@ -52,6 +55,89 @@ public class AttackPathExecutionIngestionService {
           executionRepository.deleteAllBySimulationId(simulationId);
           findingRepository.deleteAllBySimulationId(simulationId);
         });
+  }
+
+  public void updateTerminalView(Inject inject) {
+
+    Map<String, StringBuilder> executionTracesAttackPath =
+        getExecutionTracesByEndpointIndex(inject);
+    tenantTx.executeNew(
+        TxCtx.forTenant(inject.getTenant().getId()),
+        () -> {
+          for (String executionIndex : executionTracesAttackPath.keySet()) {
+            executionRepository.updateTerminalViewByExecutionIndex(
+                executionIndex,
+                executionTracesAttackPath.get(executionIndex).toString(),
+                inject.getTenant().getId());
+          }
+        });
+  }
+
+  /**
+   * Updates the prevention/detection/vulnerability status columns of the execution rows identified
+   * by their index. For each list, selects the {@link InjectExpectationResult} whose {@code result}
+   * label has the highest priority (success > partial > pending > failure) according to the
+   * corresponding {@link ExpectationType} labels, then persists that label as the status value.
+   */
+  public void updateExpectationByExecutionIndex(
+      Inject inject, Map<String, ExecutionExpectationResults> expectationResults) {
+    tenantTx.executeNew(
+        TxCtx.forTenant(inject.getTenant().getId()),
+        () ->
+            expectationResults.forEach(
+                (index, expectation) -> {
+                  String preventionStatus =
+                      resolveHighestPriorityResult(
+                          expectation.prevention(), ExpectationType.PREVENTION);
+                  String detectionStatus =
+                      resolveHighestPriorityResult(
+                          expectation.detection(), ExpectationType.DETECTION);
+                  String vulnerabilityStatus =
+                      resolveHighestPriorityResult(
+                          expectation.vulnerability(), ExpectationType.VULNERABILITY);
+                  executionRepository.updateExpectationStatusByExecutionId(
+                      index,
+                      preventionStatus,
+                      detectionStatus,
+                      vulnerabilityStatus,
+                      inject.getTenant().getId());
+                }));
+  }
+
+  /**
+   * Among the given results, picks the one whose {@code result} label maps to the highest-priority
+   * outcome for the supplied type (success=3 > partial=2 > pending=1 > failure=0). Returns {@code
+   * null} when the list is empty.
+   */
+  private static String resolveHighestPriorityResult(
+      List<InjectExpectationResult> results, ExpectationType type) {
+    if (results == null || results.isEmpty()) {
+      return null;
+    }
+    return results.stream()
+        .max(Comparator.comparingInt(r -> resultPriority(r.getResult(), type)))
+        .map(InjectExpectationResult::getResult)
+        .orElse(null);
+  }
+
+  /**
+   * Maps a result label to a numeric priority so that success beats partial, partial beats pending,
+   * and pending beats failure. Unknown labels fall back to the lowest priority (0).
+   */
+  private static int resultPriority(String result, ExpectationType type) {
+    if (result == null) {
+      return 0;
+    }
+    if (result.equals(type.successLabel)) {
+      return 3;
+    }
+    if (result.equals(type.partialLabel)) {
+      return 2;
+    }
+    if (result.equals(type.pendingLabel)) {
+      return 1;
+    }
+    return 0; // failureLabel or unknown
   }
 
   /** The run context shared by all of a run's execution rows. */
@@ -136,7 +222,6 @@ public class AttackPathExecutionIngestionService {
                   PrimitiveType.IPv4,
                   PrimitiveType.IPv6,
                   PrimitiveType.TargetedAsset,
-                  PrimitiveType.Hostname,
                   PrimitiveType.Host,
                   PrimitiveType.Domain,
                   PrimitiveType.IpSubnet);
@@ -191,7 +276,7 @@ public class AttackPathExecutionIngestionService {
           attackPathExecution.setTargetDiscoveredInformation(injectorTargets);
           attackPathExecutions.add(attackPathExecution);
         }
-      } else if (targetSelector.equals("assets")) {
+      } else if (targetSelector.equals("assets") || targetSelector.equals("asset_group")) {
         // The injector "assets" selector (the only stored value; the contract choices are
         // {assets, manual}) targets both the inject's direct assets and its asset groups. Resolve
         // both, exactly as the executor path does via getAgentsAndAgentlessAssetsByInject.
@@ -260,7 +345,6 @@ public class AttackPathExecutionIngestionService {
                   PrimitiveType.IPv4,
                   PrimitiveType.IPv6,
                   PrimitiveType.TargetedAsset,
-                  PrimitiveType.Hostname,
                   PrimitiveType.Host,
                   PrimitiveType.Domain,
                   PrimitiveType.IpSubnet);
@@ -288,14 +372,149 @@ public class AttackPathExecutionIngestionService {
         }
       }
 
-    } else { // INJECTOR -> one execution per target
+    } else { // INJECTOR -> 1 Execution by target
       String targetSelector = inject.getContent().get("target_selector").asText();
-      if (targetSelector.equals("manual") || targetSelector.equals("assets")) {
-        // 'target' is the per-execution discriminator (the manual target or the asset id) and the
-        // injector is the source, mirroring the write side executionNode(inject, target, injector).
+
+      if (targetSelector.equals("manual")) { // DISCOVERY
+        String[] targets = inject.getContent().get("targets").asText().split(",");
+        if (targets.length < 1) return null;
+
+        target = inject.getContent().get("targets").asText().split(",")[0];
+        return AttackPathIds.executionNode(inject.getId(), target, inject.getInjector().getId());
+
+      } else if (targetSelector.equals("assets") || targetSelector.equals("asset_group")) { // ASSET
+        if (inject.getAssets().isEmpty()) return null;
+        target = inject.getAssets().getFirst().getId();
         return AttackPathIds.executionNode(inject.getId(), target, inject.getInjector().getId());
       }
     }
     return null;
+  }
+
+  /**
+   * Mirrors the frontend {@code parseTraceOutput} in {@code TerminalView.tsx}: tries to JSON-parse
+   * the raw message and extracts {@code stdout} / {@code stderr}. Falls back to treating the full
+   * message as stdout when it is not valid JSON (plain-text implants, legacy traces).
+   */
+  private record TraceOutput(String stdout, String stderr) {}
+
+  private TraceOutput parseTraceMessage(@Nullable String message) {
+    if (message == null || message.isBlank()) {
+      return new TraceOutput("", "");
+    }
+    try {
+      JsonNode node = objectMapper.readTree(message);
+      String stdout = node.path("stdout").asText("");
+      String stderr = node.path("stderr").asText("");
+      return new TraceOutput(stdout, stderr);
+    } catch (Exception e) {
+      return new TraceOutput(message, "");
+    }
+  }
+
+  private Map<String, StringBuilder> getExecutionTracesByEndpointIndex(Inject inject) {
+    Map<String, StringBuilder> tracesByEndpointSource = new HashMap<>();
+    if (inject.getStatus().isEmpty()) return tracesByEndpointSource;
+    if (inject.getInjectorContract().isEmpty()) return tracesByEndpointSource;
+
+    InjectStatus status = inject.getStatus().get();
+    List<ExecutionTrace> executionTraces = status.getTraces();
+
+    if (inject.getInjectorContract().get().getNeedsExecutor()) {
+      executionTraces.forEach(
+          executionTrace -> {
+            if (executionTrace.getAgent() == null || executionTrace.getAgent().getAsset() == null) {
+              return;
+            }
+            if (!executionTrace.getAction().equals(ExecutionTraceAction.EXECUTION)) {
+              return;
+            }
+            String agentId = getExecutionIndex(inject, executionTrace.getAgent().getId());
+            if (agentId == null) {
+              return;
+            }
+
+            StringBuilder agentTraces =
+                tracesByEndpointSource.computeIfAbsent(agentId, k -> new StringBuilder());
+
+            TraceOutput parsed = parseTraceMessage(executionTrace.getMessage());
+            // A trace with no timestamp must not render a literal "null" at the start of the line.
+            String prefix = executionTrace.getTime() != null ? executionTrace.getTime() + " " : "";
+            if (!parsed.stdout().isBlank()) {
+              agentTraces.append(prefix).append(parsed.stdout()).append("\n");
+            }
+            if (!parsed.stderr().isBlank()) {
+              agentTraces.append(prefix).append(parsed.stderr()).append("\n");
+            }
+          });
+    } else {
+      executionTraces.forEach(
+          executionTrace -> {
+            String index = getExecutionIndex(inject, null);
+            if (index == null) {
+              return;
+            }
+            StringBuilder injectorTraces =
+                tracesByEndpointSource.computeIfAbsent(index, k -> new StringBuilder());
+            // A trace with no timestamp must not render a literal "null" at the start of the line.
+            if (executionTrace.getTime() != null) {
+              injectorTraces.append(executionTrace.getTime()).append(" ");
+            }
+            injectorTraces
+                .append(executionTrace.getStatus().name())
+                .append(" ")
+                .append(executionTrace.getMessage())
+                .append("\n");
+          });
+    }
+    return tracesByEndpointSource;
+  }
+
+  public record ExecutionExpectationResults(
+      List<InjectExpectationResult> prevention,
+      List<InjectExpectationResult> detection,
+      List<InjectExpectationResult> vulnerability) {
+
+    private static ExecutionExpectationResults empty() {
+      return new ExecutionExpectationResults(
+          new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+    }
+  }
+
+  public Map<String, ExecutionExpectationResults> getExpectationByEndpointIndex(
+      Inject inject, List<BaseInjectExpectation> expectations) {
+    Map<String, ExecutionExpectationResults> expectationByEndpointIndex = new HashMap<>();
+
+    expectations.forEach(
+        expectation -> {
+          if (!(expectation instanceof TechnicalInjectExpectation technical)) {
+            return;
+          }
+          String index =
+              technical.getAgent() != null
+                  ? getExecutionIndex(inject, technical.getAgent().getId())
+                  : getExecutionIndex(inject, null);
+          if (index == null) {
+            return;
+          }
+
+          ExecutionExpectationResults groupedResults =
+              expectationByEndpointIndex.computeIfAbsent(
+                  index, k -> ExecutionExpectationResults.empty());
+
+          if (expectation instanceof PreventionInjectExpectation) {
+            groupedResults.prevention().addAll(expectation.getResults());
+            return;
+          }
+          if (expectation instanceof DetectionInjectExpectation) {
+            groupedResults.detection().addAll(expectation.getResults());
+            return;
+          }
+          if (expectation instanceof VulnerabilityInjectExpectation) {
+            groupedResults.vulnerability().addAll(expectation.getResults());
+          }
+        });
+
+    return expectationByEndpointIndex;
   }
 }

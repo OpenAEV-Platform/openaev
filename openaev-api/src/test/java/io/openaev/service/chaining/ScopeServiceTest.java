@@ -24,6 +24,7 @@ class ScopeServiceTest {
   @Mock private WorkflowScopeRuleRepository workflowScopeRuleRepository;
   @Mock private AssetService assetService;
   @Mock private AssetGroupService assetGroupService;
+  @Mock private WorkflowStateService workflowStateService;
 
   @InjectMocks private ScopeService scopeService;
 

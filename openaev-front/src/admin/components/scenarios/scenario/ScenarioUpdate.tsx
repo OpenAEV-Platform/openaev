@@ -30,6 +30,7 @@ const ScenarioUpdate: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const permissions = useScenarioPermissions(scenario.scenario_id);
+  const isChaining = !!(scenario as unknown as { scenario_workflow_id?: string }).scenario_workflow_id;
 
   // apply rule dialog
   const [openApplyRule, setOpenApplyRule] = useState(false);
@@ -44,6 +45,7 @@ const ScenarioUpdate: FunctionComponent<Props> = ({
     scenario_category,
     scenario_main_focus,
     scenario_severity,
+    scenario_default_kill_chain,
     scenario_tags,
     scenario_external_reference,
     scenario_external_url,
@@ -59,6 +61,7 @@ const ScenarioUpdate: FunctionComponent<Props> = ({
     scenario_category: scenario_category ?? 'attack-scenario',
     scenario_main_focus: scenario_main_focus ?? 'incident-response',
     scenario_severity: scenario_severity ?? 'high',
+    scenario_default_kill_chain: scenario_default_kill_chain ?? '',
     scenario_description: scenario_description ?? '',
     scenario_tags: scenario_tags ?? [],
     scenario_external_reference: scenario_external_reference ?? '',
@@ -120,6 +123,7 @@ const ScenarioUpdate: FunctionComponent<Props> = ({
         <ScenarioForm
           initialValues={initialValues}
           editing
+          isChaining={isChaining}
           disabled={permissions.readOnly}
           onSubmit={submitEdit}
           handleClose={handleClose}

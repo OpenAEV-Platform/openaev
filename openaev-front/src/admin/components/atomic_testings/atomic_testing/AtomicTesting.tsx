@@ -4,17 +4,17 @@ import { type SyntheticEvent, useContext, useEffect, useMemo, useState } from 'r
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { getInjectStatusWithGlobalExecutionTraces, searchTargets } from '../../../../actions/injects/inject-action';
+import { searchTargets } from '../../../../actions/injects/inject-action';
 import { SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
-import { type InjectStatusOutput, type InjectTarget, type SearchPaginationInput } from '../../../../utils/api-types';
+import { type InjectTarget, type SearchPaginationInput } from '../../../../utils/api-types';
 import { isAgentless } from '../../../../utils/target/TargetUtils';
-import GlobalExecutionTraces from '../../common/injects/status/traces/GlobalExecutionTraces';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../InjectResultOverviewOutputContext';
 import PaginatedTargetTab from './PaginatedTargetTab';
 import TargetResultsDetail from './target_result/TargetResultsDetail';
+import { TargetResultsSkeleton, TargetsPaneSkeleton } from './TargetSkeletons';
 
 const useStyles = makeStyles()({
   chip: {
@@ -50,6 +50,28 @@ type TabConfig = {
   entityPrefix: string;
 };
 
+// The Targets tab the user last opened, remembered per inject. An atomic testing IS an inject, and
+// this screen serves both, so keying on the inject id scopes the memory to a single atomic testing
+// or a single simulation inject - opening another one never inherits the tab. First visit has
+// nothing stored and lands on the first (broadest) tab; every later visit or reload reopens where
+// the user left off. Same per-inject key shape as the target filters stored next to it
+// (`${targetType}_${injectId}_filters` in PaginatedTargetTab).
+const targetTabStorageKey = (injectId: string) => `${injectId}_target_tab`;
+
+const readStoredTargetTab = (injectId: string): string | null => {
+  if (!injectId || typeof window === 'undefined') {
+    return null;
+  }
+  return window.localStorage.getItem(targetTabStorageKey(injectId));
+};
+
+const storeTargetTab = (injectId: string, targetType: string) => {
+  if (!injectId || typeof window === 'undefined') {
+    return;
+  }
+  window.localStorage.setItem(targetTabStorageKey(injectId), targetType);
+};
+
 const AtomicTesting = () => {
   // Standard hooks
   const { classes } = useStyles();
@@ -74,16 +96,20 @@ const AtomicTesting = () => {
   const [hasPlayersChecked, setHasPlayersChecked] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState<InjectTarget>();
   const [pageTargets, setPageTargets] = useState<InjectTarget[]>([]);
-  const [injectStatus, setInjectStatus] = useState<InjectStatusOutput>();
+  const [targetsLoading, setTargetsLoading] = useState(false);
 
   // Initial tab open
   const [searchParams, setSearchParams] = useSearchParams();
   const targetType = searchParams.get('target');
+  const injectId = injectResultOverviewOutput?.inject_id || '';
 
   const navigateToTab = (tab: TabConfig | undefined) => {
     setActiveTab(tab);
     setReloadContentCount(reloadContentCount + 1);
   };
+
+  const allTargetsChecked = hasAssetsGroupChecked && hasTeamsChecked && hasEndpointsChecked
+    && hasAgentsChecked && hasPlayersChecked && hasAiTargetsChecked;
 
   const tabConfig: TabConfig[] = useMemo(() => {
     let index: number = 0;
@@ -108,7 +134,7 @@ const AtomicTesting = () => {
     if (hasEndpoints) {
       tabs.push({
         key: index++,
-        label: t('Endpoints'),
+        label: t('Assets'),
         type: 'ASSETS',
         entityPrefix: 'endpoint_target',
       });
@@ -132,38 +158,58 @@ const AtomicTesting = () => {
     if (hasAiTargets) {
       tabs.push({
         key: index++,
-        label: t('AI targets'),
+        // AI targets are assets too, so the tab carries the same label as the
+        // endpoint-backed one; keep the specific label only in the (theoretical)
+        // case where both tabs coexist, to avoid two tabs named "Assets".
+        label: hasEndpoints ? t('AI targets') : t('Assets'),
         type: 'AI_TARGETS',
         entityPrefix: 'ai_target_target',
       });
     }
 
+    // Wait until every target-type probe has answered before picking a tab:
+    // selecting earlier would latch whichever async check resolved first
+    // (often Agents) instead of the broadest available tab, and the
+    // "keep the current tab" branch below would then retain it forever.
+    if (!allTargetsChecked) {
+      return tabs;
+    }
+
     // tabs visibility may have changed so we reevaluate this structure;
-    // figure out which tab to display; if the previously displayed tab
-    // is still available, keep it up
-    // otherwise default to the first occurring tab
+    // figure out which tab to display, in order of precedence: an explicit
+    // ?target= deep link, the tab already open, the tab this inject was last
+    // left on, and finally the first occurring tab (the broadest scope: asset
+    // groups, then teams, then assets, ...) on a first visit.
     if (tabs.length === 0) {
       navigateToTab(undefined);
+      return tabs;
     }
 
-    if (targetType != null && tabs.map(conf => conf.type).includes(targetType)) {
+    const availableTypes = tabs.map(conf => conf.type);
+    if (targetType != null && availableTypes.includes(targetType)) {
       navigateToTab(tabs.find(tc => targetType === tc.type));
+      // The deep link is consumed from the URL, so remember it: a reload must
+      // land on the tab the user is looking at, not back on the first one.
+      storeTargetTab(injectId, targetType);
       searchParams.delete('target');
       setSearchParams(searchParams, { replace: true });
-    } else if (activeTab && tabs.map(conf => conf.type).includes(activeTab.type)) {
-      navigateToTab(tabs.find(tc => activeTab.type === tc.type));
-    } else {
-      navigateToTab(tabs[0]);
+      return tabs;
     }
+    if (activeTab && availableTypes.includes(activeTab.type)) {
+      navigateToTab(tabs.find(tc => activeTab.type === tc.type));
+      return tabs;
+    }
+    const storedType = readStoredTargetTab(injectId);
+    // A stored tab that no longer exists on this inject (targets changed since)
+    // falls back to the first one instead of leaving the pane empty.
+    navigateToTab(tabs.find(tc => tc.type === storedType) ?? tabs[0]);
 
     return tabs;
-  }, [hasAssetsGroup, hasTeams, hasEndpoints, hasAgents, hasPlayers, hasAiTargets]);
+  }, [hasAssetsGroup, hasTeams, hasEndpoints, hasAgents, hasPlayers, hasAiTargets, allTargetsChecked, injectId]);
 
   const activeTabKey: number = useMemo(() => {
     return activeTab?.key || 0;
   }, [activeTab]);
-
-  const injectId = injectResultOverviewOutput?.inject_id || '';
 
   useEffect(() => {
     if (!injectResultOverviewOutput) return;
@@ -240,14 +286,6 @@ const AtomicTesting = () => {
     setReloadContentCount(reloadContentCount + 1);
   }, [injectResultOverviewOutput]);
 
-  useEffect(() => {
-    if (!injectId) return;
-    getInjectStatusWithGlobalExecutionTraces(injectId)
-      .then((response: { data: InjectStatusOutput }) => {
-        setInjectStatus(response.data);
-      });
-  }, [injectId, injectResultOverviewOutput]);
-
   // Handles
   const handleNewTargetClick = (target: InjectTarget) => {
     setSelectedTarget(target);
@@ -275,6 +313,9 @@ const AtomicTesting = () => {
   const handleTabChange = (_event: SyntheticEvent, newValue: number) => {
     const location = tabConfig.find(tc => newValue == tc.key);
     navigateToTab(location);
+    if (location) {
+      storeTargetTab(injectId, location.type);
+    }
   };
 
   const drawTabs = () => {
@@ -295,6 +336,7 @@ const AtomicTesting = () => {
             reloadContentCount={reloadContentCount}
             selectedTargetId={selectedTarget?.target_id}
             onTargetsChange={setPageTargets}
+            onLoadingChange={setTargetsLoading}
           />
         )}
       </>
@@ -324,7 +366,7 @@ const AtomicTesting = () => {
       >
         <SectionLabel>{t('Targets')}</SectionLabel>
         <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
-          {hasAssetsGroupChecked && hasTeamsChecked && hasEndpointsChecked && hasAgentsChecked && hasPlayersChecked && hasAiTargetsChecked && (
+          {allTargetsChecked ? (
             <>
               <Tabs
                 value={activeTabKey}
@@ -340,6 +382,8 @@ const AtomicTesting = () => {
               </Tabs>
               {drawTabs()}
             </>
+          ) : (
+            <TargetsPaneSkeleton />
           )}
         </Paper>
       </Grid>
@@ -376,18 +420,17 @@ const AtomicTesting = () => {
         )}
         {!selectedTarget && (
           <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
-            <Empty message={t('No target data available.')} />
+            {/* While the target probes or the target page are still loading, no
+                target is selected yet: show the results skeleton instead of
+                flashing "No target data available." before the data lands. */}
+            {(!allTargetsChecked || targetsLoading) ? (
+              <TargetResultsSkeleton />
+            ) : (
+              <Empty message={t('No target data available.')} />
+            )}
           </Paper>
         )}
       </Grid>
-      {injectStatus && (
-        <Grid size={{ xs: 12 }}>
-          <SectionLabel>{t('Execution')}</SectionLabel>
-          <Paper classes={{ root: classes.paper }} variant="outlined">
-            <GlobalExecutionTraces injectStatus={injectStatus} />
-          </Paper>
-        </Grid>
-      )}
     </Grid>
   );
 };

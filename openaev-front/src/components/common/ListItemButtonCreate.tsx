@@ -4,6 +4,7 @@ import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 const useStyles = makeStyles()(theme => ({
+  icon: { minWidth: 30 },
   text: {
     fontSize: 15,
     color: theme.palette.primary.main,
@@ -29,8 +30,8 @@ const ListItemButtonCreate: FunctionComponent<Props> = ({
       onClick={onClick}
       color="primary"
     >
-      <ListItemIcon color="primary">
-        <ControlPointOutlined color="primary" />
+      <ListItemIcon color="primary" classes={{ root: classes.icon }}>
+        <ControlPointOutlined color="primary" fontSize="small" />
       </ListItemIcon>
       <ListItemText
         primary={title}

@@ -8,12 +8,14 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.*;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -27,10 +29,14 @@ class SignatureOutputProcessorTest {
   private final InjectExpectationRepository injectExpectationRepository =
       mock(InjectExpectationRepository.class);
   private final CollectorService collectorService = mock(CollectorService.class);
+  private final SecurityPlatformRepository securityPlatformRepository =
+      mock(SecurityPlatformRepository.class);
   private final SecurityCoverageSendJobService securityCoverageSendJobService =
       mock(SecurityCoverageSendJobService.class);
   private final AssetGroupService assetGroupService = mock(AssetGroupService.class);
   private final InjectService injectService = mock(InjectService.class);
+  private final InjectorContractContentUtils injectorContractContentUtils =
+      mock(InjectorContractContentUtils.class);
 
   private final InjectExpectationLockService injectExpectationLockService =
       new InjectExpectationLockService(injectExpectationRepository);
@@ -39,10 +45,12 @@ class SignatureOutputProcessorTest {
       new InjectExpectationService(
           injectExpectationRepository,
           collectorService,
+          securityPlatformRepository,
           securityCoverageSendJobService,
           injectExpectationLockService,
           assetGroupService,
           injectService,
+          injectorContractContentUtils,
           new ArrayList<>(List.of()));
   private final PreviewFeatureService previewFeatureService = mock(PreviewFeatureService.class);
   private final SignatureOutputProcessor processor =

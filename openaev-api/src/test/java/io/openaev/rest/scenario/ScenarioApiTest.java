@@ -13,13 +13,17 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
+import io.openaev.injector_contract.fields.ContractExpectations;
+import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
@@ -62,6 +66,8 @@ public class ScenarioApiTest extends IntegrationTest {
   @Autowired private TenantRoleComposer tenantRoleComposer;
   @Autowired private GrantComposer grantComposer;
   @Autowired private UserComposer userComposer;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private PayloadComposer payloadComposer;
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper objectMapper;
@@ -90,6 +96,8 @@ public class ScenarioApiTest extends IntegrationTest {
     grantComposer.reset();
     tenantGroupComposer.reset();
     tenantRoleComposer.reset();
+    injectorContractComposer.reset();
+    payloadComposer.reset();
   }
 
   private Scenario getScenario(@Nullable Scenario scenario, @Nullable Executor executor) {
@@ -602,6 +610,79 @@ public class ScenarioApiTest extends IntegrationTest {
     assertFalse(injectRepository.findByScenarioId(scenarioId).isEmpty());
   }
 
+  @DisplayName("Create scenario with injector contracts carries default expectations")
+  @Test
+  void given_payloadContractWithDefaultExpectations_should_carryExpectationsOnCreatedInjects()
+      throws Exception {
+    // -- PREPARE --
+    Expectation detection = new Expectation();
+    detection.setType(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION);
+    detection.setName("Detection");
+    detection.setScore(100.0);
+    detection.setPredefined(true);
+    Expectation prevention = new Expectation();
+    prevention.setType(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION);
+    prevention.setName("Prevention");
+    prevention.setScore(100.0);
+    prevention.setPredefined(false);
+    InjectorContract contract =
+        InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+            List.of(ContractExpectations.expectationsField(List.of(detection, prevention))));
+    contract.setLabels(Map.of("en", "Payload action with default expectations"));
+    injectorContractComposer
+        .forInjectorContract(contract)
+        .withInjector(InjectorFixture.createDefaultPayloadInjector())
+        .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()))
+        .persist();
+
+    User testUser = createUserWithManageAssessmentRoleAndGrantOnContract(contract.getId());
+    Authentication auth = buildAuthenticationToken(testUser);
+
+    ScenarioInput scenarioInput = new ScenarioInput();
+    scenarioInput.setName("Scenario with default expectations");
+    scenarioInput.setFromName("no-reply@openaev.io");
+
+    InjectorContractSearchPaginationInput paginationInput =
+        new InjectorContractSearchPaginationInput();
+    paginationInput.setIncludeFullDetails(true);
+    paginationInput.setInjectorContractIdsToProcess(List.of(contract.getId()));
+
+    ScenarioAndInjectorContractsInputs input = new ScenarioAndInjectorContractsInputs();
+    input.setLocale("en");
+    input.setScenarioInput(scenarioInput);
+    input.setInjectorContractSearchPaginationInput(paginationInput);
+
+    // -- EXECUTE --
+    String response =
+        this.mvc
+            .perform(
+                post(SCENARIO_URI + "/with-injector-contracts")
+                    .with(authentication(auth))
+                    .with(csrf())
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // -- ASSERT --
+    String scenarioId = JsonPath.read(response, "$.scenario_id");
+    Set<Inject> injects = injectRepository.findByScenarioId(scenarioId);
+    assertEquals(1, injects.size());
+    ObjectNode content = injects.iterator().next().getContent();
+    assertNotNull(content, "Inject content should be derived from the contract defaults");
+    // The raw contract definition must not leak into the inject content
+    assertFalse(content.has("fields"));
+    JsonNode expectations = content.get("expectations");
+    assertNotNull(expectations, "Default (predefined) expectations should be carried over");
+    assertTrue(expectations.isArray());
+    assertEquals(1, expectations.size());
+    assertEquals("DETECTION", expectations.get(0).get("expectation_type").asText());
+    assertTrue(expectations.get(0).get("expectation_is_predefined").asBoolean());
+  }
+
   @DisplayName("Update scenarios with injector contracts")
   @Test
   void given_existingScenarios_should_updateScenariosWithInjectorContracts() throws Exception {
@@ -650,10 +731,15 @@ public class ScenarioApiTest extends IntegrationTest {
   }
 
   private User createUserWithManageAssessmentRoleAndGrantOnEmailInjectorContract() {
+    return createUserWithManageAssessmentRoleAndGrantOnContract(
+        injectorContractFixture.getWellKnownSingleEmailContract().getId());
+  }
+
+  private User createUserWithManageAssessmentRoleAndGrantOnContract(String injectorContractId) {
     Grant grant = new Grant();
     grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL);
     grant.setName(Grant.GRANT_TYPE.OBSERVER);
-    grant.setResourceId(injectorContractFixture.getWellKnownSingleEmailContract().getId());
+    grant.setResourceId(injectorContractId);
 
     TenantGroupComposer.Composer threatArsenalGroup =
         tenantGroupComposer

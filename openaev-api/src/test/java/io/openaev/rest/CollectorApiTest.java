@@ -15,7 +15,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -27,10 +26,8 @@ import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
-import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +42,8 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
 public class CollectorApiTest extends IntegrationTest {
 
+  private static final String TENANT_COLLECTOR_URI = "/api/tenants/{tenantId}/collectors";
+
   @Autowired private MockMvc mvc;
 
   @Autowired private CollectorRepository collectorRepository;
@@ -56,8 +55,7 @@ public class CollectorApiTest extends IntegrationTest {
   @Autowired private ConnectorInstanceConfigurationComposer connectorInstanceConfigurationComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private CollectorTypeComposer collectorTypeComposer;
-  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
-  @Autowired private EntityManager entityManager;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
 
   private MockMultipartFile buildInputPart(CollectorCreateInput input) {
     return new MockMultipartFile(
@@ -181,6 +179,101 @@ public class CollectorApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Retrieve collector by id")
+  class GetCollectorById {
+
+    private String performSingleGet(String collectorId) throws Exception {
+      return mvc.perform(
+              get(tenantUri(TENANT_COLLECTOR_URI + "/" + collectorId))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @DisplayName("Should return the collector output with its linked connector instance")
+    void shouldReturnCollectorOutputWithLinkedInstance() throws Exception {
+      Collector collector = getCollector("single-get-linked");
+      ConnectorInstancePersisted instance =
+          getCollectorInstance(collector.getId(), collector.getName());
+
+      String response = performSingleGet(collector.getId());
+
+      assertThatJson(response).inPath("collector_id").isEqualTo(collector.getId());
+      assertThatJson(response).inPath("is_verified").isEqualTo(true);
+      assertThatJson(response)
+          .inPath("connector_instance.connector_instance_id")
+          .isEqualTo(instance.getId());
+      assertThatJson(response)
+          .inPath("catalog.catalog_connector_id")
+          .isEqualTo(instance.getCatalogConnector().getId());
+    }
+
+    @Test
+    @DisplayName("Should return the collector output as unverified when no instance is linked")
+    void shouldReturnCollectorOutputWithoutInstance() throws Exception {
+      Collector collector = getCollector("single-get-unlinked");
+
+      String response = performSingleGet(collector.getId());
+
+      assertThatJson(response).inPath("collector_id").isEqualTo(collector.getId());
+      assertThatJson(response).inPath("is_verified").isEqualTo(false);
+    }
+
+    @Test
+    @DisplayName("Should return 404 for an unknown collector id")
+    void shouldReturn404ForUnknownCollector() throws Exception {
+      mvc.perform(
+              get(tenantUri(TENANT_COLLECTOR_URI + "/unknown-collector-id"))
+                  .with(csrf())
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Should not resolve a connector instance belonging to another tenant")
+    void shouldNotResolveInstanceFromAnotherTenant() throws Exception {
+      Collector collector = getCollector("single-get-cross-tenant");
+      ConnectorInstancePersisted instance =
+          getCollectorInstance(collector.getId(), collector.getName());
+      // Resolve the tenant-scoped URI before creating the second tenant: tenantUri() picks the
+      // user's first tenant, which is no longer deterministic once the user belongs to two.
+      String uri = tenantUri(TENANT_COLLECTOR_URI + "/" + collector.getId());
+      Tenant otherTenant = tenantHelper.createTenantWithCurrentUser("collector-single-get-b");
+
+      // Move the instance to another tenant while keeping its COLLECTOR_ID pointing at the
+      // current tenant's collector: the instance lookup is a native query bypassing the Hibernate
+      // tenant filter, so it must not resolve a foreign tenant's instance.
+      entityManager.flush();
+      entityManager
+          .createNativeQuery(
+              "UPDATE connector_instances SET tenant_id = :tenant"
+                  + " WHERE connector_instance_id = :id")
+          .setParameter("tenant", otherTenant.getId())
+          .setParameter("id", instance.getId())
+          .executeUpdate();
+
+      String response =
+          mvc.perform(
+                  get(uri)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).inPath("collector_id").isEqualTo(collector.getId());
+      assertThatJson(response).inPath("is_verified").isEqualTo(false);
+    }
+  }
+
+  @Nested
   @DisplayName("Related collectors ids")
   class GetRelatedCollectorIds {
     @Test
@@ -192,7 +285,7 @@ public class CollectorApiTest extends IntegrationTest {
           getCollectorInstance(collector.getId(), collector.getName());
       String response =
           mvc.perform(
-                  get(COLLECTOR_URI + "/" + collector.getId() + "/related-ids")
+                  get(tenantUri(TENANT_COLLECTOR_URI + "/" + collector.getId() + "/related-ids"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
@@ -221,7 +314,7 @@ public class CollectorApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  get(COLLECTOR_URI + "/" + collector.getId() + "/related-ids")
+                  get(tenantUri(TENANT_COLLECTOR_URI + "/" + collector.getId() + "/related-ids"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
@@ -240,7 +333,7 @@ public class CollectorApiTest extends IntegrationTest {
       Collector collector = getCollector("Atomic Red Team");
       String response =
           mvc.perform(
-                  get(COLLECTOR_URI + "/" + collector.getId() + "/related-ids")
+                  get(tenantUri(TENANT_COLLECTOR_URI + "/" + collector.getId() + "/related-ids"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
@@ -271,7 +364,7 @@ public class CollectorApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  multipart(COLLECTOR_URI)
+                  multipart(tenantUri(TENANT_COLLECTOR_URI))
                       .file(buildInputPart(input))
                       .file(buildEmptyIconPart())
                       .accept(MediaType.APPLICATION_JSON)
@@ -308,7 +401,7 @@ public class CollectorApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  multipart(COLLECTOR_URI)
+                  multipart(tenantUri(TENANT_COLLECTOR_URI))
                       .file(buildInputPart(input))
                       .file(buildEmptyIconPart())
                       .accept(MediaType.APPLICATION_JSON)
@@ -344,7 +437,7 @@ public class CollectorApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  multipart(COLLECTOR_URI)
+                  multipart(tenantUri(TENANT_COLLECTOR_URI))
                       .file(buildInputPart(input))
                       .file(buildEmptyIconPart())
                       .accept(MediaType.APPLICATION_JSON)
@@ -377,7 +470,7 @@ public class CollectorApiTest extends IntegrationTest {
       input.setPeriod(0);
 
       mvc.perform(
-              multipart(COLLECTOR_URI)
+              multipart(tenantUri(TENANT_COLLECTOR_URI))
                   .file(buildInputPart(input))
                   .file(buildEmptyIconPart())
                   .accept(MediaType.APPLICATION_JSON)
@@ -404,7 +497,7 @@ public class CollectorApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  multipart(COLLECTOR_URI)
+                  multipart(tenantUri(TENANT_COLLECTOR_URI))
                       .file(buildInputPart(input))
                       .file(buildEmptyIconPart())
                       .accept(MediaType.APPLICATION_JSON)
@@ -424,100 +517,8 @@ public class CollectorApiTest extends IntegrationTest {
     }
   }
 
-  @Nested
-  @DisplayName("Tenant Isolation")
-  @WithMockUser
-  class TenantIsolation {
-
-    @Test
-    @DisplayName("Collector created in tenant X should NOT be visible from tenant Y list")
-    void given_collectorInTenantX_should_notAppearInTenantYList() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X",
-              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
-
-      CollectorCreateInput input = new CollectorCreateInput();
-      input.setId("collector-tenant-x");
-      input.setType("openaev_tenant_x");
-      input.setName("Collector Tenant X");
-      input.setPeriod(60);
-
-      mvc.perform(
-              multipart("/api/tenants/" + tenantX.getId() + "/collectors")
-                  .file(buildInputPart(input))
-                  .file(buildEmptyIconPart())
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful());
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act --------
-      String response =
-          mvc.perform(
-                  get("/api/tenants/" + tenantY.getId() + "/collectors")
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -------- Assert --------
-      List<String> collectorIds = JsonPath.read(response, "$[*].collector_id");
-      assertThat(collectorIds).doesNotContain(input.getId());
-    }
-
-    @Test
-    @DisplayName("Collector created in tenant X should be visible from tenant X list")
-    void given_collectorInTenantX_should_appearInTenantXList() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X",
-              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
-
-      CollectorCreateInput input = new CollectorCreateInput();
-      input.setId("collector-tenant-x-visible");
-      input.setType("openaev_tenant_x_visible");
-      input.setName("Collector Tenant X Visible");
-      input.setPeriod(60);
-
-      mvc.perform(
-              multipart("/api/tenants/" + tenantX.getId() + "/collectors")
-                  .file(buildInputPart(input))
-                  .file(buildEmptyIconPart())
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful());
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act --------
-      String response =
-          mvc.perform(
-                  get("/api/tenants/" + tenantX.getId() + "/collectors")
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -------- Assert --------
-      List<String> collectorIds = JsonPath.read(response, "$[*].collector_id");
-      assertThat(collectorIds).contains(input.getId());
-    }
-  }
+  // Tenant isolation is tested in CollectorHttpIsolationTest (with @TestPropertySource activating
+  // the table). @TestPropertySource cannot be applied to nested classes.
 
   @Nested
   @DisplayName("Collector image")
@@ -547,7 +548,7 @@ public class CollectorApiTest extends IntegrationTest {
           new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}));
 
       // -- Act / Assert --
-      mvc.perform(get(COLLECTOR_URI + "/id/" + collector.getId() + "/image"))
+      mvc.perform(get(tenantUri(TENANT_COLLECTOR_URI + "/id/" + collector.getId() + "/image")))
           .andExpect(status().isOk());
     }
 
@@ -562,7 +563,8 @@ public class CollectorApiTest extends IntegrationTest {
     @DisplayName("Given unknown collector id should return 404")
     void given_unknownCollectorId_should_return404() throws Exception {
       // -- Act / Assert --
-      mvc.perform(get(COLLECTOR_URI + "/id/nonexistent-id/image")).andExpect(status().isNotFound());
+      mvc.perform(get(tenantUri(TENANT_COLLECTOR_URI + "/id/nonexistent-id/image")))
+          .andExpect(status().isNotFound());
     }
   }
 }

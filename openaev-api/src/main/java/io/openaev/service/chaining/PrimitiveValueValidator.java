@@ -81,8 +81,7 @@ public final class PrimitiveValueValidator {
     return context.allowlistedAssetIds().contains(id);
   }
 
-  private static boolean isAssetGroupIdAllowedByScope(
-      String id, PrimitiveValidationContext context) {
+  static boolean isAssetGroupIdAllowedByScope(String id, PrimitiveValidationContext context) {
     if (context.denylistedAssetGroupIds().contains(id)) {
       return false;
     }
@@ -92,10 +91,19 @@ public final class PrimitiveValueValidator {
     return context.allowlistedAssetGroupIds().contains(id);
   }
 
-  private static boolean isIpAllowedByScope(String ip, PrimitiveValidationContext context) {
-    if (context.denylistedIps().contains(ip)
+  /**
+   * Returns {@code true} if the IP is excluded by the scope denylist, either by an exact IP match
+   * or by falling inside a denied subnet. Unlike {@link #isIpAllowedByScope}, this ignores the
+   * allowlist: it only enforces denylist exclusion.
+   */
+  static boolean isIpDeniedByScope(String ip, PrimitiveValidationContext context) {
+    return context.denylistedIps().contains(ip)
         || context.denylistedSubnets().stream()
-            .anyMatch(subnet -> IpAddressUtils.isIpInSubnet(ip, subnet))) {
+            .anyMatch(subnet -> IpAddressUtils.isIpInSubnet(ip, subnet));
+  }
+
+  static boolean isIpAllowedByScope(String ip, PrimitiveValidationContext context) {
+    if (isIpDeniedByScope(ip, context)) {
       return false;
     }
     boolean hasAllowlist =
@@ -108,7 +116,7 @@ public final class PrimitiveValueValidator {
             .anyMatch(subnet -> IpAddressUtils.isIpInSubnet(ip, subnet));
   }
 
-  private static boolean isSubnetAllowedByScope(String subnet, PrimitiveValidationContext context) {
+  static boolean isSubnetAllowedByScope(String subnet, PrimitiveValidationContext context) {
     if (context.denylistedSubnets().contains(subnet)) {
       return false;
     }
@@ -118,7 +126,7 @@ public final class PrimitiveValueValidator {
     return context.allowlistedSubnets().contains(subnet);
   }
 
-  private static boolean isDomainAllowedByScope(String domain, PrimitiveValidationContext context) {
+  static boolean isDomainAllowedByScope(String domain, PrimitiveValidationContext context) {
     String normalizedDomain = domain.toLowerCase(Locale.ROOT);
     if (context.denylistedDomains().contains(normalizedDomain)) {
       return false;

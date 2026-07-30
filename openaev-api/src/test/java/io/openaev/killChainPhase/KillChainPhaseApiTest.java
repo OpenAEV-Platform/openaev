@@ -2,7 +2,7 @@ package io.openaev.killChainPhase;
 
 import static io.openaev.database.model.Filters.FilterOperator.contains;
 import static io.openaev.database.model.Filters.FilterOperator.eq;
-import static io.openaev.database.specification.KillChainPhaseSpecification.byName;
+import static io.openaev.database.specification.KillChainPhaseSpecification.byNameOrKillChainName;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.KillChainPhaseFixture.getKillChainPhase;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,7 +63,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
   private static final KillChainPhase KILL_CHAIN_PHASE_3 = getKillChainPhase("name3", 3L);
 
   private static final String SEARCH_INPUT = "search input";
-  private static final Specification<KillChainPhase> spec = byName(SEARCH_INPUT);
+  private static final Specification<KillChainPhase> spec = byNameOrKillChainName(SEARCH_INPUT);
 
   private static String KILL_CHAIN_PHASE_ID_1;
   private static String KILL_CHAIN_PHASE_ID_2;
@@ -80,7 +80,8 @@ public class KillChainPhaseApiTest extends IntegrationTest {
 
     killChainPhaseList = Arrays.asList(KILL_CHAIN_PHASE_1, KILL_CHAIN_PHASE_2, KILL_CHAIN_PHASE_3);
 
-    when(mockKillChainPhaseRepository.findAll(spec, Sort.by(Sort.Direction.ASC, "order")))
+    when(mockKillChainPhaseRepository.findAll(
+            spec, Sort.by(Sort.Order.asc("killChainName"), Sort.Order.asc("order"))))
         .thenReturn(killChainPhaseList);
   }
 
@@ -448,13 +449,19 @@ public class KillChainPhaseApiTest extends IntegrationTest {
 
     try (MockedStatic<KillChainPhaseSpecification> mocked =
         Mockito.mockStatic(KillChainPhaseSpecification.class)) {
-      when(KillChainPhaseSpecification.byName(SEARCH_INPUT)).thenReturn(spec);
+      when(KillChainPhaseSpecification.byNameOrKillChainName(SEARCH_INPUT)).thenReturn(spec);
       List<FilterUtilsJpa.Option> result = killChainPhaseApi.optionsByName(SEARCH_INPUT);
 
-      verify(mockKillChainPhaseRepository).findAll(spec, Sort.by(Sort.Direction.ASC, "order"));
+      // Multi kill chain platform: options are sorted by kill chain then phase order, and
+      // labelled "[kill chain] phase" (see KillChainPhaseApi#toOption)
+      verify(mockKillChainPhaseRepository)
+          .findAll(spec, Sort.by(Sort.Order.asc("killChainName"), Sort.Order.asc("order")));
       assertEquals(
           killChainPhaseList.stream()
-              .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
+              .map(
+                  i ->
+                      new FilterUtilsJpa.Option(
+                          i.getId(), "[" + i.getKillChainName() + "] " + i.getName()))
               .toList(),
           result);
     }

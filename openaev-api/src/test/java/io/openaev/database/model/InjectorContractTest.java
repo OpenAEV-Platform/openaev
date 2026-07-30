@@ -80,12 +80,20 @@ class InjectorContractTest {
       return vulnerability;
     }
 
+    private static Domain domainWithId(String id) {
+      Domain domain = new Domain();
+      domain.setId(id);
+      domain.setName(id);
+      return domain;
+    }
+
     private static InjectorContract contractAtSentinel() {
       InjectorContract contract = new InjectorContract();
       contract.setTags(new HashSet<>(Set.of(tag("t1"), tag("t2"))));
       contract.setAttackPatterns(
           new ArrayList<>(List.of(attackPattern("a1"), attackPattern("a2"))));
       contract.setVulnerabilities(new HashSet<>(Set.of(vulnerability("v1"))));
+      contract.setDomains(new HashSet<>(Set.of(domainWithId("d1"))));
       contract.setUpdatedAt(SENTINEL);
       return contract;
     }
@@ -163,6 +171,28 @@ class InjectorContractTest {
     }
 
     @Test
+    @DisplayName("setDomains with the same ids does not bump updatedAt")
+    void setDomains_same_ids_does_not_bump() {
+      InjectorContract contract = contractAtSentinel();
+
+      contract.setDomains(new HashSet<>(Set.of(domainWithId("d1"))));
+
+      assertThat(contract.getUpdatedAt()).isEqualTo(SENTINEL);
+    }
+
+    @Test
+    @DisplayName("setDomains with different ids bumps updatedAt")
+    void setDomains_different_ids_bumps() {
+      // A real domain change must be visible to updatedAt-driven logic (SSE restream, engine
+      // indexing cursor), exactly like the other association setters.
+      InjectorContract contract = contractAtSentinel();
+
+      contract.setDomains(new HashSet<>(Set.of(domainWithId("d2"))));
+
+      assertThat(contract.getUpdatedAt()).isAfter(SENTINEL);
+    }
+
+    @Test
     @DisplayName("first association assignment on a new contract bumps updatedAt")
     void first_assignment_bumps() {
       InjectorContract contract = new InjectorContract();
@@ -185,6 +215,102 @@ class InjectorContractTest {
       contract.setTags(new HashSet<>(Set.of(new Tag())));
 
       assertThat(contract.getUpdatedAt()).isAfter(SENTINEL);
+    }
+  }
+
+  @Nested
+  @DisplayName(
+      "an unchanged association keeps the STORED collection instance, so a no-op upsert never"
+          + " dereferences the persistent collection and never rewrites its join rows")
+  class AssociationInstanceIsPreservedWhenUnchanged {
+
+    private static Domain domain(String id) {
+      Domain domain = new Domain();
+      domain.setId(id);
+      domain.setName(id);
+      return domain;
+    }
+
+    private static Tag tagWithId(String id) {
+      Tag tag = new Tag();
+      tag.setId(id);
+      tag.setName(id);
+      return tag;
+    }
+
+    @Test
+    @DisplayName("setDomains with the same domain ids keeps the stored collection")
+    void setDomains_same_ids_keeps_stored_collection() {
+      // An injector re-registering every ~40s hands over a freshly built Set holding the very same
+      // domains. Assigning it would dereference the persistent collection, and Hibernate deletes
+      // then re-inserts every join row of a dereferenced collection - on every single cycle.
+      InjectorContract contract = new InjectorContract();
+      Set<Domain> stored = new HashSet<>(Set.of(domain("d1"), domain("d2")));
+      contract.setDomains(stored);
+
+      contract.setDomains(new HashSet<>(Set.of(domain("d2"), domain("d1"))));
+
+      assertThat(contract.getDomains()).isSameAs(stored);
+    }
+
+    @Test
+    @DisplayName("setDomains with different domain ids stores the incoming collection")
+    void setDomains_different_ids_stores_incoming() {
+      InjectorContract contract = new InjectorContract();
+      contract.setDomains(new HashSet<>(Set.of(domain("d1"))));
+      Set<Domain> incoming = new HashSet<>(Set.of(domain("d1"), domain("d2")));
+
+      contract.setDomains(incoming);
+
+      assertThat(contract.getDomains()).isSameAs(incoming);
+    }
+
+    @Test
+    @DisplayName("setTags with the same tag ids keeps the stored collection")
+    void setTags_same_ids_keeps_stored_collection() {
+      InjectorContract contract = new InjectorContract();
+      Set<Tag> stored = new HashSet<>(Set.of(tagWithId("t1")));
+      contract.setTags(stored);
+
+      contract.setTags(new HashSet<>(Set.of(tagWithId("t1"))));
+
+      assertThat(contract.getTags()).isSameAs(stored);
+    }
+
+    private static AttackPattern attackPatternWithId(String id) {
+      AttackPattern attackPattern = new AttackPattern();
+      attackPattern.setId(id);
+      return attackPattern;
+    }
+
+    private static Vulnerability vulnerabilityWithId(String id) {
+      Vulnerability vulnerability = new Vulnerability();
+      vulnerability.setId(id);
+      return vulnerability;
+    }
+
+    @Test
+    @DisplayName("setAttackPatterns with the same ids keeps the stored collection")
+    void setAttackPatterns_same_ids_keeps_stored_collection() {
+      InjectorContract contract = new InjectorContract();
+      List<AttackPattern> stored = new ArrayList<>(List.of(attackPatternWithId("a1")));
+      contract.setAttackPatterns(stored);
+
+      contract.setAttackPatterns(new ArrayList<>(List.of(attackPatternWithId("a1"))));
+
+      assertThat(contract.getAttackPatterns()).isSameAs(stored);
+    }
+
+    @Test
+    @DisplayName("setVulnerabilities with the same ids keeps the stored collection")
+    void setVulnerabilities_same_ids_keeps_stored_collection() {
+      InjectorContract contract = new InjectorContract();
+      Set<Vulnerability> stored = new HashSet<>(Set.of(vulnerabilityWithId("v1")));
+      contract.setVulnerabilities(stored);
+
+      contract.setVulnerabilities(new HashSet<>(Set.of(vulnerabilityWithId("v1"))));
+
+      assertThat(contract.getVulnerabilities()).isSameAs(stored);
     }
   }
 }

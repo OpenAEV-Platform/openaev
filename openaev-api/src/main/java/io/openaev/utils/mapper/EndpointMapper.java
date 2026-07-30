@@ -128,7 +128,19 @@ public class EndpointMapper {
    * @return the simplified endpoint DTO
    */
   public EndpointSimple toEndpointSimple(Asset asset) {
-    return EndpointSimple.builder().id(asset.getId()).name(asset.getName()).build();
+    // Unproxy before the instanceof so a lazily-loaded Asset proxy still reveals the Endpoint
+    // subtype (otherwise endpoints would lose their platform in list chips).
+    Endpoint endpoint = Hibernate.unproxy(asset) instanceof Endpoint e ? e : null;
+    return EndpointSimple.builder()
+        .id(asset.getId())
+        .name(asset.getName())
+        .type(asset.getType())
+        .category(asset.getCategory() != null ? asset.getCategory().name() : null)
+        .platform(
+            endpoint != null && endpoint.getPlatform() != null
+                ? endpoint.getPlatform().name()
+                : null)
+        .build();
   }
 
   /**

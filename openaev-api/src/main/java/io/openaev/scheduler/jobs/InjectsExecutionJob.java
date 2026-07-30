@@ -8,6 +8,9 @@ import static java.util.stream.Collectors.groupingBy;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectDependenciesRepository;
@@ -29,7 +32,6 @@ import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ExecutionTraceUtils;
-import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -49,7 +51,6 @@ import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.env.Environment;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.EvaluationException;
 import org.springframework.expression.Expression;
@@ -65,7 +66,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class InjectsExecutionJob implements Job {
 
-  public static final String DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES = "10";
+  public static final int DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES = 10;
 
   // Thread-safe and expensive to instantiate; never recreate per dependency evaluation
   private static final ExpressionParser SPEL_PARSER = new SpelExpressionParser();
@@ -73,8 +74,9 @@ public class InjectsExecutionJob implements Job {
   @Value("${openaev.notification.simulation-completed-delay-seconds:3600}")
   private long delayForSimulationCompletedEvent;
 
-  private final Environment env;
-  private int injectExecutionThreshold;
+  @Value(
+      "${inject.execution.threshold.minutes:" + DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES + "}")
+  private Integer injectExecutionThreshold;
 
   private final InjectHelper injectHelper;
   private final InjectService injectService;
@@ -87,6 +89,7 @@ public class InjectsExecutionJob implements Job {
   private final NotificationEventService notificationEventService;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
   private final EntityManager entityManager;
+  private final TenantScopedTransaction tenantTx;
 
   private final PreviewFeatureService previewFeatureService;
 
@@ -102,15 +105,6 @@ public class InjectsExecutionJob implements Job {
 
   private final WorkflowService workflowService;
   private final HealthCheckUtils healthCheckUtils;
-
-  @PostConstruct
-  private void init() {
-    String threshold = env.getProperty("inject.execution.threshold.minutes");
-    if (threshold == null || threshold.isBlank()) {
-      threshold = DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES;
-    }
-    this.injectExecutionThreshold = Integer.parseInt(threshold);
-  }
 
   public void handleAutoStartExercises() {
     // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
@@ -166,7 +160,7 @@ public class InjectsExecutionJob implements Job {
                 notificationEventService.sendNotificationEventWithDelay(
                     NotificationEvent.builder()
                         .eventType(NotificationEventType.SIMULATION_COMPLETED)
-                        .resourceType(NotificationRuleResourceType.SCENARIO)
+                        .resourceType(ResourceType.SCENARIO)
                         .resourceId(ex.getScenario().getId())
                         .timestamp(Instant.now())
                         .build(),
@@ -196,12 +190,10 @@ public class InjectsExecutionJob implements Job {
         }
       }
       injectStatusService.updateFinalInjectStatus(status);
+      // Save + stream one by one: the timeout finalization must reach the execution screens in
+      // real time (an inject stuck PENDING would otherwise stay "in flight" until a reload).
+      injectStatusService.saveAndStreamInject(status);
     }
-
-    injectStatusService.saveAll(
-        pendingInjects.stream()
-            .map(inject -> inject.getStatus().orElseThrow(ElementNotFoundException::new))
-            .collect(Collectors.toList()));
   }
 
   private void executeInject(ExecutableInject executableInject) throws Exception {
@@ -398,6 +390,41 @@ public class InjectsExecutionJob implements Job {
     exerciseRepository.save(exercise);
   }
 
+  /**
+   * Runs an inject execution under BOTH tenant scopes of the platform, set to the inject's tenant:
+   * the v2 primitive (transaction GUC, read by the inspector for activated tables such as
+   * collectors) and the v1 thread-local {@link TenantContext}, which {@link
+   * io.openaev.aop.HibernateFilterTransactionAspect} turns into the Hibernate {@code tenantFilter}
+   * on every {@code @Transactional} method it enters.
+   *
+   * <p>The v1 bridge is not optional: executing an inject resolves asset groups, endpoints and
+   * agents through Criteria queries, all still {@code @Filter} entities. {@link
+   * TenantContext#getCurrentTenant()} falls back to the DEFAULT tenant when the thread-local is
+   * unset, so without this a customer's simulation resolved the default tenant's endpoints and
+   * created its expectations against them - cross-tenant rows, and none for the real targets. It
+   * stayed invisible in single-tenant deployments, where that fallback happens to be the right
+   * tenant. Every other background executor (ScenarioExecutionJob, AtomicTestingExecutionJob,
+   * ExpectationsExpirationManagerJob, StepEventService...) already carries the same bridge.
+   *
+   * <p>Unlike those, this job runs on the shared {@code ForkJoinPool.commonPool} (nested {@code
+   * parallelStream}), which also borrows the calling thread: restore the previous value instead of
+   * clearing, so the scope of whatever else runs on that thread survives.
+   */
+  private void executeInTenant(@NotNull final String tenantId, @NotNull final Runnable work) {
+    String previousTenant =
+        TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
+    TenantContext.setCurrentTenant(tenantId);
+    try {
+      tenantTx.execute(TxCtx.forTenant(tenantId), work);
+    } finally {
+      if (previousTenant == null) {
+        TenantContext.clearCurrentTenant();
+      } else {
+        TenantContext.setCurrentTenant(previousTenant);
+      }
+    }
+  }
+
   @Override
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
@@ -452,7 +479,25 @@ public class InjectsExecutionJob implements Job {
                     .forEach(
                         executableInject -> {
                           try {
-                            this.executeInject(executableInject);
+                            String tenantId =
+                                executableInject.getInjection().getInject().getTenant().getId();
+                            executeInTenant(
+                                tenantId,
+                                () -> {
+                                  try {
+                                    this.executeInject(executableInject);
+                                  } catch (RuntimeException re) {
+                                    throw re;
+                                  } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                  }
+                                });
+                          } catch (RuntimeException e) {
+                            Inject inject = executableInject.getInjection().getInject();
+                            Throwable cause = e.getCause() != null ? e.getCause() : e;
+                            log.warn(cause.getMessage(), cause);
+                            injectStatusService.failInjectStatus(
+                                inject.getId(), cause.getMessage());
                           } catch (Exception e) {
                             Inject inject = executableInject.getInjection().getInject();
                             log.warn(e.getMessage(), e);
@@ -474,7 +519,8 @@ public class InjectsExecutionJob implements Job {
     }
   }
 
-  private void handleInjectExpectationCollectStatus() {
+  @VisibleForTesting
+  void handleInjectExpectationCollectStatus() {
     // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
     entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     List<Inject> injects = injectService.getExecutedAndNotFinished();
@@ -483,16 +529,28 @@ public class InjectsExecutionJob implements Job {
     }
     List<Inject> fulfilled = new ArrayList<>();
     for (Inject inject : injects) {
-      if (inject.getExpectations().isEmpty()) {
+      // An expectation is done collecting when it has nothing to collect (no result
+      // placeholders), when every result has been filled, or when its collection window has
+      // expired. The expiration escape is critical: partially filled expectations (one collector
+      // reported, another never did) keep empty placeholder rows forever and are not picked up by
+      // the expiration manager (their score is already set). Without it, a single silent
+      // collector leaves the inject COLLECTING and the simulation RUNNING indefinitely.
+      boolean collectDone =
+          inject.getExpectations().stream()
+              .allMatch(
+                  expectation -> {
+                    // Legacy expectation rows can carry a SQL NULL results column (see
+                    // InjectExpectationMapper): treat it as "nothing to collect" instead of
+                    // NPE-ing the job and blocking simulation auto-close.
+                    List<InjectExpectationResult> results = expectation.getResults();
+                    return results == null
+                        || results.isEmpty()
+                        || hasValidResults(results)
+                        || expectation.isExpired();
+                  });
+      if (collectDone) {
         inject.setCollectExecutionStatus(COMPLETED);
         fulfilled.add(inject);
-      } else {
-        List<InjectExpectationResult> results =
-            inject.getExpectations().stream().flatMap(ie -> ie.getResults().stream()).toList();
-        if (results.isEmpty() || hasValidResults(results)) {
-          inject.setCollectExecutionStatus(COMPLETED);
-          fulfilled.add(inject);
-        }
       }
     }
     injectService.saveAll(fulfilled);

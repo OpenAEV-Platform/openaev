@@ -28,7 +28,7 @@ import {
   type ThreatArsenalActionUpdateInput,
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
-import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
+import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
@@ -56,7 +56,7 @@ const buildInitialValues
   } => {
     const remediations: Record<string, DetectionRemediationForm> = {};
     action.action_detection_remediations?.forEach((remediation) => {
-      remediations[remediation.detection_remediation_collector_type ?? ''] = {
+      remediations[remediation.detection_remediation_security_platform ?? ''] = {
         content: remediation.detection_remediation_values ?? '',
         remediationId: remediation.detection_remediation_id ?? '',
         author_rule: remediation.author_rule,
@@ -157,7 +157,7 @@ const ThreatArsenalActionPopover = ({
         .map(([key, value]) => {
           const remediation = value as unknown as DetectionRemediationForm;
           return {
-            detection_remediation_collector: key,
+            detection_remediation_security_platform: key,
             detection_remediation_values: remediation.content,
             detection_remediation_id: remediation.remediationId,
             author_rule: remediation.author_rule,
@@ -213,8 +213,14 @@ const ThreatArsenalActionPopover = ({
     handleCloseDuplicate();
   };
 
-  const hasUpdateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
+  const hasDuplicateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
+  const hasUpdateCapability = hasDuplicateCapability || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
+
+  const duplicateOff = !hasDuplicateCapability || !!disableDuplicate;
+  const updateOff = !hasUpdateCapability || !!disableUpdate;
+  const deleteOff = !hasDeleteCapability || !!disableDelete;
+  const allDisabled = duplicateOff && !!disableJsonExport && updateOff && deleteOff;
 
   // -- Export --
   const handleExportJsonSingle = async () => {
@@ -227,17 +233,17 @@ const ThreatArsenalActionPopover = ({
 
   return (
     <>
-      <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="small" sx={{ borderRadius: 1 }}>
-        <MoreVert fontSize="small" />
+      <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="small" disabled={allDisabled} sx={{ borderRadius: 1 }}>
+        <MoreVert fontSize="small" color={allDisabled ? 'disabled' : 'primary'} />
       </IconButton>
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handlePopoverClose}
       >
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
+        {hasDuplicateCapability && (
           <MenuItem onClick={handleOpenDuplicate} disabled={disableDuplicate}>{t('Duplicate')}</MenuItem>
-        </Can>
+        )}
         <MenuItem onClick={handleExportJsonSingle} disabled={disableJsonExport}>{t('Export')}</MenuItem>
         {hasUpdateCapability && (
           <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{t('Update')}</MenuItem>

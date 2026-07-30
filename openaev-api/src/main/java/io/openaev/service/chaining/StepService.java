@@ -116,7 +116,8 @@ public class StepService {
     // If no condition mapper and step already executed, we skip the step to avoid to execute it
     // again
     if (!conditionService.hasConditionMapper(persistedTemplate)
-        && isStepAlreadyExecutedOnce(persistedTemplate.getId(), workflowRun.getId())) {
+        && isStepAlreadyExecutedOnce(persistedTemplate.getId(), workflowRun.getId())
+        && injectExecutionStep.hasPayload(persistedTemplate)) {
       return List.of();
     }
 
@@ -130,6 +131,34 @@ public class StepService {
       return List.of();
     }
 
+    // Expand each condition batch into one batch per scope target so that each READY step handles
+    // exactly one inject → one execution unit. The injector-vs-payload targeting policy (external
+    // injectors also expand per manual IP target) is owned by expandTargetBatches, so StepService
+    // stays agnostic here.
+    if (StepActionClass.INJECT_EXECUTION.equals(persistedTemplate.getStepAction())) {
+      executionBatches =
+          injectExecutionStep.expandTargetBatches(executionBatches, workflowRun, persistedTemplate);
+      if (executionBatches.isEmpty()) {
+        return List.of();
+      }
+
+      // Per-target deduplication: expanded batches carry a per-target hash (combo + target).
+      // The combo-level dedup in prepareInputsForStepExecution runs BEFORE expansion and only
+      // knows the combo hash, so it cannot skip individual targets already executed. Load the
+      // committed hashes once and drop batches whose target was already turned into a READY step,
+      // preventing the same inject from being re-executed on every scheduling cycle.
+      Set<String> committedTargetHashes =
+          conditionService.getCommittedHashes(persistedTemplate, workflowRun);
+      if (!committedTargetHashes.isEmpty()) {
+        executionBatches =
+            executionBatches.stream()
+                .filter(batch -> !committedTargetHashes.contains(batch.hash()))
+                .toList();
+        if (executionBatches.isEmpty()) {
+          return List.of();
+        }
+      }
+    }
     List<Step> stepReadys = new ArrayList<>();
     Set<String> committedHashes = new HashSet<>();
     int localPending = pendingCount;
@@ -363,27 +392,41 @@ public class StepService {
    */
   @Transactional(rollbackFor = Exception.class)
   void copyStepConditionTemplate(Step step, Step stepCopied) {
-    List<Condition> conditions = conditionService.findAllConditionsByStepId(step.getId());
-    if (conditions == null || conditions.isEmpty()) {
+    // Roots linked to this step (source of truth for which trees to copy)
+    List<Condition> linkedConditions = conditionService.findAllConditionsByStepId(step.getId());
+    if (linkedConditions == null || linkedConditions.isEmpty()) {
       return;
     }
     List<Condition> rootConditions =
-        conditions.stream().filter(condition -> condition.getConditionParent() == null).toList();
+        linkedConditions.stream()
+            .filter(condition -> condition.getConditionParent() == null)
+            .toList();
 
     if (rootConditions.isEmpty()) {
       throw new IllegalArgumentException(
           "New step (TEMPLATE): At least 1 condition must be a root (no parent)");
     }
 
-    // Multiple roots are only allowed when all roots are MAPPER conditions
+    // Allow one event/filter root plus any number of mapper roots.
+    // This happens when a step has one linked event root and one or more action mappings.
     if (rootConditions.size() > 1) {
-      boolean allMapper =
-          rootConditions.stream().allMatch(c -> c.getType() == ConditionType.MAPPER);
-      if (!allMapper) {
+      long nonMapperRootCount =
+          rootConditions.stream().filter(c -> c.getType() != ConditionType.MAPPER).count();
+      if (nonMapperRootCount > 1) {
         throw new IllegalArgumentException(
             "New step (TEMPLATE): Only 1 condition can be first parent");
       }
     }
+
+    // Full set of the source workflow's non-MAPPER conditions, to resolve children by parent id
+    // independent of conditions_steps linkage (Event-API links only the root to the step).
+    List<Condition> allSourceConditions =
+        conditionService.findAllNonMapperConditionsByWorkflowId(step.getWorkflow().getId());
+
+    Map<String, List<Condition>> temporaryConditions =
+        allSourceConditions.stream()
+            .filter(condition -> condition.getConditionParent() != null)
+            .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
 
     Map<String, Condition> temporaryIdAndSaveId = new HashMap<>();
 
@@ -397,7 +440,13 @@ public class StepService {
           Condition.builder()
               .type(firstCondition.getType())
               .key(firstCondition.getKey())
+              .keyType(firstCondition.getKeyType())
               .value(firstCondition.getValue())
+              .caseSensitive(firstCondition.isCaseSensitive())
+              .mappingType(firstCondition.getMappingType())
+              .name(firstCondition.getName())
+              .description(firstCondition.getDescription())
+              .workflowId(stepCopied.getWorkflow().getId())
               .stepFrom(stepFrom)
               .build();
 
@@ -406,11 +455,6 @@ public class StepService {
 
       temporaryIdAndSaveId.put(firstCondition.getId(), first);
     }
-
-    Map<String, List<Condition>> temporaryConditions =
-        conditions.stream()
-            .filter(condition -> condition.getConditionParent() != null)
-            .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
 
     Queue<String> currentId = new LinkedList<>();
     rootConditions.forEach(rc -> currentId.add(rc.getId()));
@@ -431,13 +475,25 @@ public class StepService {
             Condition.builder()
                 .type(condition.getType())
                 .key(condition.getKey())
+                .keyType(condition.getKeyType())
                 .value(condition.getValue())
+                .caseSensitive(condition.isCaseSensitive())
+                .mappingType(condition.getMappingType())
+                .name(condition.getName())
+                .workflowId(stepCopied.getWorkflow().getId())
                 .conditionParent(temporaryIdAndSaveId.get(condition.getConditionParent().getId()))
                 .stepFrom(stepFromCondition)
                 .build();
 
         conditionService.linkToStep(current, stepCopied, false);
         current = conditionService.saveCondition(current);
+
+        // Keep the in-memory graph consistent for API mapping (mirrors persistConditionTree)
+        Condition parent = current.getConditionParent();
+        if (parent.getConditionChildren() == null) {
+          parent.setConditionChildren(new ArrayList<>());
+        }
+        parent.getConditionChildren().add(current);
 
         temporaryIdAndSaveId.put(condition.getId(), current);
 

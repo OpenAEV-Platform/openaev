@@ -213,13 +213,6 @@ export const lessonsAnswer = new schema.Entity(
 );
 export const arrayOfLessonsAnswers = new schema.Array(lessonsAnswer);
 
-export const report = new schema.Entity(
-  'reports',
-  {},
-  { idAttribute: 'report_id' },
-);
-export const arrayOfReports = new schema.Array(report);
-
 export const variable = new schema.Entity(
   'variables',
   {},
@@ -269,6 +262,13 @@ export const mitigation = new schema.Entity(
 );
 export const arrayOfMitigations = new schema.Array(mitigation);
 
+export const notification = new schema.Entity(
+  'notifications',
+  {},
+  { idAttribute: 'notification_id' },
+);
+export const arrayOfNotifications = new schema.Array(notification);
+
 token.define({ token_user: user });
 user.define({ user_organization: organization });
 
@@ -295,6 +295,8 @@ export const storeHelper = state => ({
     return userLang;
   },
   getStatistics: () => state.referential.getIn(['entities', 'statistics', 'openaev']),
+  // notifications (SSE-fed, used to refresh the top bar bell)
+  getNotifications: () => entities('notifications', state),
   // exercises
   getExercises: () => entities('exercises', state),
   getExercisesMap: () => maps('exercises', state),
@@ -322,9 +324,6 @@ export const storeHelper = state => ({
     l => l.get('lessons_answer_exercise') === exerciseId,
   ),
   isExercise: id => !maps('exercises', state)?.get(id)?.isEmpty(),
-  getExerciseReports: exerciseId => entities('reports', state).filter(l => l.get('report_exercise') === exerciseId),
-  // report
-  getReport: id => entity(id, 'reports', state),
   // comcheck
   getComcheck: id => entity(id, 'comchecks', state),
   getComcheckStatus: id => entity(id, 'comcheckstatuses', state),

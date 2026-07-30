@@ -1,4 +1,5 @@
 import { Chip } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -18,19 +19,6 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const inlineStyles = {
-  blue: {
-    backgroundColor: 'rgba(15, 91, 255, 0.1)',
-    borderColor: 'rgba(15, 91, 255, 1)',
-    color: '#ffffff',
-  },
-  purple: {
-    backgroundColor: 'rgba(249, 138, 247, 0.1)',
-    borderColor: 'rgba(249, 138, 247, 0.51)',
-    color: '#ffffff',
-  },
-};
-
 interface Props {
   variant: string;
   mode: string;
@@ -38,8 +26,22 @@ interface Props {
 
 const AgentDeploymentMode: FunctionComponent<Props> = ({ variant, mode }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
   const { classes } = useStyles();
   const style = variant === 'list' ? classes.chipInList : classes.chip;
+
+  const inlineStyles = {
+    blue: {
+      backgroundColor: 'rgba(15, 91, 255, 0.1)',
+      borderColor: 'rgba(15, 91, 255, 1)',
+      color: theme.palette.text.primary,
+    },
+    purple: {
+      backgroundColor: 'rgba(249, 138, 247, 0.1)',
+      borderColor: 'rgba(249, 138, 247, 0.51)',
+      color: theme.palette.text.primary,
+    },
+  };
 
   switch (mode) {
     case 'session':

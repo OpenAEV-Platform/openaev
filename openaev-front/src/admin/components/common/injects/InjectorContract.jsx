@@ -9,7 +9,6 @@ import inject18n from '../../../../components/i18n';
 const styles = () => ({
   chip: {
     fontSize: 15,
-    lineHeight: '18px',
     height: 30,
     margin: '0 7px 7px 0',
     borderRadius: 4,
@@ -17,7 +16,6 @@ const styles = () => ({
   },
   chipInList: {
     fontSize: 12,
-    lineHeight: '12px',
     height: 20,
     float: 'left',
     marginRight: 7,

@@ -1,6 +1,7 @@
 import { type Edge, type Node } from '@xyflow/react';
 
 import type { AttackPathAttackPatternDTO, AttackPathDTO, AttackPathEdges, AttackPathNodeDTO } from '../../../../../utils/api-types';
+import { AP_ENDPOINT_SIZE, AP_FINDING_SIZE, AP_INJECTOR_SIZE } from './nodes/node-sizes';
 
 // Attack-path execution-store POC (issue 6647). Pure mapping of the backend AttackPathDTO onto
 // React Flow nodes and edges, with a manual column layout (no layout lib, mirroring AttackPath.tsx).
@@ -78,6 +79,9 @@ export interface AttackPathFlowNodeData {
   // For an endpoint (ASSET) node: its 1-based rank among the top chokepoints (most findings), used to
   // badge the most-exposed endpoints. Absent when the endpoint is not a top chokepoint.
   chokepointRank?: number;
+  // For an endpoint (ASSET) node: it is a pivot (both attacked and used as an attack source, i.e. an
+  // AGENT_ASSET source that is also a target), so the tooltip flags lateral movement through it.
+  isPivot?: boolean;
   dimmed?: boolean;
   // Aggregate cluster nodes: the endpoint count (endpoint cluster) or finding count (finding cluster).
   count?: number;
@@ -220,7 +224,9 @@ const CLUSTER_ROW_UNIT = 120;
 const CLUSTER_EP_ROW_H = 124;
 const CLUSTER_FINDING_ROW_H = 100;
 const CLUSTER_FINDING_GAP = 52;
-const CLUSTER_FINDING_DETAIL_ROW = 70;
+// Row height for an expanded individual finding: must leave room for the value label rendered ABOVE the
+// finding node (else a stacked finding's label overlaps the node above it, e.g. long UNC share paths).
+const CLUSTER_FINDING_DETAIL_ROW = 96;
 const CLUSTER_INJECTOR_HALF_H = 36;
 const CLUSTER_EP_HALF_H = 42;
 // Vertical spacing between the stacked injectors on the left band of the deduped view.
@@ -466,7 +472,6 @@ export const buildClusteredAttackPathFlow = (
   // endpoints). Endpoints are SHARED across injectors — never repeated once per injector.
   const injectorsByEndpoint = new Map<string, string[]>();
   const reachedOrder: string[] = [];
-  const reachedCountByInjector = new Map<string, number>();
   for (const e of execEdges) {
     const src = e.edgeSourceId;
     const tgt = e.edgeTargetId;
@@ -476,7 +481,6 @@ export const buildClusteredAttackPathFlow = (
     const injs = injectorsByEndpoint.get(tgt) ?? [];
     if (!injs.includes(src)) {
       injs.push(src);
-      reachedCountByInjector.set(src, (reachedCountByInjector.get(src) ?? 0) + 1);
     }
     injectorsByEndpoint.set(tgt, injs);
     if (!reachedOrder.includes(tgt)) {
@@ -488,7 +492,10 @@ export const buildClusteredAttackPathFlow = (
   // the shared hub surfaces the chokepoints (and their badges) up front rather than burying them.
   const endpointFindingTotal = (assetId: string): number =>
     Object.values(assetById.get(assetId)?.findingCounts ?? {}).reduce((s, v) => s + (v ?? 0), 0);
-  reachedOrder.sort((a, b) => endpointFindingTotal(b) - endpointFindingTotal(a));
+  // Deterministic order: by finding total desc, then a stable tie-breaker on the asset id. Without the
+  // tie-breaker, endpoints with equal totals (common — every endpoint is 0 early in a run) keep DTO edge
+  // insertion order, which can differ between live-refresh polls and makes the endpoints visibly swap.
+  reachedOrder.sort((a, b) => endpointFindingTotal(b) - endpointFindingTotal(a) || a.localeCompare(b));
 
   const nodes: AttackPathFlowNode[] = [];
   const edges: AttackPathFlowEdge[] = [];
@@ -579,7 +586,6 @@ export const buildClusteredAttackPathFlow = (
   });
   injectors.forEach((inj) => {
     const injId = inj.id as string;
-    const reachedCount = reachedCountByInjector.get(injId) ?? 0;
     const injStatus = aggregateStatus(
       reachedOrder
         .filter(ep => (injectorsByEndpoint.get(ep) ?? []).includes(injId))
@@ -590,9 +596,11 @@ export const buildClusteredAttackPathFlow = (
       source: injId,
       target: clusterId,
       type: AP_FLOW_EDGE_TYPE,
+      // No count badge here: the reached-endpoint count is already shown on the endpoint-cluster hub, so
+      // repeating it on the injector edge is redundant. (A distinct-contract count would need the backend
+      // to expose per-injector contract info on the collapsed graph — not available client-side.)
       data: {
-        count: reachedCount,
-        label: `+${reachedCount}`,
+        count: 1,
         status: injStatus,
       },
     });
@@ -686,6 +694,67 @@ export interface PathFinding {
  * that produced it — the injector(s) that reached its endpoint, the endpoint, and the finding — all
  * highlighted. Everything else is dropped so the whole path fits in one overview.
  */
+// A node's internal id (e.g. "NODE_ENDPOINT|<uuid>") must never surface as a user-facing label. When a
+// node can't be resolved to a real name, strip the "NODE_*|" prefix so the worst case is a bare ref,
+// not the internal id the analyst has no use for.
+export const friendlyNodeId = (raw?: string): string => {
+  const stripped = (raw ?? '').replace(/^NODE_[A-Z_]+\|/, '');
+  // A per-contract injector id (#6981) is `NODE_INJECTOR|<injector>|<contractExternalId>`, where the
+  // trailing segment is a non-human-readable uuid. This is only a fallback label (the node normally
+  // carries the contract name), so show just the injector name; other node kinds keep their full key.
+  if ((raw ?? '').startsWith('NODE_INJECTOR|')) {
+    return stripped.split('|')[0];
+  }
+  return stripped;
+};
+
+// A pivot endpoint is an ASSET both attacked and used as an attack source (an AGENT_ASSET source that is
+// also a target), so its node id is BOTH an EDGE_EXECUTIONS source and target. Injector sources are never
+// targets, so the source∩target intersection is exactly the pivot assets.
+export const pivotEndpointIds = (
+  edges: {
+    type?: string;
+    edgeSourceId?: string;
+    edgeTargetId?: string;
+  }[],
+): Set<string> => {
+  const sources = new Set<string>();
+  const targets = new Set<string>();
+  for (const e of edges) {
+    if (e.type !== EDGE_EXECUTIONS) {
+      continue;
+    }
+    if (e.edgeSourceId) {
+      sources.add(e.edgeSourceId);
+    }
+    if (e.edgeTargetId) {
+      targets.add(e.edgeTargetId);
+    }
+  }
+  const pivots = new Set<string>();
+  sources.forEach((s) => {
+    if (targets.has(s)) {
+      pivots.add(s);
+    }
+  });
+  return pivots;
+};
+
+// Order the simulation picker options: most recent first, by exercise start date. Dates come from the
+// resolved simulation meta as ISO strings, so a plain lexicographic compare is chronological (same key
+// the default-run selection uses). The currently-selected row is kept in the list even when it has no
+// summary/meta yet — it sorts by its own resolved date, or falls to the end when the date is unknown.
+export const orderSimulationPickerOptions = <T extends { simulationId?: string }>(
+  simulations: T[],
+  selectedRow: T | null,
+  startDateOf: (simId?: string) => string,
+): T[] => {
+  const base = selectedRow && !simulations.some(s => s.simulationId === selectedRow.simulationId)
+    ? [selectedRow, ...simulations]
+    : simulations;
+  return [...base].sort((a, b) => startDateOf(b.simulationId).localeCompare(startDateOf(a.simulationId)));
+};
+
 // Human-readable plural noun for a finding type, used to give contextual cluster edges a label with
 // meaning (e.g. "6 credentials" instead of a bare "6+"). Mixed clusters fall back to "findings".
 export const findingCategoryNoun = (typeFindings?: string): string => {
@@ -701,14 +770,16 @@ export const findingCategoryNoun = (typeFindings?: string): string => {
       return 'open ports';
     case 'hash':
       return 'hashes';
-    case 'share':
+    case 'file':
       return 'files';
     case 'password_policy':
       return 'password policies';
     case 'sid':
       return 'SIDs';
     default:
-      return 'findings';
+      // Data-driven: an unmapped type (a finding type added later, e.g. from a new event field) still
+      // reads as itself, humanised (snake_case -> words) — never a generic "findings" that hides it.
+      return typeFindings ? typeFindings.replace(/_/g, ' ') : 'findings';
   }
 };
 
@@ -934,7 +1005,9 @@ export const buildFindingPathFlow = (
   };
 };
 
-export type AttackPathFindingFilter = 'endpoints' | 'files' | 'credentials' | 'users' | 'cves';
+// 'endpoints' is the special backbone focus; any other value is a finding type (or curated grouping)
+// resolved through FILTER_TO_FINDING_TYPES, defaulting to the type itself so new types work with no code.
+export type AttackPathFindingFilter = 'endpoints' | string;
 
 // Finding types whose value is a captured secret; masked by default in the UI (spec §14). Revealing
 // them is an explicit, permission-gated action handled by the Result/Terminal increment.
@@ -960,11 +1033,11 @@ export const maskFindingValue = (typeFindings?: string, value?: string): string 
   return value;
 };
 
-// Card filter -> the ContractOutputType finding-type values it focuses (issue 6647). "files" maps to
-// `share` as a temporary stand-in until a native file finding type exists; "users" also includes
-// admin usernames per product decision.
+// Card filter -> the finding-type values it focuses (issue 6647). "files" maps to `file` (the backend
+// presents SMB `share` findings as `file`, an interim stand-in until a native file finding type
+// exists); "users" also includes admin usernames per product decision.
 export const FILTER_TO_FINDING_TYPES: Record<Exclude<AttackPathFindingFilter, 'endpoints'>, string[]> = {
-  files: ['share'],
+  files: ['file'],
   credentials: ['credentials'],
   users: ['username', 'admin_username'],
   cves: ['cve'],
@@ -1180,14 +1253,14 @@ const findingNodeValue = (node: AttackPathFlowNode): string => {
 };
 
 // A consumed key uses the raw PrimitiveType vocabulary (e.g. `share_name`, `password`) while finding
-// nodes use the finding-type vocabulary (`share`, `credentials`). Reconcile the known complex sub-field
+// nodes use the finding-type vocabulary (`file`, `credentials`). Reconcile the known complex sub-field
 // keys to their finding type here. Primitives that already match a finding type 1:1 (`port`, `cve`,
 // `ipv4`, `username`, `hostname`, `hash`…) are left untouched (identity). NOTE: reconciling the VALUE of
 // a complex finding (reaching into its sub-field, e.g. a share's `share_name`) is the front-side complex
 // matching still to come — today only the TYPE is reconciled and value comparison stays direct, which is
 // correct for primitives; complex value-matching is a follow-up (see backend requirements topo).
 const KEYTYPE_TO_FINDING_TYPE: Record<string, string> = {
-  share_name: 'share',
+  share_name: 'file',
   password: 'credentials',
 };
 
@@ -1204,22 +1277,25 @@ const causalKeyLabel = (key: CausalConsumedKey, t: ApTranslate): string =>
 //   - EQ => the finding value equals key.value exactly;
 //   - IN => the finding value is one of key.value's comma-separated members (a small, explicit list
 //     semantics; trimmed). Falls back to substring containment for a single-token key.
-// Only EQ and IN are handled now. SKIPPED operators (no edge emitted, no silent cap): NEQ, GT, GTE,
+//   - IS_NOT_NULL => any produced finding of the reconciled type matches (presence, not value).
+// EQ, IN and IS_NOT_NULL are handled. SKIPPED operators (no edge emitted, no silent cap): NEQ, GT, GTE,
 // LT, LTE, CONTAINS, REGEX, and any other — add them here when the backend needs them.
-const findingMatchesKey = (node: AttackPathFlowNode, key: CausalConsumedKey): boolean => {
-  if (node.type !== AP_FLOW_NODE_TYPE.finding) {
-    return false;
-  }
+// The type/value core of the match, shared by the flow-node matcher and the logical-finding matcher used
+// by the chain layout (where a finding may be collapsed into a cluster and so has no leaf flow node).
+const matchesKeyValue = (typeFindings: string, value: string, key: CausalConsumedKey): boolean => {
   const reconciledType = KEYTYPE_TO_FINDING_TYPE[key.keyType] ?? key.keyType;
-  if ((node.data.typeFindings ?? '') !== reconciledType) {
+  if (typeFindings !== reconciledType) {
     return false;
   }
-  // Guard the real DTO field (the mock is always a string, but the backend value may be null/undefined):
-  // a non-string key value can never match and must not reach key.value.split() below.
+  // IS_NOT_NULL matches on presence, not value (e.g. "triggered when any share is found"); its key.value is
+  // null, so handle it before the string guard below.
+  if (key.operator === 'IS_NOT_NULL') {
+    return value.length > 0;
+  }
+  // Guard the real DTO field (the mock is always a string, but the backend value may be null/undefined).
   if (typeof key.value !== 'string') {
     return false;
   }
-  const value = findingNodeValue(node);
   if (key.operator === 'EQ') {
     return value === key.value;
   }
@@ -1233,6 +1309,10 @@ const findingMatchesKey = (node: AttackPathFlowNode, key: CausalConsumedKey): bo
   // Unsupported operator (see list above): ignore, emit nothing.
   return false;
 };
+
+const findingMatchesKey = (node: AttackPathFlowNode, key: CausalConsumedKey): boolean =>
+  node.type === AP_FLOW_NODE_TYPE.finding
+  && matchesKeyValue(node.data.typeFindings ?? '', findingNodeValue(node), key);
 
 /**
  * Build the additive kill-chain causal edges for a set of flow nodes (issue 6647).
@@ -1353,11 +1433,14 @@ export const buildCausalEdges = (
 const CHAIN_COL_W = 620; // horizontal span of one causal depth (inject + endpoint + finding + gap)
 const CHAIN_EP_DX = 210; // inject → endpoint horizontal offset within a step
 const CHAIN_FIND_DX = 400; // inject → produced-finding horizontal offset within a step
-const CHAIN_FIND_ROW = 96; // vertical gap between findings stacked on the SAME endpoint
-const CHAIN_EP_GAP = 56; // vertical gap between an injector's endpoint blocks
-const CHAIN_STEP_GAP = 80; // vertical gap between two injectors sharing a depth (same column)
+const CHAIN_FIND_ROW = 130; // vertical gap between findings stacked on the SAME endpoint (room for the
+// value label rendered above each finding node, so stacked findings never overlap)
+const CHAIN_STEP_GAP = 80; // vertical gap between two asset blocks sharing a depth (same column)
+const CHAIN_INJECTOR_ROW = 110; // vertical slot per injector when several share one endpoint block
 const CHAIN_EP_BLOCK_MIN = 120; // minimum height of one endpoint block (endpoint node + breathing room)
 const CHAIN_FIND_HALF = 28; // half of AP_FINDING_SIZE (56), to centre a finding node on its row
+const CHAIN_FINDINGS_MAX_PER_TYPE = 4; // a type with more than this on an endpoint collapses into a "+N"
+// cluster (click to expand), so a heavy endpoint (e.g. 24 portscans) stays a few rows tall, not a column.
 
 interface ChainStep {
   injectorId: string;
@@ -1374,13 +1457,35 @@ interface ChainStep {
 export const buildCausalChainFlow = (
   dto: AttackPathDTO,
   t: ApTranslate,
+  // Cluster ids (chain-fc|<depth>|<endpoint>|<type>) the user expanded, so their findings render
+  // individually instead of collapsed into a "+N" cluster row.
+  expandedChainClusters: Set<string> = new Set(),
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
 } => {
   const dtoNodes = dto.attackPathNodes ?? [];
-  const injectorById = new Map(dtoNodes.filter(n => n.type === 'INJECTOR' && n.id).map(n => [n.id as string, n]));
-  const assetById = new Map(dtoNodes.filter(n => n.type === 'ASSET' && n.id).map(n => [n.id as string, n]));
+  // Index by BOTH node id and ref: an execution edge may key an endpoint/injector by either form, and a
+  // miss here is what surfaces a raw "NODE_ENDPOINT|<uuid>" label instead of the resolved hostname.
+  const injectorById = new Map<string, typeof dtoNodes[number]>();
+  const assetById = new Map<string, typeof dtoNodes[number]>();
+  dtoNodes.forEach((n) => {
+    let target: Map<string, typeof dtoNodes[number]> | null = null;
+    if (n.type === 'INJECTOR') {
+      target = injectorById;
+    } else if (n.type === 'ASSET') {
+      target = assetById;
+    }
+    if (!target) {
+      return;
+    }
+    if (n.id) {
+      target.set(n.id as string, n);
+    }
+    if (n.ref) {
+      target.set(n.ref as string, n);
+    }
+  });
   const findingById = new Map(dtoNodes.filter(n => n.type === 'FINDING' && n.id).map(n => [n.id as string, n]));
   const execByRef = new Map((dto.attackPathExecutions ?? []).filter(e => e.ref).map(e => [e.ref as string, e]));
   const execEdges = (dto.attackPathEdges ?? []).filter(e => e.type === EDGE_EXECUTIONS);
@@ -1497,53 +1602,172 @@ export const buildCausalChainFlow = (
   const nodes: AttackPathFlowNode[] = [];
   const edges: AttackPathFlowEdge[] = [];
 
+  // Every edge label (contract name, "<type> found", causal "Triggered …") is a bordered box centred on
+  // its edge. The box padding is constant; on top of that each label must keep the SAME clearance to the
+  // nodes at both ends, so a long label never ends up crushed against a node while short ones float free.
+  // That means the segment length must GROW with the label: a mid-point label of pixel width W centred
+  // between two nodes clears both by CLEARANCE when the centre-to-centre distance is
+  // W + 2·max(halfLeft, halfRight) + 2·CLEARANCE. Gaps are computed per COLUMN (its own longest label),
+  // so each column is exactly as wide as it needs and endpoints of a depth stay aligned.
+  const CAPTION_CHAR_PX = 6.7; // rough advance width of one caption-size char
+  const LABEL_H_PAD = 12; // the label box' own horizontal padding (spacing(0.75) each side)
+  const LABEL_CLEARANCE = 18; // constant gap we want between every label box and the nodes it sits between
+  const INJ_HALF = AP_INJECTOR_SIZE / 2;
+  const EP_HALF = AP_ENDPOINT_SIZE / 2;
+  const FIND_HALF = AP_FINDING_SIZE / 2;
+  const maxLen = (labels: (string | undefined)[]) => labels.reduce((m, l) => Math.max(m, (l ?? '').length), 0);
+  // Centre-to-centre distance so the longest of `labels` keeps LABEL_CLEARANCE from both flanking nodes.
+  const segLen = (labels: (string | undefined)[], halfLeft: number, halfRight: number) =>
+    Math.round(maxLen(labels) * CAPTION_CHAR_PX + LABEL_H_PAD + 2 * Math.max(halfLeft, halfRight) + 2 * LABEL_CLEARANCE);
+
+  const findingLabel = (injId: string) => {
+    const s = steps.get(injId) as ChainStep;
+    return [...s.endpoints.values()].flat()
+      .map(fid => findingById.get(fid)?.typeFindings)
+      .filter((type): type is string => Boolean(type))
+      .map(type => t('{type} found', { type }));
+  };
+  const causalLabels = (injId: string) =>
+    (steps.get(injId) as ChainStep).consumed.map(key => causalKeyLabel(key, t));
+
+  const sortedDepths = [...byDepth.entries()].sort((a, b) => a[0] - b[0]);
+  // Per-depth geometry, accumulated left-to-right so each column takes exactly the width its own labels
+  // need: inject→endpoint fits the contract name, endpoint→finding fits the "<type> found" label, and the
+  // trailing gap to the next depth fits the causal label leaving this column.
+  const depthEpDx = new Map<number, number>();
+  const depthFindDx = new Map<number, number>();
+  const depthX = new Map<number, number>();
+  let xCursor = PADDING;
+  for (let i = 0; i < sortedDepths.length; i++) {
+    const [d, ids] = sortedDepths[i];
+    const epDx = Math.max(CHAIN_EP_DX, segLen(ids.flatMap(injId => [...(steps.get(injId) as ChainStep).contractByEndpoint.values()]), INJ_HALF, EP_HALF));
+    const findGap = Math.max(CHAIN_FIND_DX - CHAIN_EP_DX, segLen(ids.flatMap(findingLabel), EP_HALF, FIND_HALF));
+    const findDx = epDx + findGap;
+    depthEpDx.set(d, epDx);
+    depthFindDx.set(d, findDx);
+    depthX.set(d, xCursor);
+    // Room from this column's findings to the next depth's injectors must fit the causal label there.
+    const nextIds = sortedDepths[i + 1]?.[1] ?? [];
+    const causalGap = Math.max(CHAIN_COL_W - CHAIN_FIND_DX, segLen(nextIds.flatMap(causalLabels), FIND_HALF, INJ_HALF));
+    xCursor += findDx + causalGap;
+  }
+
   // A finding is placed once (unique React Flow id) on the first endpoint that produced it; any other
   // endpoint that also produced it just gets an edge to the same node.
   const placedFindings = new Set<string>();
+  const placedClusters = new Set<string>();
+  // Finding node id -> the flow node that REPRESENTS it in the graph: itself when rendered individually, or
+  // the cluster node when collapsed. Lets a causal edge point at the cluster when its findings are hidden.
+  const causalSourceByFinding = new Map<string, string>();
 
-  for (const [d, ids] of [...byDepth.entries()].sort((a, b) => a[0] - b[0])) {
-    const x = PADDING + d * CHAIN_COL_W;
-    let cursorY = PADDING;
+  for (const [d, ids] of sortedDepths) {
+    const x = depthX.get(d) as number;
+    const chainEpDx = depthEpDx.get(d) as number;
+    const chainFindDx = depthFindDx.get(d) as number;
+    // Merge endpoints by ASSET within this depth: injectors sharing a depth are never causally linked (a
+    // dependency pushes the consumer into a deeper column), so several independent injectors hitting the
+    // same asset converge on ONE endpoint node instead of one copy per injector. Aggregate, per distinct
+    // asset at this depth: the injectors targeting it (first-seen order) and the union of their findings.
+    const assetOrder: string[] = [];
+    const assetInjectors = new Map<string, string[]>();
+    const assetFindings = new Map<string, string[]>();
     ids.forEach((injId) => {
       const s = steps.get(injId) as ChainStep;
-      const endpointEntries = [...s.endpoints.entries()];
-      // Each endpoint is a vertical block sized to hold the endpoint node and its stacked findings.
-      const blocks = endpointEntries.map(([epId, findingIds]) => ({
-        epId,
-        findingIds,
-        h: Math.max(CHAIN_EP_BLOCK_MIN, findingIds.length * CHAIN_FIND_ROW),
-      }));
-      const totalH = blocks.reduce((sum, b) => sum + b.h, 0) + Math.max(0, blocks.length - 1) * CHAIN_EP_GAP;
-      const stepTop = cursorY;
-      const injCenterY = stepTop + Math.max(totalH, CHAIN_EP_BLOCK_MIN) / 2;
+      for (const [epId, findingIds] of s.endpoints.entries()) {
+        if (!assetInjectors.has(epId)) {
+          assetOrder.push(epId);
+          assetInjectors.set(epId, []);
+          assetFindings.set(epId, []);
+        }
+        assetInjectors.get(epId)!.push(injId);
+        const fset = assetFindings.get(epId)!;
+        findingIds.forEach((fid) => {
+          if (!fset.includes(fid)) {
+            fset.push(fid);
+          }
+        });
+      }
+    });
 
-      // Inject node, vertically centred against its whole block (keeps its real id + data so the icon,
-      // ATT&CK and injector-click still resolve).
-      const injDto = injectorById.get(injId);
+    // One vertical block per distinct asset, tall enough for BOTH its stacked injectors (left) and its
+    // stacked findings (right). An injector that hits several assets is positioned once (first block).
+    let cursorY = PADDING;
+    const injectorPlaced = new Set<string>();
+    for (const epId of assetOrder) {
+      const injectors = assetInjectors.get(epId) as string[];
+      const findingIds = assetFindings.get(epId) as string[];
+      // Group the endpoint's findings by type; a type with more than the cap collapses into ONE "+N"
+      // cluster row (unless the user expanded it), so a heavy endpoint stays a handful of rows tall.
+      const findingsByType = new Map<string, string[]>();
+      for (const fid of findingIds) {
+        const ftype = findingById.get(fid)?.typeFindings ?? '';
+        (findingsByType.get(ftype) ?? findingsByType.set(ftype, []).get(ftype)!).push(fid);
+      }
+      const findRows: {
+        type: string;
+        fids: string[];
+        clusterId?: string;
+      }[] = [];
+      for (const [ftype, fids] of findingsByType) {
+        const clusterId = `chain-fc|${d}|${epId}|${ftype}`;
+        if (fids.length > CHAIN_FINDINGS_MAX_PER_TYPE && !expandedChainClusters.has(clusterId)) {
+          findRows.push({
+            type: ftype,
+            fids,
+            clusterId,
+          });
+        } else {
+          for (const fid of fids) {
+            findRows.push({
+              type: ftype,
+              fids: [fid],
+            });
+          }
+        }
+      }
+      const h = Math.max(
+        CHAIN_EP_BLOCK_MIN,
+        findRows.length * CHAIN_FIND_ROW,
+        injectors.length * CHAIN_INJECTOR_ROW,
+      );
+      const blockTop = cursorY;
+      const blockCenter = blockTop + h / 2;
+
+      const epDto = assetById.get(epId);
+      // Endpoint id keyed by depth+asset (not by injector), so injectors at this depth share this node.
+      const epNodeId = `chain-ep|${d}|${epId}`;
       nodes.push({
-        id: injId,
-        type: AP_FLOW_NODE_TYPE.injector,
+        id: epNodeId,
+        type: AP_FLOW_NODE_TYPE.asset,
         position: {
-          x,
-          y: injCenterY - CLUSTER_INJECTOR_HALF_H,
+          x: x + chainEpDx,
+          y: blockCenter - CLUSTER_EP_HALF_H,
         },
-        data: injDto ? nodeData(injDto) : { label: injId },
+        data: epDto ? nodeData(epDto) : { label: friendlyNodeId(epId) },
       });
 
-      let blockCursor = stepTop;
-      blocks.forEach(({ epId, findingIds, h }) => {
-        const blockCenter = blockCursor + h / 2;
-        const epDto = assetById.get(epId);
-        const epNodeId = `chain-ep|${injId}|${epId}`;
-        nodes.push({
-          id: epNodeId,
-          type: AP_FLOW_NODE_TYPE.asset,
-          position: {
-            x: x + CHAIN_EP_DX,
-            y: blockCenter - CLUSTER_EP_HALF_H,
-          },
-          data: epDto ? nodeData(epDto) : { label: epId },
-        });
+      // Injectors that hit this asset, stacked within the block, each with its own labelled edge.
+      injectors.forEach((injId, i) => {
+        const s = steps.get(injId) as ChainStep;
+        if (!injectorPlaced.has(injId)) {
+          injectorPlaced.add(injId);
+          const injCenterY = injectors.length === 1
+            ? blockCenter
+            : blockTop + (i + 0.5) * (h / injectors.length);
+          const injDto = injectorById.get(injId);
+          // The full graph may omit injector nodes; label the action from its contract name rather than
+          // the raw step id, so the node never reads "NODE_*|<uuid>".
+          const injActionLabel = [...s.contractByEndpoint.values()][0];
+          nodes.push({
+            id: injId,
+            type: AP_FLOW_NODE_TYPE.injector,
+            position: {
+              x,
+              y: injCenterY - CLUSTER_INJECTOR_HALF_H,
+            },
+            data: injDto ? nodeData(injDto) : { label: injActionLabel || friendlyNodeId(injId) },
+          });
+        }
         edges.push({
           id: `${injId}-${epNodeId}`,
           source: injId,
@@ -1557,70 +1781,167 @@ export const buildCausalChainFlow = (
             label: s.contractByEndpoint.get(epId),
           },
         });
+      });
 
-        // The findings discovered on THIS endpoint, stacked and centred against the block.
-        findingIds.forEach((fid, k) => {
-          const fDto = findingById.get(fid);
-          const fY = blockCenter + (k - (findingIds.length - 1) / 2) * CHAIN_FIND_ROW;
-          if (!placedFindings.has(fid)) {
-            placedFindings.add(fid);
+      // Findings on this asset (union across the injectors), stacked and centred — each row is either a
+      // single finding or a collapsed "+N" cluster for its type.
+      findRows.forEach((row, k) => {
+        const fY = blockCenter + (k - (findRows.length - 1) / 2) * CHAIN_FIND_ROW;
+        if (row.clusterId) {
+          // Worst-of status across the collapsed findings (a missing status is treated as the worst, RED).
+          let clusterStatus = 'GREEN';
+          if (row.fids.some(f => findingById.get(f)?.status === 'ORANGE')) {
+            clusterStatus = 'ORANGE';
+          }
+          if (row.fids.some(f => (findingById.get(f)?.status ?? 'RED') === 'RED')) {
+            clusterStatus = 'RED';
+          }
+          if (!placedClusters.has(row.clusterId)) {
+            placedClusters.add(row.clusterId);
             nodes.push({
-              id: fid,
-              type: AP_FLOW_NODE_TYPE.finding,
+              id: row.clusterId,
+              type: AP_FLOW_NODE_TYPE.findingCluster,
               position: {
-                x: x + CHAIN_FIND_DX,
+                x: x + chainFindDx,
                 y: fY - CHAIN_FIND_HALF,
               },
               data: {
-                label: fDto?.value ?? fDto?.label,
-                value: fDto?.value,
-                typeFindings: fDto?.typeFindings,
-                assetNodeId: fDto?.assetNodeId,
-                status: fDto?.status ?? 'RED',
+                typeFindings: row.type,
+                count: row.fids.length,
+                label: row.type,
+                clusterId: row.clusterId,
+                clusterKind: 'header',
+                expanded: false,
+                status: clusterStatus,
               },
             });
           }
           edges.push({
-            id: `${epNodeId}-${fid}`,
+            id: `${epNodeId}-${row.clusterId}`,
             source: epNodeId,
-            target: fid,
+            target: row.clusterId,
             type: AP_FLOW_EDGE_TYPE,
             data: {
-              count: 1,
-              status: fDto?.status ?? 'RED',
-              label: fDto?.typeFindings ? t('{type} found', { type: fDto.typeFindings }) : undefined,
+              count: row.fids.length,
+              status: clusterStatus,
+              label: t('{type} found', { type: row.type }),
             },
           });
+          // The hidden findings are represented by the cluster for causal routing.
+          row.fids.forEach(fid => causalSourceByFinding.set(fid, row.clusterId as string));
+          return;
+        }
+        const fid = row.fids[0];
+        const fDto = findingById.get(fid);
+        causalSourceByFinding.set(fid, fid);
+        if (!placedFindings.has(fid)) {
+          placedFindings.add(fid);
+          nodes.push({
+            id: fid,
+            type: AP_FLOW_NODE_TYPE.finding,
+            position: {
+              x: x + chainFindDx,
+              y: fY - CHAIN_FIND_HALF,
+            },
+            data: {
+              label: fDto?.value ?? fDto?.label,
+              value: fDto?.value,
+              typeFindings: fDto?.typeFindings,
+              assetNodeId: fDto?.assetNodeId,
+              status: fDto?.status ?? 'RED',
+            },
+          });
+        }
+        edges.push({
+          id: `${epNodeId}-${fid}`,
+          source: epNodeId,
+          target: fid,
+          type: AP_FLOW_EDGE_TYPE,
+          data: {
+            count: 1,
+            status: fDto?.status ?? 'RED',
+            label: fDto?.typeFindings ? t('{type} found', { type: fDto.typeFindings }) : undefined,
+          },
         });
-        blockCursor += h + CHAIN_EP_GAP;
       });
 
-      cursorY = stepTop + Math.max(totalH, CHAIN_EP_BLOCK_MIN) + CHAIN_STEP_GAP;
-    });
+      cursorY = blockTop + h + CHAIN_STEP_GAP;
+    }
   }
 
   // Forward causal links: a produced finding → the downstream inject that consumes a matching key. When a
   // step consumes but no produced finding matches (value not surfaced, or a pure ordering dependency), fall
   // back to a dashed dependsOn edge so the sequencing is still shown.
-  const findingNodes = nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.finding);
+  const nodeById = new Map(nodes.map(n => [n.id, n]));
+  // Which injector(s) produced each finding, so a causal edge can be anchored on the finding of the
+  // consumer's REAL producer rather than any finding that merely shares the value from another injector.
+  const producersByFinding = new Map<string, Set<string>>();
+  for (const [prodInjId, ps] of steps) {
+    for (const findingIds of ps.endpoints.values()) {
+      for (const fid of findingIds) {
+        (producersByFinding.get(fid) ?? producersByFinding.set(fid, new Set()).get(fid)!).add(prodInjId);
+      }
+    }
+  }
+  // Convergence with ONE label: a key like `share_name IS_NOT_NULL` matches every produced share, so draw a
+  // grey edge from EACH producing finding to the consumer — the fan-in that reads as "all these findings
+  // triggered it" (the Option A grouping) — but label only the nearest edge. A collapsed cluster routes the
+  // fan-in through its single cluster node (so N hidden findings share one edge). Match against LOGICAL
+  // findings, since a collapsed finding has no leaf flow node.
+  const drawnCausalEdges = new Set<string>();
+  const labelledCausal = new Set<string>();
   for (const [injId, s] of steps) {
     let matched = false;
+    const injY = nodeById.get(injId)?.position.y ?? 0;
     for (const key of s.consumed) {
-      for (const fn of findingNodes) {
-        if (findingMatchesKey(fn, key)) {
-          matched = true;
-          edges.push({
-            id: `${AP_FLOW_CAUSAL_EDGE_TYPE}-finding-${fn.id}-${injId}`,
-            source: fn.id,
-            target: injId,
-            type: AP_FLOW_CAUSAL_EDGE_TYPE,
-            data: {
-              count: 1,
-              causalKind: 'finding',
-              label: causalKeyLabel(key, t),
-            },
-          });
+      const allFids = [...producersByFinding.keys()].filter((fid) => {
+        const f = findingById.get(fid);
+        return !!f && matchesKeyValue(f.typeFindings ?? '', (f.value ?? f.label ?? ''), key);
+      });
+      // Prefer findings produced by this consumer's resolved dependency (#6985 populates dependsOn with the
+      // real producer step), so the fan-in stays on the real producer's findings and never reaches a
+      // same-typed finding from an unrelated injector. Fall back to every match when no dependency resolved.
+      const fromDeps = s.deps.size > 0
+        ? allFids.filter(fid => [...(producersByFinding.get(fid) ?? [])].some(p => s.deps.has(p)))
+        : [];
+      const fids = fromDeps.length > 0 ? fromDeps : allFids;
+      if (fids.length === 0) {
+        continue;
+      }
+      matched = true;
+      const label = causalKeyLabel(key, t);
+      // Resolve each finding to the flow node that represents it (itself or its cluster) and de-dup, so a
+      // collapsed cluster gets ONE causal edge for all its findings.
+      const sourceIds = new Set<string>();
+      for (const fid of fids) {
+        sourceIds.add(causalSourceByFinding.get(fid) ?? fid);
+      }
+      // Nearest first, so the single label sits on the shortest edge of the fan-in.
+      const ordered = [...sourceIds]
+        .map(id => nodeById.get(id))
+        .filter((n): n is AttackPathFlowNode => !!n)
+        .sort((a, b) => Math.abs(a.position.y - injY) - Math.abs(b.position.y - injY));
+      for (const src of ordered) {
+        const edgeId = `${AP_FLOW_CAUSAL_EDGE_TYPE}-finding-${src.id}-${injId}`;
+        if (drawnCausalEdges.has(edgeId)) {
+          continue;
         }
+        drawnCausalEdges.add(edgeId);
+        const showLabel = !labelledCausal.has(`${injId}|${label}`);
+        if (showLabel) {
+          labelledCausal.add(`${injId}|${label}`);
+        }
+        edges.push({
+          id: edgeId,
+          source: src.id,
+          target: injId,
+          type: AP_FLOW_CAUSAL_EDGE_TYPE,
+          data: {
+            count: 1,
+            causalKind: 'finding',
+            label: showLabel ? label : undefined,
+          },
+        });
       }
     }
     if (!matched) {

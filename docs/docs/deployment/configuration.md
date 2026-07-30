@@ -32,10 +32,10 @@ Here are the configuration keys, for both containers (environment variables) and
 | server.port                                 | SERVER_PORT                                 | 8080                  | Listen port of the application                                                                                                                                                             |
 | openaev.base-url                            | OPENAEV_BASE-URL                            | http://localhost:8080 | Base URL of the application, will be used in some email links. In production environments, ensure this URL can be resolved from the endpoints where agents will be deployed.               |
 | server.servlet.session.timeout              | SERVER_SERVLET_SESSION_TIMEOUT              | 1440m                 | Rolling session timeout: every request extends the session by this duration. Sessions are persisted in PostgreSQL and survive platform restarts                                            |
-| openaev.session-idle-timeout                | OPENAEV_SESSION-IDLE-TIMEOUT                | 0                     | Idle time before the UI locks the screen and asks the user to continue or log out (0 = disabled, e.g. 30m). Must be lower than the session timeout                                         |
-| openaev.session-cookie                      | OPENAEV_SESSION-COOKIE                      | `false`               | When `true`, the session cookie dies when the browser closes (server-side timeout still applies). When `false`, users stay logged in across browser restarts                               |
+| openaev.session-idle-timeout                | OPENAEV_SESSION-IDLE-TIMEOUT                | 0                     | Idle time before the UI locks the screen and asks the user to continue or log out (0 = disabled, e.g. 30m). Must be lower than the session timeout                                          |
+| openaev.session-cookie                      | OPENAEV_SESSION-COOKIE                      | `false`               | When `true`, the session cookie dies when the browser closes (server-side timeout still applies). When `false`, users stay logged in across browser restarts: the cookie is re-issued on every request (sliding Max-Age), so it only expires after `openaev.cookie-duration` of inactivity |
 | openaev.cookie-secure                       | OPENAEV_COOKIE-SECURE                       | `false`               | Turn on if the access is done in HTTPS                                                                                                                                                     |
-| openaev.cookie-duration                     | OPENAEV_COOKIE-DURATION                     | P1D                   | Cookie duration (default 1 day)                                                                                                                                                            |
+| openaev.cookie-duration                     | OPENAEV_COOKIE-DURATION                     | P1D                   | Cookie validity sliding window (default 1 day). Each request re-issues the cookie with this Max-Age, so active users are never logged out by cookie expiration                             |
 | openaev.admin.email                         | OPENAEV_ADMIN_EMAIL                         | admin@openaev.io      | Default login email of the admin user                                                                                                                                                      |
 | openaev.admin.password                      | OPENAEV_ADMIN_PASSWORD                      | ChangeMe              | Default password of the admin user                                                                                                                                                         |
 | openaev.admin.token                         | OPENAEV_ADMIN_TOKEN                         | ChangeMe              | Default token (must be a valid UUIDv4)                                                                                                                                                     |
@@ -74,7 +74,6 @@ Here are the configuration keys, for both containers (environment variables) and
 | logging.logback.rollingpolicy.max-file-size | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-FILE-SIZE | 10MB               | Rolling max file size                         |
 | logging.logback.rollingpolicy.max-history   | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-HISTORY   | 7                  | Rolling max days                              |
 
-{% if "audit-log" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}
 #### Audit Logging
 
 Audit logging will allow you to have a trace of the actions performed using API calls.
@@ -90,7 +89,6 @@ Audit logging will allow you to have a trace of the actions performed using API 
 | logging.level.io.openaev.utils.log | LOGGING_LEVEL_IO_OPENAEV_UTILS_LOG |                  | Audit logging is using the global OpenAEV log level but to lower the log level of the audit logging, this parameter can be used                          |
 |                                    | AUDIT_LOG_DIR                      | ./logs           | If file transport is used, this parameter is used to set the path of the log file.                                                                       |
 |                                    | AUDIT_LOG_FILE                     | ./logs/audit.log | If file transport is used, this parameter is used to set the file path.                                                                                  |
-{% endif %}
 
 ### Dependencies
 

@@ -77,6 +77,11 @@ public class ExecutionExecutorService {
     Map<io.openaev.database.model.Executor, Set<Agent>> agentsByExecutor =
         agents.stream().collect(Collectors.groupingBy(Agent::getExecutor, Collectors.toSet()));
 
+    // Inject-level (global) trace so the "Execution details" tab is not empty for payload/executor
+    // injects: the detailed command output is recorded per agent, but the global timeline needs a
+    // summary showing the platform distributing the payload to the resolved agents.
+    saveDistributionTrace(agents, injectStatus);
+
     for (Map.Entry<io.openaev.database.model.Executor, Set<Agent>> entry :
         agentsByExecutor.entrySet()) {
       io.openaev.database.model.Executor executor = entry.getKey();
@@ -101,9 +106,10 @@ public class ExecutionExecutorService {
         Manager manager = managerFactory.getManager(inject.getTenant().getId());
         ExecutorContextService executorContextService;
         if (executor.isExternal()) {
-          // Resolve the ConnectorInstance that owns this executor
+          // Resolve the ConnectorInstance that owns this executor, scoped to the inject's tenant
           ConnectorInstancePersisted instance =
-              connectorInstanceService.findByExecutorId(executor.getId());
+              connectorInstanceService.findByExecutorId(
+                  executor.getId(), inject.getTenant().getId());
           executorContextService =
               manager.requestForInstance(instance, ExecutorContextService.class);
         } else {
@@ -138,6 +144,41 @@ public class ExecutionExecutorService {
         saveAgentsErrorTraces(e, agents, injectStatus);
       }
     }
+  }
+
+  /**
+   * Writes a single inject-level (global) INFO trace summarising the distribution of a
+   * payload/executor inject to its resolved agents. Global traces carry no agent and no context
+   * identifiers, so they surface in the "Execution details" tab (which previously showed nothing
+   * for executor injects, whose per-agent traces are only visible on each endpoint).
+   */
+  @VisibleForTesting
+  public void saveDistributionTrace(Set<Agent> agents, InjectStatus injectStatus) {
+    if (agents.isEmpty()) {
+      return;
+    }
+    long endpointCount =
+        agents.stream()
+            .map(Agent::getAsset)
+            .filter(Objects::nonNull)
+            .map(Asset::getId)
+            .distinct()
+            .count();
+    String message =
+        "Distributing inject to "
+            + agents.size()
+            + " agent(s) across "
+            + endpointCount
+            + " endpoint(s)";
+    executionTraceRepository.save(
+        new ExecutionTrace(
+            injectStatus,
+            ExecutionTraceStatus.INFO,
+            List.of(),
+            message,
+            ExecutionTraceAction.START,
+            null,
+            null));
   }
 
   @VisibleForTesting

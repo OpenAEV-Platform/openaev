@@ -1,5 +1,6 @@
 package io.openaev.database.repository;
 
+import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
@@ -62,6 +63,19 @@ public interface InjectorContractRepository
   List<RawInjectorsContracts> getAllRawInjectorsContracts();
 
   /**
+   * Retrieves the distinct platforms declared by the injector contracts used in an exercise.
+   *
+   * @param exerciseId the ID of the exercise
+   * @return list of distinct platform arrays, one per contract
+   */
+  @Query(
+      "SELECT DISTINCT ic.platforms FROM Inject i JOIN i.injectorContract ic"
+          + " WHERE i.exercise.id = :exerciseId"
+          + " AND ic.platforms IS NOT NULL")
+  List<Endpoint.PLATFORM_TYPE[]> findDistinctPlatformsByExerciseId(
+      @Param("exerciseId") String exerciseId);
+
+  /**
    * Retrieves injector contracts that a specific user has been granted access to.
    *
    * <p>Returns only contracts where the user has a THREAT_ARSENAL grant on the injector contract ID
@@ -108,6 +122,14 @@ public interface InjectorContractRepository
       "SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id = :id OR ic.externalId = :externalId")
   Optional<InjectorContract> findByIdOrExternalId(
       @Param("id") String id, @Param("externalId") String externalId);
+
+  /**
+   * Batched form of {@link #findByIdOrExternalId}: every contract whose id OR external id is in the
+   * set.
+   */
+  @Query(
+      "SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id IN :ids OR ic.externalId IN :ids")
+  List<InjectorContract> findAllByIdOrExternalIdIn(@Param("ids") Collection<String> ids);
 
   /**
    * Batched ATT&CK techniques for the attack-path injector nodes: one flat query returning the
@@ -161,6 +183,34 @@ public interface InjectorContractRepository
       "SELECT CASE WHEN COUNT(ic) > 0 THEN true ELSE false END "
           + "FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.payload IS NOT NULL")
   boolean existsByIdAndPayloadIsNotNull(@Param("id") String id);
+
+  /**
+   * Returns the ids of payload-bearing contracts that are not linked to any injector, scoped to a
+   * tenant. Starter-pack imports create such orphan contracts before any payload-supporting
+   * injector is registered (fresh platform); the payload injector adopts them on registration.
+   */
+  @Query(
+      "SELECT ic.compositeId.id FROM InjectorContract ic "
+          + "WHERE ic.compositeId.tenantId = :tenantId "
+          + "AND ic.payload IS NOT NULL "
+          + "AND ic.injectorLinks IS EMPTY")
+  List<String> findContractIdsWithPayloadAndNoInjector(@Param("tenantId") String tenantId);
+
+  /**
+   * Returns the non-custom contracts that have neither a payload nor any injector link, scoped to a
+   * tenant. A (now fixed) regression in the starter-pack import persisted payload contracts without
+   * their payload reference on fresh platforms; those broken contracts are repaired by the {@code
+   * V20260725_Fix_starter_pack_payload_contracts} runtime migration. Static injector contracts
+   * imported before their injector registers (e.g. nmap/nuclei) also match this query; the
+   * migration leaves them untouched because no orphan payload exists for them.
+   */
+  @Query(
+      "SELECT ic FROM InjectorContract ic "
+          + "WHERE ic.compositeId.tenantId = :tenantId "
+          + "AND ic.payload IS NULL "
+          + "AND (ic.custom IS NULL OR ic.custom = false) "
+          + "AND ic.injectorLinks IS EMPTY")
+  List<InjectorContract> findContractsWithoutPayloadAndInjector(@Param("tenantId") String tenantId);
 
   @Modifying
   @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id IN :ids")

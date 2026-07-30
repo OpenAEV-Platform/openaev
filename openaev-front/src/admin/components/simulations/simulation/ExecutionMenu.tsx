@@ -1,17 +1,8 @@
 import { FactCheckOutlined, MailOutlined, NoteAltOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Drawer, ListItemIcon, ListItemText, MenuItem, MenuList } from '@mui/material';
 import { type FunctionComponent } from 'react';
-import { Link, useLocation } from 'react-router';
 
-import type { LoggedHelper } from '../../../../actions/helper';
-import { useFormatter } from '../../../../components/i18n';
-import { computeBannerSettings } from '../../../../public/components/systembanners/utils';
-import { useHelper } from '../../../../store';
+import RightMenu, { type RightMenuEntry } from '../../../../components/common/menu/RightMenu';
 import { type Exercise } from '../../../../utils/api-types';
-
-// Height of the top AppBar toolbar (see TopBar.tsx) - the menu paper starts
-// below it so it never renders over the header.
-const TOPBAR_HEIGHT = 68;
 
 interface Props { exerciseId: Exercise['exercise_id'] }
 
@@ -19,77 +10,32 @@ interface Props { exerciseId: Exercise['exercise_id'] }
 // validations, logs). The simulation Index pads the content area by the menu
 // width whenever the location is under /execution.
 const ExecutionMenu: FunctionComponent<Props> = ({ exerciseId }) => {
-  const location = useLocation();
-  const { t } = useFormatter();
-  const { settings } = useHelper((helper: LoggedHelper) => {
-    return { settings: helper.getPlatformSettings() };
-  });
-  const { bannerHeightNumber } = computeBannerSettings(settings);
-  const topOffset = bannerHeightNumber + TOPBAR_HEIGHT;
-
   const base = `/admin/simulations/${exerciseId}/execution`;
-  const entries = [
+  const entries: RightMenuEntry[] = [
     {
-      to: `${base}/timeline`,
-      label: t('Overview'),
-      icon: <TrackChangesOutlined />,
-      selected: location.pathname === `${base}/timeline`,
+      path: `${base}/timeline`,
+      icon: () => (<TrackChangesOutlined />),
+      label: 'Overview',
     },
     {
-      to: `${base}/mails`,
-      label: t('Mails'),
-      icon: <MailOutlined />,
-      selected: location.pathname.includes(`${base}/mails`),
+      path: `${base}/mails`,
+      icon: () => (<MailOutlined />),
+      label: 'Mails',
     },
     {
-      to: `${base}/validations`,
-      label: t('Validations'),
-      icon: <FactCheckOutlined />,
-      selected: location.pathname === `${base}/validations`,
+      path: `${base}/validations`,
+      icon: () => (<FactCheckOutlined />),
+      label: 'Validations',
     },
     {
-      to: `${base}/logs`,
-      label: t('Simulation logs'),
-      icon: <NoteAltOutlined />,
-      selected: location.pathname === `${base}/logs`,
+      path: `${base}/logs`,
+      icon: () => (<NoteAltOutlined />),
+      label: 'Simulation logs',
     },
   ];
 
   return (
-    <Drawer
-      variant="permanent"
-      anchor="right"
-      sx={{
-        '& .MuiDrawer-paper': {
-          width: 200,
-          position: 'fixed',
-          overflow: 'auto',
-          padding: 0,
-          top: topOffset,
-          height: `calc(100% - ${topOffset}px)`,
-        },
-      }}
-    >
-      <MenuList component="nav">
-        {entries.map(entry => (
-          <MenuItem
-            key={entry.to}
-            component={Link}
-            to={entry.to}
-            selected={entry.selected}
-            sx={{
-              paddingTop: 1.25,
-              paddingBottom: 1.25,
-            }}
-          >
-            <ListItemIcon>
-              {entry.icon}
-            </ListItemIcon>
-            <ListItemText primary={entry.label} />
-          </MenuItem>
-        ))}
-      </MenuList>
-    </Drawer>
+    <RightMenu entries={entries} />
   );
 };
 

@@ -1,7 +1,7 @@
 import { OpenInNewOutlined } from '@mui/icons-material';
 import { IconButton, ListItemButton, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { useNavigate } from 'react-router';
+import { Link } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
 import type { InjectTarget } from '../../../../utils/api-types';
@@ -18,21 +18,12 @@ interface Props {
 const NewTargetListItem: React.FC<Props> = ({ onClick, target, selected }) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const navigate = useNavigate();
   const handleItemClick = () => {
     onClick(target);
   };
 
   const overviewUrl = getTargetOverviewUrl(target);
   const overviewLabel = isAssetGroups(target) ? t('Open asset group overview') : t('Open asset overview');
-
-  const handleOpenOverview = (event: React.MouseEvent) => {
-    event.stopPropagation();
-    event.preventDefault();
-    if (overviewUrl) {
-      navigate(overviewUrl);
-    }
-  };
 
   return (
     <ListItemButton
@@ -75,7 +66,11 @@ const NewTargetListItem: React.FC<Props> = ({ onClick, target, selected }) => {
           <IconButton
             className="target-open-overview"
             size="small"
-            onClick={handleOpenOverview}
+            // Real router link so ctrl/cmd+click opens the overview in a new tab;
+            // stopPropagation keeps the row's select-target click from firing.
+            component={Link}
+            to={overviewUrl}
+            onClick={event => event.stopPropagation()}
             aria-label={overviewLabel}
           >
             <OpenInNewOutlined fontSize="small" />

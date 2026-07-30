@@ -40,13 +40,16 @@ const ButtonPopover: FunctionComponent<Props> = ({
 
   const [anchorEl, setAnchorEl] = useState<Element | null>(null);
 
+  const visibleEntries = entries.filter(entry => entry.userRight);
+  const allDisabled = disabled || visibleEntries.every(entry => entry.disabled);
+
   return (
     <>
       {/* The ONE kebab trigger, aligned with OpenCTI and identical everywhere
           (list rows, detail heroes, drawers): a small squared (4px radius)
           transparent primary button - never a large round IconButton, never a
           bordered ToggleButton. */}
-      {!entries.every(entry => !entry.userRight)
+      {visibleEntries.length > 0
         && (
           <IconButton
             className={className}
@@ -55,14 +58,19 @@ const ButtonPopover: FunctionComponent<Props> = ({
             color="primary"
             aria-label={t('More actions')}
             onClick={(ev) => {
+              // The kebab may live inside a real link (card / row wrapped in a
+              // router <Link> for ctrl+click support): stopPropagation() alone
+              // does not cancel the browser's native anchor navigation, so
+              // preventDefault() is mandatory here.
+              ev.preventDefault();
               ev.stopPropagation();
               setAnchorEl(ev.currentTarget);
             }}
             style={{ ...style }}
-            disabled={disabled}
+            disabled={allDisabled}
             sx={{ borderRadius: 1 }}
           >
-            <MoreVert fontSize="small" color={disabled ? 'disabled' : 'primary'} />
+            <MoreVert fontSize="small" color={allDisabled ? 'disabled' : 'primary'} />
           </IconButton>
         )}
       <Menu

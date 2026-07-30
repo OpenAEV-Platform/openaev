@@ -46,7 +46,7 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
     resolver: zodResolver(
       zodImplement<SecurityPlatformInput>().with({
         asset_name: z.string().min(1, { message: t('Should not be empty') }),
-        security_platform_type: z.enum(['EDR', 'XDR', 'SIEM', 'SOAR', 'NDR', 'ISPM', 'LLM_FIREWALL', 'AI_GATEWAY']),
+        security_platform_type: z.enum(['EDR', 'XDR', 'SIEM', 'SOAR', 'NDR', 'ISPM', 'LLM_FIREWALL', 'AI_GATEWAY', 'VULNERABILITY_SCANNER']),
         asset_description: z.string().optional(),
         security_platform_logo_light: z.string().optional().nullable(),
         security_platform_logo_dark: z.string().optional().nullable(),
@@ -72,18 +72,17 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
       <Controller
         control={control}
         name="security_platform_type"
-        rules={{ required: true }}
-        render={({ field }) => (
+        render={({ field: { ref, ...fieldProps } }) => (
           <TextField
             select
             variant="standard"
             fullWidth
-            value={field.value}
+            {...fieldProps}
+            inputRef={ref}
             label={t('Platform')}
             style={{ marginTop: 20 }}
             error={!!errors.security_platform_type}
             helperText={errors.security_platform_type?.message}
-            {...register('security_platform_type')}
             required
           >
             <MenuItem value="EDR">{t('EDR')}</MenuItem>
@@ -94,6 +93,7 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
             <MenuItem value="ISPM">{t('ISPM')}</MenuItem>
             <MenuItem value="LLM_FIREWALL">{t('LLM Firewall')}</MenuItem>
             <MenuItem value="AI_GATEWAY">{t('AI Gateway')}</MenuItem>
+            <MenuItem value="VULNERABILITY_SCANNER">{t('Vulnerability Scanner')}</MenuItem>
           </TextField>
         )}
       />

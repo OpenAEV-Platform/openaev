@@ -4,10 +4,10 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.settings.PreviewFeature.INJECT_CHAINING;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
 import io.openaev.api.threat_arsenal.dto.*;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ChainingTypeRegistry;
-import io.openaev.database.model.Collector;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -18,6 +18,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutpu
 import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
+import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -30,6 +31,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -100,6 +102,15 @@ public class ThreatArsenalApi {
     return threatArsenalService.getAuthorCounts(input);
   }
 
+  @Operation(summary = "Platform and payload-status facet counts for the sidebar")
+  @PostMapping({THREAT_ARSENAL_URL + "/facet-counts", TENANT_THREAT_ARSENAL_URL + "/facet-counts"})
+  @Transactional
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  public ThreatArsenalFacetCountsOutput getFacetCounts(
+      @RequestBody @Valid final SearchPaginationInput input) {
+    return threatArsenalService.getFacetCounts(input);
+  }
+
   @Operation(summary = "Search threat arsenal")
   @ApiResponse(
       responseCode = "200",
@@ -141,21 +152,23 @@ public class ThreatArsenalApi {
     return this.threatArsenalService.searchNonTabletopInjectorContracts(outputMode, input);
   }
 
-  @GetMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/collectors")
+  @GetMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/security-platforms")
   @AccessControl(
       resourceId = "#actionId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.THREAT_ARSENAL)
-  @Operation(summary = "Get the Collectors used in a action remediation")
+  @Operation(summary = "Get the Security platforms used in a action remediation")
   @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(
             responseCode = "200",
-            description = "The list of Collectors used in a action remediation")
+            description = "The list of Security platforms used in a action remediation")
       })
-  public List<Collector> collectorsFromAction(@PathVariable String actionId) {
-    return threatArsenalService.getCollectorsForActionRemediation(actionId);
+  public List<SecurityPlatformSimpleOutput> securityPlatformsFromAction(
+      @PathVariable String actionId) {
+    return SecurityPlatformMapper.toSimpleOutputs(
+        threatArsenalService.getSecurityPlatformsForActionRemediation(actionId));
   }
 
   private List<PrimitiveType> resolveAvailableTypes() {
@@ -212,7 +225,9 @@ public class ThreatArsenalApi {
 
   @Operation(summary = "Bulk delete threat arsenal actions")
   @PostMapping({THREAT_ARSENAL_URL + "/bulk-delete", TENANT_THREAT_ARSENAL_URL + "/bulk-delete"})
-  @Transactional
+  // SUPPORTS (not REQUIRED) on purpose: the service resolves the scope in a short read transaction
+  // and deletes chunk by chunk (each chunk in its own transaction), tracked as a massive operation.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalBulkDeleteOutput bulkDeleteActions(
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {

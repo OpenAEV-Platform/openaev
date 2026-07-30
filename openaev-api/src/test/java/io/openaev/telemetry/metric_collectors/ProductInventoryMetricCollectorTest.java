@@ -17,14 +17,13 @@ import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.CustomDashboardRepository;
-import io.openaev.database.repository.CveRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.InjectRepository;
-import io.openaev.database.repository.NotificationRuleRepository;
+import io.openaev.database.repository.NotificationTriggerRepository;
 import io.openaev.database.repository.OrganizationRepository;
-import io.openaev.database.repository.ReportRepository;
+import io.openaev.database.repository.ReportingRepository;
 import io.openaev.database.repository.VulnerabilityRepository;
 import io.openaev.database.repository.VulnerableEndpointRepository;
 import io.openaev.database.repository.WorkflowRepository;
@@ -58,15 +57,14 @@ class ProductInventoryMetricCollectorTest {
   @Mock private ChannelRepository channelRepository;
   @Mock private ArticleRepository articleRepository;
   @Mock private CustomDashboardRepository customDashboardRepository;
+  @Mock private ReportingRepository reportingRepository;
   @Mock private ImportMapperRepository importMapperRepository;
-  @Mock private NotificationRuleRepository notificationRuleRepository;
+  @Mock private NotificationTriggerRepository notificationTriggerRepository;
   @Mock private WorkflowRepository workflowRepository;
   @Mock private FindingRepository findingRepository;
   @Mock private VulnerabilityRepository vulnerabilityRepository;
-  @Mock private CveRepository cveRepository;
   @Mock private VulnerableEndpointRepository vulnerableEndpointRepository;
   @Mock private AttackPatternRepository attackPatternRepository;
-  @Mock private ReportRepository reportRepository;
   @Mock private EntityManager entityManager;
 
   private ProductInventoryMetricCollector collector;
@@ -87,15 +85,14 @@ class ProductInventoryMetricCollectorTest {
             channelRepository,
             articleRepository,
             customDashboardRepository,
+            reportingRepository,
             importMapperRepository,
-            notificationRuleRepository,
+            notificationTriggerRepository,
             workflowRepository,
             findingRepository,
             vulnerabilityRepository,
-            cveRepository,
             vulnerableEndpointRepository,
-            attackPatternRepository,
-            reportRepository);
+            attackPatternRepository);
     // @PersistenceContext field is container-injected in production
     ReflectionTestUtils.setField(collector, "entityManager", entityManager);
   }

@@ -1,8 +1,52 @@
-import type { ContractElement } from '../../../../../utils/api-types-custom';
+import type { ContractElement, ContractType } from '../../../../../utils/api-types-custom';
 import type { ExpectationInput } from '../../../common/injects/expectations/Expectation';
+import type { FieldLink } from './InjectDataFieldItem';
 
 export const EXPECTATION_FIELD_TYPE = 'expectation';
 export const EXPECTATIONS_CONTENT_KEY = 'expectations';
+
+/**
+ * Maps contract field types to their auto-link outputType (PrimitiveType label).
+ * Fields whose type appears here are automatically linked when the action form opens.
+ * Extend this map to add new auto-links.
+ */
+const AUTO_LINK_BY_FIELD_TYPE: Partial<Record<ContractType, string>> = { 'targeted-asset': 'targeted-asset' };
+
+/**
+ * Returns an updated fieldLinks record with auto-links applied for fields whose type
+ * has a known primitive type mapping. Existing links are never overwritten.
+ */
+export const applyAutoLinks = (
+  contractFields: ContractElement[],
+  existingLinks: Record<string, FieldLink>,
+): Record<string, FieldLink> => {
+  const updates: Record<string, FieldLink> = {};
+  for (const field of contractFields) {
+    if (existingLinks[field.key]) continue;
+    const outputType = AUTO_LINK_BY_FIELD_TYPE[field.type];
+    if (outputType) {
+      updates[field.key] = {
+        outputType,
+        localScope: false,
+      };
+    }
+  }
+  return Object.keys(updates).length > 0
+    ? {
+        ...existingLinks,
+        ...updates,
+      }
+    : existingLinks;
+};
+
+/** Returns the set of field keys that are auto-linked (and therefore read-only). */
+export const getAutoLinkedFieldKeys = (contractFields: ContractElement[]): Set<string> => {
+  return new Set(
+    contractFields
+      .filter(f => AUTO_LINK_BY_FIELD_TYPE[f.type] !== undefined)
+      .map(f => f.key),
+  );
+};
 
 /** Type guard returns true if value is a valid ExpectationInput object. */
 export const isExpectationInput = (value: unknown): value is ExpectationInput =>

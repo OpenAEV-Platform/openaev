@@ -1,3 +1,4 @@
+import { RouteOutlined } from '@mui/icons-material';
 import { Box, Paper } from '@mui/material';
 import * as R from 'ramda';
 import { type FunctionComponent, useContext } from 'react';
@@ -12,8 +13,8 @@ import ItemCategory from '../../../../components/ItemCategory';
 import ItemMainFocus from '../../../../components/ItemMainFocus';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import ItemTags from '../../../../components/ItemTags';
+import ItemTypeAffinity from '../../../../components/ItemTypeAffinity';
 import PlatformIconGroup from '../../../../components/PlatformIconGroup';
-import TypeAffinityChip from '../../../../components/TypeAffinityChip';
 import { SCENARIO_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { type Exercise, type KillChainPhase } from '../../../../utils/api-types';
@@ -46,6 +47,8 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise, embedde
         <ContextLink
           title={scenario.scenario_name}
           url={`${SCENARIO_BASE_URL}/${scenario.scenario_id}`}
+          icon={<RouteOutlined />}
+          variant="field"
         />
       );
     }
@@ -85,7 +88,7 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise, embedde
           <ItemMainFocus mainFocus={exercise?.exercise_main_focus ?? ''} label={t(exercise.exercise_main_focus ?? 'Unknown')} />
         </Field>
         <Field label={t('Type Affinity')}>
-          <TypeAffinityChip affinity_text={scenario?.scenario_type_affinity} />
+          <ItemTypeAffinity typeAffinity={scenario?.scenario_type_affinity} />
         </Field>
         <Field label={t('Platforms')}>
           <PlatformIconGroup platforms={exercise.exercise_platforms} width={25} />

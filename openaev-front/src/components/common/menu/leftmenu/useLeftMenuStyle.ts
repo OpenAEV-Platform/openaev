@@ -1,5 +1,6 @@
-import { alpha, type SxProps, type Theme } from '@mui/material';
+import { alpha, type Theme } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { type SystemStyleObject } from '@mui/system';
 import type { CSSProperties } from 'react';
 
 // Shared styling for the left navigation, aligned 1:1 with OpenCTI's LeftBarItem
@@ -10,7 +11,9 @@ import type { CSSProperties } from 'react';
 const useLeftMenuStyle: () => {
   listItemIcon: CSSProperties;
   listItemText: CSSProperties;
-  menuItemSx: SxProps<Theme>;
+  // Concrete style object (not the broad SxProps union) so consumers can
+  // compose it in array form: sx={[leftMenuStyle.menuItemSx, ...overrides]}.
+  menuItemSx: SystemStyleObject<Theme>;
 } = () => {
   const theme = useTheme();
 

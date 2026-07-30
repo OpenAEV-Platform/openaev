@@ -28,6 +28,7 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
@@ -96,6 +97,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private LicenseCacheManager licenseCacheManager;
   @Autowired private ExerciseMapper exerciseMapper;
   @Mock private ActionMetricCollector actionMetricCollector;
+  @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -133,7 +135,8 @@ class ScenarioServiceTest extends IntegrationTest {
             healthCheckUtils,
             scenarioMapper,
             workflowService,
-            workflowExportInitializer);
+            workflowExportInitializer,
+            bulkDeleteExecutor);
   }
 
   @AfterAll

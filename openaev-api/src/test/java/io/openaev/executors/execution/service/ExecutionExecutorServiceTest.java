@@ -228,6 +228,41 @@ public class ExecutionExecutorServiceTest {
   }
 
   @Test
+  void test_saveDistributionTrace_withAgents_savesGlobalInfoTrace() {
+    // Init datas
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    endpoint.setId("endpoint-1");
+    Agent agent = AgentFixture.createDefaultAgentSession();
+    agent.setAsset(endpoint);
+    endpoint.setAgents(List.of(agent));
+    InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
+    // Run method to test
+    executorService.saveDistributionTrace(new HashSet<>(Set.of(agent)), injectStatus);
+    // Asserts
+    ArgumentCaptor<ExecutionTrace> executionTrace = ArgumentCaptor.forClass(ExecutionTrace.class);
+    verify(executionTraceRepository).save(executionTrace.capture());
+    // Global trace: no agent and no context identifiers so it surfaces in the "Execution details"
+    // tab timeline.
+    assertThat(executionTrace.getValue().getAgent()).isNull();
+    assertThat(executionTrace.getValue().getIdentifiers()).isEmpty();
+    assertEquals(ExecutionTraceStatus.INFO, executionTrace.getValue().getStatus());
+    assertEquals(ExecutionTraceAction.START, executionTrace.getValue().getAction());
+    assertEquals(
+        "Distributing inject to 1 agent(s) across 1 endpoint(s)",
+        executionTrace.getValue().getMessage());
+  }
+
+  @Test
+  void test_saveDistributionTrace_withoutAgents_savesNothing() {
+    // Init datas
+    InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
+    // Run method to test
+    executorService.saveDistributionTrace(new HashSet<>(), injectStatus);
+    // Asserts
+    verify(executionTraceRepository, never()).save(any(ExecutionTrace.class));
+  }
+
+  @Test
   void saveAgentErrorTrace() {
     // Init datas
     Endpoint endpoint = EndpointFixture.createEndpoint();
@@ -279,8 +314,8 @@ public class ExecutionExecutorServiceTest {
       ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase ids =
           mock(ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase.class);
       when(ids.getConnectorInstanceId()).thenReturn(instance.getId());
-      when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
-              "EXECUTOR_ID", executorId))
+      when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+              eq("EXECUTOR_ID"), eq(executorId), anyString()))
           .thenReturn(ids);
       when(connectorInstanceRepository.findById(instance.getId()))
           .thenReturn(Optional.of(instance));
@@ -319,7 +354,8 @@ public class ExecutionExecutorServiceTest {
 
       // Assert
       verify(connectorInstanceConfigurationRepository)
-          .findInstanceAndCatalogIdsByKeyValue("EXECUTOR_ID", executor.getId());
+          .findInstanceAndCatalogIdsByKeyValueAndTenantId(
+              eq("EXECUTOR_ID"), eq(executor.getId()), anyString());
       verify(manager).requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class));
       verify(mockContextService)
           .launchBatchExecutorSubprocess(eq(inject), any(), any(), anyString());

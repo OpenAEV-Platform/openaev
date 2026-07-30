@@ -16,6 +16,19 @@ public final class AttackPathIds {
   private static final char DELIMITER = '|';
 
   /**
+   * Prefix of a synthetic seed simulation id ({@code AttackPathSeedService} builds ids as {@code
+   * <prefix><seed>-sim-<n>}). Seed simulations are not real {@code exercises}, so resource-level
+   * RBAC cannot resolve them; callers use {@link #isSeedId} to keep them reachable (see {@code
+   * AttackPathAccessControl}).
+   */
+  public static final String SEED_ID_PREFIX = "ap-seed-";
+
+  /** Whether {@code id} is a synthetic seed simulation id (not a real exercise). */
+  public static boolean isSeedId(String id) {
+    return id != null && id.startsWith(SEED_ID_PREFIX);
+  }
+
+  /**
    * Marker for a {@code null} component. The two chars {@code \0} can never occur in an escaped
    * non-null component (there, a {@code \} is always followed by {@code \} or {@code |}), so a null
    * component never collides with a real value.
@@ -27,6 +40,18 @@ public final class AttackPathIds {
   /** {@code NODE_INJECTOR}: the injector name (source_kind = INJECTOR). */
   public static String injectorNode(String injector) {
     return encode("NODE_INJECTOR", injector);
+  }
+
+  /**
+   * {@code NODE_INJECTOR} per contract: the injector name plus the frozen contract external id, so
+   * an injector that ran several contracts renders one node per contract. A {@code null} contract
+   * falls back to the per-injector id, byte-identical, so contractless sources (seed, legacy,
+   * agents) keep the same id.
+   */
+  public static String injectorNode(String injector, String contractExternalId) {
+    return contractExternalId == null
+        ? injectorNode(injector)
+        : encode("NODE_INJECTOR", injector, contractExternalId);
   }
 
   /** {@code NODE_ENDPOINT}: the unified endpoint key (asset id or raw value). DTO type = ASSET. */
@@ -52,6 +77,17 @@ public final class AttackPathIds {
   /** {@code NODE_FINDING}: a single finding, deduped by (type, value) across endpoints. */
   public static String findingNode(String type, String value) {
     return encode("NODE_FINDING", type, value);
+  }
+
+  /**
+   * {@code FINDING_ROW}: a copied finding's full identity within a simulation ({@code
+   * simulationId}, {@code type}, {@code field}, {@code value}, {@code endpointKey}). Deterministic,
+   * so re-copying the same finding lands on the same row; the simulation is part of the id, so the
+   * same finding in two runs never collides.
+   */
+  public static String findingRow(
+      String simulationId, String type, String field, String value, String endpointKey) {
+    return encode("FINDING_ROW", simulationId, type, field, value, endpointKey);
   }
 
   /** {@code EDGE_ENDPOINT_FINDINGS_TYPE}: an endpoint to one of its finding-type nodes. */

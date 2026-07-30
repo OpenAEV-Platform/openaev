@@ -1,7 +1,6 @@
-import { GridViewOutlined, ReorderOutlined } from '@mui/icons-material';
-import { Box, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type SyntheticEvent, useMemo, useState } from 'react';
+import { ArrowBackOutlined, GridViewOutlined, ReorderOutlined } from '@mui/icons-material';
+import { Box, IconButton, Skeleton, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { type FunctionComponent, type SyntheticEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type AttackPatternHelper } from '../../../../../actions/attack_patterns/attackpattern-helper';
 import { fetchAttackPatterns } from '../../../../../actions/AttackPattern';
@@ -22,6 +21,7 @@ import {
   type Domain,
   type FilterGroup,
   type InjectorContractFullOutput,
+  type InjectorContractSearchPaginationInput,
   type KillChainPhase,
 } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -29,6 +29,7 @@ import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import useEntityToggle from '../../../../../utils/hooks/useEntityToggle';
 import computeAttackPatterns from '../../../../../utils/injector_contract/InjectorContractUtils';
 import useDomainIconFilter from '../../domains/useDomainIconFilter';
+import { MITRE_FILTER_KEY } from '../../filters/MitreFilter';
 import InjectContractCard from './InjectContractCard';
 import InjectContractListRow, { LIST_GRID_COLUMNS } from './InjectContractListRow';
 import InjectContractSidebar from './InjectContractSidebar';
@@ -45,27 +46,39 @@ const availableFilterNames = [
   'injector_contract_players',
   'injector_contract_arch',
   'injector_contract_domains',
+  'injector_contract_payload_status',
+  'injector_contract_payload_author',
 ];
 
 interface Props {
   title: string;
   /** Atomic testing creation: single-select, atomic-capable contracts only. */
   isAtomic?: boolean;
+  /**
+   * Deep-link scoping (e.g. the "Create an atomic testing" CTA of a TTP-scoped
+   * dashboard drill-down): replaces the picker's attack pattern filter with
+   * these ids on mount so only contracts covering the TTPs are listed.
+   */
+  initialAttackPatternIds?: string[];
   onSelectContract: (contract: InjectorContractFullOutput) => void;
   /** Basket bulk-add (absent in atomic mode). */
   onQuickAdd?: (contracts: InjectorContractFullOutput[]) => void;
+  /** Navigates back to the caller's list (injects tab, atomic testings...). */
+  onBack?: () => void;
 }
 
 // The inject-contract picker: a full page mirroring the Threat Arsenal library
-// layout - hero band, sticky facet sidebar (domains / platforms / kill chain),
-// searchable card grid or list, and a floating selection basket for bulk add.
+// layout - compact back+title header, sticky facet sidebar (domains / platforms
+// / kill chain), searchable card grid or list, and a floating selection basket
+// for bulk add.
 const InjectContractPicker: FunctionComponent<Props> = ({
   title,
   isAtomic = false,
+  initialAttackPatternIds,
   onSelectContract,
   onQuickAdd,
+  onBack,
 }) => {
-  const theme = useTheme();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
 
@@ -104,8 +117,24 @@ const InjectContractPicker: FunctionComponent<Props> = ({
     }
   };
 
-  // Contracts search (atomic creation only surfaces atomic-capable contracts)
+  // Contracts search (atomic creation only surfaces atomic-capable contracts).
+  // `loading` starts true so the first paint shows skeletons instead of a
+  // "No data to display" flash while the initial search is in flight. Searches
+  // can overlap (fast typing, filter changes): the sequence guard ensures only
+  // the latest request clears the loading state, so a slow stale response
+  // never hides the skeletons while a newer search is still in flight.
   const [contracts, setContracts] = useState<InjectorContractFullOutput[]>([]);
+  const [loading, setLoading] = useState(true);
+  const fetchSeqRef = useRef(0);
+  const fetchContracts = (input: InjectorContractSearchPaginationInput) => {
+    const seq = ++fetchSeqRef.current;
+    setLoading(true);
+    return searchInjectorContracts(input).finally(() => {
+      if (seq === fetchSeqRef.current) {
+        setLoading(false);
+      }
+    });
+  };
   const initSearchPaginationInput = () => {
     const filterGroup: FilterGroup = {
       mode: 'and',
@@ -130,6 +159,16 @@ const InjectContractPicker: FunctionComponent<Props> = ({
     searchPaginationInput,
   } = useQueryableWithLocalStorage(isAtomic ? 'injector-contracts-picker-atomic' : 'injector-contracts-picker', initSearchPaginationInput());
   const totalElements = queryableHelpers.paginationHelpers.getTotalElements();
+
+  // Deep-link TTP scoping: replace (not merge) any attack pattern filter left
+  // over from a previous session so the picker opens exactly on the requested
+  // techniques; the filter stays a regular editable chip afterwards.
+  useEffect(() => {
+    if (initialAttackPatternIds && initialAttackPatternIds.length > 0) {
+      queryableHelpers.filterHelpers.handleRemoveFilterByKey(MITRE_FILTER_KEY);
+      queryableHelpers.filterHelpers.handleAddMultipleValueFilter(MITRE_FILTER_KEY, initialAttackPatternIds);
+    }
+  }, []);
 
   // Domain facet (live counts + toggling of the injector_contract_domains filter)
   const { iconBarOrderedDomains } = useDomainIconFilter({
@@ -180,98 +219,23 @@ const InjectContractPicker: FunctionComponent<Props> = ({
       paddingBottom: numberOfSelectedElements > 0 ? 12 : 4,
     }}
     >
-      {/* Hero band (same surface as the Threat Arsenal / integrations heroes) */}
-      <Box
-        component="section"
-        aria-label={title}
-        sx={{
-          position: 'relative',
-          borderRadius: 1,
-          padding: 2,
-          overflow: 'hidden',
-          border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-          backgroundColor: theme.palette.background.paper,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1.5,
-          flexWrap: 'wrap',
-        }}
+      {/* Compact header: back to the caller's list + page title (no hero band) */}
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+      }}
       >
-        <Box
-          aria-hidden
-          sx={{
-            position: 'absolute',
-            top: -100,
-            right: -60,
-            width: 260,
-            height: 260,
-            borderRadius: '50%',
-            background: alpha(theme.palette.primary.main, 0.08),
-            filter: 'blur(60px)',
-            pointerEvents: 'none',
-          }}
-        />
-        <Box sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.25,
-          flexWrap: 'wrap',
-          minWidth: 0,
-        }}
-        >
-          <Typography
-            variant="h1"
-            sx={{
-              fontWeight: 700,
-              margin: 0,
-              fontSize: 22,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {title}
-          </Typography>
-          <Box
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 0.75,
-              paddingBlock: 0.5,
-              paddingInline: 1.25,
-              borderRadius: 1,
-              border: `1px solid ${alpha(theme.palette.text.primary, 0.1)}`,
-              backgroundColor: alpha(theme.palette.text.primary, 0.04),
-            }}
-          >
-            <Typography sx={{
-              fontWeight: 600,
-              fontSize: 13,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-            >
-              {totalElements}
-            </Typography>
-            <Typography sx={{
-              color: 'text.secondary',
-              fontSize: 13,
-            }}
-            >
-              {t('total actions')}
-            </Typography>
-          </Box>
-        </Box>
-        <ToggleButtonGroup size="small" exclusive value={viewMode} onChange={handleViewMode}>
-          <Tooltip title={t('Grid view')}>
-            <ToggleButton value="grid" aria-label={t('Grid view')}>
-              <GridViewOutlined fontSize="small" />
-            </ToggleButton>
+        {onBack && (
+          <Tooltip title={t('Back')}>
+            <IconButton onClick={onBack} aria-label={t('Back')} size="small">
+              <ArrowBackOutlined fontSize="small" />
+            </IconButton>
           </Tooltip>
-          <Tooltip title={t('List view')}>
-            <ToggleButton value="list" aria-label={t('List view')}>
-              <ReorderOutlined fontSize="small" />
-            </ToggleButton>
-          </Tooltip>
-        </ToggleButtonGroup>
+        )}
+        <Typography variant="h1" sx={{ margin: 0 }}>
+          {title}
+        </Typography>
       </Box>
 
       {/* Two-column body: sticky facet sidebar + main content */}
@@ -296,18 +260,78 @@ const InjectContractPicker: FunctionComponent<Props> = ({
         }}
         >
           <PaginationComponentV2
-            fetch={searchInjectorContracts}
+            fetch={fetchContracts}
             searchPaginationInput={searchPaginationInput}
             setContent={setContracts}
             entityPrefix="injector_contract"
             availableFilterNames={availableFilterNames}
             queryableHelpers={queryableHelpers}
             attackPatterns={attackPatterns}
+            topBarButtons={(
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                value={viewMode}
+                onChange={handleViewMode}
+                sx={{ marginLeft: 1.5 }}
+              >
+                <Tooltip title={t('Grid view')}>
+                  <ToggleButton value="grid" aria-label={t('Grid view')}>
+                    <GridViewOutlined fontSize="small" />
+                  </ToggleButton>
+                </Tooltip>
+                <Tooltip title={t('List view')}>
+                  <ToggleButton value="list" aria-label={t('List view')}>
+                    <ReorderOutlined fontSize="small" />
+                  </ToggleButton>
+                </Tooltip>
+              </ToggleButtonGroup>
+            )}
           />
 
-          {contracts.length === 0 && <Empty message={t('No data to display')} />}
+          {!loading && contracts.length === 0 && <Empty message={t('No data to display')} />}
 
-          {viewMode === 'grid' && contracts.length > 0 && (
+          {/* Skeletons mirror the Threat Arsenal library loading state so the
+              picker never flashes an empty state while the search is in flight. */}
+          {viewMode === 'grid' && loading && (
+            <Box sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: 2,
+            }}
+            >
+              {Array.from({ length: 12 }).map((_, idx) => (
+                <Box
+                  key={idx}
+                  sx={{
+                    height: 200,
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Skeleton variant="rectangular" height={64} animation="wave" />
+                  <Box sx={{ padding: 2 }}>
+                    <Skeleton variant="text" width="80%" height={28} animation="wave" />
+                    <Skeleton variant="text" width="60%" height={20} animation="wave" />
+                    <Box sx={{
+                      display: 'flex',
+                      gap: 1,
+                      marginTop: 2,
+                    }}
+                    >
+                      <Skeleton variant="circular" width={20} height={20} animation="wave" />
+                      <Skeleton variant="circular" width={20} height={20} animation="wave" />
+                      <Skeleton variant="rectangular" width={60} height={20} animation="wave" sx={{ borderRadius: 1 }} />
+                    </Box>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          )}
+
+          {viewMode === 'grid' && !loading && contracts.length > 0 && (
             <Box sx={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
@@ -330,7 +354,7 @@ const InjectContractPicker: FunctionComponent<Props> = ({
             </Box>
           )}
 
-          {viewMode === 'list' && contracts.length > 0 && (
+          {viewMode === 'list' && (loading || contracts.length > 0) && (
             <Box sx={{
               display: 'flex',
               flexDirection: 'column',
@@ -354,7 +378,39 @@ const InjectContractPicker: FunctionComponent<Props> = ({
                 <Typography variant="h4" sx={{ margin: 0 }}>{t('Kill chain phase')}</Typography>
                 <span aria-hidden />
               </Box>
-              {contractMeta.map(({ contract, contractAttackPatterns, killChainPhaseName }) => (
+              {/* Skeleton rows share the exact grid template of the real rows
+                  so the layout does not shift when the data lands. */}
+              {loading && Array.from({ length: 10 }).map((_, idx) => (
+                <Box
+                  key={idx}
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: LIST_GRID_COLUMNS(!isAtomic),
+                    alignItems: 'center',
+                    gap: 1.5,
+                    paddingBlock: 0.75,
+                    paddingInline: 1.5,
+                    borderLeft: '3px solid transparent',
+                  }}
+                >
+                  {!isAtomic && <Skeleton variant="rounded" width={18} height={18} animation="wave" />}
+                  <Skeleton variant="rounded" width={36} height={36} animation="wave" />
+                  <Skeleton variant="text" width="70%" height={20} animation="wave" />
+                  <Skeleton variant="text" width="60%" height={20} animation="wave" />
+                  <Box sx={{
+                    display: 'flex',
+                    gap: 0.75,
+                  }}
+                  >
+                    <Skeleton variant="circular" width={18} height={18} animation="wave" />
+                    <Skeleton variant="circular" width={18} height={18} animation="wave" />
+                  </Box>
+                  <Skeleton variant="rounded" width={60} height={20} animation="wave" />
+                  <Skeleton variant="text" width="60%" height={20} animation="wave" />
+                  <span aria-hidden />
+                </Box>
+              ))}
+              {!loading && contractMeta.map(({ contract, contractAttackPatterns, killChainPhaseName }) => (
                 <InjectContractListRow
                   key={contract.injector_contract_id}
                   contract={contract}

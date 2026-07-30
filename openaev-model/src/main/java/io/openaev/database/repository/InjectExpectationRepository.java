@@ -24,11 +24,16 @@ public interface InjectExpectationRepository
 
   // JSON predicates over inject_expectation_results: a result "fills" the expectation when its
   // result text is non-empty. Keys are the Java property names serialized by JsonType (camelCase).
+  // LATERAL is a noise word for a function-call FROM item in PostgreSQL (same semantics and plan),
+  // but it matters for multi-tenancy v2: the fail-closed TenantStatementInspector only accepts
+  // table functions carrying the LATERAL prefix (they unnest a column of the current row, never a
+  // whole table). Without it, any query embedding these predicates that also touches a
+  // tenant-active table (e.g. collectors) is refused with TENANT_FILTERING_REFUSED (#7007).
   String RESULTS_HAS_NO_RESULT_FOR_SOURCE =
-      "NOT EXISTS (SELECT 1 FROM jsonb_array_elements(e.inject_expectation_results::jsonb) r "
+      "NOT EXISTS (SELECT 1 FROM LATERAL jsonb_array_elements(e.inject_expectation_results::jsonb) r "
           + "WHERE r->>'sourceId' = :sourceId AND COALESCE(r->>'result', '') <> '') ";
   String RESULTS_HAS_NO_RESULT_AT_ALL =
-      "NOT EXISTS (SELECT 1 FROM jsonb_array_elements(e.inject_expectation_results::jsonb) r "
+      "NOT EXISTS (SELECT 1 FROM LATERAL jsonb_array_elements(e.inject_expectation_results::jsonb) r "
           + "WHERE COALESCE(r->>'result', '') <> '') ";
 
   @NotNull
@@ -128,6 +133,13 @@ public interface InjectExpectationRepository
   // Only LEAF asset expectations are returned (asset_id IS NOT NULL): asset-group parents
   // (asset_id NULL, asset_group_id set) are never fulfilled directly - their score is recomputed by
   // propagation from the asset leaves - and updating them directly would dereference a null asset.
+  // Two additional guards keep collectors away from expectations that are not theirs to answer:
+  // 1. PARENT asset expectations (same shape: asset set, agent null) whose asset has agent-level
+  //    children are excluded - their score is derived from the agents, and a collector answering
+  //    the parent directly would clobber that derived verdict (e.g. an LLM firewall stamping
+  //    "Not Detected" on an endpoint parent whose EDR agents were already green).
+  // 2. When the expectation restricts its expected security platform types, only collectors whose
+  //    security platform matches one of those types receive it (empty/null means any platform).
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
@@ -136,6 +148,19 @@ public interface InjectExpectationRepository
               + "AND e.inject_expectation_type = :type "
               + "AND e.agent_id IS NULL "
               + "AND e.asset_id IS NOT NULL "
+              + "AND NOT EXISTS (SELECT 1 FROM injects_expectations child "
+              + "  WHERE child.inject_id = e.inject_id "
+              + "  AND child.asset_id = e.asset_id "
+              + "  AND child.inject_expectation_type = e.inject_expectation_type "
+              + "  AND child.agent_id IS NOT NULL) "
+              + "AND (e.inject_expectation_expected_security_platforms IS NULL "
+              + "  OR jsonb_typeof(e.inject_expectation_expected_security_platforms::jsonb) <> 'array' "
+              + "  OR jsonb_array_length(e.inject_expectation_expected_security_platforms::jsonb) = 0 "
+              + "  OR EXISTS (SELECT 1 FROM collectors c "
+              + "    JOIN assets sp ON sp.asset_id = c.collector_security_platform "
+              + "    WHERE c.collector_id = :sourceId "
+              + "    AND sp.security_platform_type IS NOT NULL "
+              + "    AND jsonb_exists(e.inject_expectation_expected_security_platforms::jsonb, sp.security_platform_type))) "
               + "AND "
               + RESULTS_HAS_NO_RESULT_FOR_SOURCE
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
@@ -159,11 +184,13 @@ public interface InjectExpectationRepository
   List<BaseInjectExpectation> findExpectationsNotFilled(
       @Param("tenantId") String tenantId, @Param("type") String type, @Param("limit") int limit);
 
-  /** Finds unfilled and expired expectations for the expiration manager. */
+  /** Finds unfilled and expired expectations for the expiration manager, scoped by tenant. */
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
-              + "WHERE e.inject_expectation_score IS NULL "
+              + "JOIN injects i ON i.inject_id = e.inject_id "
+              + "WHERE i.tenant_id = :tenantId "
+              + "AND e.inject_expectation_score IS NULL "
               + "AND (e.agent_id IS NOT NULL OR "
               + RESULTS_HAS_NO_RESULT_AT_ALL
               + ") "
@@ -171,7 +198,8 @@ public interface InjectExpectationRepository
               + "ORDER BY e.inject_expectation_created_at ASC "
               + "LIMIT :limit",
       nativeQuery = true)
-  List<BaseInjectExpectation> findExpectationsNotFilledAndExpired(@Param("limit") int limit);
+  List<BaseInjectExpectation> findExpectationsNotFilledAndExpired(
+      @Param("tenantId") String tenantId, @Param("limit") int limit);
 
   @Query(value = "select i from InjectExpectation i where i.exercise.id = :exerciseId")
   List<BaseInjectExpectation> findAllForExercise(@Param("exerciseId") String exerciseId);
@@ -330,9 +358,16 @@ public interface InjectExpectationRepository
               + "FROM injects_expectations i "
               + "WHERE i.inject_id IN (:injectIds) "
               + "AND i.user_id is null "
-              + "AND i.agent_id is null ;",
+              + "AND i.agent_id is null "
+              + "AND (i.asset_id IS NULL OR i.asset_group_id IS NULL "
+              + "  OR i.asset_id IN (SELECT ia.asset_id FROM injects_assets ia WHERE ia.inject_id = i.inject_id)) ;",
       nativeQuery = true)
-  // We don't include expectations for players, only for the team, neither for agents, if applicable
+  // Global score aggregates primary (target-level) expectations only: team rows, asset-group
+  // parent rows and directly-targeted asset rows. Player and agent rows are excluded, and so are
+  // the per-asset children of a targeted asset group (asset_id and asset_group_id both set,
+  // asset not a direct inject target): their verdict is already rolled up into the group parent
+  // row according to the configured validation mode (all assets / at least one asset), so
+  // counting them again dilutes a failed group into a PARTIAL global score.
   List<RawInjectExpectationIndexing> rawForComputeGlobalByInjectIds(
       @Param("injectIds") Set<String> injectIds);
 
@@ -354,15 +389,21 @@ public interface InjectExpectationRepository
               + "FROM injects_expectations i "
               + "WHERE i.exercise_id IN (:exerciseIds) "
               + "AND i.user_id is null "
-              + "AND i.agent_id is null ;",
+              + "AND i.agent_id is null "
+              + "AND (i.asset_id IS NULL OR i.asset_group_id IS NULL "
+              + "  OR i.asset_id IN (SELECT ia.asset_id FROM injects_assets ia WHERE ia.inject_id = i.inject_id)) ;",
       nativeQuery = true)
-  // We don't include expectations for players, only for the team, if applicable
+  // Same primary-expectation filtering as rawForComputeGlobalByInjectIds (see comment there).
   List<RawInjectExpectationIndexing> rawForComputeGlobalByExerciseIds(
       @Param("exerciseIds") Set<String> exerciseIds);
 
   @Query(
       value =
-          "select i from InjectExpectation i where i.inject.id in :injectIds and i.agent is null and i.user is null")
+          "select i from InjectExpectation i where i.inject.id in :injectIds"
+              + " and i.agent is null and i.user is null"
+              + " and (i.asset is null or i.assetGroup is null"
+              + "   or i.asset.id in (select a.id from Inject inj join inj.assets a where inj.id = i.inject.id))")
+  // Same primary-expectation filtering as rawForComputeGlobalByInjectIds (see comment there).
   List<BaseInjectExpectation> findAllForGlobalScoreByInjects(
       @Param("injectIds") Set<String> injectIds);
 

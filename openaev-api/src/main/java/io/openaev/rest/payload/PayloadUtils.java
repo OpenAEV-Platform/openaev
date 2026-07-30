@@ -168,6 +168,24 @@ public class PayloadUtils {
     duplicate.setGrants(grantCopies);
   }
 
+  /**
+   * Deduplicates payload arguments by key (first occurrence wins) and drops identical
+   * prerequisites. Some collectors (e.g. Atomic Red Team) historically sent the same argument
+   * several times, and each duplicate became a duplicated field in the generated injector contract.
+   */
+  private static void dedupeArgumentsAndPrerequisites(Payload target) {
+    if (target.getArguments() != null) {
+      Map<String, PayloadArgument> argumentsByKey = new LinkedHashMap<>();
+      target
+          .getArguments()
+          .forEach(argument -> argumentsByKey.putIfAbsent(argument.getKey(), argument));
+      target.setArguments(new ArrayList<>(argumentsByKey.values()));
+    }
+    if (target.getPrerequisites() != null) {
+      target.setPrerequisites(new ArrayList<>(new LinkedHashSet<>(target.getPrerequisites())));
+    }
+  }
+
   public Payload copyProperties(PayloadCreateInput payloadInput, Payload target) {
     if (payloadInput == null) {
       throw new IllegalArgumentException("Input payload cannot be null");
@@ -181,6 +199,7 @@ public class PayloadUtils {
         "detectionRemediations",
         "domains");
 
+    dedupeArgumentsAndPrerequisites(target);
     outputParserService.copyOutputParsersFromInput(payloadInput.getOutputParsers(), target);
     detectionRemediationUtils.copy(payloadInput.getDetectionRemediations(), target, false);
     return target;
@@ -200,6 +219,7 @@ public class PayloadUtils {
         "detectionRemediations",
         "domains");
 
+    dedupeArgumentsAndPrerequisites(target);
     outputParserService.copyOutputParsersFromInput((payloadInput).getOutputParsers(), target);
     detectionRemediationUtils.copy((payloadInput).getDetectionRemediations(), target, true);
     return target;
@@ -222,6 +242,7 @@ public class PayloadUtils {
         "detectionRemediations",
         "domains");
 
+    dedupeArgumentsAndPrerequisites(target);
     outputParserService.copyOutputParsersFromInput(payloadInput.getOutputParsers(), target);
     detectionRemediationUtils.copy(payloadInput.getDetectionRemediations(), target, copyId);
     return target;

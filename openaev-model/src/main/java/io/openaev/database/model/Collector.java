@@ -7,7 +7,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantIdBaseListener;
 import io.openaev.jsonapi.BusinessId;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -16,15 +15,20 @@ import java.time.Instant;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 
+/**
+ * Fully on v2 tenant isolation (TenantStatementInspector + can_access_tenant). The v1
+ * {@code @Filter("tenantFilter")} and {@code TenantIdBaseListener} were removed as part of the
+ * activation; they must NOT come back — the filter would AND two predicates and return zero rows,
+ * and the listener is a v1 pattern that reads from TenantContext (no longer the source of truth for
+ * activated tables). Write attribution is now explicit via {@code TenantWriteScopeResolver}.
+ */
 @Getter
 @Setter
 @Entity
 @Table(name = "collectors")
-@EntityListeners({ModelBaseListener.class, TenantIdBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 @IdClass(ConnectorCompositeId.class)
 public class Collector extends BaseConnectorEntity implements TenantIdBase {
 
@@ -59,6 +63,14 @@ public class Collector extends BaseConnectorEntity implements TenantIdBase {
   @JsonProperty("collector_period")
   private int period;
 
+  /**
+   * Optional source-declared author override. When set, the collector's payloads (and their arsenal
+   * contracts) are attributed to this author organization instead of the collector's display name.
+   */
+  @Column(name = "collector_author")
+  @JsonProperty("collector_author")
+  private String author;
+
   @Column(name = "collector_external")
   @JsonProperty("collector_external")
   private boolean external = false;
@@ -77,7 +89,9 @@ public class Collector extends BaseConnectorEntity implements TenantIdBase {
   @JsonProperty("collector_last_execution")
   private Instant lastExecution;
 
-  @OneToOne(fetch = FetchType.LAZY)
+  // ManyToOne (not OneToOne): the collector_security_platform column carries no unique
+  // constraint, several collectors may legitimately point to the same security platform.
+  @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "collector_security_platform")
   @JsonProperty("collector_security_platform")
   private SecurityPlatform securityPlatform;

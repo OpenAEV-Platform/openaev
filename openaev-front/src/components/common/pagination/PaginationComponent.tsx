@@ -2,7 +2,9 @@ import { Button, Chip, TablePagination, ToggleButtonGroup } from '@mui/material'
 import { type ChangeEvent, cloneElement, type MouseEvent as ReactMouseEvent, type ReactElement, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import KillChainSelect from '../../../admin/components/common/filters/KillChainSelect';
 import MitreFilter, { MITRE_FILTER_KEY } from '../../../admin/components/common/filters/MitreFilter';
+import useKillChains from '../../../admin/components/common/filters/useKillChains';
 import mitreAttack from '../../../static/images/misc/attack.png';
 import { type AttackPattern, type Filter, type SearchPaginationInput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
@@ -12,6 +14,7 @@ import ExportButton, { type ExportProps } from '../ExportButton';
 import { type FilterHelpers } from '../queryable/filter/FilterHelpers';
 import { isEmptyFilter } from '../queryable/filter/FilterUtils';
 import { type Page } from '../queryable/Page';
+import { DEFAULT_ROWS_PER_PAGE, ROWS_PER_PAGE_OPTIONS } from '../queryable/pagination/usePaginationState';
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -37,8 +40,6 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const ROWS_PER_PAGE_OPTIONS = [20, 50, 100];
-
 interface Props<T> {
   fetch: (input: SearchPaginationInput) => Promise<{ data: Page<T> }>;
   searchPaginationInput: SearchPaginationInput;
@@ -57,6 +58,9 @@ interface Props<T> {
   // Extra control rendered in the top-right bar, between the pagination arrows
   // and the export button (e.g. a cards/list view switcher).
   topRightSlot?: ReactElement | null;
+  // Notified whenever the total number of elements changes (e.g. for bulk
+  // select-all counting in the parent list).
+  onTotalElementsChange?: (totalElements: number) => void;
 }
 
 /**
@@ -75,6 +79,7 @@ const PaginationComponent = <T extends object>({
   children,
   createButton,
   topRightSlot,
+  onTotalElementsChange,
 }: Props<T>) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -82,7 +87,7 @@ const PaginationComponent = <T extends object>({
 
   // Pagination
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(searchPaginationInput.size ?? ROWS_PER_PAGE_OPTIONS[0]);
+  const [rowsPerPage, setRowsPerPage] = useState(searchPaginationInput.size ?? DEFAULT_ROWS_PER_PAGE);
   const [totalElements, setTotalElements] = useState(0);
 
   const handleChangePage = (
@@ -108,6 +113,9 @@ const PaginationComponent = <T extends object>({
 
   // Filters
   const [openMitreFilter, setOpenMitreFilter] = useState(false);
+  // Kill chain switcher lives in the attack matrix drawer header, so the matrix
+  // body stays free of chrome.
+  const { killChains, activeKillChain, selectKillChain } = useKillChains();
 
   useEffect(() => {
     const finalSearchPaginationInput = {
@@ -121,6 +129,14 @@ const PaginationComponent = <T extends object>({
       const { data } = result;
       setContent(data.content);
       setTotalElements(data.totalElements);
+      onTotalElementsChange?.(data.totalElements);
+      // The current page fell past the end (dataset shrank or a parent filter
+      // narrowed the results): restart from the first page instead of showing
+      // a stuck empty page. Guarded on page > 0 so an empty dataset does not
+      // loop.
+      if (page > 0 && data.totalPages <= page) {
+        setPage(0);
+      }
     });
   }, [searchPaginationInput, page, rowsPerPage, textSearch]);
 
@@ -172,10 +188,21 @@ const PaginationComponent = <T extends object>({
               <Drawer
                 open={openMitreFilter}
                 handleClose={() => setOpenMitreFilter(false)}
-                title={t('ATT&CK Matrix')}
+                title={t('Attack matrix')}
                 variant="full"
+                headerActions={(
+                  <KillChainSelect
+                    killChains={killChains}
+                    value={activeKillChain}
+                    onChange={selectKillChain}
+                  />
+                )}
               >
-                <MitreFilter helpers={helpers} onClick={() => setOpenMitreFilter(false)} />
+                <MitreFilter
+                  helpers={helpers}
+                  killChain={activeKillChain}
+                  onClick={() => setOpenMitreFilter(false)}
+                />
               </Drawer>
             </>
           )}

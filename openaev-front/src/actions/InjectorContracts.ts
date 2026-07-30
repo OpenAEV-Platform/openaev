@@ -13,6 +13,7 @@ import {
   type InjectorContractAddInput, type InjectorContractSearchPaginationInput,
   type InjectorContractUpdateInput,
   type InjectorContractUpdateMappingInput,
+  type SearchPaginationInput,
 } from '../utils/api-types';
 import * as schema from './Schema';
 
@@ -34,6 +35,18 @@ export const searchInjectorContracts = (paginationInput: InjectorContractSearchP
   const data = paginationInput;
   const uri = `${INJECTOR_CONTRACT_URI}/search`;
   return simplePostCall(uri, data);
+};
+
+// Platform + kill-chain-phase + status counts for the current filters, so the
+// inject-contract picker sidebar facets show live counts like the domain facet.
+export const fetchInjectorContractFacetCounts = (paginationInput: SearchPaginationInput) => {
+  return simplePostCall(`${INJECTOR_CONTRACT_URI}/facet-counts`, paginationInput);
+};
+
+// Author counts for the current filters, so the inject-contract picker sidebar
+// can show every author and grey out the zero-count ones.
+export const fetchInjectorContractAuthorCounts = (paginationInput: SearchPaginationInput) => {
+  return simplePostCall(`${INJECTOR_CONTRACT_URI}/author-counts`, paginationInput);
 };
 
 export const updateInjectorContract = (injectorContractId: InjectorContract['injector_contract_id'], data: InjectorContractUpdateInput) => (dispatch: Dispatch) => {

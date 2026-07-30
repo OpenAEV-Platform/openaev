@@ -66,7 +66,7 @@ public class XtmComposerApi extends RestBehavior {
   @Operation(
       summary = "Check if XtmComposer is reachable and registered in OpenAEV",
       description = "Returns true if XtmComposer is reachable, false otherwise")
-  @Transactional
+  @Transactional(readOnly = true, noRollbackFor = Exception.class)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   public boolean isXtmComposerReachable() {
     // Use the non-throwing probe: throwing (and catching) a BadRequestException here would mark the

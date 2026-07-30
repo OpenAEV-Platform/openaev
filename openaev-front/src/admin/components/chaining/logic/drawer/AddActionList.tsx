@@ -60,9 +60,11 @@ interface AddActionListProps {
   onBack: () => void;
   onAddActions: (actions: ThreatArsenalAction[]) => void;
   onSelectAction?: (action: ThreatArsenalAction) => void;
+  /** When set, the list opens pre-filtered to actions that produce this output type. */
+  compatibleActionFilter?: string;
 }
 
-const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: AddActionListProps) => {
+const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction, compatibleActionFilter }: AddActionListProps) => {
   const { t, tPick } = useFormatter();
   const theme = useTheme();
   const { classes } = useStyles();
@@ -70,15 +72,28 @@ const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: 
   const [actions, setActions] = useState<ThreatArsenalAction[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const { queryableHelpers, searchPaginationInput } = useQueryable(
-    buildSearchPagination({
-      size: 100,
-      sorts: [{
-        property: 'action_updated_at',
-        direction: 'desc',
-      }],
-    }),
-  );
+  const initPagination = useMemo(() => buildSearchPagination({
+    size: 100,
+    sorts: [{
+      property: 'action_updated_at',
+      direction: 'desc',
+    }],
+    ...(compatibleActionFilter
+      ? {
+          filterGroup: {
+            mode: 'and' as const,
+            filters: [{
+              id: 'compatible-action-output-type',
+              key: 'providing',
+              operator: 'eq' as const,
+              values: [compatibleActionFilter],
+            }],
+          },
+        }
+      : {}),
+  }), [compatibleActionFilter]);
+
+  const { queryableHelpers, searchPaginationInput } = useQueryable(initPagination);
 
   const {
     selectedElements,
@@ -100,6 +115,7 @@ const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: 
     'action_platforms',
     'action_domains',
     'action_tags',
+    'providing',
   ];
 
   const headers: Header[] = useMemo(() => [
@@ -210,7 +226,7 @@ const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: 
             />
           </ListItem>
           {loading
-            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
+            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox />
             : actions.map(action => (
                 <ListItem
                   key={action.injector_contract_id}

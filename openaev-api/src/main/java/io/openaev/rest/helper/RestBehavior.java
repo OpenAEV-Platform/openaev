@@ -6,6 +6,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import io.openaev.aop.audit_log.AuditLogFailureException;
 import io.openaev.aop.lock.LockAcquisitionException;
@@ -29,6 +30,7 @@ import org.springdoc.api.ErrorMessage;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -56,6 +58,45 @@ public class RestBehavior {
   }
 
   // -- 400 BAD_REQUEST --
+
+  private static final int MAX_REJECTED_VALUE_LENGTH = 100;
+
+  // Bound the caller-supplied rejected value echoed back in the 400 body / logs
+  private static String abbreviateRejectedValue(Object value) {
+    String rendered = String.valueOf(value);
+    return rendered.length() <= MAX_REJECTED_VALUE_LENGTH
+        ? rendered
+        : rendered.substring(0, MAX_REJECTED_VALUE_LENGTH) + "...";
+  }
+
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<ErrorMessage> handleHttpMessageNotReadable(
+      HttpMessageNotReadableException ex) {
+    String detail;
+    if (ex.getCause() instanceof InvalidFormatException ife) {
+      // Render array indices attached to their parent segment: filters[0].operator
+      StringBuilder pathBuilder = new StringBuilder();
+      for (var ref : ife.getPath()) {
+        if (ref.getFieldName() != null) {
+          if (!pathBuilder.isEmpty()) {
+            pathBuilder.append('.');
+          }
+          pathBuilder.append(ref.getFieldName());
+        } else {
+          pathBuilder.append('[').append(ref.getIndex()).append(']');
+        }
+      }
+      String path = pathBuilder.toString();
+      detail =
+          "Invalid value '%s' for field '%s'"
+              .formatted(abbreviateRejectedValue(ife.getValue()), path);
+    } else {
+      detail = "Malformed or unreadable request body";
+    }
+    log.warn("HttpMessageNotReadableException: {}", detail, ex);
+    return new ResponseEntity<>(new ErrorMessage(detail), HttpStatus.BAD_REQUEST);
+  }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -109,6 +109,71 @@ class TenantStatementInspectorTest {
     assertTrue(ex.getMessage().contains("not yet covered"), ex.getMessage());
   }
 
+  @Test
+  @DisplayName("a LATERAL table function is accepted (unnests an existing row, not a whole table)")
+  void lateralTableFunctionIsAccepted() {
+    String out =
+        inspect(
+            "SELECT d.id, e.value FROM documents d"
+                + " LEFT JOIN LATERAL jsonb_array_elements(d.payload) e ON true");
+    // The documents table is still filtered, but the lateral function is not refused
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertFalse(out.contains("not yet covered"), out);
+  }
+
+  @Test
+  @DisplayName("a LATERAL sub-select is accepted alongside tenant table filtering")
+  void lateralSubSelectIsAccepted() {
+    String out =
+        inspect(
+            "SELECT d.id, sub.x FROM documents d"
+                + " LEFT JOIN LATERAL (SELECT f.x FROM findings f WHERE f.doc_id = d.id LIMIT 1) sub ON true");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    // The inner findings table in the lateral sub-select is also filtered
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("a LATERAL table function as the sole FROM of a sub-query is accepted")
+  void lateralTableFunctionAsSubqueryFromIsAccepted() {
+    // The collector "not filled" predicate shape: NOT EXISTS over a jsonb unnest of the current
+    // row. LATERAL is a noise word for a function-call FROM item in PostgreSQL but is what marks
+    // the shape as reviewed-safe for the rewriter (#7007).
+    String out =
+        inspect(
+            "SELECT * FROM documents d WHERE NOT EXISTS"
+                + " (SELECT 1 FROM LATERAL jsonb_array_elements(d.payload::jsonb) r"
+                + " WHERE r->>'sourceId' = :sourceId)");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("jsonb_array_elements"), out);
+  }
+
+  @Test
+  @DisplayName("the AI defense collector query passes with collectors active (regression #7007)")
+  void aiDefenseExpectationsQueryPassesWithCollectorsActive() throws Exception {
+    // #6751 activated collectors, which pulled findAgentlessExpectationsNotFilledForSource into
+    // rewriting; its jsonb_array_elements predicate was refused and the AI expectations endpoint
+    // returned 500 TENANT_FILTERING_REFUSED to every AI defense collector. Pin the real production
+    // SQL against an inspector with collectors active (dual-scope, tenant_id is nullable).
+    String sql =
+        io.openaev.database.repository.InjectExpectationRepository.class
+            .getMethod(
+                "findAgentlessExpectationsNotFilledForSource",
+                String.class,
+                String.class,
+                String.class,
+                int.class)
+            .getAnnotation(org.springframework.data.jpa.repository.Query.class)
+            .value();
+    TenantStatementInspector collectorsActive =
+        new TenantStatementInspector(new TenantTables(Set.of(), Set.of("collectors")));
+    String out = collectorsActive.inspect(sql).replaceAll("\\s+", " ").trim();
+    // The collectors read source is filtered (platform rows allowed: dual-scope read)...
+    assertTrue(out.contains("can_access_tenant(c.tenant_id, true)"), out);
+    // ...and the result predicate survives the rewrite instead of being refused.
+    assertTrue(out.contains("jsonb_array_elements"), out);
+  }
+
   // --- Single table --------------------------------------------------------
 
   @Test

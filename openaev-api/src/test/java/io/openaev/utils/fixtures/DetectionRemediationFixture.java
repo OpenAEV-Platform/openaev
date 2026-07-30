@@ -17,16 +17,16 @@ public class DetectionRemediationFixture {
   }
 
   public static ResourceObject buildDetectionRemediationResource(
-      String remediationId, String values, String collectorType, String collectorId) {
+      String remediationId, String values, String securityPlatformType, String securityPlatformId) {
     Map<String, Object> attributes = new HashMap<>();
     attributes.put("detection_remediation_values", values);
     attributes.put("author_rule", "HUMAN");
 
     Map<String, Relationship> relationships = new HashMap<>();
-    if (collectorType != null && collectorId != null) {
+    if (securityPlatformType != null && securityPlatformId != null) {
       relationships.put(
-          "detection_remediation_collector_type",
-          new Relationship(new ResourceIdentifier(collectorId, collectorType)));
+          "detection_remediation_security_platform",
+          new Relationship(new ResourceIdentifier(securityPlatformId, securityPlatformType)));
     }
 
     return new ResourceObject(remediationId, "detection_remediations", attributes, relationships);

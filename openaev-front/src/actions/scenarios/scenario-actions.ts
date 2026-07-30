@@ -6,6 +6,7 @@ import {
   postReferential,
   putReferential,
   simpleCall,
+  simpleDelCall,
   simplePostCall, simplePutCall,
 } from '../../utils/Action';
 import {
@@ -17,7 +18,7 @@ import {
   type LessonsInput,
   type LessonsQuestionCreateInput,
   type LessonsQuestionUpdateInput, type Pagination,
-  type Scenario, type ScenarioAndInjectorContractsInputs, type ScenarioIdsAndInjectorContractsInputs,
+  type Scenario, type ScenarioAndInjectorContractsInputs, type ScenarioBulkProcessingInput, type ScenarioIdsAndInjectorContractsInputs,
   type ScenarioInput,
   type ScenarioRecurrenceInput,
   type ScenarioTeamPlayersEnableInput,
@@ -77,6 +78,10 @@ export const updateScenario = (
 export const deleteScenario = (scenarioId: Scenario['scenario_id']) => (dispatch: Dispatch) => {
   const uri = `${SCENARIO_URI}/${scenarioId}`;
   return delReferential(uri, scenario.key, scenarioId)(dispatch);
+};
+
+export const bulkDeleteScenarios = (input: ScenarioBulkProcessingInput) => {
+  return simpleDelCall(SCENARIO_URI, { data: input });
 };
 
 export const exportScenarioUri = (scenarioId: Scenario['scenario_id'], exportTeams: boolean, exportPlayers: boolean, exportVariableValues: boolean, exportScopeDefinition: boolean) => {
@@ -149,6 +154,26 @@ export const searchScenarioExercises = (scenarioId: Scenario['scenario_id'], pag
 export const searchScenarioHealthcheks = (scenarioId: Scenario['scenario_id']) => {
   const uri = `${SCENARIO_URI}/${scenarioId}/healthchecks`;
   return simpleCall(uri);
+};
+
+// -- EXPECTATIONS DRIFT --
+
+export const fetchScenarioExpectationsDrift = (scenarioId: Scenario['scenario_id']) => {
+  const uri = `${SCENARIO_URI}/${scenarioId}/expectations-drift`;
+  return simpleCall(uri);
+};
+
+export const realignScenarioExpectations = (scenarioId: Scenario['scenario_id']) => {
+  const uri = `${SCENARIO_URI}/${scenarioId}/expectations-drift/realign`;
+  return simplePostCall(uri);
+};
+
+// Dismissal is stored in database (not local storage) so it is shared between
+// users. The generic success toast is disabled: the caller notifies with a
+// dismissal-specific message.
+export const dismissScenarioExpectationsDrift = (scenarioId: Scenario['scenario_id'], dismissed: boolean) => {
+  const uri = `${SCENARIO_URI}/${scenarioId}/expectations-drift/dismiss`;
+  return simplePutCall(uri, { dismissed }, undefined, true, false);
 };
 
 // -- RECURRENCE --

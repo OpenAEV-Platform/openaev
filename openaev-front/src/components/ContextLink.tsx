@@ -1,4 +1,4 @@
-import { Box, Tooltip } from '@mui/material';
+import { Chip, Tooltip } from '@mui/material';
 import { type FunctionComponent, type ReactElement } from 'react';
 import { Link } from 'react-router';
 
@@ -9,48 +9,47 @@ interface Props {
   url: string;
   // Optional leading entity-type icon (inject / simulation / scenario / ...).
   icon?: ReactElement;
+  /**
+   * 'list' (default): ultra-dense 20px chip aligned with the ItemTargets
+   * chips inside table rows. 'field': standard 25px detail-field chip
+   * (ItemSeverity & co) for detail page fields, where the dense chip is
+   * not visible enough.
+   */
+  variant?: 'list' | 'field';
 }
 
-// Plain text that navigates on click. Deliberately NOT a hyperlink (no
-// underline, no primary color) and NOT a button (no padding, background,
-// border or hover effect): it must read as regular cell text, with only the
-// cursor indicating it is clickable.
+// Pivot button towards another entity. Shares the exact chip anatomy of the
+// target chips rendered by ItemTargets (outlined, 20px tall, 4px radius) so
+// every context column (endpoints / injects / simulations / scenarios) exposes
+// one single, clearly clickable shape. `clickable` brings the standard button
+// feedback (hover background + ripple) on top of the primary-tinted border.
 const ContextLink: FunctionComponent<Props> = ({
   title,
   url,
   icon,
+  variant = 'list',
 }) => {
   return (
     <Tooltip title={title}>
-      <Box
+      <Chip
+        variant="outlined"
+        clickable
         component={Link}
         to={url}
+        icon={icon}
+        label={truncate(title, 30)}
         sx={{
-          'display': 'inline-flex',
-          'alignItems': 'center',
-          'gap': 0.75,
-          'minWidth': 0,
+          'fontSize': 12,
+          'height': variant === 'field' ? 25 : 20,
+          'borderRadius': 1,
           'maxWidth': '100%',
-          'color': 'inherit',
-          'textDecoration': 'none',
-          'lineHeight': 1.4,
-          '& > svg': {
-            fontSize: '1rem',
-            flexShrink: 0,
-            color: 'text.secondary',
+          '& .MuiChip-icon': { fontSize: '1rem' },
+          '&:hover': {
+            borderColor: 'primary.main',
+            color: 'primary.main',
           },
         }}
-      >
-        {icon}
-        <span style={{
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-        >
-          {truncate(title, 30)}
-        </span>
-      </Box>
+      />
     </Tooltip>
   );
 };

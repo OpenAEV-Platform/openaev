@@ -21,11 +21,10 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ExerciseForm from './ExerciseForm';
-import ExerciseReports from './reports/ExerciseReports';
 
 type ExerciseUpdateFormInput = UpdateExerciseInput & { exercise_lessons_enabled?: boolean };
 
-export type ExerciseActionPopover = 'Duplicate' | 'Update' | 'Delete' | 'Export' | 'Access reports';
+export type ExerciseActionPopover = 'Duplicate' | 'Update' | 'Delete' | 'Export';
 
 interface ExercisePopoverProps {
   exercise: Exercise;
@@ -59,6 +58,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
     exercise_category: exercise.exercise_category ?? 'attack-scenario',
     exercise_main_focus: exercise.exercise_main_focus ?? 'incident-response',
     exercise_severity: exercise.exercise_severity ?? 'high',
+    exercise_default_kill_chain: exercise.exercise_default_kill_chain ?? '',
     exercise_tags: exercise.exercise_tags ?? [],
     exercise_mail_from_name: exercise.exercise_mail_from_name ?? '',
     exercise_mails_reply_to: exercise.exercise_mails_reply_to ?? [],
@@ -107,11 +107,6 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
   const handleOpenExport = () => setOpenExport(true);
   const handleCloseExport = () => setOpenExport(false);
 
-  // Reports
-  const [openReports, setOpenReports] = useState(false);
-  const handleOpenReports = () => setOpenReports(true);
-  const handleCloseReports = () => setOpenReports(false);
-
   // apply rule dialog
   const [openApplyRule, setOpenApplyRule] = useState(false);
   const handleOpenApplyRule = () => setOpenApplyRule(true);
@@ -145,11 +140,6 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
     action: () => handleOpenExport(),
     userRight: true,
   });
-  if (actions.includes('Access reports')) entries.push({
-    label: 'Access reports',
-    action: () => handleOpenReports(),
-    userRight: true,
-  });
   if (actions.includes('Delete')) entries.push({
     label: 'Delete',
     action: () => handleOpenDelete(),
@@ -171,6 +161,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
       exercise_name: data.exercise_name,
       exercise_subtitle: data.exercise_subtitle,
       exercise_severity: data.exercise_severity,
+      exercise_default_kill_chain: data.exercise_default_kill_chain,
       exercise_category: data.exercise_category,
       exercise_description: data.exercise_description,
       exercise_main_focus: data.exercise_main_focus,
@@ -230,6 +221,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
           disabled={permissions.readOnly}
           handleClose={handleCloseEdit}
           edit
+          isChaining={!!(exercise as unknown as { exercise_workflow_id?: string }).exercise_workflow_id}
         />
 
       </Drawer>
@@ -239,14 +231,6 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
         handleApplyRule={() => handleTagRuleChoice(true)}
         handleDontApplyRule={() => handleTagRuleChoice(false)}
       />
-      <Drawer
-        open={openReports}
-        containerStyle={{ padding: '0px' }}
-        handleClose={handleCloseReports}
-        title={t('Reports')}
-      >
-        <ExerciseReports exerciseId={exercise.exercise_id} exerciseName={exercise.exercise_name} />
-      </Drawer>
       <DialogDuplicate
         open={openDuplicate}
         handleClose={handleCloseDuplicate}

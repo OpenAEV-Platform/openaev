@@ -2,7 +2,7 @@ import { TablePagination } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import usePaginationState, { ROWS_PER_PAGE_OPTIONS } from '../../../../../components/common/queryable/pagination/usePaginationState';
+import { ROWS_PER_PAGE_OPTIONS, useLocalPaginationState } from '../../../../../components/common/queryable/pagination/usePaginationState';
 import ErrorBoundary from '../../../../../components/ErrorBoundary';
 import Loader from '../../../../../components/Loader';
 import {
@@ -63,12 +63,20 @@ const WidgetWrapper = ({
   // fit and hid the pagination whenever the total was below 100). The hook is
   // called unconditionally (Rules of Hooks); only list widgets use its state.
   const isListWidget = widget.widget_type === 'list';
-  const { elementsPerPage, page, handleChangePagination } = usePaginationState(
+  const { elementsPerPage, page, handleChangePagination } = useLocalPaginationState(
     ROWS_PER_PAGE_OPTIONS[0],
-    undefined,
     isListWidget ? `widget-list-${widget.widget_id}` : undefined,
   );
 
+  // The 'average' transform colors its output from the CURRENT theme, read through a
+  // ref: widgetConfig feeds fetchWidgetData, so keying it on the theme object would
+  // refetch every widget over the network whenever the theme instance is rebuilt (a
+  // pure styling change). The ref is always up to date by the time the transform runs
+  // (fetch callbacks resolve after commit).
+  const themeRef = useRef(theme);
+  useEffect(() => {
+    themeRef.current = theme;
+  });
   const widgetConfig = useMemo<Record<string, WidgetFetchConfig>>(() => ({
     'attack-path': {
       vizType: WidgetVizDataType.ATTACK_PATHS,
@@ -81,13 +89,13 @@ const WidgetWrapper = ({
     'average': {
       vizType: WidgetVizDataType.AVERAGE,
       fetchFn: fetchAverage,
-      transformData: data => determinePercentage(data as EsAvgs, theme),
+      transformData: data => determinePercentage(data as EsAvgs, themeRef.current),
     },
     'list': {
       vizType: WidgetVizDataType.ENTITIES,
       fetchFn: fetchEntities,
     },
-  }), [fetchAttackPaths, fetchCount, fetchAverage, fetchEntities, theme]);
+  }), [fetchAttackPaths, fetchCount, fetchAverage, fetchEntities]);
 
   const defaultConfig = useMemo<WidgetFetchConfig>(() => ({
     vizType: WidgetVizDataType.SERIES,

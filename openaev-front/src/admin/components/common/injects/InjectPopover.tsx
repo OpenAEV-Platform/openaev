@@ -39,7 +39,6 @@ interface Props {
   inject: InjectPopoverType;
   setSelectedInjectId: (injectId: Inject['inject_id']) => void;
   isDisabled?: boolean;
-  isUpdateDisabled?: boolean;
   canBeTested?: boolean;
   canDone?: boolean;
   canTriggerNow?: boolean;
@@ -58,7 +57,6 @@ const InjectPopover: FunctionComponent<Props> = ({
   inject,
   setSelectedInjectId,
   isDisabled = false,
-  isUpdateDisabled = true,
   canBeTested = false,
   canDone = false,
   canTriggerNow = false,
@@ -217,10 +215,12 @@ const InjectPopover: FunctionComponent<Props> = ({
 
   // Button Popover
   const entries = [];
+  // Update stays available for disabled injects: "disabled" only excludes the inject from
+  // execution, it is not a read-only state.
   entries.push({
     label: 'Update',
     action: () => handleOpenEditContent(),
-    disabled: isDisabled || isUpdateDisabled,
+    disabled: isDisabled,
     userRight: permissions.canManage,
   });
   entries.push({

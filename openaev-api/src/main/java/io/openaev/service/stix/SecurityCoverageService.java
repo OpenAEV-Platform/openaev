@@ -303,7 +303,29 @@ public class SecurityCoverageService {
    * @return an existing or new {@link SecurityCoverage}
    */
   public SecurityCoverage getByExternalIdOrCreateSecurityCoverage(String externalId) {
-    return securityCoverageRepository.findByExternalId(externalId).orElseGet(SecurityCoverage::new);
+    List<SecurityCoverage> coverages = securityCoverageRepository.findAllByExternalId(externalId);
+    if (coverages.isEmpty()) {
+      return new SecurityCoverage();
+    }
+    if (coverages.size() > 1) {
+      // Duplicates are prevented by the unique constraint on security_coverage_external_id
+      // (V6_20260729130000000__Dedupe_security_coverages_external_id), but a legacy-duplicated
+      // database must never fail the whole bundle with a NonUniqueResultException: pick the best
+      // row deterministically (linked to a scenario first, then most recently updated).
+      log.error(
+          "Found {} security coverages sharing external id {}; using the most relevant one."
+              + " Duplicates should have been removed by the dedupe migration.",
+          coverages.size(),
+          externalId);
+    }
+    return coverages.stream()
+        .min(
+            Comparator.<SecurityCoverage, java.lang.Boolean>comparing(
+                    coverage -> coverage.getScenario() == null)
+                .thenComparing(
+                    SecurityCoverage::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(SecurityCoverage::getId))
+        .orElseGet(SecurityCoverage::new);
   }
 
   /**

@@ -14,7 +14,37 @@ import { type Filter, type FilterGroup, type Series, type Widget } from '../../.
 
 export const PLATFORM_DEFAULT_DASHBOARD_ID = '_platform_default_home';
 
+/**
+ * Terms-aggregation bucket cap for the MITRE coverage widget. The default cap
+ * (100) silently truncates the per-technique series on busy platforms (600+
+ * technique/sub-technique ids), making tiles show "perfect" scores while the
+ * drill-down list disagrees. Mirrors COVERAGE_BUCKET_CAP in AttackPatternService.
+ */
+const COVERAGE_BUCKET_CAP = 10000;
+
 export type DefaultTimeRange = 'ALL_TIME' | 'LAST_DAY' | 'LAST_WEEK' | 'LAST_MONTH' | 'LAST_QUARTER' | 'LAST_SEMESTER' | 'LAST_YEAR';
+
+/**
+ * Window sizes in hours, mirroring the backend's
+ * CustomDashboardQueryUtils.calcStartDate so a materialized date filter agrees
+ * with what the widget tiles aggregated.
+ */
+const TIME_RANGE_HOURS: Record<Exclude<DefaultTimeRange, 'ALL_TIME'>, number> = {
+  LAST_DAY: 24,
+  LAST_WEEK: 7 * 24,
+  LAST_MONTH: 30 * 24,
+  LAST_QUARTER: 90 * 24,
+  LAST_SEMESTER: 180 * 24,
+  LAST_YEAR: 360 * 24,
+};
+
+/** ISO start instant of a dashboard time range, or null for ALL_TIME (no lower bound). */
+export const timeRangeStartDate = (timeRange: DefaultTimeRange): string | null => {
+  if (timeRange === 'ALL_TIME') {
+    return null;
+  }
+  return new Date(Date.now() - TIME_RANGE_HOURS[timeRange] * 3_600_000).toISOString();
+};
 
 /** Translator signature: widget titles are localized at build time (see buildDefaultHomeWidgets). */
 type Translate = (key: string) => string;
@@ -199,7 +229,7 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange, t: Translat
         filter('inject_expectation_status', ['FAILED']),
         filter('inject_expectation_type', ['DETECTION']),
       ])),
-    ], timeRange, 100),
+    ], timeRange, COVERAGE_BUCKET_CAP),
     layout(0, 14, 12, 10),
   ),
 
@@ -229,9 +259,9 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange, t: Translat
     layout(4, 26, 2, 2),
   ),
   widget(
-    'default-kpi-endpoints',
+    'default-kpi-assets',
     'number',
-    flat(t('Endpoints'), [series('Endpoint', filter('base_entity', ['endpoint']))], timeRange),
+    flat(t('Assets'), [series('Asset', filter('base_entity', ['asset']))], timeRange),
     layout(6, 26, 2, 2),
   ),
   widget(

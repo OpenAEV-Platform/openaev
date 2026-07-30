@@ -50,6 +50,7 @@ const ThreatArsenalScenarioCreationComponent = ({ isExclusionMode, selectedEleme
     scenario_category: 'attack-scenario',
     scenario_main_focus: 'incident-response',
     scenario_severity: 'high',
+    scenario_default_kill_chain: '',
     scenario_subtitle: '',
     scenario_description: '',
     scenario_external_reference: '',

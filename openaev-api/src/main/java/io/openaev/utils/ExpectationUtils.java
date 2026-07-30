@@ -3,7 +3,6 @@ package io.openaev.utils;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAgent;
 import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAsset;
-import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.expectation.ManualExpectation.manualExpectationForAgent;
 import static io.openaev.expectation.ManualExpectation.manualExpectationForAsset;
 import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAgent;
@@ -24,6 +23,7 @@ import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import org.hibernate.Hibernate;
 
 /**
  * Utility class for creating and managing inject expectations.
@@ -440,34 +440,6 @@ public class ExpectationUtils {
     return Collections.emptyList();
   }
 
-  /**
-   * Sets the result for vulnerability expectations based on the vulnerability assessment outcome.
-   *
-   * <p>Updates all provided expectations with the vulnerability result, setting the score to the
-   * expected score if the vulnerability was successfully exploited, or 0.0 otherwise.
-   *
-   * @param expectations the vulnerability expectations to update
-   * @param result the result object to populate with outcome details
-   * @param vulnerabilityResult the vulnerability assessment result string
-   */
-  public static void setResultExpectationVulnerable(
-      List<VulnerabilityInjectExpectation> expectations,
-      InjectExpectationResult result,
-      String vulnerabilityResult) {
-
-    for (BaseInjectExpectation expectation : expectations) {
-      double score =
-          VULNERABILITY.successLabel.equals(vulnerabilityResult)
-              ? expectation.getExpectedScore()
-              : 0.0;
-
-      result.setResult(vulnerabilityResult);
-      result.setScore(score);
-      expectation.setScore(score);
-      expectation.setResults(List.of(result));
-    }
-  }
-
   public static List<ExpectationSignature> computeSignatures(
       String prefixSignature,
       String injectId,
@@ -762,18 +734,23 @@ public class ExpectationUtils {
    * @return true when an asset-level (agentless) expectation must be created for this asset
    */
   public static boolean isAgentlessAssetExpectationNecessary(Asset asset, Inject inject) {
-    if (asset == null || inject == null || inject.getInjector() == null) {
+    if (asset == null || inject == null) {
       return false;
     }
-    if (asset instanceof Endpoint endpoint) {
+    if (Hibernate.unproxy(asset) instanceof Endpoint endpoint) {
       // On an endpoint a payload runs through an OAEV agent, so the expectation
       // is created at the agent level. An asset-level (agentless) expectation is
-      // therefore only needed for a non-payload injector targeting an endpoint
-      // that carries no agent.
-      if (inject.getInjector().isPayloads()) {
+      // therefore only needed for a non-executor injector (Nuclei, Nmap, HTTP...)
+      // targeting an endpoint whose agents produce no agent-level expectations.
+      if (injectRunsThroughAgents(inject)) {
         return false;
       }
-      return endpoint.getAgents().isEmpty();
+      // Judge on USABLE agents, not the mere presence of agent rows: a network
+      // scanner reaches the endpoint regardless of agent health, so an endpoint
+      // whose only agents are inactive (or invalid for this inject) must still
+      // get its asset-level expectation - otherwise it silently gets none at all
+      // (no active agent children, no agentless parent).
+      return AgentUtils.getActiveAgents(endpoint, inject).isEmpty();
     }
     // Non-endpoint assets (AI targets, ...) never run an agent: the asset itself
     // is the validation target, fulfilled by an external collector (e.g. the XTM
@@ -781,5 +758,25 @@ public class ExpectationUtils {
     // regardless of whether the injector uses payloads - an AI Red Team inject is
     // payload-based yet still targets an AI asset with no agent.
     return true;
+  }
+
+  /**
+   * Whether this inject executes through OAEV agents (payload contracts requiring an executor).
+   *
+   * <p>Resolved primarily from the injector contract's needs-executor flag because {@code
+   * inject.getInjector()} is NULL for injects created by the scenario importer (XTM Hub) and for
+   * legacy injects - relying on it silently disabled agentless asset-level expectations for those
+   * injects. Falls back to the injector's payloads flag when no contract is resolvable, and fails
+   * closed (agents-based, no agentless expectation) when neither a contract nor an injector can be
+   * resolved: downstream expectation building needs the contract to locate the targeted assets.
+   *
+   * @param inject the inject to test
+   * @return true when the inject runs through agents (expectations belong at the agent level)
+   */
+  private static boolean injectRunsThroughAgents(Inject inject) {
+    return inject
+        .getInjectorContract()
+        .map(InjectorContract::getNeedsExecutorEffective)
+        .orElseGet(() -> inject.getInjector() == null || inject.getInjector().isPayloads());
   }
 }

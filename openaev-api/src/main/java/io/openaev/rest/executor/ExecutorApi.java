@@ -11,6 +11,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.executors.ExecutorService;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.executor.form.ExecutorCreateInput;
 import io.openaev.rest.executor.form.ExecutorOutput;
@@ -19,6 +20,8 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.connectors.PlatformConnectors;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.AgentUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -97,14 +100,14 @@ public class ExecutorApi extends RestBehavior {
   }
 
   @GetMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#executorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
-  public Executor getExecutor(@PathVariable String executorId) {
+  public ExecutorOutput getExecutor(@PathVariable String executorId) {
     try {
-      return executorService.executor(executorId);
+      return executorService.executorOutput(executorId);
     } catch (ElementNotFoundException e) {
       log.warn(
           "Executor with id {} not found - This may be because the executor has never been started yet",
@@ -161,9 +164,18 @@ public class ExecutorApi extends RestBehavior {
       summary = "Delete an executor",
       description =
           "Removes a registered executor. Intended for stopped executors that no longer ping;"
-              + " an active executor re-registers on its next heartbeat.")
+              + " an active executor re-registers on its next heartbeat. The agent executor drives"
+              + " every agent and cannot be removed.")
   @Transactional(rollbackFor = Exception.class)
-  public void deleteExecutor(@PathVariable String executorId) {
+  public void deleteExecutor(@PathVariable String executorId) throws ConnectorStatusException {
+    Executor executor =
+        executorRepository
+            .findByIdAndTenantId(executorId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
+    if (PlatformConnectors.isPlatformExecutor(executor.getType())) {
+      throw new BadRequestException(
+          "The agent executor is required by the platform and cannot be deleted");
+    }
     executorService.remove(executorId);
   }
 

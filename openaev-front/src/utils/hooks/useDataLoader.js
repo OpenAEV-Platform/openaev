@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { DATA_DELETE_SUCCESS } from '../../constants/ActionTypes';
 import { store } from '../../store';
 import { buildUri } from '../Action';
+import { ingestBulkOperation } from '../bulkOperations';
 import { SseActionBatcher } from '../sse/SseActionBatcher';
 import { evaluateWatchdogTick } from '../sse/watchdogPolicy';
 
@@ -188,6 +189,16 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
       if (needsResync) return;
       const data = JSON.parse(event.data);
       if (data.listened) {
+        // A malformed event (missing schema/id - e.g. a backend entity whose @Id
+        // lives deeper in its class hierarchy than the event builder inspects)
+        // must never throw out of the SSE handler: it would flood the console
+        // with uncaught errors, one per mutation, while a running simulation
+        // streams. Skip it - the initial fetch and later reloads reconcile.
+        if (!data.attribute_schema || !data.attribute_id) {
+          // eslint-disable-next-line no-console
+          console.warn('[SSE] Skipping malformed stream event (missing schema or id attribute)', data);
+          return;
+        }
         const entityId = data.instance[data.attribute_id];
         if (data.event_type === DATA_DELETE_SUCCESS) {
           batcher.addDelete(data.attribute_schema, entityId);
@@ -213,6 +224,29 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
           return;
         }
         scheduleBatchedDispatch();
+      }
+    });
+    // Massive operations do not stream one event per mutated entity (which used to force a
+    // refresh per delete on every open screen): they emit aggregated progress snapshots instead.
+    // The header indicator renders them live, and the data of mounted screens is refreshed
+    // exactly once, when an operation reaches a terminal state.
+    sseClient.addEventListener('bulk-operation', (event) => {
+      // A malformed payload must never break the SSE processing of this tab: skip it, the
+      // periodic seed endpoint reconciles the indicator anyway.
+      let justFinished = false;
+      try {
+        justFinished = ingestBulkOperation(JSON.parse(event.data));
+      } catch {
+        return;
+      }
+      if (justFinished) {
+        if (isDocumentHidden()) {
+          // Hidden tab: defer the reload to the visibility transition, like the
+          // backlog-overflow resync, so background tabs never hammer the API.
+          needsResync = true;
+        } else {
+          resyncNow();
+        }
       }
     });
     sseClient.addEventListener('ping', () => {

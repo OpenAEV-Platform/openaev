@@ -47,7 +47,10 @@ const DocumentPopover = (props) => {
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
-  const { document, disabled, onRemoveDocument, attached, onToggleAttach, inline, onUpdate, onDelete } = props;
+  // managedMessage: when set, the document is system-owned (e.g. a report generation
+  // output managed by the Reporting module) and Update/Delete are disabled with this
+  // message as tooltip. The backend enforces the same read-only contract.
+  const { document, disabled, onRemoveDocument, attached, onToggleAttach, inline, onUpdate, onDelete, managedMessage } = props;
 
   // Fetching data
   const { tagsMap, exercisesMap, scenariosMap } = useHelper(helper => ({
@@ -66,6 +69,7 @@ const DocumentPopover = (props) => {
   const [relations, setRelations] = useState(null);
   const [loadingRelations, setLoadingRelations] = useState(false);
   const [isUsedInPayloads, setIsUsedInPayloads] = useState(false);
+  const [isUsedAsPlatformLogo, setIsUsedAsPlatformLogo] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openRemove, setOpenRemove] = useState(false);
 
@@ -121,6 +125,9 @@ const DocumentPopover = (props) => {
   useEffect(() => {
     if (relations) {
       setIsUsedInPayloads(!!relations.payloads?.length);
+      // Security platform logos are uploaded by collectors and referenced by the
+      // platform: deleting them would break the platform icon everywhere.
+      setIsUsedAsPlatformLogo(!!relations.securityPlatforms?.length);
     }
   }, [relations]);
 
@@ -183,7 +190,15 @@ const DocumentPopover = (props) => {
         )}
 
         <Typography sx={{ paddingTop: theme.spacing(2) }}>
-          {isUsedInPayloads ? t('A document used in a payload can\'t be deleted.') : t('Do you want to delete this document?')}
+          {(() => {
+            if (isUsedInPayloads) {
+              return t('A document used in a payload can\'t be deleted.');
+            }
+            if (isUsedAsPlatformLogo) {
+              return t('A document used as a security platform logo can\'t be deleted.');
+            }
+            return t('Do you want to delete this document?');
+          })()}
         </Typography>
       </>
     );
@@ -216,6 +231,8 @@ const DocumentPopover = (props) => {
     label: t('Update'),
     action: () => handleOpenEdit(),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.DOCUMENTS),
+    disabled: !!managedMessage,
+    disabledMessage: managedMessage,
   });
   if (onToggleAttach) entries.push({
     label: attached ? t('Disable attachment') : t('Enable attachment'),
@@ -231,6 +248,8 @@ const DocumentPopover = (props) => {
     label: t('Delete'),
     action: () => handleOpenDelete(),
     userRight: ability.can(ACTIONS.DELETE, SUBJECTS.DOCUMENTS),
+    disabled: !!managedMessage,
+    disabledMessage: managedMessage,
   });
 
   return (
@@ -240,7 +259,7 @@ const DocumentPopover = (props) => {
       <DialogDelete
         open={openDelete}
         handleClose={handleCloseDelete}
-        handleSubmit={!isUsedInPayloads ? submitDelete : null}
+        handleSubmit={!isUsedInPayloads && !isUsedAsPlatformLogo ? submitDelete : null}
         richContent={renderDialogText()}
       />
 

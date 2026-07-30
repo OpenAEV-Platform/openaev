@@ -1,4 +1,3 @@
-import { DnsOutlined } from '@mui/icons-material';
 import { ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -7,6 +6,7 @@ import { type EndpointHelper } from '../../../../../../actions/assets/asset-help
 import { type Contract } from '../../../../../../actions/contract/contract';
 import { useHelper } from '../../../../../../store';
 import { type AssetGroup, type Endpoint, type Team } from '../../../../../../utils/api-types';
+import AssetCategoryIcon from '../../../../assets/AssetCategoryIcon';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 import { groupedByAsset, typeIcon } from '../../../../common/injects/expectations/ExpectationUtils';
 import ExpectationLine from './ExpectationLine';
@@ -62,7 +62,9 @@ const TechnicalExpectationAssetGroup: FunctionComponent<Props> = ({
               classes={{ root: classes.item }}
             >
               <ListItemIcon>
-                {!!relatedAsset && <DnsOutlined fontSize="small" />}
+                {/* Category-aware glyph: hosts keep the server icon (HOST maps to it),
+                    web apps / cloud / AI targets get their taxonomy icon. */}
+                {!!relatedAsset && <AssetCategoryIcon category={relatedAsset.asset_category} fontSize="small" />}
               </ListItemIcon>
               <ListItemText
                 primary={(

@@ -47,7 +47,7 @@ const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate }) => {
         .map(([key, value]) => {
           const remediation = value as unknown as DetectionRemediationForm;
           return {
-            detection_remediation_collector: key,
+            detection_remediation_security_platform: key,
             detection_remediation_values: remediation.content,
             detection_remediation_id: remediation.remediationId,
             author_rule: remediation.author_rule,

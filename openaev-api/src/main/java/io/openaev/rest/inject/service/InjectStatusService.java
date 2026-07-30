@@ -3,9 +3,12 @@ package io.openaev.rest.inject.service;
 import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
 import static org.springframework.util.StringUtils.hasText;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
+import io.openaev.database.audit.BaseEvent;
+import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.helper.ExecutionTraceRepositoryHelper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
@@ -25,6 +28,7 @@ import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,8 +43,27 @@ public class InjectStatusService {
   private final InjectUtils injectUtils;
   private final InjectStatusRepository injectStatusRepository;
   private final ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
+  private final ApplicationEventPublisher eventPublisher;
+  private final ObjectMapper mapper;
 
   private final EntityManager entityManager;
+
+  /**
+   * Streams the parent inject (with its embedded status) to the SSE consumers.
+   *
+   * <p>Inject status transitions persist only the {@link InjectStatus} entity, which carries no
+   * entity listener and no id the frontend can map back to an inject ({@code inject} is
+   * {@code @JsonIgnore}d): without this explicit event, the execution screens never see the
+   * QUEUING/EXECUTING/PENDING/terminal transitions in real time and the live board only moves on a
+   * full page reload. Must be called within an active transaction: {@link
+   * io.openaev.rest.stream.StreamApi} listens with {@code @TransactionalEventListener} and delivers
+   * after commit.
+   *
+   * @param inject the inject whose status just changed, with the fresh status attached
+   */
+  private void publishInjectStatusUpdate(Inject inject) {
+    eventPublisher.publishEvent(new BaseEvent(ModelBaseListener.DATA_UPDATE, inject, mapper));
+  }
 
   public InjectStatus findInjectStatusByInjectId(final String injectId) {
     if (!hasText(injectId)) {
@@ -142,6 +165,8 @@ public class InjectStatusService {
         .filter(
             trace ->
                 trace.getAction() == ExecutionTraceAction.START
+                    // Agent-less START traces exist (global distribution trace): skip them
+                    && trace.getAgent() != null
                     && agentId.equals(trace.getAgent().getId()))
         .findFirst()
         .map(startTrace -> startTrace.getTime().plusMillis(durationInMilis))
@@ -173,11 +198,17 @@ public class InjectStatusService {
     ExecutionTraceAction executionAction = convertExecutionAction(input.getAction());
     ExecutionTraceStatus traceStatus = ExecutionTraceStatus.fromName(input.getStatus());
 
+    // Injector callbacks (no agent) may scope a trace to one or more targets (assets / AI targets)
+    // via execution_context_identifiers. When present the trace becomes target-scoped and surfaces
+    // in the per-target execution view; when absent it stays global (agent-less, no identifiers).
+    // Agent callbacks are already scoped by their agent: identifiers are ignored for them.
+    List<String> contextIdentifiers = agent == null ? input.getContextIdentifiers() : null;
+
     ExecutionTrace base =
         new ExecutionTrace(
             injectStatus,
             traceStatus,
-            null,
+            contextIdentifiers,
             input.getMessage(),
             executionAction,
             agent,
@@ -209,6 +240,10 @@ public class InjectStatusService {
           injectStatus.getInject().getId(), injectStatus.getInject().getUpdatedAt());
       executionTraceRepositoryHelper.updateInjectStatus(
           injectStatus.getId(), injectStatus.getName().name(), injectStatus.getTrackingEndDate());
+      // updateUpdatedAt is a bulk JPQL update: it bypasses the entity listeners, so no SSE event
+      // is emitted. Stream the terminal transition explicitly so the execution board moves the
+      // inject from "in flight" to "completed" without a page reload.
+      publishInjectStatusUpdate(inject);
       log.debug("Successfully updated inject final status: {}", inject.getId());
     }
 
@@ -271,6 +306,7 @@ public class InjectStatusService {
     return injectUtils.getStatusPayloadFromInject(inject);
   }
 
+  @Transactional
   public InjectStatus failInjectStatus(@NotNull String injectId, @Nullable String message) {
     Inject inject = this.injectRepository.findById(injectId).orElseThrow();
     InjectStatus injectStatus = getOrInitializeInjectStatus(inject);
@@ -280,7 +316,11 @@ public class InjectStatusService {
     injectStatus.setName(ExecutionStatus.ERROR);
     injectStatus.setTrackingEndDate(Instant.now());
     injectStatus.setPayloadOutput(getPayloadOutput(inject));
-    return injectStatusRepository.save(injectStatus);
+    InjectStatus saved = injectStatusRepository.save(injectStatus);
+    // Stream the ERROR transition so the execution board moves the inject to "completed" live.
+    inject.setStatus(saved);
+    publishInjectStatusUpdate(inject);
+    return saved;
   }
 
   @Transactional
@@ -291,11 +331,36 @@ public class InjectStatusService {
     injectStatus.setName(status);
     injectStatus.setTrackingSentDate(Instant.now());
     injectStatus.setPayloadOutput(getPayloadOutput(inject));
-    return injectStatusRepository.save(injectStatus);
+    InjectStatus saved = injectStatusRepository.save(injectStatus);
+    // Stream the transition (typically -> EXECUTING) so the execution board moves the inject
+    // from "up next" to "in flight" without a page reload.
+    inject.setStatus(saved);
+    publishInjectStatusUpdate(inject);
+    return saved;
   }
 
   public Iterable<InjectStatus> saveAll(@NotNull List<InjectStatus> injectStatuses) {
     return this.injectStatusRepository.saveAll(injectStatuses);
+  }
+
+  /**
+   * Persists a status transition and streams the parent inject to the SSE consumers, so the
+   * execution screens reflect the transition in real time. Used by execution paths that save the
+   * status without any listened entity update (internal injector completion, pending-inject timeout
+   * finalization).
+   *
+   * @param injectStatus the inject status to persist
+   * @return the persisted status
+   */
+  @Transactional
+  public InjectStatus saveAndStreamInject(@NotNull InjectStatus injectStatus) {
+    InjectStatus saved = this.injectStatusRepository.save(injectStatus);
+    // Reload the inject inside this transaction: callers typically hold a detached inject (Quartz
+    // job threads) whose lazy relations cannot be serialized into the stream event payload.
+    Inject inject = this.injectRepository.findById(saved.getInject().getId()).orElseThrow();
+    inject.setStatus(saved);
+    publishInjectStatusUpdate(inject);
+    return saved;
   }
 
   public InjectStatus save(@NotNull InjectStatus injectStatus) {

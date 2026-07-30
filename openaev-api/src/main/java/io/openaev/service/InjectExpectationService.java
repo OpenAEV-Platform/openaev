@@ -1,5 +1,7 @@
 package io.openaev.service;
 
+import static io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService.EXPIRED;
+import static io.openaev.collectors.expectations_vulnerability_manager.ExpectationsVulnerabilityManagerCollector.EXPECTATIONS_VULNERABILITY_COLLECTOR_ID;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAssetGroup;
 import static io.openaev.expectation.ExpectationType.VULNERABILITY;
@@ -23,9 +25,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.WorkflowUpdateEvent;
+import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.database.specification.InjectExpectationSpecification;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.DetectionExpectation;
@@ -37,6 +41,7 @@ import io.openaev.expectation.ManualExpectation;
 import io.openaev.expectation.PreventionExpectation;
 import io.openaev.expectation.VulnerabilityExpectation;
 import io.openaev.injectors.common.model.BaseInjectContent;
+import io.openaev.output_processor.CVEOutputProcessor;
 import io.openaev.rest.atomic_testing.form.InjectExpectationAgentOutput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -47,6 +52,7 @@ import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.expectation.ExpectationBehavior;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -56,6 +62,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -83,11 +90,13 @@ public class InjectExpectationService {
 
   private final InjectExpectationRepository injectExpectationRepository;
   private final CollectorService collectorService;
+  private final SecurityPlatformRepository securityPlatformRepository;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
   private final InjectExpectationLockService injectExpectationLockService;
   private final AssetGroupService assetGroupService;
   private final InjectService injectService;
+  private final InjectorContractContentUtils injectorContractContentUtils;
 
   @Resource protected ObjectMapper mapper;
 
@@ -232,7 +241,13 @@ public class InjectExpectationService {
       return updated;
 
     } else if (baseInjectExpectation instanceof TechnicalInjectExpectation technicalExpectation
-        && List.of(DETECTION, PREVENTION).contains(baseInjectExpectation.getType())) {
+        && List.of(
+                DETECTION,
+                PREVENTION,
+                // NB: the explicit ExpectationType.VULNERABILITY static import shadows the
+                // EXPECTATION_TYPE.* wildcard one, hence the qualified reference.
+                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY)
+            .contains(baseInjectExpectation.getType())) {
       // Block down computation on asset group
       if (isAssetGroupExpectation(technicalExpectation)) {
         throw new IllegalArgumentException("Not possible to update Asset Group directly");
@@ -268,25 +283,30 @@ public class InjectExpectationService {
   /**
    * Deletes a specific result from an inject expectation.
    *
+   * <p>For a detection/prevention expectation at asset level whose asset has agents, the rows
+   * displayed in the UI are the aggregation of the agents' security platform results: the deletion
+   * cascades to every agent expectation of the asset (removing that source's result on each), then
+   * the asset and asset group scores are recomputed from the remaining agent results.
+   *
    * @param expectationId the ID of the expectation
    * @param sourceId the ID of the source result to delete
    * @return the updated inject expectation
-   * @throws IllegalArgumentException if trying to delete from an Asset Group or Asset with Agent
+   * @throws IllegalArgumentException if trying to delete from an Asset Group
    */
   public BaseInjectExpectation deleteInjectExpectationResult(
       @NotBlank final String expectationId, @NotBlank final String sourceId) {
     BaseInjectExpectation baseInjectExpectation =
         this.injectExpectationRepository.findById(expectationId).orElseThrow();
-    deleteResult(baseInjectExpectation, sourceId);
-    BaseInjectExpectation updated = this.injectExpectationRepository.save(baseInjectExpectation);
 
-    if (updated instanceof TableTopInjectExpectation tableTopInjectExpectation) {
-      propagateHumanResponseExpectation(tableTopInjectExpectation, null);
-
-    } else if (updated instanceof TechnicalInjectExpectation technicalInjectExpectation
-        && List.of(DETECTION, PREVENTION).contains(baseInjectExpectation.getType())) {
-      // Block down computation
-      // Not asset group
+    if (baseInjectExpectation instanceof TechnicalInjectExpectation technicalInjectExpectation
+        && List.of(
+                DETECTION,
+                PREVENTION,
+                // NB: the explicit ExpectationType.VULNERABILITY static import shadows the
+                // EXPECTATION_TYPE.* wildcard one, hence the qualified reference.
+                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY)
+            .contains(baseInjectExpectation.getType())) {
+      // Block down computation on asset group
       if (isAssetGroupExpectation(technicalInjectExpectation)) {
         throw new IllegalArgumentException("Not possible to update Asset Group directly");
       }
@@ -295,13 +315,29 @@ public class InjectExpectationService {
       List<Agent> agents =
           (unproxied instanceof Endpoint endpoint) ? getPrimaryAgents(endpoint) : List.of();
       boolean isAgentless = agents.isEmpty();
+
+      deleteResult(technicalInjectExpectation, sourceId);
+      BaseInjectExpectation updated =
+          this.injectExpectationRepository.save(technicalInjectExpectation);
+
       if (isAssetExpectation(technicalInjectExpectation) && !isAgentless) {
-        throw new IllegalArgumentException(
-            "Not possible to update Asset directly on Asset with Agent");
+        // Asset-level delete on an asset with agents: remove the source's result from every
+        // agent expectation of the asset (same down computation as updateInjectExpectation),
+        // the propagation below then recomputes the asset score from its agents.
+        List<TechnicalInjectExpectation> expectationsForAgents =
+            getAgentsExpectationsForAsset(technicalInjectExpectation);
+        expectationsForAgents.forEach(e -> deleteResult(e, sourceId));
+        this.injectExpectationRepository.saveAll(expectationsForAgents);
       }
       propagateTechnicalExpectation(technicalInjectExpectation, isAgentless, null);
+      return updated;
     }
 
+    deleteResult(baseInjectExpectation, sourceId);
+    BaseInjectExpectation updated = this.injectExpectationRepository.save(baseInjectExpectation);
+    if (updated instanceof TableTopInjectExpectation tableTopInjectExpectation) {
+      propagateHumanResponseExpectation(tableTopInjectExpectation, null);
+    }
     return updated;
   }
 
@@ -511,6 +547,60 @@ public class InjectExpectationService {
     return new ArrayList<>();
   }
 
+  // -- PARENT EXPECTATIONS (SCORE DERIVED FROM CHILDREN) --
+
+  /**
+   * Whether the expectation is a PARENT whose score is derived from its children (an asset-level
+   * expectation whose asset has agent expectations, or an asset-group-level expectation) rather
+   * than answered directly by a collector or a user.
+   *
+   * @param expectation the technical expectation to check
+   * @return {@code true} if the expectation score must be rolled up from children
+   */
+  public boolean isParentTechnicalExpectation(
+      @NotNull final TechnicalInjectExpectation expectation) {
+    return isAssetGroupExpectation(expectation)
+        || (isAssetExpectation(expectation)
+            && !getAgentsExpectationsForAsset(expectation).isEmpty());
+  }
+
+  /**
+   * Recomputes the score of a PARENT technical expectation (asset level with agent children, or
+   * asset group level) from its current children, without writing any direct result on it.
+   *
+   * <p>Used by the expectations expiration manager: a parent expectation must ALWAYS reflect its
+   * children. When the parent score is still null at expiration time but its agents were already
+   * answered by a security platform (e.g. Microsoft Defender answered PREVENTED/DETECTED), the
+   * parent must roll up to that green verdict instead of being independently forced to a failed
+   * score - otherwise the asset shows "Not prevented" while its only agent shows "Prevented",
+   * corrupting the asset/asset-group verdicts and every statistic built on them.
+   *
+   * <p>If the children are still unanswered, the parent score stays null (pending): it will be
+   * resolved by a later propagation or a later expiration run, never wrongly failed.
+   *
+   * @param parent the parent expectation to recompute
+   * @return the recomputed parent expectations (already saved), empty when the expectation is not a
+   *     recomputable parent
+   */
+  public List<BaseInjectExpectation> recomputeParentTechnicalExpectation(
+      @NotNull final TechnicalInjectExpectation parent) {
+    List<BaseInjectExpectation> recomputed = new ArrayList<>();
+    if (isAssetGroupExpectation(parent)) {
+      recomputed.addAll(propagateToAssetGroup(parent, null));
+    } else if (isAssetExpectation(parent) && !getAgentsExpectationsForAsset(parent).isEmpty()) {
+      recomputed.addAll(propagateToAsset(parent, null));
+    }
+    if (!recomputed.isEmpty()) {
+      this.injectExpectationRepository.saveAll(recomputed);
+      Exercise exercise = parent.getInject().getExercise();
+      if (exercise != null) {
+        securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
+            List.of(exercise));
+      }
+    }
+    return recomputed;
+  }
+
   // -- UPDATE FROM EXTERNAL SOURCE : COLLECTORS --
 
   /**
@@ -529,6 +619,42 @@ public class InjectExpectationService {
     }
     Collector collector = this.collectorService.collector(input.getCollectorId());
     computeTechnicalExpectation(technicalExpectation, collector, input, false);
+    return technicalExpectation;
+  }
+
+  /**
+   * Variant of {@link #updateInjectExpectation} for verdicts attributed to a security platform
+   * entry instead of a collector (e.g. assessment injectors like Nuclei fulfilling VULNERABILITY
+   * expectations themselves). Mirrors the collector path: write the source result, recompute the
+   * score, then propagate up the asset / asset group chain.
+   *
+   * @param expectationId the ID of the expectation to update
+   * @param input the update input (result and success flag)
+   * @param securityPlatform the platform the verdict is attributed to
+   * @return the updated inject expectation
+   */
+  @WorkflowUpdateEvent(expectationIds = "#expectationId")
+  public BaseInjectExpectation updateInjectExpectationFromSecurityPlatform(
+      @NotBlank String expectationId,
+      @Valid @NotNull InjectExpectationUpdateInput input,
+      @NotNull SecurityPlatform securityPlatform) {
+    BaseInjectExpectation baseInjectExpectation = this.findInjectExpectation(expectationId);
+    if (!(baseInjectExpectation instanceof TechnicalInjectExpectation technicalExpectation)) {
+      throw new IllegalArgumentException("Updates are only supported for technical expectations");
+    }
+    addResult(technicalExpectation, input, securityPlatform);
+    // Same combination contract as the collector path (computeInjectExpectationForAgentOrAsset
+    // Agentless): a direct write on a parent row must not clobber - nor be clobbered by - the
+    // children-derived verdict.
+    technicalExpectation.setScore(
+        combineWithChildrenVerdict(
+            technicalExpectation,
+            computeScore(technicalExpectation.getResults(), technicalExpectation)));
+    TechnicalInjectExpectation updated =
+        this.injectExpectationRepository.save(technicalExpectation);
+    // Same propagation contract as computeTechnicalExpectation: agentless expectations only
+    // propagate asset -> group, agent expectations roll up the full chain.
+    propagateTechnicalExpectation(updated, updated.getAgent() == null, null);
     return technicalExpectation;
   }
 
@@ -712,8 +838,84 @@ public class InjectExpectationService {
     addResult(technicalInjectExpectation, input, collector);
     final Double score =
         computeScore(technicalInjectExpectation.getResults(), technicalInjectExpectation);
-    technicalInjectExpectation.setScore(score);
+    technicalInjectExpectation.setScore(
+        combineWithChildrenVerdict(technicalInjectExpectation, score));
     return technicalInjectExpectation;
+  }
+
+  /**
+   * Guards a direct (collector-written) score against clobbering a PARENT expectation's
+   * children-derived verdict. An asset-level expectation whose asset has agent children carries a
+   * score rolled up from those agents (e.g. Microsoft Defender answered the agents green); a
+   * collector answering the parent row directly (e.g. an LLM firewall expiring its own pending
+   * check with "Not Detected") must never overwrite that rollup with a score computed from the
+   * parent's own results only.
+   *
+   * <p>For DETECTION / PREVENTION a direct SUCCESS wins (any security platform proving
+   * prevention/detection counts) and anything else defers to the children - including staying
+   * pending (null) while the agents are unanswered, so a direct absence-of-signal answer never
+   * cements a wrong verdict early.
+   *
+   * <p>VULNERABILITY is decided on its own row instead, in BOTH directions, because the verdict
+   * comes from scanning the asset itself: "Not vulnerable" is a real answer there, not the absence
+   * of one. Deferring it to the children would hang the row until expiry, since an agentless
+   * injector never fills the agent expectations - those exist only because the endpoint happens to
+   * run an agent. A proven VULNERABLE result still wins over a "Not vulnerable" one from another
+   * source (worst case wins, hence {@code reconcileWithDirectVulnerableVerdict} rather than the
+   * max-based own score), and a child that reports a finding later still overrides the row through
+   * the rollup path, which only pins direct VULNERABLE verdicts.
+   *
+   * @param expectation the expectation whose score was just computed from its own results
+   * @param ownScore the score computed from the expectation's own results
+   * @return the score to persist
+   */
+  private Double combineWithChildrenVerdict(
+      @NotNull final TechnicalInjectExpectation expectation, @Nullable final Double ownScore) {
+    if (expectation.getAgent() != null) {
+      return ownScore; // agent leaf: no children rollup to protect
+    }
+    if (expectation.getAsset() == null) {
+      // Asset-group level: no children rollup to protect here (propagation recomputes it from
+      // the asset children), but a direct VULNERABLE verdict written on the group row itself
+      // (e.g. by Nuclei) must survive the own-results max: the results list may also carry
+      // success-polarity rows ("Expired" placeholders, legacy expiration-manager stamps) that
+      // would otherwise win the max and flip the group to "Not vulnerable".
+      if (BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.equals(expectation.getType())) {
+        Double directVulnerable =
+            InjectExpectationUtils.reconcileWithDirectVulnerableVerdict(expectation, null);
+        if (directVulnerable != null) {
+          return directVulnerable;
+        }
+      }
+      return ownScore;
+    }
+    List<TechnicalInjectExpectation> agentChildren = getAgentsExpectationsForAsset(expectation);
+    if (agentChildren.isEmpty()) {
+      return ownScore; // true agentless leaf (AI target, agentless endpoint)
+    }
+    Double expectedScore = expectation.getExpectedScore();
+    if (expectedScore == null) {
+      return ownScore;
+    }
+    if (BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.equals(expectation.getType())) {
+      Double directVulnerable =
+          InjectExpectationUtils.reconcileWithDirectVulnerableVerdict(expectation, null);
+      if (directVulnerable != null) {
+        return directVulnerable;
+      }
+      // No finding: conclude only once every expected source has answered - ownScore is null while
+      // one is still missing, which is exactly the pending state to keep.
+      if (ownScore != null) {
+        return ownScore;
+      }
+      return InjectExpectationUtils.computeChildrenScore(
+          expectation.isExpectationGroup(), expectedScore, agentChildren);
+    }
+    if (ownScore != null && ownScore >= expectedScore) {
+      return ownScore;
+    }
+    return InjectExpectationUtils.computeChildrenScore(
+        expectation.isExpectationGroup(), expectedScore, agentChildren);
   }
 
   // -- FINAL UPDATE --
@@ -733,11 +935,12 @@ public class InjectExpectationService {
    * Retrieves unfilled inject expectations (no score and either no results or bound to an agent)
    * and expired Returns a bounded batch for incremental processing.
    *
+   * @param tenantId the tenant to scope the query to
    * @param limit maximum number of expectations to return
    * @return a list of unfilled inject expectations ordered by creation date (oldest first)
    */
-  public List<BaseInjectExpectation> expectationsNotFillAndExpired(int limit) {
-    return this.injectExpectationRepository.findExpectationsNotFilledAndExpired(limit);
+  public List<BaseInjectExpectation> expectationsNotFillAndExpired(String tenantId, int limit) {
+    return this.injectExpectationRepository.findExpectationsNotFilledAndExpired(tenantId, limit);
   }
 
   // -- EXPECTATIONS BY TYPE --
@@ -1126,14 +1329,51 @@ public class InjectExpectationService {
               }
               BaseInjectExpectation clone = expectation.clone();
               Map<String, InjectExpectationResult> bySource = new LinkedHashMap<>();
-              platformResults.forEach(
-                  r ->
-                      bySource.merge(
-                          r.getSourceId() == null ? r.getSourceName() : r.getSourceId(),
-                          r,
-                          (existing, candidate) ->
-                              // Prefer an answered result over a pending one for the same source.
-                              existing.getResult() != null ? existing : candidate));
+              // Agents' results first, then the asset expectation's OWN direct results (e.g. a
+              // security platform that answered the asset level directly): a result persisted on
+              // the row must stay visible, silently dropping it would hide what drove the score.
+              Stream.concat(
+                      platformResults.stream(),
+                      expectation.getResults().stream()
+                          .filter(
+                              r ->
+                                  COLLECTOR.equals(r.getSourceType())
+                                      || SECURITY_PLATFORM.equals(r.getSourceType())))
+                  .forEach(
+                      r ->
+                          bySource.merge(
+                              r.getSourceId() == null ? r.getSourceName() : r.getSourceId(),
+                              r,
+                              (existing, candidate) ->
+                                  // Prefer an answered result over a pending one for the same
+                                  // source.
+                                  existing.getResult() != null ? existing : candidate));
+              // A VULNERABILITY row a genuine platform already answered needs no expiration entry
+              // in the merged display either: the union pulls the agents' expiration rows (the
+              // vulnerability default "Not vulnerable") onto the asset view, where they render as
+              // redundant - or contradictory - entries next to the real scan verdict. Same rule as
+              // the write path (InjectExpectationUtils.computeScores): the expiration default is
+              // the absence-of-signal fallback, a real answer supersedes it.
+              if (BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.equals(
+                  expectation.getType())) {
+                boolean hasGenuineAnswer =
+                    bySource.values().stream()
+                        .anyMatch(
+                            r ->
+                                !ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(
+                                        r.getSourceId())
+                                    && r.getResult() != null
+                                    && !r.getResult().isBlank()
+                                    && !EXPIRED.equals(r.getResult()));
+                if (hasGenuineAnswer) {
+                  bySource
+                      .values()
+                      .removeIf(
+                          r ->
+                              ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(
+                                  r.getSourceId()));
+                }
+              }
               clone.setResults(new ArrayList<>(bySource.values()));
               return clone;
             })
@@ -1165,6 +1405,7 @@ public class InjectExpectationService {
                     .agentId(ie.getAgent().getId())
                     .agentName(ie.getAgent().getExecutedByUser())
                     .assetId(assetId)
+                    .injectId(ie.getInject().getId())
                     .build())
         .collect(Collectors.toList());
   }
@@ -1683,11 +1924,21 @@ public class InjectExpectationService {
    * Function used to check if the output contains vulnerabilities and update the related inject
    * expectations with the result.
    *
+   * <p>For implant executions (agent != null), the fetched expectations are all scoped to the
+   * executing agent — a single asset — so the global "any CVE found" verdict is that asset's
+   * verdict.
+   *
+   * <p>For injector executions (agent == null, e.g. Nuclei scanning several assets at once), the
+   * structured output covers ALL scanned assets: a CVE found on one asset must NOT mark the sibling
+   * assets vulnerable. Each asset-level expectation gets its own verdict from the CVE items
+   * attributed to it (via {@code asset_id}, falling back to {@code host} matching), and asset-group
+   * expectations roll up from those per-asset verdicts.
+   *
    * @param ctx the execution processing context containing the inject and agent information
    * @param jsonNode the JSON node containing the output to check for vulnerabilities
    */
   public void matchesVulnerabilityExpectations(ExecutionProcessingContext ctx, JsonNode jsonNode) {
-    boolean vulnerable =
+    boolean anyVulnerable =
         jsonNode != null
             && !jsonNode.isMissingNode()
             && jsonNode.isContainerNode()
@@ -1703,14 +1954,205 @@ public class InjectExpectationService {
       return;
     }
 
-    InjectExpectationResult result = buildForVulnerabilityManagerInFailed();
+    // Assessment injectors (e.g. Nuclei) run the vulnerability assessment themselves and declare
+    // a security platform entry: attribute the verdict to that platform so it renders as a real
+    // per-platform row, like detection/prevention. Injectors without a platform keep the legacy
+    // attribution to the generic Expectations Vulnerability Manager.
+    Optional<SecurityPlatform> securityPlatform = resolveInjectorSecurityPlatform(inject);
 
-    String label = vulnerable ? VULNERABILITY.failureLabel : VULNERABILITY.successLabel;
+    if (agent != null) {
+      // Implant execution: every fetched expectation is bound to this agent, hence to a single
+      // asset — the global verdict IS this asset's verdict.
+      expectations.forEach(
+          expectation -> applyVulnerabilityVerdict(expectation, anyVulnerable, securityPlatform));
+      return;
+    }
 
-    setResultExpectationVulnerable(expectations, result, label);
+    VulnerableAssetResolution resolution = resolveVulnerableAssetIds(jsonNode, inject);
+    Set<String> vulnerableAssetIds = resolution.assetIds();
+    // Injector outputs may carry findings without any per-asset attribution (legacy formats, or a
+    // CVE item whose host matches no targeted asset): fall back to the legacy blanket verdict for
+    // those, even when sibling items are attributed, since a false positive on a sibling asset
+    // beats silently losing the finding.
+    boolean blanketVulnerable =
+        anyVulnerable && (vulnerableAssetIds.isEmpty() || resolution.hasUnattributedFinding());
 
-    validateResultForAsset(expectations, result);
-    injectExpectationRepository.saveAll(expectations);
+    List<VulnerabilityInjectExpectation> assetExpectations =
+        expectations.stream().filter(expectation -> expectation.getAsset() != null).toList();
+    List<VulnerabilityInjectExpectation> assetGroupExpectations =
+        expectations.stream()
+            .filter(
+                expectation ->
+                    expectation.getAsset() == null && expectation.getAssetGroup() != null)
+            .toList();
+
+    // The verdict of an asset-level expectation is a pure function of its asset: vulnerable when
+    // at least one CVE item is attributed to it.
+    Predicate<VulnerabilityInjectExpectation> isAssetVulnerable =
+        expectation ->
+            blanketVulnerable || vulnerableAssetIds.contains(expectation.getAsset().getId());
+
+    for (VulnerabilityInjectExpectation expectation : assetExpectations) {
+      applyVulnerabilityVerdict(expectation, isAssetVulnerable.test(expectation), securityPlatform);
+    }
+
+    // Group verdict rolls up from the children verdicts (same rule as score propagation in
+    // computeScores) and is written with the same source attribution, so the group row
+    // immediately shows WHO assessed it instead of staying an unattributed "Vulnerable".
+    for (VulnerabilityInjectExpectation groupExpectation : assetGroupExpectations) {
+      List<Boolean> childVerdicts =
+          assetExpectations.stream()
+              .filter(
+                  expectation ->
+                      expectation.getAssetGroup() != null
+                          && expectation
+                              .getAssetGroup()
+                              .getId()
+                              .equals(groupExpectation.getAssetGroup().getId()))
+              .map(isAssetVulnerable::test)
+              .toList();
+      boolean groupVulnerable;
+      if (childVerdicts.isEmpty()) {
+        groupVulnerable = anyVulnerable;
+      } else if (groupExpectation.isExpectationGroup()) {
+        // "At least one asset must succeed": the group stays clean unless ALL assets are
+        // vulnerable.
+        groupVulnerable = childVerdicts.stream().allMatch(Boolean::booleanValue);
+      } else {
+        // Default "all assets must succeed": one vulnerable asset makes the group vulnerable.
+        groupVulnerable = childVerdicts.stream().anyMatch(Boolean::booleanValue);
+      }
+      applyVulnerabilityVerdict(groupExpectation, groupVulnerable, securityPlatform);
+    }
+  }
+
+  /**
+   * Writes a vulnerability verdict on a single expectation, attributed either to the injector's
+   * security platform (assessment injectors such as Nuclei) or to the generic Expectations
+   * Vulnerability Manager collector, then lets the standard update path recompute the score and
+   * propagate up the asset / asset group chain.
+   *
+   * @param expectation the vulnerability expectation to conclude
+   * @param vulnerable whether the target of this expectation was found vulnerable
+   * @param securityPlatform the injector's security platform, when one is declared
+   */
+  private void applyVulnerabilityVerdict(
+      VulnerabilityInjectExpectation expectation,
+      boolean vulnerable,
+      Optional<SecurityPlatform> securityPlatform) {
+    InjectExpectationUpdateInput.InjectExpectationUpdateInputBuilder input =
+        InjectExpectationUpdateInput.builder()
+            .result(vulnerable ? VULNERABILITY.failureLabel : VULNERABILITY.successLabel)
+            .isSuccess(!vulnerable);
+    if (securityPlatform.isPresent()) {
+      updateInjectExpectationFromSecurityPlatform(
+          expectation.getId(), input.build(), securityPlatform.get());
+    } else {
+      updateInjectExpectation(
+          expectation.getId(), input.collectorId(EXPECTATIONS_VULNERABILITY_COLLECTOR_ID).build());
+    }
+  }
+
+  /**
+   * Resolves which targeted assets the CVE items of the structured output are attributed to.
+   *
+   * <p>Attribution mirrors finding attribution ({@link
+   * io.openaev.output_processor.CVEOutputProcessor}): the {@code asset_id} field is authoritative;
+   * when absent, the {@code host} values are matched against the inject's targeted assets (the host
+   * string containing a targeted hostname/IP counts as a match, like {@code
+   * FindingService#resolveAssetFromStructuredOutput}).
+   *
+   * @param cveNode the structured output node (array of CVE items)
+   * @param inject the inject being processed
+   * @return the ids of the assets found vulnerable, and whether any CVE item could not be
+   *     attributed to any targeted asset at all
+   */
+  private VulnerableAssetResolution resolveVulnerableAssetIds(
+      @Nullable JsonNode cveNode, Inject inject) {
+    if (cveNode == null || !cveNode.isArray()) {
+      return new VulnerableAssetResolution(Set.of(), false);
+    }
+    Set<String> vulnerableAssetIds = new HashSet<>();
+    boolean hasUnattributedFinding = false;
+    Map<String, Endpoint> valueTargetedAssetsMap = null;
+    for (JsonNode cveItem : cveNode) {
+      boolean attributed =
+          collectTextValues(cveItem.get(CVEOutputProcessor.ASSET_ID), vulnerableAssetIds);
+      if (attributed) {
+        continue;
+      }
+      Set<String> hosts = new HashSet<>();
+      collectTextValues(cveItem.get(CVEOutputProcessor.HOST), hosts);
+      if (hosts.isEmpty()) {
+        hasUnattributedFinding = true;
+        continue;
+      }
+      if (valueTargetedAssetsMap == null) {
+        valueTargetedAssetsMap = injectService.getValueTargetedAssetMap(inject);
+      }
+      boolean hostMatched = false;
+      for (Map.Entry<String, Endpoint> entry : valueTargetedAssetsMap.entrySet()) {
+        if (hosts.stream().anyMatch(host -> host.contains(entry.getKey()))) {
+          vulnerableAssetIds.add(entry.getValue().getId());
+          hostMatched = true;
+        }
+      }
+      if (!hostMatched) {
+        hasUnattributedFinding = true;
+      }
+    }
+    return new VulnerableAssetResolution(vulnerableAssetIds, hasUnattributedFinding);
+  }
+
+  /**
+   * Result of the per-asset attribution of the CVE items of a structured output.
+   *
+   * @param assetIds the ids of the targeted assets attributed at least one CVE item
+   * @param hasUnattributedFinding true when at least one CVE item carries no usable attribution (no
+   *     {@code asset_id}, and no {@code host} matching a targeted asset)
+   */
+  private record VulnerableAssetResolution(Set<String> assetIds, boolean hasUnattributedFinding) {}
+
+  /**
+   * Collects the non-blank text value(s) of a JSON node (plain text or array of texts) into the
+   * given set.
+   *
+   * @param node the JSON node to read (may be null)
+   * @param into the set collecting the values
+   * @return true when at least one value was collected
+   */
+  private static boolean collectTextValues(@Nullable JsonNode node, Set<String> into) {
+    if (node == null || node.isNull()) {
+      return false;
+    }
+    boolean collected = false;
+    if (node.isArray()) {
+      for (JsonNode item : node) {
+        collected |= collectTextValues(item, into);
+      }
+      return collected;
+    }
+    String text = node.asText(null);
+    if (text != null && !text.isBlank()) {
+      into.add(text);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Resolves the security platform declared by the injector executing the given inject.
+   *
+   * <p>Assessment injectors (e.g. Nuclei) register a security platform whose {@code
+   * asset_external_reference} is their injector type; when such a platform exists, vulnerability
+   * verdicts are attributed to it instead of the generic Expectations Vulnerability Manager.
+   *
+   * @param inject the inject being processed
+   * @return the injector's security platform, when one is declared
+   */
+  private Optional<SecurityPlatform> resolveInjectorSecurityPlatform(@NotNull final Inject inject) {
+    return Optional.ofNullable(inject.getType())
+        .flatMap(securityPlatformRepository::findByExternalReference);
   }
 
   /**
@@ -1737,27 +2179,6 @@ public class InjectExpectationService {
               return expAgent != null && agentId.equals(expAgent.getId());
             })
         .toList();
-  }
-
-  /**
-   * Function used to set the result of inject expectations of type VULNERABILITY with a label and a
-   * score.
-   *
-   * @param injectExpectations the list of inject expectations to update
-   * @param injectExpectationResult the result to set for the inject expectations
-   */
-  public void validateResultForAsset(
-      List<? extends TechnicalInjectExpectation> injectExpectations,
-      InjectExpectationResult injectExpectationResult) {
-    injectExpectations.forEach(
-        baseInjectExpectation ->
-            updateInjectExpectation(
-                baseInjectExpectation.getId(),
-                InjectExpectationUpdateInput.builder()
-                    .collectorId(injectExpectationResult.getSourceId())
-                    .result(injectExpectationResult.getResult())
-                    .isSuccess(injectExpectationResult.getScore() != 0.0)
-                    .build()));
   }
 
   /**
@@ -1789,18 +2210,58 @@ public class InjectExpectationService {
       throws JsonProcessingException {
     BaseInjectContent content = contentConvert(injection, BaseInjectContent.class);
 
+    // Execution-time fallback: injects created before their contract declared predefined
+    // expectations (e.g. Nuclei injects in existing simulations) carry no expectations FIELD in
+    // their stored content, so resetting and relaunching the simulation would silently create
+    // none. Read the predefined expectations from the injector contract instead, exactly like
+    // inject creation and the chaining engine do. An EXPLICIT empty list is a different thing:
+    // it means the user deliberately removed every expectation from the inject, and that choice
+    // is never overridden here - expectation drift realignment is the opt-in way to restore the
+    // contract template.
+    if (content.getExpectations().isEmpty()
+        && contentNeverCarriedExpectations(inject)
+        && inject.getInjectorContract().isPresent()) {
+      ObjectNode storedContent = inject.getContent();
+      ObjectNode enrichedContent =
+          injectorContractContentUtils.setExpectations(
+              inject.getInjectorContract().get(),
+              storedContent != null ? storedContent.deepCopy() : null);
+      if (enrichedContent != null) {
+        content = this.mapper.treeToValue(enrichedContent, BaseInjectContent.class);
+      }
+    }
+    final BaseInjectContent resolvedContent = content;
+
     List<Expectation> expectations = new ArrayList<>();
 
     assetToExecutes.forEach(
         assetToExecute ->
             computeExpectationsForAssetAndAgents(
-                expectations, content, assetToExecute, inject, implantType));
+                expectations, resolvedContent, assetToExecute, inject, implantType));
 
     List<AssetGroup> assetGroups = injection.getAssetGroups();
     assetGroups.forEach(
-        (assetGroup -> computeExpectationsForAssetGroup(expectations, content, assetGroup)));
+        (assetGroup ->
+            computeExpectationsForAssetGroup(expectations, resolvedContent, assetGroup)));
 
     doBuildAndSaveInjectExpectations(injection, expectations);
+  }
+
+  /**
+   * Whether the stored inject content never carried the expectations field at all: the inject was
+   * created before its injector contract declared predefined expectations, so it follows the
+   * contract template dynamically at execution time (same semantics as the expectation drift
+   * detection). An explicit empty array is NOT "never carried": it means the user deliberately
+   * removed every expectation from the inject, and that customization must be respected.
+   */
+  private static boolean contentNeverCarriedExpectations(@NotNull final Inject inject) {
+    ObjectNode storedContent = inject.getContent();
+    if (storedContent == null) {
+      return true;
+    }
+    JsonNode expectationsNode =
+        storedContent.get(InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS);
+    return expectationsNode == null || expectationsNode.isNull();
   }
 
   /** In case of direct assetToExecute, we have an individual expectation for the assetToExecute */

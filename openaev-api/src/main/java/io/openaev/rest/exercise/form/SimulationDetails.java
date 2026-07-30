@@ -52,6 +52,9 @@ public class SimulationDetails {
   @JsonProperty("exercise_severity")
   private SEVERITY severity;
 
+  @JsonProperty("exercise_default_kill_chain")
+  private String defaultKillChain;
+
   @JsonProperty("exercise_start_date")
   private Instant start;
 
@@ -169,6 +172,7 @@ public class SimulationDetails {
             .subtitle(exercise.getExercise_subtitle())
             .category(exercise.getExercise_category())
             .mainFocus(exercise.getExercise_main_focus())
+            .defaultKillChain(exercise.getExercise_default_kill_chain())
             .customDashboard(exercise.getExercise_custom_dashboard());
 
     if (exercise.getExercise_severity() != null) {

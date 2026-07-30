@@ -3,14 +3,17 @@ package io.openaev.service.connectors;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Output> {
+public abstract class AbstractConnectorService<
+    T extends BaseConnectorEntity & TenantIdBase, Output> {
   protected final ConnectorType connectorType;
   protected final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   protected final CatalogConnectorService catalogConnectorService;
@@ -63,9 +66,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
     return map;
   }
 
-  private Output toExistingConnectorOutput(
-      T connector, Map<String, ConnectorInstance> instanceMap) {
-    ConnectorInstance instance = instanceMap.get(connector.getId());
+  private Output toConnectorOutput(T connector, ConnectorInstance instance) {
     boolean isVerified = instance != null;
     CatalogConnector catalogConnector =
         isVerified && instance instanceof ConnectorInstancePersisted
@@ -75,6 +76,11 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
       getConfiguredConnectorName(persistedInstance).ifPresent(connector::setName);
     }
     return mapToOutput(connector, catalogConnector, instance, true);
+  }
+
+  private Output toExistingConnectorOutput(
+      T connector, Map<String, ConnectorInstance> instanceMap) {
+    return toConnectorOutput(connector, instanceMap.get(connector.getId()));
   }
 
   private T createExternalConnector(String collectorId, ConnectorInstancePersisted instance) {
@@ -110,6 +116,49 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
         .findFirst();
   }
 
+  private Map<String, ConnectorInstance> buildInstanceMap() {
+    List<ConnectorInstancePersisted> instancesPersisted =
+        this.connectorInstanceService.getAllConnectorInstancesPersistedByConnectorType(
+            connectorType);
+    List<ConnectorInstanceInMemory> instancesInMemory =
+        this.connectorInstanceService.getConnectorInstancesInMemoryByConnectorType(connectorType);
+    return mapInstancesByConnectorId(
+        Stream.concat(instancesPersisted.stream(), instancesInMemory.stream())
+            .collect(Collectors.toList()));
+  }
+
+  /**
+   * Builds the Output DTO for a single connector, including its instance context (in-memory
+   * auto-start instance or persisted instance), so single-resource GET endpoints expose the same
+   * status information as the list endpoints.
+   *
+   * @param id the connector entity ID
+   * @return the connector output
+   * @throws ElementNotFoundException if the connector is not visible in the current tenant scope
+   */
+  public Output getConnectorOutput(String id) {
+    T connector = getConnectorById(id);
+    if (connector == null) {
+      throw new ElementNotFoundException("Connector not found with id: " + id);
+    }
+    return toConnectorOutput(connector, findInstanceForConnector(id, connector.getTenantId()));
+  }
+
+  private ConnectorInstance findInstanceForConnector(String connectorId, String tenantId) {
+    for (ConnectorInstanceInMemory instance :
+        connectorInstanceService.getConnectorInstancesInMemoryByConnectorType(connectorType)) {
+      if (connectorId.equals(getConnectorIdFromInstance(instance))) {
+        return instance;
+      }
+    }
+    // The persisted lookup uses a native query that bypasses the Hibernate tenant filter, so it
+    // must be scoped to the connector's tenant explicitly (the same connector ID can exist in
+    // several tenants).
+    return connectorInstanceService
+        .findPersistedByConnectorId(connectorType, connectorId, tenantId)
+        .orElse(null);
+  }
+
   /**
    * Retrieves all connectors including those pending deployment. Pending collectors are identified
    * through their connector instances that exist but haven't yet been registered in the
@@ -122,16 +171,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
    */
   public Iterable<Output> getConnectorsOutput(boolean includeNext) {
     List<T> connectors = getAllConnectors();
-    List<ConnectorInstancePersisted> instancesPersisted =
-        this.connectorInstanceService.getAllConnectorInstancesPersistedByConnectorType(
-            connectorType);
-    List<ConnectorInstanceInMemory> instancesInMemory =
-        this.connectorInstanceService.getConnectorInstancesInMemoryByConnectorType(connectorType);
-
-    Map<String, ConnectorInstance> instancesByConnectorIdMap =
-        mapInstancesByConnectorId(
-            Stream.concat(instancesPersisted.stream(), instancesInMemory.stream())
-                .collect(Collectors.toList()));
+    Map<String, ConnectorInstance> instancesByConnectorIdMap = buildInstanceMap();
 
     List<Output> result = new ArrayList<>();
 
@@ -190,5 +230,42 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
 
     // If nothing match this collector is manually deployed
     return catalogConnectorMapper.toConnectorIds(null, null, true);
+  }
+
+  /**
+   * Deletes the connector instance that owns this connector, when the connector was deployed
+   * through the Integration Manager.
+   *
+   * <p>The instance list is the desired state the XTM Composer polls, and the composer only tears a
+   * deployment down when its id disappears from that list. Deleting the connector entity alone
+   * therefore leaves the container running against a connector that no longer exists - and the
+   * container recreates the entity on its next registration heartbeat, so the deletion looks like
+   * it silently failed. The instance delete removes the connector entity too, hence the return
+   * value: callers must not delete the row again.
+   *
+   * <p>Tenant safety: the owning instance is resolved with an explicit tenant predicate (native
+   * queries bypass the Hibernate tenant filter) and only when the connector itself is visible in
+   * the current tenant, so a foreign or crafted connector id can never tear down another tenant's
+   * deployment.
+   *
+   * @param connectorId the collector / injector / executor id being deleted
+   * @return true when an instance was found and deleted, so the connector row is already gone
+   */
+  protected boolean deleteOwningConnectorInstance(String connectorId)
+      throws ConnectorStatusException {
+    T connector = getConnectorById(connectorId);
+    if (connector == null) {
+      // Not a connector of the current tenant (or not registered): nothing to tear down here,
+      // the caller's tenant-scoped row delete decides what happens.
+      return false;
+    }
+    ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
+        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+            this.connectorType.getIdKeyName(), connectorId, connector.getTenantId());
+    if (relatedIds == null || relatedIds.getConnectorInstanceId() == null) {
+      return false;
+    }
+    connectorInstanceService.deleteById(relatedIds.getConnectorInstanceId());
+    return true;
   }
 }

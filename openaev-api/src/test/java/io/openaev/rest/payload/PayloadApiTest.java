@@ -25,6 +25,7 @@ import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
+import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
@@ -36,8 +37,10 @@ import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.PayloadInputFixture;
+import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.CollectorComposer;
 import io.openaev.utils.fixtures.composers.DomainComposer;
+import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
@@ -49,6 +52,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 class PayloadApiTest extends IntegrationTest {
@@ -61,9 +65,11 @@ class PayloadApiTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private PayloadRepository payloadRepository;
   @Autowired private CollectorRepository collectorRepository;
+  @Autowired private SecurityPlatformRepository securityPlatformRepository;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   @Autowired private CollectorComposer collectorComposer;
+  @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private DomainComposer domainComposer;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private jakarta.persistence.EntityManager entityManager;
@@ -79,12 +85,35 @@ class PayloadApiTest extends IntegrationTest {
     managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
   }
 
+  private List<String> securityPlatformIds;
+
   @BeforeAll
   void beforeAll() {
     collectorComposer.reset();
     collectorComposer.forCollector(CollectorFixture.createDefaultCollector("CS")).persist();
     collectorComposer.forCollector(CollectorFixture.createDefaultCollector("SENTINEL")).persist();
     collectorComposer.forCollector(CollectorFixture.createDefaultCollector("DEFENDER")).persist();
+    securityPlatformComposer.reset();
+    securityPlatformIds =
+        List.of(
+            securityPlatformComposer
+                .forSecurityPlatform(
+                    SecurityPlatformFixture.createDefault("CrowdStrike Falcon", "EDR"))
+                .persist()
+                .get()
+                .getId(),
+            securityPlatformComposer
+                .forSecurityPlatform(
+                    SecurityPlatformFixture.createDefault("Microsoft Sentinel", "SIEM"))
+                .persist()
+                .get()
+                .getId(),
+            securityPlatformComposer
+                .forSecurityPlatform(
+                    SecurityPlatformFixture.createDefault("Microsoft Defender", "EDR"))
+                .persist()
+                .get()
+                .getId());
     EXECUTABLE_FILE = documentRepository.save(PayloadInputFixture.createDefaultExecutableFile());
   }
 
@@ -95,6 +124,9 @@ class PayloadApiTest extends IntegrationTest {
       this.documentRepository.deleteById(EXECUTABLE_FILE.getId());
     }
     this.collectorRepository.deleteAll();
+    if (securityPlatformIds != null) {
+      this.securityPlatformRepository.deleteAllById(securityPlatformIds);
+    }
   }
 
   @Nested
@@ -212,7 +244,7 @@ class PayloadApiTest extends IntegrationTest {
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputWithDetectionRemediation(
-              List.of(domain.getId()));
+              List.of(domain.getId()), securityPlatformIds);
 
       mvc.perform(
               post(PAYLOAD_URI)
@@ -234,7 +266,7 @@ class PayloadApiTest extends IntegrationTest {
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputWithDetectionRemediation(
-              List.of(domain.getId()));
+              List.of(domain.getId()), securityPlatformIds);
 
       String response =
           mvc.perform(
@@ -254,7 +286,7 @@ class PayloadApiTest extends IntegrationTest {
           PayloadInputFixture.getDefaultCommandPayloadUpdateInput(List.of(domain.getId()));
       String updatedValues = "test values";
       List<DetectionRemediationInput> detectionRemediation =
-          PayloadInputFixture.buildDetectionRemediations();
+          PayloadInputFixture.buildDetectionRemediations(securityPlatformIds);
       detectionRemediation.stream().forEach(dr -> dr.setValues(updatedValues));
       updateInput.setDetectionRemediations(detectionRemediation);
       mvc.perform(
@@ -714,7 +746,7 @@ class PayloadApiTest extends IntegrationTest {
 
     PayloadUpdateInput updateInput =
         PayloadInputFixture.getDefaultPayloadUpdateInputWithDetectionRemediation(
-            List.of(domain.getId()));
+            List.of(domain.getId()), securityPlatformIds);
 
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
@@ -838,7 +870,7 @@ class PayloadApiTest extends IntegrationTest {
 
     PayloadUpsertInput upsertInput =
         PayloadInputFixture.getDefaultCommandPayloadUpsertInputWithDetectionRemediations(
-            Set.of(domain));
+            Set.of(domain), securityPlatformIds);
     upsertInput.setExternalId("external-id");
 
     mvc.perform(
@@ -1046,7 +1078,15 @@ class PayloadApiTest extends IntegrationTest {
   @Test
   @DisplayName("Process Deprecated Payloads")
   @WithMockUser(isAdmin = true)
+  @Transactional
   void processDeprecatedPayloads() throws Exception {
+    // Ensure the mock user is a member of the default tenant for the tenant-scoped collector
+    // registration endpoint.
+    tenantRepository.addUserToTenant(
+        testUserHolder.get().getId(), io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID);
+    tenantMembershipCacheManager.evict(
+        testUserHolder.get().getId(), io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID);
+
     String collectorId = "039eee9b-b95d-4b11-95bb-a9ac233f1738";
     CollectorCreateInput collectorCreateInput = new CollectorCreateInput();
     collectorCreateInput.setId(collectorId);
@@ -1060,7 +1100,13 @@ class PayloadApiTest extends IntegrationTest {
             "application/json",
             objectMapper.writeValueAsString(collectorCreateInput).getBytes());
 
-    mvc.perform(multipart("/api/collectors").file(inputMultipart).with(csrf()))
+    mvc.perform(
+            multipart(
+                    "/api/tenants/"
+                        + io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID
+                        + "/collectors")
+                .file(inputMultipart)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();

@@ -16,6 +16,7 @@ import {
 } from '@mui/icons-material';
 import {
   Binoculars,
+  FileChartOutline,
   NewspaperVariantMultipleOutline,
   PostOutline,
   SecurityNetwork,
@@ -58,6 +59,12 @@ const LeftBar = () => {
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DASHBOARDS),
         },
         {
+          path: `/admin/reporting`,
+          icon: () => (<FileChartOutline />),
+          label: 'Reporting',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.REPORTINGS),
+        },
+        {
           path: '/admin/findings',
           icon: () => (<Binoculars />),
           label: 'Findings',
@@ -98,13 +105,13 @@ const LeftBar = () => {
       userRight: true,
       items: [
         {
-          path: `/admin/assets/inventory`,
+          path: `/admin/assets`,
           icon: () => (<DnsOutlined />),
           label: 'Assets',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
         },
         {
-          path: `/admin/assets/asset_groups`,
+          path: `/admin/asset_groups`,
           icon: () => (<SelectGroup />),
           label: 'Asset groups',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
@@ -144,7 +151,7 @@ const LeftBar = () => {
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
         },
         {
-          path: `/admin/assets/security_platforms`,
+          path: `/admin/security_platforms`,
           icon: () => (<SecurityNetwork />),
           label: 'Security platforms',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),

@@ -13,6 +13,7 @@ import { useFormatter } from '../i18n';
 import FileTransferDialog from './FileTransferDialog';
 
 const useStyles = makeStyles()(theme => ({
+  icon: { minWidth: 30 },
   text: {
     fontSize: 15,
     color: theme.palette.primary.main,
@@ -67,8 +68,8 @@ const MultipleFileLoader: FunctionComponent<Props> = ({
           color="primary"
           disabled={disabled}
         >
-          <ListItemIcon color="primary">
-            <ControlPointOutlined color="primary" />
+          <ListItemIcon color="primary" classes={{ root: classes.icon }}>
+            <ControlPointOutlined color="primary" fontSize="small" />
           </ListItemIcon>
           <ListItemText
             primary={t('Add documents')}

@@ -120,8 +120,8 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
 
     // ─── Wait for agent to register an endpoint ───
     await expect(async () => {
-      await page.goto(tenantUrl('/admin/assets/inventory', newTenantId!));
-      await page.waitForURL('**/assets/inventory**');
+      await page.goto(tenantUrl('/admin/assets', newTenantId!));
+      await page.waitForURL('**/admin/assets**');
       await expect(page.getByText(hostname)).toBeVisible();
     }).toPass({
       intervals: [5_000],

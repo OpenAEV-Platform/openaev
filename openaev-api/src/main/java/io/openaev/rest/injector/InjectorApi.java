@@ -23,6 +23,7 @@ import io.openaev.rest.injector.form.InjectorUpdateInput;
 import io.openaev.rest.injector.response.InjectorRegistration;
 import io.openaev.service.FileService;
 import io.openaev.service.InjectorService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.swagger.v3.oas.annotations.Operation;
@@ -151,15 +152,13 @@ public class InjectorApi extends RestBehavior {
   }
 
   @GetMapping({INJECT0R_URI + "/{injectorId}", TENANT_INJECTOR_URI + "/{injectorId}"})
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR)
-  public Injector injector(@PathVariable String injectorId) {
-    return injectorRepository
-        .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
-        .orElseThrow(ElementNotFoundException::new);
+  public InjectorOutput injector(@PathVariable String injectorId) {
+    return injectorService.injectorOutput(injectorId);
   }
 
   @GetMapping({
@@ -209,10 +208,11 @@ public class InjectorApi extends RestBehavior {
       summary = "Delete an injector",
       description =
           "Removes a registered injector. Intended for stopped injectors that no longer ping;"
-              + " an active injector re-registers on its next heartbeat.")
+              + " an active injector re-registers on its next heartbeat. The implant injector is"
+              + " the platform's own execution path and cannot be removed.")
   @Transactional(rollbackFor = Exception.class)
-  public void deleteInjector(@PathVariable String injectorId) {
-    injectorRepository.deleteByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
+  public void deleteInjector(@PathVariable String injectorId) throws ConnectorStatusException {
+    injectorService.deleteInjector(injectorId);
   }
 
   @PostMapping(
