@@ -156,6 +156,55 @@ public class WidgetFixture {
     return widget;
   }
 
+  /**
+   * Mirrors the platform default "Exposure command center": one series per expectation status over
+   * the same entity, aggregated by expectation type. Widgets shaped like this display a total that
+   * spans several series, which is the case a single {@code series_index} cannot describe.
+   *
+   * @param statuses one series per status, in the order the drill-downs will address them
+   */
+  public static Widget createExpectationStatusSeriesWidget(
+      CustomDashboardTimeRange timeRange,
+      String dateAttribute,
+      List<BaseInjectExpectation.EXPECTATION_STATUS> statuses) {
+    Widget widget = new Widget();
+    widget.setType(DONUT);
+    StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
+    widgetConfig.setSeries(
+        statuses.stream()
+            .map(
+                status -> {
+                  WidgetConfigurationWithSeries.Series series =
+                      new WidgetConfigurationWithSeries.Series();
+                  series.setName(status.name());
+                  Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+                  filterGroup.setMode(Filters.FilterMode.and);
+                  filterGroup.setFilters(
+                      new ArrayList<>(
+                          List.of(
+                              createFilter(
+                                  "base_entity",
+                                  Filters.FilterMode.or,
+                                  Filters.FilterOperator.eq,
+                                  List.of("expectation-inject")),
+                              createFilter(
+                                  "inject_expectation_status",
+                                  Filters.FilterMode.or,
+                                  Filters.FilterOperator.eq,
+                                  List.of(status.name())))));
+                  series.setFilter(filterGroup);
+                  return series;
+                })
+            .toList());
+    widgetConfig.setTitle(NAME);
+    widgetConfig.setField("inject_expectation_type");
+    widgetConfig.setDateAttribute(dateAttribute);
+    widgetConfig.setTimeRange(timeRange);
+    widget.setWidgetConfiguration(widgetConfig);
+    widget.setLayout(new WidgetLayout());
+    return widget;
+  }
+
   public static Widget createStructuralWidgetWithTimeRange(
       CustomDashboardTimeRange timeRange, String dateAttribute, String field, String entityName) {
     Widget widget = new Widget();

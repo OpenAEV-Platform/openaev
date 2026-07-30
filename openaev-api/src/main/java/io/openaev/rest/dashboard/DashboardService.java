@@ -171,7 +171,7 @@ public class DashboardService {
     } else {
       listConfig =
           widgetService.convertWidgetToListConfiguration(
-              widgetContext.widget, input.getSeriesIndex(), input.getFilterValuesMap());
+              widgetContext.widget, input.resolvedSeriesIndexes(), input.getFilterValuesMap());
     }
 
     datas = executeListQuery(widgetContext, listConfig, input.getPagination());
@@ -316,7 +316,7 @@ public class DashboardService {
     } else {
       listConfig =
           widgetService.convertWidgetToListConfiguration(
-              transientWidget, input.getSeriesIndex(), input.getFilterValuesMap());
+              transientWidget, input.resolvedSeriesIndexes(), input.getFilterValuesMap());
     }
 
     Map<String, String> params = input.getParameters() == null ? Map.of() : input.getParameters();

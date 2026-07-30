@@ -16,9 +16,14 @@ import io.openaev.utils.CustomDashboardTimeRange;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -107,12 +112,32 @@ public class WidgetService {
    */
   public ListConfiguration convertWidgetToListConfiguration(
       Widget widget, Integer seriesIndex, Map<String, List<String>> filterValues) {
+    return convertWidgetToListConfiguration(
+        widget, List.of(seriesIndex == null ? 0 : seriesIndex), filterValues);
+  }
+
+  /**
+   * Converts a widget configuration to a list configuration for data display, scoped to every
+   * series that produced the clicked number.
+   *
+   * <p>A tile whose value spans several series (an "attempted" total built from SUCCESS + FAILED +
+   * PENDING series, say) cannot describe its own scope with a single series index. Passing every
+   * contributing index here makes the drilled list resolve to exactly the documents that were
+   * counted, instead of leaving the caller to hand-rebuild the scope through {@code filterValues} -
+   * a reconstruction that silently drifts from the widget definition as soon as one of the two
+   * changes.
+   *
+   * @param widget the source widget containing the configuration to convert
+   * @param seriesIndexes the indexes of the series to OR together; out-of-range entries are ignored
+   * @param filterValues optional filter values to apply (e.g., date ranges for temporal, field
+   *     values for structural histograms)
+   * @return a ListConfiguration object configured based on the widget settings
+   */
+  public ListConfiguration convertWidgetToListConfiguration(
+      Widget widget, List<Integer> seriesIndexes, Map<String, List<String>> filterValues) {
 
     WidgetConfiguration widgetConfig = widget.getWidgetConfiguration();
-    WidgetConfigurationWithSeries.Series series =
-        widgetConfig instanceof WidgetConfigurationWithSeries config
-            ? config.getSeries().get(seriesIndex)
-            : new WidgetConfigurationWithSeries.Series();
+    WidgetConfigurationWithSeries.Series series = mergeSeries(widgetConfig, seriesIndexes);
 
     String baseEntity = WidgetUtils.getBaseEntityFilterValue(series.getFilter());
 
@@ -155,6 +180,110 @@ public class WidgetService {
 
     listConfig.setPerspective(perspectives);
     return listConfig;
+  }
+
+  /**
+   * Builds the single series the drill-down runs against, ORing the filters of every selected
+   * series into one flat group.
+   *
+   * <p>{@link Filters.FilterGroup} carries a flat list of filters with no nesting, so a literal
+   * {@code (E AND s=X) OR (E AND s=Y)} cannot be represented. It does not need to be: the series of
+   * one widget differ by a single discriminating key (the status, for SUCCESS / FAILED / PENDING
+   * series over the same entity), and for that shape the OR collapses exactly onto {@code E AND s
+   * IN (X, Y)} - a per-key union of values. Series that diverge on more than one key have no such
+   * collapse and their union would silently be a superset of the real scope, so that case is
+   * rejected rather than over-counted.
+   *
+   * <p>Filters are deep-copied: the returned group is handed to {@link
+   * WidgetUtils#setOrAddFilterByKey} which mutates it in place, and the source belongs to the
+   * widget configuration (a persisted entity for stored dashboards).
+   */
+  private WidgetConfigurationWithSeries.Series mergeSeries(
+      WidgetConfiguration widgetConfig, List<Integer> seriesIndexes) {
+    if (!(widgetConfig instanceof WidgetConfigurationWithSeries config)) {
+      return new WidgetConfigurationWithSeries.Series();
+    }
+    List<WidgetConfigurationWithSeries.Series> all = config.getSeries();
+    List<Integer> indexes = seriesIndexes == null ? List.of() : seriesIndexes;
+    List<WidgetConfigurationWithSeries.Series> selected =
+        indexes.stream()
+            .filter(index -> index != null && index >= 0 && index < all.size())
+            .map(all::get)
+            .toList();
+    if (selected.isEmpty()) {
+      return new WidgetConfigurationWithSeries.Series();
+    }
+
+    WidgetConfigurationWithSeries.Series merged = new WidgetConfigurationWithSeries.Series();
+    merged.setName(selected.getFirst().getName());
+    merged.setFilter(copyFilterGroup(selected.getFirst().getFilter()));
+    if (selected.size() == 1) {
+      return merged;
+    }
+
+    Set<String> divergingKeys = new HashSet<>();
+    for (WidgetConfigurationWithSeries.Series other : selected.subList(1, selected.size())) {
+      Filters.FilterGroup otherFilter = copyFilterGroup(other.getFilter());
+      if (!filterKeys(merged.getFilter()).equals(filterKeys(otherFilter))) {
+        throw new IllegalArgumentException(
+            "Cannot drill down into series with different filter keys: %s vs %s"
+                .formatted(filterKeys(merged.getFilter()), filterKeys(otherFilter)));
+      }
+      for (Filters.Filter filter : otherFilter.getFilters()) {
+        Filters.Filter target = merged.getFilter().findByKey(filter.getKey()).orElseThrow();
+        List<String> union = unionValues(target.getValues(), filter.getValues());
+        if (union.size() != nullSafe(target.getValues()).size()) {
+          divergingKeys.add(filter.getKey());
+          target.setValues(union);
+          target.setMode(Filters.FilterMode.or);
+        }
+      }
+    }
+    if (divergingKeys.size() > 1) {
+      throw new IllegalArgumentException(
+          "Cannot drill down into series diverging on more than one filter key: " + divergingKeys);
+    }
+    return merged;
+  }
+
+  private static Filters.FilterGroup copyFilterGroup(Filters.FilterGroup source) {
+    Filters.FilterGroup copy = Filters.FilterGroup.defaultFilterGroup();
+    if (source == null) {
+      return copy;
+    }
+    copy.setMode(source.getMode());
+    copy.setFilters(
+        nullSafeFilters(source.getFilters()).stream()
+            .map(
+                filter ->
+                    new Filters.Filter(
+                        filter.getId(),
+                        filter.getKey(),
+                        filter.getMode(),
+                        new ArrayList<>(nullSafe(filter.getValues())),
+                        filter.getOperator()))
+            .collect(Collectors.toCollection(ArrayList::new)));
+    return copy;
+  }
+
+  private static Set<String> filterKeys(Filters.FilterGroup group) {
+    return nullSafeFilters(group == null ? null : group.getFilters()).stream()
+        .map(Filters.Filter::getKey)
+        .collect(Collectors.toSet());
+  }
+
+  private static List<String> unionValues(List<String> left, List<String> right) {
+    LinkedHashSet<String> union = new LinkedHashSet<>(nullSafe(left));
+    union.addAll(nullSafe(right));
+    return new ArrayList<>(union);
+  }
+
+  private static List<String> nullSafe(List<String> values) {
+    return values == null ? List.of() : values;
+  }
+
+  private static List<Filters.Filter> nullSafeFilters(List<Filters.Filter> filters) {
+    return filters == null ? List.of() : filters;
   }
 
   /**

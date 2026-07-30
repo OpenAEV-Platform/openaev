@@ -35,6 +35,8 @@ export interface AdHocWidgetToEntitiesInput {
    * @format int32
    */
   series_index?: number;
+  /** The indexes of every series that produced the clicked number, ORed together. Takes precedence over series_index; use it whenever a widget displays a total spanning several series, so the drilled list resolves to exactly the documents that were counted */
+  series_indexes?: number[];
   widget_config:
     | AverageConfiguration
     | DateHistogramWidget
@@ -11374,6 +11376,8 @@ export interface WidgetToEntitiesInput {
    * @format int32
    */
   series_index?: number;
+  /** The indexes of every series that produced the clicked number, ORed together. Takes precedence over series_index; use it whenever a widget displays a total spanning several series, so the drilled list resolves to exactly the documents that were counted */
+  series_indexes?: number[];
 }
 
 export interface WidgetToEntitiesOutput {

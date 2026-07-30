@@ -1110,6 +1110,85 @@ class DashboardApiTest extends IntegrationTest {
       assertThatJson(response).node("es_entities.total").isEqualTo(6);
     }
 
+    /**
+     * Guards the invariant behind #7079: a tile's number and the list you reach by clicking it must
+     * describe the same documents. The command center's ADVERSARY node totals several series at
+     * once, which a single {@code series_index} cannot express - the drill-down used to restate the
+     * scope as literal status values instead, and silently drifted from the widget definition
+     * (showing 747 while the list returned 795 in production). Naming the aggregated series makes
+     * the two read one definition, so this asserts the sum of the charted series equals the drilled
+     * total, with an unrelated status present to prove the scope is not simply "everything".
+     */
+    @Test
+    @DisplayName("Given a total spanning several series, drilling it returns exactly that total")
+    void given_totalSpanningSeveralSeries_should_returnExactlyThatTotal() throws Exception {
+      createTechnicalInject(
+          null,
+          null,
+          List.of(
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.FAILED),
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.FAILED),
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.PENDING),
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.PENDING),
+              // charted by no series: it must land in neither the tile nor the list
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL)));
+
+      Widget widget =
+          createWidgetWithDashboard(
+              WidgetFixture.createExpectationStatusSeriesWidget(
+                  ALL_TIME,
+                  "base_created_at",
+                  List.of(
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                      BaseInjectExpectation.EXPECTATION_STATUS.FAILED,
+                      BaseInjectExpectation.EXPECTATION_STATUS.PENDING)));
+
+      flushAndProcessElastic();
+
+      // What the tile renders: every bucket of every charted series.
+      String seriesResponse =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/series/" + widget.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(new HashMap<String, String>()))
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      List<Integer> bucketValues = JsonPath.read(seriesResponse, "$..data[*].value");
+      int tileTotal = bucketValues.stream().mapToInt(Integer::intValue).sum();
+      assertThat(tileTotal).isEqualTo(5);
+
+      // What clicking it opens: the same documents, never more.
+      WidgetToEntitiesInput input = new WidgetToEntitiesInput();
+      input.setSeriesIndexes(List.of(0, 1, 2));
+      input.setParameters(new HashMap<>());
+      String drillDown = performWidgetEntitiesRuntimeRequest(widget, input);
+      assertThatJson(drillDown).node("es_entities.total").isEqualTo(tileTotal);
+
+      // The union really is a union: one series alone stays scoped to that series.
+      WidgetToEntitiesInput successOnly = new WidgetToEntitiesInput();
+      successOnly.setSeriesIndexes(List.of(0));
+      successOnly.setParameters(new HashMap<>());
+      assertThatJson(performWidgetEntitiesRuntimeRequest(widget, successOnly))
+          .node("es_entities.total")
+          .isEqualTo(1);
+    }
+
     @Test
     @DisplayName(
         "Given security domain widget should return list of expectation filtered by domain, type and status")

@@ -16,6 +16,14 @@ interface Props {
   datas: SerieData[];
 }
 
+/**
+ * The statuses the ring charts, and therefore the only ones its click-through may
+ * drill into. Keeping one list for both is what stops the total and the drilled
+ * list from disagreeing (#7079): UNKNOWN expectations - those with no expected
+ * score - are charted by neither arc nor total, so they must not be listed here.
+ */
+const RING_STATUSES = ['SUCCESS', 'FAILED', 'PENDING'];
+
 const SAMPLE = [
   {
     x: 'SUCCESS',
@@ -214,7 +222,7 @@ const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetId, widgetConfi
           <svg
             className="noDrag"
             viewBox={`0 0 ${size} ${size}`}
-            onClick={() => investigate(['SUCCESS', 'FAILED', 'PENDING', 'UNKNOWN'])}
+            onClick={() => investigate(RING_STATUSES)}
             style={{
               maxHeight: '100%',
               maxWidth: '100%',

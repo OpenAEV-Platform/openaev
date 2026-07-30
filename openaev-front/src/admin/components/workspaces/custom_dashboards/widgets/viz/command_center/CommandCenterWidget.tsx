@@ -20,26 +20,41 @@ interface Props {
   series: EsSeries[];
 }
 
+/**
+ * Series index contract, mirroring `attemptedSeries` in defaultHomeWidgets: the
+ * drill-downs name the exact series they aggregated so the backend can OR their
+ * filters, rather than re-stating the scope as literal status values that drift
+ * from the widget definition.
+ */
+const SERIES_SUCCESS = 0;
+const SERIES_FAILED = 1;
+const SERIES_PENDING = 2;
+const SERIES_ATTEMPTED = [SERIES_SUCCESS, SERIES_FAILED, SERIES_PENDING];
+
 interface DomainScore {
   key: string;
   success: number;
   failed: number;
+  pending: number;
   resilience: number;
 }
 
 const computeDomainScores = (series: EsSeries[]): DomainScore[] => {
-  const successSeries = series.find(s => (s.label ?? '').toUpperCase().includes('SUCCESS')) ?? series[0];
-  const failedSeries = series.find(s => (s.label ?? '').toUpperCase().includes('FAIL')) ?? series[1];
+  const successSeries = series.find(s => (s.label ?? '').toUpperCase().includes('SUCCESS')) ?? series[SERIES_SUCCESS];
+  const failedSeries = series.find(s => (s.label ?? '').toUpperCase().includes('FAIL')) ?? series[SERIES_FAILED];
+  const pendingSeries = series.find(s => (s.label ?? '').toUpperCase().includes('PENDING')) ?? series[SERIES_PENDING];
   const byKey = new Map<string, {
     success: number;
     failed: number;
+    pending: number;
   }>();
-  const accumulate = (data: EsSeries['data'], field: 'success' | 'failed') => {
+  const accumulate = (data: EsSeries['data'], field: 'success' | 'failed' | 'pending') => {
     (data ?? []).forEach((d) => {
       if (!d.label) return;
       const entry = byKey.get(d.label) ?? {
         success: 0,
         failed: 0,
+        pending: 0,
       };
       entry[field] += d.value ?? 0;
       byKey.set(d.label, entry);
@@ -47,10 +62,14 @@ const computeDomainScores = (series: EsSeries[]): DomainScore[] => {
   };
   accumulate(successSeries?.data, 'success');
   accumulate(failedSeries?.data, 'failed');
+  accumulate(pendingSeries?.data, 'pending');
   return [...byKey.entries()].map(([key, v]) => ({
     key,
     success: v.success,
     failed: v.failed,
+    pending: v.pending,
+    // Resilience only ever weighs resolved outcomes: a pending expectation has no
+    // verdict to score, and counting it would drag every gate rate towards zero.
     resilience: v.success + v.failed > 0 ? Math.round((v.success / (v.success + v.failed)) * 100) : 0,
   }));
 };
@@ -91,6 +110,7 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
         key: d.key,
         success: d.success,
         failed: d.failed,
+        pending: d.pending,
       }));
   }, [domains]);
 
@@ -98,10 +118,12 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
     (acc, d) => ({
       success: acc.success + d.success,
       failed: acc.failed + d.failed,
+      pending: acc.pending + d.pending,
     }),
     {
       success: 0,
       failed: 0,
+      pending: 0,
     },
   ), [domains]);
 
@@ -157,29 +179,30 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
     ];
   }, [securityPlatforms, theme.palette.mode]);
 
+  // Every drill-down names the series it aggregated instead of restating their
+  // filters: the list is then the widget's own definition of the number, so the
+  // two cannot drift when the series change (#7079).
   const onInvestigate = (typeKey: string) => {
     // breached assets: every failed validation, regardless of type
     if (typeKey === 'breach') {
       openWidgetResults({
         widgetId,
-        filter_values_map: { inject_expectation_type: layers.map(l => l.key.toUpperCase()) },
-        series_index: 1,
+        series_indexes: [SERIES_FAILED],
       });
       return;
     }
-    // adversary: every attempted validation (statuses override the series filter)
+    // adversary: every attempted validation, resolved or still pending
     if (typeKey === 'all') {
       openWidgetResults({
         widgetId,
-        filter_values_map: { inject_expectation_status: ['SUCCESS', 'FAILED', 'PENDING'] },
-        series_index: 0,
+        series_indexes: SERIES_ATTEMPTED,
       });
       return;
     }
     openWidgetResults({
       widgetId,
       filter_values_map: { inject_expectation_type: [typeKey.toUpperCase()] },
-      series_index: 0,
+      series_indexes: [SERIES_SUCCESS],
     });
   };
 
