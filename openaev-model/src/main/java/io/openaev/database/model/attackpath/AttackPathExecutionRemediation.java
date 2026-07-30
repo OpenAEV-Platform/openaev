@@ -44,10 +44,13 @@ public class AttackPathExecutionRemediation implements TenantBase {
   @Column(name = "attackpath_execution_remediation_step_id", nullable = false)
   private String stepId;
 
-  @Column(name = "attackpath_execution_remediation_values", columnDefinition = "TEXT")
+  @Column(
+      name = "attackpath_execution_remediation_values",
+      nullable = false,
+      columnDefinition = "TEXT")
   private String values;
 
-  @Column(name = "attackpath_execution_remediation_author_rule")
+  @Column(name = "attackpath_execution_remediation_author_rule", nullable = false)
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   private DetectionRemediation.AUTHOR_RULE authorRule;
