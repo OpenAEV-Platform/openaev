@@ -34,6 +34,9 @@ public enum ContractOutputType {
   @JsonProperty("share")
   Share("share"),
 
+  @JsonProperty("file")
+  File("file"),
+
   @JsonProperty("admin_username")
   AdminUsername("admin_username"),
 

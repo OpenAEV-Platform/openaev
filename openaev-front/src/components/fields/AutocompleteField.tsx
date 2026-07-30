@@ -11,6 +11,8 @@ interface BaseProps {
   label: string;
   options: AutocompleteOption[];
   onInputChange: (search: string) => void;
+  disableCloseOnSelect?: boolean;
+  open?: boolean;
   required?: boolean;
   error?: boolean;
   className?: string;
@@ -21,6 +23,8 @@ interface BaseProps {
     props: HTMLAttributes<HTMLLIElement>,
     option: AutocompleteOption,
   ) => ReactNode;
+  openOnFocus?: boolean;
+  selectOnFocus?: boolean;
 }
 
 interface SingleProps extends BaseProps {
@@ -47,6 +51,8 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
     className = '',
     variant = 'outlined',
     disabled,
+    openOnFocus = true,
+    selectOnFocus = true,
   } = props;
 
   const multiple = props.multiple === true;
@@ -124,9 +130,11 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
       disabled={disabled}
       className={className}
       size="small"
-      selectOnFocus
-      openOnFocus
+      open={props.open}
+      selectOnFocus={selectOnFocus}
+      openOnFocus={openOnFocus}
       autoHighlight
+      disableCloseOnSelect={props.disableCloseOnSelect ?? false}
       noOptionsText={t('No available options')}
       multiple={multiple}
       options={options}

@@ -10,6 +10,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.utils.ConditionUtils;
+import io.openaev.utils.IpAddressUtils;
 import java.util.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -425,12 +426,114 @@ class WorkflowStateServiceTest {
       WorkflowStateEntries persistedEntries =
           gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
 
-      assertEquals(Set.of("10.0.0.1"), persistedEntries.getInputByKey("IPv4").getValues());
+      Set<String> ipv4Values = persistedEntries.getInputByKey("IPv4").getValues();
+      assertEquals(253, ipv4Values.size());
+      assertTrue(ipv4Values.contains("10.0.0.1"));
+      assertTrue(ipv4Values.contains("10.0.0.3"));
+      assertFalse(ipv4Values.contains("10.0.0.2"));
+      assertFalse(ipv4Values.contains("10.0.0.0"));
+      assertFalse(ipv4Values.contains("10.0.0.255"));
       assertEquals(Set.of("example.org"), persistedEntries.getInputByKey("Domain").getValues());
       assertEquals(Set.of("10.0.0.0/24"), persistedEntries.getInputByKey("IpSubnet").getValues());
       assertEquals(Set.of(validAssetId), persistedEntries.getInputByKey("AssetId").getValues());
       assertEquals(
           Set.of(validAssetGroupId), persistedEntries.getInputByKey("AssetGroupId").getValues());
+    }
+
+    @Test
+    @DisplayName("should expand accepted IPv6 subnet outputs into IPv6 workflow state values")
+    void givenIpv6SubnetOutput_shouldStoreExpandedIpv6Values() {
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = Workflow.builder().id(workflowId).build();
+
+      WorkflowStateEntries initialEntries =
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      WorkflowState globalState =
+          WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
+
+      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
+          .thenReturn(globalState);
+      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflow)))
+          .thenReturn(
+              new PrimitiveValidationContext(
+                  Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
+                  Set.of(), Set.of()));
+
+      String subnet = "2001:db8::/126";
+      JsonObject dataToSync =
+          JsonParser.parseString(
+                  """
+                  {
+                    "subnet_values": ["%s"]
+                  }
+                  """
+                      .formatted(subnet))
+              .getAsJsonObject();
+
+      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+      typeMappings.put("subnet_values", ChainingMappedType.primitive(PrimitiveType.IpSubnet));
+
+      workflowStateService.syncState(dataToSync, typeMappings, workflow);
+
+      WorkflowStateEntries persistedEntries =
+          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+      Set<String> expectedExpanded = new HashSet<>(IpAddressUtils.expandSubnetToHostIps(subnet));
+
+      assertEquals(Set.of(subnet), persistedEntries.getInputByKey("IpSubnet").getValues());
+      assertEquals(expectedExpanded, persistedEntries.getInputByKey("IPv6").getValues());
+    }
+
+    @Test
+    @DisplayName("should expand subnet fields when subnet is part of a complex output")
+    void givenComplexOutputContainingSubnet_shouldStoreSubnetAndExpandedIps() {
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow = Workflow.builder().id(workflowId).build();
+
+      WorkflowStateEntries initialEntries =
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      WorkflowState globalState =
+          WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
+
+      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
+          .thenReturn(globalState);
+      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflow)))
+          .thenReturn(
+              new PrimitiveValidationContext(
+                  Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
+                  Set.of(), Set.of()));
+
+      String subnet = "10.10.10.0/30";
+      JsonObject dataToSync =
+          JsonParser.parseString(
+                  """
+                  {
+                    "portscan": [
+                      {
+                        "host": "example.local",
+                        "ip_subnet": "%s"
+                      }
+                    ]
+                  }
+                  """
+                      .formatted(subnet))
+              .getAsJsonObject();
+
+      Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+      typeMappings.put(
+          "portscan",
+          ChainingMappedType.complex(
+              List.of(PrimitiveType.Host, PrimitiveType.IpSubnet), ContractOutputType.PortsScan));
+
+      workflowStateService.syncState(dataToSync, typeMappings, workflow);
+
+      WorkflowStateEntries persistedEntries =
+          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+
+      assertEquals(Set.of(subnet), persistedEntries.getInputByKey("IpSubnet").getValues());
+      assertEquals(
+          Set.of("10.10.10.1", "10.10.10.2"), persistedEntries.getInputByKey("IPv4").getValues());
     }
 
     @Test
@@ -543,7 +646,7 @@ class WorkflowStateServiceTest {
       // Event condition on Host key type: matches "10.0.0.1"
       Condition leafCondition =
           Condition.builder()
-              .keyType(PrimitiveType.Host)
+              .keyTypes(List.of(PrimitiveType.Host))
               .value("10.0.0.1")
               .type(ConditionType.EQ)
               .build();
@@ -555,8 +658,7 @@ class WorkflowStateServiceTest {
               .conditionSteps(List.of(cs1))
               .build();
 
-      when(conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
-              eq(workflowTemplateId), anySet(), anySet()))
+      when(conditionRepository.findFilterConditionsByWorkflowId(eq(workflowTemplateId), anySet()))
           .thenReturn(List.of(rootCondition));
 
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
@@ -627,7 +729,7 @@ class WorkflowStateServiceTest {
       // Event condition on Host: expects "192.168.1.1" — no field in the tuple matches
       Condition leafCondition =
           Condition.builder()
-              .keyType(PrimitiveType.Host)
+              .keyTypes(List.of(PrimitiveType.Host))
               .value("192.168.1.1")
               .type(ConditionType.EQ)
               .build();
@@ -639,8 +741,7 @@ class WorkflowStateServiceTest {
               .conditionSteps(List.of(cs2))
               .build();
 
-      when(conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
-              eq(workflowTemplateId), anySet(), anySet()))
+      when(conditionRepository.findFilterConditionsByWorkflowId(eq(workflowTemplateId), anySet()))
           .thenReturn(List.of(rootCondition));
 
       // no matchesAnyLeafCondition returns true
@@ -718,7 +819,7 @@ class WorkflowStateServiceTest {
 
       Condition leafCondition =
           Condition.builder()
-              .keyType(PrimitiveType.Host)
+              .keyTypes(List.of(PrimitiveType.Host))
               .value("10.0.0.1")
               .type(ConditionType.EQ)
               .build();
@@ -730,8 +831,7 @@ class WorkflowStateServiceTest {
               .conditionSteps(List.of(cs3))
               .build();
 
-      when(conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
-              eq(workflowTemplateId), anySet(), anySet()))
+      when(conditionRepository.findFilterConditionsByWorkflowId(eq(workflowTemplateId), anySet()))
           .thenReturn(List.of(rootCondition));
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
               stepTemplateId, workflowId))

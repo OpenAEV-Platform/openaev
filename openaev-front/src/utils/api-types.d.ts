@@ -208,6 +208,7 @@ export interface AggregatedFindingOutput {
     | "cve"
     | "username"
     | "share"
+    | "file"
     | "admin_username"
     | "group"
     | "computer"
@@ -962,6 +963,8 @@ export interface AttackPathCounters {
   files?: number;
   /** @format int64 */
   ports?: number;
+  /** @format int64 */
+  shares?: number;
   /** @format int64 */
   users?: number;
 }
@@ -2015,8 +2018,8 @@ export interface ConditionCreateInput {
   condition_case_sensitive?: boolean;
   /** Property to be mapped */
   condition_key?: string;
-  /** Path to the value in the output of the step from */
-  condition_key_type?:
+  /** Paths to values in the output of the step from */
+  condition_key_types?: (
     | "account_with_password_not_required"
     | "admin_username"
     | "asreproastable_account"
@@ -2027,6 +2030,8 @@ export interface ConditionCreateInput {
     | "delegation_account"
     | "document"
     | "domain"
+    | "file_name"
+    | "file_path"
     | "group_name"
     | "hash"
     | "host"
@@ -2048,7 +2053,8 @@ export interface ConditionCreateInput {
     | "username"
     | "value"
     | "vulnerability_name"
-    | "vulnerability_status";
+    | "vulnerability_status"
+  )[];
   /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   /** ID of the step linked to the key */
@@ -2081,7 +2087,7 @@ export interface ConditionOutput {
   condition_case_sensitive?: boolean;
   condition_id?: string;
   condition_key?: string;
-  condition_key_type?:
+  condition_key_types?: (
     | "account_with_password_not_required"
     | "admin_username"
     | "asreproastable_account"
@@ -2092,6 +2098,8 @@ export interface ConditionOutput {
     | "delegation_account"
     | "document"
     | "domain"
+    | "file_name"
+    | "file_path"
     | "group_name"
     | "hash"
     | "host"
@@ -2113,7 +2121,8 @@ export interface ConditionOutput {
     | "username"
     | "value"
     | "vulnerability_name"
-    | "vulnerability_status";
+    | "vulnerability_status"
+  )[];
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_parent_id?: string;
   condition_type?: string;
@@ -2261,6 +2270,7 @@ export interface ContractOutputElement {
     | "cve"
     | "username"
     | "share"
+    | "file"
     | "admin_username"
     | "group"
     | "computer"
@@ -2315,6 +2325,7 @@ export interface ContractOutputElementInput {
     | "cve"
     | "username"
     | "share"
+    | "file"
     | "admin_username"
     | "group"
     | "computer"
@@ -2365,6 +2376,7 @@ export interface ContractOutputElementSimple {
     | "cve"
     | "username"
     | "share"
+    | "file"
     | "admin_username"
     | "group"
     | "computer"
@@ -4738,6 +4750,7 @@ export interface Finding {
     | "cve"
     | "username"
     | "share"
+    | "file"
     | "admin_username"
     | "group"
     | "computer"
@@ -4773,6 +4786,7 @@ export interface FindingInput {
     | "cve"
     | "username"
     | "share"
+    | "file"
     | "admin_username"
     | "group"
     | "computer"
@@ -5784,6 +5798,7 @@ export interface InjectorContract {
     | "cve"
     | "username"
     | "share"
+    | "file"
     | "admin_username"
     | "group"
     | "computer"
@@ -6505,7 +6520,7 @@ export interface LoginUserInput {
 
 export interface MapperConditionOutput {
   condition_key?: string;
-  condition_key_type?:
+  condition_key_types?: (
     | "account_with_password_not_required"
     | "admin_username"
     | "asreproastable_account"
@@ -6516,6 +6531,8 @@ export interface MapperConditionOutput {
     | "delegation_account"
     | "document"
     | "domain"
+    | "file_name"
+    | "file_path"
     | "group_name"
     | "hash"
     | "host"
@@ -6537,7 +6554,8 @@ export interface MapperConditionOutput {
     | "username"
     | "value"
     | "vulnerability_name"
-    | "vulnerability_status";
+    | "vulnerability_status"
+  )[];
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_value?: string;
 }
@@ -7861,6 +7879,8 @@ export interface PayloadArgument {
     | "delegation_account"
     | "document"
     | "domain"
+    | "file_name"
+    | "file_path"
     | "group_name"
     | "hash"
     | "host"
@@ -8847,6 +8867,7 @@ export interface RelatedFindingOutput {
     | "cve"
     | "username"
     | "share"
+    | "file"
     | "admin_username"
     | "group"
     | "computer"
@@ -9449,6 +9470,8 @@ export interface ScopeVariableInput {
     | "delegation_account"
     | "document"
     | "domain"
+    | "file_name"
+    | "file_path"
     | "group_name"
     | "hash"
     | "host"
@@ -9498,6 +9521,8 @@ export interface ScopeVariableOutput {
     | "delegation_account"
     | "document"
     | "domain"
+    | "file_name"
+    | "file_path"
     | "group_name"
     | "hash"
     | "host"
@@ -10001,6 +10026,8 @@ export interface StepOutput {
     | "delegation_account"
     | "document"
     | "domain"
+    | "file_name"
+    | "file_path"
     | "group_name"
     | "hash"
     | "host"

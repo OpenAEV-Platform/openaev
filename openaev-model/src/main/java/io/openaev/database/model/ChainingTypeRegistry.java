@@ -49,6 +49,16 @@ public final class ChainingTypeRegistry {
                       Map.entry("host", PrimitiveType.Host),
                       Map.entry("asset_id", PrimitiveType.AssetId))),
               Map.entry(
+                  ContractOutputType.File,
+                  Map.ofEntries(
+                      // `share` reuses ShareName so a file discovered on a share links to its
+                      // share finding; `file_name` is the basename the graph chains on.
+                      Map.entry("file_name", PrimitiveType.FileName),
+                      Map.entry("path", PrimitiveType.FilePath),
+                      Map.entry("share", PrimitiveType.ShareName),
+                      Map.entry("host", PrimitiveType.Host),
+                      Map.entry("asset_id", PrimitiveType.AssetId))),
+              Map.entry(
                   ContractOutputType.Group,
                   Map.ofEntries(
                       Map.entry("group_name", PrimitiveType.GroupName),

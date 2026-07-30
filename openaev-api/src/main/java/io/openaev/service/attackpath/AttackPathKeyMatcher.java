@@ -24,7 +24,7 @@ public final class AttackPathKeyMatcher {
   // The complex sub-field keys whose vocabulary differs from the finding type; every other key type
   // maps to a finding type 1:1 (identity).
   private static final Map<String, String> KEYTYPE_TO_FINDING_TYPE =
-      Map.of("share_name", "file", "password", "credentials");
+      Map.of("share_name", "share", "file_name", "file", "password", "credentials");
 
   private AttackPathKeyMatcher() {}
 
@@ -60,9 +60,8 @@ public final class AttackPathKeyMatcher {
 
   // Per-type sub-field extractors, keyed by (finding type, key type): the inverse of each
   // *OutputProcessor.toFindingValue. Only multi-field complex types whose sub-fields events consume
-  // are registered; a finding type absent here is matched on its whole value. Keyed on the
-  // PRESENTED
-  // type (a share is a file here). portscan first (T1); the other types follow.
+  // are registered; a finding type absent here is matched on its whole value. share and file are
+  // distinct native types: a share exposes share_name, a file exposes file_name.
   private static final Map<String, Map<String, Function<String, String>>> SUBFIELDS =
       Map.of(
           "portscan", Map.of("port", AttackPathKeyMatcher::extractPortscanPort),
@@ -70,7 +69,8 @@ public final class AttackPathKeyMatcher {
               Map.of(
                   "username", AttackPathKeyMatcher::extractCredentialsUsername,
                   "password", AttackPathKeyMatcher::extractCredentialsPassword),
-          "file", Map.of("share_name", AttackPathKeyMatcher::extractShareName),
+          "share", Map.of("share_name", AttackPathKeyMatcher::extractShareName),
+          "file", Map.of("file_name", AttackPathKeyMatcher::extractFileBasename),
           "username",
               Map.of(
                   "username", AttackPathKeyMatcher::extractUsernameFindingUser,
@@ -149,9 +149,8 @@ public final class AttackPathKeyMatcher {
     return i < 0 || i == value.length() - 1 ? null : value.substring(i + 1);
   }
 
-  // A share is presented as a file with value "\\host\shareName (permissions)"
-  // (ShareOutputProcessor);
-  // the share name is the token after the LAST '\' once the optional " (permissions)" is dropped.
+  // A share value is "\\host\shareName (permissions)" (ShareOutputProcessor); the share name is the
+  // token after the LAST '\' once the optional " (permissions)" suffix is dropped.
   private static String extractShareName(String value) {
     if (value == null) {
       return null;
@@ -165,6 +164,17 @@ public final class AttackPathKeyMatcher {
     return lastBackslash < 0 || lastBackslash == v.length() - 1
         ? null
         : v.substring(lastBackslash + 1);
+  }
+
+  // A file value is a full location: "\\host\share\dir\file.ext" (UNC), "host:/path/file" (local),
+  // or a relative "share/path/file" (FileOutputProcessor). The basename is the token after the last
+  // path separator ('\' or '/'); a file value carries no " (...)" suffix.
+  private static String extractFileBasename(String value) {
+    if (value == null) {
+      return null;
+    }
+    int lastSep = Math.max(value.lastIndexOf('\\'), value.lastIndexOf('/'));
+    return lastSep == value.length() - 1 ? null : value.substring(lastSep + 1);
   }
 
   // username value is domain, then a backslash, then username (UsernameOutputProcessor).
