@@ -113,16 +113,6 @@ public class StepService {
     Step persistedTemplate =
         findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
 
-    // NOTE: a step template with no condition mapper and a payload used to be short-circuited here
-    // after its first execution, to avoid re-creating the same non-mapper batch on every scheduling
-    // cycle. That guard predates per-target expansion and is now redundant: expandTargetBatches
-    // (see below) expands every INJECT_EXECUTION step — payload or not — into one batch per scope
-    // target, and the per-target hash dedup a few lines down (committedTargetHashes/commitHashes)
-    // already prevents an already-executed (combo, target) pair from being re-created. Keeping
-    // the old template-level guard here caused a regression: a payload step without a mapper
-    // condition would only ever execute once for a single asset and be silently skipped for every
-    // other asset in scope, while sibling injector-contract steps (hasPayload() == false) kept
-    // expanding correctly.
 
     ActionStep actionStep =
         factoryAction(persistedTemplate.getStepAction(), persistedTemplate.getId());
