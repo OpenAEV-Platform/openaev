@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildKillChainMeta, friendlyNodeId, maskFindingValue, pivotEndpointIds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildKillChainMeta, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 // Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
@@ -210,6 +210,53 @@ describe('pivotEndpointIds', () => {
         edgeTargetId: 'NODE_ENDPOINT|a',
       },
     ]).size).toBe(0);
+  });
+});
+
+describe('orderSimulationPickerOptions', () => {
+  // ISO start dates keyed by simulation id (the shape the picker resolves from simulation meta).
+  const dates: Record<string, string> = {
+    a: '2026-07-27T12:24:00Z',
+    b: '2026-07-28T08:05:00Z',
+    c: '2026-07-29T11:20:00Z',
+  };
+  const startDateOf = (simId?: string) => dates[simId ?? ''] ?? '';
+
+  it('orders the options most recent first, regardless of the incoming order', () => {
+    // Arrange: rows in a jumbled order (as the backend returns them).
+    const rows = [{ simulationId: 'a' }, { simulationId: 'c' }, { simulationId: 'b' }];
+    // Act
+    const ordered = orderSimulationPickerOptions(rows, null, startDateOf);
+    // Assert: newest (c, Jul 29) first, oldest (a, Jul 27) last.
+    expect(ordered.map(o => o.simulationId)).toEqual(['c', 'b', 'a']);
+  });
+
+  it('does not mutate the input array', () => {
+    const rows = [{ simulationId: 'a' }, { simulationId: 'c' }, { simulationId: 'b' }];
+    orderSimulationPickerOptions(rows, null, startDateOf);
+    expect(rows.map(o => o.simulationId)).toEqual(['a', 'c', 'b']);
+  });
+
+  it('keeps a selected row that is absent from the list and orders it by its own date', () => {
+    // Arrange: the selected run has no summary row in `simulations` yet, but its date resolves.
+    const rows = [{ simulationId: 'a' }, { simulationId: 'b' }];
+    const selected = { simulationId: 'c' };
+    // Act
+    const ordered = orderSimulationPickerOptions(rows, selected, startDateOf);
+    // Assert: selected (newest) is included and sorted to the front, not just prepended blindly.
+    expect(ordered.map(o => o.simulationId)).toEqual(['c', 'b', 'a']);
+  });
+
+  it('does not duplicate a selected row that is already in the list', () => {
+    const rows = [{ simulationId: 'a' }, { simulationId: 'c' }, { simulationId: 'b' }];
+    const ordered = orderSimulationPickerOptions(rows, { simulationId: 'c' }, startDateOf);
+    expect(ordered.map(o => o.simulationId)).toEqual(['c', 'b', 'a']);
+  });
+
+  it('sorts rows with an unknown date to the end', () => {
+    const rows = [{ simulationId: 'unknown' }, { simulationId: 'b' }, { simulationId: 'c' }];
+    const ordered = orderSimulationPickerOptions(rows, null, startDateOf);
+    expect(ordered.map(o => o.simulationId)).toEqual(['c', 'b', 'unknown']);
   });
 });
 

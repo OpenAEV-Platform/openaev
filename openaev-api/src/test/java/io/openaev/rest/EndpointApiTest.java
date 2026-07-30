@@ -272,7 +272,7 @@ class EndpointApiTest extends IntegrationTest {
         });
     endpointRepository.save(endpoint);
 
-    String newName = "New hostname";
+    String newName = "New-hostname";
     registerInput.setHostname(newName);
 
     Mockito.doReturn("command")
@@ -367,7 +367,7 @@ class EndpointApiTest extends IntegrationTest {
     Endpoint endpointCreated = endpointRepository.save(endpoint);
 
     EndpointInput updateInput = new EndpointInput();
-    String newName = "New hostname";
+    String newName = "New-hostname";
     updateInput.setName(newName);
     updateInput.setHostname(newName);
     updateInput.setIps(endpointInput.getIps());
@@ -771,7 +771,7 @@ class EndpointApiTest extends IntegrationTest {
       private Endpoint createTenantEndpoint(String tenantId, String name) throws Exception {
         Endpoint endpointInput = createEndpoint();
         endpointInput.setName(name);
-        endpointInput.setHostname(name);
+        endpointInput.setHostname(name.replaceAll("[^A-Za-z0-9\\-.]", ""));
 
         String createResponse =
             mvc.perform(

@@ -1693,6 +1693,7 @@
   "INTERRUPTED": "已中断",
   "Interval": "时间间隔",
   "Interval (hours)": "间隔（小时）",
+  "Invalid domain name": "域名无效",
   "Invalid input. Please use only letters or underscores, and ensure the field is not empty.": "输入无效.请仅使用字母或下划线,并确保字段不是空的.",
   "Invalid Ip Address": "IP地址不正确",
   "Invalid IP addresses": "无效IP地址",

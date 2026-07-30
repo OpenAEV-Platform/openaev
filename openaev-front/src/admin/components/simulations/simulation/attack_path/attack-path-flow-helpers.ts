@@ -740,6 +740,21 @@ export const pivotEndpointIds = (
   return pivots;
 };
 
+// Order the simulation picker options: most recent first, by exercise start date. Dates come from the
+// resolved simulation meta as ISO strings, so a plain lexicographic compare is chronological (same key
+// the default-run selection uses). The currently-selected row is kept in the list even when it has no
+// summary/meta yet — it sorts by its own resolved date, or falls to the end when the date is unknown.
+export const orderSimulationPickerOptions = <T extends { simulationId?: string }>(
+  simulations: T[],
+  selectedRow: T | null,
+  startDateOf: (simId?: string) => string,
+): T[] => {
+  const base = selectedRow && !simulations.some(s => s.simulationId === selectedRow.simulationId)
+    ? [selectedRow, ...simulations]
+    : simulations;
+  return [...base].sort((a, b) => startDateOf(b.simulationId).localeCompare(startDateOf(a.simulationId)));
+};
+
 // Human-readable plural noun for a finding type, used to give contextual cluster edges a label with
 // meaning (e.g. "6 credentials" instead of a bare "6+"). Mixed clusters fall back to "findings".
 export const findingCategoryNoun = (typeFindings?: string): string => {
