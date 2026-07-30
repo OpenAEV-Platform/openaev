@@ -303,7 +303,7 @@ flowchart LR
 
 !!! note "Upgrading an environment that already has attack-path data"
 
-    The migration that adds the versioning (`V6_20260727120000000__Add_attackpath_graph_version`)
+    The migration that adds the versioning (`V6_20260730100000000__Add_attackpath_graph_version`)
     creates two cursor indexes, on `attackpath_execution` and `attackpath_finding`. The build is not
     `CONCURRENTLY`, so on very large projection tables it takes the table's write lock for the
     duration and attack-path ingestion is briefly blocked. Upgrade **outside an active simulation
