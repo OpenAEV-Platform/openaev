@@ -521,7 +521,7 @@ public class InjectStatusService {
                             "step_name", executionTrace.getAction().name(),
                             "trace_status", executionTrace.getStatus().name(),
                             "trace_id", executionTrace.getId()))
-                    .origin(AuditEventOrigin.SCHEDULED)
+                    .origin(AuditEventOrigin.SYSTEM)
                     .build()));
   }
 }

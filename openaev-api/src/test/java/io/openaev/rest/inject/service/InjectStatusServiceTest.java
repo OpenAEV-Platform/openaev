@@ -204,7 +204,7 @@ class InjectStatusServiceTest {
         assertThat(event.getEventType()).isEqualTo(EventType.EXECUTION);
         assertThat(event.getEventScope()).isEqualTo(AuditEventScope.AGENT_TRACE_STEP);
         assertThat(event.getEventStatus()).isEqualTo(EventStatus.SUCCESS);
-        assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SCHEDULED);
+        assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SYSTEM);
         assertThat(event.getContextData().get("trace_id")).isEqualTo("trace-id");
         assertThat(event.getContextData().get("step_name")).isEqualTo("EXECUTION");
         assertThat(event.getContextData().get("trace_status")).isEqualTo("EXECUTED");
@@ -252,7 +252,7 @@ class InjectStatusServiceTest {
         AuditEvent event = eventCaptor.getValue();
         assertThat(event.getEventScope()).isEqualTo(AuditEventScope.AGENT_TRACE_STEP);
         assertThat(event.getEventStatus()).isEqualTo(EventStatus.SUCCESS);
-        assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SCHEDULED);
+        assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SYSTEM);
         assertThat(event.getContextData().get("step_name")).isEqualTo("PREREQUISITE_CHECK");
         assertThat(event.getContextData().get("trace_status")).isEqualTo("EXECUTED");
         assertThat(event.getContextData().get("trace_id")).isEqualTo("trace-prereq");
@@ -297,7 +297,7 @@ class InjectStatusServiceTest {
         AuditEvent event = eventCaptor.getValue();
         assertThat(event.getEventScope()).isEqualTo(AuditEventScope.AGENT_TRACE_STEP);
         assertThat(event.getEventStatus()).isEqualTo(EventStatus.SUCCESS);
-        assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SCHEDULED);
+        assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SYSTEM);
         assertThat(event.getContextData().get("step_name")).isEqualTo("CLEANUP_EXECUTION");
         assertThat(event.getContextData().get("trace_status")).isEqualTo("EXECUTED");
         assertThat(event.getContextData().get("trace_id")).isEqualTo("trace-cleanup");
