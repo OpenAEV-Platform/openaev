@@ -3004,6 +3004,7 @@
   "Tests": "Тесты",
   "text": "Текстовые поля",
   "Text": "Текст",
+  "action_output": "Action output",
   "Text (case-sensitive)": "Текст (с учетом регистра)",
   "Text color": "Text color",
   "textarea": "Текстовая область",

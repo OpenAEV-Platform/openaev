@@ -3004,6 +3004,7 @@
   "Tests": "Tests",
   "text": "Champ texte",
   "Text": "Texte",
+  "action_output": "Sortie d'action",
   "Text (case-sensitive)": "Texte (sensible à la casse)",
   "Text color": "Couleur du texte",
   "textarea": "Zone de texte",

@@ -3004,6 +3004,7 @@
   "Tests": "Tests",
   "text": "Textfelder",
   "Text": "Text",
+  "action_output": "Action output",
   "Text (case-sensitive)": "Text (Groß- und Kleinschreibung beachten)",
   "Text color": "Text color",
   "textarea": "Textbereich",
