@@ -113,14 +113,6 @@ public class StepService {
     Step persistedTemplate =
         findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
 
-    // If no condition mapper and step already executed, we skip the step to avoid to execute it
-    // again
-    if (!conditionService.hasConditionMapper(persistedTemplate)
-        && isStepAlreadyExecutedOnce(persistedTemplate.getId(), workflowRun.getId())
-        && injectExecutionStep.hasPayload(persistedTemplate)) {
-      return List.of();
-    }
-
     ActionStep actionStep =
         factoryAction(persistedTemplate.getStepAction(), persistedTemplate.getId());
 
@@ -272,18 +264,6 @@ public class StepService {
    */
   public long countActiveSteps(String workflowRunId) {
     return stepRepository.countActiveSteps(workflowRunId, ACTIVE_STEP_STATUS);
-  }
-
-  /**
-   * Returns {@code true} if at least one executed step references the given step template, meaning
-   * this template has already been executed at least once in the given workflow run.
-   *
-   * @param stepTemplateId the ID of the step template to check
-   * @param workflowRunId the ID of the workflow run to scope the check
-   * @return {@code true} if the step template has been executed at least once in that run
-   */
-  public boolean isStepAlreadyExecutedOnce(String stepTemplateId, String workflowRunId) {
-    return stepRepository.existsByStepTemplateIdAndWorkflowId(stepTemplateId, workflowRunId);
   }
 
   /**
