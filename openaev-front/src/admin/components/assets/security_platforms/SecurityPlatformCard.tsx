@@ -9,7 +9,7 @@ import { SECURITY_PLATFORM_BASE_URL } from '../../../../constants/BaseUrls';
 import { type SecurityPlatform } from '../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import SecurityPlatformPopover from './SecurityPlatformPopover';
-import isCollectorManaged from './securityPlatformUtils';
+import isConnectorManaged from './securityPlatformUtils';
 
 interface Props {
   securityPlatform: SecurityPlatform;
@@ -73,7 +73,7 @@ const SecurityPlatformCard: FunctionComponent<Props> = ({
           onUpdate={onUpdate}
           onDelete={onDelete}
           openEditOnInit={openEditOnInit}
-          disabled={isCollectorManaged(securityPlatform)}
+          disabled={isConnectorManaged(securityPlatform)}
         />
       </Box>
 

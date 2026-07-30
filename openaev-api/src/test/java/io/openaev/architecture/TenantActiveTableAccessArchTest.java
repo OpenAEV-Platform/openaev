@@ -243,6 +243,24 @@ class TenantActiveTableAccessArchTest {
                   + " run inside a scoped transaction and be allowlisted here");
 
   @ArchTest
+  static final ArchRule injectors_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Initializes the association inside its TxCtx-scoped transactions before the
+              // open-in-view JSON rendering, next to the collectors association (pinned by
+              // SecurityPlatformInjectorLifecycleTest, #7063):
+              SecurityPlatformApi.class)
+          .should()
+          .callMethod(SecurityPlatform.class, "getInjectors")
+          .because(
+              "security_platform_injectors feeds the same UI read-only signal as"
+                  + " security_platform_collectors (#7063). injectors is not tenant-active yet, but"
+                  + " this lazy association is rendered open-in-view: new callers must initialize it"
+                  + " inside a scoped transaction and be allowlisted here so the #7025 blind spot"
+                  + " cannot recur when the table is activated");
+
+  @ArchTest
   static final ArchRule attackpath_execution_repository_access_is_reviewed =
       noClasses()
           .that()
