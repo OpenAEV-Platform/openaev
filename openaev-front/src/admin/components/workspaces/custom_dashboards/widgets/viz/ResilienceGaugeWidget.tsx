@@ -18,9 +18,11 @@ interface Props {
 
 /**
  * The statuses the ring charts, and therefore the only ones its click-through may
- * drill into. Keeping one list for both is what stops the total and the drilled
- * list from disagreeing (#7079): UNKNOWN expectations - those with no expected
- * score - are charted by neither arc nor total, so they must not be listed here.
+ * drill into - reading one list for both is what keeps the total and the drilled
+ * list in agreement (#7079). UNKNOWN is deliberately absent: computeStatus only
+ * returns it for a null expected score, which the schema forbids since migration
+ * V3_36 made inject_expectation_expected_score NOT NULL, so drilling it widened
+ * the query for a status that cannot exist.
  */
 const RING_STATUSES = ['SUCCESS', 'FAILED', 'PENDING'];
 

@@ -205,6 +205,64 @@ public class WidgetFixture {
     return widget;
   }
 
+  /**
+   * Two series diverging on two keys at once, the second series' type values being a strict subset
+   * of the first's. Their OR cannot be collapsed into a flat per-key union: {@code type IN (P, D)
+   * AND status IN (SUCCESS, FAILED)} admits a DETECTION/FAILED document that matches neither
+   * series, so a multi-series drill-down must reject this shape rather than over-count it.
+   */
+  public static Widget createDivergentSeriesWidget(
+      CustomDashboardTimeRange timeRange, String dateAttribute) {
+    Widget widget = new Widget();
+    widget.setType(DONUT);
+    StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
+    widgetConfig.setSeries(
+        List.of(
+            createExpectationSerie(
+                List.of(
+                    BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.name(),
+                    BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.name()),
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS.name()),
+            createExpectationSerie(
+                List.of(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.name()),
+                BaseInjectExpectation.EXPECTATION_STATUS.FAILED.name())));
+    widgetConfig.setTitle(NAME);
+    widgetConfig.setField("inject_expectation_type");
+    widgetConfig.setDateAttribute(dateAttribute);
+    widgetConfig.setTimeRange(timeRange);
+    widget.setWidgetConfiguration(widgetConfig);
+    widget.setLayout(new WidgetLayout());
+    return widget;
+  }
+
+  private static WidgetConfigurationWithSeries.Series createExpectationSerie(
+      List<String> types, String status) {
+    WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
+    series.setName(status);
+    Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+    filterGroup.setMode(Filters.FilterMode.and);
+    filterGroup.setFilters(
+        new ArrayList<>(
+            List.of(
+                createFilter(
+                    "base_entity",
+                    Filters.FilterMode.or,
+                    Filters.FilterOperator.eq,
+                    List.of("expectation-inject")),
+                createFilter(
+                    "inject_expectation_type",
+                    Filters.FilterMode.or,
+                    Filters.FilterOperator.eq,
+                    types),
+                createFilter(
+                    "inject_expectation_status",
+                    Filters.FilterMode.or,
+                    Filters.FilterOperator.eq,
+                    List.of(status)))));
+    series.setFilter(filterGroup);
+    return series;
+  }
+
   public static Widget createStructuralWidgetWithTimeRange(
       CustomDashboardTimeRange timeRange, String dateAttribute, String field, String entityName) {
     Widget widget = new Widget();

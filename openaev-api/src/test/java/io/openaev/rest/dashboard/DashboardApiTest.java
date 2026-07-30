@@ -962,7 +962,8 @@ class DashboardApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Given Structural Endpoint Histogram breakdown by platform, should return list of windows endpoint")
+        "Given Structural Endpoint Histogram breakdown by platform, should return list of windows"
+            + " endpoint")
     void given_structuralEndpointHistogram_should_returnListOfWindowsEndpoint() throws Exception {
       createEndpoint(
           EndpointFixture.createEndpointWithPlatform("Endpoint A", Endpoint.PLATFORM_TYPE.Windows));
@@ -1110,14 +1111,42 @@ class DashboardApiTest extends IntegrationTest {
       assertThatJson(response).node("es_entities.total").isEqualTo(6);
     }
 
+    /** Sums every bucket of every charted series - what the tile actually renders. */
+    private int tileTotal(Widget widget) throws Exception {
+      String response =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/series/" + widget.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(new HashMap<String, String>()))
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      List<Integer> bucketValues = JsonPath.read(response, "$..data[*].value");
+      return bucketValues.stream().mapToInt(Integer::intValue).sum();
+    }
+
+    private WidgetToEntitiesInput seriesDrillDown(List<Integer> seriesIndexes) {
+      WidgetToEntitiesInput input = new WidgetToEntitiesInput();
+      input.setSeriesIndexes(seriesIndexes);
+      input.setParameters(new HashMap<>());
+      return input;
+    }
+
     /**
      * Guards the invariant behind #7079: a tile's number and the list you reach by clicking it must
      * describe the same documents. The command center's ADVERSARY node totals several series at
      * once, which a single {@code series_index} cannot express - the drill-down used to restate the
      * scope as literal status values instead, and silently drifted from the widget definition
      * (showing 747 while the list returned 795 in production). Naming the aggregated series makes
-     * the two read one definition, so this asserts the sum of the charted series equals the drilled
-     * total, with an unrelated status present to prove the scope is not simply "everything".
+     * both read one definition.
+     *
+     * <p>The same data is charted by two widgets so the drilled list is shown to follow the
+     * declared series rather than simply returning everything: a resolved-only widget must leave
+     * the pending expectations out. Only SUCCESS / FAILED / PENDING are exercised because no other
+     * status is reachable - {@code computeStatus} never returns PARTIAL, and returns UNKNOWN only
+     * for a null expected score, which migration V3_36 forbids.
      */
     @Test
     @DisplayName("Given a total spanning several series, drilling it returns exactly that total")
@@ -1140,13 +1169,9 @@ class DashboardApiTest extends IntegrationTest {
                   BaseInjectExpectation.EXPECTATION_STATUS.PENDING),
               createExpectationComposer(
                   BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
-                  BaseInjectExpectation.EXPECTATION_STATUS.PENDING),
-              // charted by no series: it must land in neither the tile nor the list
-              createExpectationComposer(
-                  BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                  BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL)));
+                  BaseInjectExpectation.EXPECTATION_STATUS.PENDING)));
 
-      Widget widget =
+      Widget attempted =
           createWidgetWithDashboard(
               WidgetFixture.createExpectationStatusSeriesWidget(
                   ALL_TIME,
@@ -1155,43 +1180,65 @@ class DashboardApiTest extends IntegrationTest {
                       BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                       BaseInjectExpectation.EXPECTATION_STATUS.FAILED,
                       BaseInjectExpectation.EXPECTATION_STATUS.PENDING)));
+      Widget resolvedOnly =
+          createWidgetWithDashboard(
+              WidgetFixture.createExpectationStatusSeriesWidget(
+                  ALL_TIME,
+                  "base_created_at",
+                  List.of(
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                      BaseInjectExpectation.EXPECTATION_STATUS.FAILED)));
 
       flushAndProcessElastic();
 
-      // What the tile renders: every bucket of every charted series.
-      String seriesResponse =
-          mvc.perform(
-                  post(DASHBOARD_URI + "/series/" + widget.getId())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(new HashMap<String, String>()))
-                      .with(csrf()))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      List<Integer> bucketValues = JsonPath.read(seriesResponse, "$..data[*].value");
-      int tileTotal = bucketValues.stream().mapToInt(Integer::intValue).sum();
-      assertThat(tileTotal).isEqualTo(5);
+      // Every attempted validation: the tile counts 5 and the list must hold those same 5.
+      assertThat(tileTotal(attempted)).isEqualTo(5);
+      assertThatJson(
+              performWidgetEntitiesRuntimeRequest(attempted, seriesDrillDown(List.of(0, 1, 2))))
+          .node("es_entities.total")
+          .isEqualTo(tileTotal(attempted));
 
-      // What clicking it opens: the same documents, never more.
-      WidgetToEntitiesInput input = new WidgetToEntitiesInput();
-      input.setSeriesIndexes(List.of(0, 1, 2));
-      input.setParameters(new HashMap<>());
-      String drillDown = performWidgetEntitiesRuntimeRequest(widget, input);
-      assertThatJson(drillDown).node("es_entities.total").isEqualTo(tileTotal);
+      // Same data, fewer declared series: the drill-down stays bounded by them and drops
+      // the two pending expectations instead of returning everything.
+      assertThat(tileTotal(resolvedOnly)).isEqualTo(3);
+      assertThatJson(
+              performWidgetEntitiesRuntimeRequest(resolvedOnly, seriesDrillDown(List.of(0, 1))))
+          .node("es_entities.total")
+          .isEqualTo(tileTotal(resolvedOnly));
 
-      // The union really is a union: one series alone stays scoped to that series.
-      WidgetToEntitiesInput successOnly = new WidgetToEntitiesInput();
-      successOnly.setSeriesIndexes(List.of(0));
-      successOnly.setParameters(new HashMap<>());
-      assertThatJson(performWidgetEntitiesRuntimeRequest(widget, successOnly))
+      // A single index still scopes to that one series.
+      assertThatJson(performWidgetEntitiesRuntimeRequest(attempted, seriesDrillDown(List.of(0))))
           .node("es_entities.total")
           .isEqualTo(1);
     }
 
+    /**
+     * The flat per-key union that collapses a multi-series OR is only equivalent to it when the
+     * series diverge on exactly one key. Here they diverge on two (and the second series' types are
+     * a subset of the first's, so the union of that key does not even grow), which would admit a
+     * DETECTION/FAILED document matching neither series - reject instead of over-counting.
+     */
+    @Test
+    @DisplayName("Given series diverging on two keys, drilling them together is rejected")
+    void given_seriesDivergingOnTwoKeys_should_rejectTheDrillDown() throws Exception {
+      Widget widget =
+          createWidgetWithDashboard(
+              WidgetFixture.createDivergentSeriesWidget(ALL_TIME, "base_created_at"));
+
+      flushAndProcessElastic();
+
+      mvc.perform(
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(seriesDrillDown(List.of(0, 1))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
     @Test
     @DisplayName(
-        "Given security domain widget should return list of expectation filtered by domain, type and status")
+        "Given security domain widget should return list of expectation filtered by domain, type"
+            + " and status")
     void given_securityDomainWidget_should_returnListOfExpectationFilteredByDomain()
         throws Exception {
       Domain networkDomain = createDomain("Network-test", "red");

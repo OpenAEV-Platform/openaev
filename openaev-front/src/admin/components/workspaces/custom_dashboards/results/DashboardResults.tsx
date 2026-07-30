@@ -62,7 +62,11 @@ const DashboardResults = () => {
   // A tile whose number spans several series names them all; the backend ORs their
   // filters so the list matches the total exactly instead of a single series.
   const seriesIndexes = useMemo(
-    () => searchParams.getAll('series_indexes').map(Number).filter(index => Number.isInteger(index)),
+    () => searchParams.getAll('series_indexes')
+      // An empty value would coerce to 0 and silently drill the first series.
+      .filter(value => value !== '')
+      .map(Number)
+      .filter(index => Number.isInteger(index)),
     [searchParams],
   );
   const source = (searchParams.get('source') ?? 'default') as ResultsSourceType;

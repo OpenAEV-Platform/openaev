@@ -3,7 +3,6 @@ package io.openaev.rest.custom_dashboard;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.context.TenantContext;
-import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.Widget;
@@ -231,10 +230,13 @@ public class WidgetService {
       }
       for (Filters.Filter filter : otherFilter.getFilters()) {
         Filters.Filter target = merged.getFilter().findByKey(filter.getKey()).orElseThrow();
-        List<String> union = unionValues(target.getValues(), filter.getValues());
-        if (union.size() != nullSafe(target.getValues()).size()) {
+        // Divergence is a set difference, not union growth: when one series' values are a
+        // subset of another's the union does not grow, yet the series do differ on that key.
+        // Missing it would let a second diverging key pass the guard below and widen the
+        // scope to documents matching neither original series.
+        if (!valueSet(target).equals(valueSet(filter))) {
           divergingKeys.add(filter.getKey());
-          target.setValues(union);
+          target.setValues(unionValues(target.getValues(), filter.getValues()));
           target.setMode(Filters.FilterMode.or);
         }
       }
@@ -272,6 +274,10 @@ public class WidgetService {
         .collect(Collectors.toSet());
   }
 
+  private static Set<String> valueSet(Filters.Filter filter) {
+    return new HashSet<>(nullSafe(filter.getValues()));
+  }
+
   private static List<String> unionValues(List<String> left, List<String> right) {
     LinkedHashSet<String> union = new LinkedHashSet<>(nullSafe(left));
     union.addAll(nullSafe(right));
@@ -295,18 +301,10 @@ public class WidgetService {
    */
   public ListConfiguration convertSecurityCoverageWidgetToListConfiguration(
       Widget widget, Map<String, List<String>> attackPatternFilterValues) {
-    ListConfiguration listInjectExpectationsConfig =
-        this.convertWidgetToListConfiguration(widget, 0, attackPatternFilterValues);
-    List<String> statusFilters =
-        List.of(
-            BaseInjectExpectation.EXPECTATION_STATUS.FAILED.name(),
-            BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS.name());
-    WidgetUtils.setOrAddFilterByKey(
-        listInjectExpectationsConfig.getPerspective().getFilter(),
-        "inject_expectation_status",
-        statusFilters,
-        Filters.FilterOperator.eq);
-    return listInjectExpectationsConfig;
+    // The matrix scores success against failure, so it drills both of its series. Naming
+    // them beats re-stating their statuses here: the union is then whatever the widget
+    // declares, and cannot fall out of step with it (#7079).
+    return this.convertWidgetToListConfiguration(widget, List.of(0, 1), attackPatternFilterValues);
   }
 
   /**

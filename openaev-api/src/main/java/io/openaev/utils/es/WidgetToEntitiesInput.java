@@ -15,7 +15,8 @@ public class WidgetToEntitiesInput {
   @JsonProperty("filter_values_map")
   @Schema(
       description =
-          "Key-value pairs for filtering entities, where the key is the field name and the value is the filter criterion")
+          "Key-value pairs for filtering entities, where the key is the field name and the value is"
+              + " the filter criterion")
   private Map<String, List<String>> filterValuesMap;
 
   @JsonProperty("series_index")
