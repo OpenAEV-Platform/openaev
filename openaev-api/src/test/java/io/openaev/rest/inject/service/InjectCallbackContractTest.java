@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -11,13 +12,13 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
-import jakarta.persistence.EntityManager;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
-import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Named;
@@ -30,7 +31,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * Contract tests that verify the sync path ({@link
@@ -56,8 +56,7 @@ class InjectCallbackContractTest {
   @Mock private InjectorExecutionProcessingHandler injectorExecutionProcessingHandler;
   @Mock private StructuredOutputUtils structuredOutputUtils;
   @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
-  @Mock private EntityManager entityManager;
-  @Mock private Session session;
+  @Mock private TenantScopedTransaction tenantTx;
 
   private InjectExecutionService injectExecutionService;
   private BatchingInjectStatusService batchingService;
@@ -98,11 +97,26 @@ class InjectCallbackContractTest {
             agentRepository,
             structuredOutputUtils,
             injectExecutionService,
-            entityManager);
+            tenantTx);
     batchingService.setInjectTraceQueueService(injectTraceQueueService);
 
-    ReflectionTestUtils.setField(batchingService, "entityManager", entityManager);
-    when(entityManager.unwrap(Session.class)).thenReturn(session);
+    // The batch path now scopes each callback under its inject's tenant. Resolve every inject to a
+    // single test tenant so grouping collapses to one scope, and run the scoped work inline.
+    lenient()
+        .when(injectRepository.findTenantIdsByInjectIds(any()))
+        .thenAnswer(
+            invocation -> {
+              Collection<String> ids = invocation.getArgument(0);
+              return ids.stream().map(id -> new Object[] {id, "tenant-test"}).toList();
+            });
+    lenient()
+        .doAnswer(
+            invocation -> {
+              invocation.getArgument(1, Runnable.class).run();
+              return null;
+            })
+        .when(tenantTx)
+        .execute(any(), any(Runnable.class));
   }
 
   private CallbackInvoker syncInvoker() {

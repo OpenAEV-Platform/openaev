@@ -1,8 +1,13 @@
-package io.openaev.rest.inject.service;
+package io.openaev.service.inject;
+
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.WorkflowUpdateEvent;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
@@ -11,9 +16,10 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
+import io.openaev.rest.inject.service.InjectExecutionService;
+import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.service.queue.BatchQueueService;
 import jakarta.annotation.Resource;
-import jakarta.persistence.EntityManager;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
@@ -25,7 +31,6 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Session;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,22 +57,77 @@ public class BatchingInjectStatusService {
 
   @Resource protected ObjectMapper mapper;
 
-  private final EntityManager entityManager;
+  private final TenantScopedTransaction tenantTx;
 
   /**
-   * Handle the list of inject execution callbacks
+   * Handles the batched inject-execution callbacks consumed from the inject-trace queue. The batch
+   * mixes tenants, so callbacks are grouped by their inject's tenant (resolved via a native,
+   * filter-exempt projection) and each group is processed under its own tenant scope (v1 {@code
+   * TenantContext} + v2 {@code TxCtx}, set-then-finally-clear on the pooled worker thread), the
+   * same hardening applied to the chaining consumer (#6357 / #6904). A null or unknown tenant falls
+   * back to the default tenant, so mono-tenant deployments keep their previous behaviour.
+   *
+   * <p>Deliberately NOT run in the class-level transaction: a batch-level transaction would open
+   * before the per-tenant scope and leave the batch running outside any tenant, so {@code
+   * NOT_SUPPORTED} suspends it and each group opens its own scoped transaction.
    *
    * @param injectExecutionCallbacks the inject execution callbacks
    */
   @LogExecutionTime
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @WorkflowUpdateEvent(injectIds = "#injectExecutionCallbacks.![injectId]")
   public List<InjectExecutionCallback> handleInjectExecutionCallback(
       List<InjectExecutionCallback> injectExecutionCallbacks) {
-    // Disable tenant filter — because cross-tenant
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
-
     List<InjectExecutionCallback> successfullyProcessedCallbacks = new ArrayList<>();
+    groupCallbacksByTenant(injectExecutionCallbacks)
+        .forEach(
+            (tenantId, tenantCallbacks) -> {
+              TenantContext.setCurrentTenant(tenantId);
+              try {
+                tenantTx.execute(
+                    TxCtx.forTenant(tenantId),
+                    () -> processTenantCallbacks(tenantCallbacks, successfullyProcessedCallbacks));
+              } finally {
+                TenantContext.clearCurrentTenant();
+              }
+            });
+    return successfullyProcessedCallbacks;
+  }
+
+  /**
+   * Groups callbacks by the tenant that owns their inject, resolved via a native filter-exempt
+   * projection (the batch worker carries no ambient tenant). Preserves arrival order within a
+   * group; an inject whose tenant cannot be resolved falls back to the default tenant.
+   */
+  private Map<String, List<InjectExecutionCallback>> groupCallbacksByTenant(
+      List<InjectExecutionCallback> injectExecutionCallbacks) {
+    Set<String> injectIds =
+        injectExecutionCallbacks.stream()
+            .map(InjectExecutionCallback::getInjectId)
+            .collect(Collectors.toSet());
+    Map<String, String> tenantByInjectId = new HashMap<>();
+    if (!injectIds.isEmpty()) {
+      for (Object[] row : injectRepository.findTenantIdsByInjectIds(injectIds)) {
+        tenantByInjectId.put((String) row[0], (String) row[1]);
+      }
+    }
+    Map<String, List<InjectExecutionCallback>> callbacksByTenant = new LinkedHashMap<>();
+    for (InjectExecutionCallback callback : injectExecutionCallbacks) {
+      String tenantId = tenantByInjectId.getOrDefault(callback.getInjectId(), DEFAULT_TENANT_UUID);
+      callbacksByTenant.computeIfAbsent(tenantId, k -> new ArrayList<>()).add(callback);
+    }
+    return callbacksByTenant;
+  }
+
+  /**
+   * Processes one tenant's callbacks under the already-active tenant scope: bulk-loads that
+   * tenant's injects and agents, then handles each callback in chronological order. The
+   * per-callback logic is unchanged; only the previous cross-tenant filter disabling was dropped in
+   * favour of the scope.
+   */
+  private void processTenantCallbacks(
+      List<InjectExecutionCallback> injectExecutionCallbacks,
+      List<InjectExecutionCallback> successfullyProcessedCallbacks) {
 
     // Getting all the injects linked to the list of execution traces, all at once
     Map<String, Inject> mapInjectsById =
@@ -166,7 +226,6 @@ public class BatchingInjectStatusService {
                 e);
           }
         });
-    return successfullyProcessedCallbacks;
   }
 
   /**
