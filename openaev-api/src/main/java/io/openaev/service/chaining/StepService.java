@@ -113,13 +113,15 @@ public class StepService {
     Step persistedTemplate =
         findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
 
-    // If no condition mapper and step already executed, we skip the step to avoid to execute it
-    // again
-    if (!conditionService.hasConditionMapper(persistedTemplate)
-        && isStepAlreadyExecutedOnce(persistedTemplate.getId(), workflowRun.getId())
-        && injectExecutionStep.hasPayload(persistedTemplate)) {
-      return List.of();
-    }
+    // NOTE: a step template with no condition mapper and a payload used to be short-circuited here
+    // after its first execution, to avoid re-creating the same non-mapper batch on every scheduling
+    // cycle. That guard predates per-target expansion and is now redundant: expandTargetBatches (see
+    // below) expands every INJECT_EXECUTION step — payload or not — into one batch per scope target,
+    // and the per-target hash dedup a few lines down (committedTargetHashes/commitHashes) already
+    // prevents an already-executed (combo, target) pair from being re-created. Keeping the old
+    // template-level guard here caused a regression: a payload step without a mapper condition would
+    // only ever execute once for a single asset and be silently skipped for every other asset in
+    // scope, while sibling injector-contract steps (hasPayload() == false) kept expanding correctly.
 
     ActionStep actionStep =
         factoryAction(persistedTemplate.getStepAction(), persistedTemplate.getId());
@@ -272,18 +274,6 @@ public class StepService {
    */
   public long countActiveSteps(String workflowRunId) {
     return stepRepository.countActiveSteps(workflowRunId, ACTIVE_STEP_STATUS);
-  }
-
-  /**
-   * Returns {@code true} if at least one executed step references the given step template, meaning
-   * this template has already been executed at least once in the given workflow run.
-   *
-   * @param stepTemplateId the ID of the step template to check
-   * @param workflowRunId the ID of the workflow run to scope the check
-   * @return {@code true} if the step template has been executed at least once in that run
-   */
-  public boolean isStepAlreadyExecutedOnce(String stepTemplateId, String workflowRunId) {
-    return stepRepository.existsByStepTemplateIdAndWorkflowId(stepTemplateId, workflowRunId);
   }
 
   /**
