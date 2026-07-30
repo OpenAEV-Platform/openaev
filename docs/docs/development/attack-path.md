@@ -95,6 +95,10 @@ erDiagram
 - **`attackpath_execution_finding`** — the many-to-many link that records **which execution produced
   which finding** (used to cross-reference the feed with the finding nodes).
 
+A fourth, bookkeeping table sits beside them: **`attackpath_graph_version`**, one monotonic counter per
+`(simulation, tenant)`, with a matching `row_version` column on the two projection tables. It is what
+makes the incremental read possible (see §7) and is not part of the graph rebuild.
+
 Why no foreign keys to `exercises` / `assets` / `agents`? So the POC is **self-contained and
 droppable**: you can add and remove these tables without touching product tables, and the ids are a
 frozen snapshot (an endpoint renamed after the run keeps the name it had at execution time).
@@ -181,8 +185,9 @@ mode.
   click (the expand / relations reads).
 
 The mode is chosen automatically: a cheap indexed `COUNT` compares the execution count to a **configurable
-threshold** (`openaev.attackpath.collapse-threshold`, default 20000); above it the simulation is served
-collapsed. The front can also force a mode (`?mode=full` / `?mode=collapsed`).
+threshold** (`openaev.attackpath.collapse-threshold`, declared in `application.properties`, default
+20000); above it the simulation is served collapsed. The front can also force a mode (`?mode=full` /
+`?mode=collapsed`).
 
 Collapsed is the answer to scale: it removes the JVM materialization cost and bounds the number of nodes
 the front renders (one per endpoint, not one per execution). It is measured in §9.
@@ -232,15 +237,78 @@ All endpoints live under `/api/attack-path` (and the tenant-prefixed
 | Method & path | Returns |
 | --- | --- |
 | `GET /simulations` | the tenant's simulations with endpoint + execution counts (the picker) |
-| `GET /simulations/{id}/graph?mode=` | the `AttackPathDTO` (full or collapsed) |
+| `GET /simulations/{id}/graph?mode=` | the `AttackPathDTO` (full or collapsed), carrying the graph's current `graphVersion` |
+| `GET /simulations/{id}/graph/delta?since=` | what changed since a version — the incremental read (below) |
 | `GET /simulations/{id}/endpoint/findings?ref=` | one endpoint's finding-type and finding nodes |
-| `GET /simulations/{id}/endpoint/relations?ref=` | one endpoint's executions (feed) and grouped edges |
+| `GET /simulations/{id}/endpoint/relations?ref=&page=&size=` | one endpoint's executions (feed) and grouped edges. The **executions are paged** (default 50, clamped to 200 — an over-sized request is clamped, never rejected) and the response carries `totalExecutions`; the **edges come back whole**, since they are bounded by the endpoint's in-degree and reference execution ids across page boundaries |
 | `GET /simulations/{id}/findings?category=&page=&size=` | a page of a widget category's findings for the drawer (credentials masked) |
-| `GET /simulations/{id}/executions/{executionId}` | one execution's Result & Terminal detail (command + output, credentials masked); 404 if not in the caller's simulation |
+| `GET /simulations/{id}/executions/{executionId}` | one execution's Result & Terminal detail: command + output (credentials masked), ATT&CK techniques, payload detection remediations, and `securityPlatforms` — the platforms that prevented/detected it, with their per-platform status and linked alerts, resolved live from the inject's expectations. **Enterprise-gated**: without an active license the list comes back empty, which the panel renders as "attribution requires Enterprise Edition", never as an evaluated-negative verdict (see [Enterprise Edition](../administration/enterprise.md)). The verdict labels themselves (`Prevented`, `Not Detected`, `Pending`…) are the platform's expectation statuses, and a pending one turns negative only when the expiration manager says so — see [expectation management](../usage/expectations/management.md). 404 if not in the caller's simulation |
 | `POST /seed` | admin-only; generates synthetic data (see §8) |
 
 `ref` is an endpoint's `target_key` (asset id or raw value); the front reads it off the asset node's
 `ref` field, since the node id is a non-reversible hash.
+
+### Live updates during a run (versioned deltas)
+
+While a simulation is running, the view **keeps itself up to date incrementally** instead of
+re-downloading the graph. Each simulation's attack-path state carries a **monotonic version**
+(`attackpath_graph_version`, bumped in the same transaction as every projection write, so version
+order equals commit order); each projection row carries the version it was last written at.
+
+```mermaid
+flowchart LR
+    S["GET /graph → snapshot + graphVersion v"]
+    D["GET /graph/delta?since=v →<br/>changed executions / findings / nodes / edges<br/>+ recomputed aggregates + new version w"]
+    A["Client applies upserts by id (idempotent),<br/>keeps its place, then polls with since=w"]
+    S --> D --> A --> D
+```
+
+- The front loads one snapshot, then applies deltas as upserts keyed by stable id. Aggregates
+  (endpoint `findingCounts`, edge `count`) are shipped whole, never as increments, so a replayed
+  delta converges: `snapshot(v) + delta(v→w)` equals `snapshot(w)`. A single accumulated graph feeds
+  both render modes — the old duplicated 10 s full refresh of the collapsed and full DTOs is gone.
+- **What triggers a delta read.** Every version bump publishes an `attack-path-version` event on the
+  platform's shared SSE stream (`/api/stream`, the one long-lived connection the whole app already
+  holds through `useDataLoader`), carrying `{simulation_id, version}` and nothing else. The view
+  fetches on that nudge, debounced 300 ms so a burst of bumps costs one read. The timer that used to
+  *be* the mechanism is now only a safety net: **45 s ± 10 %** while the stream delivers, back to
+  **3 s** (`DELTA_POLL_MS`) when it does not — a proxy that strips streaming, or any environment
+  without `EventSource`, therefore keeps exactly the pre-nudge behaviour. Only one delta read is ever
+  in flight; a nudge arriving during one queues a single follow-up.
+- **The nudge is a nudge, never data.** It carries no graph state, so a lost, duplicated or reordered
+  event cannot corrupt the client — the delta read remains the only source of truth, and two cases
+  drop events silently by design (published outside a transaction, or suppressed during a bulk
+  operation), which the safety net absorbs. Delivery waits for the ingestion commit, so a client
+  fetching on a nudge never observes a version lower than the announced one.
+- Applying a delta preserves everything the user owns: pan/zoom, selection, highlights, expanded
+  clusters, table sort, drawer search/page/scroll. Layout is recomputed only when the graph's shape
+  moves.
+- **Execution verdicts update live**: when prevention / detection / vulnerability expectation results
+  land, they are written to the projection and bump the version, so a node's colour *and* status
+  label change on the graph without a reload.
+- A discreet **freshness chip** shows *Live*, *Reconnecting…* (tooltip carries the last update time,
+  and the last good graph stays on screen) or *Run finished*. Polling **pauses while the browser tab
+  is hidden** (one resync on return) and **stops for good** once the run reaches a terminal status.
+- A cursor the server cannot answer — unknown, too old, or from another simulation — comes back as
+  `resyncRequired`, and the client silently reloads the snapshot; never a partial graph. The same
+  happens when a delta would exceed `openaev.attackpath.delta-max-rows` (default 5000): past that
+  size, assembling the delta costs more than the reload the client would do anyway.
+- **Authorization.** Every byte of graph data still comes from the per-request delta read (same
+  `assertCanReadSimulation` and `TxCtx` tenant scoping as the snapshot), so a revoked permission stops
+  the data at the next fetch. The nudge travels on the shared long-lived channel instead, where each
+  event is filtered per consumer on strict tenant equality plus the read's own predicate
+  (`AttackPathAccessControl.canRead`, seed ids included) resolved through the stream's cached
+  decisions — so a nudge may still arrive within that cache's TTL after a permission is lost, and it
+  is a notification the client cannot act on.
+
+!!! note "Upgrading an environment that already has attack-path data"
+
+    The migration that adds the versioning (`V6_20260730100000000__Add_attackpath_graph_version`)
+    creates two cursor indexes, on `attackpath_execution` and `attackpath_finding`. The build is not
+    `CONCURRENTLY`, so on very large projection tables it takes the table's write lock for the
+    duration and attack-path ingestion is briefly blocked. Upgrade **outside an active simulation
+    window**. The row-version columns themselves are `NOT NULL DEFAULT 0` and need no backfill:
+    existing rows read as version 0, which any `since = 0` delta includes.
 
 ## 8. Enable, seed, explore
 

@@ -977,7 +977,22 @@ export interface AttackPathDTO {
   attackPathExecutions?: AttackPathNodeDTO[];
   attackPathNodes?: AttackPathNodeDTO[];
   counters?: AttackPathCounters;
+  /** @format int64 */
+  graphVersion?: number;
   mode?: string;
+  staticAttackPathFindings?: AttackPathNodeDTO[];
+}
+
+export interface AttackPathDeltaDTO {
+  attackPathEdges?: AttackPathEdges[];
+  attackPathExecutions?: AttackPathNodeDTO[];
+  attackPathNodes?: AttackPathNodeDTO[];
+  counters?: AttackPathCounters;
+  /** @format int64 */
+  newVersion?: number;
+  resyncRequired?: boolean;
+  /** @format int64 */
+  sinceVersion?: number;
   staticAttackPathFindings?: AttackPathNodeDTO[];
 }
 
@@ -995,6 +1010,8 @@ export interface AttackPathEdges {
 export interface AttackPathEndpointRelationsDTO {
   edges?: AttackPathEdges[];
   executions?: AttackPathNodeDTO[];
+  /** @format int64 */
+  totalExecutions?: number;
 }
 
 export interface AttackPathExecutionDetailDTO {

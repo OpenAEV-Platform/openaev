@@ -24,6 +24,30 @@ let lastPingDate = new Date().getTime();
 let lastWatchdogTickAt = new Date().getTime();
 let reconnectTimeoutId;
 const listeners = new Map();
+// Feature-scoped subscribers to named stream event types, keyed by type. Kept at module level
+// alongside the single EventSource so they survive — and are re-attached to — every reconnection.
+const streamEventSubscribers = new Map();
+// One stable listener per type, so a type is attached at most once per connection (attaching per
+// subscriber would deliver an event twice to a type that already had one). It reads the subscriber
+// set at event time rather than closing over it, so subscribing and unsubscribing mid-connection
+// take effect immediately.
+const streamEventDispatchers = new Map();
+const dispatcherFor = (type) => {
+  let dispatcher = streamEventDispatchers.get(type);
+  if (dispatcher === undefined) {
+    dispatcher = (event) => {
+      streamEventSubscribers.get(type)?.forEach((handler) => {
+        try {
+          handler(event);
+        } catch {
+          // A subscriber must never break the SSE processing of this tab.
+        }
+      });
+    };
+    streamEventDispatchers.set(type, dispatcher);
+  }
+  return dispatcher;
+};
 
 const SSE_BATCH_INTERVAL = 200;
 const IDLE_CALLBACK_TIMEOUT = 1000;
@@ -249,6 +273,11 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
         }
       }
     });
+    // Feature-scoped stream events (see subscribeStreamEvent): one dispatcher per type, re-attached
+    // to every new connection, so a subscriber never has to know the connection was recycled.
+    streamEventSubscribers.forEach((handlers, type) => {
+      sseClient.addEventListener(type, dispatcherFor(type));
+    });
     sseClient.addEventListener('ping', () => {
       lastPingDate = new Date().getTime();
     });
@@ -299,6 +328,44 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
       }
     };
   }, refetchArg);
+};
+
+/**
+ * Subscribes to a named event type on the shared platform stream and returns its unsubscribe.
+ *
+ * A feature that only needs a "something changed, refetch" nudge uses this instead of opening its
+ * own connection: the handler is attached to the current EventSource and re-attached to every later
+ * one, so reconnections are invisible to the caller. Handlers are per-type and isolated — one that
+ * throws never breaks the tab's SSE processing.
+ */
+export const subscribeStreamEvent = (type, handler) => {
+  const handlers = streamEventSubscribers.get(type) ?? new Set();
+  const isFirstOfType = handlers.size === 0;
+  handlers.add(handler);
+  streamEventSubscribers.set(type, handlers);
+  if (sseClient !== undefined && isFirstOfType) {
+    // Live connection, first subscriber of this type: attach the dispatcher once. Later subscribers
+    // ride the same one, and the reconnect path attaches it to every subsequent connection.
+    sseClient.addEventListener(type, dispatcherFor(type));
+  }
+  return () => {
+    handlers.delete(handler);
+    // The dispatcher stays attached: it is a no-op with no subscribers, and keeping it means the next
+    // subscriber of this type is reached on the current connection without re-attaching.
+  };
+};
+
+/**
+ * Whether the shared stream is currently delivering: the server pings every second, so a ping older
+ * than the watchdog threshold means the connection is effectively down. Callers that treat the
+ * stream as a nudge use this to decide how hard they must poll as a safety net; an environment with
+ * no EventSource at all is never healthy.
+ */
+export const isStreamHealthy = () => {
+  if (typeof EventSource === 'undefined' || sseClient === undefined) {
+    return false;
+  }
+  return new Date().getTime() - lastPingDate < EVENT_PING_MAX_TIME;
 };
 
 export default useDataLoader;

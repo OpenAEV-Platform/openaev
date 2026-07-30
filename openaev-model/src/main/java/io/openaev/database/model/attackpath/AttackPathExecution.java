@@ -107,6 +107,15 @@ public class AttackPathExecution implements TenantBase {
   @Column(name = "attackpath_execution_executed_at", nullable = false)
   private Instant executedAt;
 
+  /**
+   * The simulation's {@link AttackPathGraphVersion} value at the write that last touched this row.
+   * Every writer stamps it in the same transaction as its bump, so the delta read is a cursor over
+   * {@code (simulation_id, row_version)}. Rows written before the versioning existed sit at 0 and
+   * are therefore part of any {@code since = 0} delta only.
+   */
+  @Column(name = "attackpath_execution_row_version", nullable = false)
+  private long rowVersion;
+
   @Column(name = "attackpath_execution_prevention_status")
   private String preventionStatus;
 

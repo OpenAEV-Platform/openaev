@@ -43,6 +43,7 @@ import io.openaev.rest.scenario.ScenarioImportApi;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.InjectExpectationTraceService;
 import io.openaev.service.MapperService;
+import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
@@ -268,6 +269,9 @@ class TenantActiveTableAccessArchTest {
               // Read path, driven by the TxCtx-carrying AttackPathApi (pinned by
               // TenantScopedEntrypointsTxCtxArchTest):
               AttackPathGraphService.class,
+              // Same read path, same TxCtx-carrying controller: the delta endpoint's cursor reads
+              // (pinned by AttackPathDeltaApiTest and AttackPathHttpIsolationTest):
+              AttackPathDeltaService.class,
               // Background writer, scoped: opens its own transaction through the tenant primitive
               // with the inject's tenant, and stamps the row through TenantWriteScopeResolver.
               // Pinned by AttackPathIngestionTenantAttributionTest:
@@ -291,6 +295,9 @@ class TenantActiveTableAccessArchTest {
               // Read path, driven by the TxCtx-carrying AttackPathApi (pinned by
               // TenantScopedEntrypointsTxCtxArchTest):
               AttackPathGraphService.class,
+              // Same read path, same TxCtx-carrying controller: the delta endpoint's cursor reads
+              // (pinned by AttackPathDeltaApiTest and AttackPathHttpIsolationTest):
+              AttackPathDeltaService.class,
               // Scoped writer: deletes a simulation's findings on reset/delete through the tenant
               // primitive (executeNew with the exercise's tenant). Pinned by
               // AttackPathIngestionTenantAttributionTest#deleteClearsTheSimulationScopedToItsTenant.
